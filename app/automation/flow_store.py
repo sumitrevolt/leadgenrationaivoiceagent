@@ -1,4 +1,4 @@
-"""Flow store - persist explorer builder flows for the Flow Runner.
+"""Flow store — persist explorer builder flows for the Flow Runner.
 JSONL at data/flow_runner/flows.jsonl (shared ./data bind-mount, web+worker).
 Upsert by id (rewrite). Import-safe, never-raise.
 """
@@ -17,7 +17,7 @@ logger = setup_logger(__name__)
 _DIR = os.path.join("data", "flow_runner")
 _PATH = os.path.join(_DIR, "flows.jsonl")
 _HISTORY_DIR = os.path.join(_DIR, "flow_history")
-_MAX_HISTORY_PER_FLOW = 20  # bounded - oldest snapshot trimmed on overflow
+_MAX_HISTORY_PER_FLOW = 20  # bounded — oldest snapshot trimmed on overflow
 
 
 def _now() -> str:
@@ -121,10 +121,10 @@ def save_flow(flow: dict, by: str = "admin", owner_client_id: str = "") -> dict:
     """Persist a flow. owner_client_id scopes it to a customer (Phase 7); admin
     flows pass "". On upsert, owner is preserved from the existing record unless a
     non-blank owner_client_id is supplied (callers must never let a customer's id
-    be derived from the flow body - pass it explicitly from require_customer).
+    be derived from the flow body — pass it explicitly from require_customer).
 
     Each overwrite archives the prior version to flow_history/<id>.jsonl (bounded)
-    and bumps `version` - see list_versions()/rollback_flow() for recovery."""
+    and bumps `version` — see list_versions()/rollback_flow() for recovery."""
     try:
         if not isinstance(flow, dict):
             return {"ok": False, "error": "flow must be an object"}
@@ -217,7 +217,7 @@ def delete_flow(flow_id: str) -> bool:
 
 def list_versions(flow_id: str) -> list[dict]:
     """Version history for a flow, newest first: archived snapshots + the live
-    current record. Summaries only (no nodes/edges) - use get_version() for full body."""
+    current record. Summaries only (no nodes/edges) — use get_version() for full body."""
     fid = (flow_id or "").strip()
     out = []
     current = _read_all().get(fid)
@@ -258,7 +258,7 @@ def get_version(flow_id: str, version: int) -> dict | None:
 
 def rollback_flow(flow_id: str, to_version: int, by: str = "admin") -> dict:
     """Restore a flow to an earlier version's content. Implemented as a fresh
-    save_flow() call with the old body - this archives the (about-to-be-replaced)
+    save_flow() call with the old body — this archives the (about-to-be-replaced)
     current version too, so rollback itself is undoable and version numbers only
     ever move forward (no ambiguity about "current" during a race)."""
     fid = (flow_id or "").strip()

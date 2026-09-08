@@ -1,4 +1,4 @@
-"""Platform output profiles - render only ratios needed by connected channels."""
+"""Platform output profiles — render only ratios needed by connected channels."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ PROFILES: dict[str, dict[str, Any]] = {
     "16:9": {"width": 1280, "height": 720, "label": "landscape", "platforms": ("yt", "linkedin")},
 }
 
-# Safe defaults when tenant channel list unknown - one vertical reel only.
+# Safe defaults when tenant channel list unknown — one vertical reel only.
 DEFAULT_RATIOS = ("9:16",)
 
 

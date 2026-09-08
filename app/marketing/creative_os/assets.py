@@ -82,7 +82,7 @@ def register_asset(
     model_provider: str = "",
     parent_asset_ids: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Register an asset for a tenant. Never raises - returns {ok,...} or {ok:False}."""
+    """Register an asset for a tenant. Never raises — returns {ok,...} or {ok:False}."""
     try:
         tid = (tenant_id or "").strip()
         if not tid:

@@ -5,12 +5,11 @@ content bank generated under her marketing id (`jiya-makeover`), not an
 orphaned partial view.
 
 Split-brain root cause fixed 2026-07-19: marketing pipeline keys on the
-marketing id
-DB/billing/login keys on `d79d690f61b3` (carried in the marketing
+marketing id; DB/billing/login keys on `d79d690f61b3` (carried in the marketing
 record's `billing_client_ids`). Billing/invoice reads must stay on the raw id.
 
 Extended 2026-07-19 (same day): dashboard keystone `_client_record`, approval
-banner, and decide-path ownership now also canonicalize - without those, a
+banner, and decide-path ownership now also canonicalize — without those, a
 billing-alias login could SEE content via portal/content but still could not
 approve it (decide_for_client ownership check failed).
 """

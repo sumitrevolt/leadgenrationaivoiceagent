@@ -3,8 +3,8 @@ Typed action contracts for the agent harness.
 
 This is the spine the audit found missing: instead of scraping freeform
 Hinglish / JSON out of LLM text (coordinator._extract_list), the model is
-required to emit a validated ``ToolCall``. Everything downstream - permission
-checks, argument bounds, approval, checkpoint, sandbox, trace - keys off these
+required to emit a validated ``ToolCall``. Everything downstream — permission
+checks, argument bounds, approval, checkpoint, sandbox, trace — keys off these
 types.
 
 Pydantic v2. No app.* imports here on purpose: contracts must stay importable
@@ -27,9 +27,9 @@ class RiskClass(str, Enum):
     READ = "read"  # no side effects (search, read_file, lookup)
     WRITE_LOCAL = "write_local"  # mutates local/DB state (draft, checkpoint)
     EXTERNAL_SEND = "external_send"  # email / whatsapp / social publish
-    TELEPHONY = "telephony"  # place_call - DLT/DND gated
+    TELEPHONY = "telephony"  # place_call — DLT/DND gated
     MONEY = "money"  # spend / activate subscription / refund
-    CODE_EXEC = "code_exec"  # runs model-generated code - highest tier
+    CODE_EXEC = "code_exec"  # runs model-generated code — highest tier
 
 
 # Which risk classes MUST pass a human-in-the-loop approval gate (PM-03).
@@ -55,8 +55,7 @@ class ToolCall(BaseModel):
     """A single validated action the model wants to take (a.k.a. ActionRequest).
 
     The model returns this (via app.llm.structured / instructor), never raw
-    text. ``name`` must resolve in the tool registry
-    ``args`` are validated
+    text. ``name`` must resolve in the tool registry; ``args`` are validated
     against that tool's declared Pydantic schema before execution (VA-01/VA-02).
 
     Carries the full governed-action field set required by the harness spec so
@@ -75,12 +74,10 @@ class ToolCall(BaseModel):
     # Governed-action metadata (spec field set).
     tool_version: str = Field("v1", description="Contract version of the target tool")
     risk_class: RiskClass | None = Field(
-        None, description="Optional model-declared risk
-        the registry's value is authoritative"
+        None, description="Optional model-declared risk; the registry's value is authoritative"
     )
     idempotency_key: str | None = Field(
-        None, description="Required for MUTATING actions
-        dedupes effects on replay"
+        None, description="Required for MUTATING actions; dedupes effects on replay"
     )
     budget_scope: str = Field("run", description="Which budget bucket this call charges")
     approval_reference: str | None = Field(
@@ -90,7 +87,7 @@ class ToolCall(BaseModel):
     timeout_s: float = Field(30.0, description="Per-call wall-clock timeout")
 
 
-# Spec alias - the loop/registry accept either name.
+# Spec alias — the loop/registry accept either name.
 ActionRequest = ToolCall
 
 

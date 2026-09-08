@@ -9,17 +9,14 @@ Enterprise-grade, third-party-directory-FREE acquisition:
   -> dedup (phone/email) -> persist (prospector) -> scoring + voice/email/WA outreach.
 
 WHY this shape (user's call): Udyam = the authoritative, maintainable, legal base;
-Maps + the business's own website are public-data ENRICHMENT on top - so the pipeline
+Maps + the business's own website are public-data ENRICHMENT on top — so the pipeline
 never depends on scraping third-party directories (Justdial/IndiaMart are ToS-blocked).
 
 CONTRACT (enterprise gate):
 - Flag-gated `UDYAM_PIPELINE=1` (default OFF). Inert without it AND without the
   data.gov.in key (`DATA_GOV_IN_API_KEY` + `DATA_GOV_RESOURCE_ID`) -> Udyam seed empty.
-- Never-raise
-free-stack
-reuses harvester dedup + prospector persist (no duplicate logic).
-- Cost-bounded: caller passes `limit`
-Maps lookups = 1 per seed (capped by limit).
+- Never-raise; free-stack; reuses harvester dedup + prospector persist (no duplicate logic).
+- Cost-bounded: caller passes `limit`; Maps lookups = 1 per seed (capped by limit).
 """
 
 from __future__ import annotations
@@ -126,8 +123,7 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
     """Udyam-primary -> Maps+website enrich -> dedup -> persist. Never raises.
 
     Returns {enabled, seeds, enriched, new, skipped}. `niche` tags the persisted leads
-    (Udyam category is coarse
-    the harvester/scoring re-classifies downstream)."""
+    (Udyam category is coarse; the harvester/scoring re-classifies downstream)."""
     if not enabled():
         return {"enabled": False}
     seeds = await _udyam_seeds(city, limit)
@@ -198,14 +194,14 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
                 "reviews_count": None,
                 "source": "udyam_enriched",
                 # State-machine fix (2026-07-25): hamesha "new" likhna in rows ko
-                # PERMANENT black hole banata tha - koi job "new" ko kabhi promote
+                # PERMANENT black hole banata tha — koi job "new" ko kabhi promote
                 # nahi karta aur outreach sirf "ready" padhta hai (prod: 1,736 "new"
                 # rows stuck). Ab harvester ke ingest semantics mirror karo:
                 # contact mila = ready, warna needs_enrich (enrich sweep target).
                 "status": "ready" if (p10 or email) else "needs_enrich",
                 "lead_score": 0,
             }
-            if _oc_on:  # OpenCorporates registry enrich (CIN/status) - adds B2B signal
+            if _oc_on:  # OpenCorporates registry enrich (CIN/status) — adds B2B signal
                 try:
                     from app.integrations import opencorporates
 

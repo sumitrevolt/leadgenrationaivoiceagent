@@ -1,8 +1,8 @@
 """CP5-3 regression: application startup + critical Product 1/Product 2 imports
 survive the dependency upgrades (starlette 1.3.1, cryptography 50.0.0).
 
-Runs against the FULL runtime environment (CI venv / built image) - not a delta
-venv - because these modules import the app's real dependency graph.
+Runs against the FULL runtime environment (CI venv / built image) — not a delta
+venv — because these modules import the app's real dependency graph.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ def _import(module: str) -> None:
 
 
 def test_app_main_starts() -> None:
-    # Builds the FastAPI app (route wiring, mounts) - any import-time break from
+    # Builds the FastAPI app (route wiring, mounts) — any import-time break from
     # the Starlette bump (route/mount/response APIs) surfaces here.
     import app.main  # noqa: F401
 

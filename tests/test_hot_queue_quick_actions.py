@@ -1,7 +1,7 @@
 """Hot Queue quick-actions (GTM council 2026-07-03): tap-to-act ntfy buttons.
 
 Root cause found live: 344 hot replies accumulated, 0 ever cleared, despite
-the push notification already firing every time - cost-of-action, not
+the push notification already firing every time — cost-of-action, not
 visibility. Fix = put Reply/Done buttons IN the notification. These tests
 cover the new stateless HMAC token (no login needed for the Done tap) and
 that the action buttons actually get attached to outbound ntfy pushes.
@@ -19,7 +19,7 @@ client = TestClient(app)
 
 
 # --------------------------------------------------------------------------- #
-# make_hq_done_token / verify_hq_done_token - stateless HMAC round-trip
+# make_hq_done_token / verify_hq_done_token — stateless HMAC round-trip
 # --------------------------------------------------------------------------- #
 def test_hq_done_token_round_trip():
     from app.platform import reply_agent as ra
@@ -53,7 +53,7 @@ def test_hq_done_token_scoped_to_its_own_hq_id():
 
 
 # --------------------------------------------------------------------------- #
-# PUBLIC quick-done endpoint - no admin token required (ntfy can't log in)
+# PUBLIC quick-done endpoint — no admin token required (ntfy can't log in)
 # --------------------------------------------------------------------------- #
 def test_quick_done_endpoint_marks_handled(tmp_path, monkeypatch):
     from app.platform import reply_agent as ra
@@ -78,7 +78,7 @@ def test_quick_done_endpoint_marks_handled(tmp_path, monkeypatch):
     assert r.status_code == 200, r.text
     assert r.json() == {"ok": True, "hq_id": hq_id}
 
-    # queue is now empty - the tap actually cleared it
+    # queue is now empty — the tap actually cleared it
     assert ra.hot_queue() == []
 
 
@@ -88,14 +88,14 @@ def test_quick_done_endpoint_rejects_invalid_token():
 
 
 def test_quick_done_endpoint_no_admin_auth_required():
-    """The whole point: ntfy's http action can't do interactive login - a
+    """The whole point: ntfy's http action can't do interactive login — a
     bogus-but-well-formed token must 400 (invalid), never 401/403 (auth)."""
     r = client.post("/api/growth/reply/hot-queue/quick-done/still-garbage")
     assert r.status_code not in (401, 403)
 
 
 # --------------------------------------------------------------------------- #
-# whatsapp_reply - action buttons attached to the ntfy push (parity fix:
+# whatsapp_reply — action buttons attached to the ntfy push (parity fix:
 # WA hot replies previously never pushed at all)
 # --------------------------------------------------------------------------- #
 def test_whatsapp_reply_attaches_reply_and_done_actions(monkeypatch, tmp_path):
@@ -104,7 +104,7 @@ def test_whatsapp_reply_attaches_reply_and_done_actions(monkeypatch, tmp_path):
     from app.platform import reply_agent
 
     # NOTE (2026-07-07): _classify/_draft ab history/history_msgs kwarg lete hain
-    # (wa_conversation chat-continuity) - fakes signature-sync warna TypeError->"other".
+    # (wa_conversation chat-continuity) — fakes signature-sync warna TypeError→"other".
     async def fake_classify(subject, body, history=""):
         return "interested"
 
@@ -186,7 +186,7 @@ def test_whatsapp_reply_no_push_for_non_hot_intent(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# ntfy.push - JSON-publish path when actions are provided
+# ntfy.push — JSON-publish path when actions are provided
 # --------------------------------------------------------------------------- #
 def test_ntfy_push_uses_json_api_when_actions_given(monkeypatch):
     from app.integrations import ntfy
@@ -239,7 +239,7 @@ def test_ntfy_push_uses_json_api_when_actions_given(monkeypatch):
 
 def test_ntfy_push_plain_path_unchanged_without_actions(monkeypatch):
     """Existing callers (no actions arg) must keep hitting the old header-based
-    /{topic} endpoint - zero behaviour change for the other ~10 ntfy.push call
+    /{topic} endpoint — zero behaviour change for the other ~10 ntfy.push call
     sites in the codebase."""
     from app.integrations import ntfy
 

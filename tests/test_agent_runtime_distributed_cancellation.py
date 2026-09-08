@@ -119,7 +119,7 @@ async def test_cooperative_engine_checkpoint():
     _reg("pranav", "cancel_probe", cap)
     task = AgentTask(agent_id="pranav", action="cancel_probe")
     rt.request_cancel_run("pranav", task.task_id)
-    # Cancel observed at policy - never reaches engine. Use mid-flight path:
+    # Cancel observed at policy — never reaches engine. Use mid-flight path:
     crc.clear("pranav", task.task_id)
 
     async def coop(ctx):
@@ -159,7 +159,7 @@ async def test_cancelled_run_does_not_retry_as_transient():
     assert attempts["n"] == 0
     # New unrelated run identity still works
     res2 = await rt.submit("pranav", "cancel_probe")
-    assert res2.status in ("failed", "succeeded", "blocked")  # engine may fail - but ran
+    assert res2.status in ("failed", "succeeded", "blocked")  # engine may fail — but ran
     assert attempts["n"] >= 1
 
 

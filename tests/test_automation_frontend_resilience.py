@@ -22,13 +22,13 @@ def test_today_overview_auth_failure_clears_every_loading_placeholder():
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-19 regression guards - "Automation main content empty" + token UX.
+# 2026-07-19 regression guards — "Automation main content empty" + token UX.
 # --------------------------------------------------------------------------- #
 
 
 def test_no_read_tool_line_number_artifacts_in_script():
     """A stray `  3150|    $('tdFlags')...` line (Read-tool line-number paste from
-    an earlier edit) was a JS SyntaxError that killed the ENTIRE main script -
+    an earlier edit) was a JS SyntaxError that killed the ENTIRE main script —
     `.tabsec{display:none}` default meant every section stayed hidden = the
     reported 'main content empty' bug. Guard against any recurrence."""
     html = HTML.read_text(encoding="utf-8")
@@ -37,10 +37,10 @@ def test_no_read_tool_line_number_artifacts_in_script():
 
 
 def test_admin_token_prefills_from_localstorage():
-    """The token field promises 'login se auto' - /app/admin-login stores
+    """The token field promises 'login se auto' — /app/admin-login stores
     `accessToken` in localStorage, so the page must prefill it on load."""
     html = HTML.read_text(encoding="utf-8")
-    assert "var t=tok()\n    if(t)$('tokin').value=t" in html
+    assert "var t=tok();if(t)$('tokin').value=t" in html
 
 
 def test_empty_save_does_not_wipe_login_token():
@@ -58,7 +58,7 @@ def test_boot_valid_tabs_derived_from_sidebar_dom():
 
 
 def test_every_sidebar_tab_has_a_section():
-    """show(tab) does `$('sec-'+tab).style.display` - a button without a matching
+    """show(tab) does `$('sec-'+tab).style.display` — a button without a matching
     section throws mid-boot and can blank the page."""
     html = HTML.read_text(encoding="utf-8")
     tabs = set(re.findall(r"show\('([a-z0-9]+)'\)", html))

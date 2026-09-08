@@ -1,6 +1,6 @@
-"""Universal LeadGen AI voice agent pitch - test-call + real-call single source.
+"""Universal LeadGen AI voice agent pitch — test-call + real-call single source.
 
-2026 rule: TELEPHONY-CHEAP - har segment chhota (~10–15 sec). Lambi pitch = zyada
+2026 rule: TELEPHONY-CHEAP — har segment chhota (~10–15 sec). Lambi pitch = zyada
 minute = zyada paisa (Vobiz ₹0.45+/min).
 
 Consumers: web_call (test) · vobiz_stream (real) · phone_stream · platform_pitch ·
@@ -36,14 +36,14 @@ def _voice_start_price() -> str:
 # =========================================================================== #
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Main LeadGen AI se bol rahi hoon. Hum local businesses ko roz "
-    "Instagram, Facebook aur Google par active rakhte hain - taki naye customers "
+    "Instagram, Facebook aur Google par active rakhte hain — taki naye customers "
     "roz milein. Do minute baat kar sakti hoon?"
 )
 
 PITCH_SHORT = (
-    "Aapko kuch nahi karna - AI roz posts, ads aur Google ranking sambhalta hai, "
+    "Aapko kuch nahi karna — AI roz posts, ads aur Google ranking sambhalta hai, "
     f"taaki roz naye customers milein. {_marketing_start_price()} mahine se, agency se kaafi "
-    "kam kharcha - aur 7 din FREE trial, bina card ke."
+    "kam kharcha — aur 7 din FREE trial, bina card ke."
 )
 
 INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
@@ -61,14 +61,14 @@ VOICE_AGENT_INTRO = (
 VOICE_AGENT_PITCH_SHORT = (
     "Hamara AI telecaller bilkul insaan ki tarah Hinglish me baat karta hai, ek sath 100+ calls "
     f"handle karta hai aur calendar me appointment book kar deta hai. {_voice_start_price()} mahine se "
-    "unlimited calls - traditional telecalling team se 80% sasta, aur 7 din free pilot."
+    "unlimited calls — traditional telecalling team se 80% sasta, aur 7 din free pilot."
 )
 
 VOICE_AGENT_INTEREST_ASK = "Kya aap apne business ke liye AI calling ka free demo dekhna chahenge?"
 
 
 def platform_opening_segments() -> list[str]:
-    """ai_marketing greet - single short opener (wait for caller before pitch)."""
+    """ai_marketing greet — single short opener (wait for caller before pitch)."""
     from app.voice_agent.platform_pitch import opening_segments
 
     return opening_segments()

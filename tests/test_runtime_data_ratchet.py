@@ -1,6 +1,6 @@
 """The ratchet must let debt shrink and refuse to let it grow.
 
-Printing counts was observability, not enforcement - a new undeclared writer
+Printing counts was observability, not enforcement — a new undeclared writer
 could have landed with CI still green. These tests are what make the claim
 "the backlog cannot grow quietly" true rather than aspirational.
 """

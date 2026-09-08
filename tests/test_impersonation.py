@@ -1,7 +1,7 @@
-"""Unit tests for app/api/impersonation.py - super-admin "login as customer".
+"""Unit tests for app/api/impersonation.py — super-admin "login as customer".
 
 Critical invariants: flag-gating (404 when off), token is customer-role + imp-marked,
-audit is called on start. No full app / DB - coroutines direct, deps faked.
+audit is called on start. No full app / DB — coroutines direct, deps faked.
 """
 
 import asyncio

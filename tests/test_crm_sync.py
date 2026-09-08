@@ -1,4 +1,4 @@
-"""Native CRM sync (Zoho/HubSpot) - gated/inert/never-raise contract tests."""
+"""Native CRM sync (Zoho/HubSpot) — gated/inert/never-raise contract tests."""
 
 import asyncio
 
@@ -15,7 +15,7 @@ def _clean_env(monkeypatch):
         "HUBSPOT_API_KEY",
     ):
         monkeypatch.delenv(k, raising=False)
-    # settings cached ho sakta hai - direct blank override
+    # settings cached ho sakta hai — direct blank override
     try:
         from app.config import settings
 

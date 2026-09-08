@@ -1,8 +1,7 @@
 """Tests for app/voice_agent/agent_memory.py (cross-session per-lead memory).
 
 Covers: flag-OFF = zero IO; remember->recall roundtrip; recall_block format;
-min-similarity filter
-fail-open on backend error. Fake backend (no Qdrant/LLM).
+min-similarity filter; fail-open on backend error. Fake backend (no Qdrant/LLM).
 """
 
 import pytest
@@ -11,7 +10,7 @@ from app.voice_agent import agent_memory as am
 
 
 class FakeBackend:
-    """In-memory duck-typed backend (embed/search/upsert) - no Qdrant, no LLM."""
+    """In-memory duck-typed backend (embed/search/upsert) — no Qdrant, no LLM."""
 
     def __init__(self, score: float = 1.0):
         self.store: dict[str, list[str]] = {}

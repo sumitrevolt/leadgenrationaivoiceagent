@@ -1,7 +1,7 @@
-"""W3.5 - activate_plan emits the customer webhooks it documented but never fired.
+"""W3.5 — activate_plan emits the customer webhooks it documented but never fired.
 
 `customer_webhooks` supports `payment.received` / `subscription.activated` and even
-ships a sync `fire_emit` wrapper "for billing/sync paths" - but no billing code called
+ships a sync `fire_emit` wrapper "for billing/sync paths" — but no billing code called
 it, so a customer's registered webhook never heard about a payment. Fix: when
 `activate_plan` provisions a plan (after pay/renew), fire both events (gated by
 CUSTOMER_WEBHOOKS inside emit, never-raises).
@@ -37,7 +37,7 @@ def test_activate_plan_fires_subscription_and_payment_webhooks(monkeypatch):
 def test_activate_plan_no_emit_when_not_applied(monkeypatch):
     monkeypatch.setattr(
         clients_store, "get_client", lambda cid: None
-    )  # unknown client -> not applied
+    )  # unknown client → not applied
 
     emitted = []
     monkeypatch.setattr(customer_webhooks, "fire_emit", lambda *a, **k: emitted.append(1))

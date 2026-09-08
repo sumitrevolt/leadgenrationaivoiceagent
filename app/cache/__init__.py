@@ -16,7 +16,7 @@ logger = setup_logger(__name__)
 
 # Redis client singleton
 _redis_client = None
-# Separate client for the EVICTABLE cache (app.cache.Cache) - audit P0-1. Uses
+# Separate client for the EVICTABLE cache (app.cache.Cache) — audit P0-1. Uses
 # CACHE_REDIS_URL when set, else falls back to _redis_client (backwards-compatible).
 _cache_redis_client = None
 
@@ -50,7 +50,7 @@ async def get_redis_client():
 async def get_cache_redis_client():
     """Redis client for the EVICTABLE cache only (app.cache.Cache).
 
-    CACHE_REDIS_URL set ho to alag instance (redis-cache, allkeys-lru) use karta -
+    CACHE_REDIS_URL set ho to alag instance (redis-cache, allkeys-lru) use karta —
     taaki high-volume cache writes broker/call-state wali main Redis (noeviction) ko
     fill/evict na karein (audit P0-1). UNSET = main get_redis_client() fallback (zero
     behaviour change, code merge-safe before the container exists). Fail-open: error
@@ -72,8 +72,7 @@ async def get_cache_redis_client():
             await _cache_redis_client.ping()
             logger.info("Cache Redis client connected (CACHE_REDIS_URL)")
         except Exception as e:
-            logger.warning(f"Cache Redis connect failed ({e})
-            using main redis.")
+            logger.warning(f"Cache Redis connect failed ({e}); using main redis.")
             _cache_redis_client = None
             return await get_redis_client()
 
@@ -258,7 +257,7 @@ class RateLimiter:
     This class previously did not exist, so ``from app.cache import RateLimiter``
     in the middleware always raised ImportError and the API silently fell back to
     PER-WORKER in-memory limiting (never distributed). This restores real,
-    Redis-backed, multi-worker rate limiting - with automatic in-memory fallback
+    Redis-backed, multi-worker rate limiting — with automatic in-memory fallback
     (via get_redis_client) and fail-open on any error.
 
     Contract expected by the middleware:
@@ -343,7 +342,7 @@ class Cache:
         ttl: int | None = None,
     ):
         """Set cached value. Fail-soft: write error (e.g. Redis OOM under noeviction)
-        request me kabhi raise nahi karta - cache best-effort hai."""
+        request me kabhi raise nahi karta — cache best-effort hai."""
         try:
             redis = await get_cache_redis_client()
             full_key = f"{self.prefix}:{key}"

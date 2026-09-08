@@ -1,4 +1,4 @@
-"""Sales Autopilot - scheduler runtime-wiring acceptance.
+"""Sales Autopilot — scheduler runtime-wiring acceptance.
 
 Proves the canary tick is REGISTERED in the canonical beat/staff runtime and is safe:
 INERT when disabled, dry-run never touches a provider, canary batch = 1 (no catch-up
@@ -114,7 +114,7 @@ def test_beat_schedule_has_hourly_task():
     assert entry["args"] == ("sales_autopilot",)
 
 
-# 2. Disabled -> INERT (no lock, no provider). ------------------------------------------- #
+# 2. Disabled → INERT (no lock, no provider). ------------------------------------------- #
 def test_disabled_is_inert(monkeypatch):
     _seed_new(3)
     calls = _provider_spy(monkeypatch)
@@ -123,7 +123,7 @@ def test_disabled_is_inert(monkeypatch):
     assert calls["n"] == 0
 
 
-# 3. Dry-run -> provider invocation count 0. --------------------------------------------- #
+# 3. Dry-run → provider invocation count 0. --------------------------------------------- #
 def test_dry_run_never_calls_provider(monkeypatch):
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")  # dry_run stays True (default)
     _seed_new(3)
@@ -155,7 +155,7 @@ def test_lock_primitive_single_flight(monkeypatch):
     assert t1 and not t1.startswith("local:")
     assert sched._acquire_lock() is None  # second claimant blocked while held
     sched._release_lock(t1)
-    t3 = sched._acquire_lock()  # released -> acquirable again
+    t3 = sched._acquire_lock()  # released → acquirable again
     assert t3 and not t3.startswith("local:")
 
 
@@ -207,7 +207,7 @@ def test_outside_window_defers(monkeypatch):
 # 10. Test/demo prospects excluded (no lawful consent basis ⇒ ineligible). --------------- #
 def test_demo_prospect_excluded(monkeypatch):
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
-    # A demo/test row carries no consent_basis -> eligibility fail-closed blocks it.
+    # A demo/test row carries no consent_basis → eligibility fail-closed blocks it.
     store.upsert_prospect(
         {
             "id": "demo-1",
@@ -267,7 +267,7 @@ def test_email_channel_fail_closed_without_smtp(monkeypatch):
     # EmailSender/api_available read app.config.settings, which is populated from .env at
     # import time. On a machine with real SMTP configured this test used to skip straight
     # past the smtp_not_configured branch and attempt a LIVE Hostinger send, returning
-    # SKIPPED instead of FAILED - so the fail-closed invariant was only ever asserted by
+    # SKIPPED instead of FAILED — so the fail-closed invariant was only ever asserted by
     # accident on credential-less CI. Blanking the settings here makes the assertion mean
     # the same thing on every machine and keeps the suite from touching a real provider.
     from app.config import settings as _settings
@@ -290,7 +290,7 @@ def test_email_channel_fail_closed_without_smtp(monkeypatch):
             "status": store.STATUS_NEW,
         }
     )
-    calls = _provider_spy(monkeypatch)  # WhatsApp provider spy - must stay 0
+    calls = _provider_spy(monkeypatch)  # WhatsApp provider spy — must stay 0
     res = asyncio.run(send_mod.send("e-1", channel="email", step=elig.STEP_INITIAL))
     assert res["outcome"] == send_mod.FAILED
     assert res["reason"] == "smtp_not_configured"
@@ -304,7 +304,7 @@ def test_summary_reports_scheduler_truth(monkeypatch):
 
     from app.main import app
 
-    # Record one tick so last_tick is populated (engine off -> INERT record).
+    # Record one tick so last_tick is populated (engine off → INERT record).
     asyncio.run(sched.run_tick())
     client = TestClient(app)
     r = client.get("/api/sales-autopilot/summary")
@@ -323,7 +323,7 @@ def test_calling_untouched():
     assert not hasattr(sched, "call")
 
 
-# 14. Empty queue is a NORMAL idle, not silent success - explicit idle_reason. ----------- #
+# 14. Empty queue is a NORMAL idle, not silent success — explicit idle_reason. ----------- #
 def test_empty_queue_records_idle_reason(monkeypatch):
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
     res = asyncio.run(sched.run_tick())

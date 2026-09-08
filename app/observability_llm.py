@@ -1,5 +1,5 @@
 """
-observability_llm.py - gated LLM observability via **Langfuse REST ingestion**.
+observability_llm.py — gated LLM observability via **Langfuse REST ingestion**.
 
 KYU: poora product LLM-driven hai par per-call model/provider/tokens/latency/output
 kahin trace nahi hota tha (yahi #1 blind-spot). Ye module har LLM call ko Langfuse
@@ -8,30 +8,27 @@ me bhejta.
 KYUN REST (OTel/SDK nahi): image ka `protobuf==4.25.9` Gemini(google-generativeai)
 + Qdrant + onnxruntime/fastembed ke liye PINNED hai. OTel-OTLP exporter / Langfuse
 SDK protobuf 5.x maangte = unko todenge. Isliye hum seedha Langfuse ingestion REST
-API (JSON over httpx) use karte - httpx already installed (openai dep), zero naya dep.
+API (JSON over httpx) use karte — httpx already installed (openai dep), zero naya dep.
 
 DESIGN (prod-rules ke hisaab se):
   * OFF by default  -> `ENABLE_LLM_OBS=1` + LANGFUSE keys na ho -> 100% no-op.
   * NEVER-RAISE     -> observability ka koi error caller tak nahi (FAIL-OPEN). User-code
                        ka exception NORMAL propagate karta (suppress nahi).
-  * NON-BLOCKING    -> events background daemon-thread queue me
-  LLM hot-path kabhi
+  * NON-BLOCKING    -> events background daemon-thread queue me; LLM hot-path kabhi
                        block/await nahi karta. Queue-full / network-fail = chup drop.
   * interface STABLE-> llm_span()/observe_llm() signature same (free_ai/structured
                        ke call-sites unchanged).
 
-DO SINKS (independent - ek, dono, ya koi nahi):
-  1. Langfuse REST  (ENABLE_LLM_OBS=1 + LANGFUSE keys) - cloud free-tier, zero VPS load.
-  2. OTel -> Tempo  (ENABLE_OTEL=1 + opentelemetry installed) - maujooda Grafana/Tempo
-     stack reuse, protobuf-SAFE (sirf otel-API import
-     OTLP exporter boot pe alag).
+DO SINKS (independent — ek, dono, ya koi nahi):
+  1. Langfuse REST  (ENABLE_LLM_OBS=1 + LANGFUSE keys) — cloud free-tier, zero VPS load.
+  2. OTel -> Tempo  (ENABLE_OTEL=1 + opentelemetry installed) — maujooda Grafana/Tempo
+     stack reuse, protobuf-SAFE (sirf otel-API import; OTLP exporter boot pe alag).
 
 ENV:
   ENABLE_LLM_OBS=1
   LANGFUSE_PUBLIC_KEY=pk-lf-...
-  LANGFUSE_SECRET_KEY=sk-lf-...     (secret - sirf .env me)
-  LANGFUSE_BASE_URL=https://us.cloud.langfuse.com   (default
-  EU/JP/HIPAA alag)
+  LANGFUSE_SECRET_KEY=sk-lf-...     (secret — sirf .env me)
+  LANGFUSE_BASE_URL=https://us.cloud.langfuse.com   (default; EU/JP/HIPAA alag)
   ENABLE_OTEL=1                      (+ pip install -r requirements-otel.txt) -> Tempo
   OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
 """
@@ -69,7 +66,7 @@ def _now_iso() -> str:
 
 
 class _LangfuseSender:
-    """Singleton background sender - queue + daemon thread + httpx (sync POST)."""
+    """Singleton background sender — queue + daemon thread + httpx (sync POST)."""
 
     _instance: _LangfuseSender | None = None
     _lock = threading.Lock()
@@ -256,19 +253,18 @@ class _NoopSpan:
 # --------------------------------------------------------------------------- #
 # OTel sink (-> Tempo). Langfuse se SWATANTRA (independent). KYUN alag: image ka
 # protobuf==4.25.9 PINNED hai (Gemini/Qdrant/fastembed). Yahan hum sirf
-# opentelemetry-api (PURE-PYTHON, protobuf-free) lazy-import karte - asli OTLP gRPC
+# opentelemetry-api (PURE-PYTHON, protobuf-free) lazy-import karte — asli OTLP gRPC
 # exporter (protobuf) sirf app boot pe `observability_otel.setup_otel()` me load
 # hota (requirements-otel.txt; otel 1.27 = protobuf-4 safe). OTel installed na ho ya
 # ENABLE_OTEL unset = 100% no-op. Har LLM call ek `llm.<op>` span (gen_ai.* attrs)
 # banata jo maujooda request-trace (FastAPIInstrumentor) ka child ban ke Tempo me
-# jaata - Grafana me ab provider/model/tokens/latency dikhte. NEVER-RAISE.
+# jaata — Grafana me ab provider/model/tokens/latency dikhte. NEVER-RAISE.
 # --------------------------------------------------------------------------- #
 def _otel_enabled() -> bool:
     if _env("ENABLE_OTEL").lower() not in _TRUE:
         return False
     try:
-        import opentelemetry.trace  # noqa: F401  (pure-python API
-        no protobuf)
+        import opentelemetry.trace  # noqa: F401  (pure-python API; no protobuf)
 
         return True
     except Exception:
@@ -333,8 +329,7 @@ def llm_span(
       * Langfuse REST  -> _enabled()       (ENABLE_LLM_OBS + LANGFUSE_*_KEY)
       * OTel -> Tempo  -> _otel_enabled()  (ENABLE_OTEL + opentelemetry installed)
     Dono OFF = no-op span. User-code exception NORMALLY propagate hota (suppress
-    nahi)
-    span ERROR mark + flush/close hota. interface unchanged (call-sites same)."""
+    nahi); span ERROR mark + flush/close hota. interface unchanged (call-sites same)."""
     lf_on = _enabled()
     ot_on = _otel_enabled()
     if not (lf_on or ot_on):
@@ -390,7 +385,7 @@ def observe_llm(
     provider: str | None = None,
     **static_attrs: Any,
 ) -> Callable:
-    """Decorator (sync/async) - function ko LLM-span me wrap karta; result se token
+    """Decorator (sync/async) — function ko LLM-span me wrap karta; result se token
     usage best-effort auto-record. Kabhi raise nahi karta."""
 
     def _decorate(fn: Callable) -> Callable:
@@ -445,7 +440,7 @@ def set_current_attributes(**attrs: Any) -> None:
 
     Makes audit.py's gen_ai.run.id correlation real (OB-01): called inside an
     active llm_span (or request) it lands on the live span. NEVER-RAISE. When
-    OTel is off (or no span active / API missing) this is a silent no-op - the
+    OTel is off (or no span active / API missing) this is a silent no-op — the
     durable audit-log row still carries run_id (fail-open by design)."""
     if not _otel_enabled():
         return

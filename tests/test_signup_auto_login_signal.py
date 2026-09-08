@@ -1,7 +1,7 @@
 """Enterprise-grade signup auto-login signalling (2026-07-10 onboarding audit).
 
 GAP: `public_signup` swallowed `create_access_token` failures at DEBUG level and
-returned `{ok: True, access_token: null}` - a silent data-consistency violation.
+returned `{ok: True, access_token: null}` — a silent data-consistency violation.
 Frontend (`pricing.html:377`) then sent empty Bearer on the PAID checkout path,
 producing a bare 401 with no user-facing recovery guidance.
 
@@ -50,7 +50,7 @@ def _stub_signup_side_effects(monkeypatch, cid: str = "c_al"):
 
 
 def test_signup_normal_path_reports_auto_login_true(client, monkeypatch):
-    """GREEN case: token mint succeeds -> response has auto_login=True and no `next`."""
+    """GREEN case: token mint succeeds → response has auto_login=True and no `next`."""
     _stub_signup_side_effects(monkeypatch, cid="c_ok")
 
     r = client.post(
@@ -72,13 +72,12 @@ def test_signup_normal_path_reports_auto_login_true(client, monkeypatch):
 
 
 def test_signup_token_mint_failure_signals_auto_login_false(client, monkeypatch):
-    """RED-first: create_access_token raises -> response MUST NOT silently succeed.
+    """RED-first: create_access_token raises → response MUST NOT silently succeed.
 
     Contract:
       - 200 OK with account still created (idempotent password login is intact).
       - `auto_login: False` so FE can branch instead of guessing on null token.
-      - `access_token: None` (unchanged truth
-      caller reads `auto_login` flag).
+      - `access_token: None` (unchanged truth; caller reads `auto_login` flag).
       - `next: {url: "/app/login", email: <body.email>, reason: "auto_login_unavailable"}`.
     """
     _stub_signup_side_effects(monkeypatch, cid="c_bad")
@@ -101,9 +100,8 @@ def test_signup_token_mint_failure_signals_auto_login_false(client, monkeypatch)
     )
     assert r.status_code == 200, r.text
     d = r.json()
-    assert d.get("ok") is True, "account creation still succeeds - auth failure is degrade-only"
-    assert d.get("access_token") is None, "token honestly null
-    do not fake a value"
+    assert d.get("ok") is True, "account creation still succeeds — auth failure is degrade-only"
+    assert d.get("access_token") is None, "token honestly null; do not fake a value"
     assert d.get("auto_login") is False, "MUST signal fallback so FE stops the paid flow"
     nxt = d.get("next") or {}
     assert nxt.get("url") == "/app/login", "guide user to login page"
@@ -150,7 +148,7 @@ def test_signup_token_mint_failure_logs_at_warning_level(client, monkeypatch):
 
 
 def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
-    """RED-first: activate_plan returns False -> response has plan_provisioned=False,
+    """RED-first: activate_plan returns False → response has plan_provisioned=False,
     log at WARNING, but signup still succeeds (account created)."""
     import app.api.customer_auth as ca
     import app.billing.usage as usage
@@ -181,7 +179,7 @@ def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
 
 
 def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
-    """When activate_plan raises -> response has plan_provisioned=False + WARNING log."""
+    """When activate_plan raises → response has plan_provisioned=False + WARNING log."""
     import app.api.customer_auth as ca
     import app.billing.usage as usage
     import app.marketing.clients_store as cs
@@ -223,7 +221,7 @@ def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
 
 
 def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
-    """Trial signup MUST NOT call plan provisioning - returns plan_provisioned=False."""
+    """Trial signup MUST NOT call plan provisioning — returns plan_provisioned=False."""
     import app.api.customer_auth as ca
     import app.billing.usage as usage
     from app.marketing import clients_store as cs
@@ -234,7 +232,7 @@ def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
     monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
-    # Should never be called for trial - if it is, raise to catch.
+    # Should never be called for trial — if it is, raise to catch.
     monkeypatch.setattr(
         usage,
         "activate_plan",

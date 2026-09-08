@@ -1,14 +1,13 @@
 """Durable Celery wrappers for the AI-staff periodic jobs.
 
 WHY: aaj AI-staff automation (content, outreach, onboarding, watchdog, etc.)
-in-process APScheduler loop (`app/platform/team_scheduler.py`) pe chalti hai -
+in-process APScheduler loop (`app/platform/team_scheduler.py`) pe chalti hai —
 ek hi process, app restart pe job miss/double ho sakta. Yeh module wahi jobs
 Celery beat ke through **durable** chalata hai: dedicated worker, restart-safe
 schedule, retry, aur dead-letter (worker.py `on_task_failure` -> Redis DLQ).
 
-ACTIVATION - module import-safe always
-beat entries fire only when `celery beat` runs:
-  - LIVE VPS (2026-06-10 se): durable path ON - RUN_IN_PROCESS_SCHEDULER=0 +
+ACTIVATION — module import-safe always; beat entries fire only when `celery beat` runs:
+  - LIVE VPS (2026-06-10 se): durable path ON — RUN_IN_PROCESS_SCHEDULER=0 +
     leadgen_worker + leadgen_scheduler (beat) containers chal rahe.
   - Beat band ho to in-process APScheduler (RUN_IN_PROCESS_SCHEDULER=1) = rollback fallback.
 
@@ -118,7 +117,7 @@ STAFF_JOBS = (
     "onboard",
     "standup",
     "hot_queue_brief",
-    "hot_queue_owner_pack",  # ADR-OWNER-1: daily 09:00 IST - CSV+MD+nfty for owner 1-click close
+    "hot_queue_owner_pack",  # ADR-OWNER-1: daily 09:00 IST — CSV+MD+nfty for owner 1-click close
     "engineer_sre",
     "engineer_finops",
     "engineer_security",
@@ -142,13 +141,13 @@ STAFF_JOBS = (
     "evening_prospect",  # 3rd daily free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push",  # second-brain compact + push; safe no-op if OBSIDIAN_SYNC/git unavailable
     "platform_dial",  # daily 11:30 IST self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
-    "call_kpi_digest",  # daily 19:30 IST Lekha call-KPI digest (was in-process-only -> dead on Celery topology, audit 2026-07-04)
+    "call_kpi_digest",  # daily 19:30 IST Lekha call-KPI digest (was in-process-only → dead on Celery topology, audit 2026-07-04)
     "product_one_health",  # hourly :20 Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (2026-07-08)
     "approval_email_sweep",  # bounded pending-approval EMAIL sweep, gated APPROVAL_EMAIL_NOTIFY (default OFF); single-flight (2026-07-12)
     "social_drain",  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); Celery+in-process (audit 2026-07-17)
     "sales_autopilot",  # hourly :25 Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
     "task_lease_reap",  # hourly :05 expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP; INERT off)
-    "daily_video",  # daily 09:45 IST per-client video producer - ENQUEUE-only (gated DAILY_VIDEO_ENABLED; INERT off)
+    "daily_video",  # daily 09:45 IST per-client video producer — ENQUEUE-only (gated DAILY_VIDEO_ENABLED; INERT off)
     "gsc_rank",  # daily 00:30 IST Google Search Console rank snapshot (gated GSC_ENABLED; INERT off)
     "hq_auto_chase",  # hourly :28 unactioned inquiry cards -> EMAIL follow-up (gated HQ_AUTO_CHASE; INERT off)
     "reply_auto_send",  # hourly :30 safe known-prospect auto-reply (gated REPLY_AUTO_SEND; INERT off)
@@ -179,16 +178,16 @@ def _reset_worker_loop_for_tests() -> None:
     bind=True,
     name="app.tasks.staff_jobs.self_improve_tick",
     max_retries=0,
-    # acks_late=False (ack-on-receipt) - DELIBERATE: yeh task khud-ko-requeue karne
+    # acks_late=False (ack-on-receipt) — DELIBERATE: yeh task khud-ko-requeue karne
     # wali chain hai. acks_late=True hota to worker-loss (deploy/recreate) pe in-flight
-    # tick REDELIVER hota + chain requeue bhi -> DUPLICATE chains -> queue flood (2501
+    # tick REDELIVER hota + chain requeue bhi → DUPLICATE chains → queue flood (2501
     # self_improve_tick dekha gaya). Chain waise bhi ensure_alive() revive se self-heal
     # karti, isliye restart pe ek tick lose hona safe hai. Single-chain = no multiply.
     acks_late=False,
 )
 def self_improve_tick(self):
-    """Self-improve CONTINUOUS loop ka ek tick: run_once -> khud ko requeue
-    (countdown=gap). Koi cron timing nahi - task complete -> agla task.
+    """Self-improve CONTINUOUS loop ka ek tick: run_once → khud ko requeue
+    (countdown=gap). Koi cron timing nahi — task complete → agla task.
     Flag OFF ho jaye to chain khud ruk jaati (no requeue). Kabhi raise nahi."""
     t0 = time.monotonic()
     res = {}
@@ -218,7 +217,7 @@ def self_improve_tick(self):
         if self_improve.enabled() and slot_token:
             gap = self_improve.gap_seconds()
             if res.get("skipped") == "daily_cap":
-                gap = 3600  # cap hit - ghante me wapas check (naya din = resume)
+                gap = 3600  # cap hit — ghante me wapas check (naya din = resume)
             queued = False
             try:
                 self_improve_tick.apply_async(countdown=gap)
@@ -230,8 +229,7 @@ def self_improve_tick(self):
         elif self_improve.enabled() and not slot_token:
             # Slot denied = duplicate or Redis guard unavailable. The owner (if
             # any) already owns the next requeue; this tick must terminate.
-            logger.debug("[self-improve] tick skipped: slot denied
-            no requeue")
+            logger.debug("[self-improve] tick skipped: slot denied; no requeue")
         elif slot_token:
             self_improve.release_tick_slot(slot_token)
     except Exception as e:
@@ -258,10 +256,10 @@ def self_improve_tick(self):
 )
 def onboard_client(self, cid: str, send_welcome: bool = True):
     """One-shot per-client auto-onboard, fired on signup / admin-onboard so a NEW
-    customer gets day-1 value IMMEDIATELY (website->KB seed + first content pack +
+    customer gets day-1 value IMMEDIATELY (website→KB seed + first content pack +
     customer-visible content queue + niche snapshot) instead of an empty portal
     until the AUTO_ONBOARD-gated hourly sweep. Runs in the WORKER (heavy scrape/LLM
-    - never the web process, per CLAUDE.md). Idempotent: auto_onboard marks
+    — never the web process, per CLAUDE.md). Idempotent: auto_onboard marks
     setup_done so the hourly sweep skips it. send_welcome=False when the caller
     already sent its own welcome (no double WhatsApp on /signup). Event-driven
     (not a periodic job) so it is NOT dead-man tracked. Never raises."""
@@ -282,13 +280,13 @@ def onboard_client(self, cid: str, send_welcome: bool = True):
     acks_late=False,
 )
 def seed_first_week(self, cid: str):
-    """Customer-clicked "mera pehla 7-din ka plan banao" (Setup Wizard) - SIRF
+    """Customer-clicked "mera pehla 7-din ka plan banao" (Setup Wizard) — SIRF
     content seed (7-din calendar + WhatsApp promo + campaign suggestion), full
     auto_onboard NAHI (KB re-scrape/welcome jaise side-effects nahi chahiye).
-    Worker me chalta hai (multi LLM-call - web process kabhi nahi, CLAUDE.md).
+    Worker me chalta hai (multi LLM-call — web process kabhi nahi, CLAUDE.md).
     Idempotent: upcoming items pehle se hon to seed skip (re-seed content_approval
-    me dupes banata - auto_content.upcoming_item_count hi single-source guard).
-    Event-driven (periodic nahi) - dead-man tracked nahi. Never raises."""
+    me dupes banata — auto_content.upcoming_item_count hi single-source guard).
+    Event-driven (periodic nahi) — dead-man tracked nahi. Never raises."""
     try:
         from app.marketing import auto_content, clients_store
 
@@ -319,7 +317,7 @@ def seed_first_week(self, cid: str):
 )
 def process_tick(self, run_id: str):
     """Process-engine run ko worker me advance karo (babysitter-pattern).
-    RUNNING rahe to khud requeue (10s) - breakpoint/end pe chain rukti.
+    RUNNING rahe to khud requeue (10s) — breakpoint/end pe chain rukti.
     Kabhi raise nahi."""
     res = {}
     try:
@@ -332,7 +330,7 @@ def process_tick(self, run_id: str):
     try:
         if (
             res.get("status") == "running"
-            or res.get("note") == "step budget - tick continue karega"
+            or res.get("note") == "step budget — tick continue karega"
         ):
             process_tick.apply_async(args=[run_id], countdown=10)
     except Exception:
@@ -347,7 +345,7 @@ def process_tick(self, run_id: str):
     acks_late=True,
 )
 def self_improve_revive(self):
-    """Dead-man reviver (beat */20min): heartbeat stale + flag ON -> tick enqueue.
+    """Dead-man reviver (beat */20min): heartbeat stale + flag ON → tick enqueue.
     Loop alive ho to no-op. Kabhi raise nahi."""
     try:
         from app.agents import self_improve
@@ -370,7 +368,7 @@ def self_improve_revive(self):
 def run_staff_job(self, job: str):
     """Ek AI-staff job durably chalao (team_scheduler._run_job ka Celery wrapper)."""
     if job not in STAFF_JOBS:
-        logger.warning(f"[staff_jobs] unknown job '{job}' - skip")
+        logger.warning(f"[staff_jobs] unknown job '{job}' — skip")
         return {"ok": False, "job": job, "reason": "unknown"}
     # Defense in depth: already-queued messages still no-op when kill/agent controls engage.
     try:
@@ -415,7 +413,7 @@ def run_staff_job(self, job: str):
 
         if boot_grace.should_skip_boot_grace(job):
             delay = boot_grace.defer_seconds(job)
-            logger.info(f"[staff_jobs] boot-grace skip job '{job}' - deferred retry in {delay}s")
+            logger.info(f"[staff_jobs] boot-grace skip job '{job}' — deferred retry in {delay}s")
             deferred = False
             # Keep the real job's dead-man heartbeat truthful. Previously only
             # the optional loop-supervisor emitted a synthetic marker, so the
@@ -478,7 +476,7 @@ def run_staff_job(self, job: str):
         # in the job body; if SoftTimeLimit still fires, return partial SUCCESS so
         # we do not fill dlq:failed_tasks / burn retries (2026-07-23 onboard/content).
         logger.warning(
-            f"[staff_jobs] job '{job}' soft time limit - graceful partial (no retry/DLQ)"
+            f"[staff_jobs] job '{job}' soft time limit — graceful partial (no retry/DLQ)"
         )
         return {"ok": True, "job": job, "partial": True, "reason": "soft_time_limit"}
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
@@ -511,8 +509,7 @@ def boss_autonomy_sweep(self):
       - idempotent_task SETNX dedup + retry-safe (distributed lock)
       - bounded batch (run_once limit) + one-step-per-decision
       - flag-gated inert: BOSS_FULL_AUTONOMY=1 AND BOSS_DECISION_GOVERNANCE=1
-      - boot-grace guard (no-op for non-heavy jobs
-      defense-in-depth)
+      - boot-grace guard (no-op for non-heavy jobs; defense-in-depth)
     """
     try:
         from app.platform import boot_grace, boss_autonomy
@@ -542,7 +539,7 @@ def boss_autonomy_sweep(self):
 )
 @idempotent_task("whatsapp_automation", ttl=3600)
 def whatsapp_automation(self):
-    """WhatsApp full automation - hourly within 9am-7pm TRAI window.
+    """WhatsApp full automation — hourly within 9am-7pm TRAI window.
 
     GATED: WHATSAPP_AUTO_SEND=1 + WHATSAPP_AUTO_SEND_HARD_OFF=0
     ⚠️ HIGH RISK: cold/bulk auto-send = number ban in 72 hours

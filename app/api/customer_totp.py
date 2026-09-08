@@ -1,4 +1,4 @@
-"""Customer 2FA TOTP API - enrol / confirm / status / disable / verify.
+"""Customer 2FA TOTP API — enrol / confirm / status / disable / verify.
 
 Mounted under /api/customer/2fa. enrol/confirm/disable require a current
 customer JWT (caller proves they are the account before changing 2FA state).
@@ -66,7 +66,7 @@ async def disable(body: DisableIn, client_id: str = Depends(require_customer)) -
 
 @router.post("/verify", dependencies=[Depends(rate_limit("cust_2fa", 10, 60))])
 async def verify(body: VerifyIn) -> dict:
-    """No JWT yet - the customer is between password and full token. We take
+    """No JWT yet — the customer is between password and full token. We take
     the signed challenge issued by /api/customer/login and the TOTP code, and
     return a real JWT on success."""
     cid = ct.consume_challenge(body.challenge_token)
@@ -88,7 +88,7 @@ async def verify(body: VerifyIn) -> dict:
             pass
         raise HTTPException(status_code=400, detail="challenge invalid or expired")
     if not ct.verify(cid, body.code):
-        # Loop 21: bad TOTP code - brute-force signal for admin panel. Include
+        # Loop 21: bad TOTP code — brute-force signal for admin panel. Include
         # client_id attribution (challenge was legitimately consumed) so admins
         # can spot targeted 2FA guessing on a specific account.
         try:

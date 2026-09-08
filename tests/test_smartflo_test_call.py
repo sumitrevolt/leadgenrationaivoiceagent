@@ -1,8 +1,7 @@
 """
 Tests for the Tata Smartflo test-call admin endpoint.
 
-No network - TataSmartfloClient is monkeypatched
-tests verify:
+No network — TataSmartfloClient is monkeypatched; tests verify:
   - Auth gating (401/403 without admin)
   - 503 when Smartflo not configured
   - 422 when 'to' number is missing/short
@@ -144,7 +143,7 @@ class TestNotConfigured:
 # ---------------------------------------------------------------------------
 class TestValidation:
     def test_missing_to_returns_422(self):
-        """Missing 'to' field -> 422."""
+        """Missing 'to' field → 422."""
         from starlette.testclient import TestClient
 
         _override_admin()
@@ -154,7 +153,7 @@ class TestValidation:
         assert r.status_code == 422
 
     def test_short_to_returns_422(self):
-        """'to' shorter than 8 digits -> 422."""
+        """'to' shorter than 8 digits → 422."""
         from starlette.testclient import TestClient
 
         _override_admin()
@@ -164,7 +163,7 @@ class TestValidation:
         assert r.status_code == 422
 
     def test_empty_to_returns_422(self):
-        """Empty 'to' field -> 422."""
+        """Empty 'to' field → 422."""
         from starlette.testclient import TestClient
 
         _override_admin()
@@ -179,7 +178,7 @@ class TestValidation:
 # ---------------------------------------------------------------------------
 class TestSuccess:
     def test_call_placed_returns_200(self):
-        """Valid request with mock client -> placed=true, ref_id present."""
+        """Valid request with mock client → placed=true, ref_id present."""
         from starlette.testclient import TestClient
 
         _override_admin()
@@ -257,7 +256,7 @@ class TestSuccess:
         _override_admin()
         with _mock_client_available():
             with TestClient(app, raise_server_exceptions=False) as c:
-                # Timeout too low -> clamped to 30
+                # Timeout too low → clamped to 30
                 r = c.post(
                     "/api/telephony/smartflo/test-call",
                     json={"to": "9876543210", "call_timeout": 5},

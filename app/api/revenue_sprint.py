@@ -1,11 +1,10 @@
-"""revenue_sprint.py - 7-day ₹5L sprint conversion APIs (2026-08-23).
+"""revenue_sprint.py — 7-day ₹5L sprint conversion APIs (2026-08-23).
 
 Research-driven batch jo EXISTING dormant engines ko wire karta hai:
-* ``offers.issue_offer`` ka pehla ROUTE caller - WhatsApp close ke liye hosted
+* ``offers.issue_offer`` ka pehla ROUTE caller — WhatsApp close ke liye hosted
   pay-link with amount-prefilled UPI intent + QR (upi-pg pattern).
-* ``promo_codes`` platform coupon engine - LAUNCH offer honest deadline ke saath
-  (Lago-style definitions + applied ledger
-  original offer immutable rehta hai,
+* ``promo_codes`` platform coupon engine — LAUNCH offer honest deadline ke saath
+  (Lago-style definitions + applied ledger; original offer immutable rehta hai,
   discount = superseding offer).
 * DFY setup fee jaise custom quotes ``offers.issue_custom_offer`` se.
 
@@ -31,7 +30,7 @@ router = APIRouter(tags=["revenue-sprint"])
 
 
 class OfferIssueIn(BaseModel):
-    """Admin offer issuance - package-priced ya explicit custom amount."""
+    """Admin offer issuance — package-priced ya explicit custom amount."""
 
     deal_id: str
     package_code: str
@@ -61,10 +60,10 @@ class PromoApplyIn(BaseModel):
 
 
 def _pay_payload(order_ref: str, off: dict) -> dict:
-    """Offer -> customer-facing pay payload (UPI intent am+tn prefilled + QR).
+    """Offer → customer-facing pay payload (UPI intent am+tn prefilled + QR).
 
     tn me order_ref jata hai taaki bank-statement reconciliation trivial ho
-    (upi-pg pattern). VPA unset ho to link/QR khali - page phir bhi dikhata hai.
+    (upi-pg pattern). VPA unset ho to link/QR khali — page phir bhi dikhata hai.
     """
     try:
         from app.marketing.upi_kit import payment_kit
@@ -102,7 +101,7 @@ def _offer_public_view(off: dict) -> dict:
 
 @router.post(
     "/admin/revenue/offers/issue",
-    summary="Admin: payable offer issue karo -> hosted pay-link (WhatsApp close)",
+    summary="Admin: payable offer issue karo → hosted pay-link (WhatsApp close)",
 )
 async def admin_issue_offer(body: OfferIssueIn, _user=Depends(require_admin)):
     try:
@@ -137,7 +136,7 @@ async def admin_issue_offer(body: OfferIssueIn, _user=Depends(require_admin)):
             return {
                 "ok": False,
                 "error": (
-                    "Offer issue nahi hua - unknown/unpriced package ya amount "
+                    "Offer issue nahi hua — unknown/unpriced package ya amount "
                     "bounds (₹99..₹10L) ke bahar"
                 ),
             }
@@ -206,7 +205,7 @@ async def admin_list_promo(_user=Depends(require_admin)):
 
 @router.get(
     "/public/offers/{order_ref}",
-    summary="Public: order resolve -> UPI pay-kit (amount-prefilled intent + QR)",
+    summary="Public: order resolve → UPI pay-kit (amount-prefilled intent + QR)",
     dependencies=[Depends(rate_limit("offer_view", 60, 60))],
 )
 async def public_offer(order_ref: str):
@@ -228,7 +227,7 @@ async def public_offer(order_ref: str):
 
 @router.post(
     "/public/offers/{order_ref}/promo",
-    summary="Public: order par promo code lagao -> discounted supersede offer",
+    summary="Public: order par promo code lagao → discounted supersede offer",
     dependencies=[Depends(rate_limit("offer_promo", 10, 60))],
 )
 async def public_apply_promo(order_ref: str, body: PromoApplyIn):

@@ -1,4 +1,4 @@
-"""Stage 1 shadow harness proof - zero side-effect matrix.
+"""Stage 1 shadow harness proof — zero side-effect matrix.
 
 Usage:
   .venv\\Scripts\\python.exe scripts\\video_stage1_shadow_proof.py

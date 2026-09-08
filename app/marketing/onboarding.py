@@ -1,20 +1,19 @@
-"""Automated client onboarding - client add hote hi poora setup KHUD (done-for-you).
+"""Automated client onboarding — client add hote hi poora setup KHUD (done-for-you).
 
-Manual agency onboarding 5-7 din leta hai
-yeh minutes me karta hai. Jaise hum apne liye
+Manual agency onboarding 5-7 din leta hai; yeh minutes me karta hai. Jaise hum apne liye
 karte hain, waise client ke liye. Pieces pehle se the (clients_store, content_pack,
-mini-site) - yeh unhe ek auto-flow me chain karta hai PLUS naya high-value step:
+mini-site) — yeh unhe ek auto-flow me chain karta hai PLUS naya high-value step:
 
-  **client ki ASLI website se KB auto-seed** (deep_extract/trafilatura -> vector KB +
-  LightRAG graph, namespace `client:<id>`) - taaki client ka AI agent uske apne business
+  **client ki ASLI website se KB auto-seed** (deep_extract/trafilatura → vector KB +
+  LightRAG graph, namespace `client:<id>`) — taaki client ka AI agent uske apne business
   (services, USP, area) ko jaane, sirf generic niche facts nahi. Yeh dormant
   web-extraction + RAG tools ko asli value me convert karta hai.
 
-Steps per client: website->KB seed -> first content pack (welcome deliverable) -> setup_done
-mark -> welcome event. Sab defensive (step fail -> skip, never crash).
+Steps per client: website→KB seed → first content pack (welcome deliverable) → setup_done
+mark → welcome event. Sab defensive (step fail → skip, never crash).
 
 OFF by default. Enable `AUTO_ONBOARD=1`. Hourly sweep un-setup active clients ko onboard
-karta hai (idempotent - setup_done wale skip).
+karta hai (idempotent — setup_done wale skip).
 """
 
 from __future__ import annotations
@@ -30,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 _PACK_DIR = os.path.join("data", "client_packs")
 
-# Re-nudge state - WhatsApp business-info interview ek hi baar bhejta tha; agar us
-# din WA infra down ho (jaise jiya makeover ke saath hua - WAHA baad me linka), to
+# Re-nudge state — WhatsApp business-info interview ek hi baar bhejta tha; agar us
+# din WA infra down ho (jaise jiya makeover ke saath hua — WAHA baad me linka), to
 # client silently awaiting_kb_interview=true reh jata tha forever. Yahan per-client
 # sent-at timestamps + count persist karte (clients_store untouched rehta).
 _NUDGE_STATE_FILE = os.path.join("data", "kb_interview_nudges.json")
@@ -107,7 +106,7 @@ def _namespace(cid: str) -> str:
 
 
 async def _seed_kb_from_website(cid: str, website: str) -> dict:
-    """Scrape the client's site -> vector KB + (opt-in) knowledge graph. Best-effort."""
+    """Scrape the client's site → vector KB + (opt-in) knowledge graph. Best-effort."""
     out = {"website": website, "kb_chunks": 0, "graph": False}
     if not website:
         return out
@@ -190,12 +189,12 @@ def _interview_message(biz: str, renudge: bool = False) -> str:
     if renudge:
         head = (
             f"Namaste! {biz} ka AI agent ab bhi aapke business ki details ka intezaar "
-            "kar raha hai. Ek chhoti si madad chahiye - isi message ka reply karke bata do:\n"
+            "kar raha hai. Ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
         )
     else:
         head = (
             f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya.\n\n"
-            "Bas ek chhoti si madad chahiye - isi message ka reply karke bata do:\n"
+            "Bas ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
         )
     return (
         head + "1) Aap kya services dete hain?\n"
@@ -221,10 +220,9 @@ async def _send_whatsapp(phone: str, msg: str) -> bool:
 
 async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dict[str, Any]:
     """Welcome message right after onboarding; if the website-KB-seed step found
-    nothing (no website / thin site), ask for business info in the same message -
+    nothing (no website / thin site), ask for business info in the same message —
     the WhatsApp reply becomes the KB source instead (see try_capture_onboarding_reply).
-    Best-effort, never raises
-    no-op without a phone or a configured WA sender."""
+    Best-effort, never raises; no-op without a phone or a configured WA sender."""
     out: dict[str, Any] = {"sent": False}
     phone = str(client.get("phone") or "").strip()
     if not phone:
@@ -233,7 +231,7 @@ async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dic
     if kb_seeded:
         msg = (
             f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya. Aapki website se "
-            "business details AI agent ko de diye gaye hain - ab woh aapke customers ke "
+            "business details AI agent ko de diye gaye hain — ab woh aapke customers ke "
             "sawalon ka jawab de sakta hai."
         )
     else:
@@ -245,10 +243,10 @@ async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dic
 async def _renudge_awaiting_interviews(limit: int = 25) -> dict[str, Any]:
     """Re-send the business-info interview to active clients still stuck on
     awaiting_kb_interview=True (the WhatsApp interview is sent only ONCE at
-    onboarding - if WA infra was down that day the client stays awaiting forever).
+    onboarding — if WA infra was down that day the client stays awaiting forever).
 
     Caps: max `_RENUDGE_MAX` (3) re-nudges per client, min `_RENUDGE_MIN_HOURS`
-    (24h) apart. Gated `KB_INTERVIEW_RENUDGE` (default ON - bug-fix of promised
+    (24h) apart. Gated `KB_INTERVIEW_RENUDGE` (default ON — bug-fix of promised
     behaviour). Never raises."""
     res: dict[str, Any] = {"renudged": 0, "pending": 0, "capped": 0}
     if not _flag_on("KB_INTERVIEW_RENUDGE"):
@@ -282,7 +280,7 @@ async def _renudge_awaiting_interviews(limit: int = 25) -> dict[str, Any]:
                     if last_dt.tzinfo is None:
                         last_dt = last_dt.replace(tzinfo=timezone.utc)
                     if (now - last_dt).total_seconds() < _RENUDGE_MIN_HOURS * 3600:
-                        continue  # too soon - 24h gap not elapsed
+                        continue  # too soon — 24h gap not elapsed
                 except Exception:
                     pass
             biz = c.get("business_name") or "aapka business"
@@ -313,9 +311,8 @@ async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
     (closes the KB gap for clients without a website) and clear the flag.
 
     Called from BOTH whatsapp webhook handlers (selfhost + Meta Cloud) before they hand
-    the message to reply_agent - returns True when handled, so the caller skips the
-    normal prospect-reply draft for this message. Never raises
-    False = not our message."""
+    the message to reply_agent — returns True when handled, so the caller skips the
+    normal prospect-reply draft for this message. Never raises; False = not our message."""
     txt = (text or "").strip()
     digits = "".join(ch for ch in str(from_number or "") if ch.isdigit())[-10:]
     if not digits or len(txt) < 5:
@@ -330,7 +327,7 @@ async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
             if cph and cph == digits:
                 return await _capture_business_interview(c, txt)
     except Exception as exc:
-        # FAIL-LOUD (2026-07-05): pehle yeh logger.debug tha - ek paying customer
+        # FAIL-LOUD (2026-07-05): pehle yeh logger.debug tha — ek paying customer
         # (jiya makeover) ka reply isi silent swallow me gaya, woh awaiting_kb_interview
         # me forever stuck rahi + ghost ho gayi. Ab WARNING (silent loss banned).
         logger.warning("try_capture_onboarding_reply err (reply may be LOST): %s", exc)
@@ -369,13 +366,13 @@ async def _capture_business_interview(client: dict[str, Any], text: str) -> bool
 async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False) -> dict[str, Any]:
     """Run the full auto-setup for one client. Never raises.
 
-    send_welcome=False skips the welcome-WhatsApp step (used when the caller -
-    e.g. the /signup handler - already sent its own welcome, so the customer
+    send_welcome=False skips the welcome-WhatsApp step (used when the caller —
+    e.g. the /signup handler — already sent its own welcome, so the customer
     doesn't get two messages).
 
     IDEMPOTENT: if the client is already `setup_done`, skip the whole heavy path
     (KB re-seed / content / welcome) unless force=True. Protects the direct callers
-    (onboard_client task from signup/admin-onboard) - the admin onboard endpoint is
+    (onboard_client task from signup/admin-onboard) — the admin onboard endpoint is
     deliberately re-callable for password resets, and without this guard each retry
     would re-scrape + regenerate + re-welcome an existing customer. The hourly sweep
     already filters setup_done, so this is a no-op there."""
@@ -401,7 +398,7 @@ async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False)
         report["steps"]["content_pack"] = await _first_content_pack(client)
 
         # Day-1 value: customer-visible content QUEUE bhi bharo (portal_content
-        # isi list_queue se padhta - pehle sirf HTML pack banta tha jo portal me
+        # isi list_queue se padhta — pehle sirf HTML pack banta tha jo portal me
         # nahi dikhta tha, customer ko ~07:00 daily-sweep tak khaali queue dikhti).
         # date+type DEDUPE = daily job ke saath idempotent. Best-effort, never raises.
         try:
@@ -412,7 +409,7 @@ async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False)
             logger.debug("onboard content_queue skip: %s", exc)
             report["steps"]["content_queue"] = 0
 
-        # GHL-style niche template - mini-site palette, journeys, festival schedule (best-effort)
+        # GHL-style niche template — mini-site palette, journeys, festival schedule (best-effort)
         try:
             from app.platform import client_snapshots
 
@@ -455,7 +452,7 @@ async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False)
             report["steps"]["welcome_whatsapp"] = {"sent": False}
 
         _log("client_onboarded", f"{biz}: auto-setup done (website KB {kb} chunks + content pack)")
-        # Funnel event (audit 2026-07-04) - silent no-op without POSTHOG_API_KEY.
+        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
         try:
             from app.analytics import posthog_client as _ph
 
@@ -473,7 +470,7 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     """Find active clients without setup_done and auto-onboard them. Also re-nudges
     clients still stuck on the business-info interview (own flag). Never raises.
 
-    Wall-clock budget (``ONBOARD_TIME_BUDGET_S``, default 300) - SoftTimeLimit
+    Wall-clock budget (``ONBOARD_TIME_BUDGET_S``, default 300) — SoftTimeLimit
     DLQ on 2026-07-23 ``onboard`` job: renudge + delivery + KB seed exceeded 540s.
     """
     from app.platform.job_time_budget import JobBudget
@@ -481,7 +478,7 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     budget = JobBudget.from_env("ONBOARD_TIME_BUDGET_S", label="onboard")
     res: dict[str, Any] = {"onboarded": 0, "checked": 0, "budget": budget.snapshot()}
     # Re-nudge pass runs INDEPENDENTLY of AUTO_ONBOARD (own flag KB_INTERVIEW_RENUDGE)
-    # - a client can be stuck awaiting the interview even after AUTO_ONBOARD is turned
+    # — a client can be stuck awaiting the interview even after AUTO_ONBOARD is turned
     # off, and this is a bug-fix for already-promised behaviour. Never raises.
     try:
         if budget.ok(need=20.0):
@@ -491,7 +488,7 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     except Exception as exc:
         logger.info("onboarding sweep renudge err: %s", exc)
         res["renudge"] = {"error": str(exc)}
-    # DELIVERY GUARANTEE (2026-07-05, council): dead-man sweep - koi bhi PAID customer
+    # DELIVERY GUARANTEE (2026-07-05, council): dead-man sweep — koi bhi PAID customer
     # jise value deliver nahi hui woh visible + (AUTO_DELIVER_VALUE on ho to) auto-deliver
     # ho. Runs INDEPENDENTLY of AUTO_ONBOARD (delivery != onboarding). Never raises.
     try:

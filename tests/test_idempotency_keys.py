@@ -35,8 +35,7 @@ class _FakeTask:
 def _capture_fallback_key(args, monkeypatch):
     """Invoke the idempotent wrapper and return the Redis key it generated.
 
-    A fake redis client records the key passed to ``.set(...)``
-    ``nx=True``
+    A fake redis client records the key passed to ``.set(...)``; ``nx=True``
     returns truthy so the wrapped function still runs (no skip).
     """
     captured: dict[str, str] = {}
@@ -88,7 +87,7 @@ def test_fallback_key_uses_stable_sha1_not_builtin_hash(monkeypatch):
     key = _capture_fallback_key(args, monkeypatch)
 
     # stable sha1 fragment present (key now carries a trailing :{retries} segment
-    # so a genuine self.retry() is not deduped away - fresh task => retries 0).
+    # so a genuine self.retry() is not deduped away — fresh task => retries 0).
     assert expected_sha1 in key
     assert key.endswith(f"demo_task:{expected_sha1}:0")
 
@@ -99,7 +98,7 @@ def test_fallback_key_uses_stable_sha1_not_builtin_hash(monkeypatch):
 
 def test_retry_attempt_not_deduped_away(monkeypatch):
     """A genuine self.retry() (same task_id, incremented retries) must produce a
-    DISTINCT key so a real Redis setnx lets it run - while a redelivery of the
+    DISTINCT key so a real Redis setnx lets it run — while a redelivery of the
     SAME attempt (same retries) is still skipped as a duplicate.
 
     Regression: previously the key omitted retries, so the retry collided with the

@@ -1,4 +1,4 @@
-"""A1 - the three telephony Tier-0 stores, migrated to the runtime authority.
+"""A1 — the three telephony Tier-0 stores, migrated to the runtime authority.
 
 These are the smallest Tier-0 stores and they carry the calling-safety
 contracts, which is exactly why they go first: a defect in the shared authority
@@ -50,7 +50,7 @@ def _activate_cutover(root: Path, store_ids: list[str], monkeypatch) -> None:
     """Configure root + gate + a marker the real validator accepts.
 
     The manifest transition is commit 3's atomic scope, so it is monkeypatched
-    here rather than depended upon - these tests must pass whatever order the
+    here rather than depended upon — these tests must pass whatever order the
     commits land in.
     """
     for row in manifest.STORES:
@@ -185,7 +185,7 @@ def test_env_token_remains_the_final_authority(monkeypatch, tmp_path):
 
 # ------------------------------------------- 8. BLOCKLIST MISSING SEMANTICS
 def test_resolving_the_blocklist_creates_nothing(monkeypatch, tmp_path):
-    """A missing blocklist is a legitimate state - resolution must not
+    """A missing blocklist is a legitimate state — resolution must not
     materialise an empty suppression list."""
     _activate_cutover(tmp_path, list(A1_STORES), monkeypatch)
     p = call_feedback._blocklist_path()

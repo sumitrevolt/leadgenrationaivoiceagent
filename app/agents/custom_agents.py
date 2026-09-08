@@ -1,8 +1,8 @@
-"""Data-defined custom agents/personas - OpenCode/Kilo custom-modes parity.
+"""Data-defined custom agents/personas — OpenCode/Kilo custom-modes parity.
 
 OpenCode aur Kilo-Code dono "custom modes" dete hain: user ek naya agent/persona
 (role + system_prompt + allowed tools) DEFINE kar sakta hai bina code-deploy ke.
-Yahi capability is project me deta hai - skill_pack ke pattern par (jo
+Yahi capability is project me deta hai — skill_pack ke pattern par (jo
 data/skills_extra/*.md ko runtime pe load karta), yahan
 data/custom_agents/*.json se naye personas load hote hain (bind-mount = git pull
 pe live, NO rebuild).
@@ -18,11 +18,10 @@ Data file shape (data/custom_agents/<name>.json):
 
 Design (project patterns):
   - `enabled()` sirf gating ke liye (custom personas ko team roster me merge karna
-    main-session wire karega - yeh module sirf load/validate/register deta hai).
+    main-session wire karega — yeh module sirf load/validate/register deta hai).
   - mtime-cached load (skill_pack jaisa), pure-python, path-escape blocked.
-  - `merged_roster()` ek hardcoded NOTE + custom agents return karta - team.py ko
-    HEAVY import NAHI karta (sirf data dir read)
-    actual STAFF-dict merge main
+  - `merged_roster()` ek hardcoded NOTE + custom agents return karta — team.py ko
+    HEAVY import NAHI karta (sirf data dir read); actual STAFF-dict merge main
     session app/platform/team.py me wire karega (owned-file boundary respect).
   - KABHI raise nahi karta.
 
@@ -54,7 +53,7 @@ def enabled() -> bool:
 
 
 def _safe_name(name: str) -> str:
-    """Slug-only - path escape / weird chars block (skill_pack pattern)."""
+    """Slug-only — path escape / weird chars block (skill_pack pattern)."""
     return re.sub(r"[^a-z0-9_-]", "", (name or "").strip().lower())[:60]
 
 
@@ -115,7 +114,7 @@ def get(name: str) -> dict[str, Any] | None:
 
 
 def register(spec: dict[str, Any]) -> dict[str, Any]:
-    """Naya custom agent define karo - validate + write json file. Never raises."""
+    """Naya custom agent define karo — validate + write json file. Never raises."""
     try:
         if not isinstance(spec, dict):
             return {"ok": False, "error": "spec must be an object"}
@@ -155,7 +154,7 @@ def register(spec: dict[str, Any]) -> dict[str, Any]:
 def merged_roster() -> dict[str, Any]:
     """Hardcoded note + custom agents.
 
-    NOTE: team.py ke STAFF-dict me actual merge MAIN SESSION wire karega - yeh
+    NOTE: team.py ke STAFF-dict me actual merge MAIN SESSION wire karega — yeh
     helper sirf data dir se custom personas surface karta (team.py ko heavy import
     nahi karta, owned-file boundary respect). Use this output to merge upstream.
     """
@@ -163,7 +162,7 @@ def merged_roster() -> dict[str, Any]:
         "enabled": enabled(),
         "note": (
             "Hardcoded STAFF roster app/platform/team.py me hai (code-defined). Yeh "
-            "custom personas data/custom_agents/*.json se aate hain - team.py merge "
+            "custom personas data/custom_agents/*.json se aate hain — team.py merge "
             "main session wire karega."
         ),
         "custom_agents": list(_load_all()),

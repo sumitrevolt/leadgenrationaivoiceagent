@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""query_project_context.py - bounded keyword query over the project-context store.
+"""query_project_context.py — bounded keyword query over the project-context store.
 
 Returns a compact, token-bounded set of nodes + their immediate relationships so an
 agent can load ONLY task-relevant facts instead of re-reading the repo.
@@ -51,7 +51,7 @@ def main(argv=None) -> int:
     store = pc.load_store(Path(args.store))
     if not store:
         print(
-            f"[context] no store at {args.store} - run scripts/sync_project_context.py first "
+            f"[context] no store at {args.store} — run scripts/sync_project_context.py first "
             f"(falling back to memory/INDEX.md for humans)."
         )
         return 1

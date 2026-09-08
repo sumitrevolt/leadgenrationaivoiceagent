@@ -1,4 +1,4 @@
-"""PR #147 cycle-6 - five MEDIUM residual regressions (authority/consistency)."""
+"""PR #147 cycle-6 — five MEDIUM residual regressions (authority/consistency)."""
 
 from __future__ import annotations
 
@@ -105,7 +105,7 @@ def test_live_invoke_claude_uses_review_parse(monkeypatch, tmp_path):
 
 
 def test_empty_citations_not_fabricated_as_runner_auto_review():
-    """Finding 2: missing citations stay missing - no synthetic runner_auto_review."""
+    """Finding 2: missing citations stay missing — no synthetic runner_auto_review."""
     src = Path("app/dev_control/external_agents/runner/loop.py").read_text(encoding="utf-8")
     assert "runner_auto_review" not in src
 
@@ -146,7 +146,7 @@ def test_empty_citations_not_fabricated_as_runner_auto_review():
 
 
 def test_redis_required_does_not_fallback_to_filelock(monkeypatch, tmp_path):
-    """Finding 3: redis mode + Redis down -> fail closed, no FileLock claim."""
+    """Finding 3: redis mode + Redis down → fail closed, no FileLock claim."""
     from app.dev_control.external_agents import cas as cas_mod
 
     cas_mod.reset_backend()

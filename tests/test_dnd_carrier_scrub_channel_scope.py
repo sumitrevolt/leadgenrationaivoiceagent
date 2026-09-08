@@ -1,24 +1,24 @@
-"""OPS-017 - `DND_CARRIER_SCRUB` must be a VOICE-only allowance.
+"""OPS-017 — `DND_CARRIER_SCRUB` must be a VOICE-only allowance.
 
 THE HOLE (found 2026-09-07, cycle 9): `DND_CARRIER_SCRUB=1` makes
 `_check_via_registry()` return `is_dnd=False, verified=True` for EVERY number,
 with no per-number lookup. It was introduced for voice
 (`scripts/vps_deploy_call_learn.py:23` arms it next to VOBIZ_CALL_RECORD and
 DLT_APPROVED) but `DNDChecker` is shared: `app/tasks/whatsapp_automation.py::
-_scrub_dnd()` - the promotional WhatsApp §5 gate - calls the same checker. One
+_scrub_dnd()` — the promotional WhatsApp §5 gate — calls the same checker. One
 env var therefore turned the messaging DND gate into "every number is fine",
 while the gate's own docstring claimed the opposite ("any number not already in
 the cache returns UNVERIFIED and is therefore BLOCKED").
 
 WHY VOICE IS DIFFERENT: TCCCPR 2018 permits a call to a DND number when consent
 is documented (this project keeps that in `app/telephony/consent_ledger.py`).
-For promotional messaging, NCPR scrubbing is mandatory and - per the research
-quoted in docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md §3.1 - there is NO consent
+For promotional messaging, NCPR scrubbing is mandatory and — per the research
+quoted in docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md §3.1 — there is NO consent
 mechanism that overrides a DND registration. So a blanket carrier assertion is
 defensible for calls and indefensible for messages.
 
 THESE TESTS ARE A COMPLIANCE GATE. If any fail, do NOT "fix" them by loosening
-an assertion - a loosened assertion here re-opens a §5 bypass.
+an assertion — a loosened assertion here re-opens a §5 bypass.
 """
 
 import asyncio
@@ -37,7 +37,7 @@ MESSAGING = "messaging"
 
 
 class FakeAuthority:
-    """Nobody has opted out - we are testing the carrier-scrub path only."""
+    """Nobody has opted out — we are testing the carrier-scrub path only."""
 
     def is_suppressed(self, phone: str) -> bool:
         return False
@@ -65,7 +65,7 @@ def authority(monkeypatch):
 
 @pytest.fixture
 def armed_vobiz(monkeypatch):
-    """DND_CARRIER_SCRUB=1 with Vobiz creds present - the prod shape."""
+    """DND_CARRIER_SCRUB=1 with Vobiz creds present — the prod shape."""
     monkeypatch.setenv("DND_CARRIER_SCRUB", "1")
     monkeypatch.setenv("TELEPHONY_PROVIDER", "vobiz")
     monkeypatch.setenv("VOBIZ_AUTH_ID", "fake-id")

@@ -1,5 +1,5 @@
 """
-Swara Pronunciation Dictionary - project-specific pronunciation memory.
+Swara Pronunciation Dictionary — project-specific pronunciation memory.
 
 Rule 7: Maintain a curated pronunciation dictionary with:
     written_form, preferred_spoken_form, language, phonetic_hint, confidence, source, last_verified
@@ -46,10 +46,10 @@ class PronunciationEntry:
 
 
 # -----------------------------------------------------------------------------
-# DEFAULT ENTRIES - PROJECT-SPECIFIC
+# DEFAULT ENTRIES — PROJECT-SPECIFIC
 # -----------------------------------------------------------------------------
 # These are the canonical pronunciations for LeadGen AI domain terms.
-# Add new entries here - they become the single source of truth.
+# Add new entries here — they become the single source of truth.
 
 DEFAULT_PRONUNCIATIONS: dict[str, PronunciationEntry] = {
     # Brand / product
@@ -511,7 +511,7 @@ class PronunciationDictionary:
         """Add a customer name with special care (Rule 7).
 
         Customer names must receive special care. Never confidently invent
-        pronunciation when uncertain - defaults to lower confidence.
+        pronunciation when uncertain — defaults to lower confidence.
         """
         return self.set(
             written_form=name,

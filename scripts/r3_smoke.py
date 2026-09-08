@@ -1,4 +1,4 @@
-"""Round-3 features VPS smoke (no LLM needed - fallbacks/pure logic)."""
+"""Round-3 features VPS smoke (no LLM needed — fallbacks/pure logic)."""
 
 import asyncio
 

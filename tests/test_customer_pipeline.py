@@ -1,6 +1,6 @@
 """Pure unit tests for the customer Pipeline Kanban grouping logic.
 
-NO network / NO DB / NO app startup - we import only the pure helper
+NO network / NO DB / NO app startup — we import only the pure helper
 ``group_by_status`` from app.api.customer_pipeline and assert grouping/counts.
 """
 
@@ -99,7 +99,7 @@ def test_unknown_status_is_dropped_not_raised():
 
 
 def test_never_raises_on_garbage_input():
-    # Mixed junk: None, missing keys, wrong types - must not raise.
+    # Mixed junk: None, missing keys, wrong types — must not raise.
     board = group_by_status([None, {}, {"status": "Hot"}, 42, "nope"])
     assert isinstance(board, dict)
     assert board["counts"]["Hot"] == 1  # only the valid Hot dict maps

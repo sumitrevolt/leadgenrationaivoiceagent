@@ -1,8 +1,8 @@
 """
-review_replies.py - Google/JustDial review ke liye 3 ready Hinglish replies.
+review_replies.py — Google/JustDial review ke liye 3 ready Hinglish replies.
 ============================================================================
 
-LLM-first (free_ai chain), sentiment-based TEMPLATE fallback - KABHI empty
+LLM-first (free_ai chain), sentiment-based TEMPLATE fallback — KABHI empty
 nahi, KABHI raise nahi. Output: short / medium / detailed teen variants.
 """
 
@@ -22,7 +22,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
 
 
 # --------------------------------------------------------------------------- #
-# Sentiment templates - {business_name} fill hota hai
+# Sentiment templates — {business_name} fill hota hai
 # --------------------------------------------------------------------------- #
 
 _POSITIVE = [
@@ -33,13 +33,13 @@ _POSITIVE = [
     (
         "medium",
         "Bahut bahut shukriya aapke kind words ke liye! 🙏 {business_name} ki team ke liye "
-        "aapki ye review kisi award se kam nahi. Agli baar bhi isi quality ki guarantee - "
+        "aapki ye review kisi award se kam nahi. Agli baar bhi isi quality ki guarantee — "
         "zaroor padhariye!",
     ),
     (
         "detailed",
         "Dil se dhanyawad! 🙏 Aap jaise customers ki wajah se hi {business_name} aaj is "
-        "mukaam par hai. Aapka feedback humari poori team ke saath share kiya gaya hai - "
+        "mukaam par hai. Aapka feedback humari poori team ke saath share kiya gaya hai — "
         "sabke chehre par muskaan aa gayi. Aapke doston/family ko bhi humari services "
         "chahiye hon to bas ek call door hain. Phir se swagat hai! ✨",
     ),
@@ -49,20 +49,20 @@ _NEGATIVE = [
     (
         "short",
         "Maafi chahte hain aapke experience ke liye. 🙏 {business_name} isse seriously le raha "
-        "hai - please humein direct call/DM karein, turant solve karenge.",
+        "hai — please humein direct call/DM karein, turant solve karenge.",
     ),
     (
         "medium",
         "Aapke experience ke liye dil se maafi. Ye humare standard se bilkul neeche hai aur "
         "{business_name} ki team ne ise turant flag kiya hai. Please apna contact DM karein "
-        "ya humein call karein - 24 ghante me aapki problem ka solution denge. 🙏",
+        "ya humein call karein — 24 ghante me aapki problem ka solution denge. 🙏",
     ),
     (
         "detailed",
-        "Sabse pehle - sincere apology. 🙏 Jo hua wo {business_name} ke values ke khilaaf "
+        "Sabse pehle — sincere apology. 🙏 Jo hua wo {business_name} ke values ke khilaaf "
         "hai aur hum ise personally fix karna chahte hain. Humne internally review shuru "
         "kar diya hai taaki ye kisi aur ke saath na ho. Please humein call ya DM karke "
-        "apni details dein - owner khud aapse baat karenge aur jo bhi sahi hoga (replacement/"
+        "apni details dein — owner khud aapse baat karenge aur jo bhi sahi hoga (replacement/"
         "re-service/refund) turant karenge. Aapka bharosa wapas jeetna hi humara goal hai.",
     ),
 ]
@@ -75,13 +75,13 @@ _NEUTRAL = [
     (
         "medium",
         "Aapke honest feedback ke liye dhanyawad! {business_name} aapke points ko seriously "
-        "le raha hai - agli visit par aapko farak zaroor dikhega. Koi bhi baat ho to humein "
+        "le raha hai — agli visit par aapko farak zaroor dikhega. Koi bhi baat ho to humein "
         "direct bata sakte hain. 🙏",
     ),
     (
         "detailed",
         "Thank you for taking the time to review us! 🙏 {business_name} me hum har feedback "
-        "se seekhte hain - aapke points team ke saath discuss kiye gaye hain aur jahan "
+        "se seekhte hain — aapke points team ke saath discuss kiye gaye hain aur jahan "
         "improvement chahiye wahan kaam shuru ho gaya hai. Agli baar aapko 5-star experience "
         "dene ka waada hai. Koi suggestion ho to humein call/DM karein, hum sun rahe hain!",
     ),
@@ -149,7 +149,7 @@ def _template_replies(business_name: str, sentiment: str) -> list[dict[str, str]
 
 
 def _parse_llm_replies(text: str) -> list[dict[str, str]]:
-    """SHORT:/MEDIUM:/DETAILED: markers parse karo - teeno mile tabhi valid."""
+    """SHORT:/MEDIUM:/DETAILED: markers parse karo — teeno mile tabhi valid."""
     out: list[dict[str, str]] = []
     try:
         for label in ("short", "medium", "detailed"):
@@ -195,7 +195,7 @@ async def generate_replies(
                 "MEDIUM: <3-4 line reply>\n"
                 "DETAILED: <5-6 line reply>\n"
                 "Rules: customer ko thank/apologize sahi sentiment ke hisab se, "
-                "business ka naam naturally use kar, negative par defensive mat ban - "
+                "business ka naam naturally use kar, negative par defensive mat ban — "
                 "maafi + fix + direct contact invite kar."
             )
             user = (

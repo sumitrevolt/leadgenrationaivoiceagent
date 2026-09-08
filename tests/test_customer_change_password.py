@@ -122,7 +122,7 @@ def test_change_password_rejects_reuse_of_old_password(client, monkeypatch):
 
 def test_change_password_returns_409_when_no_credential_row(client, monkeypatch):
     """Edge: legitimate JWT but no matching credential row (legacy account or
-    store corruption). MUST NOT 500 - hint the customer toward support."""
+    store corruption). MUST NOT 500 — hint the customer toward support."""
     import app.api.customer_auth as ca
 
     monkeypatch.setattr(ca, "_read", lambda: [])  # empty store

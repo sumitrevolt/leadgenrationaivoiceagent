@@ -1,27 +1,25 @@
 """
-Agent Runtime - Phase-B pilot capabilities (kavya / isha / zara).
+Agent Runtime — Phase-B pilot capabilities (kavya / isha / zara).
 =================================================================
 
 3 pilot agents, 3 alag risk-profiles, sab EXISTING engines reuse karte hain
 (koi naya executor/queue nahi):
 
-  1. kavya  - GREEN L0, deterministic: read-only operational health check
-              (automation_health.health() - zero side effects, zero LLM).
-  2. isha   - GREEN L1, genuine reasoning agent: DRAFT/PROPOSAL output only.
+  1. kavya  — GREEN L0, deterministic: read-only operational health check
+              (automation_health.health() — zero side effects, zero LLM).
+  2. isha   — GREEN L1, genuine reasoning agent: DRAFT/PROPOSAL output only.
               LLM sirf tab jab AGENT_RUNTIME_LLM=1 (free stack, graceful
-              deterministic fallback) - kabhi publish nahi karta.
-  3. zara   - AMBER L2, approval-controlled: sirf ALREADY-APPROVED content ko
+              deterministic fallback) — kabhi publish nahi karta.
+  3. zara   — AMBER L2, approval-controlled: sirf ALREADY-APPROVED content ko
               existing social_engine queue me hand-off karta hai. Approval gate
-              runtime enforce karta hai (requires_approval=True)
-              engine flag
-              off ho to honest SkipTask - fake publish kabhi nahi.
+              runtime enforce karta hai (requires_approval=True); engine flag
+              off ho to honest SkipTask — fake publish kabhi nahi.
 
 Voice-specific code yahan NAHI hai (STT/TTS/streaming/barge-in/DND-window =
 sirf voice agents ke module). RED agents (swara/ananya) yahan register hi
-nahi hote - runtime unhe lane-level pe block karta hai.
+nahi hote — runtime unhe lane-level pe block karta hai.
 
-Import-safe
-ensure_pilots_registered() idempotent.
+Import-safe; ensure_pilots_registered() idempotent.
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ logger = setup_logger(__name__)
 
 
 # --------------------------------------------------------------------------- #
-# 1. Kavya - GREEN, L0_OBSERVE, deterministic read-only ops check
+# 1. Kavya — GREEN, L0_OBSERVE, deterministic read-only ops check
 # --------------------------------------------------------------------------- #
 async def kavya_ops_health_check(ctx: AgentExecutionContext) -> dict[str, Any]:
     """Read-only: automation_health rollup + queue depth. Mutates NOTHING."""
@@ -62,10 +60,10 @@ async def kavya_ops_health_check(ctx: AgentExecutionContext) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# 2. Isha - GREEN, L1_RECOMMEND, reasoning: draft/proposal ONLY (no publish)
+# 2. Isha — GREEN, L1_RECOMMEND, reasoning: draft/proposal ONLY (no publish)
 # --------------------------------------------------------------------------- #
 async def isha_draft_content_brief(ctx: AgentExecutionContext) -> dict[str, Any]:
-    """Content brief PROPOSAL - human review required, koi side effect nahi.
+    """Content brief PROPOSAL — human review required, koi side effect nahi.
 
     LLM path sirf AGENT_RUNTIME_LLM=1 pe (free providers via free_ai), warna
     deterministic template. Dono case me output = draft, publish kabhi nahi.
@@ -80,7 +78,7 @@ async def isha_draft_content_brief(ctx: AgentExecutionContext) -> dict[str, Any]
             from app.voice_agent.free_ai import chat as _chat
 
             draft_text = await _chat(
-                "You draft short Hinglish marketing briefs. Draft/proposal only - never publish.",
+                "You draft short Hinglish marketing briefs. Draft/proposal only — never publish.",
                 [
                     {
                         "role": "user",
@@ -100,8 +98,8 @@ async def isha_draft_content_brief(ctx: AgentExecutionContext) -> dict[str, Any]
             draft_text = ""
     if not draft_text:
         draft_text = (
-            f"BRIEF (draft): {business} - {topic}\n"
-            f"- Hook 1: local problem -> aapka solution\n"
+            f"BRIEF (draft): {business} — {topic}\n"
+            f"- Hook 1: local problem → aapka solution\n"
             f"- Hook 2: social proof / before-after\n"
             f"- Hook 3: limited-time offer\n"
             f"- CTA: WhatsApp par message karo"
@@ -121,14 +119,13 @@ async def isha_draft_content_brief(ctx: AgentExecutionContext) -> dict[str, Any]
 
 
 # --------------------------------------------------------------------------- #
-# 3. Zara - AMBER, L2, approval-controlled publish HAND-OFF (existing engine)
+# 3. Zara — AMBER, L2, approval-controlled publish HAND-OFF (existing engine)
 # --------------------------------------------------------------------------- #
 async def zara_publish_approved_content(ctx: AgentExecutionContext) -> dict[str, Any]:
     """Sirf ALREADY-APPROVED content_approval record ko existing social_engine
     queue me daalta hai. Approval verification runtime gate pe ho chuki hoti
-    hai (requires_approval=True -> approval_ref approved). Engine off = honest
-    skip
-    executor = existing social_drain (koi duplicate publisher nahi)."""
+    hai (requires_approval=True → approval_ref approved). Engine off = honest
+    skip; executor = existing social_drain (koi duplicate publisher nahi)."""
     from app.marketing import content_approval
 
     approval_id = str(ctx.task.approval_ref or "").strip()
@@ -166,7 +163,7 @@ async def zara_publish_approved_content(ctx: AgentExecutionContext) -> dict[str,
 # Registration (idempotent)
 # --------------------------------------------------------------------------- #
 def ensure_pilots_registered() -> None:
-    """Idempotent - register_capability is a plain keyed overwrite, so calling
+    """Idempotent — register_capability is a plain keyed overwrite, so calling
     this repeatedly is cheap and always leaves the 3 pilots wired."""
     register_capability(
         AgentCapability(
@@ -185,7 +182,7 @@ def ensure_pilots_registered() -> None:
             fn=isha_draft_content_brief,
             side_effect="none",
             tenant_scoped=True,
-            description="Content brief draft/proposal - human review required (GREEN L1, reasoning)",
+            description="Content brief draft/proposal — human review required (GREEN L1, reasoning)",
         )
     )
     register_capability(
@@ -196,7 +193,7 @@ def ensure_pilots_registered() -> None:
             side_effect="customer",
             tenant_scoped=True,
             requires_approval=True,
-            description="Approved content -> existing social_engine queue hand-off (AMBER, approval-gated)",
+            description="Approved content → existing social_engine queue hand-off (AMBER, approval-gated)",
         )
     )
 

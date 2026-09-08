@@ -1,19 +1,18 @@
 """One-time backfill: existing prospects par phone_type tag + FIXED_LINE dial_block (ADR-027).
 
 KYU (council 2026-07-06): store me 649 FIXED_LINE cloud-IVR DIDs (Livspace/HDFC
-DID-blocks) "ready" the - 05-Jul batch ne unhe dial kiya (IVR paisa-burn). Naye
+DID-blocks) "ready" the — 05-Jul batch ne unhe dial kiya (IVR paisa-burn). Naye
 records ab ingest par `phone_type` ke saath likhe jaate hain (prospector) aur
-dial_gate FIXED_LINE promotional-dial block karta hai
-yeh script PURANE rows
+dial_gate FIXED_LINE promotional-dial block karta hai; yeh script PURANE rows
 ko wahi tag deta hai taaki dashboards/email-routing/audit sab consistent ho.
 
 Kya karta hai:
   - data/prospects.jsonl padho, har record ke phone par dial_gate.phone_quality
-    lagao (single source of truth - wahi jo dial-time par lagta hai).
+    lagao (single source of truth — wahi jo dial-time par lagta hai).
   - DEFAULT = DRY-RUN: sirf type-distribution table print (kuch nahi likhta).
   - --apply: pehle backup (prospects.jsonl.bak-<ts>), phir har record par
     `phone_type` set + fixed/tollfree walo par `dial_block="fixed_line_type"`
-    ATOMIC rewrite (tmp + os.replace). STATUS NAHI badalta - email path zinda
+    ATOMIC rewrite (tmp + os.replace). STATUS NAHI badalta — email path zinda
     rehta (council: route, don't shrink). DELETE nahi karta (audit trail).
 
 Run (local):    python scripts/backfill_phone_type.py
@@ -80,7 +79,7 @@ def main() -> int:
     print(f"[backfill] phone_type set/updated: {changed} | naya dial_block: {blocked}")
 
     if not args.apply:
-        print("[backfill] DRY-RUN - kuch nahi likha. Apply: --apply")
+        print("[backfill] DRY-RUN — kuch nahi likha. Apply: --apply")
         return 0
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")

@@ -1,5 +1,5 @@
 """
-NOOB-REPRO - drive TelecallerBrain directly (no server) through realistic +
+NOOB-REPRO — drive TelecallerBrain directly (no server) through realistic +
 slightly adversarial customer conversations, print opener + every reply with
 word-count and noob-tell flags. Source-of-truth reproduction for the
 "agent noob saman baat kar rahi" complaint.
@@ -82,7 +82,7 @@ def flags(text: str, *, is_opener: bool = False) -> list[str]:
     wc = len((text or "").split())
     # Per-turn replies: phone rule = 1 sentence / ~18 words. Permission OPENERS are
     # legitimately longer (greeting + reason + permission-ask, ~25-30w) and match
-    # the phone openers verbatim - so only flag an opener that's genuinely bloated.
+    # the phone openers verbatim — so only flag an opener that's genuinely bloated.
     limit = 34 if is_opener else 20
     if wc > limit:
         out.append(f"too-long({wc}w)")

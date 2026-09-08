@@ -50,7 +50,7 @@ def _install(monkeypatch, clients, status_map, *, forbid_writes=True):
 
     def _canon(cid):
         # billing alias -> marketing id (mirrors clients_store.resolve_client)
-        if str(cid) == "d79d690f61b3":  # pragma: allowlist secret - test fixture billing alias
+        if str(cid) == "d79d690f61b3":  # pragma: allowlist secret — test fixture billing alias
             return "jiya-makeover"
         return str(cid or "").strip()
 
@@ -146,7 +146,7 @@ def test_billing_alias_canonicalizes_to_marketing_id(monkeypatch):
 
 
 def test_scan_is_read_only_no_writes(monkeypatch):
-    """If any write primitive is invoked the stub raises - scan must still succeed."""
+    """If any write primitive is invoked the stub raises — scan must still succeed."""
     status = {
         "jiya-makeover": {"ok": True, "health_status": "red", "deliverable_completion_pct": 10}
     }
@@ -216,7 +216,7 @@ def test_run_result_shape_and_summary(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Slice 2 - live wiring: hourly product_one_health sweep + admin endpoint
+# Slice 2 — live wiring: hourly product_one_health sweep + admin endpoint
 # --------------------------------------------------------------------------- #
 def test_health_sweep_emits_assurance_observability(monkeypatch):
     """The hourly sweep runs the read-only assurance scan and reports its counts."""

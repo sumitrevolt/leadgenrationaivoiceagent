@@ -1,4 +1,4 @@
-"""Safe settings introspection - never print credential values.
+"""Safe settings introspection — never print credential values.
 
 2026-08-07 incident: dumping ``settings`` / ``settings.__dict__`` leaked
 ``vobiz_auth_token``, ``vobiz_sip_pass``, and ``DATABASE_URL`` into a chat
@@ -29,7 +29,7 @@ _PROBE_ALLOWLIST = frozenset(
         "vobiz_trunk_id",
         "vobiz_trunk_domain",
         "vobiz_caller_id",
-        "redis_url",  # host only via presence - value still redacted below
+        "redis_url",  # host only via presence — value still redacted below
         "qdrant_url",
         "smtp_host",
         "waha_base_url",
@@ -50,7 +50,7 @@ def is_secret_field_name(name: str) -> bool:
 
 
 def value_fingerprint(value: Any, *, prefix_len: int = 8) -> dict[str, Any]:
-    """Presence + length + sha256 prefix - never the raw value."""
+    """Presence + length + sha256 prefix — never the raw value."""
     if value is None:
         return {"present": False, "length": 0, "sha256_prefix": None}
     s = str(value)
@@ -102,7 +102,7 @@ def safe_settings_probe(
             fp = value_fingerprint(val)
             if fp["present"]:
                 out["secret_names_present"].append(name)
-            # Never put fingerprint of secrets into chat by default - names only.
+            # Never put fingerprint of secrets into chat by default — names only.
             continue
         if name not in allow:
             continue

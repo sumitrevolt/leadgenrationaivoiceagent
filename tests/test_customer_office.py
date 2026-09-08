@@ -1,5 +1,5 @@
 """Unit tests for the customer "Aapka Office" virtual-office aggregator
-(app/api/customer_dashboard_builders.py). Direct builder calls - no app/auth/DB
+(app/api/customer_dashboard_builders.py). Direct builder calls — no app/auth/DB
 so they stay fast and deterministic offline."""
 
 from app.api.customer_dashboard_builders import (
@@ -117,9 +117,9 @@ def test_build_office_next_best_action_reflects_top_task():
 
 
 # --------------------------------------------------------------------------- #
-# _office_call_stats - client-scoped calls/bookings (2026-07-01, Phase 4).
+# _office_call_stats — client-scoped calls/bookings (2026-07-01, Phase 4).
 # Uses a dedicated in-memory SQLite bound directly into app.models.base so the
-# query really executes (not mocked) - this is the exact regression the fix
+# query really executes (not mocked) — this is the exact regression the fix
 # targets: the OLD _calls_from_events helper counted ALL clients' calls
 # platform-wide, so two different clients would see the SAME number under
 # their own name. These tests assert that can never happen again.
@@ -190,7 +190,7 @@ def test_office_call_stats_no_cross_client_leakage(monkeypatch):
 
     # client_a: 1 connected call (duration>0), 1 appointment booking
     assert calls_a == 1 and bookings_a == 1
-    # client_b: 2 connected calls, 0 bookings (lead is NEW not APPOINTMENT) -
+    # client_b: 2 connected calls, 0 bookings (lead is NEW not APPOINTMENT) —
     # must NOT inherit client_a's numbers, and vice versa.
     assert calls_b == 2 and bookings_b == 0
     # a client with zero rows gets an honest zero, never someone else's total.
@@ -212,12 +212,12 @@ def test_office_call_stats_never_raises_when_db_unavailable(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# _calls_from_events - client-scoped via meta_json.client_id (2026-07-02).
+# _calls_from_events — client-scoped via meta_json.client_id (2026-07-02).
 # The old version counted ALL "swara" call events platform-wide (client_id
 # wasn't in meta yet); every customer's file-based dashboard fallback showed
 # the SAME inflated number under their own name. Now scoped by the client_id
 # now written at the source (vobiz_stream.py / telephony_vobiz.py /
-# public_site._auto_callback - see tests/test_call_event_client_id.py).
+# public_site._auto_callback — see tests/test_call_event_client_id.py).
 # --------------------------------------------------------------------------- #
 def test_calls_from_events_no_cross_client_leakage(monkeypatch):
     import json
@@ -250,7 +250,7 @@ def test_calls_from_events_no_cross_client_leakage(monkeypatch):
                     status="ok",
                     meta_json=json.dumps({"client_id": "client_b"}),
                 ),
-                # pre-fix event with no client_id in meta - must NOT count toward
+                # pre-fix event with no client_id in meta — must NOT count toward
                 # anyone (honest exclusion, not attributed to the wrong client).
                 AgentEvent(
                     id="ev4",
@@ -279,12 +279,12 @@ def test_calls_from_events_no_cross_client_leakage(monkeypatch):
 
 def test_calls_from_events_scoped_filter_survives_high_platform_volume(monkeypatch):
     """Regression: an earlier version fetched the latest N=2000 events
-    PLATFORM-WIDE and filtered by client_id in Python afterwards - once total
+    PLATFORM-WIDE and filtered by client_id in Python afterwards — once total
     call volume outpaced that window, a real client's own (older) calls fell
     outside it and silently read as 0. The fix pushes the client_id match into
     the SQL WHERE (meta_json LIKE) before any row limit is applied. Proven
     here by burying our client's one call under >5000 newer noise rows from
-    other clients - it must still be found."""
+    other clients — it must still be found."""
     import json
 
     from app.models.agent_event import AgentEvent
@@ -330,7 +330,7 @@ def test_calls_from_events_scoped_filter_survives_high_platform_volume(monkeypat
 def test_calls_from_events_empty_client_id_returns_zero_without_query(monkeypatch):
     from app.api.customer_dashboard_builders import _calls_from_events
 
-    # No DB patch at all - if this queried the DB it would hit the real (or
+    # No DB patch at all — if this queried the DB it would hit the real (or
     # unconfigured) engine; the empty-client_id short-circuit must prevent that.
     assert _calls_from_events("", None) == ([], 0, 0)
 

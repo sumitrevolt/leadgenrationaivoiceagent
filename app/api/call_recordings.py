@@ -1,8 +1,8 @@
 """
-Call Recordings API - Admin
+Call Recordings API — Admin
 ===========================
-GET /api/admin/call-recordings              -> list recordings grouped by date
-GET /api/admin/call-recordings/{date}/{fn}  -> stream a WAV file (audio/wav)
+GET /api/admin/call-recordings              → list recordings grouped by date
+GET /api/admin/call-recordings/{date}/{fn}  → stream a WAV file (audio/wav)
 
 Recordings are saved by vobiz_stream.py when VOBIZ_CALL_RECORD=1:
   data/call_recordings/YYYY-MM-DD/call_{sid}.wav   (mixed conversation)
@@ -29,7 +29,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def _REC_DIR() -> str:
-    """Call recordings root - resolved per call, never frozen at import."""
+    """Call recordings root — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_recordings_dir
 
     return str(call_recordings_dir())
@@ -43,7 +43,7 @@ def _mtime(path: str) -> float:
 
 
 def _fmt_ist(epoch: float) -> str:
-    """File mtime (call end time) -> HH:MM:SS IST. '' if unknown."""
+    """File mtime (call end time) → HH:MM:SS IST. '' if unknown."""
     if not epoch:
         return ""
     try:
@@ -58,7 +58,7 @@ _MERGED_RE = re.compile(r"^call_[A-Za-z0-9_\-]+\.wav$")
 # Legacy split tracks
 _LEGACY_RE = re.compile(r"^call_[A-Za-z0-9_\-]+_(caller|bot)\.wav$")
 # Web test-call recordings (mixed mic+bot, browser MediaRecorder) served by the
-# combined _SERVE_RE below - webm/mp4/ogg/wav. (Listed via the Web Test Calls
+# combined _SERVE_RE below — webm/mp4/ogg/wav. (Listed via the Web Test Calls
 # admin view's recording_url, not double-counted in the phone "Call Recordings" tab.)
 _SERVE_RE = re.compile(
     r"^(?:call_[A-Za-z0-9_\-]+(?:_(?:caller|bot))?\.wav|webcall_[A-Za-z0-9_\-]+\.(?:webm|mp4|ogg|wav))$"
@@ -134,7 +134,7 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
 
         sessions: dict[str, dict] = {}
         try:
-            # Chronological (call end time) - so the dashboard lists calls
+            # Chronological (call end time) — so the dashboard lists calls
             # serial-wise, not by random UUID filename.
             files = sorted(
                 os.listdir(day_dir),

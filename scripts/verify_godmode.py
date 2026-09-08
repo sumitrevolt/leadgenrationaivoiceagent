@@ -26,7 +26,7 @@ try:
 except:
     print("Health raw:", r1.stdout[:200])
 
-# 2. Admin summary - expects 401 (auth required = route is live)
+# 2. Admin summary — expects 401 (auth required = route is live)
 r2 = subprocess.run(
     [
         ssh,
@@ -46,7 +46,7 @@ print(
     f"/api/admin/system/summary HTTP: {code} ({'OK - auth required (live)' if code in ('401', '403') else 'UNEXPECTED: ' + code})"
 )
 
-# 3. Campaign status - also auth-required
+# 3. Campaign status — also auth-required
 r3 = subprocess.run(
     [
         ssh,

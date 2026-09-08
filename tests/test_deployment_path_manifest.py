@@ -21,7 +21,7 @@ def _executable_lines(rel: str) -> list[str]:
     """Source lines with comments and blanks removed.
 
     Classification must be based on what a script EXECUTES. Twice already a
-    scanner read my own prose - a comment saying "no bypass" - and reported it
+    scanner read my own prose — a comment saying "no bypass" — and reported it
     as a finding. Comments are not evidence in either direction.
     """
     text = (_REPO / rel).read_text(encoding="utf-8", errors="replace")
@@ -78,7 +78,7 @@ def test_unknown_counts_as_unguarded() -> None:
         for e in d.ENTRYPOINTS
         if e["status"] == d.UNKNOWN_REQUIRES_REVIEW and not e.get("guarded")
     ]
-    # NOT "assert unknown_unguarded" - that was a stage assertion, and it broke
+    # NOT "assert unknown_unguarded" — that was a stage assertion, and it broke
     # the moment the unknowns were actually resolved, punishing progress. The
     # durable property is the accounting rule: however many unknowns exist,
     # every guard-required one is inside the unguarded total. Zero is allowed.
@@ -156,7 +156,7 @@ def test_deployment_guard_graph_has_no_gaps() -> None:
 
     This replaces an earlier `assert unguarded > 0` scaffold. That assertion
     described a STAGE rather than a property, so it failed the moment the last
-    gap was closed - punishing the progress it was meant to track. It is the
+    gap was closed — punishing the progress it was meant to track. It is the
     second time that shape bit me, so the rule is now explicit: assert what
     must always hold, not where the work happens to be.
     """
@@ -248,7 +248,7 @@ def test_bootstrap_target_dir_is_env_overridable() -> None:
     """
     e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "bootstrap.hermes")
     assert d.requires_guard(e) is True
-    # NOT pinned to UNGUARDED_PRODUCTION_PATH - that was a stage assertion and
+    # NOT pinned to UNGUARDED_PRODUCTION_PATH — that was a stage assertion and
     # it broke the moment the gap was closed. Third time this shape has bitten
     # me. The durable property is: while LOCAL_DIR is overridable this entry
     # requires a guard, and it must HAVE one.
@@ -257,10 +257,10 @@ def test_bootstrap_target_dir_is_env_overridable() -> None:
 
     lines = _executable_lines(e["file"])
     assert any(re.search(r'LOCAL_DIR="\$\{LOCAL_DIR:-', ln) for ln in lines), (
-        "LOCAL_DIR is no longer env-overridable - re-evaluate the classification"
+        "LOCAL_DIR is no longer env-overridable — re-evaluate the classification"
     )
     # The `git reset --hard` this entry was created for is now DELETED, not
-    # gated - see tests/test_bootstrap_guard.py. Asserting its presence here
+    # gated — see tests/test_bootstrap_guard.py. Asserting its presence here
     # would lock in the very command the protection removed.
     assert not any(re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines), (
         "the destructive reset came back"
@@ -273,8 +273,7 @@ def test_detached_execution_is_tracked_separately_from_guarding() -> None:
     `_ship_vps_recover.sh` inherits the parent's guard (the guard runs before
     any mutation regardless), but `setsid nohup ... &` means the caller never
     learns whether the release succeeded. Recording that as `guarded=False`
-    would overstate exposure
-    ignoring it would hide a real weakness.
+    would overstate exposure; ignoring it would hide a real weakness.
     """
     e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "recovery.ship_recover")
     assert e["guarded"] is True
@@ -287,7 +286,7 @@ def test_detached_execution_is_tracked_separately_from_guarding() -> None:
 def test_operational_risks_never_change_the_guard_count() -> None:
     """Operational risk and containment must stay in separate ledgers.
 
-    Real risks live outside the runtime-data denominator - an unattended
+    Real risks live outside the runtime-data denominator — an unattended
     `docker system prune` can delete the ROLLBACK IMAGES the release runbook
     depends on, and flywheel's `alembic upgrade head || true` swallows a
     migration failure with no rollback. Neither is checkout-backed data loss.

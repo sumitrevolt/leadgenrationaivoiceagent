@@ -85,7 +85,7 @@ def test_has_paid_evidence_excludes_never_invoiced_tenant(monkeypatch):
 
 def test_has_paid_evidence_fails_open_when_ledger_unavailable(monkeypatch):
     """A broken/empty invoice ledger must NEVER silently drop a real paying customer
-    from the dead-man detector - that is the ghosting incident this module prevents.
+    from the dead-man detector — that is the ghosting incident this module prevents.
     """
     from app.billing import gst_invoice
 
@@ -144,7 +144,7 @@ def test_is_delivered():
 
 
 def test_build_delivery_message_is_value_first():
-    """Message must hand over the LIVE mini-site link - value-first, not an info-ask."""
+    """Message must hand over the LIVE mini-site link — value-first, not an info-ask."""
     msg = cd.build_delivery_message(
         {"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"}
     )
@@ -173,7 +173,7 @@ async def test_deliver_gated_off_by_default(monkeypatch):
     )
     assert r["delivered"] is False
     assert r.get("skipped") == "AUTO_DELIVER_VALUE off"
-    assert sent["called"] is False  # gate held - no customer message sent
+    assert sent["called"] is False  # gate held — no customer message sent
 
 
 @pytest.mark.asyncio
@@ -234,8 +234,7 @@ async def test_deliver_force_sends_and_marks(monkeypatch):
 
 def test_activation_and_acknowledgment(monkeypatch):
     """A delivered paid customer's inbound reply flips delivery_state->acknowledged
-    (council: 'delivered = acknowledged')
-    non-delivered/non-paid unaffected."""
+    (council: 'delivered = acknowledged'); non-delivered/non-paid unaffected."""
     marked = {}
     clients = [
         {
@@ -263,7 +262,7 @@ def test_activation_and_acknowledgment(monkeypatch):
         lambda cid, **kw: marked.update({"cid": cid, **kw}),
         raising=False,
     )
-    # reply from jiya's number (with country code) - last-10 match
+    # reply from jiya's number (with country code) — last-10 match
     assert cd.try_mark_acknowledged("918712928847@c.us") is True
     assert marked.get("cid") == "j"
     assert marked.get("delivery_state") == "acknowledged"

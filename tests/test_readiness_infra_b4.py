@@ -28,14 +28,14 @@ def test_set_status_rejects_bad_value(tmp_path, monkeypatch):
 
 
 def test_patch_requires_auth():
-    # no customer token -> rejected before any mutation
+    # no customer token → rejected before any mutation
     r = client.patch("/api/customer/leads/x", json={"status": "Won"})
     assert r.status_code in (401, 403, 422)
 
 
 def test_patch_records_under_authed_client_only(tmp_path, monkeypatch):
     """IDOR guard: override is recorded under the JWT-resolved client_id, never
-    a body/query value - so client A can never write under client B's id."""
+    a body/query value — so client A can never write under client B's id."""
     from app.api import customer_dashboard as cd
     from app.api.customer_auth import require_customer
     from app.platform import lead_overrides as lo

@@ -1,8 +1,8 @@
 """Admin hourly-activity endpoint + recent_events(hours=) signature fix.
 
 Regression guard for two things shipped 2026-06-25:
-  1. team.recent_events() now accepts `hours=` (pehle TypeError -> _manager()
-     monitor hamesha "standby" pe gir jata tha - signature drift bug).
+  1. team.recent_events() now accepts `hours=` (pehle TypeError → _manager()
+     monitor hamesha "standby" pe gir jata tha — signature drift bug).
   2. /api/admin/hourly-activity buckets agent_events into IST hour groups so the
      admin dashboard can show "har ghante kya kya hua" (user feedback).
 """
@@ -32,7 +32,7 @@ def test_hourly_activity_endpoint_shape():
     assert isinstance(res, dict)
     assert "buckets" in res and isinstance(res["buckets"], list)
     assert "total" in res and isinstance(res["total"], int)
-    # No DB rows in test env -> empty buckets, but well-formed (no crash).
+    # No DB rows in test env → empty buckets, but well-formed (no crash).
     for b in res["buckets"]:
         assert "label" in b and "count" in b and "samples" in b
         assert isinstance(b.get("members"), list)

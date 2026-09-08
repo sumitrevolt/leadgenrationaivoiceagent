@@ -1,7 +1,7 @@
-"""Agent lifecycle event hooks - Hermes/Ruflo-style pre/post task hooks.
+"""Agent lifecycle event hooks — Hermes/Ruflo-style pre/post task hooks.
 
 Hermes (and Ruflo) jaise agent-frameworks user ko deti hain ki agent ke task
-lifecycle pe (pre_task / post_task / on_error) custom side-effects fire ho - log,
+lifecycle pe (pre_task / post_task / on_error) custom side-effects fire ho — log,
 phone-push, ya webhook. Yahi capability is project me deta hai: admin/agent data
 file me hooks define kare, code-deploy ke bina (skill_pack ki tarah data-driven).
 
@@ -10,11 +10,11 @@ Design (project patterns):
         {event, name, type:"log"|"ntfy"|"webhook", target?}
     event ∈ {pre_task, post_task, on_error}.
   - `fire(event, payload)` matching hooks chalata:
-        * "log"     -> logger.info (zero dep).
-        * "ntfy"    -> lazy httpx POST to target (ntfy topic URL), bounded.
-        * "webhook" -> lazy httpx POST json to target, bounded.
-    Har network hook `asyncio.wait_for(..., 8)` se bounded - koi hook kabhi
-    pipeline ko block/raise nahi karta (best-effort, never-raise - voice-deadair
+        * "log"     → logger.info (zero dep).
+        * "ntfy"    → lazy httpx POST to target (ntfy topic URL), bounded.
+        * "webhook" → lazy httpx POST json to target, bounded.
+    Har network hook `asyncio.wait_for(..., 8)` se bounded — koi hook kabhi
+    pipeline ko block/raise nahi karta (best-effort, never-raise — voice-deadair
     lesson: HAR await bounded).
   - `enabled()` sirf AUTO-firing ko gate karta (loops `fire()` call karenge);
     `register`/`list_hooks` flag-independent (admin manage kar sake).
@@ -45,7 +45,7 @@ def enabled() -> bool:
 
 
 def _load() -> list[dict[str, Any]]:
-    """Read hooks list. Never raises; missing/corrupt -> []."""
+    """Read hooks list. Never raises; missing/corrupt → []."""
     try:
         if not os.path.isfile(_DATA_FILE):
             return []
@@ -69,7 +69,7 @@ def _save(hooks: list[dict[str, Any]]) -> bool:
 
 
 def _is_safe_target(url: str) -> tuple[bool, str]:
-    """SSRF guard - reject non-http(s), internal docker hostnames, and private/
+    """SSRF guard — reject non-http(s), internal docker hostnames, and private/
     loopback/link-local/reserved/multicast IPs so a hook target can't probe our own
     infra or cloud-metadata (169.254.169.254). ALWAYS enforced (not flag-gated).
     Never raises. Mirrors customer_webhooks._is_url_safe."""
@@ -184,7 +184,7 @@ async def fire(event: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Matching hooks fire karo (best-effort). Never raises.
 
     Returns {ok, event, fired, results:[{name,type,ok}]}. Har network hook
-    8s pe bounded - koi bhi hook caller ko block/girne nahi deta.
+    8s pe bounded — koi bhi hook caller ko block/girne nahi deta.
     """
     ev = (event or "").strip().lower()
     pl = payload if isinstance(payload, dict) else {}

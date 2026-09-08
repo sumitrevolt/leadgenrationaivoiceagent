@@ -1,4 +1,4 @@
-"""Advancement backlog tests - #4 hybrid, #5 langgraph gate, #7 stt eval, #8 LLM profile."""
+"""Advancement backlog tests — #4 hybrid, #5 langgraph gate, #7 stt eval, #8 LLM profile."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def test_llm_profile_bulk_vs_realtime():
     bulk = [p for p, _ in fa._build_llm_chain("bulk")]
     rt = [p for p, _ in fa._build_llm_chain("realtime")]
     assert bulk.index("cerebras") < bulk.index("mistral")
-    # realtime = latency-first: groq (fastest) -> cerebras -> mistral
+    # realtime = latency-first: groq (fastest) → cerebras → mistral
     assert rt.index("groq") < rt.index("cerebras")
     assert rt.index("cerebras") < rt.index("mistral")
 

@@ -1,8 +1,8 @@
-"""Tests - teach-agent-loop 2026-07-31: teen naye self-improve actions.
+"""Tests — teach-agent-loop 2026-07-31: teen naye self-improve actions.
 
-  dialer_sprint_prep : untapped prospect phones -> human-dialer prep briefs
-  hot_wa_draft       : Hot Queue warm leads -> WhatsApp reply drafts (draft-only)
-  job_heal_sweep     : stale scheduled-job heartbeats -> bounded re-dispatch
+  dialer_sprint_prep : untapped prospect phones → human-dialer prep briefs
+  hot_wa_draft       : Hot Queue warm leads → WhatsApp reply drafts (draft-only)
+  job_heal_sweep     : stale scheduled-job heartbeats → bounded re-dispatch
 
 Hermetic: engine modules monkeypatch, koi network/DB nahi. Sync + asyncio.run
 pattern (repo convention). Har action pe 5 scenarios: happy / empty / LLM-down /
@@ -87,7 +87,7 @@ def test_dialer_sprint_prep_empty_no_prospects(tmp_path, monkeypatch):
 def test_dialer_sprint_prep_llm_down_fallback(tmp_path, monkeypatch):
     from app.agents.sprint_actions import dialer_sprint_prep
 
-    # prep_brief khud fallback deta hai (static brief) - yahan simulate:
+    # prep_brief khud fallback deta hai (static brief) — yahan simulate:
     # LLM-down = prep_brief ok=True provider="fallback"
     _patch_prep_engines(
         monkeypatch,
@@ -130,7 +130,7 @@ def test_dialer_sprint_prep_engine_error_graceful(tmp_path, monkeypatch):
         prep_error=asyncio.TimeoutError("prep 25s cap hit"),
     )
     out = asyncio.run(dialer_sprint_prep(limit=3))
-    # prep error -> brief appended with ok=False; action never raises
+    # prep error → brief appended with ok=False; action never raises
     assert out["briefs"][0]["ok"] is False
     assert "prep 25s cap hit" in str(out["briefs"][0].get("error"))
 
@@ -158,7 +158,7 @@ def test_dialer_sprint_prep_dedupes_dialed_phones(tmp_path, monkeypatch):
             },
         ],
     )
-    # 9876543210 already dialed -> skip
+    # 9876543210 already dialed → skip
     monkeypatch.setattr(dialer_log, "_read_logs", lambda: [{"phone": "9876543210"}])
     out = asyncio.run(dialer_sprint_prep(limit=5))
     assert out["prepped"] == 1
@@ -466,7 +466,7 @@ def test_actions_registered_and_dispatchable(tmp_path, monkeypatch):
     res = asyncio.run(si._execute("dialer_sprint_prep", "test"))
     assert res["ok"] is False and res["detail"] == "dialer_prep=0 (untapped phones)"
 
-    # hot_wa_draft dispatch -> empty queue -> ok False
+    # hot_wa_draft dispatch → empty queue → ok False
     from app.platform import reply_agent
 
     monkeypatch.setattr(reply_agent, "hot_queue", lambda **kw: [])
@@ -499,5 +499,5 @@ def test_actions_llm_heavy_flag_means_cheap_cost(tmp_path, monkeypatch):
     from app.agents import self_improve as si
 
     for name in ("dialer_sprint_prep", "hot_wa_draft", "job_heal_sweep"):
-        # light action -> estimated cost 0.5 (not 2.5)
+        # light action → estimated cost 0.5 (not 2.5)
         assert si.ACTIONS[name][0] is False

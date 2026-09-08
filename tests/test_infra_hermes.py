@@ -1,4 +1,4 @@
-"""Tests - Hermes 🛰️ Infrastructure Handler agent (infra_handler.py)."""
+"""Tests — Hermes 🛰️ Infrastructure Handler agent (infra_handler.py)."""
 
 from __future__ import annotations
 

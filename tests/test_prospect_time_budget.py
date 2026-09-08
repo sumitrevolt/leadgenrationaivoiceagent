@@ -1,4 +1,4 @@
-"""Prospect reliability contracts (2026-07-18 - 7 dead 'prospect' jobs postmortem).
+"""Prospect reliability contracts (2026-07-18 — 7 dead 'prospect' jobs postmortem).
 
 2026-07-17 pe dlq:dead me 7 prospect jobs mile: 6× SoftTimeLimitExceeded (540s)
 + 1× TimeLimitExceeded(600). PROSPECT_MAX_QUERIES fanout cap ke bawajood ek slow
@@ -7,8 +7,8 @@ soft-timeout pe 2 blind Celery retries (=27 min single heavy worker burn) karta 
 
 Contracts:
   1. run_prospecting apna PROSPECT_TIME_BUDGET_S wall-clock budget khud enforce
-     karta hai - budget khatam = graceful partial return, kill nahi.
-  2. run_staff_job SoftTimeLimitExceeded pe retry NAHI karta - graceful partial
+     karta hai — budget khatam = graceful partial return, kill nahi.
+  2. run_staff_job SoftTimeLimitExceeded pe retry NAHI karta — graceful partial
      SUCCESS return (no DLQ fill / no Celery retry storm).
 """
 
@@ -24,7 +24,7 @@ def test_time_budget_breaks_query_loop_gracefully(monkeypatch, tmp_path):
 
     calls: list[tuple[str, str]] = []
 
-    # Fake clock: har monotonic() call pe 100s aage - pehli query ke baad hi budget cross.
+    # Fake clock: har monotonic() call pe 100s aage — pehli query ke baad hi budget cross.
     tick = {"t": 0.0}
 
     class _FakeTime:
@@ -107,7 +107,7 @@ def test_full_budget_runs_all_queries(monkeypatch, tmp_path):
 
 
 def test_run_staff_job_does_not_retry_on_soft_time_limit(monkeypatch):
-    """SoftTimeLimitExceeded -> partial SUCCESS (no retry, no DLQ-worthy raise)."""
+    """SoftTimeLimitExceeded → partial SUCCESS (no retry, no DLQ-worthy raise)."""
     from celery.exceptions import SoftTimeLimitExceeded
 
     from app.platform import boot_grace

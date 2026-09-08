@@ -1,4 +1,4 @@
-"""owner_schedulers kill - real dispatch boundary (apply_async + _run_job)."""
+"""owner_schedulers kill — real dispatch boundary (apply_async + _run_job)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Static assertions on frontend/delivery_command_center.html - the new
+"""Static assertions on frontend/delivery_command_center.html — the new
 'Automation Runs' admin panel (Task 6: automation-log visibility) that surfaces
 the ADR-064 DB-backed /api/admin/automation-logs endpoint (was API-only, no UI).
 
@@ -42,7 +42,7 @@ NEW_MARKERS = [
 def _inline_js() -> str:
     blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
     assert blocks, "no inline <script> block found"
-    return "\n    \n".join(blocks)
+    return "\n;\n".join(blocks)
 
 
 def test_inline_js_syntax_ok(tmp_path):
@@ -66,4 +66,4 @@ def test_automation_runs_panel_present():
 
 def test_automation_runs_loaded_in_loadall():
     # loadAutoRuns must be invoked by the initial cockpit load.
-    assert "loadAutoRuns()\n    " in SRC
+    assert "loadAutoRuns();" in SRC

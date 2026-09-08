@@ -1,4 +1,4 @@
-"""Own-brand auto-approve canary - flag-gated, tenant-isolated, bounded.
+"""Own-brand auto-approve canary — flag-gated, tenant-isolated, bounded.
 
 VIDEO_OWN_BRAND_AUTO_APPROVE default OFF. When ON, only own-brand allowlist
 tenants (leadgenai-self / leadgen-ai) get auto-approved through the canonical

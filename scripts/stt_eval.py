@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""STT eval CLI - offline transcript fixtures + optional WAV path.
+"""STT eval CLI — offline transcript fixtures + optional WAV path.
 
 python scripts/stt_eval.py                  # list fixtures
 python scripts/stt_eval.py --wav clip.wav   # benchmark providers on WAV

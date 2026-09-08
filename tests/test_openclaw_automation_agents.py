@@ -1,4 +1,4 @@
-"""OpenClaw Automation-Max GREEN commands - observe only."""
+"""OpenClaw Automation-Max GREEN commands — observe only."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ def test_agent_status_includes_automation_package(monkeypatch):
 
 
 def test_classify_nl_automation_status():
-    prop = oc_cmd.classify_nl("automation status dikhao - kaun sa engine on")
+    prop = oc_cmd.classify_nl("automation status dikhao — kaun sa engine on")
     assert prop["command"] == "automation.status"
     assert prop["safety_lane"] == "GREEN"
 

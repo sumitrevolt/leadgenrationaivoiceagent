@@ -2,20 +2,20 @@
 
 Fixes a real gap found while wiring metadata for _calls_from_events: a mini-site
 inquiry's auto-callback call never threaded client_id through to
-start_stream_call - so the call greeted as generic "Demo Co"/"LeadGen AI"
+start_stream_call — so the call greeted as generic "Demo Co"/"LeadGen AI"
 instead of the actual business, skipped KB grounding (TelecallerBrain scopes
 RAG by client_id), never appeared in that client's own CallLog/dashboard, and
 skipped auto-qualify->CRM/sales downstream wiring (gated on `self.client_id`
 in vobiz_stream.py). Also found + fixed: missed_call.py was passing `business`
 into start_stream_call's 3rd POSITIONAL param, which is `client_id`, not a
-display name - a pre-existing bug in a flag-gated-OFF feature.
+display name — a pre-existing bug in a flag-gated-OFF feature.
 
 Covers:
-  - app/api/public_site.py::_auto_callback - client_id threaded to
+  - app/api/public_site.py::_auto_callback — client_id threaded to
     start_stream_call + into the "auto_callback" AgentEvent meta.
-  - app/platform/inquiry_hooks.py::run_after_inquiry - passes the already-
+  - app/platform/inquiry_hooks.py::run_after_inquiry — passes the already-
     resolved `cid` (mini_client_id or rec['client_id']) through.
-  - app/telephony/missed_call.py::handle_missed_call - no longer stuffs
+  - app/telephony/missed_call.py::handle_missed_call — no longer stuffs
     `business` into client_id.
   - app/api/telephony_vobiz.py "call_placed" + app/telephony/vobiz_stream.py
     "call_finished" AgentEvent meta now carry client_id.
@@ -60,7 +60,7 @@ def test_auto_callback_threads_client_id_to_start_stream_call(monkeypatch):
 
 def test_auto_callback_platform_lead_stays_client_id_none(monkeypatch):
     """A platform-level lead (no paying client yet) must NOT get a fabricated
-    client_id - client_id="" must resolve to None, unchanged behaviour."""
+    client_id — client_id="" must resolve to None, unchanged behaviour."""
     import app.api.public_site as ps
 
     captured = {}
@@ -115,7 +115,7 @@ def test_run_after_inquiry_passes_resolved_client_id_to_auto_callback(monkeypatc
 
 def test_run_after_inquiry_mini_client_id_overrides_rec_client_id(monkeypatch):
     """mini_client_id (the mini-site owner) takes precedence over any client_id
-    embedded in the raw inquiry payload - same precedence already used for the
+    embedded in the raw inquiry payload — same precedence already used for the
     customer_webhooks hook a few lines below in run_after_inquiry."""
     import app.platform.inquiry_hooks as ih
 
@@ -142,7 +142,7 @@ def test_run_after_inquiry_mini_client_id_overrides_rec_client_id(monkeypatch):
 def test_missed_call_no_longer_misuses_business_as_client_id(monkeypatch):
     """Regression: previously `starter(num, niche, business)` positionally put
     `business` into start_stream_call's client_id param. Must call with explicit
-    keywords now - client_id must never be the free-text business string."""
+    keywords now — client_id must never be the free-text business string."""
     import app.api.public_site as ps
     from app.telephony import missed_call
 
@@ -190,7 +190,7 @@ def test_call_placed_event_carries_client_id(monkeypatch):
 
 def test_call_finished_event_carries_client_id():
     """app/telephony/vobiz_stream.py _cleanup logs 'call_finished' with
-    client_id in meta (was missing before - only stt_counts/duration_s)."""
+    client_id in meta (was missing before — only stt_counts/duration_s)."""
     import inspect
 
     import app.telephony.vobiz_stream as vs

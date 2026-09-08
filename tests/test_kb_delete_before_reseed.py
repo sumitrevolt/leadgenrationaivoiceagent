@@ -1,4 +1,4 @@
-"""Contract for KB delete-before-reseed (audit 2026-07-06 P1 - the actual stale-grounding fix).
+"""Contract for KB delete-before-reseed (audit 2026-07-06 P1 — the actual stale-grounding fix).
 
 The deterministic point-id dedup (test_kb_point_id) only collapses *byte-identical*
 re-ingests. When a client's website content CHANGES, the new text hashes differently

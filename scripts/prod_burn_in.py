@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Bounded 20-minute production burn-in - replaces 24h soak as launch gate.
+"""Bounded 20-minute production burn-in — replaces 24h soak as launch gate.
 
 Read-only probes. Never mutates flags, never dials, never sends.
-Exit 0 = burn-in PASS
-non-zero = FAIL (do not GO).
+Exit 0 = burn-in PASS; non-zero = FAIL (do not GO).
 
   python3 scripts/prod_burn_in.py --minutes 20 --base-url https://leadsgenai.in
   python3 scripts/prod_burn_in.py --minutes 1 --once   # single sample (CI/local)
@@ -29,7 +28,7 @@ def _get(url: str, timeout: float = 20.0) -> tuple[int, str]:
         return 0, "ValueError:url_scheme_not_allowed"
     req = urllib.request.Request(url, headers={"User-Agent": "leadgen-burn-in/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 - scheme gated above
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — scheme gated above
             return int(resp.status), resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace") if e.fp else ""

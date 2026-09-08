@@ -1,4 +1,4 @@
-"""Agent Runtime - GTM sprint capabilities (kavya host) contract tests.
+"""Agent Runtime — GTM sprint capabilities (kavya host) contract tests.
 
 Covers: registration/idempotency, dispatch happy path, flag-off skip, kill
 switch block, idempotency duplicate suppression, and no-mutation honesty.
@@ -66,7 +66,7 @@ def test_sprint_caps_hosted_under_pilot():
     assert contract.lane == ar.Lane.GREEN.value
     assert contract.primary_flag == "OPS_HEALTH_AGENT"
     assert ar.validate_registry() == []
-    assert len(STAFF) == 31  # invariant intact - no new persona
+    assert len(STAFF) == 31  # invariant intact — no new persona
 
 
 async def test_dialer_sprint_prep_dispatch(monkeypatch):

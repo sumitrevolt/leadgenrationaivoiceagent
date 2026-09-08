@@ -1,42 +1,42 @@
 """
-Shared Agent Runtime - Agent-OS Phase-B execution layer (contract-ENFORCED).
+Shared Agent Runtime — Agent-OS Phase-B execution layer (contract-ENFORCED).
 ============================================================================
 
 WHY (2026-07-19, ADR-128): Phase-A ne 31 canonical Agent Runtime Contracts
-banaye (`agent_registry.py`) - par woh sirf DATA the, koi runtime unhe enforce
+banaye (`agent_registry.py`) — par woh sirf DATA the, koi runtime unhe enforce
 nahi karta tha. Yeh module woh enforcement layer hai: EK common runtime jiske
 upar har agent apne domain-specific capabilities chalata hai. 31 Swara-clones
-ya 31 LLM services NAHI - ek control-plane, contract-driven policy gates,
+ya 31 LLM services NAHI — ek control-plane, contract-driven policy gates,
 per-agent tool adapters.
 
 Swara se reuse kiye gaye PROVEN patterns (voice-specific code yahan NAHI):
-  - explicit lifecycle state machine  (queued -> leased -> running -> terminal)
-  - structured result contract        (AgentResult - kabhi bare exception nahi)
+  - explicit lifecycle state machine  (queued → leased → running → terminal)
+  - structured result contract        (AgentResult — kabhi bare exception nahi)
   - timeout/fallback discipline       (per-attempt wait_for + bounded retry)
   - kill-switch + audit trail         (owner_os kill map + team.log_event)
 
 REUSE-not-duplicate (koi naya queue/scheduler/persistence-system nahi):
-  - kill switches      -> app.platform.owner_os.kill_engaged (owner_all_agents etc.)
-  - idempotency        -> app.platform.agent_runtime_idempotency (Redis fail-closed)
-  - cancellation       -> app.platform.agent_runtime_cancellation (Redis fail-closed)
-  - durable identity   -> app.platform.agent_task_queue (AgentTask table, lease/claim)
-  - useful-work events -> app.platform.team.log_event (dashboard feed)
-  - state files        -> automation_health pattern (data/*.json + file_lock, atomic)
+  - kill switches      → app.platform.owner_os.kill_engaged (owner_all_agents etc.)
+  - idempotency        → app.platform.agent_runtime_idempotency (Redis fail-closed)
+  - cancellation       → app.platform.agent_runtime_cancellation (Redis fail-closed)
+  - durable identity   → app.platform.agent_task_queue (AgentTask table, lease/claim)
+  - useful-work events → app.platform.team.log_event (dashboard feed)
+  - state files        → automation_health pattern (data/*.json + file_lock, atomic)
 
 POLICY = ENFORCEMENT, display nahi. `run_task` / admission order (canonical):
   1 invalid agent/capability (no contract / not registered)
   2 RED hard-off / frozen
   3 global AGENT_RUNTIME flag
   4 individual agent primary_flag
-  5 platform/agent kill switches  -> reason kill_switch_engaged:<key>
+  5 platform/agent kill switches  → reason kill_switch_engaged:<key>
   6 Owner OS stop-claims / drain / pause via runtime_admission_blocked
-       -> agent_claims_stopped | agent_draining | agent_paused
-  7 Redis run-cancel (agent_runtime_cancellation) -> cancelled
+       → agent_claims_stopped | agent_draining | agent_paused
+  7 Redis run-cancel (agent_runtime_cancellation) → cancelled
   8 capability / tenant / approval / budget policy
   9 concurrency slot + durable lease claim
-  10 pre-engine re-check (admission + cancel) -> then engine
+  10 pre-engine re-check (admission + cancel) → then engine
   Race close: admission checked in evaluate_policy, again before durable open,
-  and again immediately before cap.fn. Resume clears controls only - no catch-up.
+  and again immediately before cap.fn. Resume clears controls only — no catch-up.
 
 CONTROLLED ROLLOUT: sirf PILOT_AGENTS dispatch ho sakte hain (Wave-A pilots +
 Wave-B GREEN/read-only engines). Baaki agents capability-registered hote hain
@@ -44,12 +44,11 @@ Wave-B GREEN/read-only engines). Baaki agents capability-registered hote hain
 RED voice (swara/ananya) HAMESHA blocked. Big-bang 31-live activation nahi.
 
 INERT DEFAULT: master flag `AGENT_RUNTIME` unset/0 = har dispatch SKIPPED.
-Kuch bhi scheduled/automatic is module se nahi chalta - sirf Owner OS
+Kuch bhi scheduled/automatic is module se nahi chalta — sirf Owner OS
 operator-triggered runs (admin-auth) + tests. §5 gates kabhi weaken nahi hote:
-RED lane (swara/ananya) HAMESHA blocked - koi env flip isse live nahi karta.
+RED lane (swara/ananya) HAMESHA blocked — koi env flip isse live nahi karta.
 
-Import-safe
-surface functions (runtime_status) kabhi raise nahi karte.
+Import-safe; surface functions (runtime_status) kabhi raise nahi karte.
 """
 
 from __future__ import annotations
@@ -79,12 +78,12 @@ class TaskStatus(str, Enum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    BLOCKED = "blocked"  # policy refused (fail-closed) - kill/prohibited/approval/budget/RED
+    BLOCKED = "blocked"  # policy refused (fail-closed) — kill/prohibited/approval/budget/RED
     SKIPPED = "skipped"  # non-error non-run: flag off / duplicate / capability self-skip
     CANCELLED = "cancelled"  # distributed cancel observed before/at engine boundary
 
 
-# Controlled rollout allowlist (code-level - never an env flip).
+# Controlled rollout allowlist (code-level — never an env flip).
 # Wave-A: kavya / isha / zara (proven).
 # Wave-B: READ-ONLY / diagnostic GREEN only (engineer + hermes + nikhil scan).
 # Mutating GREEN (neha/manager/ravi/…) stay capability-registered but OUT of
@@ -111,7 +110,7 @@ PILOT_AGENTS: frozenset[str] = frozenset(
 
 _MASTER_FLAG = "AGENT_RUNTIME"
 
-# State files (automation_health pattern - data/*.json + file_lock + atomic replace).
+# State files (automation_health pattern — data/*.json + file_lock + atomic replace).
 _STATE_PATH = os.path.join("data", "agent_runtime_state.json")
 _USAGE_PATH = os.path.join("data", "agent_runtime_usage.json")
 _DLQ_PATH = os.path.join("data", "agent_runtime_dlq.jsonl")
@@ -153,7 +152,7 @@ def _kill_engaged(key: str) -> bool | None:
 
 
 def _owner_admission_blocked(agent_id: str) -> tuple[bool, str]:
-    """Owner OS pause/drain/stop-claims - injectable seam for race tests.
+    """Owner OS pause/drain/stop-claims — injectable seam for race tests.
 
     Returns (blocked, reason_code). Empty reason when not blocked.
     """
@@ -274,7 +273,7 @@ def _duplicate_from_claim(
 
 
 def _approval_approved(tenant_id: str, approval_ref: str) -> bool:
-    """Default AMBER approval check - content_approval latest-state, tenant-scoped.
+    """Default AMBER approval check — content_approval latest-state, tenant-scoped.
     Fail-CLOSED: record missing / wrong tenant / not approved / store error = False."""
     try:
         from app.marketing import content_approval
@@ -303,7 +302,7 @@ class AgentTask:
 
 
 class SkipTask(Exception):
-    """Capability self-skip (e.g. downstream engine flag off) - honest non-run."""
+    """Capability self-skip (e.g. downstream engine flag off) — honest non-run."""
 
     def __init__(self, reason: str):
         super().__init__(reason)
@@ -312,7 +311,7 @@ class SkipTask(Exception):
 
 @dataclass(frozen=True)
 class AgentCapability:
-    """Tool adapter - the ONLY way an agent does work under this runtime."""
+    """Tool adapter — the ONLY way an agent does work under this runtime."""
 
     agent_id: str
     action: str
@@ -349,7 +348,7 @@ class AgentExecutionContext:
         self.usage["contacts"] += int(contacts or 0)
 
     def cancel_requested(self) -> bool:
-        """Cooperative checkpoint - True if Redis cancel exists for this run."""
+        """Cooperative checkpoint — True if Redis cancel exists for this run."""
         from app.platform import agent_runtime_cancellation as crc
 
         return crc.is_requested(self.task.agent_id, self.task.task_id).requested
@@ -464,7 +463,7 @@ def request_cancel(
 ) -> dict[str, Any]:
     """Emergency: cancel every *currently registered* active run for this agent.
 
-    Does NOT create a permanent agent-wide marker - future runs are unaffected.
+    Does NOT create a permanent agent-wide marker — future runs are unaffected.
     """
     from app.platform import agent_runtime_cancellation as crc
 
@@ -588,7 +587,7 @@ def _release_slot(agent_id: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# State / usage / DLQ stores (file_lock + atomic replace - automation_health pattern)
+# State / usage / DLQ stores (file_lock + atomic replace — automation_health pattern)
 # --------------------------------------------------------------------------- #
 def _read_json(path: str) -> dict[str, Any]:
     try:
@@ -674,7 +673,7 @@ def _charge_usage(agent_id: str, usage: dict[str, float]) -> None:
 
 
 def _dlq_push(task: AgentTask, result: AgentResult) -> None:
-    """Retry-exhausted failure -> runtime DLQ (failure reason ke saath, bounded)."""
+    """Retry-exhausted failure → runtime DLQ (failure reason ke saath, bounded)."""
     try:
         os.makedirs(os.path.dirname(_DLQ_PATH) or ".", exist_ok=True)
         rec = {
@@ -726,7 +725,7 @@ def _log_team_event(agent_id: str, action: str, detail: str, status: str = "ok")
 
 
 # --------------------------------------------------------------------------- #
-# Durable task-identity bridge (agent_task_queue reuse - best-effort, never raises)
+# Durable task-identity bridge (agent_task_queue reuse — best-effort, never raises)
 # --------------------------------------------------------------------------- #
 async def _durable_open(task: AgentTask) -> str | None:
     try:
@@ -741,7 +740,7 @@ async def _durable_open(task: AgentTask) -> str | None:
         )
         did = rec.get("id") if rec.get("ok") else None
         if did:
-            # claim -> running (lease semantics; stale_tasks() surfaces expired leases)
+            # claim → running (lease semantics; stale_tasks() surfaces expired leases)
             claimed = await atq.claim_next(task.agent_id)
             if claimed and claimed.get("id") == did:
                 await atq.start(did)
@@ -765,7 +764,7 @@ async def _durable_close(durable_id: str | None, ok: bool, detail: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Policy evaluation (fail-CLOSED) - contract se derive, dispatch se PEHLE enforce
+# Policy evaluation (fail-CLOSED) — contract se derive, dispatch se PEHLE enforce
 # --------------------------------------------------------------------------- #
 def _max_attempts(retry_policy: str) -> int:
     """Bounded retry from contract retry_policy. DLQ-lane policies get 3 attempts;
@@ -834,7 +833,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     """Pre-dispatch policy gates. Returns (contract, capability, refusal|None).
 
     Fail-CLOSED throughout: missing contract, RED lane, errored kill check,
-    unregistered capability, tenant gap, missing approval, exhausted budget -
+    unregistered capability, tenant gap, missing approval, exhausted budget —
     sab refusal return karte hain, silent execution kabhi nahi.
     """
     from app.platform import agent_registry as ar
@@ -850,11 +849,11 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     if contract is None:
         return None, None, _blocked(task, None, "no_contract_in_registry", lc)
 
-    # 3. RED lane / hard_off - NEVER dispatchable here. No env flip can pass this.
+    # 3. RED lane / hard_off — NEVER dispatchable here. No env flip can pass this.
     if contract.lane == ar.Lane.RED.value or contract.default_mode == ar.HARD_OFF:
         return contract, None, _blocked(task, contract, "red_lane_hard_off_mandate_required", lc)
 
-    # 4. Controlled rollout - pilots only (code allowlist, not env)
+    # 4. Controlled rollout — pilots only (code allowlist, not env)
     if task.agent_id not in PILOT_AGENTS:
         return contract, None, _blocked(task, contract, "not_in_pilot_rollout", lc)
 
@@ -862,7 +861,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     if task.action in set(contract.prohibited):
         return contract, None, _blocked(task, contract, f"prohibited_action:{task.action}", lc)
 
-    # 6. Primary feature flag - PILOT / canary-ready agents MUST be explicitly gated.
+    # 6. Primary feature flag — PILOT / canary-ready agents MUST be explicitly gated.
     #    Empty primary_flag on a dispatchable agent = fail-CLOSED (agent_flag_missing).
     #    Non-pilot hold/frozen inventory may still use "" (not executable via this path).
     flag = (contract.primary_flag or "").strip()
@@ -887,7 +886,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
             _skipped(task, contract, f"flag_disabled:{flag}", lc),
         )
 
-    # 7. Kill switches - owner_all_agents global + per-agent. Errored check on
+    # 7. Kill switches — owner_all_agents global + per-agent. Errored check on
     #    owner_* keys = fail-CLOSED (block), kyunki woh store-backed hote hain.
     for key in contract.kill_switches:
         engaged = _kill_engaged(key)
@@ -917,12 +916,12 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         if engaged is None and key.startswith("owner_"):
             return contract, None, _blocked(task, contract, f"kill_switch_check_error:{key}", lc)
 
-    # 8. Owner OS pause / drain / stop-claims (shared admission; reject - no park)
+    # 8. Owner OS pause / drain / stop-claims (shared admission; reject — no park)
     blocked, ctrl_reason = _owner_admission_blocked(task.agent_id)
     if blocked:
         return contract, None, _owner_control_refusal(task, contract, ctrl_reason, lc)
 
-    # 9. Distributed run-cancel (Redis) - specific runtime_run_id only
+    # 9. Distributed run-cancel (Redis) — specific runtime_run_id only
     cancel_res = _cancel_check(task, contract, lc)
     if cancel_res is not None:
         return contract, None, cancel_res
@@ -936,7 +935,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
             _blocked(task, contract, f"capability_not_registered:{task.action}", lc),
         )
 
-    # 11. Tenant isolation - tenant-scoped work needs an explicit tenant, and the
+    # 11. Tenant isolation — tenant-scoped work needs an explicit tenant, and the
     #    payload may not point at a different tenant (cross-client leak gate).
     if cap.tenant_scoped:
         if not task.tenant_id:
@@ -976,8 +975,8 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
 # The runner
 # --------------------------------------------------------------------------- #
 async def run_task(task: AgentTask) -> AgentResult:
-    """Execute ONE task under full contract policy. Never raises - structured
-    AgentResult always. Lifecycle: queued -> leased -> running -> terminal."""
+    """Execute ONE task under full contract policy. Never raises — structured
+    AgentResult always. Lifecycle: queued → leased → running → terminal."""
     t0 = time.monotonic()
     lc = [TaskStatus.QUEUED.value]
 
@@ -988,7 +987,7 @@ async def run_task(task: AgentTask) -> AgentResult:
         refusal = _blocked(task, None, f"policy_eval_error:{type(e).__name__}", lc)
         contract, cap = None, None
 
-    # Process heartbeat on EVERY dispatch attempt (even refusals) - runtime alive.
+    # Process heartbeat on EVERY dispatch attempt (even refusals) — runtime alive.
     if refusal is not None:
         _record_heartbeat(task.agent_id, useful=False, result=refusal)
         if refusal.status in (TaskStatus.BLOCKED.value, TaskStatus.CANCELLED.value):
@@ -1008,7 +1007,7 @@ async def run_task(task: AgentTask) -> AgentResult:
         _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
         return cancel_res
 
-    # Concurrency slot (lease semantics - in-process; durable lease via atq below)
+    # Concurrency slot (lease semantics — in-process; durable lease via atq below)
     if not _acquire_slot(task.agent_id, contract.max_concurrency):
         res = _blocked(task, contract, "concurrency_limit", lc)
         _record_heartbeat(task.agent_id, useful=False, result=res)
@@ -1036,7 +1035,7 @@ async def run_task(task: AgentTask) -> AgentResult:
                 "tenant_id": task.tenant_id,
                 "started_at": _now_iso(),
             }
-        # Idempotency claim - sab gates pass hone ke BAAD (blocked runs key nahi jalate)
+        # Idempotency claim — sab gates pass hone ke BAAD (blocked runs key nahi jalate)
         if task.idempotency_key:
             claim = _idem_claim(task)
             if claim.store_unavailable or (
@@ -1129,7 +1128,7 @@ async def run_task(task: AgentTask) -> AgentResult:
             pre_block, pre_reason = _owner_admission_blocked(task.agent_id)
             if pre_block:
                 if idem_claimed:
-                    _idem_release(task)  # control-blocked - do not burn successful key
+                    _idem_release(task)  # control-blocked — do not burn successful key
                 res = _owner_control_refusal(task, contract, pre_reason, lc)
                 await _durable_close(durable_id, False, f"blocked:{pre_reason}")
                 _record_heartbeat(task.agent_id, useful=False, result=res)
@@ -1147,7 +1146,7 @@ async def run_task(task: AgentTask) -> AgentResult:
                 output = await asyncio.wait_for(cap.fn(ctx), timeout=effective_timeout)
                 dur = int((time.monotonic() - t0) * 1000)
                 # Non-cooperative engine: cancel requested during wait_for completed
-                # anyway - classify honestly (do not pretend we cancelled mid-flight).
+                # anyway — classify honestly (do not pretend we cancelled mid-flight).
                 from app.platform import agent_runtime_cancellation as crc
 
                 post = crc.is_requested(task.agent_id, task.task_id)
@@ -1255,7 +1254,7 @@ async def run_task(task: AgentTask) -> AgentResult:
                 _record_heartbeat(task.agent_id, useful=False, result=res)
                 await _durable_close(durable_id, True, f"{task.action} skipped: {sk.reason}")
                 if idem_claimed:
-                    _idem_release(task)  # skip ≠ durable success - retry allowed later
+                    _idem_release(task)  # skip ≠ durable success — retry allowed later
                 return res
             except asyncio.TimeoutError:
                 last_err = ("TimeoutError", f"attempt {attempt} exceeded {effective_timeout}s")
@@ -1264,7 +1263,7 @@ async def run_task(task: AgentTask) -> AgentResult:
             if attempt < attempts_allowed and _BACKOFF_BASE_S > 0:
                 await asyncio.sleep(min(_BACKOFF_BASE_S * attempt, 10.0))
 
-        # Retry-exhausted -> FAILED (+ DLQ for DLQ-lane retry policies)
+        # Retry-exhausted → FAILED (+ DLQ for DLQ-lane retry policies)
         dur = int((time.monotonic() - t0) * 1000)
         goes_dlq = "dlq" in (contract.retry_policy or "").lower()
         res = AgentResult(
@@ -1288,13 +1287,13 @@ async def run_task(task: AgentTask) -> AgentResult:
         if goes_dlq:
             _dlq_push(task, res)
         if idem_claimed:
-            # Terminal failure retained - same key does not auto-retry (need new key)
+            # Terminal failure retained — same key does not auto-retry (need new key)
             _idem_complete(task, "failed", reason=res.reason or "execution_failed")
         _record_heartbeat(task.agent_id, useful=False, result=res)
         _log_team_event(
             task.agent_id,
             "runtime_failed",
-            f"{task.action}: {last_err[0]} -> escalate {contract.escalation}",
+            f"{task.action}: {last_err[0]} → escalate {contract.escalation}",
             status="error",
         )
         await _durable_close(durable_id, False, f"{last_err[0]}: {last_err[1]}")
@@ -1385,7 +1384,7 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
             return "healthy_idle" if event_only else "capability_ready_hold"
         return "healthy_idle" if event_only else "registry_only"
     if not hb:
-        return "pilot_ready"  # wired but not yet dispatched - not an incident
+        return "pilot_ready"  # wired but not yet dispatched — not an incident
     try:
         gap = contract.useful_work_gap_min
         if gap is None or event_only:
@@ -1402,10 +1401,9 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
 
 
 def _calling_badge_for_runtime() -> str:
-    """Honest dial posture for runtime_status UI - never hard-code HARD OFF.
+    """Honest dial posture for runtime_status UI — never hard-code HARD OFF.
 
-    Agent Runtime still blocks Swara/Ananya RED dispatch
-    that is orthogonal to
+    Agent Runtime still blocks Swara/Ananya RED dispatch; that is orthogonal to
     whether the separately governed platform_dial / voice_launch campaign is live.
     """
     try:
@@ -1417,9 +1415,8 @@ def _calling_badge_for_runtime() -> str:
 
 
 def runtime_status() -> dict[str, Any]:
-    """Owner OS panel rollup - 31 agents × mode/lane/hb/useful-work/budget/kill/DLQ.
-    Never raises
-    degraded sources surface as fields, not exceptions."""
+    """Owner OS panel rollup — 31 agents × mode/lane/hb/useful-work/budget/kill/DLQ.
+    Never raises; degraded sources surface as fields, not exceptions."""
     try:
         from app.platform import agent_registry as ar
 
@@ -1513,7 +1510,7 @@ def runtime_status() -> dict[str, Any]:
             "master_flag": _MASTER_FLAG,
             "pilots": sorted(PILOT_AGENTS),
             "rollout_note": (
-                "Controlled rollout - PILOT_AGENTS dispatchable under AGENT_RUNTIME. "
+                "Controlled rollout — PILOT_AGENTS dispatchable under AGENT_RUNTIME. "
                 "Others capability-registered but hold/frozen; no big-bang 31-live."
             ),
             "canonical_count": len(reg),
@@ -1522,7 +1519,7 @@ def runtime_status() -> dict[str, Any]:
             "cancellation": cancel_backend,
             "idempotency": idem_status,
             "agents": agents,
-            # Reuse Owner OS posture - never hard-code HARD OFF when dial is live.
+            # Reuse Owner OS posture — never hard-code HARD OFF when dial is live.
             # Agent Runtime RED still blocks Swara/Ananya dispatch; that is separate
             # from the compliance-gated platform_dial / voice_launch campaign.
             "calling_badge": _calling_badge_for_runtime(),

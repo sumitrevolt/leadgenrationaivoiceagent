@@ -1,11 +1,11 @@
-"""Cutover marker - schema and validator ONLY. Never written to production here.
+"""Cutover marker — schema and validator ONLY. Never written to production here.
 
 The marker answers one question: *has the external runtime root been verified to
 hold this exact set of migrated stores, from this exact release?*
 
 It must represent **verified** state, not merely configured state. A marker that
 says "configured" would let a destructive deploy proceed over data nobody
-actually checked - which is the whole failure this control plane exists to stop.
+actually checked — which is the whole failure this control plane exists to stop.
 """
 
 from __future__ import annotations
@@ -63,8 +63,7 @@ def validate_marker(
         problems.append(f"schema_version {marker['schema_version']!r} != {SCHEMA_VERSION!r}")
     if str(marker["manifest_version"]) != manifest.MANIFEST_VERSION:
         problems.append(
-            f"stale manifest_version {marker['manifest_version']!r}
-            "
+            f"stale manifest_version {marker['manifest_version']!r}; "
             f"current is {manifest.MANIFEST_VERSION!r}"
         )
     if runtime_root_identifier and str(marker["runtime_root_identifier"]) != str(
@@ -83,7 +82,7 @@ def validate_marker(
 
     if not str(marker["rollback_reference"] or "").strip():
         problems.append(
-            "rollback_reference is empty - a cutover without a documented rollback is not a cutover"
+            "rollback_reference is empty — a cutover without a documented rollback is not a cutover"
         )
 
     ids = list(marker["migrated_store_ids"] or [])
@@ -104,8 +103,7 @@ def validate_marker(
     if required_store_ids:
         missing = sorted(required_store_ids - set(ids))
         if missing:
-            problems.append(f"incomplete migrated store set
-            missing: {missing}")
+            problems.append(f"incomplete migrated store set; missing: {missing}")
 
     started = _parse_ts(marker["cutover_started_at"])
     completed = _parse_ts(marker["cutover_completed_at"])

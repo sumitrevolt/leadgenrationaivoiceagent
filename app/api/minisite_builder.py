@@ -1,31 +1,29 @@
 """
-minisite_builder.py - Mini-site BUILDER API (per-client /b/{slug} customization).
+minisite_builder.py — Mini-site BUILDER API (per-client /b/{slug} customization).
 ==================================================================================
 
 Free, local-only "site builder" surface on top of the existing per-client
 mini-site (`app/marketing/mini_site.py`, served at /b/{slug} in main.py). Adds:
 
-  * Customization store  - color palette + layout + logo per slug
-                           (data/mini_site_config.jsonl). NEVER raises
-                           sane defaults.
-  * Logo upload          - accept png/jpg/webp <=2MB, store under data/logos/,
+  * Customization store  — color palette + layout + logo per slug
+                           (data/mini_site_config.jsonl). NEVER raises; sane defaults.
+  * Logo upload          — accept png/jpg/webp <=2MB, store under data/logos/,
                            serve back via GET /api/minisite/logo/{file} (FileResponse).
-  * Reviews feed         - public (rate-limited) submit + admin moderation
-  per-client
+  * Reviews feed         — public (rate-limited) submit + admin moderation; per-client
                            store data/reviews/<slug>.jsonl. Approved reviews render on
                            the mini-site.
-  * Widget snippet       - surface embed_widget snippet/urls for a slug (admin copy).
-  * Live preview         - admin endpoint returns the freshly-rendered mini-site HTML.
+  * Widget snippet       — surface embed_widget snippet/urls for a slug (admin copy).
+  * Live preview         — admin endpoint returns the freshly-rendered mini-site HTML.
 
 Storage helpers (get_config/set_config, add_review/list_reviews, PALETTES, LAYOUTS,
 validate_logo) are module-level and import-safe so `mini_site.render_site()` can
 lazily read them at render time without a circular-import problem.
 
-Routes (mounted under /api -> /api/minisite/*):
+Routes (mounted under /api → /api/minisite/*):
   POST /api/minisite/config            (admin)  set palette/layout/logo for a slug
   GET  /api/minisite/config            (admin)  read merged config for a slug
   GET  /api/minisite/palettes          (admin)  list named palettes + layouts
-  POST /api/minisite/logo              (admin)  multipart logo upload -> served URL
+  POST /api/minisite/logo              (admin)  multipart logo upload → served URL
   POST /api/minisite/logo-url          (admin)  accept + validate an external logo URL
   GET  /api/minisite/logo/{filename}   (public) serve a stored logo file
   GET  /api/minisite/snippet           (admin)  embed widget snippet + widget/embed URLs
@@ -73,7 +71,7 @@ _LOGOS_DIR = os.path.join(_DATA_DIR, "logos")
 _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 # --------------------------------------------------------------------------- #
-# Named palettes (CSS-variable sets) + layouts - the "builder" choices
+# Named palettes (CSS-variable sets) + layouts — the "builder" choices
 # --------------------------------------------------------------------------- #
 # Each palette: primary + accent (validated hex). Mini-site CSS uses --p / --a.
 PALETTES: dict[str, dict[str, str]] = {
@@ -87,9 +85,9 @@ DEFAULT_PALETTE = "violet"
 
 # 3 visually-distinct layout templates (render logic in mini_site.py).
 LAYOUTS: dict[str, str] = {
-    "classic": "Classic - gradient hero, centered (default)",
-    "bold": "Bold - large solid hero band, big type, dark sections",
-    "minimal": "Minimal - clean white hero, thin accents, lots of space",
+    "classic": "Classic — gradient hero, centered (default)",
+    "bold": "Bold — large solid hero band, big type, dark sections",
+    "minimal": "Minimal — clean white hero, thin accents, lots of space",
 }
 DEFAULT_LAYOUT = "classic"
 
@@ -165,10 +163,10 @@ def _rewrite_jsonl(path: str, rows: list[dict[str, Any]]) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# A) CONFIG store - palette / layout / logo per slug
+# A) CONFIG store — palette / layout / logo per slug
 # --------------------------------------------------------------------------- #
 def _default_config(slug: str) -> dict[str, Any]:
-    # NOTE: primary/accent EMPTY by default (na ki resolved palette hex) -
+    # NOTE: primary/accent EMPTY by default (na ki resolved palette hex) —
     # warna render_site me client ka brand.primary KABHI nahi lagta (cfg
     # hamesha jeet jata tha). Saved config (palette/custom colors) pe hi
     # concrete hex resolve hota hai (get_config me).
@@ -184,7 +182,7 @@ def _default_config(slug: str) -> dict[str, Any]:
 
 def get_config(slug: str) -> dict[str, Any]:
     """Merged mini-site config for a slug. ALWAYS returns a dict (defaults when
-    unset). Never raises - `mini_site.render_site()` relies on this.
+    unset). Never raises — `mini_site.render_site()` relies on this.
 
     Latest line wins (config file is append-on-update). Resolves the chosen
     palette into concrete primary/accent hex so the renderer can use them
@@ -196,7 +194,7 @@ def get_config(slug: str) -> dict[str, Any]:
         latest: dict[str, Any] | None = None
         for rec in _read_jsonl(_CONFIG_FILE):
             if _safe_slug(rec.get("slug")) == slug:
-                latest = rec  # keep walking -> last occurrence wins
+                latest = rec  # keep walking → last occurrence wins
         if latest:
             pal_key = str(latest.get("palette") or "").strip().lower()
             if pal_key in PALETTES:
@@ -226,8 +224,7 @@ def set_config(
     accent: str | None = None,
 ) -> dict[str, Any]:
     """Persist a config update for a slug (append). Returns merged config.
-    Only validated fields are written
-    unknown palette/layout fall back to
+    Only validated fields are written; unknown palette/layout fall back to
     current/defaults. Never raises."""
     slug = _safe_slug(slug)
     if not slug:
@@ -248,7 +245,7 @@ def set_config(
     else:
         rec["logo_url"] = current["logo_url"]
 
-    # optional explicit overrides (validated hex; else drop -> palette wins)
+    # optional explicit overrides (validated hex; else drop → palette wins)
     ph = _clean_hex(primary, "")
     ah = _clean_hex(accent, "")
     if ph:
@@ -328,7 +325,7 @@ def save_logo(slug: str, filename: str, data: bytes) -> tuple[bool, str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# C) REVIEWS store - per-client jsonl, moderation, public submit
+# C) REVIEWS store — per-client jsonl, moderation, public submit
 # --------------------------------------------------------------------------- #
 def _reviews_path(slug: str) -> str:
     return os.path.join(_REVIEWS_DIR, f"{_safe_slug(slug) or 'business'}.jsonl")
@@ -452,7 +449,7 @@ class ModerateIn(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# ADMIN routes - config + palettes
+# ADMIN routes — config + palettes
 # --------------------------------------------------------------------------- #
 @router.get("/palettes")
 async def get_palettes(current_user: User = Depends(require_admin)):
@@ -489,7 +486,7 @@ async def write_config(req: ConfigIn, current_user: User = Depends(require_admin
 
 
 # --------------------------------------------------------------------------- #
-# ADMIN routes - logo upload / url
+# ADMIN routes — logo upload / url
 # --------------------------------------------------------------------------- #
 @router.post("/logo")
 async def upload_logo(
@@ -541,7 +538,7 @@ async def serve_logo(filename: str):
 
 
 # --------------------------------------------------------------------------- #
-# ADMIN routes - widget snippet
+# ADMIN routes — widget snippet
 # --------------------------------------------------------------------------- #
 @router.get("/snippet")
 async def get_widget_snippet(
@@ -566,14 +563,14 @@ async def get_widget_snippet(
 
 
 # --------------------------------------------------------------------------- #
-# ADMIN routes - reviews moderation
+# ADMIN routes — reviews moderation
 # --------------------------------------------------------------------------- #
 @router.get("/reviews")
 async def admin_list_reviews(
     slug: str = Query(..., min_length=1, max_length=64),
     current_user: User = Depends(require_admin),
 ):
-    """All reviews (incl. pending) for a slug - moderation view."""
+    """All reviews (incl. pending) for a slug — moderation view."""
     rows = list_reviews(slug, approved_only=False, limit=200)
     return {"slug": _safe_slug(slug), "reviews": rows, "count": len(rows)}
 
@@ -586,14 +583,14 @@ async def admin_moderate_review(req: ModerateIn, current_user: User = Depends(re
 
 
 # --------------------------------------------------------------------------- #
-# PUBLIC routes - review submit + approved feed
+# PUBLIC routes — review submit + approved feed
 # --------------------------------------------------------------------------- #
 @router.post("/reviews/submit")
 async def public_submit_review(req: ReviewSubmitIn, request: Request):
     """Public review submit (rate-limited per IP). Stored as PENDING (approved
     by admin before it shows). Honeypot 'website' must stay empty."""
     if (req.website or "").strip():
-        # bot - silently accept, store nothing
+        # bot — silently accept, store nothing
         return {"ok": True, "message": "Dhanyawad!"}
     ip = "anon"
     try:
@@ -601,7 +598,7 @@ async def public_submit_review(req: ReviewSubmitIn, request: Request):
     except Exception:
         ip = "anon"
     if not _rate_ok(f"rev:{ip}"):
-        raise HTTPException(status_code=429, detail="Bahut requests - thodi der baad try karein.")
+        raise HTTPException(status_code=429, detail="Bahut requests — thodi der baad try karein.")
     if not _safe_slug(req.slug):
         raise HTTPException(status_code=400, detail="Invalid business.")
     rec = add_review(req.slug, req.name, req.rating, req.text, approved=False)
@@ -633,7 +630,7 @@ async def public_reviews(slug: str = Query(..., min_length=1, max_length=64)):
 
 
 # --------------------------------------------------------------------------- #
-# ADMIN - live preview + builder page
+# ADMIN — live preview + builder page
 # --------------------------------------------------------------------------- #
 @router.get("/preview")
 async def preview_site(

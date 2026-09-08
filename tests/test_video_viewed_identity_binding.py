@@ -58,8 +58,7 @@ def test_viewed_identity_invalidated_on_preview_failure():
 def test_approve_refuses_without_stored_identity():
     body = _fn("videoFeedback")
     assert "var viewed=viewedVideoIdentity[id]" in body
-    assert "return
-    " in body.split("var viewed=viewedVideoIdentity[id]")[1][:400]
+    assert "return;" in body.split("var viewed=viewedVideoIdentity[id]")[1][:400]
 
 
 def test_revision_change_invalidates_stored_identity():
@@ -89,7 +88,7 @@ def test_content_changed_reloads_and_requires_deliberate_reapproval():
 
 
 def test_viewed_hash_a_then_source_becomes_b(preview_client, monkeypatch):
-    """Customer views A -> source becomes B at the same revision -> approve(A)
+    """Customer views A → source becomes B at the same revision → approve(A)
     is refused, nothing is written, no provider is called, and B is available
     for a fresh review."""
     c, artifact = preview_client

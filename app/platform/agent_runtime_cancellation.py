@@ -1,4 +1,4 @@
-"""Agent Runtime distributed cancellation store - Redis-backed, run-specific.
+"""Agent Runtime distributed cancellation store — Redis-backed, run-specific.
 
 WHY (2026-07-22): process-local ``_CANCELLED_AGENTS`` cannot cross API↔worker
 boundaries. This store is the sole authority for runtime-run cancellation.
@@ -77,7 +77,7 @@ def _resolve_backend() -> str:
 
 
 def backend_status() -> dict[str, Any]:
-    """Read-only durability projection - no credentials."""
+    """Read-only durability projection — no credentials."""
     backend = _resolve_backend()
     fallback = backend != "redis"
     db_label = "unset"

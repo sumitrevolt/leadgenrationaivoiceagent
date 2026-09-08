@@ -1,12 +1,12 @@
-"""posthog_client.py - server-side PostHog capture + feature-flags (G3). GATED.
+"""posthog_client.py — server-side PostHog capture + feature-flags (G3). GATED.
 
 KYU: app/analytics/dashboard.py server-side call/lead funnels deta. Web product-
 analytics (events, feature-flags, A/B) PostHog Cloud free-tier se aata. Ye thin,
-never-raise wrapper hai - server-side events (signup, payment, qualified-lead) +
+never-raise wrapper hai — server-side events (signup, payment, qualified-lead) +
 backend feature-flag checks ke liye.
 
 OFF by default: `POSTHOG_API_KEY` set nahi -> har call silent no-op (zero overhead).
-Self-host MAT karo (ClickHouse heavy) - PostHog Cloud free (1M events/mo) use karo.
+Self-host MAT karo (ClickHouse heavy) — PostHog Cloud free (1M events/mo) use karo.
 
 ENV:
   POSTHOG_API_KEY=phc_xxx            # project API key (PostHog -> Project Settings)

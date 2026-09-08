@@ -1,9 +1,8 @@
 """Unified suppression: one canonical authority enforced by every send path.
 
 Root cause this pins: `email_unsub.suppress()` had exactly ONE caller in all of
-`app/` - the one-click HTTP endpoint. Every outreach email says "reply REMOVE",
-but a REMOVE reply only marked the prospect row dead
-the address stayed mailable
+`app/` — the one-click HTTP endpoint. Every outreach email says "reply REMOVE",
+but a REMOVE reply only marked the prospect row dead; the address stayed mailable
 from any other row and WhatsApp was never touched. The advertised opt-out did not
 work at the list level.
 
@@ -94,7 +93,7 @@ def test_all_outreach_blocks_whatsapp_by_phone() -> None:
 
 # ------------------------------------------- hard bounce must NOT go global
 def test_hard_bounce_suppresses_email_only() -> None:
-    """A dead mailbox says nothing about the phone - it must stay reachable."""
+    """A dead mailbox says nothing about the phone — it must stay reachable."""
     email_unsub.suppress(
         "dead@b.com",
         reason="hard_bounce",
@@ -154,7 +153,7 @@ def test_unknown_scope_fails_closed_to_all_outreach() -> None:
 
 
 def test_legacy_rows_without_scope_still_block_email(isolated_store: Path) -> None:
-    """Pre-existing ledger rows have no `scope` key - they must keep working."""
+    """Pre-existing ledger rows have no `scope` key — they must keep working."""
     isolated_store.parent.mkdir(parents=True, exist_ok=True)
     isolated_store.write_text(
         '{"email": "legacy@b.com", "reason": "one_click", "ts": 1}\n', encoding="utf-8"

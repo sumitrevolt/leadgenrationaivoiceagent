@@ -33,7 +33,7 @@ def isolated_stores(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(_sa_store, "_PROSPECTS_FILE", str(tmp_path / "prospects.json"))
     # `upsert_prospect` stamps updated_at=now, so a seeded "ancient" timestamp is
     # always overwritten and no follow-up is ever due. Age is not what these
-    # tests are about - status-based exclusion is - so hold the clock instead.
+    # tests are about — status-based exclusion is — so hold the clock instead.
     monkeypatch.setattr(_followups, "_hours_since", lambda _ts: 1e9)
     return tmp_path
 
@@ -136,7 +136,7 @@ def test_broader_suppression_not_downgraded_by_narrower_event() -> None:
 
 # ------------------------------------------- 2. genuinely cross-process lock
 def _child_append(store_path: str, event_id: str, barrier_dir: str) -> None:
-    """Runs in a SEPARATE OS PROCESS - a threading.Lock cannot coordinate this."""
+    """Runs in a SEPARATE OS PROCESS — a threading.Lock cannot coordinate this."""
     from pathlib import Path as _P
 
     from app.platform import email_unsub as eu
@@ -169,7 +169,7 @@ def test_concurrent_processes_produce_one_logical_event(isolated_stores: Path) -
         p.join(timeout=30)
 
     lines = [ln for ln in store.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    # Every line must be complete, parseable JSON - no torn writes.
+    # Every line must be complete, parseable JSON — no torn writes.
     parsed = [json.loads(ln) for ln in lines]
     assert all(isinstance(r, dict) for r in parsed)
     # Same event_id across processes -> at most one row survives the idempotency
@@ -182,7 +182,7 @@ def test_lock_is_file_based_not_in_process() -> None:
     """Pin the mechanism: a threading/asyncio lock would not span containers."""
     lock = email_unsub._store_lock()
     assert lock.__class__.__module__.startswith("filelock"), (
-        f"expected a cross-process filelock, got {type(lock)!r} - "
+        f"expected a cross-process filelock, got {type(lock)!r} — "
         "an in-process lock cannot coordinate five containers sharing ./data"
     )
     # Lock file must sit next to the shared ledger, not in a process-local dir.
@@ -212,7 +212,7 @@ def test_suppression_reachable_from_run_reply_triage(monkeypatch, isolated_store
 
     `run_reply_triage()` is what the scheduler and
     POST /api/platform/team/reply-triage/run actually call. Proving suppression
-    from a directly-invoked helper would not show the wiring is reachable - the
+    from a directly-invoked helper would not show the wiring is reachable — the
     orphaned `inbound.handle_inbound` in this same codebase is exactly that trap.
     """
     from app.platform import reply_agent
@@ -258,7 +258,7 @@ def test_suppression_reachable_from_run_reply_triage(monkeypatch, isolated_store
 
     # `_classify` is a COROUTINE (`intent = await _classify(...)`). A sync lambda
     # makes the await raise, the surrounding handler swallows it, and the message
-    # is silently counted as skipped - which looked exactly like a guard rejection.
+    # is silently counted as skipped — which looked exactly like a guard rejection.
     async def _fake_classify(*_a: Any, **_k: Any) -> str:
         return "unsubscribe"
 
@@ -267,7 +267,7 @@ def test_suppression_reachable_from_run_reply_triage(monkeypatch, isolated_store
     # (`p is None and _is_bulk_sender(...)`), which skips before classification.
     # Pin it False so this test exercises a normal human reply.
     #
-    # NOTE: that guard is a real limitation, documented in the PR - an opt-out
+    # NOTE: that guard is a real limitation, documented in the PR — an opt-out
     # from an address we do not hold as a prospect can still be dropped before
     # suppression is written. Out of scope here; not silently ignored.
     monkeypatch.setattr(reply_agent, "_is_bulk_sender", lambda *a, **k: False)
@@ -276,7 +276,7 @@ def test_suppression_reachable_from_run_reply_triage(monkeypatch, isolated_store
 
     assert isinstance(res, dict)
     assert email_unsub.is_suppressed("angry@customer.com") is True, (
-        f"triage ran ({res}) but no suppression was written - the reply path is not wired"
+        f"triage ran ({res}) but no suppression was written — the reply path is not wired"
     )
 
 

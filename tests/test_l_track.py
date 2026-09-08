@@ -1,8 +1,7 @@
-"""L-track tests - pause-toggles, dead-letter alert, baseline reset.
+"""L-track tests — pause-toggles, dead-letter alert, baseline reset.
 
 The L-track is a set of small ops-capability additions on top of stable
-modules
-tests focus on the new contracts (toggle persists / dead-letter
+modules; tests focus on the new contracts (toggle persists / dead-letter
 counts / reset clears the right rows) rather than re-asserting prior shape.
 """
 

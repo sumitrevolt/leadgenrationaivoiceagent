@@ -1,4 +1,4 @@
-"""Campaign Offer Policy - immutable commercial provenance (#240, release review).
+"""Campaign Offer Policy — immutable commercial provenance (#240, release review).
 
 Every test here is adversarial: a path that could produce a WRONG PRICE must
 instead produce a question, an exception, or a refusal.
@@ -504,7 +504,7 @@ def test_cross_family_packages_are_refused(pol):
 
 
 def test_advanced_is_combo_not_marketing(pol):
-    """`advanced` is Marketing + AI Voice - the family must say so."""
+    """`advanced` is Marketing + AI Voice — the family must say so."""
     assert (
         pol.put_policy("m", product_family="marketing", allowed_package_codes=["advanced"]) is None
     )

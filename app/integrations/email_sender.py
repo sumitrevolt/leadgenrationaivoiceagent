@@ -35,7 +35,7 @@ def _safe_provider_label(info: Any) -> str:
 
 
 def _integ_fail(name: str, note: str = "") -> None:
-    """integration_health counter - best-effort, KABHI raise nahi."""
+    """integration_health counter — best-effort, KABHI raise nahi."""
     try:
         from app.platform import integration_health
 
@@ -98,10 +98,9 @@ class EmailSender:
             reply_to: Reply-to address
             extra_headers: Optional extra MIME headers (e.g. List-Unsubscribe /
                 List-Unsubscribe-Post for promotional mail per RFC 2369/8058).
-                Applied on the SMTP path
-                transactional callers pass nothing.
+                Applied on the SMTP path; transactional callers pass nothing.
         """
-        # PREFER email API (Resend/Brevo) - SMTP se zyada reliable, koi mailbox
+        # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox
         # password jhanjhat nahi. Agar key set hai to API se bhejo; warna SMTP.
         try:
             from app.integrations.email_api import api_available, send_email_api
@@ -124,13 +123,11 @@ class EmailSender:
                     _integ_ok("email_api")
                     return True
                 safe_info = _safe_provider_label(info)
-                logger.warning("Email API failed (%s)
-                trying SMTP fallback", safe_info)
+                logger.warning("Email API failed (%s); trying SMTP fallback", safe_info)
                 _integ_fail("email_api", safe_info)
         except Exception as e:
             safe_error = _safe_error_label(e)
-            logger.warning("Email API path error (%s)
-            SMTP fallback", safe_error)
+            logger.warning("Email API path error (%s); SMTP fallback", safe_error)
             _integ_fail("email_api", safe_error)
 
         if not self.user or not self.password:
@@ -165,7 +162,7 @@ class EmailSender:
             msg.attach(MIMEText(html_body, "html"))
 
         try:
-            # SMTP send ko timeout se bound karo - pehle koi timeout nahi tha, ek
+            # SMTP send ko timeout se bound karo — pehle koi timeout nahi tha, ek
             # stalled connection poora Celery task budget (600s) kha jaati thi =
             # email_outreach TimeLimitExceeded/OOM. Default 30s (EMAIL_SEND_TIMEOUT_S).
             import os as _os_smtp
@@ -235,72 +232,38 @@ LeadGen AI - AI Automated Marketing + Voice Agent
 
         html_body = f"""
 <html>
-<body style="font-family: Arial, sans-serif
-max-width: 600px
-margin: 0 auto
-">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
-    padding: 20px
-    text-align: center
-    ">
-        <h1 style="color: white
-        margin: 0
-        ">🔥 New Hot Lead!</h1>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">🔥 New Hot Lead!</h1>
     </div>
 
-    <div style="padding: 20px
-    background: #f5f5f5
-    ">
-        <table style="width: 100%
-        border-collapse: collapse
-        ">
+    <div style="padding: 20px; background: #f5f5f5;">
+        <table style="width: 100%; border-collapse: collapse;">
             <tr>
-                <td style="padding: 10px
-                font-weight: bold
-                ">Company:</td>
-                <td style="padding: 10px
-                ">{lead_data.get("company_name", "N/A")}</td>
+                <td style="padding: 10px; font-weight: bold;">Company:</td>
+                <td style="padding: 10px;">{lead_data.get("company_name", "N/A")}</td>
             </tr>
             <tr>
-                <td style="padding: 10px
-                font-weight: bold
-                ">Contact:</td>
-                <td style="padding: 10px
-                ">{lead_data.get("contact_name", "N/A")}</td>
+                <td style="padding: 10px; font-weight: bold;">Contact:</td>
+                <td style="padding: 10px;">{lead_data.get("contact_name", "N/A")}</td>
             </tr>
             <tr>
-                <td style="padding: 10px
-                font-weight: bold
-                ">Phone:</td>
-                <td style="padding: 10px
-                "><a href="tel:{lead_data.get("phone", "")}">{lead_data.get("phone", "N/A")}</a></td>
+                <td style="padding: 10px; font-weight: bold;">Phone:</td>
+                <td style="padding: 10px;"><a href="tel:{lead_data.get("phone", "")}">{lead_data.get("phone", "N/A")}</a></td>
             </tr>
             <tr>
-                <td style="padding: 10px
-                font-weight: bold
-                ">City:</td>
-                <td style="padding: 10px
-                ">{lead_data.get("city", "N/A")}</td>
+                <td style="padding: 10px; font-weight: bold;">City:</td>
+                <td style="padding: 10px;">{lead_data.get("city", "N/A")}</td>
             </tr>
         </table>
 
-        <div style="background: white
-        padding: 15px
-        border-radius: 10px
-        margin-top: 15px
-        ">
-            <h3 style="margin-top: 0
-            ">Lead Score: <span style="color: #667eea
-            ">{lead_data.get("lead_score", 0)}/100</span></h3>
+        <div style="background: white; padding: 15px; border-radius: 10px; margin-top: 15px;">
+            <h3 style="margin-top: 0;">Lead Score: <span style="color: #667eea;">{lead_data.get("lead_score", 0)}/100</span></h3>
             <p>Interest: {lead_data.get("detected_intent", "N/A")}</p>
         </div>
     </div>
 
-    <div style="padding: 15px
-    text-align: center
-    color: #666
-    font-size: 12px
-    ">
+    <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
         LeadGen AI - AI Automated Marketing + Voice Agent
     </div>
 </body>

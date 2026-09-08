@@ -4,7 +4,7 @@ Does NOT invent STAFF personas. Wraps existing cadence / journey / flags /
 scheduler heartbeats so Owner Copilot can see which automation agents are
 actually live under OpenClaw Stage A.
 
-Control mutations stay AMBER via existing agent.pause/resume -> Owner OS.
+Control mutations stay AMBER via existing agent.pause/resume → Owner OS.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-# GREEN - Automation-Max introspection for Copilot.
+# GREEN — Automation-Max introspection for Copilot.
 AUTOMATION_GREEN = frozenset(
     {
         "automation.status",
@@ -255,7 +255,7 @@ def _automation_status(
         "next_action": (
             "Owner merge/deploy OpenClaw automation board; human approve pending drafts"
             if flags.get("CADENCE_ENGINE")
-            else "CADENCE_ENGINE OFF - Automation-Max Phase-1 incomplete"
+            else "CADENCE_ENGINE OFF — Automation-Max Phase-1 incomplete"
         ),
     }
 
@@ -289,7 +289,7 @@ def _automation_agents(
             "mutation_via_openclaw": False,
         },
         "evidence": {"correlation_id": correlation_id, "actor": actor},
-        "next_action": "Pause/resume still AMBER -> Owner OS approval",
+        "next_action": "Pause/resume still AMBER → Owner OS approval",
     }
 
 

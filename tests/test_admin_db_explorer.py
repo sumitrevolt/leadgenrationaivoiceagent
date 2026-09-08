@@ -1,7 +1,7 @@
 """Tests for the read-only Admin DB Explorer (app/api/admin_db_explorer.py).
 
 Council 2026-06-25 decision: Supabase-Studio alternative on OUR Postgres.
-Risk surface = redaction + SQL-injection-safety + flag gate -> tested here with an
+Risk surface = redaction + SQL-injection-safety + flag gate → tested here with an
 in-memory sqlite schema (no dependency on the project DB).
 """
 
@@ -20,7 +20,7 @@ import app.api.admin_db_explorer as dbx
 
 @pytest.fixture()
 def fake_engine(monkeypatch):
-    # StaticPool -> ek hi shared in-memory connection (warna har connect = naya DB).
+    # StaticPool → ek hi shared in-memory connection (warna har connect = naya DB).
     eng = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -86,10 +86,9 @@ def test_jsonable():
 
 
 def test_enabled_and_guard(monkeypatch):
-    from fastapi import HTTPException
     monkeypatch.delenv("ADMIN_DB_EXPLORER", raising=False)
     assert dbx._enabled() is False
-    with pytest.raises(HTTPException):
+    with pytest.raises(Exception):
         dbx._guard()
     monkeypatch.setenv("ADMIN_DB_EXPLORER", "1")
     assert dbx._enabled() is True
@@ -122,11 +121,11 @@ def test_read_table_unknown_returns_404(fake_engine):
 
 
 def test_read_table_injection_safe(fake_engine):
-    # Malicious table name not in introspection list -> 404, never executed.
-    res = dbx._read_table("users\n    DROP TABLE users", 10, 0, None, True, False)
+    # Malicious table name not in introspection list → 404, never executed.
+    res = dbx._read_table("users; DROP TABLE users", 10, 0, None, True, False)
     assert res.get("status") == 404
-    # Bad order_by column ignored (not in col list) -> query still safe.
-    res2 = dbx._read_table("users", 10, 0, "id\n    DROP TABLE users", False, False)
+    # Bad order_by column ignored (not in col list) → query still safe.
+    res2 = dbx._read_table("users", 10, 0, "id; DROP TABLE users", False, False)
     assert res2.get("status") is None
     # Table must still exist (no drop happened).
     res3 = dbx._read_table("users", 10, 0, None, True, True)

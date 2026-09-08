@@ -1,5 +1,43 @@
 #!/usr/bin/env python3
-"""omniroute_combo_watchdog.py - local watchdog over the 14 leadsgen combos." "WHY" "---" "The gateway (leadgen_omniroute Docker, :20128) carries the canonical" "`leadsgen combo 1..14` ids that app/platform worker routing now depends on" "(_TASK_ROUTES -> generate()). If a combo's lanes go dead the scheduler/staff" "jobs mapped to it silently degrade. This watchdog pings every canonical combo" "through the SAME `/v1/responses` path the app uses and alerts (ntfy) when a" "lane stops returning 200 for N consecutive checks - plus a recovery ping." "WHY RESPONSES (not /v1/models or /health)" "------------------------------------------" "`/v1/models` lists combos but the gateway consults a DIFFERENT per-connection" "live catalog, and there is no /health endpoint - the only truthful signal is a" "real HTTP 200 + non-empty output_text on `/v1/responses` with the combo name" "(verified 12/12 task routes -> combos on 2026-09-05). Combo name = the" "app-routable unit" "each combo carries 3 internal model lanes with gateway-side" "priority failover, so a combo that answers 200 means its live lane set works." "STATE & ALERTING" "----------------" "Persists consecutive-failure counters to `data/omniroute_combo_state.json`" "so a single blip never alerts. Alerts once per combo when failures reach" "`--strikes` (default 3), then again on recovery. Alerts go through" "`app.integrations.ntfy` (gated NTFY_URL+NTFY_TOPIC - unset = no-op, prints)." "USAGE" "-----" ".venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py              # one pass" ".venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py --loop 300   # every 5 min" ".venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py --json       # wrapper-friendly" "# Optional Task Scheduler registration (pattern = setup_autoboot.ps1):" "powershell -ExecutionPolicy Bypass -File scripts\\register_omniroute_watchdog.ps1" "Exit codes (one-shot): 0 = all combos OK · 1 = >=1 combo down past strikes ·" "2 = gateway unreachable / config error. Pair with Task Scheduler or cron for a" "periodic check" "`--loop` keeps a single local process running forever." """"
+"""omniroute_combo_watchdog.py — local watchdog over the 14 leadsgen combos.
+
+WHY
+---
+The gateway (leadgen_omniroute Docker, :20128) carries the canonical
+`leadsgen combo 1..14` ids that app/platform worker routing now depends on
+(_TASK_ROUTES → generate()). If a combo's lanes go dead the scheduler/staff
+jobs mapped to it silently degrade. This watchdog pings every canonical combo
+through the SAME `/v1/responses` path the app uses and alerts (ntfy) when a
+lane stops returning 200 for N consecutive checks — plus a recovery ping.
+
+WHY RESPONSES (not /v1/models or /health)
+------------------------------------------
+`/v1/models` lists combos but the gateway consults a DIFFERENT per-connection
+live catalog, and there is no /health endpoint — the only truthful signal is a
+real HTTP 200 + non-empty output_text on `/v1/responses` with the combo name
+(verified 12/12 task routes → combos on 2026-09-05). Combo name = the
+app-routable unit; each combo carries 3 internal model lanes with gateway-side
+priority failover, so a combo that answers 200 means its live lane set works.
+
+STATE & ALERTING
+----------------
+Persists consecutive-failure counters to `data/omniroute_combo_state.json`
+so a single blip never alerts. Alerts once per combo when failures reach
+`--strikes` (default 3), then again on recovery. Alerts go through
+`app.integrations.ntfy` (gated NTFY_URL+NTFY_TOPIC — unset = no-op, prints).
+
+USAGE
+-----
+    .venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py              # one pass
+    .venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py --loop 300   # every 5 min
+    .venv\\Scripts\\python.exe scripts/omniroute_combo_watchdog.py --json       # wrapper-friendly
+    # Optional Task Scheduler registration (pattern = setup_autoboot.ps1):
+    powershell -ExecutionPolicy Bypass -File scripts\\register_omniroute_watchdog.ps1
+
+Exit codes (one-shot): 0 = all combos OK · 1 = >=1 combo down past strikes ·
+2 = gateway unreachable / config error. Pair with Task Scheduler or cron for a
+periodic check; `--loop` keeps a single local process running forever.
+"""
 
 from __future__ import annotations
 
@@ -47,7 +85,7 @@ def _save_state(state: dict) -> None:
         os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
-    except Exception as e:  # noqa: BLE001 - state is advisory, never crash
+    except Exception as e:  # noqa: BLE001 — state is advisory, never crash
         print(f"[WARN] state write failed: {e}")
 
 
@@ -63,13 +101,16 @@ def discover_combos(base: str, key: str) -> list[str] | None:
         canon = sorted(i for i in ids if i.startswith("leadsgen combo"))
         # Gateway must expose the canonical 14; tolerate exact-14 + sorted.
         return canon if len(canon) >= 14 else None
-    except Exception as e:  # noqa: BLE001 - probe reports, never crashes
+    except Exception as e:  # noqa: BLE001 — probe reports, never crashes
         print(f"[ERR] gateway /v1/models unreachable: {type(e).__name__}: {e}")
         return None
 
 
 def probe_combo(base: str, key: str, combo: str, timeout: float) -> dict:
-    """One real /v1/responses call with the combo name - same path the app uses." "Returns {ok: bool, code: int|None, ms: int, error: str|None, model: str|None}." """"
+    """One real /v1/responses call with the combo name — same path the app uses.
+
+    Returns {ok: bool, code: int|None, ms: int, error: str|None, model: str|None}.
+    """
     payload = {
         "model": combo,
         "input": [{"role": "user", "content": PROBE_PROMPT}],
@@ -136,7 +177,7 @@ def _alert(title: str, body: str, priority: str = "high") -> None:
                 pass
 
         asyncio.run(_go())
-    except Exception:  # noqa: BLE001 - watchdog must survive missing deps
+    except Exception:  # noqa: BLE001 — watchdog must survive missing deps
         pass
     print(f"[ALERT] {title}\n{body}")
 
@@ -154,7 +195,7 @@ def run_once(
         _alert("🚨 OmniRoute gateway DOWN", body, priority="urgent")
         return 2
     if not key:
-        print("[WARN] OMNIROUTE_API_KEY unset - probing without auth header")
+        print("[WARN] OMNIROUTE_API_KEY unset — probing without auth header")
     state = _load_state()
     results = _run_pass(base, key, combos, timeout, workers)
     now = _now_iso()
@@ -187,7 +228,7 @@ def run_once(
             rec["alerted"] = False
             rec["last_error"] = f"{error} ({ms} ms)"
             if fails >= strikes:
-                # Down past threshold - drives a non-zero exit every pass until
+                # Down past threshold — drives a non-zero exit every pass until
                 # recovery, but the ALERT fires only once (transition to down).
                 down_now.append(combo)
                 if not was_alerted:
@@ -216,7 +257,7 @@ def run_once(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Ping the 14 leadsgen combos" "alert on dead lanes")
+    ap = argparse.ArgumentParser(description="Ping the 14 leadsgen combos; alert on dead lanes")
     ap.add_argument("--base", default=DEFAULT_BASE, help="gateway base URL")
     ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S, help="per-combo probe timeout s")
     ap.add_argument("--strikes", type=int, default=DEFAULT_STRIKES, help="consecutive failures before alert")
@@ -234,7 +275,7 @@ def main() -> int:
             )
         except KeyboardInterrupt:
             return 130
-        except Exception as e:  # noqa: BLE001 - outer guard
+        except Exception as e:  # noqa: BLE001 — outer guard
             print(f"[ERR] pass crashed: {type(e).__name__}: {e}")
             code = 2
 

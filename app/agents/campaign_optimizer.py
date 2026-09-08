@@ -1,8 +1,8 @@
-"""Campaign Optimization Agent (Kiran) - enterprise flywheel learning loop.
+"""Campaign Optimization Agent (Kiran) — enterprise flywheel learning loop.
 
 Orchestrates existing engines (growth_optimizer, channel_experiments,
 content_feedback, live_eval) into one optimization cycle. Produces PROPOSALS
-only - never auto-deploys scripts globally without statistical + eval_gate gates.
+only — never auto-deploys scripts globally without statistical + eval_gate gates.
 
 GATED `CAMPAIGN_OPTIMIZER=1` (default OFF). Store: data/campaign_optimization/
 Import-safe, kabhi raise nahi.
@@ -28,7 +28,7 @@ _DECISIONS = os.path.join(_DIR, "proposal_decisions.jsonl")
 
 
 def _call_transcripts() -> str:
-    """Call transcripts dir - resolved per call, never frozen at import."""
+    """Call transcripts dir — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -173,7 +173,7 @@ async def _gather_inputs() -> dict[str, Any]:
 
         snap["voice_eval"] = live_eval.eval_recent_calls(
             10
-        )  # sync fn - await here raised TypeError (swallowed), input always dropped
+        )  # sync fn — await here raised TypeError (swallowed), input always dropped
     except Exception:
         pass
     try:
@@ -186,7 +186,7 @@ async def _gather_inputs() -> dict[str, Any]:
 
 
 async def _generate_proposals(inputs: dict[str, Any]) -> list[dict[str, Any]]:
-    """LLM proposals - drafts only, eval_gate checked before any promotion."""
+    """LLM proposals — drafts only, eval_gate checked before any promotion."""
     proposals: list[dict[str, Any]] = []
     weakest = (inputs.get("weakest") or {}).get("stage", "outreach_quality")
     themes = inputs.get("best_themes") or []
@@ -294,7 +294,7 @@ def check_promotion_gate(
 
 
 async def optimize(*, force: bool = False) -> dict[str, Any]:
-    """Main optimization cycle - orchestrates sub-engines, returns run summary."""
+    """Main optimization cycle — orchestrates sub-engines, returns run summary."""
     run_id = uuid.uuid4().hex[:12]
     ok_run, reason = should_run(force=force)
     if not ok_run:
@@ -376,7 +376,7 @@ async def optimize(*, force: bool = False) -> dict[str, Any]:
                 log_event(
                     "kiran",
                     "variant_promoted",
-                    f"{sid}: challenger promoted -> {pr.get('new_champion', '?')}",
+                    f"{sid}: challenger promoted → {pr.get('new_champion', '?')}",
                     meta=pr,
                     status="ok",
                 )
@@ -424,7 +424,7 @@ def _proposals_with_status(limit: int = 30) -> list[dict[str, Any]]:
 
 
 async def approve_proposal(proposal_id: str) -> dict[str, Any]:
-    """Human approve -> register challenger variant (never auto-deploy globally)."""
+    """Human approve → register challenger variant (never auto-deploy globally)."""
     prop = next(
         (p for p in reversed(_read_jsonl(_PROPOSALS, 5000)) if p.get("id") == proposal_id),
         None,
@@ -473,7 +473,7 @@ async def approve_proposal(proposal_id: str) -> dict[str, Any]:
         log_event(
             "kiran",
             "proposal_approved",
-            f"Approved {proposal_id[:8]} -> {script_id} challenger",
+            f"Approved {proposal_id[:8]} → {script_id} challenger",
             meta={"proposal_id": proposal_id, "variant_id": (reg or {}).get("id")},
             status="ok",
         )

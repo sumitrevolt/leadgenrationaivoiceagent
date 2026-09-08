@@ -1,7 +1,6 @@
 """
-Tests: Vobiz telephony - XML builder, answer webhook, test-call endpoint.
-No network - VobizClient methods are monkeypatched
-tests always pass an
+Tests: Vobiz telephony — XML builder, answer webhook, test-call endpoint.
+No network — VobizClient methods are monkeypatched; tests always pass an
 explicit `message` so the LLM path is never exercised.
 """
 
@@ -18,7 +17,7 @@ class TestBuildSpeakXml:
         assert "<Speak" in xml
         assert "<Hangup/>" in xml
         assert "Namaste from LeadGen AI" in xml
-        # NOTE: voice/language attributes intentionally REMOVED (2026-06-07) -
+        # NOTE: voice/language attributes intentionally REMOVED (2026-06-07) —
         # Vobiz silently drops Speak verbs carrying unsupported attrs (caused
         # "call connects then instantly hangs up"). Minimal <Speak>text</Speak>.
         assert "<Speak>" in xml
@@ -26,11 +25,8 @@ class TestBuildSpeakXml:
 
     def test_escapes_special_chars(self):
         xml = build_speak_xml("R&D <test> calls")
-        assert "R&amp
-        D" in xml
-        assert "&lt
-        test&gt
-        " in xml
+        assert "R&amp;D" in xml
+        assert "&lt;test&gt;" in xml
         assert "<test>" not in xml
 
     def test_empty_text_still_valid(self):
@@ -186,7 +182,7 @@ class TestStatusWebhookDurationClamp:
 
 
 class TestLeadPhoneThreading:
-    """2026-07-03 - the dialed number must survive the full outbound chain
+    """2026-07-03 — the dialed number must survive the full outbound chain
     (start_stream_call -> answer_url -> WS session) so close-signal durable
     actions (deal write + WhatsApp send) have a phone on OUTBOUND calls.
     Vobiz's start event has NO customParameters (confirmed from raw#1 logs on
@@ -219,7 +215,7 @@ class TestLeadPhoneThreading:
 
 class TestStreamOptOut:
     """TCCCPR stream-path opt-out (audit 2026-07-04): press-9/verbal revocation
-    on LIVE stream calls must persist to the consent ledger - previously only
+    on LIVE stream calls must persist to the consent ledger — previously only
     the legacy answer_url path did."""
 
     def _session(self, phone="+919876543210"):

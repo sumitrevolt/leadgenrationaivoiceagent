@@ -17,11 +17,11 @@ if os.environ.get("GITHUB_ACTIONS") == "true":
 
 # TESTS ME AUTOMATION HAMESHA OFF (app.main import se PEHLE set karna zaroori):
 # TestClient(app) startup pe in-process team_scheduler chal jaata tha aur fresh
-# checkout (CI) pe growth-pulse job REAL OSM/Places scraping karne lagta -
+# checkout (CI) pe growth-pulse job REAL OSM/Places scraping karne lagta —
 # urllib timeout=25 ke loops me poora pytest hang (CI runs #1-#9 lesson, 2026-06-11).
 os.environ.setdefault("RUN_IN_PROCESS_SCHEDULER", "0")
 os.environ.setdefault("TEAM_AUTOMATION", "0")
-# TestClient startup (lifespan) KB embedder pre-warm trigger karta - tests me heavy
+# TestClient startup (lifespan) KB embedder pre-warm trigger karta — tests me heavy
 # fastembed load (8s+) background task = slow/interfere. Tests me OFF.
 os.environ.setdefault("KB_PREWARM", "0")
 # FULL-SUITE HANG FIX: prod "redis://redis:6379" hostname test-env me DNS-resolve
@@ -40,10 +40,10 @@ os.environ["DATABASE_URL"] = (
 )
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
-# kare to wo HANG na ho - har raw socket op max 10s me fail ho jaye. pytest-timeout
+# kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
 # ka thread-method blocking socket ko interrupt nahi kar pata (Windows pe signal-
 # method bhi nahi hai), isliye poora suite kabhi-kabhi infinite hang ho jata tha.
-# TestClient ASGI in-process hai (socket nahi) -> isse unaffected; sirf real network
+# TestClient ASGI in-process hai (socket nahi) → isse unaffected; sirf real network
 # bounded hota hai. (test_growth_engine self-heal auto_content branch lesson, 2026-06-13.)
 import socket as _socket
 
@@ -53,7 +53,7 @@ _socket.setdefaulttimeout(10)
 # test/file doesn't hang on embedder/LLM downloads. Allows localhost/127.0.0.1/::1
 # (SQLite, in-process TestClient).
 # ⚠️ DEFAULT OFF kyun: aggressive raise se kuch code (fastembed/httpx) infinite-RETRY
-# loop me chala jaata hai -> poora full-suite 9% pe HANG ho gaya (2026-06-13 lesson).
+# loop me chala jaata hai → poora full-suite 9% pe HANG ho gaya (2026-06-13 lesson).
 # Bina guard ke full suite `socket.setdefaulttimeout(10)` se slow-but-COMPLETE hota hai.
 # Cold single-file run ke liye chahiye to: set PYTEST_NETGUARD=1.
 if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"):
@@ -71,7 +71,7 @@ if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"
         )
 
 # =============================================================================
-# HTTPX 0.28 COMPAT SHIM (2026-07-10, test-only - prod code untouched).
+# HTTPX 0.28 COMPAT SHIM (2026-07-10, test-only — prod code untouched).
 # Lock pins httpx==0.28.1 (Client/AsyncClient ka `app=` kwarg REMOVED) ke saath
 # starlette==0.35.1, jiska TestClient ab bhi `app=` pass karta hai -> har direct
 # `TestClient(app)` construction `TypeError: unexpected keyword argument 'app'`
@@ -84,7 +84,7 @@ if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"
 import inspect as _inspect
 
 # Use SQLite for tests (fast, no external dependencies)
-# DB lives in the OS temp dir - avoids polluting the repo and works on
+# DB lives in the OS temp dir — avoids polluting the repo and works on
 # network/mounted filesystems where SQLite locking can fail with disk I/O errors.
 import tempfile
 from collections.abc import AsyncGenerator, Generator
@@ -121,12 +121,10 @@ _ORIG_CAE_EARLY = _sa_asyncio_early.create_async_engine
 def _cae_nullpool_file_sqlite(url, *args, **kwargs):
     """Test-only sqlite pool policy (SQLAlchemy #13039 / aiosqlite #369).
 
-    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin
-    safe across
+    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin; safe across
       pytest + TestClient portal loops).
     - :memory: / bare sqlite+aiosqlite:// -> StaticPool (one shared connection so
-      DDL stays visible across checkouts
-      dispose still closes the worker).
+      DDL stays visible across checkouts; dispose still closes the worker).
     """
     if "poolclass" not in kwargs:
         try:
@@ -157,18 +155,18 @@ from app.api.auth_deps import (
 from app.main import app
 
 # =============================================================================
-# LLM STUB (tests) - free_ai.chat/transcribe REAL httpx calls karte the jo offline/
+# LLM STUB (tests) — free_ai.chat/transcribe REAL httpx calls karte the jo offline/
 # slow free-providers (groq TPD, gemini quota, openrouter 404) pe HANG karte the
-# (test_multilang/carousel/meme/2026 etc. - full-suite ~9-13% pe atak jata). Yahan
+# (test_multilang/carousel/meme/2026 etc. — full-suite ~9-13% pe atak jata). Yahan
 # global module-attr stub: saare callers (free_ai.chat) instant canned reply paate.
-# Real LLM kabhi test me NAHI chahiye - content fns ka template/structure phir bhi
+# Real LLM kabhi test me NAHI chahiye — content fns ka template/structure phir bhi
 # banta. Ek jagah fix = saari LLM-content tests fast + zero network hang.
 # =============================================================================
 try:
     from app.voice_agent import free_ai as _free_ai_mod
 
     async def _stub_llm_chat(system, messages, max_tokens=90, temperature=0.6):
-        return ("Theek hai sir, samajh gayi - aap boliye.", "stub")
+        return ("Theek hai sir, samajh gayi — aap boliye.", "stub")
 
     async def _stub_transcribe(*_a, **_k):
         return ""
@@ -198,7 +196,7 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Async engine for async tests.
-# NullPool (test-only) - SQLAlchemy #13039 / aiosqlite #369: under aiosqlite 0.22.x
+# NullPool (test-only) — SQLAlchemy #13039 / aiosqlite #369: under aiosqlite 0.22.x
 # SQLAlchemy's aiosqlite dialect does not close the underlying connection, so a
 # POOLED async connection reused across the pytest event loop and the TestClient
 # portal loops leaks an aiosqlite `_connection_worker_thread` once its loop is gone;
@@ -286,7 +284,7 @@ app.dependency_overrides[require_manager] = get_mock_user
 app.dependency_overrides[require_admin] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
-# NOTE: require_customer deliberately has NO global override here - customer
+# NOTE: require_customer deliberately has NO global override here — customer
 # routes must keep rejecting anonymous callers (401/403) unless an individual
 # test opts in with its own app.dependency_overrides[require_customer].
 
@@ -297,7 +295,7 @@ def restore_dependency_overrides():
 
     Many tests clear or replace app.dependency_overrides and forget to restore,
     causing later tests to see HTTP 401. This restores the session baseline
-    without bypassing production authentication - production code paths unchanged.
+    without bypassing production authentication — production code paths unchanged.
     """
     before = dict(app.dependency_overrides)
     yield
@@ -310,8 +308,7 @@ def _resume_inquiry_bg_accept_gate():
     """Keep inquiry spawn gate open across tests.
 
     Production shutdown calls drain_inquiry_bg_tasks() which stops accepting.
-    Tests that exercise drain must not poison later cases
-    reopen after each test.
+    Tests that exercise drain must not poison later cases; reopen after each test.
     """
     try:
         from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
@@ -388,7 +385,7 @@ async def async_db():
 def _async_engine_teardown_guard(event_loop):
     """Session-end: call app drain, dispose engines, assert no aiosqlite workers.
 
-    Ownership/lifecycle lives in app.platform.inquiry_hooks - harness only
+    Ownership/lifecycle lives in app.platform.inquiry_hooks — harness only
     invokes the canonical drain then verifies (NullPool/StaticPool already set
     for cross-loop safety). No parallel all-tasks cancel that hides app bugs.
     """
@@ -446,8 +443,7 @@ def _async_engine_teardown_guard(event_loop):
     assert not leaked, (
         "aiosqlite connection worker thread(s) leaked at session end: "
         + ", ".join(leaked)
-        + " (app drain_inquiry_bg_tasks + dispose)"
-        + " see SQLAlchemy #13039"
+        + " (app drain_inquiry_bg_tasks + dispose; see SQLAlchemy #13039)"
     )
 
 
@@ -598,10 +594,10 @@ def mock_llm(mocker):
 @pytest.fixture(autouse=True)
 def _isolate_billing_stores(monkeypatch, tmp_path):
     """2026-07-18 PROD-LEDGER CONTAMINATION FIX (INV/2026-27/0003..0013 postmortem):
-    tests `upi_payments._STORE` to patch karte the par `_fire_gst_invoice` ->
+    tests `upi_payments._STORE` to patch karte the par `_fire_gst_invoice` →
     `gst_invoice.create_invoice` REAL relative `data/invoices.jsonl` (cwd) me likhta
     tha. VPS pe targeted pytest chala to 11 synthetic `cli_*` invoices production
-    Rule-46 ledger me ghus gaye. Ab HAR test ke billing stores tmp_path pe redirect -
+    Rule-46 ledger me ghus gaye. Ab HAR test ke billing stores tmp_path pe redirect —
     koi bhi test kabhi real `data/` billing files ko touch nahi kar sakta. Tests jo
     khud _STORE patch karte hain unka setattr baad me lagta hai (unaffected)."""
     from app.billing import gst_invoice
@@ -651,8 +647,8 @@ def _reset_rate_limit_state():
 
     Tests point REDIS_URL at a refused port, so app.cache falls back to a
     PROCESS-LEVEL InMemoryCache singleton (app.cache._redis_client). Its
-    rl:<scope>:<ip> counters - written by both rate_limit() deps and
-    public_site._rate_check() - accumulate across tests (every TestClient
+    rl:<scope>:<ip> counters — written by both rate_limit() deps and
+    public_site._rate_check() — accumulate across tests (every TestClient
     request shares one client IP). After ~10 signup POSTs, later tests got
     HTTP 429 instead of 422/200 (test_signup_password_hygiene). Clearing ONLY
     rl:* keys (plus public_site's in-memory fallback lists) keeps rate limiting

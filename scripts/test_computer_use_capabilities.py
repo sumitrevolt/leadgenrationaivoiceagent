@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test_computer_use_capabilities.py - Live Computer Use & MCP capability audit."""
+"""test_computer_use_capabilities.py — Live Computer Use & MCP capability audit."""
 
 import json
 import os

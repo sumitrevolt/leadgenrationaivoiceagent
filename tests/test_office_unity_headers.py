@@ -1,10 +1,9 @@
 """Unity WebGL Brotli static-serving headers (Phase-1 UAT lock).
 
-Unity build uses decompressionFallback=false -> the browser MUST receive
+Unity build uses decompressionFallback=false → the browser MUST receive
 `Content-Encoding: br` on the `.br` artifacts, otherwise the loader receives raw
 brotli bytes and the office fails to load with a corrupt/compression error. Plain
-StaticFiles omits this header
-app.main serves /static/office-unity via a
+StaticFiles omits this header; app.main serves /static/office-unity via a
 precompressed-aware handler that also fixes the Content-Type for wasm/js/data.
 
 Skips when the build isn't deployed (frontend/office_unity/Build absent) so CI
@@ -38,7 +37,7 @@ def test_loader_is_plain_javascript(client):
     r = client.get(f"{BASE}/LeadGenVirtualOffice.loader.js")
     assert r.status_code == 200
     assert "javascript" in r.headers.get("content-type", "").lower()
-    # The loader itself is NOT brotli-compressed - must not carry Content-Encoding: br.
+    # The loader itself is NOT brotli-compressed — must not carry Content-Encoding: br.
     assert r.headers.get("content-encoding") != "br"
 
 
@@ -54,7 +53,7 @@ def test_br_artifacts_have_brotli_content_encoding(client, fname, ctype_needle):
     r = client.get(f"{BASE}/{fname}")
     assert r.status_code == 200, f"{fname} -> HTTP {r.status_code}"
     assert r.headers.get("content-encoding") == "br", (
-        f"{fname} missing 'Content-Encoding: br' - Unity decompressionFallback=false "
+        f"{fname} missing 'Content-Encoding: br' — Unity decompressionFallback=false "
         f"requires it or the browser cannot decode the artifact"
     )
     assert ctype_needle in r.headers.get("content-type", "").lower(), (
@@ -73,7 +72,7 @@ def test_missing_artifact_is_404(client):
 
 
 # NOTE: admin-only enforcement of the office snapshot (/api/platform/office/snapshot,
-# Depends(require_admin)) is intentionally NOT asserted here - tests/conftest.py overrides
+# Depends(require_admin)) is intentionally NOT asserted here — tests/conftest.py overrides
 # require_admin with a mock admin, so this harness cannot observe the real 401/403. Real
 # enforcement is fail-closed in app/api/auth_deps.py:require_admin and is covered by the
 # dedicated authenticated auth/tenant-isolation suites.

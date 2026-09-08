@@ -3,8 +3,8 @@ Tests: per-client MINI WEBSITE (mini_site.render_site) + clients_store slugs.
 ================================================================================
 
 Fast, no network. clients_store file paths tmp_path pe redirect hote hain
-(_CLIENTS_FILE + brand_kit._BRAND_DIR) - real data/ dir kabhi nahi chhute.
-render_site pure-sync hai (koi LLM/await nahi) - seedha call.
+(_CLIENTS_FILE + brand_kit._BRAND_DIR) — real data/ dir kabhi nahi chhute.
+render_site pure-sync hai (koi LLM/await nahi) — seedha call.
 """
 
 import os
@@ -128,9 +128,7 @@ class TestRenderSite:
         # XSS-y name is HTML-escaped (no raw <script> tag emitted)
         out = mini_site.render_site({"business_name": "<script>alert(1)</script>", "slug": "x-1"})
         assert "<script>alert(1)</script>" not in out
-        assert "&lt
-        script&gt
-        " in out
+        assert "&lt;script&gt;" in out
 
     def test_invalid_brand_color_falls_back(self, tmp_store):
         rec = clients_store.add_client(

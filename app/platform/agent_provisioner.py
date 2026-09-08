@@ -1,16 +1,15 @@
 """
-Agent Provisioner - har naye client ke liye 2 dedicated agents.
+Agent Provisioner — har naye client ke liye 2 dedicated agents.
 
 Jab system new client banata hai, uske business ke hisab se do agents
 auto-provision hote hain:
 
-  1. DATA AGENT  (role="data")  - client ke business ka data sambhalta hai:
+  1. DATA AGENT  (role="data")  — client ke business ka data sambhalta hai:
      business profile + niche facts knowledge-base me load karta hai taaki
-     voice agent grounded jawab de sake
-     aage enrichment/scraping isi ke
+     voice agent grounded jawab de sake; aage enrichment/scraping isi ke
      naam pe chalta hai.
 
-  2. LEADS AGENT (role="leads") - client ke END CUSTOMERS ko call karke
+  2. LEADS AGENT (role="leads") — client ke END CUSTOMERS ko call karke
      leads laata hai. Niche ke `target_type` (b2c/b2b/both) ke hisab se
      audience set hota hai aur niche flow + qualification questions use
      karta hai.
@@ -50,7 +49,7 @@ def resolve_niche_key(value: str | None) -> str:
     for key, cfg in NICHES.items():
         if cfg.get("name", "").strip().lower() == value.strip().lower():
             return key
-    # loose contains-match (e.g. "solar" -> first solar niche; "real estate")
+    # loose contains-match (e.g. "solar" → first solar niche; "real estate")
     loose = value.strip().lower()
     for key, cfg in NICHES.items():
         if loose in key.replace("_", " ") or loose in cfg.get("name", "").lower():
@@ -68,7 +67,7 @@ def _client_namespace(client_id: str) -> str:
 
 def _seed_client_knowledge(client: Any, niche_key: str) -> int:
     """
-    Client-specific facts knowledge-base me daalo (best-effort - KB na ho
+    Client-specific facts knowledge-base me daalo (best-effort — KB na ho
     to silently skip). Yeh data agent ka pehla kaam hai.
     """
     try:
@@ -105,7 +104,7 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
             facts.append(f"Pitch angle for {client.business_name}: {cfg['pitch_hook']}")
         for q in cfg.get("qualification_questions", []):
             facts.append(f"Qualification question for {cfg.get('name', niche_key)} leads: {q}")
-    # Niche knowledge pack - data agent inhe client KB me seed karta hai taaki
+    # Niche knowledge pack — data agent inhe client KB me seed karta hai taaki
     # leads agent end-customer ke sawaalon ka grounded (sach) jawab de sake.
     try:
         from app.niche_knowledge import knowledge_facts

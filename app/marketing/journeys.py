@@ -1,8 +1,8 @@
-"""Omnichannel journey / rule engine (Expedify-style) - event -> condition -> action.
+"""Omnichannel journey / rule engine (Expedify-style) — event → condition → action.
 
 Ek event (inquiry/signup/no-show/reply) aane par matching ENABLED rules chalte
 hain. Har action DEFAULT = **DRAFT** (WhatsApp/email message ready, 1-click human
-send) - auto-send NAHI (ban-safe + tumhari "1-click human" culture). Cross-channel
+send) — auto-send NAHI (ban-safe + tumhari "1-click human" culture). Cross-channel
 automation ek hi rule-engine se.
 
 GATED: `emit_event` sirf JOURNEY_ENGINE=1 pe actions chalata (default OFF = aaj
@@ -48,7 +48,7 @@ def _enabled() -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Store (jsonl, defensive - kabhi raise nahi)
+# Store (jsonl, defensive — kabhi raise nahi)
 # --------------------------------------------------------------------------- #
 def _read(path: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -68,7 +68,7 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
-    # Lock + atomic - 2 web workers (API CRUD + triggers) concurrent likh sakte.
+    # Lock + atomic — 2 web workers (API CRUD + triggers) concurrent likh sakte.
     try:
         from app.utils.file_lock import locked_rewrite
 
@@ -152,12 +152,12 @@ def list_runs(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def seed_defaults() -> int:
-    """Agar koi rule na ho to 3 useful rules seed karo (DISABLED - review karke ON)."""
+    """Agar koi rule na ho to 3 useful rules seed karo (DISABLED — review karke ON)."""
     if list_journeys():
         return 0
     defaults = [
         {
-            "name": "Inquiry -> WhatsApp + email follow-up draft",
+            "name": "Inquiry → WhatsApp + email follow-up draft",
             "trigger": "inquiry_received",
             "condition": {},
             "actions": [
@@ -167,7 +167,7 @@ def seed_defaults() -> int:
             "enabled": False,
         },
         {
-            "name": "Signup -> welcome WhatsApp draft",
+            "name": "Signup → welcome WhatsApp draft",
             "trigger": "signup",
             "condition": {},
             "actions": [
@@ -176,7 +176,7 @@ def seed_defaults() -> int:
             "enabled": False,
         },
         {
-            "name": "No-show -> reschedule callback note",
+            "name": "No-show → reschedule callback note",
             "trigger": "no_show",
             "condition": {},
             "actions": [
@@ -203,13 +203,12 @@ def seed_defaults() -> int:
 
 
 def ensure_active_defaults() -> int:
-    """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON - warna emit empty loop.
+    """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON — warna emit empty loop.
 
-    Pehle seed (disabled) jab store khali
-    phir inquiry rule enable ya naya add.
+    Pehle seed (disabled) jab store khali; phir inquiry rule enable ya naya add.
     Returns count enabled/added (0 ya 1). Kabhi raise nahi.
 
-    IMPORTANT: sirf *kisi* enabled rule ka hona kaafi NAHI - enabled rule
+    IMPORTANT: sirf *kisi* enabled rule ka hona kaafi NAHI — enabled rule
     ``signup``/``manual`` ho to inquiry events ab bhi empty loop me marte.
     Check specifically for enabled ``inquiry_received``.
     """
@@ -229,9 +228,9 @@ def ensure_active_defaults() -> int:
                         "[journeys] auto-enabled default inquiry rule (engine on, none active)"
                     )
                     return 1
-        # Rules exist but no inquiry_received (custom-only store) - add one enabled.
+        # Rules exist but no inquiry_received (custom-only store) — add one enabled.
         add_journey(
-            name="Inquiry -> WhatsApp + email follow-up draft",
+            name="Inquiry → WhatsApp + email follow-up draft",
             trigger="inquiry_received",
             actions=[
                 {"type": "draft_whatsapp", "params": {"topic": "naye inquiry ka turant follow-up"}},
@@ -247,7 +246,7 @@ def ensure_active_defaults() -> int:
 
 
 # --------------------------------------------------------------------------- #
-# Action executors - sab ban-safe (draft/note). free-LLM se Hinglish drafts.
+# Action executors — sab ban-safe (draft/note). free-LLM se Hinglish drafts.
 # --------------------------------------------------------------------------- #
 async def _do_draft(channel: str, topic: str, context: dict[str, Any]) -> dict[str, Any]:
     who = context.get("business_name") or context.get("name") or "customer"
@@ -294,7 +293,7 @@ async def _run_action(action: dict[str, Any], context: dict[str, Any]) -> dict[s
     if t == "add_tag":
         return {"action": t, "tag": str(p.get("tag") or "")}
     if t == "request_review":
-        # Sentiment-gated review request (review_engine) - draft/link (ban-safe).
+        # Sentiment-gated review request (review_engine) — draft/link (ban-safe).
         try:
             from app.marketing import review_engine
 
@@ -330,7 +329,7 @@ def _matches(rule: dict[str, Any], event: str, context: dict[str, Any]) -> bool:
 
 
 async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Ek event fire karo -> matching enabled rules ke actions chalao (drafts).
+    """Ek event fire karo → matching enabled rules ke actions chalao (drafts).
 
     GATED by JOURNEY_ENGINE=1 (default off = kuch nahi hota). Har run
     data/journey_runs.jsonl me log hota (1-click human send ke liye drafts).
@@ -370,14 +369,14 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
     if runs:
         # Staff-visibility (2026-07-01): journey/rule automation fires from many real
         # hooks (inquiry, booking-reminder, reply-triage, pipeline-ops...) with zero
-        # staff attribution today - invisible on /app/team. Attribute to "ira"
+        # staff attribution today — invisible on /app/team. Attribute to "ira"
         # (Journey Automation Manager). Only logged when a rule actually matched
         # (not every emit_event no-op call) to avoid noise.
         try:
             from app.platform import team
 
             names = ", ".join(r.get("journey_name") or "?" for r in runs)
-            team.log_event("ira", "journey_triggered", f"{event} -> {names}")
+            team.log_event("ira", "journey_triggered", f"{event} → {names}")
         except Exception:
             pass
     return runs

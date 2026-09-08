@@ -55,52 +55,51 @@ def buzz(args, stdin_text=None):
         return r.returncode, out, (r.stderr or "").strip()
 
 
-BUILD_MSG = """**#build is live** - coding-agent coordination plane.
+BUILD_MSG = """**#build is live** — coding-agent coordination plane.
 
 Cursor, Claude Code, OpenCode aur Monkey Code yahin coordinate karenge. Prefix zaroori hai: `[CURSOR]` `[CLAUDE]` `[OPENCODE]` `[MONKEY]`. Bina prefix ke message = untraceable.
 
 **Claim before you edit:**
 ```
-[CLAUDE] CLAIM app/api/growth_revenue.py - reason: ADR-159 canary
-[CLAUDE] RELEASE app/api/growth_revenue.py - 3 tests green, exit 0
+[CLAUDE] CLAIM app/api/growth_revenue.py — reason: ADR-159 canary
+[CLAUDE] RELEASE app/api/growth_revenue.py — 3 tests green, exit 0
 ```
-File already claimed ho to edit mat karo - `[TOOL] BLOCKED ON <file>` post karke doosra kaam lo. 4 ghante purana claim stale hai (`STALE-BREAK`).
+File already claimed ho to edit mat karo — `[TOOL] BLOCKED ON <file>` post karke doosra kaam lo. 4 ghante purana claim stale hai (`STALE-BREAK`).
 
 Machine-readable mirror: `docs/coordination/LOCKS.json`. Poora protocol canvas me + `~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md`.
 
 Hard rules: `git add -A` kabhi nahi · commit/push/deploy sirf owner ke kehne pe · evidence beats prose (exit code ya kuch nahi) · secrets kabhi message me nahi · Swara/voice FROZEN."""
 
-PULSE_MSG = """**#staff-pulse is live** - 31/31 runtime STAFF ka read-only mirror.
+PULSE_MSG = """**#staff-pulse is live** — 31/31 runtime STAFF ka read-only mirror.
 
-Chain of control: `Buzz (#admin) -> Boss -> Owner OS/OpenClaw -> 31 STAFF -> Celery`. Ye channel sirf dekhta hai - commands sirf Boss ko jaate hain, direct staff mutation hooks nahi hain. Buzz kabhi second control plane nahi banega.
+Chain of control: `Buzz (#admin) -> Boss -> Owner OS/OpenClaw -> 31 STAFF -> Celery`. Ye channel sirf dekhta hai — commands sirf Boss ko jaate hain, direct staff mutation hooks nahi hain. Buzz kabhi second control plane nahi banega.
 
 Roster (verified against `app/platform/team.py` 2026-08-05, 31/31 match):
-- **Coordination 1** - Boss
-- **Platform 12** - Kavya, Hermes, Nikhil, Vikram, Guru, Pranav, Vidya, Arnav, Kabir, Diya, Aryan, Arya
-- **Marketing 10** - Isha, Dev, Rohan, Ravi, Neha, Kiran, Priya, Zara, Anika, Ira
-- **Voice 8** - Swara, Tara, Arjun, Meera, Ananya, Riya, Lekha, Raksha
+- **Coordination 1** — Boss
+- **Platform 12** — Kavya, Hermes, Nikhil, Vikram, Guru, Pranav, Vidya, Arnav, Kabir, Diya, Aryan, Arya
+- **Marketing 10** — Isha, Dev, Rohan, Ravi, Neha, Kiran, Priya, Zara, Anika, Ira
+- **Voice 8** — Swara, Tara, Arjun, Meera, Ananya, Riya, Lekha, Raksha
 
 Pulse line format: `[PULSE] <division> | <agent> | <last_run> | <ok|warn|fail> | <note>`
 
 Tiers: GREEN agent khud execute · AMBER Boss decide · RED system refuse (Boss bhi bypass nahi kar sakta). Ek hi human gate: real UPI bank-credit confirmation + paid-ledger marking."""
 
-ADMIN_MSG = """**Buzz enterprise coordination setup - done.**
+ADMIN_MSG = """**Buzz enterprise coordination setup — done.**
 
 **Naye channels**
-- `#build` - Cursor / Claude / OpenCode / Monkey Code bridge, claim-before-edit locks
-- `#staff-pulse` - 31/31 runtime STAFF read-only mirror
+- `#build` — Cursor / Claude / OpenCode / Monkey Code bridge, claim-before-edit locks
+- `#staff-pulse` — 31/31 runtime STAFF read-only mirror
 
 **Chain of control (locked in)**
-`Buzz (#admin) -> Boss -> Owner OS/OpenClaw -> 31 STAFF -> Celery` - Buzz interface hai, second control plane nahi. Koi duplicate Buzz bot nahi banaya gaya.
+`Buzz (#admin) -> Boss -> Owner OS/OpenClaw -> 31 STAFF -> Celery` — Buzz interface hai, second control plane nahi. Koi duplicate Buzz bot nahi banaya gaya.
 
 **Autonomy tiers**
 GREEN agent khud execute · AMBER Boss decide (owner ko routine approvals nahi) · RED system refuse, Boss bhi override nahi kar sakta (DND, TRAI 10-19 IST, AI disclosure, consent, DPDP, secrets, destructive ops, 32nd persona, FROZEN Swara, non-`deploy_vps.sh` deploy). **Ek hi human gate: real UPI bank-credit confirmation + paid-ledger marking.** `UPI_AUTO_ACTIVATE` fail-closed rahega.
 
 **Naye guides** (`~/.buzz/GUIDES/`)
-`AUTONOMY_POLICY.md` · `STAFF_ROUTING_MAP.md` · `CODING_AGENT_PROTOCOL.md`
-`BUZZ_OPERATING_MODEL.md` + `BOSS_ADMIN.md` refreshed. Repo: `docs/coordination/{README.md, LOCKS.json}` (untracked, additive).
+`AUTONOMY_POLICY.md` · `STAFF_ROUTING_MAP.md` · `CODING_AGENT_PROTOCOL.md`; `BUZZ_OPERATING_MODEL.md` + `BOSS_ADMIN.md` refreshed. Repo: `docs/coordination/{README.md, LOCKS.json}` (untracked, additive).
 
-**Boss membership restored** - admin on `#admin` + `#leadgen`, member on gtm/ops/revenue/dev/build/staff-pulse.
+**Boss membership restored** — admin on `#admin` + `#leadgen`, member on gtm/ops/revenue/dev/build/staff-pulse.
 
 **Owner action pending (1):** Boss ka managed-agent Desktop se delete ho gaya tha, aur CLI owner ko apna hi draft nahi bhej sakta (`auth_error: agent draft requests require BUZZ_AUTH_TAG`). Buzz Desktop -> Agents -> new agent -> naam `Boss`, system prompt `~/.buzz/.scratch/boss_system_prompt.txt` se paste karo. Save hote hi channel membership already wired hai.
 

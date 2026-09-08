@@ -1,8 +1,7 @@
 """Canonical mission schema + validated lifecycle for external agent missions.
 
 Pure module: no I/O, no framework imports, no env reads. Persistence lives in
-``store.py``
-authority/risk rules live in ``policy.py``.
+``store.py``; authority/risk rules live in ``policy.py``.
 """
 
 from __future__ import annotations

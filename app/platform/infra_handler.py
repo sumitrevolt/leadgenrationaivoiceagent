@@ -1,22 +1,22 @@
 """
-Hermes 🛰️ - Infrastructure Handler agent (AI staff).
+Hermes 🛰️ — Infrastructure Handler agent (AI staff).
 =====================================================
 
 Ek dedicated infra-ops brain jo poore stack ki sehat ka EK snapshot deta hai:
 app readiness (db+redis), disk/memory, scheduled-job dead-man, queue backlog,
-LLM-chain fail-rate, backup freshness - 0-100 INFRA SCORE + Hinglish actions.
+LLM-chain fail-rate, backup freshness — 0-100 INFRA SCORE + Hinglish actions.
 
 Kavya (ops_watchdog = service/process checks) aur Tara (telephony readiness) ke
-UPAR ek aggregator/diagnoser - unke engines REUSE karta hai, replace nahi.
+UPAR ek aggregator/diagnoser — unke engines REUSE karta hai, replace nahi.
 
 Wiring:
-  - hourly `watchdog` job (team_scheduler) -> `run_watch()` - GATED `INFRA_HANDLER=1`
+  - hourly `watchdog` job (team_scheduler) -> `run_watch()` — GATED `INFRA_HANDLER=1`
     (default OFF = sirf manual API). Alert email NOTIFY_EMAIL pe (6h dedupe).
   - team_pulse rotation me "hermes" monitor (cheap, flag-independent).
-  - API: GET /api/growth/infra/hermes (admin) - live snapshot.
+  - API: GET /api/growth/infra/hermes (admin) — live snapshot.
 
 Store: data/infra_scans.jsonl (auto-trim). Kabhi raise nahi karta (har check
-defensive - jo cheez padh nahi sakta usse "unknown" bolta hai, crash nahi).
+defensive — jo cheez padh nahi sakta usse "unknown" bolta hai, crash nahi).
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def _now() -> datetime:
 
 
 # --------------------------------------------------------------------------- #
-# Individual checks - har ek defensive, "unknown" > crash
+# Individual checks — har ek defensive, "unknown" > crash
 # --------------------------------------------------------------------------- #
 def _check_disk() -> dict[str, Any]:
     try:
@@ -74,7 +74,7 @@ def _check_memory() -> dict[str, Any]:
             return {"ok": None}
         pct = round((total - avail) / total * 100, 1)
         return {"ok": pct < MEM_WARN, "pct_used": pct, "available_mb": avail // 1024}
-    except Exception:  # Windows/dev - /proc nahi
+    except Exception:  # Windows/dev — /proc nahi
         return {"ok": None}
 
 
@@ -153,7 +153,7 @@ def _check_embedder() -> dict[str, Any]:
     """
     Voice-KB embedder assets present? (2026-06-12 prod-down lesson: model cache
     missing => fastembed runtime HF download => event-loop hang.) Sirf DISK
-    check - model load NahI karte (heavy). FASTEMBED_CACHE_PATH ya /tmp cache
+    check — model load NahI karte (heavy). FASTEMBED_CACHE_PATH ya /tmp cache
     me onnx model file dikhni chahiye.
     """
     try:
@@ -171,7 +171,7 @@ def _check_embedder() -> dict[str, Any]:
                     return {"ok": True, "cache_dir": d, "models": len(onnx)}
         return {
             "ok": False,
-            "note": "fastembed model cache MISSING - image bake/redeploy karo (runtime HF download = freeze risk)",
+            "note": "fastembed model cache MISSING — image bake/redeploy karo (runtime HF download = freeze risk)",
         }
     except Exception:
         return {"ok": None}
@@ -214,7 +214,7 @@ async def snapshot() -> dict[str, Any]:
     if r.get("ok") is False:
         score -= 40
         actions.append(
-            "App /health/ready unhealthy - `docker ps` + `docker logs leadgen_app` dekho, db/redis container check karo."
+            "App /health/ready unhealthy — `docker ps` + `docker logs leadgen_app` dekho, db/redis container check karo."
         )
 
     d = checks["disk"]
@@ -222,18 +222,18 @@ async def snapshot() -> dict[str, Any]:
         if d["pct_used"] >= DISK_CRIT:
             score -= 35
             actions.append(
-                f"DISK CRITICAL {d['pct_used']}% - purane backups/media-cache साफ karo (`du -sh /opt/leadgen/*`)."
+                f"DISK CRITICAL {d['pct_used']}% — purane backups/media-cache साफ karo (`du -sh /opt/leadgen/*`)."
             )
         elif d["pct_used"] >= DISK_WARN:
             score -= 20
             actions.append(
-                f"Disk {d['pct_used']}% - jaldi cleanup plan karo (backups rotate, docker image prune)."
+                f"Disk {d['pct_used']}% — jaldi cleanup plan karo (backups rotate, docker image prune)."
             )
 
     m = checks["memory"]
     if m.get("ok") is False:
         score -= 10
-        actions.append(f"Memory {m.get('pct_used')}% - heavy job/leak check (`docker stats`).")
+        actions.append(f"Memory {m.get('pct_used')}% — heavy job/leak check (`docker stats`).")
 
     j = checks["jobs"]
     if j.get("overdue"):
@@ -241,33 +241,33 @@ async def snapshot() -> dict[str, Any]:
         actions.append(
             "Overdue jobs: "
             + ", ".join(j["overdue"][:5])
-            + " - worker/scheduler containers check karo."
+            + " — worker/scheduler containers check karo."
         )
     if j.get("queue_backlogged"):
         score -= 15
         actions.append(
-            f"Celery backlog {j.get('queue', {}).get('celery')} - worker slow/dead (`docker logs leadgen_worker`)."
+            f"Celery backlog {j.get('queue', {}).get('celery')} — worker slow/dead (`docker logs leadgen_worker`)."
         )
 
     llm = checks["llm"]
     if llm.get("ok") is False:
         score -= 10
         actions.append(
-            f"LLM fail/fallback rate {llm.get('fallback_or_fail_rate')} - provider keys/quota dekho (/api/growth/infra/llm)."
+            f"LLM fail/fallback rate {llm.get('fallback_or_fail_rate')} — provider keys/quota dekho (/api/growth/infra/llm)."
         )
 
     b = checks["backups"]
     if b.get("ok") is False:
         score -= 10
         actions.append(
-            f"Backup {b.get('age_hours')}h purana - pg_backup cron + offsite mail check karo."
+            f"Backup {b.get('age_hours')}h purana — pg_backup cron + offsite mail check karo."
         )
 
     e = checks["embedder"]
     if e.get("ok") is False:
         score -= 10
         actions.append(
-            "Voice-KB embedding model cache missing - image rebuild/bake karo (runtime download = freeze risk)."
+            "Voice-KB embedding model cache missing — image rebuild/bake karo (runtime download = freeze risk)."
         )
 
     score = max(0, score)
@@ -342,7 +342,7 @@ async def snapshot() -> dict[str, Any]:
             "healthy" if score >= 85 else ("attention" if score >= ALERT_SCORE else "critical")
         ),
         "checks": checks,
-        "actions": actions or ["Sab theek - koi action nahi chahiye."],
+        "actions": actions or ["Sab theek — koi action nahi chahiye."],
         "skills": skills_suggested,
         "at": _now().isoformat(timespec="seconds"),
     }
@@ -395,7 +395,7 @@ def recent_scans(limit: int = 20) -> list[dict[str, Any]]:
 
 
 async def run_watch() -> dict[str, Any]:
-    """Hourly watchdog hook - GATED INFRA_HANDLER=1 (off => inert). Kabhi raise nahi."""
+    """Hourly watchdog hook — GATED INFRA_HANDLER=1 (off => inert). Kabhi raise nahi."""
     if not _enabled():
         return {"ok": True, "skipped": "INFRA_HANDLER off"}
     try:

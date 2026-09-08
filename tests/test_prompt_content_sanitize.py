@@ -1,7 +1,6 @@
 """Contract for 2nd-order injection sanitize of semi-trusted prompt content
 (audit 2026-07-06 P1). Trainer notes / admin-promoted learned replies / obsidian
-brain / KB facts get concatenated into the voice system prompt
-a poisoned KB doc
+brain / KB facts get concatenated into the voice system prompt; a poisoned KB doc
 carrying "ignore your instructions" would otherwise enter ABOVE the caller-utterance
 guard. `_sanitize_prompt_content` strips high-signal injection directives while
 NEVER mangling legit business copy (the risk that makes the marker set conservative).
@@ -31,7 +30,7 @@ def test_strips_jailbreak_and_dev_mode():
 
 
 def test_preserves_legit_business_copy():
-    # These ambiguous phrases appear in REAL business KB and must NOT be mangled -
+    # These ambiguous phrases appear in REAL business KB and must NOT be mangled —
     # they are deliberately excluded from the conservative marker set.
     txt = (
         "We act as your marketing partner and help you reveal your best glow. "

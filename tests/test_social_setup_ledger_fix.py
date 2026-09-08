@@ -2,9 +2,9 @@
 delivery-ledger milestone (customer-visible timeline proof).
 
 Before this fix, app.api.customer_dashboard._sync_social_delivery_stage called
-delivery_ledger.log_event(..., customer_visible=True) - but log_event has NO
+delivery_ledger.log_event(..., customer_visible=True) — but log_event has NO
 `customer_visible` param, so it raised TypeError which the surrounding
-`except: pass` swallowed -> the "socials connected" milestone was silently
+`except: pass` swallowed → the "socials connected" milestone was silently
 missing from every customer's timeline. RED-first: on the unfixed code these
 tests fail (no event lands).
 """

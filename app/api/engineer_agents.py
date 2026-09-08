@@ -1,4 +1,4 @@
-"""F.5 engineer-agent admin API - run + dashboard rollup.
+"""F.5 engineer-agent admin API — run + dashboard rollup.
 
 Each call into the underlying module logs an audit event (agent_events table),
 so the existing /app/team dashboard surfaces history without extra wiring.
@@ -15,13 +15,13 @@ router = APIRouter(prefix="/api/engineer-agents", tags=["Infrastructure"])
 
 # Drift-proof: derive from the module's agent registry so new engineer agents
 # (council 2026-06-25: dbre/deps/dataquality) are auto-recognized by the per-role
-# endpoints - earlier this hardcoded only sre/finops/security and 422'd the rest.
+# endpoints — earlier this hardcoded only sre/finops/security and 422'd the rest.
 _VALID = set(ea.roles())
 
 
 @router.get("/all")
 async def run_all(_user=Depends(require_admin)) -> dict:
-    """Dashboard rollup - score + KPIs + actions for all engineer agents."""
+    """Dashboard rollup — score + KPIs + actions for all engineer agents."""
     return ea.run_all()
 
 
@@ -34,7 +34,7 @@ async def history(role: str, limit: int = 50, _user=Depends(require_admin)) -> d
 
     Reads the same AgentEvent table the existing /app/team dashboard uses,
     filtered to the engineer-agent member. Falls back to empty list if DB
-    unavailable - INERT (never raises).
+    unavailable — INERT (never raises).
     """
     role_l = (role or "").strip().lower()
     if role_l not in _VALID:

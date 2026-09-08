@@ -75,7 +75,7 @@ def test_automation_max_does_not_footgun_self_improve():
 
 
 def test_automation_max_default_safe_excludes_dunning_engine():
-    """Issue #307: DUNNING_ENGINE stays OFF - default WANT_SAFE must not arm it."""
+    """Issue #307: DUNNING_ENGINE stays OFF — default WANT_SAFE must not arm it."""
     mod = _load_automation_max()
     assert "DUNNING_ENGINE" not in mod.WANT_SAFE
     assert "DUNNING_ENGINE" in mod.OWNER_GATED

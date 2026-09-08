@@ -1,4 +1,4 @@
-"""Tests for app.voice_agent.omniroute_voice - voice-scoped OmniRoute wrapper."""
+"""Tests for app.voice_agent.omniroute_voice — voice-scoped OmniRoute wrapper."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ class TestSwaraLiveRoute:
         reason=(
             "OWNER DIRECTIVE 2026-08-23 pins voice to leadgen-swara-flagship, but "
             "2026-09-04 live probe of VPS gateway /v1/models (505 ids) does NOT list "
-            "that combo - routing voice there would 404 the hot path. Swara surface "
+            "that combo — routing voice there would 404 the hot path. Swara surface "
             "is FROZEN (no code edit without owner). Owner decision: re-create the "
             "combo on the VPS gateway, then unmark. Code currently keeps "
             "hermes-voice (gateway-verified id)."

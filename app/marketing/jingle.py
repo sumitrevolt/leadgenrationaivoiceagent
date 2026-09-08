@@ -1,14 +1,12 @@
 """Audio jingle generator (AdBanao ke 1.5L jingles ka free-stack jawab).
 
-niche + business -> free-LLM se 15-20 sec punchy Hinglish radio-ad script ->
-EdgeTTS mp3 -> optional ffmpeg loudness-normalize (ffmpeg ho to). Output:
-data/jingles/jingle_<id>.mp3 - HUMAN use karta (WhatsApp status, reel audio,
+niche + business → free-LLM se 15-20 sec punchy Hinglish radio-ad script →
+EdgeTTS mp3 → optional ffmpeg loudness-normalize (ffmpeg ho to). Output:
+data/jingles/jingle_<id>.mp3 — HUMAN use karta (WhatsApp status, reel audio,
 shop speaker). Ban-safe: sirf file banti hai.
 
-⚠️ HEAVY-ish (LLM + TTS network) - import time pe KUCH nahi chalta
-sirf
-endpoint/worker se call karo. `available()` dep-check
-missing = error dict,
+⚠️ HEAVY-ish (LLM + TTS network) — import time pe KUCH nahi chalta; sirf
+endpoint/worker se call karo. `available()` dep-check; missing = error dict,
 NEVER raises (reel_video.py pattern).
 """
 
@@ -28,7 +26,7 @@ logger = setup_logger(__name__)
 _OUT_DIR = os.path.join("data", "jingles")
 _NAME_RE = re.compile(r"jingle_[a-f0-9]{10}\.mp3")
 
-# lang -> default EdgeTTS voice (sab free). Unknown/missing -> Swara (hi-IN).
+# lang → default EdgeTTS voice (sab free). Unknown/missing → Swara (hi-IN).
 _LANG_VOICES = {
     "hinglish": "hi-IN-SwaraNeural",
     "hindi": "hi-IN-SwaraNeural",
@@ -48,7 +46,7 @@ _WORDS_PER_SEC = 2.3
 
 
 def available() -> dict[str, Any]:
-    """Dep-check - edge-tts zaroori, ffmpeg optional (normalize ke liye)."""
+    """Dep-check — edge-tts zaroori, ffmpeg optional (normalize ke liye)."""
     out: dict[str, Any] = {"ffmpeg": bool(shutil.which("ffmpeg"))}
     try:
         import edge_tts  # noqa: F401
@@ -61,13 +59,13 @@ def available() -> dict[str, Any]:
 
 
 def estimate_duration(script: str) -> float:
-    """Script -> approx seconds (TTS bolne ki speed se)."""
+    """Script → approx seconds (TTS bolne ki speed se)."""
     words = len((script or "").split())
     return round(words / _WORDS_PER_SEC, 1) if words else 0.0
 
 
 def safe_file_path(name: str) -> str | None:
-    """Regex-locked filename -> full path (serve route ke liye). Traversal-proof
+    """Regex-locked filename → full path (serve route ke liye). Traversal-proof
     (ai_image.cache_file_path pattern)."""
     if not _NAME_RE.fullmatch(name or ""):
         return None
@@ -76,7 +74,7 @@ def safe_file_path(name: str) -> str | None:
 
 
 def pick_voice(lang: str = "hinglish", voice: str | None = None) -> str:
-    """Lang ya explicit voice -> safe EdgeTTS voice name."""
+    """Lang ya explicit voice → safe EdgeTTS voice name."""
     v = (voice or "").strip()
     if v and _VOICE_RE.match(v):
         return v
@@ -84,13 +82,13 @@ def pick_voice(lang: str = "hinglish", voice: str | None = None) -> str:
 
 
 def _fallback_script(niche: str, business_name: str, offer: str, lang: str) -> str:
-    """LLM fail ho to static punchy script - kabhi empty nahi."""
+    """LLM fail ho to static punchy script — kabhi empty nahi."""
     biz = (business_name or "Aapka Business").strip()
     nic = (niche or "business").replace("_", " ").strip()
     parts = [
         f"{biz}! Aapke sheher ka sabse bharosemand {nic} naam.",
-        (offer or "").strip() or "Quality kaam, sahi daam - bina tension.",
-        f"Toh der kis baat ki? Aaj hi call karo {biz} ko. {biz} - kaam pakka, vaada pakka!",
+        (offer or "").strip() or "Quality kaam, sahi daam — bina tension.",
+        f"Toh der kis baat ki? Aaj hi call karo {biz} ko. {biz} — kaam pakka, vaada pakka!",
     ]
     return " ".join(p for p in parts if p)
 
@@ -112,9 +110,9 @@ async def _llm_script(niche: str, business_name: str, offer: str, lang: str) -> 
         }.get((lang or "hinglish").lower(), "Hinglish (Roman script) me likho.")
         system = (
             "Tu Indian local-radio ad writer hai. 15-20 second ka PUNCHY jingle "
-            "script likh - catchy hook, business naam 2 baar, ek chhota rhyme/tagline, "
+            "script likh — catchy hook, business naam 2 baar, ek chhota rhyme/tagline, "
             "end me clear call-to-action. 35-50 words MAX. " + lang_line + " "
-            "Sirf bolne wala text de - koi stage direction, quotes, emoji ya headings nahi."
+            "Sirf bolne wala text de — koi stage direction, quotes, emoji ya headings nahi."
         )
         user = f"Business: {business_name or 'local business'} | Niche: {niche or 'general'}"
         if (offer or "").strip():
@@ -177,7 +175,7 @@ async def generate_jingle(
     if not avail["ok"]:
         return {
             "ok": False,
-            "error": "edge-tts installed nahi - jingle audio nahi ban sakta.",
+            "error": "edge-tts installed nahi — jingle audio nahi ban sakta.",
             "available": avail,
         }
 
@@ -202,13 +200,13 @@ async def generate_jingle(
         try:
             await edge_tts.Communicate(script, vo).save(path)
         except Exception as e:
-            # exotic voice fail (e.g. punjabi voice account pe nahi) -> Swara retry
-            logger.warning(f"[jingle] voice {vo} fail ({e}) - Swara retry")
+            # exotic voice fail (e.g. punjabi voice account pe nahi) → Swara retry
+            logger.warning(f"[jingle] voice {vo} fail ({e}) — Swara retry")
             vo = _DEFAULT_VOICE
             await edge_tts.Communicate(script, vo).save(path)
 
         if not (os.path.exists(path) and os.path.getsize(path) > 100):
-            return {"ok": False, "error": "TTS audio save fail - dobara try karo."}
+            return {"ok": False, "error": "TTS audio save fail — dobara try karo."}
 
         normalized = _normalize_audio(path)
         return {
@@ -223,7 +221,7 @@ async def generate_jingle(
             "normalized": normalized,
             "size_kb": os.path.getsize(path) // 1024,
             "took_s": round(time.time() - t0, 1),
-            "note": "WhatsApp status / reel audio / shop speaker pe HUMAN use kare - auto-publish nahi.",
+            "note": "WhatsApp status / reel audio / shop speaker pe HUMAN use kare — auto-publish nahi.",
         }
     except Exception as e:
         logger.warning(f"generate_jingle failed: {e}")

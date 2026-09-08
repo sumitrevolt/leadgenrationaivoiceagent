@@ -4,9 +4,8 @@ Select + pin provider/model at call start. Fallback only on timeout/429/error/
 invalid/circuit/quality fail. Gemini 2.5 Flash remains stable baseline/fallback.
 
 OmniRoute gateway is OPTIONAL (local/dev). Production voice uses the same free
-providers via free_ai with sticky pin - OmniRoute catalog informs route picks
-when available
-otherwise env defaults apply.
+providers via free_ai with sticky pin — OmniRoute catalog informs route picks
+when available; otherwise env defaults apply.
 """
 
 from __future__ import annotations
@@ -106,7 +105,7 @@ def select_at_call_start(*, prefer: str | None = None) -> StickyRoute:
     """Pin route once per call. ``prefer`` may be provider name from benchmark."""
     if prefer:
         p = prefer.strip().lower()
-        # Map prefer -> default model for that provider.
+        # Map prefer → default model for that provider.
         defaults = {
             "gemini": (os.environ.get("VOICE_LLM_MODEL") or "gemini-2.5-flash").strip(),
             "groq": (os.environ.get("VOICE_GROQ_MODEL") or "openai/gpt-oss-20b").strip(),
@@ -181,7 +180,7 @@ def logical_routes() -> dict[str, dict[str, str]]:
 def try_fallback(route: StickyRoute, *, error: str = "") -> StickyRoute | None:
     """Return a new sticky pin on fallback provider, or None if budget exhausted."""
     if route.fallbacks_used >= _MAX_FALLBACKS_PER_CALL:
-        logger.warning("[sticky_route] max mid-call fallbacks reached - fail closed")
+        logger.warning("[sticky_route] max mid-call fallbacks reached — fail closed")
         return None
     nxt = StickyRoute(
         route_id=ROUTE_LIVE_FALLBACK,
@@ -217,7 +216,7 @@ def health_snapshot() -> dict[str, Any]:
         down = []
         try:
             for p in ("groq", "cerebras", "mistral", "gemini", "nvidia"):
-                if free_ai._provider_down(p):  # noqa: SLF001 - intentional health probe
+                if free_ai._provider_down(p):  # noqa: SLF001 — intentional health probe
                     down.append(p)
         except Exception:
             pass

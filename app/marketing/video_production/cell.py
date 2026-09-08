@@ -1,9 +1,9 @@
-"""Video Production Cell - thin orchestration over video_ad_cycle + pipeline.
+"""Video Production Cell — thin orchestration over video_ad_cycle + pipeline.
 
 Does NOT invent a second agent framework. Maps roles onto canonical STAFF:
-  isha  - brief / script / creative / review request
-  zara  - approval-gated social publish
-  arnav - compliance/safety checks (read-only gate helper)
+  isha  — brief / script / creative / review request
+  zara  — approval-gated social publish
+  arnav — compliance/safety checks (read-only gate helper)
 Boss/manager coordinates via Owner OS (existing).
 """
 
@@ -30,7 +30,7 @@ def _audit(agent: str, kind: str, msg: str, meta: dict[str, Any] | None = None) 
 
 
 def create_daily_brief(client_id: str, content_date: str = "") -> dict[str, Any]:
-    """GREEN - plan daily video without rendering."""
+    """GREEN — plan daily video without rendering."""
     try:
         from app.marketing import clients_store
 
@@ -49,7 +49,7 @@ def create_daily_brief(client_id: str, content_date: str = "") -> dict[str, Any]
             "offer_missing": not bool(offer),
             "purpose": "organic_daily",
             "language": c.get("language") or "hi",
-            "hook": f"{c.get('business_name')} - {offer or (c.get('niche') or 'local')} update",
+            "hook": f"{c.get('business_name')} — {offer or (c.get('niche') or 'local')} update",
             "cta": "Call ya WhatsApp karo",
             "agent": "isha",
             "workflow_state": states.BRIEF_CREATED,
@@ -61,7 +61,7 @@ def create_daily_brief(client_id: str, content_date: str = "") -> dict[str, Any]
 
 
 def write_script(brief: dict[str, Any]) -> dict[str, Any]:
-    """GREEN - script from brief; never invent prices/testimonials."""
+    """GREEN — script from brief; never invent prices/testimonials."""
     try:
         offer = str(brief.get("offer") or "").strip()
         biz = str(brief.get("business_name") or "Aapka Business")
@@ -76,7 +76,7 @@ def write_script(brief: dict[str, Any]) -> dict[str, Any]:
             "body": slides[1],
             "cta": slides[2],
             "slides": slides,
-            "caption": f"{biz} - {offer or niche}. {slides[2]}",
+            "caption": f"{biz} — {offer or niche}. {slides[2]}",
             "hashtags": [],
             "fabricated_claims": False,
             "offer_missing": bool(brief.get("offer_missing")),
@@ -149,7 +149,7 @@ def approve_version(
     principal: Any = None,
     expected_sha256: str = "",
 ) -> dict[str, Any]:
-    """Bind approval to exact version AND exact content bytes - fail if mismatch.
+    """Bind approval to exact version AND exact content bytes — fail if mismatch.
 
     ``principal`` is a server-created ``ApprovalPrincipal``. The old ``actor``
     and ``channel`` strings are gone: they let each surface name itself, and the
@@ -181,14 +181,14 @@ def approve_version(
     if status == "approved" and approved_revision == rev:
         # already_decided only when saga-finalized + hash-bound (publish-eligible).
         # Explicit legacy reapproval ONLY when approval_txn_state is empty.
-        # Non-empty mid-saga states must refuse - never coerce back into the saga.
+        # Non-empty mid-saga states must refuse — never coerce back into the saga.
         txn_state = str(rec.get("approval_txn_state") or "").strip()
         hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
         snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
         if txn_state == "finalized" and hash_ok and snap_ok:
             return {"ok": True, "already_decided": True, "status": "approved"}
         if txn_state == "":
-            # Legacy approved with no saga transaction - allow fresh coordinated approve.
+            # Legacy approved with no saga transaction — allow fresh coordinated approve.
             status = "pending"
         else:
             return {
@@ -208,7 +208,7 @@ def approve_version(
         return {"ok": False, "error": "missing_token"}
 
     # ONE coordinated path. approve_version no longer calls
-    # content_approval.approve() - that fired _decide's on_approved callback,
+    # content_approval.approve() — that fired _decide's on_approved callback,
     # which called record_approval, and then this function called it AGAIN
     # (two writes per click, second overwriting approved_at). The coordinator
     # owns the sequence and never re-enters this function.
@@ -243,7 +243,7 @@ def auto_approve_own_brand_pending(limit: int | None = None) -> dict[str, Any]:
     own-brand allowlist tenants (leadgenai-self / leadgen-ai) through the
     canonical approve_version + a SYSTEM principal. Idempotent (approve_version
     returns already_decided for settled rows). Bounded by limit (default from
-    flag, 2). Never raises - a failure is reported, not propagated.
+    flag, 2). Never raises — a failure is reported, not propagated.
     """
     from app.marketing import video_ad_cycle
     from app.marketing.video_production import flags as _vflags
@@ -281,7 +281,7 @@ def auto_approve_own_brand_pending(limit: int | None = None) -> dict[str, Any]:
 
 
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
-    """AMBER - publish only if gate passes. Uses existing publish path."""
+    """AMBER — publish only if gate passes. Uses existing publish path."""
     from app.marketing import video_ad_cycle
     from app.marketing.video_production.allowlist import assert_own_brand_allowlist
 

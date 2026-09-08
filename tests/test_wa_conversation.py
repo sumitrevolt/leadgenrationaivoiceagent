@@ -34,7 +34,7 @@ def test_record_and_history_roles_and_order(tmp_path, monkeypatch):
     wc.record("+91 98765 43210", "theek hai, demo dedo", "in", "m2")
 
     msgs = wc.history_messages("919876543210")
-    # 91-prefix / bare-10 / spaced+CC - sab last-10 pe normalise (ek hi thread)
+    # 91-prefix / bare-10 / spaced+CC — sab last-10 pe normalise (ek hi thread)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
     assert msgs[0]["content"].startswith("namaste")
     assert msgs[1]["role"] == "assistant"
@@ -69,13 +69,13 @@ def test_whatsapp_reply_second_message_gets_prior_context(tmp_path, monkeypatch)
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
-    # 1st inbound - koi prior context nahi
+    # 1st inbound — koi prior context nahi
     asyncio.run(ra.whatsapp_reply("919876543210", "aap kya karte ho?"))
     first_classify = next(c for c in calls if c["max_tokens"] == 8)
     assert "Pichli baat-cheet" not in first_classify["messages"][0]["content"]
 
     calls.clear()
-    # 2nd inbound - ab pehle turn ka context milna chahiye
+    # 2nd inbound — ab pehle turn ka context milna chahiye
     asyncio.run(ra.whatsapp_reply("919876543210", "haan interested hoon"))
     second_classify = next(c for c in calls if c["max_tokens"] == 8)
     assert "Pichli baat-cheet" in second_classify["messages"][0]["content"]

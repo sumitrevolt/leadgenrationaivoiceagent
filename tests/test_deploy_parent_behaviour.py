@@ -1,12 +1,12 @@
 """Behavioural harness for the canonical release parent (`scripts/deploy_vps.sh`).
 
-Every other test of this surface is TEXTUAL - it reads the file and checks that
+Every other test of this surface is TEXTUAL — it reads the file and checks that
 the guard line appears before the `git pull` line. That proves ordering in the
 source, not behaviour at runtime, and this repo has already been burned twice by
 exactly that gap: `vps_selfheal.sh` was classified from a grep of its comments
 and the classification was wrong in both directions, and a canary test asserted
 a provider was never called yet passed only because execution stopped at step
-one - the assertion was vacuous.
+one — the assertion was vacuous.
 
 So this harness EXECUTES the parent against stub `git`/`docker` binaries and
 asserts what actually happened.
@@ -22,14 +22,14 @@ THE CONTRACT UNDER TEST (2026-07-28)
         -> live checkout ff-only update
         -> container replacement
 
-The live checkout - the one still holding the invoice, consent and suppression
-ledgers and 182 MB of DPDP recordings - must not move until both gates have
+The live checkout — the one still holding the invoice, consent and suppression
+ledgers and 182 MB of DPDP recordings — must not move until both gates have
 passed. That is why "just pull first so the gates can see the new code" is not
 an option, and why the candidate lives in its own worktree instead.
 
 The script is copied to a sandbox with `REPO=/opt/leadgen` rewritten, because
 the real value makes the script exit at `cd "$REPO"` on any non-production
-host - safe, but untestable. The test asserts that this is the ONLY difference,
+host — safe, but untestable. The test asserts that this is the ONLY difference,
 so the thing under test cannot silently drift from the thing that ships.
 """
 
@@ -100,7 +100,7 @@ def _git_stub(path: pathlib.Path, log: pathlib.Path, state: pathlib.Path) -> Non
     """A git that answers plausibly instead of only recording.
 
     A stub that printed nothing would make the sha resolution fail for the wrong
-    reason, and every ordering assertion below would then be vacuous - the exact
+    reason, and every ordering assertion below would then be vacuous — the exact
     failure mode this harness exists to catch.
     """
     _write(
@@ -109,45 +109,35 @@ def _git_stub(path: pathlib.Path, log: pathlib.Path, state: pathlib.Path) -> Non
         #!/usr/bin/env bash
         echo "git $*" >> {log.as_posix()!r}
         dir="."
-        if [ "${{1:-}}" = "-C" ]
-        then dir="$2"
-        shift 2
-        fi
-        cmd="${{1:-}}"
-        shift || true
+        if [ "${{1:-}}" = "-C" ]; then dir="$2"; shift 2; fi
+        cmd="${{1:-}}"; shift || true
         case "$cmd" in
           fetch) exit "${{GIT_FETCH_EXIT:-0}}" ;;
           worktree)
-            if [ "${{1:-}}" = "add" ]
-            then
+            if [ "${{1:-}}" = "add" ]; then
               for a in "$@"; do case "$a" in /*) mkdir -p "$a" ;; esac; done
               exit "${{GIT_WORKTREE_EXIT:-0}}"
             fi
             exit 0 ;;
           pull)
             rc="${{GIT_PULL_EXIT:-0}}"
-            if [ "$rc" = "0" ]
-            then
+            if [ "$rc" = "0" ]; then
               printf '%s' "${{LIVE_AFTER_PULL:-{FAKE_SHA}}}" > {state.as_posix()!r}
             fi
             exit "$rc" ;;
           rev-parse)
             short=0
-            for a in "$@"
-            do [ "$a" = "--short" ] && short=1
-            done
+            for a in "$@"; do [ "$a" = "--short" ] && short=1; done
             case "$dir" in
               *candidates*) sha="${{CANDIDATE_HEAD:-{FAKE_SHA}}}" ;;
               *)
                 sha="$(cat {state.as_posix()!r} 2>/dev/null)"
-                for a in "$@"
-                do
+                for a in "$@"; do
                   case "$a" in --verify|--short|HEAD) ;; *) sha="{FAKE_SHA}" ;; esac
                 done
                 ;;
             esac
-            if [ "$short" = "1" ]
-            then
+            if [ "$short" = "1" ]; then
               printf '%s\\n' "${{sha:0:7}}"
             else
               printf '%s\\n' "$sha"
@@ -231,7 +221,7 @@ def _sandbox(tmp_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathli
     # The parent waits 22s and then polls /health. This harness measures WHICH
     # commands ran and in what order, not how long a container takes to warm up,
     # and a real sleep here would push every permitted-path test past CI's
-    # per-test timeout - a green suite that times out is not a green suite.
+    # per-test timeout — a green suite that times out is not a green suite.
     _write(
         binmock / "sleep",
         """\
@@ -242,7 +232,7 @@ def _sandbox(tmp_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathli
     )
     # The disk guard runs `df -P /` and arithmetic on field 5. Real `df` output
     # differs per platform and a non-numeric capacity makes the guard abort
-    # under `set -e` - the release would then look "contained" for a reason
+    # under `set -e` — the release would then look "contained" for a reason
     # that has nothing to do with the gates, and every ordering assertion after
     # it would be vacuous.
     _write(
@@ -263,9 +253,8 @@ def _env(tmp_path: pathlib.Path, **extra: str) -> dict[str, str]:
     """Build the child environment with a POSIX PATH.
 
     Using `os.pathsep` here was wrong: Git-bash parses PATH with ':', so a
-    Windows '
-    '-joined value collapses into one nonsense entry and even
-    `dirname` disappears. That is not cosmetic - it is what exposed the
+    Windows ';'-joined value collapses into one nonsense entry and even
+    `dirname` disappears. That is not cosmetic — it is what exposed the
     fail-open, because the guard's `.` source then failed and the script
     carried on regardless.
     """
@@ -297,7 +286,7 @@ def _assert_harness_ran(proc: subprocess.CompletedProcess[str]) -> None:
     """Distinguish 'the harness is broken' from 'the guard failed'.
 
     Exit 127 means bash never found the script. An earlier version of this file
-    reported that as "a bypass env var defeated the guard" - a false alarm
+    reported that as "a bypass env var defeated the guard" — a false alarm
     pointing at the wrong subsystem, which is precisely the failure mode that
     cost time on the /api/voice/niches bug.
     """
@@ -328,7 +317,7 @@ def _index_of(lines: list[str], needle: str) -> int | None:
 
 
 # --------------------------------------------------------------------------- #
-# Denial paths - nothing live may move
+# Denial paths — nothing live may move
 # --------------------------------------------------------------------------- #
 @requires_bash
 def test_denied_runtime_data_gate_leaves_live_checkout_and_containers_alone(
@@ -412,7 +401,7 @@ def test_live_pull_failure_stops_before_container_replacement(tmp_path: pathlib.
 
 @requires_bash
 def test_live_checkout_not_matching_the_gated_sha_fails_closed(tmp_path: pathlib.Path) -> None:
-    """The pull succeeded but landed somewhere else - refuse to start containers."""
+    """The pull succeeded but landed somewhere else — refuse to start containers."""
     script, log, _state = _sandbox(tmp_path)
     proc = _run(script, tmp_path, LIVE_AFTER_PULL="7" * 40)
 
@@ -422,7 +411,7 @@ def test_live_checkout_not_matching_the_gated_sha_fails_closed(tmp_path: pathlib
 
 
 # --------------------------------------------------------------------------- #
-# Permitted path - ordering, mounts and provenance
+# Permitted path — ordering, mounts and provenance
 # --------------------------------------------------------------------------- #
 @requires_bash
 def test_permitted_release_runs_both_gates_before_touching_anything_live(
@@ -431,7 +420,7 @@ def test_permitted_release_runs_both_gates_before_touching_anything_live(
     """Anti-vacuity control plus the full ordering contract.
 
     Without a permitted run, every denial test above would still pass if the
-    script never reached any command for an unrelated reason - which is exactly
+    script never reached any command for an unrelated reason — which is exactly
     how an earlier canary test fooled me.
     """
     script, log, _state = _sandbox(tmp_path)
@@ -468,7 +457,7 @@ def test_gates_mount_candidate_and_live_data_read_only(tmp_path: pathlib.Path) -
     """The gate must see the CANDIDATE source and the REAL ledgers, both read-only.
 
     A candidate worktree carries an empty `data/`. Gating against that would
-    report a clean, blocker-free system that does not exist - a false green on
+    report a clean, blocker-free system that does not exist — a false green on
     the one question this gate is asked.
     """
     script, log, _state = _sandbox(tmp_path)
@@ -536,7 +525,7 @@ def test_missing_helper_fails_closed(tmp_path: pathlib.Path) -> None:
     `set -uo pipefail` with no `-e`, so a failed `.` source did not abort it:
     with the guard file absent the shell printed "No such file or directory"
     and went straight on to `git pull`. Every textual test passed the whole
-    time, because the guard LINE was present and correctly ordered - it just
+    time, because the guard LINE was present and correctly ordered — it just
     did not do anything.
     """
     for helper in _HELPERS:
@@ -559,7 +548,7 @@ def test_guard_has_no_bypass_at_runtime(tmp_path: pathlib.Path) -> None:
 
     Checking behaviour rather than grepping for a bypass name: any future
     bypass, whatever it is called, would have to make a denied preflight
-    proceed - and that is what this asserts cannot happen.
+    proceed — and that is what this asserts cannot happen.
     """
     script, log, state = _sandbox(tmp_path)
     env_attempts = {
@@ -581,8 +570,7 @@ def test_guard_has_no_bypass_at_runtime(tmp_path: pathlib.Path) -> None:
 def test_guard_denial_and_helper_absence_are_distinguishable(tmp_path: pathlib.Path) -> None:
     """90 and 91 must not collapse into one code.
 
-    An operator seeing 90 should look at the blocker list
-    seeing 91 they should
+    An operator seeing 90 should look at the blocker list; seeing 91 they should
     look for a missing file. Collapsing them would send them to the wrong runbook.
     """
     denied_script, _, _ = _sandbox(tmp_path / "a")

@@ -1,7 +1,6 @@
-"""S.1 admin customer-onboard endpoint - profile + login in one call.
+"""S.1 admin customer-onboard endpoint — profile + login in one call.
 
-This is the operator's primary "add new customer" action
-tests pin the
+This is the operator's primary "add new customer" action; tests pin the
 contract so a future refactor can't silently break it:
 - Returns client_id always
 - When email passed: password is returned ONCE in plaintext
@@ -28,7 +27,7 @@ def _iso(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(clients_store, "_FILE", tmp_path / "clients.jsonl", raising=False)
     monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "customer_logins.jsonl", raising=False)
-    # Bypass admin auth in tests - onboard is admin-only, but the dep is the
+    # Bypass admin auth in tests — onboard is admin-only, but the dep is the
     # same one already covered by test_billing_auth_idor.py.
     from app.api import customer_onboard
 
@@ -144,7 +143,7 @@ def test_login_actually_works_after_onboard(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """The credentials returned MUST authenticate against /api/customer/login.
-    This is the end-to-end property - without it, the form is broken UX."""
+    This is the end-to-end property — without it, the form is broken UX."""
     from app.api import customer_auth
 
     monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "logins.jsonl", raising=False)
@@ -175,9 +174,8 @@ def test_login_actually_works_after_onboard(
 # --------------------------------------------------------------------------- #
 def test_repeat_onboard_returns_existing_client_id() -> None:
     """Re-onboarding the same phone+business should not create a duplicate
-    profile (clients_store dedupes)
-    returns the existing client_id but
-    issues a fresh password - operator can use it as a manual password reset."""
+    profile (clients_store dedupes); returns the existing client_id but
+    issues a fresh password — operator can use it as a manual password reset."""
     c = _client()
     r1 = c.post(
         "/api/admin/customers/onboard",

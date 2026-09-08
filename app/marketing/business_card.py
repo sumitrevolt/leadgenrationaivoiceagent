@@ -1,5 +1,5 @@
 """
-business_card.py - digital visiting card per client (mobile-first + .vcf).
+business_card.py — digital visiting card per client (mobile-first + .vcf).
 ===========================================================================
 
 Har client ko ek share-karne-laayak digital card: naam, business, call/WhatsApp
@@ -10,9 +10,8 @@ QR encoder reuse) + "Save Contact" (.vcf vCard 3.0).
   render_card_html(slug) -> {"ok", "html"}   (standalone mobile-first page)
   render_vcf(slug)       -> {"ok", "vcf", "filename"}
 
-Sab user-text HTML-escaped
-vcf values comma/semicolon-escaped. Kabhi raise
-nahi - error pe {"ok": False, "error": ...}.
+Sab user-text HTML-escaped; vcf values comma/semicolon-escaped. Kabhi raise
+nahi — error pe {"ok": False, "error": ...}.
 """
 
 from __future__ import annotations
@@ -38,7 +37,7 @@ def _base_url() -> str:
 
 
 def _wa_number(phone: str) -> str:
-    """Phone -> wa.me digits (91-prefixed 10-digit Indian mobile)."""
+    """Phone → wa.me digits (91-prefixed 10-digit Indian mobile)."""
     d = re.sub(r"\D", "", str(phone or ""))
     if len(d) == 10:
         return "91" + d
@@ -72,7 +71,7 @@ def card_data(slug: str) -> dict[str, Any]:
         key = str(slug or "").strip()
         client = clients_store.get_by_slug(key) or clients_store.get_client(key)
         if not client:
-            return {"ok": False, "error": "client nahi mila - pehle onboard karo."}
+            return {"ok": False, "error": "client nahi mila — pehle onboard karo."}
         brand = brand_frames.resolve_brand(client.get("slug") or key)
         the_slug = str(client.get("slug") or key)
         phone = str(client.get("phone") or "").strip()
@@ -104,16 +103,14 @@ def _vcf_escape(v: str) -> str:
     return (
         str(v or "")
         .replace("\\", "\\\\")
-        .replace("
-        ", r"\
-        ")
+        .replace(";", r"\;")
         .replace(",", r"\,")
         .replace("\n", r"\n")
     )
 
 
 def render_vcf(slug: str) -> dict[str, Any]:
-    """vCard 3.0 text - phone me 'Save Contact' 1-tap. Kabhi raise nahi."""
+    """vCard 3.0 text — phone me 'Save Contact' 1-tap. Kabhi raise nahi."""
     try:
         d = card_data(slug)
         if not d.get("ok"):
@@ -127,8 +124,7 @@ def render_vcf(slug: str) -> dict[str, Any]:
             f"ORG:{name}",
         ]
         if d.get("phone"):
-            lines.append(f"TEL
-            TYPE=CELL,VOICE:{_vcf_escape(d['phone'])}")
+            lines.append(f"TEL;TYPE=CELL,VOICE:{_vcf_escape(d['phone'])}")
         lines.append(f"URL:{d['minisite_url']}")
         if d.get("city"):
             lines.append(f"ADR;TYPE=WORK:;;{_vcf_escape(d['city'])};;;;India")
@@ -167,7 +163,7 @@ def render_card_html(slug: str) -> dict[str, Any]:
         site_href = escape(d["minisite_url"], quote=True)
         vcf_href = escape(d["vcf_url"], quote=True)
 
-        # QR - review_kit ka pure-python encoder (kabhi raise nahi, fallback "")
+        # QR — review_kit ka pure-python encoder (kabhi raise nahi, fallback "")
         qr = ""
         try:
             from app.marketing.review_kit import qr_svg
@@ -199,63 +195,34 @@ def render_card_html(slug: str) -> dict[str, Any]:
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>{name} - Digital Card</title>
+<title>{name} — Digital Card</title>
 <style>
-  *{{box-sizing:border-box
-  margin:0
-  padding:0}}
+  *{{box-sizing:border-box;margin:0;padding:0}}
   body{{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;display:flex;
-    justify-content:center
-    padding:16px
-    min-height:100vh}}
+    justify-content:center;padding:16px;min-height:100vh}}
   .card{{width:100%;max-width:420px;background:#fff;border-radius:20px;overflow:hidden;
     box-shadow:0 10px 30px rgba(0,0,0,.12)}}
   .hero{{background:linear-gradient(135deg,{primary},{primary}cc);padding:34px 22px 26px;
-    text-align:center
-    color:#fff}}
+    text-align:center;color:#fff}}
   .logo{{width:84px;height:84px;border-radius:50%;background:#fff;object-fit:contain;
     margin:0 auto 12px;display:flex;align-items:center;justify-content:center;
     border:3px solid {accent}}}
-  .initials{{font-size:34px
-  font-weight:800
-  color:{primary}}}
-  h1{{font-size:24px
-  line-height:1.2}}
-  .services{{margin-top:6px
-  font-size:14px
-  color:{accent}
-  font-weight:600}}
-  .tag{{margin-top:8px
-  font-size:13px
-  opacity:.92}}
-  .city{{margin-top:6px
-  font-size:13px
-  opacity:.85}}
+  .initials{{font-size:34px;font-weight:800;color:{primary}}}
+  h1{{font-size:24px;line-height:1.2}}
+  .services{{margin-top:6px;font-size:14px;color:{accent};font-weight:600}}
+  .tag{{margin-top:8px;font-size:13px;opacity:.92}}
+  .city{{margin-top:6px;font-size:13px;opacity:.85}}
   .body{{padding:20px 22px 26px}}
   .btn{{display:block;text-align:center;padding:14px;border-radius:12px;margin-bottom:12px;
-    text-decoration:none
-    font-weight:700
-    font-size:16px}}
-  .call{{background:{primary}
-  color:#fff}}
-  .wa{{background:#25d366
-  color:#fff}}
-  .save{{background:#111827
-  color:#fff}}
-  .site{{background:#fff
-  color:{primary}
-  border:2px solid {primary}}}
-  .qr{{text-align:center
-  margin:18px 0 6px}}
-  .qr p{{font-size:12px
-  color:#6b7280
-  margin-top:6px}}
-  footer{{text-align:center
-  font-size:11px
-  color:#9ca3af
-  padding-bottom:18px}}
-  footer a{{color:{primary}
-  text-decoration:none}}
+    text-decoration:none;font-weight:700;font-size:16px}}
+  .call{{background:{primary};color:#fff}}
+  .wa{{background:#25d366;color:#fff}}
+  .save{{background:#111827;color:#fff}}
+  .site{{background:#fff;color:{primary};border:2px solid {primary}}}
+  .qr{{text-align:center;margin:18px 0 6px}}
+  .qr p{{font-size:12px;color:#6b7280;margin-top:6px}}
+  footer{{text-align:center;font-size:11px;color:#9ca3af;padding-bottom:18px}}
+  footer a{{color:{primary};text-decoration:none}}
 </style>
 </head>
 <body>
@@ -274,7 +241,7 @@ def render_card_html(slug: str) -> dict[str, Any]:
     <a class="btn site" href="{site_href}">\U0001f310 Hamari website dekhein</a>
     <div class="qr">{qr}<p>QR scan karke website kholo / aage share karo</p></div>
   </div>
-  <footer>Phone: {phone or "-"} · Powered by <a href="https://leadsgenai.in">LeadGen AI</a></footer>
+  <footer>Phone: {phone or "—"} · Powered by <a href="https://leadsgenai.in">LeadGen AI</a></footer>
 </div>
 </body>
 </html>"""

@@ -2,7 +2,7 @@
 
 `kill_switch_board()` reported only a boolean. "engaged: false" reads the same
 whether the operator deliberately disengaged it or the authority file is
-missing - and those are very different situations for whoever is on call. The
+missing — and those are very different situations for whoever is on call. The
 board now carries source + reason alongside the existing flag.
 
 Read-only: no set_kill, no ENV mutation, no file repair.
@@ -115,7 +115,7 @@ def test_board_does_not_leak_file_contents(kill_file):
 
 
 def test_owner_os_never_uses_status_object_truthiness():
-    """`bool(AdminKillStatus(engaged=False, ...))` is True - a real trap.
+    """`bool(AdminKillStatus(engaged=False, ...))` is True — a real trap.
 
     AdminKillStatus deliberately has no __bool__, so any caller that tests the
     object instead of `.engaged` would report "engaged" forever.
@@ -132,8 +132,7 @@ def test_kill_switch_board_performs_no_mutation(kill_file, monkeypatch):
     """The DIAGNOSTIC surface is read-only.
 
     Owner OS does have a pre-existing operator toggle elsewhere that calls
-    set_kill()
-    this batch neither added nor touched it. What must hold is that
+    set_kill(); this batch neither added nor touched it. What must hold is that
     merely *rendering the board* never writes.
     """
     called: list = []

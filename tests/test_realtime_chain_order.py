@@ -1,10 +1,9 @@
-"""test_realtime_chain_order.py - audit §10 fix: realtime chain latency-first order.
+"""test_realtime_chain_order.py — audit §10 fix: realtime chain latency-first order.
 
-Red-first: old order was mistral->groq->cerebras
-this test would FAIL on the old
+Red-first: old order was mistral→groq→cerebras; this test would FAIL on the old
 code (mistral first = higher p50 first-token latency for short voice turns).
-Fixed: groq->cerebras->mistral for realtime (audit §10 [LOW] 2026-07-06).
-Bulk unchanged: cerebras->groq->mistral (throughput-first).
+Fixed: groq→cerebras→mistral for realtime (audit §10 [LOW] 2026-07-06).
+Bulk unchanged: cerebras→groq→mistral (throughput-first).
 """
 
 from __future__ import annotations
@@ -28,7 +27,7 @@ def test_realtime_chain_groq_first():
     chain = free_ai._build_llm_chain("realtime")
     providers = [p for p, _ in chain]
 
-    # Only core providers (groq/cerebras/mistral) - skip tail/gemini/nvidia/etc
+    # Only core providers (groq/cerebras/mistral) — skip tail/gemini/nvidia/etc
     core_providers = [p for p in providers if p in ("groq", "cerebras", "mistral")]
     # First occurrence ordering
     first_groq = providers.index("groq")
@@ -100,7 +99,7 @@ def test_trainer_timeout_within_celery_limit():
 
 def test_trainer_ingest_kb_budget_within_celery_limit():
     """KB ingest wait_for timeout must exist and leave room for ML training (360s)
-    inside Celery's 600s hard / 540s soft limit (was unbounded sync -> daily
+    inside Celery's 600s hard / 540s soft limit (was unbounded sync → daily
     TimeLimitExceeded(600) DLQ deaths)."""
     import ast
     import pathlib
@@ -123,7 +122,7 @@ def test_trainer_ingest_kb_budget_within_celery_limit():
                         if isinstance(kw.value, ast.Constant):
                             timeouts.append(kw.value.value)
     assert timeouts, (
-        "Could not find wait_for(ingest_to_kb, timeout=...) in scheduler - "
+        "Could not find wait_for(ingest_to_kb, timeout=...) in scheduler — "
         "bounded ingest is required to keep the trainer job under Celery's hard limit"
     )
     for t in timeouts:

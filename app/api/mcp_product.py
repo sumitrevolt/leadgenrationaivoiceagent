@@ -1,14 +1,14 @@
-"""MCP-as-product API - metered programmatic surface + A2A Agent Card.
+"""MCP-as-product API — metered programmatic surface + A2A Agent Card.
 
 This is the platform's outward-facing programmatic interface. Two layers:
 
 1. **Discovery** (public, no auth):
-   - GET /.well-known/agent.json   - A2A Agent Card (cross-agent interop)
-   - GET /api/mcp-product/v1/discover - capability catalog + auth instructions
+   - GET /.well-known/agent.json   — A2A Agent Card (cross-agent interop)
+   - GET /api/mcp-product/v1/discover — capability catalog + auth instructions
 
 2. **Metered capabilities** (X-LeadGen-Key auth + quota):
-   - GET  /api/mcp-product/v1/niches    - 42-niche catalog (niches.list)
-   - POST /api/mcp-product/v1/score-lead - score a single lead (lead.score)
+   - GET  /api/mcp-product/v1/niches    — 42-niche catalog (niches.list)
+   - POST /api/mcp-product/v1/score-lead — score a single lead (lead.score)
 
 Plus admin management at /api/admin/mcp-keys for issuing / listing / revoking
 keys. Master flag MCP_PRODUCT=1 gates the metered routes (503 when off).
@@ -112,7 +112,7 @@ async def niches(x_leadgen_key: str | None = Header(default=None, alias="X-LeadG
     try:
         from app.niches import NICHES
 
-        # NICHES is a list / dict in the project - wrap as-is for the client.
+        # NICHES is a list / dict in the project — wrap as-is for the client.
         if isinstance(NICHES, dict):
             data = NICHES
         else:
@@ -130,7 +130,7 @@ class ScoreLeadIn(BaseModel):
 
 
 class QualifierRunIn(BaseModel):
-    """Prospect shape accepted by sales_qualify.bant_score - every field is
+    """Prospect shape accepted by sales_qualify.bant_score — every field is
     optional. The richer the input, the more accurate the score."""
 
     business_name: str | None = Field("", max_length=200)
@@ -153,9 +153,8 @@ async def score_lead(
     body: ScoreLeadIn,
     x_leadgen_key: str | None = Header(default=None, alias="X-LeadGen-Key"),
 ) -> dict:
-    """Deterministic, heuristic lead score (0-100). No LLM call - the metered
-    surface stays cheap
-    richer LLM-backed enrichment can be added behind a
+    """Deterministic, heuristic lead score (0-100). No LLM call — the metered
+    surface stays cheap; richer LLM-backed enrichment can be added behind a
     higher tier later. Customers get a stable, billable response."""
     verdict = await _require_key("lead.score", x_leadgen_key)
     name = body.business_name.strip()
@@ -163,7 +162,7 @@ async def score_lead(
     city = (body.city or "").strip()
     notes = (body.notes or "").strip()
 
-    # Lean rubric - measurable, no LLM dependency:
+    # Lean rubric — measurable, no LLM dependency:
     score = 50
     reasons: list[str] = []
     if len(name) >= 10:
@@ -197,18 +196,18 @@ async def qualifier_run(
     body: QualifierRunIn,
     x_leadgen_key: str | None = Header(default=None, alias="X-LeadGen-Key"),
 ) -> dict:
-    """M.1: real BANT qualification - pure-Python, zero LLM call, identical
+    """M.1: real BANT qualification — pure-Python, zero LLM call, identical
     rubric to the one the in-house Veer agent uses (app/platform/sales_qualify.
     bant_score). Returns total + grade (A/B/C/D) + per-dimension scores +
     reasons + recommended action.
 
     Field-by-field:
-      budget    - derived from annual_revenue_inr + employees + rating
-      authority - phone present + role hints in notes
-      need      - website-quality + niche match + "intent" string keywords
-      timeline  - last_contacted_days_ago + urgency keywords in notes
+      budget    — derived from annual_revenue_inr + employees + rating
+      authority — phone present + role hints in notes
+      need      — website-quality + niche match + "intent" string keywords
+      timeline  — last_contacted_days_ago + urgency keywords in notes
 
-    Stable contract - customers can build automation that triggers when
+    Stable contract — customers can build automation that triggers when
     grade in {A, B}. Score scale, grade letters, and action strings are
     versioned via the gateway version field (v1).
     """
@@ -270,11 +269,11 @@ async def admin_toggle(key_id: str, body: KeyToggleIn, _user=Depends(require_adm
 
 
 # --------------------------------------------------------------------------- #
-# Council 2026-06-26 - Arya MCP Engineer surface (admin)
+# Council 2026-06-26 — Arya MCP Engineer surface (admin)
 # --------------------------------------------------------------------------- #
 @router.get("/api/admin/mcp/health", tags=["Platform"])
 async def admin_mcp_health(_user=Depends(require_admin)) -> dict:
-    """Live MCP health snapshot - last hourly pulse from Arya. Cheap (file read)."""
+    """Live MCP health snapshot — last hourly pulse from Arya. Cheap (file read)."""
     from app.platform import mcp_engineer
 
     return mcp_engineer.health_score()
@@ -290,7 +289,7 @@ async def admin_mcp_health_run(_user=Depends(require_admin)) -> dict:
 
 @router.get("/api/admin/mcp/audit", tags=["Platform"])
 async def admin_mcp_audit(_user=Depends(require_admin)) -> dict:
-    """One-shot security checklist - for /verify and pre-deploy gate."""
+    """One-shot security checklist — for /verify and pre-deploy gate."""
     from app.platform import mcp_engineer
 
     audit = mcp_engineer.audit_mcp_security()

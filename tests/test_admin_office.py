@@ -1,5 +1,5 @@
 """Unit test for the Admin "Aapke kaam" virtual-office aggregator
-(app/api/admin_ops._admin_office) - consolidates 4 pending-approval queues.
+(app/api/admin_ops._admin_office) — consolidates 4 pending-approval queues.
 Reads real stores best-effort so we assert shape + invariants, not exact counts."""
 
 from app.api.admin_ops import _admin_office

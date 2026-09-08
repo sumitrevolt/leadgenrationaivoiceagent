@@ -1,8 +1,7 @@
 """Native CRM sync (Zoho / HubSpot) endpoints.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router()
-paths unchanged (/api/growth/...).
+Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from app.api.auth_deps import require_admin
 router = APIRouter(tags=["Growth"])
 
 
-# ------------- Native CRM sync (Zoho/HubSpot - Indian SMB) ------------- #
+# ------------- Native CRM sync (Zoho/HubSpot — Indian SMB) ------------- #
 @router.get("/crm/status")
 async def crm_status(client_id: str = "", user=Depends(require_admin)):
     """CRM sync armed status (global ya per-client). Creds kabhi expose nahi hote."""

@@ -1,4 +1,4 @@
-"""Agent Task Queue -> Staff Bus bridge.
+"""Agent Task Queue → Staff Bus bridge.
 
 Every state change in ``agent_task_queue`` (assign / delegate / complete / fail)
 is mirrored as a signed envelope on the Staff Bus so the live SSE stream and
@@ -6,11 +6,10 @@ OpenClaw coordination plane see real work flowing through the 31-agent
 workforce.
 
 Design:
-  - **Fail-open**: bridge errors are logged and swallowed - a bus hiccup must
+  - **Fail-open**: bridge errors are logged and swallowed — a bus hiccup must
     never block a task state transition.
   - **Idempotent-ish**: each task_id is unique and the bus has its own
-    idempotency guard
-    double-fires are deduped by the bus.
+    idempotency guard; double-fires are deduped by the bus.
   - **No new infrastructure**: reuses existing ``StaffBus.publish()`` and the
     ``lgai:events`` Redis channel wired in PR #409.
 """
@@ -143,7 +142,7 @@ _TEAM_CHANNEL_CACHE: dict[str, str] | None = None
 
 
 def _agent_team_channel(agent_id: str) -> str:
-    """Resolve an agent_id -> bus channel name.  Falls back to 'ops'."""
+    """Resolve an agent_id → bus channel name.  Falls back to 'ops'."""
     global _TEAM_CHANNEL_CACHE  # noqa: PLW0603
     if _TEAM_CHANNEL_CACHE is None:
         try:

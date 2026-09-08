@@ -4,7 +4,7 @@
 sequentially in one job (~17 min) and then the same suite ran AGAIN on main
 after auto-merge. DeepSeek Harness CI (independent lanes + named aggregator +
 cancel-in-progress only on non-push) is the layout we steal. Runtime DSH flags
-stay OFF - this file only locks the GitHub Actions contract.
+stay OFF — this file only locks the GitHub Actions contract.
 
 Does not run GitHub Actions. Workflow text is the contract under review.
 """

@@ -30,7 +30,7 @@ def wall_timeout_s(mission: Mission, requested: int) -> int:
     # Cheap heuristic when cost budget is tiny: keep the window short.
     if mission.cost_budget_usd and float(mission.cost_budget_usd) > 0:
         caps.append(max(30, min(600, int(float(mission.cost_budget_usd) * 120))))
-    # Token budget: ~assume 50 tok/s worst-case free-stack burn -> seconds floor.
+    # Token budget: ~assume 50 tok/s worst-case free-stack burn → seconds floor.
     if mission.token_budget:
         caps.append(max(30, min(int(requested), int(mission.token_budget) // 50)))
     return max(30, min(caps))
@@ -187,7 +187,7 @@ def run_mission_once(
     except ProcessSafetyError as exc:
         return {"ok": False, "reason": str(exc), "evidence": evidence}
 
-    # Lifecycle: preflight -> claim -> start
+    # Lifecycle: preflight → claim → start
     if mission.status.value == "CREATED":
         pf = orchestrator.preflight(mission_id, evidence={"runner": True})
         if not pf.get("ok"):
@@ -370,7 +370,7 @@ def run_mission_once(
             "evidence": evidence,
         }
 
-    # Missing citations stay missing - never fabricate provenance.
+    # Missing citations stay missing — never fabricate provenance.
     if not (review.get("citations") or []):
         review = dict(review)
         review["evidence_status"] = "MISSING"

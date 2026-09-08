@@ -109,15 +109,15 @@ _LOC_RE = re.compile(r"Code from (.+?) lines (\d+)-(\d+)")
 
 
 class QdrantCodeIndex:
-    """Qdrant + fastembed code index - project ke PROD vector-stack ko reuse karta
+    """Qdrant + fastembed code index — project ke PROD vector-stack ko reuse karta
     (`app.voice_agent.knowledge_base` ka embedder + client). Alag collection
     `code_index` (business KB `kb_main` ko KABHI touch nahi). e5 prefixes
     (`passage:`/`query:`), deterministic point-ids (re-index = overwrite, dupes nahi).
     never-raise.
 
     Kyun: `VectorStore` (ChromaDB + sentence-transformers) prod container me INSTALLED
-    NAHI -> mock-store -> code_search hamesha []. fastembed (241M baked) + Qdrant
-    (127.0.0.1:6333) prod me LIVE hain - yeh unpe chalta, isliye code-search prod me
+    NAHI → mock-store → code_search hamesha []. fastembed (241M baked) + Qdrant
+    (127.0.0.1:6333) prod me LIVE hain — yeh unpe chalta, isliye code-search prod me
     actually kaam karta.
     """
 
@@ -139,8 +139,7 @@ class QdrantCodeIndex:
 
         embedder = (
             kb._get_qdrant_embedder()
-        )  # daemon-thread load + hard timeout
-        raises if disabled
+        )  # daemon-thread load + hard timeout; raises if disabled
         client = kb._get_qdrant_client()
         dim = int(getattr(kb, "_QDRANT_VECTOR_SIZE", 0) or 0)
         if dim <= 0:
@@ -162,7 +161,7 @@ class QdrantCodeIndex:
                         )
                     except Exception:
                         pass
-        except Exception as e:  # collection race / transient - search still works
+        except Exception as e:  # collection race / transient — search still works
             logger.debug(f"code_index collection ensure: {e}")
         self._client, self._embedder, self._dim, self._ready = client, embedder, dim, True
 
@@ -171,7 +170,7 @@ class QdrantCodeIndex:
 
     def add_chunks(self, chunks) -> int:
         """SYNC bulk upsert (caller `asyncio.to_thread` me wrap kare). never-raise.
-        Idempotent ids -> re-index overwrite karta, duplicate nahi."""
+        Idempotent ids → re-index overwrite karta, duplicate nahi."""
         try:
             self._setup()
             from qdrant_client import models as qmodels
@@ -273,8 +272,7 @@ class CodebaseIndexer:
         self.chunk_overlap = chunk_overlap
 
         self._vector_store = vector_store
-        self._qdrant_index = None  # prod stack (fastembed+Qdrant)
-        None -> ChromaDB fallback
+        self._qdrant_index = None  # prod stack (fastembed+Qdrant); None → ChromaDB fallback
 
         # Track indexed files (path -> hash)
         self.index_cache: dict[str, str] = {}
@@ -285,7 +283,7 @@ class CodebaseIndexer:
 
     @property
     def vector_store(self) -> VectorStore:
-        """Lazy load vector store (ChromaDB - local-dev / fallback)."""
+        """Lazy load vector store (ChromaDB — local-dev / fallback)."""
         if self._vector_store is None:
             self._vector_store = VectorStore(
                 persist_directory="data/agent_vectorstore", collection_name="code_patterns"
@@ -505,13 +503,13 @@ class CodebaseIndexer:
             chunks = self._chunk_file(file_path, content)
 
             # PROD path: fastembed+Qdrant (off-loop). Embedding CPU-bound hai isliye
-            # to_thread - event loop block na ho.
+            # to_thread — event loop block na ho.
             qi = self._qdrant()
             indexed_q = 0
             if qi is not None and chunks:
                 indexed_q = await asyncio.to_thread(qi.add_chunks, chunks)
 
-            # ChromaDB fallback (local-dev) - Qdrant unset YA Qdrant add fail hua to.
+            # ChromaDB fallback (local-dev) — Qdrant unset YA Qdrant add fail hua to.
             if qi is None or (chunks and indexed_q == 0):
                 for chunk in chunks:
                     chunk_id = f"{chunk.file_path}:{chunk.chunk_index}"
@@ -598,7 +596,7 @@ class CodebaseIndexer:
         self, query: str, agent_domain: str = None, language: str = None, limit: int = 10
     ) -> list[dict]:
         """
-        Search indexed code (semantic) -> normalized hits for agents.
+        Search indexed code (semantic) → normalized hits for agents.
 
         Args:
             query: Search query
@@ -610,8 +608,8 @@ class CodebaseIndexer:
             List of {file, start_line, end_line, score, snippet, language, domain}.
             Empty list on any error / empty index (never raises).
         """
-        # PROD path first: fastembed+Qdrant (off-loop + bounded). Hits mile -> return;
-        # warna ChromaDB fallback (local-dev). Prod me ChromaDB mock -> [] anyway.
+        # PROD path first: fastembed+Qdrant (off-loop + bounded). Hits mile → return;
+        # warna ChromaDB fallback (local-dev). Prod me ChromaDB mock → [] anyway.
         qi = self._qdrant()
         if qi is not None:
             try:
@@ -623,13 +621,13 @@ class CodebaseIndexer:
                 )
                 if hits:
                     return hits
-            except Exception as e:  # qdrant down / slow -> graceful fallback
+            except Exception as e:  # qdrant down / slow → graceful fallback
                 logger.debug(f"qdrant code search fallback: {e}")
         try:
             # Chunks are stored via VectorStore.add_conversation with
             # industry=agent_domain, language=<lang>, user_message="Code from <file>
             # lines A-B", agent_response=<code>. Use the real search_similar() API
-            # (earlier code called a non-existent .search() -> orphan/never-wired).
+            # (earlier code called a non-existent .search() → orphan/never-wired).
             raw = await self.vector_store.search_similar(
                 query=query,
                 industry=agent_domain or None,

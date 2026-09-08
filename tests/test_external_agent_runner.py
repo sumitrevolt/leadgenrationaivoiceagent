@@ -106,7 +106,7 @@ def test_amber_requires_owner():
         declared_risk="AMBER",
         idempotency_key="runner-amber-" + os.urandom(3).hex(),
     )
-    # may be refused as RED depending on classify - accept either
+    # may be refused as RED depending on classify — accept either
     if not mid.get("ok"):
         assert mid.get("refused") or mid.get("reason")
         return
@@ -118,7 +118,7 @@ def test_amber_requires_owner():
 
 
 def test_missing_allowed_paths_refused():
-    # create_mission already refuses empty allowed for cursor - assert that
+    # create_mission already refuses empty allowed for cursor — assert that
     out = _mission(allowed_paths=[], idempotency_key="runner-empty-" + os.urandom(3).hex())
     assert out["ok"] is False
 

@@ -2,16 +2,15 @@
 """Start a Buzz ACP harness for an agent whose key this machine holds.
 
 !! NEVER EXECUTED PAST --dry-run !!
-`--dry-run` runs and prints the correct plan
-it returns before any key is read.
+`--dry-run` runs and prints the correct plan; it returns before any key is read.
 The real start has never run: the authoring session's sandbox classifier refuses
-it even with a matching permission rule, because the capability - read an agent
+it even with a matching permission rule, because the capability — read an agent
 private key from Windows Credential Manager, then spawn a long-running process
-holding it - is gated at a layer above permission rules. Ruff passes on the file.
+holding it — is gated at a layer above permission rules. Ruff passes on the file.
 Treat the launch path as a reviewed proposal, not exercised tooling: read it,
 run `--dry-run`, then run it for real once and check the log it prints.
 
-Buzz Desktop normally spawns these. It does not spawn one for every stored key -
+Buzz Desktop normally spawns these. It does not spawn one for every stored key —
 Boss had a key in the credential store and no running harness, which is why the
 orchestrator never answered a mention. `buzz-acp.exe` takes the key directly, so
 a harness can be started without the Desktop UI.
@@ -42,7 +41,7 @@ HOSTED_RELAY_WS = "wss://leadsgenai.communities.buzz.xyz"
 def relay_url() -> str:
     """ACP wants ws/wss. BUZZ_RELAY may be http(s) (buzzlock) or ws(s).
 
-    Unset -> hosted default (current workspace still works). Local-first is
+    Unset → hosted default (current workspace still works). Local-first is
     ``ws://127.0.0.1:3100`` once the relay publishes that loopback port.
     """
     raw = (os.environ.get("BUZZ_RELAY") or "").strip()
@@ -55,8 +54,8 @@ def relay_url() -> str:
     return raw
 
 
-# Every hex literal below is a Nostr PUBLIC key. They are 64-char hex - the same
-# shape as a private key - so the entropy scanner flags them, but they are
+# Every hex literal below is a Nostr PUBLIC key. They are 64-char hex — the same
+# shape as a private key — so the entropy scanner flags them, but they are
 # published identifiers visible in any `channels members` listing. The private
 # keys live only in Windows Credential Manager and are read at run time into the
 # child's environment; none is ever stored, printed or committed.
@@ -93,7 +92,7 @@ class CREDENTIAL(ctypes.Structure):
 def _credential_blob() -> dict:
     ptr = ctypes.c_void_p()
     if not ctypes.windll.advapi32.CredReadW("secrets.buzz-desktop", 1, 0, ctypes.byref(ptr)):
-        raise SystemExit("Buzz desktop credential not found - sign in to Buzz Desktop first.")
+        raise SystemExit("Buzz desktop credential not found — sign in to Buzz Desktop first.")
     cred = ctypes.cast(ptr, ctypes.POINTER(CREDENTIAL)).contents
     raw = ctypes.string_at(cred.CredentialBlob, cred.CredentialBlobSize)
     ctypes.windll.advapi32.CredFree(ptr)
@@ -108,7 +107,7 @@ def agent_key(pubkey: str) -> str:
         have = sorted(k.split(":", 1)[1][:8] for k in blob if k.startswith("agent:"))
         raise SystemExit(
             f"No stored key for {pubkey[:8]}. This machine holds keys for: {', '.join(have)}.\n"
-            "An identity without a local key cannot be run here - that is an identity/"
+            "An identity without a local key cannot be run here — that is an identity/"
             "credential mismatch, not a startup problem."
         )
     return key
@@ -166,7 +165,7 @@ def main() -> int:
     print("command    :", " ".join(cmd))
 
     if args.dry_run:
-        print("\nDRY-RUN - nothing started.")
+        print("\nDRY-RUN — nothing started.")
         return 0
 
     key = agent_key(pubkey)
@@ -180,7 +179,7 @@ def main() -> int:
     )
     print(f"\nstarted pid={proc.pid}")
     print(f"log      : {log}")
-    print("Presence is not proof - send a correlated canary and require a reply.")
+    print("Presence is not proof — send a correlated canary and require a reply.")
     return 0
 
 

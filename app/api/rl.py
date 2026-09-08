@@ -1,7 +1,6 @@
-"""RL Flywheel admin API (Phase 0) - read-only visibility into the reward spine.
+"""RL Flywheel admin API (Phase 0) — read-only visibility into the reward spine.
 
-Mirrors app/api/eval_gate.py. No policy control here
-observability only.
+Mirrors app/api/eval_gate.py. No policy control here; observability only.
 Admin-gated. INERT data when RL_ENGINE unset (reward.* returns empty).
 """
 

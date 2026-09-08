@@ -1,7 +1,6 @@
 """
-Tests for app.voice_agent.intent_softno - D-8 polite-no 2-strike de-escalation.
-Pure policy
-no LLM/network.
+Tests for app.voice_agent.intent_softno — D-8 polite-no 2-strike de-escalation.
+Pure policy; no LLM/network.
 """
 
 from app.voice_agent import intent_softno as sn

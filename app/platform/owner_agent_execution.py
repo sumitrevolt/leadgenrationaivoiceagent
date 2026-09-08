@@ -1,13 +1,12 @@
-"""Owner OS V1.1 - per-agent execution controls (Isha vertical slice first).
+"""Owner OS V1.1 — per-agent execution controls (Isha vertical slice first).
 
 Durable controls with explicit scopes. Does NOT force-kill customer-critical work.
 Enforcement points:
-  - manual_pause -> staff.run_member / Owner OS pause (also syncs agent_controls)
-  - scheduled_pause / drain -> scheduler_dispatch_allowed(job->agent) + apply_async
-  - stop_claims / drain -> run_staff_job + team_scheduler._run_job claim gate
-  - cancel queued -> Celery revoke(terminate=False) only when not started
-  - request cancel running -> cooperative Redis flag
-  unsupported if job ignores it
+  - manual_pause → staff.run_member / Owner OS pause (also syncs agent_controls)
+  - scheduled_pause / drain → scheduler_dispatch_allowed(job→agent) + apply_async
+  - stop_claims / drain → run_staff_job + team_scheduler._run_job claim gate
+  - cancel queued → Celery revoke(terminate=False) only when not started
+  - request cancel running → cooperative Redis flag; unsupported if job ignores it
 
 Fail-closed on ambiguous control state for NEW dispatch/claims.
 """
@@ -30,9 +29,9 @@ CANCEL_KEY_PREFIX = "owner_os:cancel_request:"
 AGENT_ABORT_PREFIX = "owner_os:agent_abort:"
 RUNNING_KEY_PREFIX = "owner_os:agent_running:"
 
-# Jobs owned by Isha (scheduler_config.JOB_META owner=isha) - slice focus.
+# Jobs owned by Isha (scheduler_config.JOB_META owner=isha) — slice focus.
 AGENT_JOBS: dict[str, frozenset[str]] = {
-    # Must stay in sync with scheduler_config.JOB_META owners - a job owned by
+    # Must stay in sync with scheduler_config.JOB_META owners — a job owned by
     # Isha there but missing here would keep running after the owner pauses her,
     # i.e. a silent hole in the Owner OS control plane (guarded by
     # tests/test_owner_agent_execution.py::test_isha_job_registry_drift_guard).
@@ -129,7 +128,7 @@ def _expired(rec: dict[str, Any]) -> bool:
             dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00")).replace(tzinfo=None)
         return dt <= _now()
     except Exception:
-        return False  # ambiguous expiry -> treat as not expired for safety of existing pause
+        return False  # ambiguous expiry → treat as not expired for safety of existing pause
 
 
 def _effective(rec: dict[str, Any]) -> dict[str, Any]:
@@ -262,7 +261,7 @@ def _save(rec: dict[str, Any]) -> dict[str, Any]:
                     rec["version"] = 1
             return get_control(aid)
         except Exception as e:
-            logger.warning("[owner_agent_execution] save db fail -> jsonl: %s", type(e).__name__)
+            logger.warning("[owner_agent_execution] save db fail → jsonl: %s", type(e).__name__)
     store._append_jsonl(CONTROL_STORE, {**rec, "at": _now_iso(), "changed_at": _now_iso()})
     return get_control(aid)
 
@@ -435,7 +434,7 @@ def scheduled_dispatch_blocked(
             return True, "agent_scheduled_pause"
         return False, ""
     except Exception:
-        # Ambiguous state -> block NEW dispatch for known Isha/agent jobs only.
+        # Ambiguous state → block NEW dispatch for known Isha/agent jobs only.
         job_s = str(job or "")
         if agent_id or agent_for_job(job_s):
             return True, "agent_control_state_ambiguous"
@@ -445,7 +444,7 @@ def scheduled_dispatch_blocked(
 def claim_allowed(agent_id: str | None = None, job: str | None = None) -> tuple[bool, str]:
     """False = worker must not start/claim new work for this scope.
 
-    NOTE: manual_pause intentionally does NOT block here - staff.run_member /
+    NOTE: manual_pause intentionally does NOT block here — staff.run_member /
     agent_controls.is_paused owns that path. Drain / stop_claims do block.
     agent_runtime uses ``runtime_admission_blocked`` which ALSO honors pause.
 
@@ -482,7 +481,7 @@ def runtime_admission_blocked(
       agent_draining | agent_claims_stopped | agent_paused | agent_control_state_ambiguous
 
     Precedence among Owner OS execution controls (kill/flags checked elsewhere):
-      drain before bare stop_claims (drain implies stop_claims - report agent_draining),
+      drain before bare stop_claims (drain implies stop_claims — report agent_draining),
       then stop_claims, then manual_pause (+ V1 agent_controls sidecar).
 
     Fail-CLOSED on ambiguous control-store errors for known agent ids.
@@ -867,7 +866,7 @@ def isha_execution_snapshot() -> dict[str, Any]:
         from app.platform.agent_os_routing import get_agent_policy
 
         p = get_agent_policy("isha", "marketing")
-        # Display-only snapshot; task->combo resolution lives in omniroute_client
+        # Display-only snapshot; task→combo resolution lives in omniroute_client
         # _TASK_ROUTES (canonical 14-combo map, 2026-09-05).
         route = {
             "work_type": p.category,

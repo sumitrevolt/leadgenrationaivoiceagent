@@ -1,11 +1,10 @@
 """Wall-clock budgets for Celery staff mega-jobs.
 
-Celery soft_time_limit (~540s) pe SoftTimeLimitExceeded -> DLQ. Mega-jobs
+Celery soft_time_limit (~540s) pe SoftTimeLimitExceeded → DLQ. Mega-jobs
 (`content`, `onboard`, `prospect`) must finish *before* that kill, with a
-partial-but-ok summary - not burn retries on the same oversized workload.
+partial-but-ok summary — not burn retries on the same oversized workload.
 
-Env seconds are clamped
-unset uses the safe default (below soft limit).
+Env seconds are clamped; unset uses the safe default (below soft limit).
 """
 
 from __future__ import annotations
@@ -36,7 +35,7 @@ def budget_seconds(env_name: str, default: float | None = None) -> float:
         try:
             base = float(raw)
         except ValueError:
-            logger.warning(f"[job_budget] {env_name}={raw!r} invalid - using {base}")
+            logger.warning(f"[job_budget] {env_name}={raw!r} invalid — using {base}")
     return max(_FLOOR, min(base, _CEILING))
 
 
@@ -67,7 +66,7 @@ class JobBudget:
             self.exhausted = True
             logger.warning(
                 f"[job_budget] {self.label} exhausted after {self.elapsed():.0f}s "
-                f"(limit={self.limit:.0f}s) - skipping remaining work"
+                f"(limit={self.limit:.0f}s) — skipping remaining work"
             )
         return False
 

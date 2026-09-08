@@ -1,9 +1,8 @@
 """Contract for the customer autopilot surface (Product-1 GAP-1 fix, 2026-07-06).
 
 The hands-free drafts (owner-brief / nps / stale-nudge / evergreen) were written to
-data/autopilot_*.jsonl with NO require_customer route reading them - invisible to
-the buyer. `drafts_for_client` is the customer-facing read
-it MUST isolate by
+data/autopilot_*.jsonl with NO require_customer route reading them — invisible to
+the buyer. `drafts_for_client` is the customer-facing read; it MUST isolate by
 client (client_id OR slug), honour the date window, and never leak another tenant.
 """
 
@@ -96,7 +95,7 @@ def test_drafts_for_client_empty_without_identity():
 
 
 def test_autopilot_route_mounted_and_requires_customer():
-    # Route is registered AND gated (anon must not get a 2xx - same invariant as RBAC tests).
+    # Route is registered AND gated (anon must not get a 2xx — same invariant as RBAC tests).
     from starlette.testclient import TestClient
 
     from app.main import app

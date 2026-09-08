@@ -1,29 +1,26 @@
-"""ADR-104 Phase A4.5 - owned, deduplicated single-niche KB catalog refresh.
+"""ADR-104 Phase A4.5 — owned, deduplicated single-niche KB catalog refresh.
 
 WHY THIS IS A SEPARATE TASK (not app/platform/kb_refresh.py): that job re-ingests
 CUSTOMER WEBSITE content (`onboarding._seed_kb_from_website`, zero references to
-`NICHES`/niche in its source) - a different domain entirely. Mixing niche-catalog
+`NICHES`/niche in its source) — a different domain entirely. Mixing niche-catalog
 seeding into it would couple two unrelated jobs into one blast radius. See
 memory/decisions.md ADR-104 addendum #5 CORRECTION 1 (this exact mistake was made
 and retracted before this module was written).
 
 WHY THIS EXISTS AT ALL: the live voice reply path (telecaller_brain._kb_facts)
-must never seed a cold niche inline - that was the original incident (39-niche
+must never seed a cold niche inline — that was the original incident (39-niche
 catalog-wide embed/upsert blocking the spoken-turn hot path, then an abandoned
 background thread blocking Celery's executor shutdown until the 600s hard
 kill). A cold niche now gets ONE owned, deduplicated refresh request here
-instead
-the reply returns immediately, degraded-but-honest, on this turn.
+instead; the reply returns immediately, degraded-but-honest, on this turn.
 
-Dedup lease (Redis SET NX EX, owner-token compare-and-delete - mirrors
+Dedup lease (Redis SET NX EX, owner-token compare-and-delete — mirrors
 app/agents/self_improve.py's acquire_tick_slot/release_tick_slot):
-    kb:niche_refresh:lease:<niche>  -> owner token
-    TTL bounds a dead-worker leak
+    kb:niche_refresh:lease:<niche>  -> owner token; TTL bounds a dead-worker leak
     kb:niche_refresh:state:<niche>  -> "queued"|"running"|"ready"|"failed"
-                                        (observability only - Qdrant's exact
+                                        (observability only — Qdrant's exact
                                         count via kb_readiness.py remains the
-                                        SOLE readiness authority
-                                        this state
+                                        SOLE readiness authority; this state
                                         string is never trusted as "ready").
 """
 
@@ -97,10 +94,10 @@ def request_niche_refresh(niche: str) -> bool:
     available => skip rather than risk a duplicate-embed storm). Never raises.
 
     Callers (telecaller_brain._kb_facts) are expected to have already gated
-    this on `is_supported_niche`/cold-readiness - this function re-checks
+    this on `is_supported_niche`/cold-readiness — this function re-checks
     `is_supported_niche` defensively so it is safe to call directly, but a
     ready niche is the CALLER's responsibility to never reach this path
-    (this function does not re-query Qdrant readiness itself - that would
+    (this function does not re-query Qdrant readiness itself — that would
     add a second blocking round-trip to a fire-and-forget dispatch).
 
     Returns True iff THIS call actually queued a new task.
@@ -129,7 +126,7 @@ def request_niche_refresh(niche: str) -> bool:
         )
         return False
     if not acquired:
-        return False  # already queued/running elsewhere - dedupe, no new task
+        return False  # already queued/running elsewhere — dedupe, no new task
 
     _set_state(niche, "queued")
     try:
@@ -157,7 +154,7 @@ def request_niche_refresh(niche: str) -> bool:
     retry_backoff_max=300,
     retry_jitter=True,
     max_retries=3,
-    # ADR-104 A10 (2026-07-15) - measured, not guessed. worker_heavy's first-use-
+    # ADR-104 A10 (2026-07-15) — measured, not guessed. worker_heavy's first-use-
     # per-process Qdrant/fastembed init is a reproducible ~97-99s cost (proven
     # via a bare, non-Celery script -- independent of Celery's own soft-limit,
     # which was previously just an incidental near-match, not the true bound).
@@ -176,7 +173,7 @@ def request_niche_refresh(niche: str) -> bool:
 def refresh_niche_task(self, niche: str, _lease_token: str = "") -> dict[str, Any]:
     """Seed exactly ONE niche's catalog content, verify via the SAME
     authoritative Qdrant count the voice path trusts, and release its lease
-    on every terminal outcome (ready or retries-exhausted) - never on a
+    on every terminal outcome (ready or retries-exhausted) — never on a
     still-pending retry, since that is the same logical attempt continuing,
     not a new dispatch. Never touches any other niche."""
     from app.voice_agent.kb_loader import seed_niche
@@ -192,7 +189,7 @@ def refresh_niche_task(self, niche: str, _lease_token: str = "") -> dict[str, An
     niche = (niche or "").strip()
 
     if not is_supported_niche(niche):
-        # request_niche_refresh() gates this before dispatch - this is a
+        # request_niche_refresh() gates this before dispatch — this is a
         # defensive fallback for direct/manual invocation with a bad niche.
         _set_state(niche, "failed")
         _release_lease(niche, _lease_token)
@@ -201,12 +198,11 @@ def refresh_niche_task(self, niche: str, _lease_token: str = "") -> dict[str, An
     _set_state(niche, "running")
     try:
         kb = get_knowledge_base()
-        result = seed_niche(kb, niche)  # never raises
-        {"ok","chunks","error_class",...}
+        result = seed_niche(kb, niche)  # never raises; {"ok","chunks","error_class",...}
         if not result.get("ok"):
             raise RuntimeError(result.get("error_class") or "seed_failed")
 
-        # Verify against the SAME authoritative source the voice path trusts -
+        # Verify against the SAME authoritative source the voice path trusts —
         # a "successful" embed call that didn't actually persist must never
         # report ready. reset_client_cache() forces a fresh count in case this
         # worker process is long-lived and cached a stale bare client.

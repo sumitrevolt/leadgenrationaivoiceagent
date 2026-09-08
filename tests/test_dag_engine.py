@@ -134,8 +134,7 @@ def test_breakpoint_in_branch_pauses_then_resumes(tmp_path, monkeypatch):
             ],
             "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "g"}],
         }
-    )  # fan-out -> dag
-    g is breakpoint
+    )  # fan-out -> dag; g is breakpoint
     started = dag_engine.start_run("flow:bpf", {})
     rid = started["run_id"]
     st = _run_to_end(rid)

@@ -1,7 +1,7 @@
 """
 Final comprehensive verification of OpenClaw x Swara Voice Intelligence (Rules 1-21).
 
-This test suite maps directly to the actual module APIs - no assumptions,
+This test suite maps directly to the actual module APIs — no assumptions,
 all field names and method signatures verified against source code.
 """
 import os
@@ -123,11 +123,11 @@ class TestVoiceLearningEvents:
 
 
 # ============================================================
-# Rule 5: English -> Hinglish Adaptation
+# Rule 5: English → Hinglish Adaptation
 # ============================================================
 
 class TestEnglishToHinglishAdaptation:
-    """Rule 5: Meaning-preserving English -> Hinglish"""
+    """Rule 5: Meaning-preserving English → Hinglish"""
 
     def test_meaning_preserved(self):
         from app.voice_agent.swara_adaptation import adapt_english_to_swara
@@ -414,7 +414,7 @@ class TestVersioning:
 # ============================================================
 
 class TestSingleConfigPattern:
-    """Rule 20: Single voice configuration - no scattered configs"""
+    """Rule 20: Single voice configuration — no scattered configs"""
 
     def test_single_config_point(self):
         from app.voice_agent.swara_config import get_active_profile

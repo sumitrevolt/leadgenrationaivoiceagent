@@ -2,7 +2,7 @@
 
 Har lead ko 0-100 score deta weighted signals se (status, source, verification,
 engagement/recency, niche-fit, qualification). Lead model me `lead_score` +
-`is_hot_lead` columns PEHLE se hain (koi migration nahi) - yeh engine unhe FILL
+`is_hot_lead` columns PEHLE se hain (koi migration nahi) — yeh engine unhe FILL
 karta + hot leads surface karta taaki outreach in-market prospects pe focus kare.
 
 Pure-Python (koi paid API nahi). `score_lead` ek dict/Lead pe chalta. DB rescore
@@ -178,7 +178,7 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
                 if is_hot(s):
                     hot += 1
             await session.commit()
-        # Outbound webhook: lead_hot - ek baar rescore ke baad naye hot leads ke liye.
+        # Outbound webhook: lead_hot — ek baar rescore ke baad naye hot leads ke liye.
         if hot > 0:
             try:
                 import asyncio as _aio_ls
@@ -199,7 +199,7 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
         return {"ok": False, "reason": str(e)[:200]}
 
 
-# Hard ceiling on how many rows a single top_hot_leads() call will live-score -
+# Hard ceiling on how many rows a single top_hot_leads() call will live-score —
 # not a "first N leads" window (2026-07-04 audit: the old `.limit(2000)` had NO
 # ordering, so it silently only ever considered the first ~2000 rows by DB/PK
 # order, permanently excluding thousands of newer leads from "hot" ranking).
@@ -217,7 +217,7 @@ def _phone_key(d: dict[str, Any]) -> str:
 async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
     """DB leads ko live-score karke top (hottest) lautao (read-only, best-effort).
 
-    Dedupes by phone (last-10-digit normalized) before ranking - separate
+    Dedupes by phone (last-10-digit normalized) before ranking — separate
     ingestion paths store the same Indian number in different raw formats
     (with/without +91), so the SAME business can otherwise appear twice in a
     "who to call next" list (2026-07-04 dialer-sprint audit). Keeps whichever

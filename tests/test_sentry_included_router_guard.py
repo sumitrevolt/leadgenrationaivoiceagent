@@ -1,7 +1,7 @@
 """Regression tests for the sentry-sdk <2.x `_IncludedRouter` transaction-name crash.
 
 Prod evidence 2026-08-15: `GET /api/growth/social/token-health` 500'd with
-`AttributeError: '_IncludedRouter' object has no attribute 'path'` - the REAL
+`AttributeError: '_IncludedRouter' object has no attribute 'path'` — the REAL
 error (QueuePool timeout under load) was masked because sentry-sdk 1.x's
 `_transaction_name_from_router` iterates `router.routes` and returns
 `route.path` on the FIRST FULL match, but FastAPI >= 0.115 stores lazy

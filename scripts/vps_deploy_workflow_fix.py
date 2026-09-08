@@ -46,7 +46,7 @@ def main() -> int:
     for i in range(2):
         try:
             # Literal loopback URL, no caller input. Host-side app port is 8000
-            # (the container listens on 8080) - see the port trap in CLAUDE.md.
+            # (the container listens on 8080) — see the port trap in CLAUDE.md.
             with urllib.request.urlopen(  # nosec B310  # noqa: S310
                 "http://127.0.0.1:8000/health", timeout=15
             ) as resp:

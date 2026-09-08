@@ -298,7 +298,7 @@ def test_fail_closed_when_github_unverifiable(tmp_path, monkeypatch):
 def test_stale_ci_cannot_authorize_completion(tmp_path, monkeypatch):
     task = parse_manifest(json.dumps(_manifest()))
     gh = FakeGH()
-    # check runs bound to an OLD sha only - never the pinned head
+    # check runs bound to an OLD sha only — never the pinned head
     gh.runs = [
         {
             "id": 1,

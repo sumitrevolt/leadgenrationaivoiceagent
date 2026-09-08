@@ -1,4 +1,4 @@
-"""platform_dial - daily self-sale AI cold-call batch (Swara, gated PLATFORM_DIAL_DAILY).
+"""platform_dial — daily self-sale AI cold-call batch (Swara, gated PLATFORM_DIAL_DAILY).
 
 6-layer wiring parity + gating behaviour + the niche-filter unlock in
 run_campaign_task (platform campaigns can now dial the whole harvested pool
@@ -66,7 +66,7 @@ def test_platform_dial_config_file_fallback(monkeypatch, tmp_path):
     assert pd.enabled() is True
     assert pd.dial_limit() == 9
     assert pd.dial_niche() == "coaching"
-    # env explicit "0" beats the file - hard kill-switch
+    # env explicit "0" beats the file — hard kill-switch
     monkeypatch.setenv("PLATFORM_DIAL_DAILY", "0")
     assert pd.enabled() is False
     # env limit/niche override the file when set

@@ -34,7 +34,7 @@ def setup_cloud_logging():
         return
 
     # Mark as attempted up-front: a FAILED attempt must not be retried by
-    # every setup_logger() call - google-cloud's internal retries can block
+    # every setup_logger() call — google-cloud's internal retries can block
     # app startup for minutes (seen on VPS deploys without GCP credentials).
     _cloud_logging_initialized = True
 
@@ -68,11 +68,11 @@ def setup_cloud_logging():
 
 # =============================================================================
 # CREDENTIAL REDACTION (2026-07-11 P0 loop-flagged: INFO HTTP logs were
-# suspected of exposing query-string credentials - Meta OAuth `code=`, Postiz
+# suspected of exposing query-string credentials — Meta OAuth `code=`, Postiz
 # `api_key=`, webhook `signature=`, etc.). This module-level redactor runs on
 # EVERY emitted log message via the formatter classes below. Fail-safe: any
 # regex error returns the original message unchanged (safer than breaking
-# logs). Env opt-out `LOG_REDACT_MESSAGES=0` for debug windows only - never
+# logs). Env opt-out `LOG_REDACT_MESSAGES=0` for debug windows only — never
 # leave OFF permanently in production.
 # =============================================================================
 
@@ -119,8 +119,7 @@ def _sensitive_name_re_alternation() -> str:
 _MESSAGE_KV_REDACT_RE = _re.compile(
     r"\b("
     + _sensitive_name_re_alternation()
-    + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,
-    \)\]\}"]{1,4096})',
+    + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,;\)\]\}"]{1,4096})',
     _re.IGNORECASE,
 )
 
@@ -129,25 +128,24 @@ _MESSAGE_JSON_REDACT_RE = _re.compile(
     _re.IGNORECASE,
 )
 
-# `Bearer <token>`, `Basic <base64>`, `Token <hex>` - auth-header conventions.
+# `Bearer <token>`, `Basic <base64>`, `Token <hex>` — auth-header conventions.
 _MESSAGE_BEARER_RE = _re.compile(
     r"\b(Bearer|Basic|Token)\s+[A-Za-z0-9._\-~+/=]{6,}",
     _re.IGNORECASE,
 )
 
 # Env-var-style secret names where the sensitive word is a PREFIX/mid-token (not a
-# standalone word), so the word-boundary KV/JSON passes above miss them - e.g.
+# standalone word), so the word-boundary KV/JSON passes above miss them — e.g.
 # `SMTP_PASS=`, `GROQ_API_KEY=`, `SECRET_KEY=`, `VOBIZ_SIP_PASS=`,
 # `TURNSTILE_SECRET_KEY=`, `VAPID_PRIVATE_KEY=`, `WAHA_API_KEY=`. Matches an
-# UPPERCASE env-style token that ENDS in a sensitive suffix (uppercase-only -> never
+# UPPERCASE env-style token that ENDS in a sensitive suffix (uppercase-only → never
 # touches lowercase words like `pass=42` / `result: pass=`). Optional trailing
 # quote handles the `"SECRET_KEY":"v"` JSON form too. 2026-07-12 gap-fix
 # (empirically confirmed: env-var names leaked past the word-boundary KV pass).
 _MESSAGE_ENVVAR_REDACT_RE = _re.compile(
     r"\b([A-Z0-9]+(?:_[A-Z0-9]+)*_(?:PASS|PASSWORD|PWD|SECRET|TOKEN|KEY|APIKEY|CREDENTIAL|CREDENTIALS))"
     r"""["']?\s*[=:]\s*"""
-    r"""("[^"]{1,4096}"|'[^']{1,4096}'|[^\s&,
-    \)\]\}"]{1,4096})""",
+    r"""("[^"]{1,4096}"|'[^']{1,4096}'|[^\s&,;\)\]\}"]{1,4096})""",
 )
 
 
@@ -158,10 +156,10 @@ def redact_message(message: str) -> str:
     logs).
 
     Pass order matters: `Authorization=Bearer <jwt>` must run the Bearer pass
-    FIRST - otherwise the KV pass consumes only the word "Bearer" (space-
+    FIRST — otherwise the KV pass consumes only the word "Bearer" (space-
     terminated value) and leaves the JWT trailing after the [REDACTED] marker.
-    Order: JSON (highest-confidence structured) -> Bearer (auth-header +
-    free-form `Bearer XXX` catch-all) -> KV (remaining `key=value` /
+    Order: JSON (highest-confidence structured) → Bearer (auth-header +
+    free-form `Bearer XXX` catch-all) → KV (remaining `key=value` /
     `key: value`)."""
     if not message:
         return message
@@ -182,7 +180,7 @@ def redact_message(message: str) -> str:
 def redact_url(url: str) -> str:
     """Redact sensitive query-string params + userinfo from a URL / path.
 
-    Used by request-logging middleware - an INFO log like
+    Used by request-logging middleware — an INFO log like
     ``GET /callback?token=abc123&user=x`` MUST NOT leak the token. Also
     handles ``https://user:pass@host/`` userinfo form.
 
@@ -193,13 +191,13 @@ def redact_url(url: str) -> str:
         return url
     try:
         s = str(url)
-        # 1) userinfo (scheme://user:pass@host) - redact both user and pass.
+        # 1) userinfo (scheme://user:pass@host) — redact both user and pass.
         s = _re.sub(
             r"(?P<scheme>[a-zA-Z][a-zA-Z0-9+.\-]*://)(?P<userinfo>[^/@\s]+)@",
             lambda m: f"{m.group('scheme')}[REDACTED]@",
             s,
         )
-        # 2) query-string sensitive kv (?token=... or &api_key=...) - case-insensitive.
+        # 2) query-string sensitive kv (?token=... or &api_key=...) — case-insensitive.
         if "?" in s or "&" in s:
             qs_re = _re.compile(
                 r"([?&])(" + _sensitive_name_re_alternation() + r")(=)([^&#\s]{0,4096})",
@@ -213,7 +211,7 @@ def redact_url(url: str) -> str:
 
 def _log_redact_enabled() -> bool:
     """Default ON. `LOG_REDACT_MESSAGES=0` (or false/no/off) disables for a
-    debug window - never leave OFF permanently in production."""
+    debug window — never leave OFF permanently in production."""
     v = os.environ.get("LOG_REDACT_MESSAGES", "").strip().lower()
     if v in ("0", "false", "no", "off"):
         return False
@@ -371,12 +369,12 @@ def setup_logger(
     use_json = settings.app_env == "production"
 
     # Console handler
-    # On Windows the console is often cp1252 - emoji in log messages would
+    # On Windows the console is often cp1252 — emoji in log messages would
     # raise UnicodeEncodeError and crash logging. Force UTF-8 with replacement.
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
-        pass  # non-reconfigurable stream (e.g. pytest capture) - fine
+        pass  # non-reconfigurable stream (e.g. pytest capture) — fine
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
 

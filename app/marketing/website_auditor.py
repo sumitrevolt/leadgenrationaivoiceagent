@@ -1,6 +1,6 @@
-"""AI Website Auditor - PUBLIC lead magnet (`/audit` ka website-wala bhai).
+"""AI Website Auditor — PUBLIC lead magnet (`/audit` ka website-wala bhai).
 
-Prospect apna website URL daale -> instant score + Hinglish improvement tips ->
+Prospect apna website URL daale → instant score + Hinglish improvement tips →
 CTA /pricing. Checks (sab free, ek GET request): title/meta-description/H1,
 phone+WhatsApp visible?, mobile viewport, HTTPS, page weight, contact form hint.
 free-LLM se 3 personalized tips (fallback static). Kabhi raise nahi.
@@ -89,7 +89,7 @@ def _normalize_safe_audit_url(u: str) -> str | None:
 
 
 def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
-    """Pure function - HTML string par checks + 0-100 score. Testable."""
+    """Pure function — HTML string par checks + 0-100 score. Testable."""
     h = html_text or ""
     hl = h.lower()
     checks = {
@@ -122,20 +122,20 @@ def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
 
 
 _TIPS = {
-    "meta_description": "Meta description add karo (150 chars, seva + sheher + phone) - Google me click badhega.",
-    "phone_visible": "Phone number header me bada dikhao - mobile user 5 second me call decide karta hai.",
-    "whatsapp_link": "WhatsApp chat button lagao (wa.me link) - Indian customers form se zyada WA pe aate hain.",
-    "viewport": "Mobile viewport tag missing - aadhe se zyada visitors mobile pe hain, site tooti dikhegi.",
-    "contact_form": "Ek chhota inquiry form lagao (naam+phone bas) - ya hamara free embed widget use karo.",
-    "h1": "Ek clear H1 heading do: 'Sheher ki best <seva>' - SEO aur clarity dono.",
+    "meta_description": "Meta description add karo (150 chars, seva + sheher + phone) — Google me click badhega.",
+    "phone_visible": "Phone number header me bada dikhao — mobile user 5 second me call decide karta hai.",
+    "whatsapp_link": "WhatsApp chat button lagao (wa.me link) — Indian customers form se zyada WA pe aate hain.",
+    "viewport": "Mobile viewport tag missing — aadhe se zyada visitors mobile pe hain, site tooti dikhegi.",
+    "contact_form": "Ek chhota inquiry form lagao (naam+phone bas) — ya hamara free embed widget use karo.",
+    "h1": "Ek clear H1 heading do: 'Sheher ki best <seva>' — SEO aur clarity dono.",
     "title": "Page title likho: '<Seva> in <Sheher> | <Business>' format me.",
-    "https": "HTTPS lagao (free Let's Encrypt) - bina iske Google 'Not Secure' dikhata hai.",
-    "light_page": "Page bahut bhaari hai - images compress karo, loading speed = conversions.",
+    "https": "HTTPS lagao (free Let's Encrypt) — bina iske Google 'Not Secure' dikhata hai.",
+    "light_page": "Page bahut bhaari hai — images compress karo, loading speed = conversions.",
 }
 
 
 async def audit_url(url: str) -> dict[str, Any]:
-    """Public audit: URL fetch -> checks -> AI tips -> CTA. Kabhi raise nahi."""
+    """Public audit: URL fetch → checks → AI tips → CTA. Kabhi raise nahi."""
     u = (url or "").strip()
     if not u:
         return {"ok": False, "error": "URL do"}
@@ -150,7 +150,7 @@ async def audit_url(url: str) -> dict[str, Any]:
         if not cur:
             return {
                 "ok": False,
-                "error": "Yeh URL allowed nahi - sirf public website audit hoti hai",
+                "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
             }
         # SSRF guard: redirects manually follow karo aur HAR hop ka host validate karo
         # (warna public->internal redirect se metadata/DB/redis hit ho sakta).
@@ -166,7 +166,7 @@ async def audit_url(url: str) -> dict[str, Any]:
                     if not nxt:
                         return {
                             "ok": False,
-                            "error": "Yeh URL allowed nahi - sirf public website audit hoti hai",
+                            "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
                         }
                     cur = nxt
                     continue
@@ -174,9 +174,9 @@ async def audit_url(url: str) -> dict[str, Any]:
                 final_url = str(resp.url)
                 break
             else:
-                return {"ok": False, "error": "Bahut zyada redirects - URL check karo"}
+                return {"ok": False, "error": "Bahut zyada redirects — URL check karo"}
     except Exception as e:
-        return {"ok": False, "error": f"Site fetch nahi hui ({str(e)[:80]}) - URL check karo"}
+        return {"ok": False, "error": f"Site fetch nahi hui ({str(e)[:80]}) — URL check karo"}
 
     result = analyze_html(html_text, final_url)
     tips = [_TIPS[m] for m in result["missing"] if m in _TIPS][:3]
@@ -210,7 +210,7 @@ async def audit_url(url: str) -> dict[str, Any]:
         "score": result["score"],
         "grade": grade,
         "checks": result["checks"],
-        "tips": tips or ["Site achhi hai! Ab leads automate karo - leadsgenai.in/pricing"],
+        "tips": tips or ["Site achhi hai! Ab leads automate karo — leadsgenai.in/pricing"],
         "cta": {
             "message": "Website theek karne se zyada zaroori: har inquiry ka 2-min me jawab. Hum dono automate karte hain.",
             "audit": "https://leadsgenai.in/audit",

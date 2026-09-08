@@ -31,7 +31,7 @@ celery_app = Celery(
         "app.social_engine.tasks",  # Native social queue drain task
         "app.tasks.dev_worker",  # Dev control-plane runner (INERT unless DEV_ORCHESTRATOR+DEV_WORKER_ENABLED)
         "app.tasks.video_jobs",  # Video creative-pipeline render task (queue INERT unless CELERY_VIDEO_QUEUE=1)
-        "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 - owned single-niche KB catalog refresh (default queue)
+        "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 — owned single-niche KB catalog refresh (default queue)
         "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
         "app.tasks.onboard_pipeline",  # Onboarding factory pipeline (INERT unless ONBOARDING_PIPELINE=1)
         "app.marketing.content_os.tasks",  # Daily video automation: leadsgen + customer (INERT unless CONTENT_OS_ENABLED=1)
@@ -45,10 +45,10 @@ celery_app = Celery(
 # HEAVY/LIGHT queue separation (prod-down qa-job lesson, worker-level):
 # heavy staff-jobs (ML/LLM/network-bulk) ek hi worker pool me light jobs
 # (alerts/dunning/triage) ko starve kar sakte. Gated `CELERY_HEAVY_QUEUE=1`
-# (compose me ON jahan dedicated heavy worker bhi defined hai) -> heavy jobs
+# (compose me ON jahan dedicated heavy worker bhi defined hai) → heavy jobs
 # `heavy` queue me route hote, jise alag `worker-heavy` (concurrency=1)
 # consume karta. Flag OFF (default) = sab default queue = aaj jaisa.
-# NOTE: routing SEND-side evaluate hota hai (beat/app) - isliye flag compose
+# NOTE: routing SEND-side evaluate hota hai (beat/app) — isliye flag compose
 # me scheduler+app+worker sab pe set hai, warna heavy task default me jayega.
 # ---------------------------------------------------------------------------
 HEAVY_STAFF_JOBS = {
@@ -77,7 +77,7 @@ def _is_heavy_worker() -> bool:
 
 
 def _route_staff_task(name, args, kwargs, options, task=None, **kw):
-    """Router fn: heavy staff-jobs -> 'heavy' queue (sirf flag ON pe)."""
+    """Router fn: heavy staff-jobs → 'heavy' queue (sirf flag ON pe)."""
     try:
         if (
             name == "app.tasks.staff_jobs.run_staff_job"
@@ -97,7 +97,7 @@ def _video_queue_enabled() -> bool:
 
 def _route_video_task(name, args, kwargs, options, task=None, **kw):
     """Router fn: video-pipeline render task -> 'video' queue (sirf flag ON pe).
-    Mirrors _route_staff_task's heavy-queue pattern exactly - separate router
+    Mirrors _route_staff_task's heavy-queue pattern exactly — separate router
     (not the static dict) so it's flag-gated with a safe unset->default-queue
     fallback, matching this project's INERT-default feature convention."""
     try:
@@ -121,9 +121,9 @@ def _onboard_queue_enabled() -> bool:
     """INERT default. When ON, Day-1 onboard_client uses the existing heavy worker.
 
     50 simulated/live onboardings on the default celery pool (conc=4) can delay
-    alerts/triage. Do NOT invent a new queue name - an unconsumed queue orphans
+    alerts/triage. Do NOT invent a new queue name — an unconsumed queue orphans
     tasks. heavy is already drained by worker-heavy. Flag OFF = today's celery
-    default. Arm only after a measured enqueue->start >5 min burst.
+    default. Arm only after a measured enqueue→start >5 min burst.
     """
     return os.environ.get("CELERY_ONBOARD_QUEUE", "0").strip().lower() in (
         "1",
@@ -146,16 +146,15 @@ def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
     """Router fn: ADR-104 kb_niche_refresh -> 'heavy' queue (sirf flag ON pe).
     2026-07-15 live-prod finding: refresh_niche_task loads its own fastembed
     model inside the fork on top of whatever the default queue's staff-job
-    battery is doing concurrently - 3x observed SIGKILL/WorkerLostError in the
-    leadgen_worker container's 2GB memcg limit (host had 5.2GB free
-    this was
+    battery is doing concurrently — 3x observed SIGKILL/WorkerLostError in the
+    leadgen_worker container's 2GB memcg limit (host had 5.2GB free; this was
     a per-container cap collision, not host exhaustion). WorkerLostError
     bypasses this task's own max_retries entirely (broker-level redelivery of
     the same task id), so under sustained contention this could retry
     indefinitely, each cycle burning ~90-120s and risking collateral OOM of
     unrelated concurrent tasks sharing the container. worker-heavy already
     exists (concurrency=1, 2.44GB, near-idle) for exactly this class of
-    problem - mirrors _route_video_task's exact pattern. Never touches
+    problem — mirrors _route_video_task's exact pattern. Never touches
     HEAVY_STAFF_JOBS or the default queue's existing routing."""
     try:
         if name == "app.tasks.kb_niche_refresh.refresh_niche_task" and _heavy_queue_enabled():
@@ -166,14 +165,13 @@ def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
 
 
 def _route_self_improve_task(name, args, kwargs, options, task=None, **kw):
-    """Router: self-improve tick/revive -> heavy when CELERY_HEAVY_QUEUE=1.
+    """Router: self-improve tick/revive → heavy when CELERY_HEAVY_QUEUE=1.
 
     2026-07-28 prod evidence: leadgen_worker (2g, concurrency=4) took 14
     memcg OOM/SIGKILL in 24h while SELF_IMPROVE_LOOP=1. worker_max_memory_per_child
-    only recycles *between* tasks
-    a single LLM-heavy tick can grow past the
+    only recycles *between* tasks; a single LLM-heavy tick can grow past the
     shared cgroup before recycle, and four forks amplify that. worker-heavy is
-    concurrency=1 + 2500m - the right isolation for this continuous chain.
+    concurrency=1 + 2500m — the right isolation for this continuous chain.
     Flag OFF keeps today's default-queue behaviour (local/dev without heavy).
     """
     try:
@@ -241,7 +239,7 @@ celery_app.conf.update(
     result_extended=True,  # Store task metadata
     # Worker settings
     worker_prefetch_multiplier=1,  # Disable prefetch for fair scheduling
-    worker_max_tasks_per_child=100,  # Restart sooner - long-lived forks accumulate RSS
+    worker_max_tasks_per_child=100,  # Restart sooner — long-lived forks accumulate RSS
     # KiB. Recycle only runs BETWEEN tasks; still lower than the 2g cgroup so a
     # quiet child is replaced before four of them sum past the memcg (2026-07-28).
     worker_max_memory_per_child=350000,  # ~350MB
@@ -275,7 +273,7 @@ celery_app.conf.update(
 
 @signals.worker_process_init.connect
 def on_worker_process_init(**kwargs):
-    """ADR-104 A10 (2026-07-15) - pre-warm the Qdrant/fastembed singleton on
+    """ADR-104 A10 (2026-07-15) — pre-warm the Qdrant/fastembed singleton on
     worker_heavy boot, OFF the task time budget.
 
     Measured finding: both post-routing-fix `kb_niche_refresh.refresh_niche_task`
@@ -283,12 +281,12 @@ def on_worker_process_init(**kwargs):
     output) ending exactly at the task's own `soft_time_limit=90s`, followed by
     ~26-27s of real (fast) work once forcibly kicked onto the Chroma/keyword
     fallback. That 90s ceiling is the task's OWN soft limit, not any timeout
-    inside knowledge_base.py (5s Qdrant client / 20s embed-load) - meaning the
+    inside knowledge_base.py (5s Qdrant client / 20s embed-load) — meaning the
     true hang duration is UNKNOWN and would just grow if the limits were
     raised (the trap: "increase limits to conceal an unresolved hang"). The
     likely cause is first-use-per-process cold cost (qdrant_client/fastembed/
     onnxruntime imports + ONNX model init) in a worker_heavy process that has
-    never touched Qdrant before - NOT a per-task workload property.
+    never touched Qdrant before — NOT a per-task workload property.
 
     Fix: pay that cold cost once at process boot instead of inline during a
     task's window, using the exact same code path a real task hits
@@ -503,7 +501,7 @@ celery_app.conf.beat_schedule = {
         "args": (),
     },
     # ========================================
-    # AI-STAFF JOBS (durable path) - mirrors team_scheduler.py IST cadence.
+    # AI-STAFF JOBS (durable path) — mirrors team_scheduler.py IST cadence.
     # DORMANT unless `celery beat` runs (compose --profile celery). On default
     # deployment the in-process APScheduler still owns these. Switch = set
     # RUN_IN_PROCESS_SCHEDULER=0 + run celery beat (no double-run). Timezone here
@@ -574,7 +572,7 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=8, minute=15),
         "args": ("hot_queue_brief",),
     },
-    # ADR-OWNER-1: 09:00 IST - CSV+MD+nfty push so owner has click-ready WA packs
+    # ADR-OWNER-1: 09:00 IST — CSV+MD+nfty push so owner has click-ready WA packs
     # for the day's hot leads by 9:05 AM. Closes the loop on `calling_flagged`
     # cards that previously sat un-actioned for days.
     "staff-hot-queue-owner-pack-daily": {
@@ -603,14 +601,14 @@ celery_app.conf.beat_schedule = {
         "args": ("revenue_snapshot",),
     },
     "staff-gsc-rank-daily": {
-        # 00:30 IST: Google Search Console rank/impression snapshot - SEO
+        # 00:30 IST: Google Search Console rank/impression snapshot — SEO
         # observability (programmatic pages abhi untracked the). Job body
         # no-ops unless GSC_ENABLED=1 + service-account creds (INERT off).
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=0, minute=30),
         "args": ("gsc_rank",),
     },
-    # Boss daily standup - in-process loop ke saath parity (gated AGENT_STANDUP;
+    # Boss daily standup — in-process loop ke saath parity (gated AGENT_STANDUP;
     # flag OFF = run_staff_job no-op early return, zero behaviour change).
     "staff-standup-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
@@ -632,7 +630,7 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=9, minute=35),
         "args": ("engineer_security",),
     },
-    # council 2026-06-25 - 3 new engineer agents (gated INERT in run_X())
+    # council 2026-06-25 — 3 new engineer agents (gated INERT in run_X())
     "staff-engineer-dbre-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=10, minute=0),
@@ -676,7 +674,7 @@ celery_app.conf.beat_schedule = {
         "args": ("kb_refresh",),
     },
     "staff-platform-dial-daily": {
-        # 11:30 IST: self-sale AI cold-call batch - job body no-ops unless
+        # 11:30 IST: self-sale AI cold-call batch — job body no-ops unless
         # PLATFORM_DIAL_DAILY=1 (TRAI window/DND gates live inside the call path).
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=11, minute=30),
@@ -684,7 +682,7 @@ celery_app.conf.beat_schedule = {
     },
     "staff-daily-video-daily": {
         # 09:45 IST: per-client DAILY video producer. Deliberately NOT inside the
-        # `content` mega-job - that chain runs auto_content first under
+        # `content` mega-job — that chain runs auto_content first under
         # CONTENT_TIME_BUDGET_S and silently skipped video_ad_cycle for 15 days
         # in prod (see app/marketing/daily_video.py docstring). This job only
         # ENQUEUES to the video queue; job body no-ops unless DAILY_VIDEO_ENABLED=1.
@@ -729,7 +727,7 @@ celery_app.conf.beat_schedule = {
         "args": ("meter_watch",),
     },
     # Product 1 Customer Deliverability layer (2026-07-08): Customer Health +
-    # Approval Reminder + SLA Recovery sweep. Light/read-mostly - stays on the
+    # Approval Reminder + SLA Recovery sweep. Light/read-mostly — stays on the
     # default queue like "onboard" (whose hourly sweep already calls the same
     # auto_content.seed_client_content() directly, also NOT in HEAVY_STAFF_JOBS)
     # so the health/reminder signal is never delayed behind the heavy content
@@ -741,7 +739,7 @@ celery_app.conf.beat_schedule = {
         "args": ("product_one_health",),
     },
     # Bounded pending-approval EMAIL sweep (single-flight). INERT unless
-    # APPROVAL_EMAIL_NOTIFY=1 - the job runs but the sweep no-ops when off.
+    # APPROVAL_EMAIL_NOTIFY=1 — the job runs but the sweep no-ops when off.
     "staff-approval-email-sweep-hourly": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(minute=40),
@@ -761,14 +759,14 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=28),
         "args": ("hq_auto_chase",),
     },
-    # Safe known-prospect auto-reply sweep - DECOUPLED from IMAP triage so
+    # Safe known-prospect auto-reply sweep — DECOUPLED from IMAP triage so
     # replies still fire even if IMAP is down/gated. INERT unless REPLY_AUTO_SEND=1.
     "staff-reply-auto-send-hourly": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(minute=30),
         "args": ("reply_auto_send",),
     },
-    # Orphaned-pending approval retirement - daily 04:30 IST. dry_run default;
+    # Orphaned-pending approval retirement — daily 04:30 IST. dry_run default;
     # CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes (fail-closed otherwise).
     "staff-content-approval-sweep-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
@@ -782,7 +780,7 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=8, minute=10),
         "args": ("daily_owner_brief",),
     },
-    # Trial-to-paid nudge - BLK-02 (2026-08-23). INERT unless TRIAL_NUDGE_ENABLED=1
+    # Trial-to-paid nudge — BLK-02 (2026-08-23). INERT unless TRIAL_NUDGE_ENABLED=1
     # (run_trial_nudge no-ops when off / TRIAL_NUDGE_HARD_OFF=1 blocks always).
     # Email-only; WhatsApp text sirf owner 1-click human ke liye return hota hai.
     "staff-trial-nudge-daily": {
@@ -792,7 +790,7 @@ celery_app.conf.beat_schedule = {
     },
     # Expired agent-task lease close-out (ADR-150). MUST be here, not only in the
     # in-process scheduler_loop: production runs `celery -A app.worker beat` with
-    # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod - the
+    # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod — the
     # exact fault call_kpi_digest hit (audit 2026-07-04). Job body no-ops unless
     # AGENT_TASK_LEASE_REAP=1.
     "staff-task-lease-reap-hourly": {
@@ -817,7 +815,7 @@ celery_app.conf.beat_schedule = {
         "args": ("process_autostart",),
     },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue
-    # chain hai - yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
+    # chain hai — yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
     "staff-selfimprove-revive": {
         "task": "app.tasks.staff_jobs.self_improve_revive",
         "schedule": crontab(minute="*/20"),
@@ -829,7 +827,7 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/5"),
         "args": ("heartbeat",),
     },
-    # Content-approval notifications - gated CONTENT_APPROVAL_NOTIFY
+    # Content-approval notifications — gated CONTENT_APPROVAL_NOTIFY
     # INERT flag = run_staff_job no-op; no duplicate route/page.
     "staff-content-approval-notify-hourly": {
         "task": "app.tasks.staff_jobs.run_staff_job",
@@ -837,7 +835,7 @@ celery_app.conf.beat_schedule = {
         "args": ("content_approval_notify",),
     },
 
-    # Daily social + video posting - 3x within 9am–7pm TRAI window
+    # Daily social + video posting — 3x within 9am–7pm TRAI window
     # GATED: POSTIZ_API_KEY + VIDEO_AD_CYCLE=1 (auto-post gate)
     # Generates branded videos + posts via Postiz (own brand + clients)
     "staff-daily-social-post-morning": {
@@ -864,7 +862,7 @@ celery_app.conf.beat_schedule = {
         "options": {"expires": 5400},
     },
 
-    # WhatsApp full automation - hourly within 9am–7pm TRAI window
+    # WhatsApp full automation — hourly within 9am–7pm TRAI window
     # GATED: WHATSAPP_AUTO_SEND=1 + WHATSAPP_AUTO_SEND_HARD_OFF=0
     # ⚠️ HIGH RISK: cold/bulk auto-send = number ban in 72 hours
     "staff-whatsapp-automation-hourly": {
@@ -878,7 +876,7 @@ celery_app.conf.beat_schedule = {
 # SAFETY GATE: legacy (Cloud-Run/Vertex era) beat entries DEFAULT OFF.
 # Bina GCP/Vertex creds ke ye tasks heavy/no-op hain, aur `process_queue`
 # jaise entries call-side-effects rakh sakte. Celery-beat switch ka core =
-# sirf `staff-*` jobs (team_scheduler._run_job dispatcher - saare naye
+# sirf `staff-*` jobs (team_scheduler._run_job dispatcher — saare naye
 # engines included) + `process-voice-followups` (production-critical
 # transactional callback drain, not a legacy entry). Puraane entries chahiye
 # to ENABLE_LEGACY_BEAT=1.
@@ -891,7 +889,7 @@ if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true"
         if k.startswith("staff-") or k in _KEEP_KEYS
     }
 
-# Boss autonomy sweep - always scheduled; the TASK is flag-gated inert itself
+# Boss autonomy sweep — always scheduled; the TASK is flag-gated inert itself
 # (BOSS_FULL_AUTONOMY=1 AND BOSS_DECISION_GOVERNANCE=1 required). Never a second
 # scheduler: this only drives app.platform.boss_autonomy.run_once().
 celery_app.conf.beat_schedule["boss-autonomy-sweep"] = {

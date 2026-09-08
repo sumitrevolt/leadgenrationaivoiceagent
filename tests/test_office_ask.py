@@ -2,7 +2,7 @@
 
 Risk surface = intent routing (task vs question), draft-safe dispatch reuse
 (run_agent_task), grounded-answer fallback (LLM fail -> snapshot facts), and
-the never-raise contract. LLM/coordinator sab monkeypatched - koi network nahi.
+the never-raise contract. LLM/coordinator sab monkeypatched — koi network nahi.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ async def test_hq_ask_question_grounded_answer(monkeypatch):
 
     async def fake_chat(system, messages, **kw):
         assert "leads_today=7" in system  # grounded facts prompt me hone chahiye
-        return "Aaj 7 naye leads aaye - sab theek chal raha.", "mistral"
+        return "Aaj 7 naye leads aaye — sab theek chal raha.", "mistral"
 
     monkeypatch.setattr(hq, "_ask_route", fake_route)
     monkeypatch.setattr(hq, "build_snapshot", fake_snapshot)
@@ -90,7 +90,7 @@ async def test_hq_ask_question_llm_fail_degrades_to_facts(monkeypatch):
     monkeypatch.setattr(free_ai, "chat", boom_chat)
     res = await hq.hq_ask("status?")
     assert res["ok"] is True
-    assert "leads_today=7" in res["text"]  # honest degrade - facts, no fabrication
+    assert "leads_today=7" in res["text"]  # honest degrade — facts, no fabrication
 
 
 async def test_hq_ask_task_dispatches_via_kaam_do(monkeypatch):
@@ -164,7 +164,7 @@ def test_api_ask_validates_empty():
 
 
 # --------------------------------------------------------------------------- #
-# Broadcast - "sabhi agents ko command" (2026-07-03 user-ask)
+# Broadcast — "sabhi agents ko command" (2026-07-03 user-ask)
 # --------------------------------------------------------------------------- #
 def test_heuristic_route_broadcast():
     assert (

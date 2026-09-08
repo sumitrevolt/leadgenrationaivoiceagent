@@ -1,5 +1,5 @@
 """
-/for/{slug} programmatic SEO landing page - contract tests.
+/for/{slug} programmatic SEO landing page — contract tests.
 
 Covers a real bug found by an SEO audit: the canonical tag was built from the
 raw (non-lowercased) slug and was a relative path, so mixed-case URL variants

@@ -4,13 +4,13 @@ Regression cover for a silent, expensive gap: every `call_logs` row written by
 the Vobiz stream teardown landed with ``lead_id = NULL``. The dialer had the
 prospect's ``Lead.id`` in scope (``app/tasks/calling.py``) but
 ``start_stream_call`` had no lead-id parameter, so the id died at that boundary
-- minutes later, in a possibly different worker, the CallLog writer only knew
+— minutes later, in a possibly different worker, the CallLog writer only knew
 the phone number.
 
 Two things broke as a result:
   1. calls were unattributable to leads (no campaign ROI, no per-lead history);
-  2. ``niche_database.update_after_call()`` - the ONLY code that moves a lead to
-     QUALIFIED / CALLBACK / NOT_INTERESTED / DND / WRONG_NUMBER - is keyed on a
+  2. ``niche_database.update_after_call()`` — the ONLY code that moves a lead to
+     QUALIFIED / CALLBACK / NOT_INTERESTED / DND / WRONG_NUMBER — is keyed on a
      lead id, so lead categorisation never ran on a single real call.
 
 These tests pin the whole rail: dialer -> start_stream_call -> pending/answer-url
@@ -26,7 +26,7 @@ from app.telephony import post_call_hooks as pch
 
 
 # --------------------------------------------------------------------------- #
-# build_call_log - the column that was always NULL
+# build_call_log — the column that was always NULL
 # --------------------------------------------------------------------------- #
 def test_build_call_log_sets_lead_id(monkeypatch):
     monkeypatch.setenv("CALL_LOG_DB", "1")
@@ -48,7 +48,7 @@ def test_build_call_log_sets_lead_id(monkeypatch):
 
 
 def test_build_call_log_lead_id_defaults_to_none(monkeypatch):
-    """Omitting lead_id must stay valid - inbound and unknown-token WS
+    """Omitting lead_id must stay valid — inbound and unknown-token WS
     reconnects genuinely have no lead in scope and must remain NULL-tolerant."""
     monkeypatch.setenv("CALL_LOG_DB", "1")
     row = pch.build_call_log(
@@ -106,7 +106,7 @@ def test_wire_key_is_not_lead_id():
 
 
 # --------------------------------------------------------------------------- #
-# start_stream_call - the boundary where the id used to die
+# start_stream_call — the boundary where the id used to die
 # --------------------------------------------------------------------------- #
 def test_start_stream_call_threads_lead_id(monkeypatch):
     import app.api.telephony_vobiz as tv
@@ -188,7 +188,7 @@ def test_stream_session_crm_lead_id_optional():
 
 
 # --------------------------------------------------------------------------- #
-# persist_call_log - FK safety. A stale/unknown lead id must NOT abort the
+# persist_call_log — FK safety. A stale/unknown lead id must NOT abort the
 # analytics INSERT; it must degrade to NULL and keep the raw value in
 # qualification_data. Same contract client_id already had.
 # --------------------------------------------------------------------------- #
@@ -246,7 +246,7 @@ def test_persist_call_log_keeps_known_lead_id(monkeypatch):
 
 
 def test_persist_call_log_blanks_unknown_lead_id_and_still_inserts(monkeypatch):
-    """The row is analytics data - losing it because of a stale FK would be a
+    """The row is analytics data — losing it because of a stale FK would be a
     worse bug than the missing attribution it was meant to fix."""
     monkeypatch.setenv("CALL_LOG_DB", "1")
     sess = _FakeSession(known_ids=set())  # lead does NOT exist
@@ -263,13 +263,13 @@ def test_persist_call_log_blanks_unknown_lead_id_and_still_inserts(monkeypatch):
     )
     assert len(sess.added) == 1, "row must still be written"
     assert sess.added[0].lead_id is None, "unknown FK must degrade to NULL"
-    # attribution intent is not lost - raw id survives for later backfill
+    # attribution intent is not lost — raw id survives for later backfill
     assert "lead-ghost" in (sess.added[0].qualification_data or "")
 
 
 # --------------------------------------------------------------------------- #
 # Regression: the OTHER CallLog writer (call_manager, context-based) already
-# set lead_id and must keep doing so - this fix threads a second rail, it does
+# set lead_id and must keep doing so — this fix threads a second rail, it does
 # not replace that one.
 # --------------------------------------------------------------------------- #
 def test_call_manager_writer_still_sets_lead_id_from_context():

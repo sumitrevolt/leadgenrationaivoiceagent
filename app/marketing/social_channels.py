@@ -1,17 +1,17 @@
-"""Naye customer-approach channels (2026) - sab BAN-SAFE drafts, human 1-click post.
+"""Naye customer-approach channels (2026) — sab BAN-SAFE drafts, human 1-click post.
 
 community_content.py (quora/reddit/wa-group/li-article/medium) ke UPAR
-8 NAYE methods - koi auto-post/auto-send NAHI (Insta/YT/Meta ToS + WA ban-safety):
-  instagram_comment  - local pages pe value-comment + DM follow-up draft
-  youtube_shorts     - 30-sec Hinglish Shorts script (hook/value/CTA)
-  gbp_qna            - apne Google Business profile pe Q&A seed pairs (allowed)
-  whatsapp_status    - daily WhatsApp Status content (apna status = ban-safe)
-  micro_influencer   - local micro-influencer (1k-20k) collab pitch draft
-  local_pr           - local newspaper/portal ke liye press-pitch draft
-  event_outreach     - exhibition/trade-event/society-event outreach drafts
-  listing_optimizer  - JustDial/Sulekha/IndiaMART listing text optimize draft
+8 NAYE methods — koi auto-post/auto-send NAHI (Insta/YT/Meta ToS + WA ban-safety):
+  instagram_comment  — local pages pe value-comment + DM follow-up draft
+  youtube_shorts     — 30-sec Hinglish Shorts script (hook/value/CTA)
+  gbp_qna            — apne Google Business profile pe Q&A seed pairs (allowed)
+  whatsapp_status    — daily WhatsApp Status content (apna status = ban-safe)
+  micro_influencer   — local micro-influencer (1k-20k) collab pitch draft
+  local_pr           — local newspaper/portal ke liye press-pitch draft
+  event_outreach     — exhibition/trade-event/society-event outreach drafts
+  listing_optimizer  — JustDial/Sulekha/IndiaMART listing text optimize draft
 
-free-LLM (free_ai chain) + static Hinglish fallback - LLM down ho to bhi draft
+free-LLM (free_ai chain) + static Hinglish fallback — LLM down ho to bhi draft
 milta. Import-safe, kabhi raise nahi. channel_experiments bandit me wired.
 """
 
@@ -25,12 +25,12 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 CHANNELS: dict[str, str] = {
-    "instagram_comment": "Instagram comment-first - local page/reel pe genuine value-comment, fir DM follow-up (manual)",
-    "youtube_shorts": "YouTube Shorts 30-sec Hinglish script - hook (3s) -> value -> CTA",
-    "gbp_qna": "Google Business Q&A seeding - apne profile pe common-question + answer pairs",
-    "whatsapp_status": "WhatsApp Status daily content - tip/offer/social-proof (apna status, ban-safe)",
+    "instagram_comment": "Instagram comment-first — local page/reel pe genuine value-comment, fir DM follow-up (manual)",
+    "youtube_shorts": "YouTube Shorts 30-sec Hinglish script — hook (3s) → value → CTA",
+    "gbp_qna": "Google Business Q&A seeding — apne profile pe common-question + answer pairs",
+    "whatsapp_status": "WhatsApp Status daily content — tip/offer/social-proof (apna status, ban-safe)",
     "micro_influencer": "Local micro-influencer (1k-20k followers) barter/paid collab pitch",
-    "local_pr": "Local newspaper/news-portal press pitch - story angle + quote",
+    "local_pr": "Local newspaper/news-portal press pitch — story angle + quote",
     "event_outreach": "Exhibition/trade-event/society-event stall ya sponsorship outreach",
     "listing_optimizer": "JustDial/Sulekha/IndiaMART listing title+description optimize",
 }
@@ -46,46 +46,46 @@ def _fallback(channel: str, niche: str, city: str, business: str) -> str:
     f = {
         "instagram_comment": (
             f"Comment (local {nm} page pe): 'Bhai kaam ekdum solid hai 🔥 {city} me aap jaise "
-            f"businesses ko roz naye customer chahiye - humne ek FREE Google-profile audit tool banaya hai, "
-            f"DM karu link?' | DM follow-up: 'Hi! Comment wala audit link - leadsgenai.in/audit. "
+            f"businesses ko roz naye customer chahiye — humne ek FREE Google-profile audit tool banaya hai, "
+            f"DM karu link?' | DM follow-up: 'Hi! Comment wala audit link — leadsgenai.in/audit. "
             f"2 min me score milega, koi charge nahi.'"
         ),
         "youtube_shorts": (
-            f"HOOK (0-3s): '{city} ke {nm} owners - roz ke 5 customer miss kar rahe ho!'\n"
+            f"HOOK (0-3s): '{city} ke {nm} owners — roz ke 5 customer miss kar rahe ho!'\n"
             f"VALUE (3-20s): 'Jab aap busy ho, calls miss hoti hain. Har missed call = gaya hua customer. "
             f"AI assistant 2 minute me callback karta hai, inquiry pakad leta hai.'\n"
-            f"CTA (20-30s): 'FREE audit ke liye bio link - leadsgenai.in/audit. Comment me apna business type likho!'"
+            f"CTA (20-30s): 'FREE audit ke liye bio link — leadsgenai.in/audit. Comment me apna business type likho!'"
         ),
         "gbp_qna": (
-            f"Q1: Kya {biz} same-day service deta hai? -> A: Haan, {city} me same-day available - call/WhatsApp karein.\n"
-            f"Q2: Pricing kya hai? -> A: Free estimate milta hai, kaam ke hisaab se transparent rate.\n"
-            f"Q3: Kya advance booking ho sakti hai? -> A: Haan, online/WhatsApp booking available hai."
+            f"Q1: Kya {biz} same-day service deta hai? → A: Haan, {city} me same-day available — call/WhatsApp karein.\n"
+            f"Q2: Pricing kya hai? → A: Free estimate milta hai, kaam ke hisaab se transparent rate.\n"
+            f"Q3: Kya advance booking ho sakti hai? → A: Haan, online/WhatsApp booking available hai."
         ),
         "whatsapp_status": (
-            f"Status 1 (tip): '{nm} customers ke liye pro-tip 💡 - Google pe review zaroor karein, "
+            f"Status 1 (tip): '{nm} customers ke liye pro-tip 💡 — Google pe review zaroor karein, "
             f"local business ko bahut madad milti hai!'\n"
-            f"Status 2 (offer): 'Is hafte special - pehli service pe 10% off. Reply karke slot book karein ✅'\n"
+            f"Status 2 (offer): 'Is hafte special — pehli service pe 10% off. Reply karke slot book karein ✅'\n"
             f"Status 3 (proof): 'Aaj ka kaam ✅ Ek aur khush customer {city} me 🙏'"
         ),
         "micro_influencer": (
             f"Hi! Main {biz} se hu. Aapka {city} content genuine lagta hai 👌 Hum local logo tak "
-            f"pahunchna chahte hain - ek chhota collab socha: aap humari service try karo (free), "
+            f"pahunchna chahte hain — ek chhota collab socha: aap humari service try karo (free), "
             f"pasand aaye to ek honest reel/post. Barter ya paid, jo comfortable ho. Interested?"
         ),
         "local_pr": (
-            f"Story pitch: '{city} ke chhote businesses ab AI se inquiry handle kar rahe hain' - "
+            f"Story pitch: '{city} ke chhote businesses ab AI se inquiry handle kar rahe hain' — "
             f"local {nm} ne missed-calls se hone wala nuksan AI callback se rok diya. "
             f"Quote ready hai, photos de sakte hain. Aapke readers (local business owners) ke liye useful angle."
         ),
         "event_outreach": (
             f"Namaste! {city} ke aane wale trade-event/exhibition me hum {biz} ke liye ek chhota "
-            f"demo stall/sponsorship explore kar rahe hain - live AI inquiry-callback demo rakhenge. "
+            f"demo stall/sponsorship explore kar rahe hain — live AI inquiry-callback demo rakhenge. "
             f"Stall/slot availability aur charges share karenge? Society events ke liye bhi open hain."
         ),
         "listing_optimizer": (
-            f"Title: {biz} - {city} me trusted {nm} | Same-day service, free estimate\n"
+            f"Title: {biz} — {city} me trusted {nm} | Same-day service, free estimate\n"
             f"Description: {city} aur aas-paas ke liye {nm} services. ✅ Verified reviews ✅ Transparent pricing "
-            f"✅ WhatsApp booking. Abhi call karein ya enquiry chhodein - 2 minute me callback milega.\n"
+            f"✅ WhatsApp booking. Abhi call karein ya enquiry chhodein — 2 minute me callback milega.\n"
             f"Keywords: {nm} {city}, best {nm} near me, {nm} price, {nm} booking"
         ),
     }
@@ -106,7 +106,7 @@ async def draft(
 
         sys = (
             "Tu Indian local-business marketing expert hai. Hinglish (Roman script) me likho. "
-            f"Channel: {CHANNELS[ch]}. Ban-safe manual posting ke liye draft - koi spammy tone nahi, "
+            f"Channel: {CHANNELS[ch]}. Ban-safe manual posting ke liye draft — koi spammy tone nahi, "
             "value-first, max 120 words. Sirf draft do, koi explanation nahi."
         )
         user = (

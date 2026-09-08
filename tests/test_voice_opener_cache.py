@@ -1,7 +1,7 @@
-"""Unit tests for VOICE_RESPONSE_CACHE - opener-only semantic cache in TelecallerBrain.
+"""Unit tests for VOICE_RESPONSE_CACHE — opener-only semantic cache in TelecallerBrain.
 
 Diagnosed 2026-06-26 from prod inspection: SEMANTIC_CACHE=1 was set in /opt/leadgen/.env
-but `redis-cli --scan --pattern 'semcache:*' | wc -l` reported 0 keys - proving the
+but `redis-cli --scan --pattern 'semcache:*' | wc -l` reported 0 keys — proving the
 voice brain hot path never called semantic_complete. semantic_cache.py was only used
 by app/marketing/* and app/llm/budget_guard.py.
 
@@ -26,14 +26,14 @@ def _brain(monkeypatch: pytest.MonkeyPatch) -> TelecallerBrain:
 def test_eligibility_first_user_turn_only(monkeypatch: pytest.MonkeyPatch) -> None:
     """Cache only applies when zero USER turns yet (bot greeting in history is OK)."""
     brain = _brain(monkeypatch)
-    # No history at all -> eligible
+    # No history at all → eligible
     assert brain._opener_cache_eligible([], "haan boliye") is True
     assert brain._opener_cache_eligible(None, "haan boliye") is True
-    # Just the bot's auto-greeting before first user turn -> STILL eligible (this
-    # is the real prod shape - web_call.py sends greeting before user speaks)
+    # Just the bot's auto-greeting before first user turn → STILL eligible (this
+    # is the real prod shape — web_call.py sends greeting before user speaks)
     only_greeting = [{"role": "assistant", "content": "Namaste sir, kaise hain?"}]
     assert brain._opener_cache_eligible(only_greeting, "haan boliye") is True
-    # ANY prior user message -> mid-conversation -> must NOT cache (context bleed)
+    # ANY prior user message → mid-conversation → must NOT cache (context bleed)
     mid_call = [
         {"role": "assistant", "content": "Namaste"},
         {"role": "user", "content": "haan"},
@@ -46,7 +46,7 @@ def test_eligibility_first_user_turn_only(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """VOICE_RESPONSE_CACHE unset -> byte-identical existing behaviour."""
+    """VOICE_RESPONSE_CACHE unset → byte-identical existing behaviour."""
     monkeypatch.delenv("VOICE_RESPONSE_CACHE", raising=False)
     monkeypatch.setenv("SEMANTIC_CACHE", "1")
     brain = TelecallerBrain(niche="solar_residential", client_name="Test Co")
@@ -55,7 +55,7 @@ def test_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_requires_semantic_cache_flag_too(monkeypatch: pytest.MonkeyPatch) -> None:
     """Even with VOICE_RESPONSE_CACHE=1, must also have SEMANTIC_CACHE=1
-    (defense in depth - the underlying engine respects its own gate)."""
+    (defense in depth — the underlying engine respects its own gate)."""
     monkeypatch.setenv("VOICE_RESPONSE_CACHE", "1")
     monkeypatch.delenv("SEMANTIC_CACHE", raising=False)
     brain = TelecallerBrain(niche="solar_residential", client_name="Test Co")
@@ -73,7 +73,7 @@ async def test_lookup_fail_open_never_raises(monkeypatch: pytest.MonkeyPatch) ->
 
 @pytest.mark.asyncio
 async def test_store_fail_open_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Store is fire-and-forget - must absorb every failure silently."""
+    """Store is fire-and-forget — must absorb every failure silently."""
     brain = _brain(monkeypatch)
     # No raise even with no Redis / Qdrant
     await brain._opener_cache_store("haan boliye sir", "Namaste sir, kaise hain?")
@@ -129,7 +129,7 @@ async def test_reply_skips_cache_for_mid_conversation(monkeypatch: pytest.Monkey
     monkeypatch.setattr(brain, "_generate", _stub_generate)
     monkeypatch.setattr(brain, "_kb_facts", _stub_kb_facts)
 
-    # History includes a real user turn - mid-conversation, NOT first user reply
+    # History includes a real user turn — mid-conversation, NOT first user reply
     history = [
         {"role": "assistant", "content": "Namaste sir"},
         {"role": "user", "content": "haan boliye sir"},
@@ -143,7 +143,7 @@ async def test_reply_skips_cache_for_mid_conversation(monkeypatch: pytest.Monkey
 
 @pytest.mark.asyncio
 async def test_reply_stores_on_cache_miss_first_turn(monkeypatch: pytest.MonkeyPatch) -> None:
-    """First-turn cache miss + LLM success -> store() must be called fire-and-forget."""
+    """First-turn cache miss + LLM success → store() must be called fire-and-forget."""
     brain = _brain(monkeypatch)
 
     store_calls: list[tuple[str, str]] = []

@@ -10,9 +10,8 @@ WHY SIP IS CHEAPEST
 -------------------
 Hosted voice APIs (Twilio/Exotel REST) bundle media + per-minute markup, so
 you typically pay ₹0.60–0.90/min. A raw SIP trunk + your own self-hosted media
-server (Asterisk/FreeSWITCH/PJSIP) bills only the carrier minutes - usually
-₹0.30–0.45/min in India. You run the media
-the provider only carries PSTN.
+server (Asterisk/FreeSWITCH/PJSIP) bills only the carrier minutes — usually
+₹0.30–0.45/min in India. You run the media; the provider only carries PSTN.
 
 HOW TO CONNECT A REAL SIP TRUNK + ASTERISK (~₹0.40/min)
 -------------------------------------------------------
@@ -21,20 +20,18 @@ HOW TO CONNECT A REAL SIP TRUNK + ASTERISK (~₹0.40/min)
    - They give you: SIP_HOST (registrar/proxy), SIP_USERNAME, SIP_PASSWORD,
      and a DID number to show as caller-id (SIP_DID).
 2. Stand up a media server (any ONE):
-   - Asterisk (PJSIP) - most common. Configure pjsip.conf with an endpoint,
+   - Asterisk (PJSIP) — most common. Configure pjsip.conf with an endpoint,
      auth (SIP_USERNAME/SIP_PASSWORD), and a registration to SIP_HOST.
-   - FreeSWITCH - sofia gateway pointed at SIP_HOST.
+   - FreeSWITCH — sofia gateway pointed at SIP_HOST.
 3. Bridge media to this AI voice agent:
    - Asterisk ARI / AudioSocket / chan_externalmedia streams raw audio over a
      WebSocket/TCP socket to the voice agent (STT -> LLM -> TTS loop).
-   - On answer, Asterisk calls back into our pipeline
-   we wire that via the
+   - On answer, Asterisk calls back into our pipeline; we wire that via the
      `on_answer` callback below.
 4. Place calls:
    - Originate via ARI (POST /ari/channels) OR let the provider's REST API
      originate and bridge to your trunk. This handler supports the provider
-     REST path out of the box (SIP_PROVIDER)
-     for the self-hosted ARI path,
+     REST path out of the box (SIP_PROVIDER); for the self-hosted ARI path,
      point SIP_HOST at your Asterisk ARI endpoint and extend `_place_via_ari`.
 
 This handler is intentionally defensive: if SIP infra is not configured it
@@ -107,8 +104,7 @@ class SIPHandler:
 
     Notes:
         - Fully async / httpx based.
-        - Never raises on missing config
-        returns a CallResult instead.
+        - Never raises on missing config; returns a CallResult instead.
     """
 
     # Minimal REST originate endpoints for common providers. These are best
@@ -180,14 +176,13 @@ class SIPHandler:
 
         Args:
             to_number:   Destination phone number (Indian 10-digit or E.164).
-            from_number: Caller-id to present
-            defaults to SIP_DID.
+            from_number: Caller-id to present; defaults to SIP_DID.
             on_answer:   Optional async callback invoked with call_id once the
                          provider reports the call as answered (best-effort;
                          only used on the self-hosted/ARI path).
 
         Returns:
-            CallResult - never raises.
+            CallResult — never raises.
         """
         call_id = str(uuid.uuid4())
         caller_id = from_number or self.did or self.username
@@ -213,7 +208,7 @@ class SIPHandler:
         # Path (b): no REST provider => needs self-hosted Asterisk/PJSIP media.
         # We don't have raw SIP media here, so return a clear, non-crashing result.
         logger.warning(
-            "SIP_PROVIDER not set - raw SIP media needs self-hosted Asterisk/PJSIP. "
+            "SIP_PROVIDER not set — raw SIP media needs self-hosted Asterisk/PJSIP. "
             "See module docstring to wire ARI. Returning not_configured."
         )
         return CallResult(
@@ -341,5 +336,5 @@ class SIPHandler:
             status="not_configured",
             duration=0,
             provider="sip:asterisk",
-            error="ARI originate not implemented - see _place_via_ari docstring.",
+            error="ARI originate not implemented — see _place_via_ari docstring.",
         )

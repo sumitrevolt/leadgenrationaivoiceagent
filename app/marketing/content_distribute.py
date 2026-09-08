@@ -1,10 +1,10 @@
-"""content_distribute.py - push READY content to legal SEO channels (IndexNow).
+"""content_distribute.py — push READY content to legal SEO channels (IndexNow).
 
 Auto-created blog/landing URLs ko IndexNow (Bing/Yandex) pe instant-index ping
 karta hai. Meta/FB/IG/GBP = external-approval-blocked (un par auto-post NAHI;
-draft hi rehte). Pure wrapper - indexnow.py REUSE, re-implement nahi.
+draft hi rehte). Pure wrapper — indexnow.py REUSE, re-implement nahi.
 
-DEFENSIVE: koi function KABHI raise nahi karta - failure = graceful skip.
+DEFENSIVE: koi function KABHI raise nahi karta — failure = graceful skip.
 """
 
 from __future__ import annotations
@@ -17,11 +17,11 @@ logger = setup_logger(__name__)
 
 
 async def submit_indexnow(urls: list[str]) -> dict[str, Any]:
-    """Naye blog/landing URLs ko IndexNow (Bing/Yandex) pe ping karo - SEO ke
+    """Naye blog/landing URLs ko IndexNow (Bing/Yandex) pe ping karo — SEO ke
     liye instant index. Reuse indexnow.submit_urls (same-host gate, dedupe key
     auto-gen). Network/host fail = {"ok": False}. NEVER raises.
 
-    Note: yeh DIRECT submit hai (any-time, koi flag nahi - pure SEO ping, free,
+    Note: yeh DIRECT submit hai (any-time, koi flag nahi — pure SEO ping, free,
     legal). Scheduled NAYA-only sweep ke liye indexnow.submit_sitemap_if_enabled
     (gated INDEXNOW) blog job me already wired hai.
     """

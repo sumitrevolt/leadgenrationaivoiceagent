@@ -1,5 +1,5 @@
 """Pure-python tests for DKIM presence + DMARC policy-strength checks in the
-deliverability monitor. No real DNS - _txt_lookup is monkeypatched.
+deliverability monitor. No real DNS — _txt_lookup is monkeypatched.
 """
 
 from __future__ import annotations
@@ -13,27 +13,20 @@ def _patch_txt(monkeypatch, mapping: dict[str, list[str]]):
 
 
 def test_dmarc_policy_parse():
-    assert dm._dmarc_policy(["v=DMARC1
-    p=reject
-    rua=mailto:x@y.in"]) == "reject"
-    assert dm._dmarc_policy(["v=DMARC1
-    p=quarantine"]) == "quarantine"
-    assert dm._dmarc_policy(["v=DMARC1
-    p=none"]) == "none"
+    assert dm._dmarc_policy(["v=DMARC1; p=reject; rua=mailto:x@y.in"]) == "reject"
+    assert dm._dmarc_policy(["v=DMARC1; p=quarantine"]) == "quarantine"
+    assert dm._dmarc_policy(["v=DMARC1; p=none"]) == "none"
     assert dm._dmarc_policy(["not a dmarc record"]) == ""
     assert dm._dmarc_policy([]) == ""
 
 
 def test_dmarc_policy_with_spaces():
     # tolerate "p = reject" style spacing via lower+strip on tag
-    assert dm._dmarc_policy(["v=dmarc1
-    p=quarantine
-    adkim=s"]) == "quarantine"
+    assert dm._dmarc_policy(["v=dmarc1;p=quarantine;adkim=s"]) == "quarantine"
 
 
 def test_dkim_selectors_env_override(monkeypatch):
-    monkeypatch.setenv("DKIM_SELECTOR", "foo, bar
-    baz")
+    monkeypatch.setenv("DKIM_SELECTOR", "foo, bar ;baz")
     assert dm._dkim_selectors() == ["foo", "bar", "baz"]
 
 

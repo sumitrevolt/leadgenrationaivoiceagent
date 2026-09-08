@@ -1,4 +1,4 @@
-"""RAG advancement tests - reranker + contextual ingest (no network/Qdrant)."""
+"""RAG advancement tests — reranker + contextual ingest (no network/Qdrant)."""
 
 from __future__ import annotations
 
@@ -57,8 +57,7 @@ def test_smart_turn_disabled_returns_none():
 def test_kb_search_params_ef_covers_limit(monkeypatch):
     """hnsw_ef must always be >= requested results (Qdrant anti-pattern guard).
 
-    Voice path (limit=3) stays at the 128 floor = no latency regression
-    a large
+    Voice path (limit=3) stays at the 128 floor = no latency regression; a large
     rerank/hybrid pool forces ef up so filtered-HNSW recall never silently drops.
     """
     import pytest

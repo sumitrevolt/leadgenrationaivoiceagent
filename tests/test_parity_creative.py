@@ -1,5 +1,5 @@
-"""Tests - Agent B creative features (jingle, bg_remove, multilang 9-lang,
-creative router). No network, no DB, no LLM - sab defensive/pure paths
+"""Tests — Agent B creative features (jingle, bg_remove, multilang 9-lang,
+creative router). No network, no DB, no LLM — sab defensive/pure paths
 (style: test_marketing_upgrades.py)."""
 
 from __future__ import annotations
@@ -19,13 +19,13 @@ def test_jingle_available_shape():
 
 def test_jingle_safe_file_path_regex_locked(tmp_path, monkeypatch):
     monkeypatch.setattr(jingle, "_OUT_DIR", str(tmp_path))
-    # traversal / junk -> None
+    # traversal / junk → None
     assert jingle.safe_file_path("../../etc/passwd") is None
     assert jingle.safe_file_path("jingle_XYZ.mp3") is None
     assert jingle.safe_file_path("") is None
-    # valid name but missing file -> None
+    # valid name but missing file → None
     assert jingle.safe_file_path("jingle_0123456789.mp3") is None
-    # valid + exists -> path
+    # valid + exists → path
     f = tmp_path / "jingle_abcdef0123.mp3"
     f.write_bytes(b"x" * 200)
     assert jingle.safe_file_path("jingle_abcdef0123.mp3") == str(f)
@@ -47,8 +47,7 @@ def test_jingle_pick_voice():
     assert jingle.pick_voice("unknown-lang") == "hi-IN-SwaraNeural"
     # explicit valid voice wins; junk voice ignored
     assert jingle.pick_voice("hindi", "mr-IN-AarohiNeural") == "mr-IN-AarohiNeural"
-    assert jingle.pick_voice("hindi", "../evil
-    rm") == "hi-IN-SwaraNeural"
+    assert jingle.pick_voice("hindi", "../evil; rm") == "hi-IN-SwaraNeural"
 
 
 def test_jingle_missing_dep_error_dict(monkeypatch):
@@ -77,7 +76,7 @@ def test_bg_remove_graceful_without_rembg(tmp_path, monkeypatch):
 
 def test_bg_remove_cache_hit_skips_rembg(tmp_path, monkeypatch):
     monkeypatch.setattr(bg_remove, "_CACHE_DIR", str(tmp_path))
-    monkeypatch.setitem(sys.modules, "rembg", None)  # rembg ABSENT - cache hi bachaye
+    monkeypatch.setitem(sys.modules, "rembg", None)  # rembg ABSENT — cache hi bachaye
     data = b"some-photo-bytes"
     cached = tmp_path / bg_remove._cache_name(data)
     cached.write_bytes(b"P" * 500)
@@ -103,7 +102,7 @@ def test_multilang_default_stays_three(monkeypatch):
     import app.voice_agent.free_ai as free_ai
 
     async def fake_chat(system, messages, max_tokens=90, temperature=0.6):
-        return "", ""  # LLM fail -> original fallback
+        return "", ""  # LLM fail → original fallback
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
     res = asyncio.run(multilang_post.translate_post("Diwali offer 20% off!"))

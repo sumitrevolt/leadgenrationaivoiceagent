@@ -410,7 +410,7 @@ async def run_task(task_id: str, _user=Depends(require_admin)) -> dict[str, Any]
 
         async_result = run_dev_task_task.delay(task_id)
         return {"enqueued": True, "task_id": task_id, "job_id": getattr(async_result, "id", None)}
-    except Exception as exc:  # broker down etc. - never 500 the admin API
+    except Exception as exc:  # broker down etc. — never 500 the admin API
         raise HTTPException(
             status_code=503, detail=f"worker unavailable: {str(exc)[:120]}"
         ) from exc
@@ -559,7 +559,7 @@ async def finalize_delivery(
 
 
 # ---------------------------------------------------------------------------
-# External Agent Orchestrator (Cursor / Claude missions) - same control plane,
+# External Agent Orchestrator (Cursor / Claude missions) — same control plane,
 # separate INERT flag. Owner OS stays the sole action authority; these routes
 # only record missions, leases, evidence and verdicts.
 # ---------------------------------------------------------------------------
@@ -602,7 +602,7 @@ class MissionReviewRequest(BaseModel):
 class MissionAdvanceRequest(BaseModel):
     target: str = Field(..., min_length=3, max_length=40)
     evidence: dict[str, Any] = Field(default_factory=dict)
-    # Deprecated: boolean alone never authorizes AMBER - use approval_decision_id.
+    # Deprecated: boolean alone never authorizes AMBER — use approval_decision_id.
     owner_approved: bool = False
     approval_decision_id: str | None = Field(None, max_length=80)
 
@@ -736,7 +736,7 @@ async def missions_recover_stale(_user=Depends(require_admin)) -> dict[str, Any]
 async def mission_run_runner(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
     """Local/Windows unattended runner invoke (dual-flag gated). Never deploys.
 
-    Heavy CLI work runs in a threadpool - web event loop must not block.
+    Heavy CLI work runs in a threadpool — web event loop must not block.
     """
     import asyncio
     from pathlib import Path

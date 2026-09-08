@@ -1,4 +1,4 @@
-"""Owner OS hot-queue analyzer - runs on prod via SSH-copied file."""
+"""Owner OS hot-queue analyzer — runs on prod via SSH-copied file."""
 import json
 import sys
 from collections import Counter
@@ -30,6 +30,6 @@ print()
 # Estimated revenue at 1999 starter / 5999 advanced conversion
 potential_low = len(with_phone) * 1999
 potential_mid = len(items) * 1999
-print(f"POTENTIAL REVENUE (if all {len(with_phone)} call-phoned -> starter ₹1999): ₹{potential_low:,}")
+print(f"POTENTIAL REVENUE (if all {len(with_phone)} call-phoned → starter ₹1999): ₹{potential_low:,}")
 print(f"POTENTIAL REVENUE (if all 42 convert starter): ₹{potential_mid:,}")
-print(f"NEEDED FOR 5L: ₹{(500000 - 5997):,} - {((500000-5997)//1999)+1} starter sales")
+print(f"NEEDED FOR 5L: ₹{(500000 - 5997):,} — {((500000-5997)//1999)+1} starter sales")

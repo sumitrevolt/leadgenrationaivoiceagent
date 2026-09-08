@@ -214,7 +214,7 @@ def build_flow_from_spec(spec: dict[str, Any]) -> ConversationFlow:
         }
 
     Unknown node-type strings degrade to NodeType.MESSAGE. The result is NOT
-    forced valid (so authoring mistakes are visible) - call flow.validate().
+    forced valid (so authoring mistakes are visible) — call flow.validate().
 
     Args:
         spec: The flow specification dict.

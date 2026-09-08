@@ -1,4 +1,4 @@
-"""Tests - voice follow-up scheduler (trial day8/9, interested follow-up, compliance)."""
+"""Tests — voice follow-up scheduler (trial day8/9, interested follow-up, compliance)."""
 
 from __future__ import annotations
 
@@ -193,9 +193,8 @@ async def test_run_due_places_transactional_call(vf_store, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_run_due_passes_wizard_opening_for_aware_lead(vf_store, monkeypatch):
-    """Business-type-aware followup (wizard niche + name) -> start_stream_call ko
-    wizard opening_line milta hai
-    generic lead pe "" (fallback intact)."""
+    """Business-type-aware followup (wizard niche + name) → start_stream_call ko
+    wizard opening_line milta hai; generic lead pe "" (fallback intact)."""
     from app.telephony import voice_followup as vf
 
     past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
@@ -244,7 +243,7 @@ async def test_run_due_passes_wizard_opening_for_aware_lead(vf_store, monkeypatc
     out = await vf.run_due()
     assert out["placed"] == 2
     by_phone = {c["to"]: c.get("opening_line") or "" for c in calls}
-    # wizard niche + name -> personalized opening
+    # wizard niche + name → personalized opening
     assert "Sharma Salon" in by_phone["919876543210"]
-    # non-wizard niche -> "" (niche-script chain)
+    # non-wizard niche → "" (niche-script chain)
     assert by_phone["919876543211"] == ""

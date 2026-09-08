@@ -4,9 +4,9 @@ Revenue Workflow Phase 4 Live Revenue Pilot Test Suite
 Tests:
 1. Database-Level Audit Immutability Event Listeners (before_update & before_delete block session edits)
 2. Provider Action ID Unique Constraint
-3. Stage A Live Revenue Pilot (1 Lead) - Honest SENT state tracking, 0 violations
-4. Stage B Live Revenue Pilot (5 Leads) - 0 violations
-5. Stage C Live Revenue Pilot (20 Leads) - 0 violations
+3. Stage A Live Revenue Pilot (1 Lead) — Honest SENT state tracking, 0 violations
+4. Stage B Live Revenue Pilot (5 Leads) — 0 violations
+5. Stage C Live Revenue Pilot (20 Leads) — 0 violations
 6. Safety Invariant Breach Fail-Safe Kill Switch Activation (AUTOMATION_STOP_NEW_CLAIMS=1)
 7. 9-Column Business Funnel Evidence Table Formatting
 """

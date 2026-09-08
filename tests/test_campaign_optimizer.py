@@ -1,4 +1,4 @@
-"""Tests for enterprise flywheel - campaign optimizer, identity, promotion gate."""
+"""Tests for enterprise flywheel — campaign optimizer, identity, promotion gate."""
 
 from __future__ import annotations
 

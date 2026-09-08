@@ -1,8 +1,8 @@
 """Admin System Health Monitor API routes.
 
-GET /admin/api/system/health  - aggregate CPU/RAM/Disk + processes + ports
-GET /admin/api/system/processes - top 15 watched processes by RAM
-GET /admin/api/system/ports  - port status for key service ports
+GET /admin/api/system/health  — aggregate CPU/RAM/Disk + processes + ports
+GET /admin/api/system/processes — top 15 watched processes by RAM
+GET /admin/api/system/ports  — port status for key service ports
 """
 
 from __future__ import annotations

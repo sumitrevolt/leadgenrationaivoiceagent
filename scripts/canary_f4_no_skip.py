@@ -25,13 +25,13 @@ _DOC_HINT = re.compile(r"AGENT_TEAMS_CANARY|canary.?doc|missing.?doc", re.I)
 
 def main() -> int:
     if not TARGET.is_file():
-        print(f"REFUSED: missing {TARGET.relative_to(REPO)} - TM2 not merged yet?", file=sys.stderr)
+        print(f"REFUSED: missing {TARGET.relative_to(REPO)} — TM2 not merged yet?", file=sys.stderr)
         return 2
     text = TARGET.read_text(encoding="utf-8")
     hits = []
     for i, line in enumerate(text.splitlines(), 1):
         if _BAD.search(line):
-            # Always refuse skip/xfail in this file - canary contract must not soft-pass.
+            # Always refuse skip/xfail in this file — canary contract must not soft-pass.
             hits.append(f"{i}:{line.strip()}")
     if "pytest.fail" not in text and "raise AssertionError" not in text and "assert " not in text:
         print("REFUSED: no hard fail/assert found in TM2 contract", file=sys.stderr)
@@ -41,7 +41,7 @@ def main() -> int:
         r"assert\s+.+\.is_file\(|assert\s+.+\.exists\(", text
     ):
         print(
-            "WARN: no pytest.fail / path.exists assert detected - review manually", file=sys.stderr
+            "WARN: no pytest.fail / path.exists assert detected — review manually", file=sys.stderr
         )
     if hits:
         print("REFUSED: skip/xfail found in TM2 canary contract (F4):", file=sys.stderr)

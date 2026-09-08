@@ -1,5 +1,5 @@
 """
-Top 25 Niches Configuration - research-finalized (June 2026).
+Top 25 Niches Configuration — research-finalized (June 2026).
 
 Selection criteria (web research, see docs/Niche_Pricing_Research.md + Excel):
   (a) high ticket size, (b) phone-call-heavy buying journey in India,
@@ -7,14 +7,14 @@ Selection criteria (web research, see docs/Niche_Pricing_Research.md + Excel):
   (d) clear B2B client + B2C/B2B end-customer extension for tier-2 campaigns.
 
 Two-tier model:
-  - Tier 1 (platform -> B2B): hum in niches ke BUSINESSES ko client banate hain.
-  - Tier 2 (client -> end customers): client ka voice agent uske END CUSTOMERS
-    ko call karta hai - `target_type` batata hai wo audience B2C hai ya B2B.
+  - Tier 1 (platform → B2B): hum in niches ke BUSINESSES ko client banate hain.
+  - Tier 2 (client → end customers): client ka voice agent uske END CUSTOMERS
+    ko call karta hai — `target_type` batata hai wo audience B2C hai ya B2B.
 
 Voice-product pricing (ADR-009, 2026-06-11): PER-LEAD pricing REMOVED.
   lead_band = "A" | "B" | "C"   # Band A mass-local / B high-ticket / C premium-HNI
   Actual prices (per-10-qualified-leads tiers + top-up packs) live in
-  app/marketing/voice_packages.py - yahan sirf band mapping.
+  app/marketing/voice_packages.py — yahan sirf band mapping.
 Product split: category "marketing" -> sirf Product 1 (AI Automated Marketing),
   "leadgen" -> sirf Product 2 (AI Voice Calling Agent), "both" -> dono.
   Helpers: niches_for_product() / niche_products() / lead_band().
@@ -23,10 +23,10 @@ pitch_hook, qualification_questions.
 """
 
 # ========================================================================== #
-# CUSTOM NICHES - runtime-added niches (persisted to data/custom_niches.json)
+# CUSTOM NICHES — runtime-added niches (persisted to data/custom_niches.json)
 # Builtin 42 upar static hain; client koi NAYA niche maange to add_custom_niche()
 # se turant add hota hai aur flows/KB/agents/web-call sab me waise hi kaam
-# karta hai (sab consumers NICHES dict hi padhte hain - hum usme merge karte).
+# karta hai (sab consumers NICHES dict hi padhte hain — hum usme merge karte).
 # ========================================================================== #
 import json as _json
 import re as _re
@@ -49,7 +49,7 @@ def _load_custom_niches(force: bool = False) -> None:
     global _custom_mtime
     try:
         if not _CUSTOM_FILE.exists():
-            if _custom_mtime != -1.0:  # file delete ho gayi - purge customs
+            if _custom_mtime != -1.0:  # file delete ho gayi — purge customs
                 for k in [k for k in list(NICHES) if k not in _BUILTIN_KEYS]:
                     NICHES.pop(k, None)
                 _custom_mtime = -1.0
@@ -71,7 +71,7 @@ def _load_custom_niches(force: bool = False) -> None:
 
 
 def refresh_custom_niches() -> None:
-    """Cheap mtime check - call before reads jahan freshness chahiye."""
+    """Cheap mtime check — call before reads jahan freshness chahiye."""
     _load_custom_niches(force=False)
 
 
@@ -89,8 +89,7 @@ def add_custom_niche(
 ) -> tuple:
     """
     Naya niche register karo. Returns (key, config).
-    Sensible defaults - sirf `name` zaroori hai
-    baaki business ke hisab se.
+    Sensible defaults — sirf `name` zaroori hai; baaki business ke hisab se.
     """
     nkey = _slugify(key or name)
     refresh_custom_niches()
@@ -101,7 +100,7 @@ def add_custom_niche(
     _band = str(lead_band or "A").strip().upper()
     cfg = {
         "name": name.strip(),
-        "tier": "C",  # custom tier - dropdown me [custom] group
+        "tier": "C",  # custom tier — dropdown me [custom] group
         "custom": True,
         "target_type": target_type,
         "b2b_client": b2b_client or f"{name} businesses",
@@ -187,7 +186,7 @@ def niche_products(cfg: dict) -> list:
 
 
 def niches_for_product(product: str) -> dict:
-    """product='marketing' | 'voice' ke niches - dono products ke niche sets ALAG."""
+    """product='marketing' | 'voice' ke niches — dono products ke niche sets ALAG."""
     refresh_custom_niches()
     p = (product or "").strip().lower()
     if p not in ("marketing", "voice"):
@@ -196,7 +195,7 @@ def niches_for_product(product: str) -> dict:
 
 
 def lead_band(key: str) -> str:
-    """Voice-product pricing band ('A'|'B'|'C') for a niche key - default 'A'."""
+    """Voice-product pricing band ('A'|'B'|'C') for a niche key — default 'A'."""
     refresh_custom_niches()
     cfg = NICHES.get((key or "").strip().lower()) or {}
     b = str(cfg.get("lead_band") or "A").strip().upper()
@@ -208,7 +207,7 @@ def classify_from_text(text: str, default: str = "general") -> str:
 
     Scores each niche by how many of its keyword TOKENS appear in `text` (longer
     keyword phrases weigh more). Returns the top niche key, else `default`. Pure +
-    never-raise - lets the Udyam pipeline tag each lead with the RIGHT niche so scoring
+    never-raise — lets the Udyam pipeline tag each lead with the RIGHT niche so scoring
     + outreach pitch are accurate (was tagging everything 'general')."""
     try:
         refresh_custom_niches()

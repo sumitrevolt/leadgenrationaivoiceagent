@@ -170,7 +170,7 @@ PRICING_PLANS = {
         ],
     ),
     # NOTE (ADR-009, 2026-06-11): legacy "per_lead" (₹25/lead) + "hybrid_starter"
-    # (per-lead overage) plans REMOVED - per-lead pricing system retired.
+    # (per-lead overage) plans REMOVED — per-lead pricing system retired.
     # Voice product plans ab _sync_voice_plans() se aate hain (flat-monthly per niche-band model, updated 2026-06-12).
     # =============================================================================
     # B2B INTELLIGENCE PLATFORM - CREDIT-BASED PLANS
@@ -255,11 +255,10 @@ PRICING_PLANS = {
 
 
 def _sync_plans_from_packages() -> None:
-    """PUBLIC pricing truth = app/marketing/packages.py - yahan ke legacy Cloud-Run-era
+    """PUBLIC pricing truth = app/marketing/packages.py — yahan ke legacy Cloud-Run-era
     prices (₹15k/25k/50k) ko LIVE marketing prices (999/2499/5999) se OVERRIDE karo aur
     missing 'advanced' plan add karo. (BUG FIX 2026-06-10: /pricing page ₹999 dikhata
-    tha par checkout billing_manager se ₹15,000+GST charge karta
-    'advanced' checkout
+    tha par checkout billing_manager se ₹15,000+GST charge karta; 'advanced' checkout
     404 deta.) Yearly discount = 1/6 => 12mo*(5/6) = 10mo = packages price_inr_year
     ("2 mahine free"). Defensive: packages import fail => legacy as-is (kabhi raise nahi).
     """
@@ -298,14 +297,14 @@ def _sync_plans_from_packages() -> None:
 
 
 def _sync_voice_plans() -> None:
-    """AI Voice Calling Agent (Product 2) plans - voice_packages.py truth.
+    """AI Voice Calling Agent (Product 2) plans — voice_packages.py truth.
 
     Flat monthly model (2026-06-12): 7 plan IDs
       voice_a_monthly, voice_b_monthly, voice_c_monthly
       voice_a_annual,  voice_b_annual,  voice_c_annual
       voice_pilot  (free 7-day trial)
-    Unlimited calls - lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
-    Defensive - kabhi raise nahi.
+    Unlimited calls — lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
+    Defensive — kabhi raise nahi.
     """
     try:
         from app.marketing.voice_packages import BANDS, PILOT_CALL_CAP, UNLIMITED_QUOTA
@@ -315,33 +314,33 @@ def _sync_voice_plans() -> None:
             pid_m = info["plan_monthly"]
             PRICING_PLANS[pid_m] = PricingPlan(
                 id=pid_m,
-                name=f"Voice {band} - Monthly",
+                name=f"Voice {band} — Monthly",
                 pricing_model=PricingModel.SUBSCRIPTION,
                 monthly_price=Decimal(str(info["price_month"])),
                 calls_per_month=UNLIMITED_QUOTA,
                 leads_per_month=UNLIMITED_QUOTA,
                 concurrent_campaigns=3,
-                features=[f"Band {band} niche - flat monthly, unlimited calls"],
+                features=[f"Band {band} niche — flat monthly, unlimited calls"],
                 yearly_discount=0.0,
             )
             # Annual plan
             pid_a = info["plan_annual"]
             PRICING_PLANS[pid_a] = PricingPlan(
                 id=pid_a,
-                name=f"Voice {band} - Annual",
+                name=f"Voice {band} — Annual",
                 pricing_model=PricingModel.SUBSCRIPTION,
                 monthly_price=Decimal(str(info["price_month"])),
                 calls_per_month=UNLIMITED_QUOTA,
                 leads_per_month=UNLIMITED_QUOTA,
                 concurrent_campaigns=3,
-                features=[f"Band {band} niche - annual, 2 mahine free"],
+                features=[f"Band {band} niche — annual, 2 mahine free"],
                 yearly_discount=1 / 6,  # 2 of 12 months free
             )
 
         # Free pilot plan
         PRICING_PLANS["voice_pilot"] = PricingPlan(
             id="voice_pilot",
-            name="Voice Pilot - 7 din free",
+            name="Voice Pilot — 7 din free",
             pricing_model=PricingModel.SUBSCRIPTION,
             monthly_price=Decimal("0"),
             calls_per_month=PILOT_CALL_CAP,
@@ -355,14 +354,14 @@ def _sync_voice_plans() -> None:
 
 
 def _sync_combo_plans() -> None:
-    """AI Growth Suite (Product 3) plans - combo_packages.py truth.
+    """AI Growth Suite (Product 3) plans — combo_packages.py truth.
 
     Flat monthly model: 7 plan IDs
       combo_starter_monthly, combo_growth_monthly, combo_pro_monthly
       combo_starter_annual,  combo_growth_annual,  combo_pro_annual
       combo_pilot  (free 7-day trial)
-    Unlimited calls - lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
-    Defensive - kabhi raise nahi.
+    Unlimited calls — lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
+    Defensive — kabhi raise nahi.
     """
     try:
         from app.marketing.combo_packages import COMBO_TIERS, PILOT_CALL_CAP, UNLIMITED_QUOTA
@@ -371,39 +370,39 @@ def _sync_combo_plans() -> None:
             pid_m = t["plan_monthly"]
             PRICING_PLANS[pid_m] = PricingPlan(
                 id=pid_m,
-                name=f"{t['name']} - Monthly",
+                name=f"{t['name']} — Monthly",
                 pricing_model=PricingModel.SUBSCRIPTION,
                 monthly_price=Decimal(str(t["price_month"])),
                 calls_per_month=UNLIMITED_QUOTA,
                 leads_per_month=UNLIMITED_QUOTA,
                 concurrent_campaigns=5,
                 features=[
-                    f"Combo {tier_key} - Marketing + Voice {t['voice_band']} band, flat monthly"
+                    f"Combo {tier_key} — Marketing + Voice {t['voice_band']} band, flat monthly"
                 ],
                 yearly_discount=0.0,
             )
             pid_a = t["plan_annual"]
             PRICING_PLANS[pid_a] = PricingPlan(
                 id=pid_a,
-                name=f"{t['name']} - Annual",
+                name=f"{t['name']} — Annual",
                 pricing_model=PricingModel.SUBSCRIPTION,
                 monthly_price=Decimal(str(t["price_month"])),
                 calls_per_month=UNLIMITED_QUOTA,
                 leads_per_month=UNLIMITED_QUOTA,
                 concurrent_campaigns=5,
-                features=[f"Combo {tier_key} - Annual, 2 mahine free"],
+                features=[f"Combo {tier_key} — Annual, 2 mahine free"],
                 yearly_discount=1 / 6,
             )
 
         PRICING_PLANS["combo_pilot"] = PricingPlan(
             id="combo_pilot",
-            name="Combo Pilot - 7 din free",
+            name="Combo Pilot — 7 din free",
             pricing_model=PricingModel.SUBSCRIPTION,
             monthly_price=Decimal("0"),
             calls_per_month=PILOT_CALL_CAP,
             leads_per_month=PILOT_CALL_CAP,
             concurrent_campaigns=1,
-            features=["7-day free pilot - marketing + voice dono"],
+            features=["7-day free pilot — marketing + voice dono"],
             yearly_discount=0.0,
         )
     except Exception:  # pragma: no cover - defensive
@@ -518,7 +517,7 @@ class BillingManager:
 
         # Suffix-locked plans (voice_*/combo_*) encode their cycle in the id.
         # The annual variant's price is stored as monthly_price + yearly_discount,
-        # so it MUST be costed on the YEARLY path - otherwise a checkout that sends
+        # so it MUST be costed on the YEARLY path — otherwise a checkout that sends
         # billing_cycle="monthly" (the default) for an *_annual plan would charge 1×
         # the monthly figure instead of 10× (a 10× undercharge). Force the cycle to
         # match the plan id so every caller (checkout/pricing/renew) is correct.
@@ -543,7 +542,7 @@ class BillingManager:
         discount = subtotal * discount_rate
         taxable = subtotal - discount
         # GST sirf REGISTERED hone par (GST_GSTIN env set). Unregistered (<₹20L services
-        # turnover) GST collect karna ILLEGAL hai - tab advertised price hi total hai.
+        # turnover) GST collect karna ILLEGAL hai — tab advertised price hi total hai.
         # (BUG FIX 2026-06-10: pehle hamesha +18% lagta tha.)
         import os as _os
 
@@ -742,7 +741,7 @@ class BillingManager:
         base_amount = pricing.get("subtotal", Decimal("0"))
         discount = pricing.get("discount", Decimal("0"))
         taxable = base_amount - discount + usage_amount
-        # GST sirf REGISTERED hone par (GST_GSTIN set) - same gate as calculate_price.
+        # GST sirf REGISTERED hone par (GST_GSTIN set) — same gate as calculate_price.
         # Unregistered (<₹20L) pe 18% collect karna ILLEGAL hai; pehle yahan hamesha
         # +18% lagta tha (calculate_price already fixed tha, yeh method chhoot gaya tha).
         import os as _os
@@ -798,13 +797,12 @@ class BillingManager:
 
         # SAFETY (2026-06-25 audit): this legacy in-memory manager is NOT the live
         # billing path (real payments = UPI manual-verify / Stripe via app/billing
-        # + DB). It must NEVER fake a gateway success - marking an invoice paid with
+        # + DB). It must NEVER fake a gateway success — marking an invoice paid with
         # NO money received is a financial foot-gun. Refuse honestly; the real flow
         # (admin UPI verify / Stripe webhook) performs the actual activation.
         logger.warning(
             f"process_payment() called on the legacy in-memory SubscriptionManager "
-            f"for invoice {invoice_id} - no real gateway wired here
-            refusing to fake "
+            f"for invoice {invoice_id} — no real gateway wired here; refusing to fake "
             f"a paid status. Use the UPI/Stripe billing path."
         )
         return {

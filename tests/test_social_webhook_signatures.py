@@ -4,7 +4,7 @@ Contract:
 - verify_meta_signature returns True on a valid HMAC-SHA256 header, False
   otherwise (missing header, wrong prefix, tampered payload, wrong secret,
   short header, non-hex chars).
-- Uses constant-time compare (no timing leaks - implicit via hmac.compare_digest).
+- Uses constant-time compare (no timing leaks — implicit via hmac.compare_digest).
 - dispatch_status_update flips the store row + emits ledger event only after
   verification passed (test wiring).
 """

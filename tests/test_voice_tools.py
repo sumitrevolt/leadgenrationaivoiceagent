@@ -1,4 +1,4 @@
-"""Tests for VOICE_TOOLS - agentic in-call actions wiring (default OFF).
+"""Tests for VOICE_TOOLS — agentic in-call actions wiring (default OFF).
 
 Hermetic: no telephony / no network / no real LLM. Covers:
   1. voice_tools.voice_tools_enabled() gating contract (default OFF).
@@ -134,7 +134,7 @@ def test_reply_with_tools_routes_tool_call(monkeypatch):
     monkeypatch.setattr(brain, "_kb_facts", _fake_kb)
     monkeypatch.setattr(brain, "_generate", _fake_gen_call)
     # CLOSE_DETECT (LIVE, default ON) buy-signal "book kar do" ko pre-LLM confirm pe
-    # short-circuit karta - is test ka target TOOL routing hai, close-flow nahi.
+    # short-circuit karta — is test ka target TOOL routing hai, close-flow nahi.
     monkeypatch.setattr("app.voice_agent.telecaller_brain._close_detect_enabled", lambda: False)
 
     spoken, call = asyncio.run(brain.reply_with_tools([], "book kar do kal 3 baje", reg))
@@ -165,7 +165,7 @@ def test_reply_with_tools_books_on_slot_confirmation(monkeypatch):
     monkeypatch.setattr(brain, "_generate", _fake_gen_call)
 
     history = [
-        {"role": "assistant", "content": "Perfect sir - kal subah gyarah baje slot fix kar doon?"},
+        {"role": "assistant", "content": "Perfect sir — kal subah gyarah baje slot fix kar doon?"},
     ]
     spoken, call = asyncio.run(brain.reply_with_tools(history, "haan theek hai", reg))
     assert call is not None and call["name"] == "book_appointment"

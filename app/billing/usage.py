@@ -1,13 +1,12 @@
 """Minute-usage metering + prepaid enforcement for the AI-voice reselling stack.
 
-`BillingRecord` has no balance column - it's a ledger - so we meter USAGE: each
+`BillingRecord` has no balance column — it's a ledger — so we meter USAGE: each
 finished call writes a TELEPHONY line (quantity = whole minutes), and remaining =
 plan minutes - minutes used this period. Only the Advanced tier includes calling
-(500 min/mo)
-other plans have no metered minutes so enforcement is fail-OPEN here
+(500 min/mo); other plans have no metered minutes so enforcement is fail-OPEN here
 (their calling is governed by compliance/plan gating elsewhere).
 
-Everything is best-effort and NEVER raises - a billing hiccup must not break a call.
+Everything is best-effort and NEVER raises — a billing hiccup must not break a call.
 """
 
 from __future__ import annotations
@@ -24,15 +23,15 @@ logger = setup_logger(__name__)
 
 
 def _record_meter_failure(rec: dict) -> None:
-    """Minute-meter write fail-open hai (call kabhi block na ho) - par failure SILENT
+    """Minute-meter write fail-open hai (call kabhi block na ho) — par failure SILENT
     na rahe (revenue-leak risk: marketing-Advanced prepaid-minutes ka billable path).
     Mirror of lead_usage._record_meter_failure: ERROR log (Loki/alertable) + best-effort
     DURABLE record main redis (REDIS_URL = noeviction) ki list `billing:meter_failures`
-    me -> ops manual replay/reconcile kar sake. Kabhi raise nahi karta.
+    me → ops manual replay/reconcile kar sake. Kabhi raise nahi karta.
     Replay: `redis-cli lrange billing:meter_failures 0 -1`."""
     try:
         logger.error(
-            "BILLING minute-meter write FAILED (revenue-leak risk) - manual replay needed: %s",
+            "BILLING minute-meter write FAILED (revenue-leak risk) — manual replay needed: %s",
             json.dumps(rec, ensure_ascii=False, default=str)[:300],
         )
     except Exception:
@@ -40,7 +39,7 @@ def _record_meter_failure(rec: dict) -> None:
     try:
         import redis as _redis
 
-        url = os.environ.get("REDIS_URL")  # main (noeviction) - NOT cache redis (evictable)
+        url = os.environ.get("REDIS_URL")  # main (noeviction) — NOT cache redis (evictable)
         if url:
             r = _redis.from_url(url, socket_timeout=2)
             r.lpush("billing:meter_failures", json.dumps(rec, ensure_ascii=False, default=str))
@@ -52,7 +51,7 @@ def _record_meter_failure(rec: dict) -> None:
 # Included calling minutes per marketing plan (matches packages.py: Advanced = 500/mo).
 PLAN_MINUTES: dict[str, int] = {"starter": 0, "growth": 0, "advanced": 500}
 
-# Combo plans (Product 3) - marketing+voice bundle; voice minutes same as advanced tier
+# Combo plans (Product 3) — marketing+voice bundle; voice minutes same as advanced tier
 _COMBO_PLAN_MINUTES: dict[str, int] = {
     "combo_starter_monthly": 500,
     "combo_starter_annual": 500,
@@ -91,8 +90,7 @@ def resolve_client_id(client_name: str) -> str:
     BillingRecord.client_id is an FK to SQL `clients.id`, while Product-1
     ledgers often use JSON marketing-client ids (for example `leadgenai-self`).
     Prefer SQL ids so minute metering does not create FK failures for own-brand
-    platform calls
-    fall back to the legacy JSON lookup for older no-DB callers.
+    platform calls; fall back to the legacy JSON lookup for older no-DB callers.
     """
     name = (client_name or "").strip().lower()
     if not name:
@@ -179,8 +177,7 @@ def record_call_usage(
     """Post-call hook: write a TELEPHONY ledger line for this call's minutes. Best-effort.
 
     J.4: Also fans out a `call.completed` event to customer-registered webhooks
-    (H.1). INERT when CUSTOMER_WEBHOOKS unset
-    NEVER blocks the billing path.
+    (H.1). INERT when CUSTOMER_WEBHOOKS unset; NEVER blocks the billing path.
     """
     try:
         cid = _billing_client_id(client_id, client_name)
@@ -211,7 +208,7 @@ def record_call_usage(
             )
             db.commit()
 
-        # J.4 customer-webhook fan-out - fire-and-forget; never raises.
+        # J.4 customer-webhook fan-out — fire-and-forget; never raises.
         try:
             import asyncio as _asyncio
 
@@ -241,7 +238,7 @@ def record_call_usage(
     except Exception as e:
         logger.debug("record_call_usage skipped: %s", e)
         # Fail-OPEN: call kabhi block na ho. Par minute-meter write fail = silent
-        # revenue-leak (Advanced prepaid-minutes path) - durable record karo taaki
+        # revenue-leak (Advanced prepaid-minutes path) — durable record karo taaki
         # ops replay/reconcile kar sake + meter_watch alert utha sake. NEVER raises.
         try:
             _record_meter_failure(
@@ -267,7 +264,7 @@ def minutes_used_this_period(client_id: str) -> int:
     paid renewal): only ledger lines created at/after the watermark count. The watermark
     lives in the latest Subscription row's ``extra_data['usage_period_start']`` (ISO-8601,
     no schema change). If absent/unreadable, the whole calendar month counts (legacy
-    behaviour - fully backward compatible).
+    behaviour — fully backward compatible).
     """
     try:
         cid = (client_id or "").strip()
@@ -304,7 +301,7 @@ def minutes_used_this_period(client_id: str) -> int:
 def topup_minutes(client_id: str) -> int:
     """Is period ke purchased top-up minutes (latest Subscription extra_data se).
 
-    Semantics: top-ups PERIOD-END pe EXPIRE hote (research-standard) - implemented by
+    Semantics: top-ups PERIOD-END pe EXPIRE hote (research-standard) — implemented by
     ``reset_usage_period`` clearing the counter on every paid renewal. 0 on any error.
     """
     try:
@@ -324,7 +321,7 @@ def topup_minutes(client_id: str) -> int:
 
 
 def add_topup_minutes(client_id: str, minutes: int) -> bool:
-    """Top-up pack payment hook - minutes credit karo (Subscription extra_data counter).
+    """Top-up pack payment hook — minutes credit karo (Subscription extra_data counter).
 
     Best-effort, kabhi raise nahi. Subscription row na ho to False (top-up sirf
     subscribed clients ke liye makes sense).
@@ -421,7 +418,7 @@ def _usage_period_start(client_id: str):
 
 def _plan_price_inr(plan_k: str) -> float:
     """Monthly-equivalent INR price for any plan key (marketing/voice/combo).
-    0.0 for unknown/free - informational (base_price on the Subscription row)."""
+    0.0 for unknown/free — informational (base_price on the Subscription row)."""
     try:
         from app.marketing.packages import get_packages
 
@@ -452,11 +449,10 @@ def _plan_price_inr(plan_k: str) -> float:
 def _ensure_db_client(db, cid: str) -> bool:
     """Ensure a DB Client row exists for `cid` (FK target for Subscription).
 
-    Self-serve signup clients live only in clients_store jsonl - mirror the
+    Self-serve signup clients live only in clients_store jsonl — mirror the
     minimum NOT-NULL fields into Postgres. Returns True when the row exists
-    (already or created)
-    False when it can't be safely created (e.g. the
-    contact email is already taken by a DIFFERENT client id - fail-open,
+    (already or created); False when it can't be safely created (e.g. the
+    contact email is already taken by a DIFFERENT client id — fail-open,
     caller skips subscription creation rather than corrupt tenancy)."""
     from app.models.client import Client, ClientStatus
 
@@ -473,11 +469,11 @@ def _ensure_db_client(db, cid: str) -> bool:
         return False
     email = str(rec.get("email") or rec.get("contact_email") or "").strip().lower()
     if not email:
-        email = f"{cid}@upi.local"  # unique synthetic - FK/NOT-NULL integrity only
+        email = f"{cid}@upi.local"  # unique synthetic — FK/NOT-NULL integrity only
     other = db.query(Client).filter(Client.contact_email == email).first()
     if other is not None:
         logger.warning(
-            "activate_plan: email %s already on DB client %s (wanted %s) - skip row create",
+            "activate_plan: email %s already on DB client %s (wanted %s) — skip row create",
             email,
             other.id,
             cid,
@@ -501,7 +497,7 @@ def _ensure_db_client(db, cid: str) -> bool:
 
 
 def _create_subscription_row(db, cid: str, plan_k: str, period_end: datetime | None):
-    """Fresh ACTIVE Subscription row for a manual/UPI payment - parity with the
+    """Fresh ACTIVE Subscription row for a manual/UPI payment — parity with the
     Stripe webhook's _activate_subscription_row (which the UPI path never hits).
     Returns the row or None. Caller owns commit + never-raise wrapper."""
     from app.models.payment import BillingCycle, Subscription, SubscriptionStatus
@@ -511,7 +507,7 @@ def _create_subscription_row(db, cid: str, plan_k: str, period_end: datetime | N
     yearly = "annual" in plan_k or "yearly" in plan_k
     now = datetime.utcnow()
     # Best-effort: seed this cycle's CustomerDeliverable rows now that the DB
-    # Client row is guaranteed to exist (FK target) - doing this here instead
+    # Client row is guaranteed to exist (FK target) — doing this here instead
     # of on every dashboard/cockpit read avoids a per-request DB round-trip
     # that silently FK-violated for clients without a DB Client row (database-
     # architect audit, 2026-07-08). Idempotent; never blocks activation.
@@ -551,11 +547,11 @@ def activate_plan(
     - Sets the client's `plan` in clients_store so the minute cap is correct.
     - Stashes the gateway subscription id + period_end on the latest Subscription row's
       extra_data (no schema change) for traceability.
-    - ``ensure_subscription=True`` (UPI/manual-payment paths ONLY - audit 2026-07-04):
+    - ``ensure_subscription=True`` (UPI/manual-payment paths ONLY — audit 2026-07-04):
       creates an ACTIVE Subscription row when none exists and flips the latest row to
       ACTIVE. Without it the portal /billing/subscription 404s after a UPI approval
       (pay-box shows forever) and reset_usage_period() has no row for its watermark.
-      Stripe/webhook callers keep the default False - they manage their own row -
+      Stripe/webhook callers keep the default False — they manage their own row —
       and the signup pre-payment provisioning path must NEVER create one.
     Returns True if the plan was applied to clients_store, else False (never raises).
     """
@@ -641,7 +637,7 @@ def activate_plan(
             )
         except Exception:
             pass
-        # W3.5: customer webhook emits (documented but unwired) - fire-and-forget,
+        # W3.5: customer webhook emits (documented but unwired) — fire-and-forget,
         # CUSTOMER_WEBHOOKS-gated inside emit + never-raises. Plan provisioned = subscriber notify.
         try:
             from app.platform import customer_webhooks
@@ -664,8 +660,7 @@ def reset_usage_period(client_id: str, at: datetime | None = None) -> bool:
 
     Stored in the latest Subscription row's extra_data['usage_period_start'] (ISO ts).
     minutes_used_this_period() then ignores ledger lines created before the watermark
-    within the current month. Best-effort
-    returns True if the watermark was written.
+    within the current month. Best-effort; returns True if the watermark was written.
     """
     cid = (client_id or "").strip()
     if not cid:

@@ -1,23 +1,23 @@
-"""Codebase semantic search for engineering agents - Kilo-Code "codebase_search" parity.
+"""Codebase semantic search for engineering agents — Kilo-Code "codebase_search" parity.
 
 Kilo Code (open-source AI coding agent) ka standout engineering feature: pura repo
 embeddings me index karke agents `codebase_search` se ACTUAL relevant code uthate hain
-(ek file guess karke blind-prompt nahi). Yahi gap is project me tha - `CodebaseIndexer`
+(ek file guess karke blind-prompt nahi). Yahi gap is project me tha — `CodebaseIndexer`
 already built tha par uska search-path orphan + toota hua (non-existent method call) aur
 Vikram code_upgrader sirf ek guessed `area` + blind-LLM pe proposal banata tha.
 
 Yeh module woh capability AI staff ko deta hai (read-only, never-raise, gated):
-  - Vikram code_upgrader -> proposals ab retrieved real code se grounded (flag ON pe).
-  - coordinator engineering crew / future agents -> same helper reuse kar sakte hain.
-  - Admin GET /api/growth/upgrader/code-search -> verify + ad-hoc lookup.
+  - Vikram code_upgrader → proposals ab retrieved real code se grounded (flag ON pe).
+  - coordinator engineering crew / future agents → same helper reuse kar sakte hain.
+  - Admin GET /api/growth/upgrader/code-search → verify + ad-hoc lookup.
 
 Design (project patterns):
   - Index build daily training_scheduler run pe piggyback karta (alag job nahi).
-  - `enabled()` sirf AUTOMATIC agent-grounding ko gate karta - default OFF = zero
+  - `enabled()` sirf AUTOMATIC agent-grounding ko gate karta — default OFF = zero
     behaviour change. `search()` khud hamesha safe-callable (admin endpoint ke liye).
   - Live business-KB Qdrant se DECOUPLED: indexer ka apna ChromaDB collection
-    ("code_patterns") use hota - niche/client knowledge ko kabhi nahi chhuta.
-  - Index khaali / deps missing / koi error -> [] (kabhi raise nahi).
+    ("code_patterns") use hota — niche/client knowledge ko kabhi nahi chhuta.
+  - Index khaali / deps missing / koi error → [] (kabhi raise nahi).
 
 Flag: CODE_SEARCH=1
 """
@@ -45,11 +45,10 @@ async def search(
     language: str | None = None,
     agent_domain: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Semantic code search -> normalized hits.
+    """Semantic code search → normalized hits.
 
     Returns list of {file, start_line, end_line, score, snippet, language, domain}.
-    Never raises
-    returns [] if query empty / index empty / deps missing.
+    Never raises; returns [] if query empty / index empty / deps missing.
     """
     q = (query or "").strip()
     if not q:

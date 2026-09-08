@@ -1,7 +1,6 @@
-"""Memory Stack (7-layer facade) - flag contract, tenant scoping, token budget, drain.
+"""Memory Stack (7-layer facade) — flag contract, tenant scoping, token budget, drain.
 
-Durable claim/lease semantics live in `tests/test_prospective_store.py`
-this
+Durable claim/lease semantics live in `tests/test_prospective_store.py`; this
 suite covers the facade: master/layer flags, fail-closed dispatch, tenant
 isolation of the working window, token-based budgeting, and the coordinator
 canary's OFF-path equivalence.

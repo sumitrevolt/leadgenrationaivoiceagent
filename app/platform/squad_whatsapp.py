@@ -1,4 +1,4 @@
-# Squad Lead - WhatsApp & Messaging (Squad 9)
+# Squad Lead — WhatsApp & Messaging (Squad 9)
 # Responsibility: 1-click human send, WAHA integration, post-call WA replies
 # Autopilot: Never auto-send cold (ban risk); 1-click human only path
 
@@ -22,7 +22,7 @@ def check_wa_status():
     return {"status": "checked", "wa_status": wa_status}
 
 def human_send_wa(phone: str, message: str, template: str = None):
-    """1-click human send - requires owner approval flag."""
+    """1-click human send — requires owner approval flag."""
     # In production: WAHA API call + owner approval check
     # For now: simulate + log
     import datetime
@@ -37,12 +37,12 @@ def human_send_wa(phone: str, message: str, template: str = None):
     return {"status": "queued_for_owner_approval", "log_entry": log_entry}
 
 def post_call_interested_wa(lead_id: str, phone: str):
-    """Post-call WA for 'interested' leads - owner-armed path."""
+    """Post-call WA for 'interested' leads — owner-armed path."""
     # This is the separate path: WHATSAPP_AUTO_SEND + POST_CALL_WHATSAPP
-    # Currently OFF by design - only enabled when owner explicitly arms
+    # Currently OFF by design — only enabled when owner explicitly arms
     return {
         "status": "disabled_by_policy",
-        "message": "Post-call WA auto-send disabled - owner must enable via config if needed",
+        "message": "Post-call WA auto-send disabled — owner must enable via config if needed",
     }
 
 # Export for autopilot registration

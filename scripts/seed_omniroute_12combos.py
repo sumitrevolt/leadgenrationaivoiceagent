@@ -229,8 +229,7 @@ def seed_database_via_docker() -> None:
                    VALUES ('{row_id}', '{name_key}', '{json_str}', 1, '{timestamp}', '{timestamp}')
                    ON CONFLICT(name) DO UPDATE SET
                      data = excluded.data,
-                     updated_at = excluded.updated_at
-                     """
+                     updated_at = excluded.updated_at;"""
             )
             total_seeded += 1
 

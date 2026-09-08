@@ -42,7 +42,7 @@ class CreativeProvider(Protocol):
 
 
 class DeterministicProvider:
-    """Wraps existing video_pipeline.render_creative_video - first real provider."""
+    """Wraps existing video_pipeline.render_creative_video — first real provider."""
 
     name = "deterministic"
 
@@ -109,7 +109,7 @@ class DeterministicProvider:
 
 
 class _UnavailableSkeleton:
-    """Fail-closed adapter - never downloads weights or makes external calls."""
+    """Fail-closed adapter — never downloads weights or makes external calls."""
 
     name = "skeleton"
     model = "unpinned"
@@ -161,7 +161,7 @@ def _hyperframes_provider() -> Any:
     """Build the provider, degrading to a fail-closed stub if it cannot import.
 
     This is evaluated at MODULE IMPORT time to populate ``_PROVIDERS``, so an
-    exception here would propagate to every importer of this module - and
+    exception here would propagate to every importer of this module — and
     `providers` is on the import path of `app.main`. A renderer-side problem must
     disable the provider, never take down the web app. The stub keeps the
     provider contract and refuses every call.

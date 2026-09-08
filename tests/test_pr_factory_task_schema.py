@@ -1,4 +1,4 @@
-"""PR Factory task schema - required fields, path overlap, executor≠reviewer."""
+"""PR Factory task schema — required fields, path overlap, executor≠reviewer."""
 
 from __future__ import annotations
 

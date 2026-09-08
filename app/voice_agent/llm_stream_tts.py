@@ -1,4 +1,4 @@
-"""LLM token stream -> sentence chunks for early TTS (voice hot path).
+"""LLM token stream → sentence chunks for early TTS (voice hot path).
 
 Gated ``USE_LLM_STREAM_TTS=1`` (default OFF). Works with free_ai.chat_stream;
 never raises.
@@ -10,7 +10,7 @@ import os
 import re
 from collections.abc import AsyncIterator
 
-# Sentence terminators - Latin (. ! ?), Arabic question mark (؟), AND the Hindi
+# Sentence terminators — Latin (. ! ?), Arabic question mark (؟), AND the Hindi
 # danda (। ॥). Without the danda a Hinglish/Hindi reply ("namaste ji।") never
 # chunks mid-stream, so the FIRST audio waits for the whole reply -> higher
 # time-to-first-audio (the #1 voice-latency metric). The trailing-\s+ requirement
@@ -18,15 +18,14 @@ from collections.abc import AsyncIterator
 _SENT_END = re.compile(r"(?<=[.!?؟।॥])\s+|\n+")
 
 # Clause separators for the optional early FIRST-chunk flush (TTFA boost): comma,
-# semicolon, colon, Hindi/Arabic comma, and spaced dashes - natural micro-pauses
+# semicolon, colon, Hindi/Arabic comma, and spaced dashes — natural micro-pauses
 # a TTS can speak. Used only when STREAM_TTS_CLAUSE_FLUSH=1 (default OFF).
-_CLAUSE_END = re.compile(r"(?<=[,
-:।،])\s+|\s[-–-]\s")
+_CLAUSE_END = re.compile(r"(?<=[,;:।،])\s+|\s[—–-]\s")
 
 
 def _env_flag(name: str, default_on: bool = False) -> bool:
     """Read a boolean env flag. When ``default_on`` is True the flag is enabled
-    unless explicitly set to a false value (0/false/no/off) - used for latency
+    unless explicitly set to a false value (0/false/no/off) — used for latency
     features that should be ON for the shipped voice path but stay disable-able
     per deploy without a redeploy."""
     raw = (os.getenv(name, "") or "").strip().lower()
@@ -76,10 +75,9 @@ def pop_clause(buf: str) -> tuple[str, str]:
         return "", b
     m = _CLAUSE_END.search(b)
     if m:
-        # Drop the trailing clause separator itself (comma/dash) - the chunk reads
+        # Drop the trailing clause separator itself (comma/dash) — the chunk reads
         # cleaner for TTS; the pause is implied by the chunk boundary.
-        head = b[: m.start()].strip(" ,
-        :।،-–-")
+        head = b[: m.start()].strip(" ,;:।،—–-")
         rest = b[m.end() :]
         if head:
             return head, rest
@@ -93,7 +91,7 @@ async def iter_sentences_from_tokens(
 
     With STREAM_TTS_CLAUSE_FLUSH=1 (default ON since 2026-08-06) the FIRST chunk
     may also flush early at a clause boundary once it reaches STREAM_TTS_CLAUSE_MIN
-    chars - this cuts time-to-first-audio on a long opening sentence without making
+    chars — this cuts time-to-first-audio on a long opening sentence without making
     the rest of the reply choppy (only the first chunk is eligible). Set
     STREAM_TTS_CLAUSE_FLUSH=0 to restore wait-for-full-sentence (default OFF legacy).
     """

@@ -1,4 +1,4 @@
-# Admin API - owner control panel (all gates gated through /health/check)
+# Admin API — owner control panel (all gates gated through /health/check)
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
@@ -9,7 +9,7 @@ logger = setup_logger(__name__)
 
 # ── Helper: compliance gate check ──────────────────────────────────
 def _gate_check():
-    """Re-use existing /health/gates logic - abort if any gate open."""
+    """Re-use existing /health/gates logic — abort if any gate open."""
     from app.platform.hot_queue_owner_pack import check_gates as _cg
     gates = _cg()
     # gates = {"dnd_scrub": "pass", "voice_window": "active", ...}
@@ -25,7 +25,7 @@ def _gate_check():
 # ── 1. Hot Queue Status ────────────────────────────────────────────
 @router.get("/hotqueue", summary="42 flagged leads status")
 async def hot_queue_status(gates: dict = Depends(_gate_check)):
-    """Return hot queue pack status - CSV/MD file + ntfy + lead counts.
+    """Return hot queue pack status — CSV/MD file + ntfy + lead counts.
 
     Filename contract (fixed 2026-09-04): both pack writers emit a
     DATE-SUFFIXED name, ``hot_queue_for_owner_<YYYY-MM-DD>.{csv,md}``:
@@ -71,7 +71,7 @@ async def hot_queue_status(gates: dict = Depends(_gate_check)):
     info["md_path"] = os.path.basename(md_path)
 
     # Check ntfy status via env or recent push
-    info["ntfy"] = "sent_today"  # simplified - real check via ntfy topic
+    info["ntfy"] = "sent_today"  # simplified — real check via ntfy topic
 
     return info
 
@@ -85,7 +85,7 @@ async def compliance_snapshot(gates: dict = Depends(_gate_check)):
 # ── 3. Deploy Control (2-step kill-fence) ──────────────────────────
 @router.post("/deploy/initiate", summary="Start 2-step deploy flow")
 async def deploy_initiate(gates: dict = Depends(_gate_check)):
-    """Owner flips kill-fence ON - system records intent, validates, waits for confirm."""
+    """Owner flips kill-fence ON — system records intent, validates, waits for confirm."""
     import os
     import subprocess
     env = os.environ.copy()
@@ -98,7 +98,7 @@ async def deploy_initiate(gates: dict = Depends(_gate_check)):
         raise HTTPException(status_code=500, detail="Could not flip kill-fence ON")
 
     # Record the flip + require owner confirm before actual deploy
-    logger.info("Kill-fence flipped ON - owner must confirm deploy within 5m")
+    logger.info("Kill-fence flipped ON — owner must confirm deploy within 5m")
     return {
         "status": "kill_fence_flipped_on",
         "message": "Deploy gate OPEN. Confirm within 5 minutes to proceed, or flip OFF to cancel.",
@@ -109,7 +109,7 @@ async def deploy_initiate(gates: dict = Depends(_gate_check)):
 @router.get("/squads", summary="All 15 squad health summaries")
 async def squad_health(gates: dict = Depends(_gate_check)):
     """Return GREEN/AMBER/RED status for each of 15 domain squads."""
-    # Simplified - in production each squad lead reports via ntfy + API
+    # Simplified — in production each squad lead reports via ntfy + API
     squads = {
         "squad_1": {"name": "Voice Calling", "status": "GREEN", "active_tasks": 42, "capacity": 66},
         "squad_2": {"name": "Marketing Automation", "status": "GREEN", "active_tasks": 57, "capacity": 66},
@@ -132,12 +132,12 @@ async def squad_health(gates: dict = Depends(_gate_check)):
 # ── 5. Knowledge-OS Query ──────────────────────────────────────────
 @router.post("/knowledge/query", summary="Owner natural-language knowledge query")
 async def knowledge_query(payload: dict, gates: dict = Depends(_gate_check)):
-    """Owner asks a question -> system answers from INDEX.md + decisions + playbooks."""
+    """Owner asks a question → system answers from INDEX.md + decisions + playbooks."""
     import json
     query = payload.get("query", "")
     # Simple keyword match against knowledge bases
     # In production: vector search Qdrant + LLM answer (free providers only)
-    return {"query": query, "answer": f"[Auto-reply] Query: '{query}' - under construction, check memory/INDEX.md manually"}
+    return {"query": query, "answer": f"[Auto-reply] Query: '{query}' — under construction, check memory/INDEX.md manually"}
 
 # ── 6. System Controls ─────────────────────────────────────────────
 @router.post("/controls", summary="Adjust system parameters (gated)")

@@ -1,16 +1,15 @@
 """
-Compliance Gate - the ONE chokepoint every outbound call must pass (India TCCCPR/TRAI).
+Compliance Gate — the ONE chokepoint every outbound call must pass (India TCCCPR/TRAI).
 =======================================================================================
 
 India's TCCCPR (TRAI) rules for automated/commercial voice calls:
-  * DND scrub        - promotional calls to NDNC/DND numbers are illegal.
-  * Calling window   - TRAI telemarketing window is 09:00–21:00 IST
-  we keep
+  * DND scrub        — promotional calls to NDNC/DND numbers are illegal.
+  * Calling window   — TRAI telemarketing window is 09:00–21:00 IST; we keep
                        promotional conservative at 09:00–19:00 IST (a safe subset)
                        and transactional/service wider (09:00–21:00).
-  * 140-series + DLT - promotional calls need a registered 140 caller-id and a
+  * 140-series + DLT — promotional calls need a registered 140 caller-id and a
                        DLT-approved principal entity.
-  * AI disclosure    - the call must disclose it is an automated/AI call.
+  * AI disclosure    — the call must disclose it is an automated/AI call.
 Violations carry penalties up to ₹10 lakh, so this gate is **fail-safe**: a
 promotional call that cannot be proven compliant is BLOCKED by default.
 
@@ -32,10 +31,9 @@ Config (env, all optional with safe defaults):
   COMPLIANCE_TXN_END      transactional window end   (default 21:00)
   DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND".
                          DANGER: this turns the TRAI DND gate fail-OPEN. There is NO
-                         legitimate prod use - keep UNSET (default = fail-CLOSED).
+                         legitimate prod use — keep UNSET (default = fail-CLOSED).
                          In PRODUCTION the flag is IGNORED at runtime (treated
-                         fail-CLOSED) with a one-time CRITICAL log
-                         prod_check.py
+                         fail-CLOSED) with a one-time CRITICAL log; prod_check.py
                          also emits a BLOCKER if it is set in production.
   COMPLIANCE_PROMO_START/END overrides are CLAMPED into TRAI's legal 09:00–21:00
                          IST ceiling (a bad value can never breach 21:00).
@@ -46,8 +44,7 @@ Usage:
 
     decision = await get_compliance_gate().check(phone, CallType.PROMOTIONAL)
     if not decision.allowed:
-        ...  # do NOT dial
-        decision.reasons explains why
+        ...  # do NOT dial; decision.reasons explains why
 """
 
 from __future__ import annotations
@@ -63,13 +60,13 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# India Standard Time (UTC+5:30) - no tz database dependency.
+# India Standard Time (UTC+5:30) — no tz database dependency.
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class CallType(str, Enum):
-    PROMOTIONAL = "promotional"  # cold outreach - strict rules
-    TRANSACTIONAL = "transactional"  # consented / known number - lenient
+    PROMOTIONAL = "promotional"  # cold outreach — strict rules
+    TRANSACTIONAL = "transactional"  # consented / known number — lenient
 
 
 @dataclass
@@ -177,7 +174,7 @@ def _dnd_fail_open() -> bool:
     """Whether DND_FAIL_OPEN should be honoured.
 
     DND_FAIL_OPEN=1 turns the TRAI DND gate fail-OPEN (unverified lookup treated
-    as "not on DND"). There is NO legitimate production use - mirroring how the
+    as "not on DND"). There is NO legitimate production use — mirroring how the
     MCP mount refuses prod without a token, in production the flag is IGNORED
     (treated fail-CLOSED) and a one-time CRITICAL line is logged. Never raises."""
     if _env("DND_FAIL_OPEN", "0") not in ("1", "true", "yes"):
@@ -187,7 +184,7 @@ def _dnd_fail_open() -> bool:
         if not _dnd_fail_open_refused_logged:
             _dnd_fail_open_refused_logged = True
             logger.error(
-                "🚨 DND_FAIL_OPEN=1 IGNORED in production - the TRAI DND gate stays "
+                "🚨 DND_FAIL_OPEN=1 IGNORED in production — the TRAI DND gate stays "
                 "fail-CLOSED (unverified DND lookup => promotional call BLOCKED). "
                 "There is NO legitimate prod use; unset DND_FAIL_OPEN."
             )
@@ -215,10 +212,9 @@ class ComplianceGate:
     def _allowlist() -> set:
         raw = _env("COMPLIANCE_ALLOWLIST", "")
         out = set()
-        # Split ONLY on , and ; - never on spaces (a number may contain spaces,
+        # Split ONLY on , and ; — never on spaces (a number may contain spaces,
         # e.g. "+91 98765 43210"); _digits() then strips spaces/+/dashes.
-        for tok in raw.replace("
-        ", ",").split(","):
+        for tok in raw.replace(";", ",").split(","):
             d = _digits(tok)
             if len(d) >= 10:
                 out.add(d[-10:])  # compare on the last 10 digits (ignore +91/91)
@@ -270,7 +266,7 @@ class ComplianceGate:
     async def _is_dnd(self, phone: str) -> bool | None:
         """True/False if verifiable, None if it could not be checked.
         When DND_FAIL_OPEN=1 and the lookup fails/unverified, returns False
-        (caller accepts the risk - e.g. KYC pending). In PRODUCTION the flag is
+        (caller accepts the risk — e.g. KYC pending). In PRODUCTION the flag is
         refused (see _dnd_fail_open) so this stays fail-CLOSED."""
         _fail_open = _dnd_fail_open()
         checker = self._get_dnd()
@@ -282,7 +278,7 @@ class ComplianceGate:
             # 2018 permits contacting a DND number with documented consent
             # (consent_ledger). It must never clear the messaging gate.
             res = await checker.check_single(phone, channel="voice")
-            # FAIL-CLOSED by default: unverified lookup treated as unknown -> block.
+            # FAIL-CLOSED by default: unverified lookup treated as unknown → block.
             # DND_FAIL_OPEN=1 overrides: treat unverified as "not on DND".
             if not getattr(res, "verified", True):
                 return False if _fail_open else None
@@ -311,11 +307,11 @@ class ComplianceGate:
         try:
             # 0) kill switch (explicit opt-out). LEGAL-GATE LIABILITY: a disabled
             #    gate lets promotional calls bypass DND/window/DLT (₹-penalty risk),
-            #    so it must NEVER be silent - escalated per-call log + a cooldown'd,
+            #    so it must NEVER be silent — escalated per-call log + a cooldown'd,
             #    OPS_ALERTS-gated ops page so it can't be quietly left off in prod.
             if not self._enabled():
                 logger.error(
-                    "🚨 ComplianceGate DISABLED (COMPLIANCE_ENABLED=0) - call BYPASSING "
+                    "🚨 ComplianceGate DISABLED (COMPLIANCE_ENABLED=0) — call BYPASSING "
                     "TCCCPR/TRAI gate (DND/window/DLT). LEGAL LIABILITY; unset "
                     "COMPLIANCE_ENABLED to re-arm."
                 )
@@ -335,7 +331,7 @@ class ComplianceGate:
                 reasons.append("invalid_number")
                 return ComplianceDecision(False, ct.value, phone, reasons, checks)
 
-            # 2) allowlist - own / consented / test numbers always pass.
+            # 2) allowlist — own / consented / test numbers always pass.
             if phone_d[-10:] in self._allowlist():
                 checks["allowlisted"] = True
                 return ComplianceDecision(True, ct.value, phone, ["allowlisted"], checks)
@@ -448,8 +444,7 @@ class ComplianceGate:
         except Exception as e:
             # Fail SAFE: promo blocked, transactional allowed.
             logger.warning(
-                f"compliance: gate error ({e})
-                failing {'closed' if ct == CallType.PROMOTIONAL else 'open'}."
+                f"compliance: gate error ({e}); failing {'closed' if ct == CallType.PROMOTIONAL else 'open'}."
             )
             safe = ct != CallType.PROMOTIONAL
             return ComplianceDecision(safe, ct.value, phone, [f"gate_error:{e}"], checks)

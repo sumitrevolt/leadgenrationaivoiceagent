@@ -1,14 +1,13 @@
 """Un-actionable approvals get retired; live ones get a queue-aware nudge.
 
 Prod evidence 2026-08-09: `content_approval.pending()` held **422** rows.
-- 321 belonged to client ids absent from `clients_store` - nobody can ever
+- 321 belonged to client ids absent from `clients_store` — nobody can ever
   decide them, yet they inflated every backlog number.
 - 101 belonged to live clients and were still perfectly completable from the
-  authenticated dashboard (which does NOT enforce the 7-day token TTL
-  only the
+  authenticated dashboard (which does NOT enforce the 7-day token TTL; only the
   public token link does).
 - The single paying customer had received **36** approval mails, all delivered,
-  and still had 20 items open - each mail said "you have content awaiting your
+  and still had 20 items open — each mail said "you have content awaiting your
   approval" and never "you have 20 waiting, oldest 17 days".
 
 So: retire the orphans (never the live ones, never by approving), and make the
@@ -82,7 +81,7 @@ def test_retiring_is_not_approving(_store):
 
 
 def test_live_client_work_is_never_retired_however_old(_store):
-    """Age is not the criterion - a live customer can still complete these from
+    """Age is not the criterion — a live customer can still complete these from
     the dashboard, so retiring them would delete real work."""
     _write(_store, [_row("old", "live-1", created="2020-01-01T00:00:00")])
     out = content_approval.retire_orphaned_pending(dry_run=False, live_client_ids={"live-1"})

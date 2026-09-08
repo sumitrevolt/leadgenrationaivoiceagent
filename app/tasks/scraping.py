@@ -128,7 +128,7 @@ def scrape_for_campaign(self, campaign_id: str, niche: str, cities: list, max_le
                 return {"status": "failed", "error": "Campaign not found"}
 
             for lead_data in scraped_leads:
-                # Check for duplicate by phone (format-variant-aware - audit
+                # Check for duplicate by phone (format-variant-aware — audit
                 # 2026-07-04: exact-string match missed cross-source duplicates
                 # where one path stores "+91..." and another "91...").
                 from app.models.lead import lead_exists_for_phone
@@ -256,7 +256,7 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
         email_re = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
         with get_db_session() as db:
-            # NOTE: use .is_(None)/.isnot(None) - `Lead.email is None` is a Python
+            # NOTE: use .is_(None)/.isnot(None) — `Lead.email is None` is a Python
             # identity check that SQLAlchemy turns into a constant-False filter.
             query = db.query(Lead).filter(Lead.email.is_(None), Lead.website.isnot(None))
 
@@ -279,7 +279,7 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
                             if resp.status_code == 200:
                                 found = email_re.findall(resp.text)
                                 return found[0] if found else None
-                        except Exception as e:  # timeout / DNS / TLS - skip this lead
+                        except Exception as e:  # timeout / DNS / TLS — skip this lead
                             logger.debug(f"enrich fetch failed for {url}: {e}")
                         return None
 
@@ -303,14 +303,14 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
 
 
 # ---------------------------------------------------------------------------
-# PROSPECT email-enrichment sweep (data/prospects.jsonl store - NOT the `leads`
+# PROSPECT email-enrichment sweep (data/prospects.jsonl store — NOT the `leads`
 # table that enrich_lead_data above walks; the outreach sender reads the JSONL).
 #
 # WHY A TASK: POST /api/growth/harvest/enrich used to `await
 # enrich_missing_emails(limit)` inline in the HTTP request. Each row does a live
 # site fetch (2 x 10s httpx timeout) + MX lookups + a politeness sleep, so a
-# meaningful batch pins a web worker for many minutes - exactly what CLAUDE.md
-# §5 forbids ("Web process KABHI heavy job na chalaye - Celery only"). The only
+# meaningful batch pins a web worker for many minutes — exactly what CLAUDE.md
+# §5 forbids ("Web process KABHI heavy job na chalaye — Celery only"). The only
 # other caller was run_harvest's limit=6, i.e. ~12-18 rows/day against a
 # 4,216-row enrichable backlog.
 #
@@ -320,7 +320,7 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
 # ---------------------------------------------------------------------------
 
 # Rows per set_prospect_fields_bulk() write. That call rewrites the ENTIRE ~20MB
-# JSONL, so per-row writes are out; but a single giant write is equally wrong -
+# JSONL, so per-row writes are out; but a single giant write is equally wrong —
 # a hard kill mid-run would discard every attempt marker and re-create the stall
 # this whole change exists to fix. 25 caps the loss to one batch.
 _SWEEP_BATCH_DEFAULT = 25
@@ -339,7 +339,7 @@ _SWEEP_LEASE_KEY = "harvest:email_enrich_sweep:lease"
 
 
 def _sweep_enabled() -> bool:
-    """EMAIL_ENRICH_SWEEP - INERT by default (AUTOMATION_FLAGS registry)."""
+    """EMAIL_ENRICH_SWEEP — INERT by default (AUTOMATION_FLAGS registry)."""
     return os.environ.get("EMAIL_ENRICH_SWEEP", "0").strip().lower() in ("1", "true", "yes")
 
 
@@ -397,7 +397,7 @@ def email_enrichment_sweep(self, max_rows: int = 0, batch: int = 0, deadline_s: 
     dedupe guarantee, two concurrent runs would each _read_all() then rewrite the
     whole JSONL and one would silently clobber the other's attempt markers.
 
-    Idempotent by construction - enrich_missing_emails stamps
+    Idempotent by construction — enrich_missing_emails stamps
     email_enrich_attempts per row and skips rows at EMAIL_ENRICH_MAX_ATTEMPTS, so
     a re-run resumes rather than repeating. Failures raise (bounded retry, then
     the worker's task_failure signal records to dlq:failed_tasks).
@@ -417,7 +417,7 @@ def email_enrichment_sweep(self, max_rows: int = 0, batch: int = 0, deadline_s: 
 
     r = _sweep_redis()
     if r is None:
-        logger.warning("[enrich-sweep] no redis - refusing to run without a dedupe lease")
+        logger.warning("[enrich-sweep] no redis — refusing to run without a dedupe lease")
         return {"status": "skipped", "reason": "no_redis"}
     token = uuid.uuid4().hex
     try:
@@ -452,7 +452,7 @@ def email_enrichment_sweep(self, max_rows: int = 0, batch: int = 0, deadline_s: 
             tried += got
             found += int(res.get("found") or 0)
             # Each batch re-scans from the head, so this is a snapshot of rows
-            # already at max attempts - take the high-water mark, not a sum.
+            # already at max attempts — take the high-water mark, not a sum.
             exhausted = max(exhausted, int(res.get("skipped_exhausted") or 0))
             if res.get("error"):
                 stopped = "error"

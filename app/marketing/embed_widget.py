@@ -1,6 +1,6 @@
-"""Embeddable lead-capture widget - client apni KISI BHI website pe ek line paste kare,
+"""Embeddable lead-capture widget — client apni KISI BHI website pe ek line paste kare,
 floating "Enquiry" button + form (ya AI CHAT) aa jata hai. Submissions seedha leads
-dashboard me (reuses POST /api/public/inquiry + source_slug -> client auto-resolve).
+dashboard me (reuses POST /api/public/inquiry + source_slug → client auto-resolve).
 
 CORS-free design: form ek IFRAME me hamare origin (leadsgenai.in) se serve hota hai,
 isliye cross-origin POST ki zaroorat nahi (Calendly/Tally jaisa). Fulfils Growth-tier
@@ -8,7 +8,7 @@ isliye cross-origin POST ki zaroorat nahi (Calendly/Tally jaisa). Fulfils Growth
 
   embed_page_html(client) -> full HTML page (served at /b/{slug}/embed, iframe-able).
                              ?mode=chat query par CHAT UI (AI assistant, /api/public/
-                             widget-chat) - default FORM = zero behaviour change.
+                             widget-chat) — default FORM = zero behaviour change.
   widget_js(slug)         -> JS injector (served at /b/{slug}/widget.js). Script src me
                              ?mode=chat ho to chat-mode iframe kholta hai.
   snippet(slug, mode)     -> copy-paste <script> one-liner for the client
@@ -48,7 +48,7 @@ def _brand_color(client: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Form-builder-lite - per-slug custom fields (data/widget_forms.jsonl)
+# Form-builder-lite — per-slug custom fields (data/widget_forms.jsonl)
 # --------------------------------------------------------------------------- #
 def default_fields() -> list[dict]:
     """Aaj ka form jaisa-ka-taisa (zero behaviour change bina config)."""
@@ -90,7 +90,7 @@ def _clean_field(f: dict) -> dict | None:
 
 
 def get_form_config(slug: str) -> list[dict] | None:
-    """Per-slug custom form fields (last write wins) - None = default form."""
+    """Per-slug custom form fields (last write wins) — None = default form."""
     try:
         key = (slug or "").strip().lower()
         if not key or not os.path.isfile(_FORMS_FILE):
@@ -182,12 +182,12 @@ def _field_html(f: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Embed page (iframe content) - FORM default, ?mode=chat = AI chat UI
+# Embed page (iframe content) — FORM default, ?mode=chat = AI chat UI
 # --------------------------------------------------------------------------- #
 def embed_page_html(client: dict) -> str:
-    """Standalone branded page (iframe content). Form POST -> /api/public/inquiry;
-    chat mode POST -> /api/public/widget-chat. Mode CLIENT-SIDE query (?mode=chat)
-    se decide hota - server route untouched (main.py edit nahi chahiye)."""
+    """Standalone branded page (iframe content). Form POST → /api/public/inquiry;
+    chat mode POST → /api/public/widget-chat. Mode CLIENT-SIDE query (?mode=chat)
+    se decide hota — server route untouched (main.py edit nahi chahiye)."""
     client = client or {}
     biz = html.escape(str(client.get("business_name") or "Hamse judiye"))
     slug = html.escape(str(client.get("slug") or ""))
@@ -199,121 +199,52 @@ def embed_page_html(client: dict) -> str:
     return f"""<!doctype html><html lang="hi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>{biz} - Enquiry</title>
+<title>{biz} — Enquiry</title>
 <style>
  *{{box-sizing:border-box}}
  html,body{{height:100%}}
- body{{margin:0
- font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif
- background:#fff
- color:#111}}
+ body{{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fff;color:#111}}
  .wrap{{padding:18px 16px}}
- h2{{margin:0 0 2px
- font-size:18px}}
- .sub{{color:#666
- font-size:13px
- margin-bottom:14px}}
- label{{display:block
- font-size:13px
- font-weight:600
- margin:10px 0 4px}}
- input,textarea,select{{width:100%
- padding:11px 12px
- border:1px solid #d4d4d8
- border-radius:10px
- font-size:15px
- font-family:inherit
- background:#fff}}
- input:focus,textarea:focus,select:focus{{outline:none
- border-color:{color}
- box-shadow:0 0 0 3px {color}22}}
- textarea{{resize:vertical
- min-height:64px}}
- button{{width:100%
- margin-top:16px
- padding:12px
- border:0
- border-radius:10px
- background:{color}
- color:#fff
- font-size:16px
- font-weight:700
- cursor:pointer}}
- button:disabled{{opacity:.6
- cursor:default}}
- .ok{{text-align:center
- padding:26px 10px}}
+ h2{{margin:0 0 2px;font-size:18px}}
+ .sub{{color:#666;font-size:13px;margin-bottom:14px}}
+ label{{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}}
+ input,textarea,select{{width:100%;padding:11px 12px;border:1px solid #d4d4d8;border-radius:10px;font-size:15px;font-family:inherit;background:#fff}}
+ input:focus,textarea:focus,select:focus{{outline:none;border-color:{color};box-shadow:0 0 0 3px {color}22}}
+ textarea{{resize:vertical;min-height:64px}}
+ button{{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:{color};color:#fff;font-size:16px;font-weight:700;cursor:pointer}}
+ button:disabled{{opacity:.6;cursor:default}}
+ .ok{{text-align:center;padding:26px 10px}}
  .ok .tick{{font-size:42px}}
- .err{{color:#b91c1c
- font-size:13px
- margin-top:8px
- min-height:16px}}
- .pw{{text-align:center
- color:#9ca3af
- font-size:11px
- margin-top:14px}}
+ .err{{color:#b91c1c;font-size:13px;margin-top:8px;min-height:16px}}
+ .pw{{text-align:center;color:#9ca3af;font-size:11px;margin-top:14px}}
  .pw a{{color:#9ca3af}}
  /* chat mode */
  #lgaiChat{{display:none;flex-direction:column;height:100vh}}
- .chead{{padding:13px 16px
- background:{color}
- color:#fff
- font-weight:700
- font-size:15px}}
- .chead small{{display:block
- font-weight:400
- font-size:11px
- opacity:.85}}
- .cmsgs{{flex:1
- overflow-y:auto
- padding:12px
- background:#f6f7fb}}
- .cm{{max-width:84%
- margin:6px 0
- padding:9px 12px
- border-radius:14px
- font-size:14px
- line-height:1.4
- white-space:pre-wrap
- word-wrap:break-word}}
- .cm.bot{{background:#fff
- border:1px solid #e5e7eb
- border-bottom-left-radius:4px}}
- .cm.me{{background:{color}
- color:#fff
- margin-left:auto
- border-bottom-right-radius:4px}}
- .cm.typing{{color:#9ca3af
- font-style:italic}}
- .cbar{{display:flex
- gap:8px
- padding:10px
- border-top:1px solid #e5e7eb
- background:#fff}}
- .cbar input{{flex:1
- margin:0}}
- .cbar button{{width:auto
- margin:0
- padding:11px 16px
- border-radius:10px}}
+ .chead{{padding:13px 16px;background:{color};color:#fff;font-weight:700;font-size:15px}}
+ .chead small{{display:block;font-weight:400;font-size:11px;opacity:.85}}
+ .cmsgs{{flex:1;overflow-y:auto;padding:12px;background:#f6f7fb}}
+ .cm{{max-width:84%;margin:6px 0;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}}
+ .cm.bot{{background:#fff;border:1px solid #e5e7eb;border-bottom-left-radius:4px}}
+ .cm.me{{background:{color};color:#fff;margin-left:auto;border-bottom-right-radius:4px}}
+ .cm.typing{{color:#9ca3af;font-style:italic}}
+ .cbar{{display:flex;gap:8px;padding:10px;border-top:1px solid #e5e7eb;background:#fff}}
+ .cbar input{{flex:1;margin:0}}
+ .cbar button{{width:auto;margin:0;padding:11px 16px;border-radius:10px}}
 </style></head><body>
 <div class="wrap" id="lgaiRoot">
   <h2>{biz}</h2>
-  <div class="sub">Apni detail chhodiye - hum aapko jald call karenge. 📞</div>
+  <div class="sub">Apni detail chhodiye — hum aapko jald call karenge. 📞</div>
   <form id="lgaiForm" autocomplete="on">
     {fields_html}
     <input type="text" id="lgHP" name="website" tabindex="-1" autocomplete="off"
-           style="position:absolute
-           left:-9999px
-           width:1px
-           height:1px" aria-hidden="true" />
+           style="position:absolute;left:-9999px;width:1px;height:1px" aria-hidden="true" />
     <div class="err" id="lgErr"></div>
     <button type="submit" id="lgBtn">Callback chahiye</button>
   </form>
   <div class="pw">Powered by <a href="{site_base()}" target="_blank" rel="noopener">LeadsGenAI</a></div>
 </div>
 <div id="lgaiChat">
-  <div class="chead">{biz}<small>AI assistant - turant jawab 24/7</small></div>
+  <div class="chead">{biz}<small>AI assistant — turant jawab 24/7</small></div>
   <div class="cmsgs" id="lgC"></div>
   <form class="cbar" id="lgCF">
     <input id="lgCI" maxlength="500" placeholder="Apna sawaal likhiye…" autocomplete="off" />
@@ -325,65 +256,40 @@ def embed_page_html(client: dict) -> str:
   var SLUG="{slug}", BIZ="{biz}";
   var MODE=(/[?&]mode=chat/.test(location.search||""))?"chat":"form";
 
-  /* ---------- FORM MODE (default - pehle jaisa) ---------- */
+  /* ---------- FORM MODE (default — pehle jaisa) ---------- */
   var f=document.getElementById("lgaiForm"),b=document.getElementById("lgBtn"),e=document.getElementById("lgErr");
   f.addEventListener("submit",function(ev){{
     ev.preventDefault(); e.textContent="";
     var els=f.querySelectorAll("[data-lgf]");
     var name="",phone="",message="",extras=[];
-    for(var i=0
-    i<els.length
-    i++){{
+    for(var i=0;i<els.length;i++){{
       var el=els[i],n=el.getAttribute("data-lgf"),lb=el.getAttribute("data-lgl")||n,v=(el.value||"").trim();
-      if(el.getAttribute("data-lgr")==="1"&&!v){{ e.textContent=lb.replace("*","").trim()+" bharna zaroori hai."
-      return
-      }}
+      if(el.getAttribute("data-lgr")==="1"&&!v){{ e.textContent=lb.replace("*","").trim()+" bharna zaroori hai."; return; }}
       if(n==="name")name=v; else if(n==="phone")phone=v; else if(n==="message")message=v; else if(v)extras.push(lb.replace("*","").trim()+": "+v);
     }}
     var hp=document.getElementById("lgHP").value.trim();
-    if(!name||phone.replace(/\\D/g,"").length<10){{ e.textContent="Naam aur sahi 10-digit phone daaliye."
-    return
-    }}
-    var msg=message
-    if(extras.length){{ msg=(msg?msg+"\\n":"")+extras.join("\\n")
-    }}
+    if(!name||phone.replace(/\\D/g,"").length<10){{ e.textContent="Naam aur sahi 10-digit phone daaliye."; return; }}
+    var msg=message; if(extras.length){{ msg=(msg?msg+"\\n":"")+extras.join("\\n"); }}
     b.disabled=true; b.textContent="Bhej rahe hain…";
     fetch("/api/public/inquiry",{{method:"POST",headers:{{"Content-Type":"application/json"}},
       body:JSON.stringify({{name:name,phone:phone,message:msg,source_slug:SLUG,website:hp}})}})
-    .then(function(r){{ return r.json().catch(function(){{return{{}}
-    }}).then(function(j){{ return {{ok:r.ok,j:j}}
-    }})
-    }})
+    .then(function(r){{ return r.json().catch(function(){{return{{}};}}).then(function(j){{ return {{ok:r.ok,j:j}}; }}); }})
     .then(function(o){{
-      if(o.ok){{ document.getElementById("lgaiRoot").innerHTML='<div class="ok"><div class="tick">✅</div><h2>Dhanyawad!</h2><div class="sub">Hum jald aapko call karenge.</div></div>'
-      }}
-      else {{ e.textContent=(o.j&&o.j.detail)?o.j.detail:"Kuch galat hua - dobara try karein."
-      b.disabled=false
-      b.textContent="Callback chahiye"
-      }}
+      if(o.ok){{ document.getElementById("lgaiRoot").innerHTML='<div class="ok"><div class="tick">✅</div><h2>Dhanyawad!</h2><div class="sub">Hum jald aapko call karenge.</div></div>'; }}
+      else {{ e.textContent=(o.j&&o.j.detail)?o.j.detail:"Kuch galat hua — dobara try karein."; b.disabled=false; b.textContent="Callback chahiye"; }}
     }})
-    .catch(function(){{ e.textContent="Network issue - dobara try karein."; b.disabled=false; b.textContent="Callback chahiye"; }});
+    .catch(function(){{ e.textContent="Network issue — dobara try karein."; b.disabled=false; b.textContent="Callback chahiye"; }});
   }});
 
-  /* ---------- CHAT MODE (?mode=chat - AI assistant) ---------- */
+  /* ---------- CHAT MODE (?mode=chat — AI assistant) ---------- */
   if(MODE==="chat"){{
     document.getElementById("lgaiRoot").style.display="none";
     var chat=document.getElementById("lgaiChat"); chat.style.display="flex";
     var box=document.getElementById("lgC"),cf=document.getElementById("lgCF"),ci=document.getElementById("lgCI");
     var SESS="";
-    try{{ SESS=sessionStorage.getItem("lgaiSess")||""
-    if(!SESS){{ SESS=Math.random().toString(36).slice(2)+Date.now().toString(36)
-    sessionStorage.setItem("lgaiSess",SESS)
-    }} }}catch(_e){{ SESS="s"+Date.now()
-    }}
-    function add(t,who){{ var d=document.createElement("div")
-    d.className="cm "+who
-    d.textContent=t
-    box.appendChild(d)
-    box.scrollTop=box.scrollHeight
-    return d
-    }}
-    add("Namaste! 🙏 "+BIZ+" me aapka swagat hai. Apna sawaal poochhiye - ya apna 10-digit number chhod dijiye, hum turant call karenge.","bot");
+    try{{ SESS=sessionStorage.getItem("lgaiSess")||""; if(!SESS){{ SESS=Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem("lgaiSess",SESS); }} }}catch(_e){{ SESS="s"+Date.now(); }}
+    function add(t,who){{ var d=document.createElement("div"); d.className="cm "+who; d.textContent=t; box.appendChild(d); box.scrollTop=box.scrollHeight; return d; }}
+    add("Namaste! 🙏 "+BIZ+" me aapka swagat hai. Apna sawaal poochhiye — ya apna 10-digit number chhod dijiye, hum turant call karenge.","bot");
     var busy=false;
     cf.addEventListener("submit",function(ev){{
       ev.preventDefault();
@@ -392,14 +298,9 @@ def embed_page_html(client: dict) -> str:
       var tp=add("likh rahe hain…","bot typing");
       fetch("/api/public/widget-chat",{{method:"POST",headers:{{"Content-Type":"application/json"}},
         body:JSON.stringify({{slug:SLUG,message:t,session_id:SESS}})}})
-      .then(function(r){{ return r.json().catch(function(){{return{{}}
-      }})
-      }})
-      .then(function(j){{ tp.remove()
-      add((j&&j.reply)?j.reply:"Hmm, abhi jawab nahi de paya - apna number chhod dijiye, hum call karenge. 🙏","bot")
-      busy=false
-      }})
-      .catch(function(){{ tp.remove(); add("Network issue - dobara try karein.","bot"); busy=false; }});
+      .then(function(r){{ return r.json().catch(function(){{return{{}};}}); }})
+      .then(function(j){{ tp.remove(); add((j&&j.reply)?j.reply:"Hmm, abhi jawab nahi de paya — apna number chhod dijiye, hum call karenge. 🙏","bot"); busy=false; }})
+      .catch(function(){{ tp.remove(); add("Network issue — dobara try karein.","bot"); busy=false; }});
     }});
   }}
 }})();
@@ -417,72 +318,27 @@ def widget_js(slug: str) -> str:
 (function(){{
   if(window.__lgaiWidget) return; window.__lgaiWidget=1;
   var MODE="form";
-  try{{ var cs=document.currentScript
-  if(cs&&/[?&]mode=chat/.test(cs.src||"")) MODE="chat"
-  }}catch(e){{}}
+  try{{ var cs=document.currentScript; if(cs&&/[?&]mode=chat/.test(cs.src||"")) MODE="chat"; }}catch(e){{}}
   var EMBED="{embed_url}"+(MODE==="chat"?"?mode=chat":"");
-  var css="#lgai-btn{{position:fixed
-  right:18px
-  bottom:18px
-  z-index:2147483000
-  background:#2563eb
-  color:#fff
-  border:0
-  border-radius:999px
-  padding:13px 18px
-  font:600 15px/1 -apple-system,Segoe UI,Roboto,Arial
-  box-shadow:0 6px 22px rgba(0,0,0,.25)
-  cursor:pointer}}"
-   +"#lgai-ov{{position:fixed
-   inset:0
-   z-index:2147483001
-   background:rgba(0,0,0,.5)
-   display:none
-   align-items:center
-   justify-content:center}}"
+  var css="#lgai-btn{{position:fixed;right:18px;bottom:18px;z-index:2147483000;background:#2563eb;color:#fff;border:0;border-radius:999px;padding:13px 18px;font:600 15px/1 -apple-system,Segoe UI,Roboto,Arial;box-shadow:0 6px 22px rgba(0,0,0,.25);cursor:pointer}}"
+   +"#lgai-ov{{position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}}"
    +"#lgai-ov.on{{display:flex}}"
-   +"#lgai-box{{position:relative
-   width:380px
-   max-width:94vw
-   height:560px
-   max-height:90vh
-   background:#fff
-   border-radius:16px
-   overflow:hidden
-   box-shadow:0 20px 60px rgba(0,0,0,.4)}}"
-   +"#lgai-x{{position:absolute
-   top:8px
-   right:10px
-   z-index:2
-   background:rgba(0,0,0,.06)
-   border:0
-   border-radius:999px
-   width:30px
-   height:30px
-   font-size:18px
-   cursor:pointer
-   color:#333}}"
+   +"#lgai-box{{position:relative;width:380px;max-width:94vw;height:560px;max-height:90vh;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}}"
+   +"#lgai-x{{position:absolute;top:8px;right:10px;z-index:2;background:rgba(0,0,0,.06);border:0;border-radius:999px;width:30px;height:30px;font-size:18px;cursor:pointer;color:#333}}"
    +"#lgai-if{{border:0;width:100%;height:100%}}";
   var s=document.createElement("style"); s.textContent=css; document.head.appendChild(s);
   var btn=document.createElement("button"); btn.id="lgai-btn"; btn.type="button";
   btn.textContent=(MODE==="chat")?"💬 Chat karein":"💬 Enquiry";
   var ov=document.createElement("div"); ov.id="lgai-ov";
   ov.innerHTML='<div id="lgai-box"><button id="lgai-x" type="button" aria-label="Close">×</button><iframe id="lgai-if" loading="lazy"></iframe></div>';
-  function open(){{ var f=ov.querySelector("#lgai-if")
-  if(!f.src) f.src=EMBED
-  ov.classList.add("on")
-  }}
-  function close(){{ ov.classList.remove("on")
-  }}
+  function open(){{ var f=ov.querySelector("#lgai-if"); if(!f.src) f.src=EMBED; ov.classList.add("on"); }}
+  function close(){{ ov.classList.remove("on"); }}
   document.addEventListener("DOMContentLoaded",function(){{ document.body.appendChild(btn); document.body.appendChild(ov); }});
-  if(document.body){{ document.body.appendChild(btn)
-  document.body.appendChild(ov)
-  }}
+  if(document.body){{ document.body.appendChild(btn); document.body.appendChild(ov); }}
   btn.addEventListener("click",open);
   ov.addEventListener("click",function(ev){{ if(ev.target===ov||ev.target.id==="lgai-x") close(); }});
   document.addEventListener("keydown",function(ev){{ if(ev.key==="Escape") close(); }});
-}})()
-"""
+}})();"""
 
 
 def snippet(slug: str, mode: str = "form") -> str:

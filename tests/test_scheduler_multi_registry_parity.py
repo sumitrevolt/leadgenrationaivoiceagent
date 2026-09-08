@@ -1,4 +1,4 @@
-"""Multi-registry scheduler parity - STAFF_JOBS ↔ beat ↔ JOB_META ↔ health ↔ UI."""
+"""Multi-registry scheduler parity — STAFF_JOBS ↔ beat ↔ JOB_META ↔ health ↔ UI."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ def test_unknown_job_run_inner_is_safe(monkeypatch):
 
 
 def test_partial_registration_fails_contract(monkeypatch):
-    """Simulate a job in STAFF_JOBS missing JOB_META - contract must fail."""
+    """Simulate a job in STAFF_JOBS missing JOB_META — contract must fail."""
     from app.platform import scheduler_config
 
     monkeypatch.setitem(
@@ -98,7 +98,7 @@ def test_partial_registration_fails_contract(monkeypatch):
         "__probe_only__",
         {"label": "x", "cadence": "y", "owner": "z"},
     )
-    # probe key in JOB_META but not STAFF -> unexplained extra
+    # probe key in JOB_META but not STAFF → unexplained extra
     problems = sp.unexplained_diffs()
     assert any("__probe_only__" in p for p in problems)
 

@@ -1,4 +1,4 @@
-"""Claude Code CLI reviewer - real non-interactive invocation."""
+"""Claude Code CLI reviewer — real non-interactive invocation."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def auth_ok() -> dict[str, Any]:
         return {"ok": False, "reason": f"auth_probe_failed:{type(exc).__name__}"}
     logged_in = "loggedIn" in (st.stdout or "") and "true" in (st.stdout or "").lower()
     auth_line = (probe.stdout or "").strip().splitlines()[-1:] or [""]
-    # Envelope JSON may wrap AUTH_OK - accept substring match on last lines.
+    # Envelope JSON may wrap AUTH_OK — accept substring match on last lines.
     probe_text = (probe.stdout or "").strip()
     ok = probe.returncode == 0 and (
         auth_line[-1].strip() == "AUTH_OK" or "AUTH_OK" in probe_text.splitlines()[-3:]
@@ -114,7 +114,7 @@ def build_review_prompt(
 def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
     """Parse token/cost fields from Cursor/Claude ``--output-format json`` envelopes.
 
-    Budget tokens = input + output (+ cache *writes*). Cache *reads* are excluded -
+    Budget tokens = input + output (+ cache *writes*). Cache *reads* are excluded —
     Cursor/Claude envelopes often report hundreds of thousands of cache-read tokens
     that would false-trip ``token_budget`` on tiny GREEN missions.
     """
@@ -165,7 +165,7 @@ def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
 
 
 def extract_review_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
-    """Legacy helper - prefer ``recover_independent_review`` on the live path.
+    """Legacy helper — prefer ``recover_independent_review`` on the live path.
 
     Kept for unit tests that exercise envelope parsing in isolation. Live
     ``invoke_claude_review`` MUST NOT call this directly.

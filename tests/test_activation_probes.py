@@ -1,4 +1,4 @@
-"""Activation probes - Qdrant + Track B admin flags."""
+"""Activation probes — Qdrant + Track B admin flags."""
 
 from app.api import activation as ax
 

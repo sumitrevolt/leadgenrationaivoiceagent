@@ -1,4 +1,4 @@
-"""F4 "Subah ki Briefing" - daily Hinglish HQ bulletin (text + Swara audio).
+"""F4 "Subah ki Briefing" — daily Hinglish HQ bulletin (text + Swara audio).
 
 Bars:
 - Happy path: real numbers collected + LLM compose -> text cites them, json cached.
@@ -28,7 +28,7 @@ client = TestClient(app)
 
 
 # --------------------------------------------------------------------------- #
-# Fixtures - isolate cache dir + freeze the collected numbers so assertions can
+# Fixtures — isolate cache dir + freeze the collected numbers so assertions can
 # check that the exact real numbers land in the bulletin text.
 # --------------------------------------------------------------------------- #
 FAKE_NUMS = {
@@ -57,7 +57,7 @@ def _run(coro):
 
 
 # --------------------------------------------------------------------------- #
-# (a) happy path - LLM compose, numbers cited, json cached.
+# (a) happy path — LLM compose, numbers cited, json cached.
 # --------------------------------------------------------------------------- #
 def test_compose_happy_path_caches_json(cache_dir, monkeypatch):
     calls = {"llm": 0, "tts": 0}
@@ -88,7 +88,7 @@ def test_compose_happy_path_caches_json(cache_dir, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# (b) second call reads cache - LLM invoked once total.
+# (b) second call reads cache — LLM invoked once total.
 # --------------------------------------------------------------------------- #
 def test_second_call_reads_cache(cache_dir, monkeypatch):
     calls = {"llm": 0}
@@ -107,7 +107,7 @@ def test_second_call_reads_cache(cache_dir, monkeypatch):
 
     first = _run(ob.build_briefing(force=False))
     second = _run(ob.build_briefing(force=False))
-    assert calls["llm"] == 1  # cache hit - no second LLM call
+    assert calls["llm"] == 1  # cache hit — no second LLM call
     assert second["cached"] is True
     assert second["text"] == first["text"]
     assert second["has_audio"] is True  # re-derived from disk mp3
@@ -185,7 +185,7 @@ def test_tts_fail_text_only(cache_dir, monkeypatch):
 # --------------------------------------------------------------------------- #
 # (e2) TTS HANGS -> asyncio.wait_for(_TTS_TIMEOUT_S) bounds it: has_audio False,
 # text still returned + cached (regression guard for the reviewer-confirmed
-# unbounded-EdgeTTS-on-request-hot-path defect - prod-down class).
+# unbounded-EdgeTTS-on-request-hot-path defect — prod-down class).
 # --------------------------------------------------------------------------- #
 def test_tts_hang_is_bounded_text_only(cache_dir, monkeypatch):
     async def _fake_chat(system, messages, **kw):
@@ -208,7 +208,7 @@ def test_tts_hang_is_bounded_text_only(cache_dir, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# (f) endpoints admin-gated. conftest globally overrides the admin dep - pop it
+# (f) endpoints admin-gated. conftest globally overrides the admin dep — pop it
 # to exercise the real gate, then restore (documented "mocked-open" lesson).
 # --------------------------------------------------------------------------- #
 def test_briefing_endpoint_requires_admin():

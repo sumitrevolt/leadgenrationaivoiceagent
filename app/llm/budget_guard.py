@@ -1,5 +1,5 @@
 """
-budget_guard.py - per-scope LLM cost/usage governance + emergency kill-switch.
+budget_guard.py — per-scope LLM cost/usage governance + emergency kill-switch.
 
 KYUN: free_ai.py ka circuit-breaker provider-level 429/quota handle karta, par
 "ek scope (client/loop/niche) ne aaj kitne LLM calls/tokens jala diye" ka koi
@@ -7,27 +7,26 @@ per-tenant/per-loop CAP nahi tha. Runaway self-improve loop ya ek client ka abus
 poora free-tier (Groq TPD) kha sakta = baaki sabki availability + margin gir jaati.
 Yeh module daily per-scope budget + ek HARD global kill-switch deta.
 
-DESIGN (prod-rules ke according - semantic_cache.py jaisa):
-  - FLAG-GATED: `LLM_BUDGET_GUARD` (OFF default) - unset = is_enabled() False =
+DESIGN (prod-rules ke according — semantic_cache.py jaisa):
+  - FLAG-GATED: `LLM_BUDGET_GUARD` (OFF default) — unset = is_enabled() False =
     free_ai turant skip karta (ZERO extra I/O, ZERO behaviour change).
   - FAIL-OPEN: koi bhi redis/error = allow=True (LLM kabhi block na ho galti se).
     EXCEPTION: `LLM_BUDGET_HARD_KILL=1` = jaan-boojh ke emergency stop (fail-CLOSED
-    by design - admin ne manually daala hai).
-  - DURABLE COUNTERS: main redis (noeviction) - LRU cache redis nahi (evict = undercount).
+    by design — admin ne manually daala hai).
+  - DURABLE COUNTERS: main redis (noeviction) — LRU cache redis nahi (evict = undercount).
   - SHARED: multi-worker-correct (redis), /metrics expose karta hai.
-  - DECOUPLED: core duck-typed
-  default backend lazily app.cache redis use karta.
+  - DECOUPLED: core duck-typed; default backend lazily app.cache redis use karta.
 
 USAGE (free_ai.chat opt-in karta):
     from app.llm import budget_guard
     if budget_guard.is_enabled():
         ok, info = await budget_guard.allow(scope)
         if not ok:
-            return "", ""        # graceful - jaise saare providers exhaust
+            return "", ""        # graceful — jaise saare providers exhaust
     ... call ...
     await budget_guard.record(scope, prompt_tokens=pt, completion_tokens=ct)
 
-Top-level imports SIRF stdlib - app.* sab lazy (bina poore app ke import/test ho sake).
+Top-level imports SIRF stdlib — app.* sab lazy (bina poore app ke import/test ho sake).
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 _PREFIX = "llmbudget"
 _GLOBAL = "__global__"
-_COUNTER_TTL_S = 172800  # 2 days - daily counter, thoda buffer
+_COUNTER_TTL_S = 172800  # 2 days — daily counter, thoda buffer
 
 # per-process quick snapshot (debug). Source-of-truth = redis.
 _LOCAL: dict[str, int] = {"allowed": 0, "blocked": 0, "killed": 0, "error": 0, "disabled": 0}
@@ -54,7 +53,7 @@ def is_enabled() -> bool:
 
 
 def _hard_kill() -> bool:
-    """Emergency global stop - fail-CLOSED by design (admin ne manually set kiya)."""
+    """Emergency global stop — fail-CLOSED by design (admin ne manually set kiya)."""
     return (os.getenv("LLM_BUDGET_HARD_KILL", "") or "").strip().lower() in (
         "1",
         "true",
@@ -108,7 +107,7 @@ def _ckey(day: str, scope: str, kind: str) -> str:
 
 # --- redis backend (lazy, best-effort) ----------------------------------------
 async def _redis():
-    """Main (noeviction) redis - durable counters. semantic_cache cache-redis nahi."""
+    """Main (noeviction) redis — durable counters. semantic_cache cache-redis nahi."""
     from app.cache import get_redis_client
 
     return await get_redis_client()
@@ -131,9 +130,9 @@ async def allow(scope: str = "global") -> tuple[bool, dict[str, Any]]:
     """
     info: dict[str, Any] = {"scope": scope, "reason": "ok"}
 
-    # Emergency manual kill-switch - guard flag se INDEPENDENT (fail-closed, jaan-boojh ke).
+    # Emergency manual kill-switch — guard flag se INDEPENDENT (fail-closed, jaan-boojh ke).
     # is_enabled() check se PEHLE: incident me sirf LLM_BUDGET_HARD_KILL=1 set karne se bhi
-    # turant sab LLM band ho (warna emergency switch inert reh jaata - review finding #1).
+    # turant sab LLM band ho (warna emergency switch inert reh jaata — review finding #1).
     if _hard_kill():
         _LOCAL["killed"] += 1
         info["reason"] = "hard_kill"
@@ -171,7 +170,7 @@ async def allow(scope: str = "global") -> tuple[bool, dict[str, Any]]:
                 _LOCAL["blocked"] += 1
                 info.update(reason="scope_tokens", used=stoks, cap=tcap)
                 return False, info
-    except Exception as e:  # redis down / any error -> FAIL-OPEN
+    except Exception as e:  # redis down / any error → FAIL-OPEN
         _LOCAL["error"] += 1
         logger.debug("budget_guard allow fail-open: %s", e)
         info["reason"] = "error_failopen"
@@ -235,7 +234,7 @@ def snapshot() -> dict[str, int]:
 
 
 async def redis_stats() -> dict[str, Any]:
-    """Aaj ke GLOBAL counters + config - /metrics ke liye. Fail = zeros + enabled flag."""
+    """Aaj ke GLOBAL counters + config — /metrics ke liye. Fail = zeros + enabled flag."""
     out: dict[str, Any] = {
         "enabled": is_enabled(),
         "hard_kill": _hard_kill(),

@@ -1,6 +1,6 @@
 """Offline tests for the WhatsApp Cloud API auto-sender + campaign runner.
 
-All Cloud API HTTP is mocked - NO live calls. We assert the ban-safe contract:
+All Cloud API HTTP is mocked — NO live calls. We assert the ban-safe contract:
   - without flag/creds -> 1-click links, never an auto-send,
   - suppressed numbers are skipped,
   - daily cap + spacing are honoured,
@@ -78,7 +78,7 @@ def test_flag_on_but_no_creds_stays_links(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Auto-send live (mocked HTTP) - happy path + spacing + cap
+# Auto-send live (mocked HTTP) — happy path + spacing + cap
 # --------------------------------------------------------------------------- #
 class _FakeWA:
     sent: list = []

@@ -1,4 +1,4 @@
-"""Identity resolver - cross-store dedupe (prospect vs inquiry vs deal).
+"""Identity resolver — cross-store dedupe (prospect vs inquiry vs deal).
 
 Phone10 + email + domain fuzzy match. Merge log in data/identity_merge_log.jsonl.
 Never raises. DB writes best-effort (accounts/contacts).
@@ -157,7 +157,7 @@ def find_duplicate_groups() -> list[dict[str, Any]]:
 
 
 async def merge_group(group_id: str, target_key: str = "") -> dict[str, Any]:
-    """Log merge decision (soft-merge - jsonl stores untouched, SSOT = merge log)."""
+    """Log merge decision (soft-merge — jsonl stores untouched, SSOT = merge log)."""
     groups = {g["group_id"]: g for g in find_duplicate_groups()}
     g = groups.get(group_id)
     if not g:
@@ -207,7 +207,7 @@ async def backfill_accounts_contacts(limit: int = 500) -> dict[str, Any]:
                     )
                     session.add(acc)
                     # Flush so this pending Account is visible to the dedupe
-                    # SELECT on the next iteration - otherwise a second record for
+                    # SELECT on the next iteration — otherwise a second record for
                     # the same company in this batch creates a duplicate Account.
                     await session.flush()
                     created_a += 1

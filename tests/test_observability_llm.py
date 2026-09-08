@@ -1,4 +1,4 @@
-"""observability_llm - OTel sink coverage (Item D, 2026-08-06).
+"""observability_llm — OTel sink coverage (Item D, 2026-08-06).
 
 audit.py:46 was calling obs.set_current_attributes / obs.annotate which did NOT
 exist -> gen_ai.run.id was never stamped (dead call). This module now provides

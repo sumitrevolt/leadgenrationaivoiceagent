@@ -1,4 +1,4 @@
-"""Hermetic tests for app.marketing.content_assurance - read-only content /
+"""Hermetic tests for app.marketing.content_assurance — read-only content /
 approval assurance aggregator.
 
 All external readers (approval store, content queue, social publish queue,

@@ -13,7 +13,7 @@ Two things were wrong with it, beyond being unguarded:
 1. `git reset --hard` against a checkout that still holds the live invoice,
    consent and suppression ledgers plus 182 MB of DPDP call recordings.
 2. Each command ran in its OWN `shell=True` subprocess, so `cd /opt/leadgen`
-   had no effect on the commands after it - the reset ran against whatever
+   had no effect on the commands after it — the reset ran against whatever
    the current working directory happened to be.
 
 It now delegates to the guarded canonical parent, with no shell and no

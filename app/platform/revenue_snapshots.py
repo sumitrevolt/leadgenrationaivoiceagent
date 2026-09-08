@@ -167,8 +167,7 @@ def _estimate_curve(days: int, clients: list[dict], price_fn) -> list[dict]:
 def read_trend(days: int = 90, clients: list[dict] | None = None, price_fn=None) -> list[dict]:
     """Real snapshots (latest-per-date) override the estimate curve.
 
-    ``price_fn`` prices a client dict for the estimate
-    the admin endpoint
+    ``price_fn`` prices a client dict for the estimate; the admin endpoint
     injects ``admin_dashboard._client_mrr`` (handles marketing/voice/combo).
     """
     days = max(1, min(int(days or 90), 365))

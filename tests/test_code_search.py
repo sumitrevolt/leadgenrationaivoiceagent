@@ -2,7 +2,7 @@
 
 Covers: enabled() env gate, never-raise/empty paths, grounding_block shaping, and
 the search_code() normalization (the bug-fixed indexer path that earlier called a
-non-existent VectorStore.search()). Offline-clean - no real index / network needed.
+non-existent VectorStore.search()). Offline-clean — no real index / network needed.
 """
 
 import asyncio
@@ -26,7 +26,7 @@ def test_search_empty_query_returns_empty():
 
 
 def test_search_never_raises(monkeypatch):
-    """Indexer blows up -> search must swallow and return [] (never break caller)."""
+    """Indexer blows up → search must swallow and return [] (never break caller)."""
 
     def boom():
         raise RuntimeError("no index available")
@@ -48,7 +48,7 @@ def test_grounding_block_shape():
     blk = code_search.grounding_block(hits)
     assert "app/x.py:1-9" in blk
     assert "def x()" in blk
-    # empty hits -> empty grounding (no spurious header)
+    # empty hits → empty grounding (no spurious header)
     assert code_search.grounding_block([]) == ""
 
 
@@ -77,7 +77,7 @@ def test_search_code_normalizes(monkeypatch):
                     "industry": "platform",
                     "language": "python",
                 },
-                # locator missing from message -> fall back to id parse
+                # locator missing from message → fall back to id parse
                 {
                     "conversation_id": "app/bar.py:0",
                     "score": 0.4,
@@ -115,7 +115,7 @@ def test_search_code_swallows_backend_error(monkeypatch):
 
 
 def test_qdrant_disabled_when_no_url(monkeypatch):
-    """No QDRANT_URL -> _qdrant() None -> ChromaDB fallback path."""
+    """No QDRANT_URL → _qdrant() None → ChromaDB fallback path."""
     from app.config import settings
 
     monkeypatch.setattr(settings, "qdrant_url", "", raising=False)
@@ -124,7 +124,7 @@ def test_qdrant_disabled_when_no_url(monkeypatch):
 
 
 def test_qdrant_code_index_normalizes(monkeypatch):
-    """QdrantCodeIndex.search_sync must normalize Qdrant points -> {file,lines,snippet}."""
+    """QdrantCodeIndex.search_sync must normalize Qdrant points → {file,lines,snippet}."""
     import sys
 
     # Mock qdrant_client so the test works offline (no qdrant_client package needed)
@@ -184,7 +184,7 @@ def test_qdrant_code_index_normalizes(monkeypatch):
 
 
 def test_qdrant_code_index_never_raises():
-    """search_sync on a broken client -> [] (never raises)."""
+    """search_sync on a broken client → [] (never raises)."""
     idx = codebase_indexer.QdrantCodeIndex()
     idx._ready = True
 

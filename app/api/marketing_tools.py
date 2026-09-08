@@ -1,10 +1,9 @@
-"""Marketing per-niche tool generators - GBP audit, review replies, festivals, SVG
+"""Marketing per-niche tool generators — GBP audit, review replies, festivals, SVG
 posters, WhatsApp/page kits, competitor, report, reactivation, drip, brand kit,
 CRM-lite, UPI kit/QR, catalog, ads/reels, lead-scoring, content pack, blog, referral.
 
 Extracted from app/api/marketing.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via marketing.router.include_router()
-paths unchanged (/api/marketing/...).
+Mounted via marketing.router.include_router(); paths unchanged (/api/marketing/...).
 """
 
 from __future__ import annotations
@@ -72,7 +71,7 @@ router = APIRouter(tags=["Marketing"])
 
 
 def _log_isha(action: str, detail: str) -> None:
-    """Team activity log (best-effort - kabhi request fail nahi karata)."""
+    """Team activity log (best-effort — kabhi request fail nahi karata)."""
     try:
         from app.platform.team import log_event
 
@@ -82,7 +81,7 @@ def _log_isha(action: str, detail: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# GBP self-audit (no Google API - owner ke jawab se score)
+# GBP self-audit (no Google API — owner ke jawab se score)
 # --------------------------------------------------------------------------- #
 
 
@@ -101,7 +100,7 @@ async def score_gbp_audit(
     req: AuditScoreRequest,
     current_user: User = Depends(require_admin),
 ):
-    """Audit answers -> weighted 0-100 score + grade + top-5 Hinglish fixes."""
+    """Audit answers → weighted 0-100 score + grade + top-5 Hinglish fixes."""
     try:
         result = gbp_audit.score_audit(req.answers)
         _log_isha(
@@ -207,8 +206,7 @@ async def generate_svg_poster(
     """Inline SVG poster banao (browser render / PNG convert ready).
 
     client_id set ho to saved brand (naam/tagline/phone/colors) auto-merge
-    hota hai
-    explicit request values hamesha jeet-ti hain.
+    hota hai; explicit request values hamesha jeet-ti hain.
     """
     try:
         args = {
@@ -266,7 +264,7 @@ async def generate_competitor_tips(
     req: CompetitorRequest,
     current_user: User = Depends(require_admin),
 ):
-    """Competitor notes -> strengths-to-copy + gaps-to-exploit + 3-step action plan."""
+    """Competitor notes → strengths-to-copy + gaps-to-exploit + 3-step action plan."""
     try:
         result = await competitor.compare_tips(
             business_name=req.business_name,
@@ -304,7 +302,7 @@ async def generate_review_kit(
 
 
 # --------------------------------------------------------------------------- #
-# Social PAGE KIT - naye FB/Insta/LinkedIn/X/GBP/WA pages ka paste-ready setup
+# Social PAGE KIT — naye FB/Insta/LinkedIn/X/GBP/WA pages ka paste-ready setup
 # --------------------------------------------------------------------------- #
 
 
@@ -323,7 +321,7 @@ async def generate_page_kit(
 ):
     """Complete social-page setup kit: har platform ka name/handle/bio/about +
     logo + cover prompt + pehle 5 posts + hashtags. (Pages create karna
-    account-action hai - yeh 1-click-copy content deta hai.)"""
+    account-action hai — yeh 1-click-copy content deta hai.)"""
     try:
         from app.marketing.social_page_kit import build_page_kit
 
@@ -352,7 +350,7 @@ async def get_monthly_report(
     month: str = "",
     current_user: User = Depends(require_admin),
 ):
-    """Monthly marketing report (self-contained HTML + stats) - team events se."""
+    """Monthly marketing report (self-contained HTML + stats) — team events se."""
     try:
         result = await monthly_report.build_report(
             client_name=client_name,
@@ -370,7 +368,7 @@ async def get_monthly_report(
 
 
 # --------------------------------------------------------------------------- #
-# Database reactivation (win-back campaign - manual one-click send)
+# Database reactivation (win-back campaign — manual one-click send)
 # --------------------------------------------------------------------------- #
 
 
@@ -472,7 +470,7 @@ async def add_crm_customers(
     req: CrmCustomersRequest,
     current_user: User = Depends(require_admin),
 ):
-    """Customers add karo (10-digit phone dedupe - existing + same batch)."""
+    """Customers add karo (10-digit phone dedupe — existing + same batch)."""
     try:
         result = crm_lite.add_customers(
             client_id,
@@ -521,7 +519,7 @@ async def get_todays_wishes(
 
 
 # --------------------------------------------------------------------------- #
-# UPI payment kit (QR + slip + WA message - pure logic)
+# UPI payment kit (QR + slip + WA message — pure logic)
 # --------------------------------------------------------------------------- #
 
 
@@ -658,7 +656,7 @@ async def generate_reels_scripts(
     req: ReelsRequest,
     current_user: User = Depends(require_admin),
 ):
-    """n Reels scripts: hook/body/cta/caption/hashtags - 30s ready-to-shoot."""
+    """n Reels scripts: hook/body/cta/caption/hashtags — 30s ready-to-shoot."""
     try:
         result = await reels.reels_scripts(
             business_name=req.business_name,
@@ -680,7 +678,7 @@ async def generate_reels_scripts(
 
 @router.get("/lead-scores")
 async def get_lead_scores(current_user: User = Depends(require_admin)):
-    """Website inquiries ka rule-based scoring - hot pehle, wa.me ready."""
+    """Website inquiries ka rule-based scoring — hot pehle, wa.me ready."""
     try:
         result = lead_scoring.score_leads()
         _log_isha(
@@ -733,7 +731,7 @@ async def generate_client_content_pack(
     current_user: User = Depends(require_admin),
 ):
     """Monthly deliverable pack: calendar + 3 posts + 2 posters + GBP +
-    WhatsApp + festival plan - ek self-contained HTML me (client ko bhejne layak)."""
+    WhatsApp + festival plan — ek self-contained HTML me (client ko bhejne layak)."""
     try:
         result = await content_pack.build_client_pack(
             business_name=req.business_name,
@@ -755,7 +753,7 @@ async def generate_client_content_pack(
 
 
 # --------------------------------------------------------------------------- #
-# Programmatic SEO blog (auto-published niche articles - inbound lead magnet)
+# Programmatic SEO blog (auto-published niche articles — inbound lead magnet)
 # --------------------------------------------------------------------------- #
 
 
@@ -805,7 +803,7 @@ async def get_blog_article(
 
 
 # --------------------------------------------------------------------------- #
-# Referral kit (Refer & Earn - code + WA message + link + card SVG)
+# Referral kit (Refer & Earn — code + WA message + link + card SVG)
 # --------------------------------------------------------------------------- #
 
 

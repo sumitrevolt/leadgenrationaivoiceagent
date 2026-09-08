@@ -1,19 +1,19 @@
-"""Per-agent tool/side-effect permission matrix - OpenCode-style per-tool ACL.
+"""Per-agent tool/side-effect permission matrix — OpenCode-style per-tool ACL.
 
 OpenCode (open-source AI coding agent) ka ek standout safety-feature: har agent
-ke liye per-tool "allow"/"deny" matrix - taaki ek agent jo content draft karta hai
+ke liye per-tool "allow"/"deny" matrix — taaki ek agent jo content draft karta hai
 woh galti se paisa kharch ya call na kar de. Yahi capability is project ke AI staff
-ko deta hai (15+ named agents, har ek ke alag duties - team.py STAFF roster).
+ko deta hai (15+ named agents, har ek ke alag duties — team.py STAFF roster).
 
 Design (project patterns):
-  - `enabled()` sirf ENFORCEMENT ko gate karta - default OFF = `can()` hamesha True
+  - `enabled()` sirf ENFORCEMENT ko gate karta — default OFF = `can()` hamesha True
     = ZERO behaviour change (allow-all, jaisa abhi hai).
-  - Flag ON pe: matrix lookup. Tool unset -> DEFAULT allow (fail-OPEN, project ka
-    house pattern - meter/DND-transactional sab fail-open) EXCEPT HIGH_RISK tools
-    {spend, place_call, send_whatsapp} jahan unset -> DENY (fail-SAFE - yeh wahi
+  - Flag ON pe: matrix lookup. Tool unset → DEFAULT allow (fail-OPEN, project ka
+    house pattern — meter/DND-transactional sab fail-open) EXCEPT HIGH_RISK tools
+    {spend, place_call, send_whatsapp} jahan unset → DENY (fail-SAFE — yeh wahi
     ban/paisa-risk side-effects hain jinpe CLAUDE.md har jagah extra-careful hai).
   - Data file `data/agent_permissions.json`: {agent_name: {tool: "allow"|"deny"}}.
-  - KABHI raise nahi karta - permission-check ki wajah se koi pipeline nahi girni
+  - KABHI raise nahi karta — permission-check ki wajah se koi pipeline nahi girni
     chahiye (lookup error = fail to safe default per-tool).
 
 Flag: AGENT_PERMISSIONS=1
@@ -45,17 +45,17 @@ TOOL_CATEGORIES = (
 
 # Ban/paisa-risk side-effects: unset = DENY (fail-safe). Matches CLAUDE.md
 # "WhatsApp bulk = ban", "cold calls = ₹10L risk", "spend" guardrails.
-# `execute_code` (arbitrary-code executor, code_exec.py) is RCE-class -> fail-safe.
+# `execute_code` (arbitrary-code executor, code_exec.py) is RCE-class → fail-safe.
 HIGH_RISK = {"spend", "place_call", "send_whatsapp", "execute_code"}
 
 
 def enabled() -> bool:
-    """Gates ENFORCEMENT only. OFF (default) -> can() always True = allow-all."""
+    """Gates ENFORCEMENT only. OFF (default) → can() always True = allow-all."""
     return (os.getenv("AGENT_PERMISSIONS") or "").strip().lower() in ("1", "true", "yes")
 
 
 def _load() -> dict[str, dict[str, str]]:
-    """Read the matrix json. Never raises; missing/corrupt -> {}."""
+    """Read the matrix json. Never raises; missing/corrupt → {}."""
     try:
         if not os.path.isfile(_DATA_FILE):
             return {}
@@ -82,12 +82,12 @@ def _save(data: dict[str, dict[str, str]]) -> bool:
 def can(agent: str, tool: str) -> bool:
     """Kya `agent` `tool` (side-effect) use kar sakta hai?
 
-    - Flag OFF -> hamesha True (zero behaviour change, allow-all).
-    - Flag ON -> matrix lookup:
-        * explicit "allow"/"deny" -> wahi maano.
-        * unset + HIGH_RISK tool -> False (fail-safe, ban/paisa-risk).
-        * unset + normal tool -> True (fail-open, house pattern).
-    Never raises - error pe HIGH_RISK = deny, warna allow.
+    - Flag OFF → hamesha True (zero behaviour change, allow-all).
+    - Flag ON → matrix lookup:
+        * explicit "allow"/"deny" → wahi maano.
+        * unset + HIGH_RISK tool → False (fail-safe, ban/paisa-risk).
+        * unset + normal tool → True (fail-open, house pattern).
+    Never raises — error pe HIGH_RISK = deny, warna allow.
     """
     if not enabled():
         return True
@@ -102,7 +102,7 @@ def can(agent: str, tool: str) -> bool:
             return False
         if action == "allow":
             return True
-        # unset -> high-risk deny, else allow
+        # unset → high-risk deny, else allow
         return not high_risk
     except Exception as e:
         logger.debug(f"agent_permissions can() failed for {a}/{t}: {e}")

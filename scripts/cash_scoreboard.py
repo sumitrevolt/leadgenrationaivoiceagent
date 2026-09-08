@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Automated Cash Scoreboard - Campaign Revenue Tracker
+Automated Cash Scoreboard — Campaign Revenue Tracker
 
 Recalculates after every VERIFIED_PAID event:
   VERIFIED_CASH = sum of all verified campaign-collected amounts
@@ -163,7 +163,7 @@ def verify_payment_reference(ref_id):
 
 
 def main():
-    """Entry point - recalculate and display scoreboard."""
+    """Entry point — recalculate and display scoreboard."""
     from db import get_connection
 
     scoreboard = recalculate_scoreboard()

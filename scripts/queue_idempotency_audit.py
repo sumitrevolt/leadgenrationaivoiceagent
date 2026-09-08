@@ -1,4 +1,4 @@
-"""Queue idempotency audit - scan all Celery tasks for idempotency patterns.
+"""Queue idempotency audit — scan all Celery tasks for idempotency patterns.
 
 Usage:
     python scripts/queue_idempotency_audit.py
@@ -8,7 +8,7 @@ Outputs a markdown report to stdout listing:
 - Tasks WITHOUT explicit idempotency (gap)
 - Recommendations
 
-Playbook ref: Queue System - every queue must have idempotency key.
+Playbook ref: Queue System — every queue must have idempotency key.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def find_celery_tasks() -> list[tuple[str, int, str, str]]:
             continue
         for i, line in enumerate(text.splitlines(), 1):
             # Detect Celery task decorators. Earlier this only matched "@celery*"
-            # and silently MISSED every `@shared_task` (which app/tasks/*.py uses) -
+            # and silently MISSED every `@shared_task` (which app/tasks/*.py uses) —
             # undercounting tasks and reporting a false coverage %. Now both forms.
             stripped = line.lstrip()
             is_task_decorator = (
@@ -168,11 +168,11 @@ def main() -> int:
     print("3. **Add replay-safe checkpoints for long-running tasks.**")
     print("4. **Add queue-depth alerts** for tasks that lack idempotency.")
 
-    # RATCHET gate (2026-07-06): pehle "koi bhi gap = exit 1" tha - 117 known
+    # RATCHET gate (2026-07-06): pehle "koi bhi gap = exit 1" tha — 117 known
     # static-scan gaps ke saath yeh step KABHI green nahi ho sakta tha (kai tasks
     # ka dedup scheduler/day-key layer pe hai jo yeh heuristic nahi dekh sakta).
-    # IDEM_AUDIT_MAX_GAPS set ho -> gaps > baseline = fail (naya task bina
-    # idempotency ke regression block); unset -> advisory report (exit 0).
+    # IDEM_AUDIT_MAX_GAPS set ho → gaps > baseline = fail (naya task bina
+    # idempotency ke regression block); unset → advisory report (exit 0).
     import os as _os
 
     gaps = len(without_idem)

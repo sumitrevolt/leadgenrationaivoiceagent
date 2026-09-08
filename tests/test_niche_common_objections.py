@@ -1,4 +1,4 @@
-"""Component 4 - common objection-types merged into every niche script."""
+"""Component 4 — common objection-types merged into every niche script."""
 
 from app.voice_agent.niche_scripts import _COMMON_OBJECTIONS, NICHE_SCRIPTS, get_script
 

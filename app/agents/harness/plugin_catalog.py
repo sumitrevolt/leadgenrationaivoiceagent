@@ -1,12 +1,12 @@
 """
-Plugin Catalog - initial registration of existing LeadGen AI components.
+Plugin Catalog — initial registration of existing LeadGen AI components.
 
 This module bootstraps the plugin registry by registering manifests for
 every significant existing component. It is called once at startup
-(import-time side effect is DELIBERATE here - the catalog IS the inventory).
+(import-time side effect is DELIBERATE here — the catalog IS the inventory).
 
 Each manifest maps one existing component to the governed plugin contract.
-Nothing changes in runtime behaviour - this is an additive observation layer.
+Nothing changes in runtime behaviour — this is an additive observation layer.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.MODEL_ROUTING,
             owner="SRE",
-            business_outcome="Primary free LLM routing (Mistral->Groq->Cerebras->Gemini cascade)",
+            business_outcome="Primary free LLM routing (Mistral→Groq→Cerebras→Gemini cascade)",
             risk_class=RiskClass.GREEN,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -103,7 +103,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.HARNESS,
             owner="Boss",
-            business_outcome="Native LeadGen harness: planning -> turn -> tool -> audit loop",
+            business_outcome="Native LeadGen harness: planning → turn → tool → audit loop",
             risk_class=RiskClass.GREEN,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -142,7 +142,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.HARNESS,
             owner="Boss",
-            business_outcome="DSH shadow lane - observe decisions without enforcement",
+            business_outcome="DSH shadow lane — observe decisions without enforcement",
             risk_class=RiskClass.GREEN,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -212,7 +212,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.WORKER,
             owner="SRE",
-            business_outcome="Heavy worker (conc=1): ML/LLM isolation - kb-warmup, self-improve",
+            business_outcome="Heavy worker (conc=1): ML/LLM isolation — kb-warmup, self-improve",
             risk_class=RiskClass.GREEN,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -332,7 +332,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Owner",
-            business_outcome="Hot Queue inbox: interested prospects -> owner action -> close",
+            business_outcome="Hot Queue inbox: interested prospects → owner action → close",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.CONFIDENTIAL,
@@ -349,7 +349,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Boss",
-            business_outcome="New client onboarding: scrape -> KB seed -> first content pack",
+            business_outcome="New client onboarding: scrape → KB seed → first content pack",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.TENANT,
             privacy_class=PrivacyClass.CONFIDENTIAL,
@@ -406,7 +406,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Boss",
-            business_outcome="Manual UPI proposal/quote drafts - never auto-confirms payment",
+            business_outcome="Manual UPI proposal/quote drafts — never auto-confirms payment",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.TENANT,
             privacy_class=PrivacyClass.CONFIDENTIAL,
@@ -457,7 +457,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Owner",
-            business_outcome="Manual UPI billing: submit -> approve -> bind -> bank confirm -> activate",
+            business_outcome="Manual UPI billing: submit → approve → bind → bank confirm → activate",
             risk_class=RiskClass.RED,
             tenant_scope=PluginScope.TENANT,
             privacy_class=PrivacyClass.RESTRICTED,
@@ -489,8 +489,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Boss",
-            business_outcome="Auto-reply to known prospects
-            guarded, fail-closed",
+            business_outcome="Auto-reply to known prospects; guarded, fail-closed",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.CONFIDENTIAL,
@@ -696,7 +695,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.COORDINATION,
             owner="Owner",
-            business_outcome="Boss hierarchical coordination: 7 teams -> 30 workers",
+            business_outcome="Boss hierarchical coordination: 7 teams → 30 workers",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -712,7 +711,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.COORDINATION,
             owner="Owner",
-            business_outcome="Owner OS thin projection (tools/missions/events/git) - NOT second control plane",
+            business_outcome="Owner OS thin projection (tools/missions/events/git) — NOT second control plane",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -794,7 +793,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.UI_PROJECTION,
             owner="Owner",
-            business_outcome="/app/automation - visual automation builder + status",
+            business_outcome="/app/automation — visual automation builder + status",
             risk_class=RiskClass.GREEN,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.INTERNAL,
@@ -810,7 +809,7 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.UI_PROJECTION,
             owner="Owner",
-            business_outcome="Owner Operating System - sole action authority surface",
+            business_outcome="Owner Operating System — sole action authority surface",
             risk_class=RiskClass.RED,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.RESTRICTED,

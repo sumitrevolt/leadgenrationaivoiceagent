@@ -1,6 +1,6 @@
 """Phase-3 tests: minute metering/enforcement (billing.usage) + tenant white-label.
 
-Free-stack. No DB rows required - tests cover the math + fail-open + host parsing.
+Free-stack. No DB rows required — tests cover the math + fail-open + host parsing.
 """
 
 from app.billing import usage

@@ -1,4 +1,4 @@
-"""Sales Autopilot - eligibility decisions (fail-closed)."""
+"""Sales Autopilot — eligibility decisions (fail-closed)."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def test_step_already_done_idempotent():
 
 
 def test_error_fail_closed(monkeypatch):
-    # Force an internal error path -> INELIGIBLE, never a silent ELIGIBLE.
+    # Force an internal error path → INELIGIBLE, never a silent ELIGIBLE.
     monkeypatch.setattr(elig._policy_mod, "get_policy", lambda: (_ for _ in ()).throw(ValueError()))
     r = elig.evaluate(_prospect(), channel="whatsapp", now_ist=_MIDDAY)
     assert r["decision"] == elig.INELIGIBLE

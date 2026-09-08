@@ -1,12 +1,11 @@
-"""A6 ratchet - ops telemetry stores must stay migrated.
+"""A6 ratchet — ops telemetry stores must stay migrated.
 
 A1–A5 proved the shared authority on telephony, compliance, delivery, and
 billing. A6 applies it to the three ops-telemetry stores:
 
-  * automation.cadence_runs - cadence_leads.jsonl + cadence_runs.jsonl
-  * automation.job_runs - job_runs.jsonl + job_heartbeats.json
-  * communications.interactions - interactions.jsonl (JSONL path only
-  DB dual-write stays)
+  * automation.cadence_runs — cadence_leads.jsonl + cadence_runs.jsonl
+  * automation.job_runs — job_runs.jsonl + job_heartbeats.json
+  * communications.interactions — interactions.jsonl (JSONL path only; DB dual-write stays)
 
 Two properties the repo-wide debt ratchet cannot give:
 
@@ -64,7 +63,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
     "app/marketing/cadence.py": {},
     "app/platform/automation_health.py": {
         "data/obsidian_staging": (
-            "Obsidian second-brain staging dir referenced by health copy - not "
+            "Obsidian second-brain staging dir referenced by health copy — not "
             "automation.job_runs. Folding it into A6 would migrate an unrelated "
             "artifact family nobody classified under job_runs."
         ),
@@ -84,7 +83,7 @@ def test_a6_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -118,7 +117,7 @@ def test_a6_modules_resolve_at_call_time_not_import_time(module_path):
             targets = [node.target.id]
         for name in targets:
             assert name not in RETIRED_CONSTANTS, (
-                f"{module_path} reintroduced module-level {name} - a path frozen "
+                f"{module_path} reintroduced module-level {name} — a path frozen "
                 "at import cannot follow a cutover"
             )
 
@@ -127,7 +126,7 @@ def test_a6_modules_resolve_at_call_time_not_import_time(module_path):
 def test_the_a6_rows_are_still_dual_read():
     """A6's own rows, asserted by A6's own file.
 
-    Subset only - the exact global set is asserted once in
+    Subset only — the exact global set is asserted once in
     ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
@@ -139,10 +138,9 @@ def test_manifest_still_validates():
 
 
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """Migrated stores, and the count is still 21 - that is the honest answer.
+    """Migrated stores, and the count is still 21 — that is the honest answer.
 
-    Writers can now follow a cutover
-    authoritative bytes are still inside the
+    Writers can now follow a cutover; authoritative bytes are still inside the
     checkout. A count that fell here would be a false green.
     """
     blocking = manifest.blocking_stores()

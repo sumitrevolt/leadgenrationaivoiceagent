@@ -1,21 +1,20 @@
-"""Process Engine - babysitter-pattern adapt (a5c-ai/babysitter, 674★, MIT).
+"""Process Engine — babysitter-pattern adapt (a5c-ai/babysitter, 674★, MIT).
 
 CORE IDEA (deterministic, hallucination-free orchestration):
   - **Process-as-code**: workflow = ordered steps DEFINED IN CODE (process_library.py).
-    Agent/LLM sirf step ke ANDAR kaam karta - kaunsa step kab chalega yeh code
-    decide karta, LLM nahi. (Humara coordinator/self_improve LLM-planned hai -
+    Agent/LLM sirf step ke ANDAR kaam karta — kaunsa step kab chalega yeh code
+    decide karta, LLM nahi. (Humara coordinator/self_improve LLM-planned hai —
     yeh uska deterministic complement hai, replacement nahi.)
-  - **Quality gates = code checks** (counts/flags), LLM-opinion nahi. Gate fail ->
-    bounded retry -> fir run FAILED (aage nahi badhega).
-  - **Breakpoints = enforced human approval** - ban-risky steps (outreach/publish)
+  - **Quality gates = code checks** (counts/flags), LLM-opinion nahi. Gate fail →
+    bounded retry → fir run FAILED (aage nahi badhega).
+  - **Breakpoints = enforced human approval** — ban-risky steps (outreach/publish)
     se pehle run PAUSE hota, admin `approve` kare tabhi aage. Drafts-only
     philosophy ka structured version.
-  - **Event-sourced journal** - har event immutable JSONL me
-    (`data/process_runs/<run_id>.jsonl`)
-    state HAMESHA journal replay se derive
-    hota -> crash/restart pe exact resume, full audit trail.
+  - **Event-sourced journal** — har event immutable JSONL me
+    (`data/process_runs/<run_id>.jsonl`); state HAMESHA journal replay se derive
+    hota → crash/restart pe exact resume, full audit trail.
 
-Execution Celery worker me (`staff_jobs.process_tick`) - web process kabhi
+Execution Celery worker me (`staff_jobs.process_tick`) — web process kabhi
 heavy advance nahi karta (prod-down lesson). Koi naya dep nahi. Import-safe,
 kabhi raise nahi.
 """
@@ -95,7 +94,7 @@ def _read_events(run_id: str) -> list[dict[str, Any]]:
 
 
 def replay(run_id: str) -> dict[str, Any]:
-    """Journal se run-state derive karo (single source of truth - babysitter core).
+    """Journal se run-state derive karo (single source of truth — babysitter core).
     Returns: {status, process, inputs, step_index, retries, steps_done, last_error}."""
     st: dict[str, Any] = {
         "run_id": run_id,
@@ -180,9 +179,9 @@ def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[st
 
 
 async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
-    """Run ko aage badhao: next step execute -> gate check -> journal. Rukta hai:
+    """Run ko aage badhao: next step execute → gate check → journal. Rukta hai:
     breakpoint / completion / gate-fail (retries khatam) / step-budget pe.
-    State sirf journal-replay se - crash-safe resume. Kabhi raise nahi."""
+    State sirf journal-replay se — crash-safe resume. Kabhi raise nahi."""
     if not engine_enabled():
         return {"ok": True, "skipped": "PROCESS_ENGINE off", "run_id": run_id}
     try:
@@ -287,7 +286,7 @@ async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
         return {
             "run_id": run_id,
             "status": replay(run_id)["status"],
-            "note": "step budget - tick continue karega",
+            "note": "step budget — tick continue karega",
         }
     except Exception as e:
         logger.warning(f"[process] advance failed {run_id}: {e}")
@@ -295,14 +294,14 @@ async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
 
 
 def approve(run_id: str, approved_by: str = "admin", note: str = "") -> dict[str, Any]:
-    """Breakpoint approve -> run resume-ready (Celery tick aage badhayega).
+    """Breakpoint approve → run resume-ready (Celery tick aage badhayega).
     Kabhi raise nahi."""
     try:
         st = replay(run_id)
         if st["status"] != ST_WAITING:
             return {
                 "ok": False,
-                "error": f"run status '{st['status']}' - koi breakpoint pending nahi",
+                "error": f"run status '{st['status']}' — koi breakpoint pending nahi",
             }
         _append_event(
             run_id,
@@ -315,7 +314,7 @@ def approve(run_id: str, approved_by: str = "admin", note: str = "") -> dict[str
 
 
 def reject(run_id: str, by: str = "admin", reason: str = "") -> dict[str, Any]:
-    """Breakpoint reject -> run FAILED (audit trail ke saath)."""
+    """Breakpoint reject → run FAILED (audit trail ke saath)."""
     try:
         st = replay(run_id)
         if st["status"] != ST_WAITING:

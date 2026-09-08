@@ -1,4 +1,4 @@
-"""video_ad_cycle.py - har N din (default 5) per active marketing client ko 1 AI
+"""video_ad_cycle.py — har N din (default 5) per active marketing client ko 1 AI
 video ad: generate -> client approval -> approve hone par multi-channel social
 publish. Change-request -> naya (revised) video -> fresh approval (revision loop).
 
@@ -8,10 +8,8 @@ Lifecycle (data/video_ads.jsonl, append-on-update latest-line-wins):
            (max revisions ke baad changes_requested = held, agency ko ping)
 
 Design rules (CLAUDE.md):
-  * build_reel HEAVY CPU -> sirf scheduler/worker se (run_cycle)
-  web request me NAHI.
-  * approve-hook (web) sirf FAST file-mark karta (on_approved)
-  actual publish
+  * build_reel HEAVY CPU -> sirf scheduler/worker se (run_cycle); web request me NAHI.
+  * approve-hook (web) sirf FAST file-mark karta (on_approved); actual publish
     scheduler `publish_due()` karta -- web process heavy job nahi chalata.
   * GATED `VIDEO_AD_CYCLE=1` (scheduler tick). Manual/admin generate isse alag.
   * Sab additive, free-stack, NEVER raises (error dicts).
@@ -239,7 +237,7 @@ def _acquire_publish_reservation(
     Under the store lock: re-read durable state, recover stale inflight/reserved
     to ``publish_outcome_unknown``, short-circuit known terminals, append
     ``publish_reserved``, then CAS-confirm. Fail-closed when the lock or write
-    does not stick - never proceed to the provider.
+    does not stick — never proceed to the provider.
     """
     from app.marketing.video_production import publish_snapshot as ps
 
@@ -278,8 +276,8 @@ def _acquire_publish_reservation(
                 ps.PROVIDER_INFLIGHT,
             ):
                 if _attempt_is_stale(current):
-                    # Hard-kill / hung attempt -> durable unknown (never retryable).
-                    # Do NOT flip legacy status here - attempt-state alone blocks
+                    # Hard-kill / hung attempt → durable unknown (never retryable).
+                    # Do NOT flip legacy status here — attempt-state alone blocks
                     # retries; outer publish_due/schedule_approved make status visible.
                     wrote = _update(
                         rid,
@@ -369,7 +367,7 @@ def _eligible_clients() -> list[dict[str, Any]]:
 
 def _channels_for(client: dict[str, Any]) -> list[str]:
     ch: list[str] = []
-    # telegram REMOVED 2026-06-28 (ban-risk) - never publish to telegram (publish code below now dead)
+    # telegram REMOVED 2026-06-28 (ban-risk) — never publish to telegram (publish code below now dead)
     try:
         from app.marketing import postiz_publish
 
@@ -396,12 +394,12 @@ async def _caption_slides(client: dict[str, Any], note: str = "") -> tuple[str, 
         caption = ""
     if not caption:
         caption = (
-            f"{business} - {offer or f'aapke area ka bharosemand {niche}'}. Inquiry: WhatsApp/Call."
+            f"{business} — {offer or f'aapke area ka bharosemand {niche}'}. Inquiry: WhatsApp/Call."
         )
     slides = [
         business,
         offer or f"Aapke area ka bharosemand {niche} expert",
-        "Call ya WhatsApp karo - turant response milega",
+        "Call ya WhatsApp karo — turant response milega",
     ]
     return caption, slides
 
@@ -410,7 +408,7 @@ async def _caption_slides(client: dict[str, Any], note: str = "") -> tuple[str, 
 async def generate_for_client(
     client_id: str, note: str = "", revision: int = 0, supersedes: str = ""
 ) -> dict[str, Any]:
-    """1 video ad banao + client approval me daalo. HEAVY (build_reel) - scheduler/
+    """1 video ad banao + client approval me daalo. HEAVY (build_reel) — scheduler/
     worker se call karo. Returns {ok, id, approval, wa_link} ya {ok:False,error}."""
     try:
         from app.marketing import clients_store, content_approval, video_pipeline
@@ -511,7 +509,7 @@ def record_approval(rec_id: str, revision: int, *, actor: str) -> dict[str, Any]
     roots, streams a SHA-256 of the exact approval-time bytes, and persists the
     approval atomically through ``_update``.
 
-    Fails WITHOUT marking approval when the content cannot be verified - a
+    Fails WITHOUT marking approval when the content cannot be verified — a
     record we cannot hash must not become publishable.
     """
     from app.marketing.video_production import states
@@ -555,9 +553,9 @@ def record_approval(rec_id: str, revision: int, *, actor: str) -> dict[str, Any]
 
 def on_approved(approval_rec: dict[str, Any]) -> bool:
     """content_approval._decide(approved) se call (FAST, sync). Hamare video_ad rec
-    ko approved (pending-publish) mark karta - actual publish scheduler karta.
+    ko approved (pending-publish) mark karta — actual publish scheduler karta.
 
-    Delegates to :func:`record_approval` - this function must never write
+    Delegates to :func:`record_approval` — this function must never write
     approval fields itself, or the content hash silently stops being recorded.
     """
     try:
@@ -574,7 +572,7 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
             txn_state = str(rec.get("approval_txn_state") or "")
             if txn_state:
                 logger.info(
-                    "[video_ad] on_approved skipped - already coordinated (%s, txn_state=%s)",
+                    "[video_ad] on_approved skipped — already coordinated (%s, txn_state=%s)",
                     str(rid)[:40],
                     txn_state,
                 )
@@ -592,7 +590,7 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
             # lives here rather than on any one route. Video approval may only
             # be finalized by approval_saga.approve().
             logger.warning(
-                "[video_ad] on_approved REFUSED - uncoordinated approval (%s); "
+                "[video_ad] on_approved REFUSED — uncoordinated approval (%s); "
                 "video approval must go through approval_saga.approve",
                 str(rid)[:40],
             )
@@ -605,8 +603,8 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
 
 def on_changes_requested(approval_rec: dict[str, Any]) -> bool:
     """content_approval._decide(rejected) se call (FAST, sync). Video-ad ko
-    changes_requested mark karta - scheduler `_regen_due()` naya version banata.
-    (content_approval ne reject already kar diya - yahan sirf state mark.)"""
+    changes_requested mark karta — scheduler `_regen_due()` naya version banata.
+    (content_approval ne reject already kar diya — yahan sirf state mark.)"""
     try:
         aid = str(approval_rec.get("id") or "")
         if not aid:
@@ -630,7 +628,7 @@ def on_changes_requested(approval_rec: dict[str, Any]) -> bool:
 
 
 async def request_changes(approval_id: str, note: str = "") -> dict[str, Any]:
-    """Admin/support entry: client ne 'change chahiye' bola - reject + changes_requested
+    """Admin/support entry: client ne 'change chahiye' bola — reject + changes_requested
     mark. Regeneration scheduler `_regen_due()` karta. Returns {ok, status}."""
     try:
         from app.marketing import content_approval
@@ -653,7 +651,7 @@ async def request_changes(approval_id: str, note: str = "") -> dict[str, Any]:
             team.log_event(
                 "isha",
                 "video_ad_changes",
-                f"Client ne video ad change maanga - note: {note[:120]}",
+                f"Client ne video ad change maanga — note: {note[:120]}",
                 meta={"video_ad_id": rid},
             )
         except Exception:
@@ -739,7 +737,7 @@ def _resolve_publish_client(cid: str) -> dict[str, Any] | None:
     own-brand / admin publish context that ``postiz_publish._is_own_brand``
     expects), and ``None`` when a REAL id was present but resolved to nothing.
     That second case previously collapsed into ``{}`` via
-    ``get_client(cid) or {}``, which downstream reads as own-brand - the
+    ``get_client(cid) or {}``, which downstream reads as own-brand — the
     cross-customer leak this function exists to prevent.
 
     A lookup that RAISES is also ``None``: an unverifiable tenant is not a
@@ -763,17 +761,16 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
 
     Stage 3C (descriptor-bound) contract:
       * gate must be finalized + snapshot-bound
-      * ``open_verified_snapshot`` opens once (O_NOFOLLOW)
-      provider streams that fd
+      * ``open_verified_snapshot`` opens once (O_NOFOLLOW); provider streams that fd
       * mutable ``video_path`` is never opened for upload
-      * local states: publish_reserved -> provider_inflight -> published
+      * local states: publish_reserved → provider_inflight → published
         (or publish_outcome_unknown / publish_refused / publish_failed)
-      * Postiz has no provider idempotency - never claim exactly-once externally
+      * Postiz has no provider idempotency — never claim exactly-once externally
     """
     from app.marketing.video_production import publish_snapshot as ps
 
-    # Publish gate: when Video Production Cell master is ON -> fail-closed on
-    # gate errors. When OFF -> refuse rather than open a mutable path.
+    # Publish gate: when Video Production Cell master is ON → fail-closed on
+    # gate errors. When OFF → refuse rather than open a mutable path.
     _prod_cell = False
     try:
         from app.marketing.video_production import flags as _vflags
@@ -798,7 +795,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     cid = str(rec.get("client_id") or "")
     client = _resolve_publish_client(cid)
     if client is None:
-        logger.warning(f"[video_ad] publish refused - unresolved tenant: {cid[:40]}")
+        logger.warning(f"[video_ad] publish refused — unresolved tenant: {cid[:40]}")
         return {
             "any_sent": False,
             "channels": {"tenant": {"ok": False, "error": "unresolved_tenant"}},
@@ -907,7 +904,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         }
 
     try:
-        # Prefer Postiz when enabled - stream verified descriptor (no path reopen).
+        # Prefer Postiz when enabled — stream verified descriptor (no path reopen).
         from app.marketing import postiz_publish
 
         if postiz_publish.enabled():
@@ -945,7 +942,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             any_sent = any_sent or bool(pz.get("sent"))
             provider_outcome = str(pz.get("outcome") or "")
         else:
-            # Telegram fallback - same verified descriptor.
+            # Telegram fallback — same verified descriptor.
             chat_id = str(client.get("telegram_chat_id") or "").strip()
             provider_outcome = ""
             if chat_id:
@@ -982,7 +979,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         if any_sent:
             final_state = ps.PUBLISHED
         elif provider_started and provider_outcome != "failed":
-            # Missing/unknown outcome after invocation -> never blind-retry.
+            # Missing/unknown outcome after invocation → never blind-retry.
             final_state = ps.PUBLISH_OUTCOME_UNKNOWN
         else:
             final_state = ps.PUBLISH_FAILED
@@ -1009,7 +1006,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             and provider_started
             and final_state != ps.PUBLISH_OUTCOME_UNKNOWN
         ):
-            # Persistence uncertainty after provider call -> durable unknown.
+            # Persistence uncertainty after provider call → durable unknown.
             out["publish_attempt_state"] = ps.PUBLISH_OUTCOME_UNKNOWN
             out["any_sent"] = False
             _finalize_publish_attempt(
@@ -1021,7 +1018,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             )
         return out
     except Exception as e:
-        # Crash/exception after provider invocation -> unknown outcome; no blind retry.
+        # Crash/exception after provider invocation → unknown outcome; no blind retry.
         logger.warning("[video_ad] provider invocation raised (%s): %s", rid[:40], e)
         out = {
             "any_sent": False,
@@ -1241,7 +1238,7 @@ async def run_cycle() -> dict[str, Any]:
         gen = 0
         cap = _max_per_run()
         # Cadence ownership: when the DAILY producer manages a client, this
-        # every-N-day loop must NOT also generate for them - otherwise the client
+        # every-N-day loop must NOT also generate for them — otherwise the client
         # gets two videos (and two approval requests) on every 5th day. regen,
         # publish and the stuck-row repair above still run for ALL clients; only
         # the *generation* step defers.

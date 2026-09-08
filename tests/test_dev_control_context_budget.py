@@ -1,7 +1,6 @@
 """Context packets, packet cache, staged token budgets, handoff packets, redaction.
 
-Hermetic: stdlib-pure modules under test
-guardrails PII layer is exercised
+Hermetic: stdlib-pure modules under test; guardrails PII layer is exercised
 only when importable (secret-shaped masking is asserted unconditionally).
 """
 

@@ -1,8 +1,8 @@
 """
-gif_maker.py - PIL animated text GIF (Sale!/Offer stickers, WA/status ready).
+gif_maker.py — PIL animated text GIF (Sale!/Offer stickers, WA/status ready).
 ==============================================================================
 
-Chhote business ke liye 1-click animated GIF - text pop/pulse/blink on
+Chhote business ke liye 1-click animated GIF — text pop/pulse/blink on
 brand-color background. 512x512, 8-12 frames, loop forever. Brand colors
 `brand_kit.get_brand(slug)` se (saved ho to), warna default indigo/amber.
 
@@ -10,11 +10,11 @@ Public API (never-raise):
   - available()                          -> {"pillow": bool}
   - PRESETS                              -> Hinglish ready texts
   - make_gif(text, slug, style="pulse")  -> {"ok", "file", "url", ...}
-        styles: pulse (saans jaisa scale) | pop (chhota->bada bounce) |
+        styles: pulse (saans jaisa scale) | pop (chhota→bada bounce) |
                 blink (bg primary/accent alternate)
 
-Output: data/gifs/<slug>/<hash>.gif - serve /api/contentplus/gif-file/{slug}/{name}.
-HEAVY-lite (PIL CPU) - endpoint asyncio.to_thread se chalata hai.
+Output: data/gifs/<slug>/<hash>.gif — serve /api/contentplus/gif-file/{slug}/{name}.
+HEAVY-lite (PIL CPU) — endpoint asyncio.to_thread se chalata hai.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def _brand_colors(slug: str) -> tuple[str, str]:
 
 
 def _font(size: int):
-    """Best-effort bold font - truetype candidates, warna default."""
+    """Best-effort bold font — truetype candidates, warna default."""
     from PIL import ImageFont
 
     for cand in ("DejaVuSans-Bold.ttf", "arialbd.ttf", "arial.ttf", "DejaVuSans.ttf"):
@@ -94,7 +94,7 @@ def _font(size: int):
 
 
 def _draw_frame(text: str, bg: str, scale: float):
-    """Ek frame - centered text, scale ke hisaab se font size."""
+    """Ek frame — centered text, scale ke hisaab se font size."""
     from PIL import Image, ImageDraw
 
     img = Image.new("RGB", (_SIZE, _SIZE), bg)
@@ -127,7 +127,7 @@ def make_gif(text: str = "", slug: str = "default", style: str = "pulse") -> dic
             return {
                 "ok": False,
                 "reason": "pillow_missing",
-                "hint": "Pillow install karo - `pip install Pillow`.",
+                "hint": "Pillow install karo — `pip install Pillow`.",
             }
         text = str(text or "").strip() or PRESETS[0]
         text = text[:40]
@@ -142,7 +142,7 @@ def make_gif(text: str = "", slug: str = "default", style: str = "pulse") -> dic
         for i in range(n):
             t = i / (n - 1)
             if style == "pop":
-                # chhota -> overshoot -> settle
+                # chhota → overshoot → settle
                 scale = 0.3 + 0.9 * min(1.0, t * 1.6)
                 if t > 0.7:
                     scale = 1.0 + 0.08 * math.sin((t - 0.7) / 0.3 * math.pi)
@@ -170,7 +170,7 @@ def make_gif(text: str = "", slug: str = "default", style: str = "pulse") -> dic
             "frames": n,
             "style": style,
             "text": text,
-            "note": "WA status / story ke liye ready - 1-click download + share.",
+            "note": "WA status / story ke liye ready — 1-click download + share.",
         }
     except Exception as e:  # absolute guard
         logger.warning(f"[gif_maker] make_gif failed: {e}")

@@ -1,8 +1,8 @@
 """
-clients_store.py - marketing CLIENT records (per-client social-media handling).
+clients_store.py — marketing CLIENT records (per-client social-media handling).
 ================================================================================
 
-Har marketing client ka record `data/marketing_clients.jsonl` me - jsonl-first
+Har marketing client ka record `data/marketing_clients.jsonl` me — jsonl-first
 (append-only, kabhi data lost nahi). Brand bhi brand_kit.save_brand() se save
 hota hai taaki posters/posts auto-brand ho jaayein.
 
@@ -14,7 +14,7 @@ hota hai taaki posters/posts auto-brand ho jaayein.
   update_client(cid, **fields)          -> dict | None
 
 Har client ka ek unique `slug` (kebab-case business_name + 4-char id suffix)
-hota hai - mini-site /b/{slug} ke liye. Slug idempotently backfill hota hai jab
+hota hai — mini-site /b/{slug} ke liye. Slug idempotently backfill hota hai jab
 client list/fetch hota hai (purane records bhi turant slug pa jaate hain).
 
 Pure stdlib, file-based, KABHI raise nahi karta. Module-level path resolver
@@ -37,7 +37,7 @@ logger = setup_logger(__name__)
 
 
 def _CLIENTS_FILE() -> str:
-    """Marketing client registry - resolved per call, never frozen at import."""
+    """Marketing client registry — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -89,10 +89,10 @@ def resolve_product(c: dict[str, Any]) -> str:
     return "marketing"
 
 
-# Back-compat alias - callers/tests (e.g. video_ad_cycle._eligible_clients) use the
+# Back-compat alias — callers/tests (e.g. video_ad_cycle._eligible_clients) use the
 # older name `product_lane`. Kept pointing at resolve_product so the marketing/voice/
 # combo lane logic stays single-sourced. (Missing attr was silently caught by a
-# try/except at the call site -> every client defaulted to "marketing".)
+# try/except at the call site → every client defaulted to "marketing".)
 product_lane = resolve_product
 
 
@@ -124,7 +124,7 @@ _SLUG_STRIP_RE = re.compile(r"[^a-z0-9]+")
 
 
 def _slugify(text: Any) -> str:
-    """business_name -> kebab-case slug base ('Sharma Solar!!' -> 'sharma-solar')."""
+    """business_name → kebab-case slug base ('Sharma Solar!!' → 'sharma-solar')."""
     s = _SLUG_STRIP_RE.sub("-", str(text or "").strip().lower()).strip("-")
     return s[:48] or "business"
 
@@ -143,12 +143,12 @@ def _read_all() -> list[dict[str, Any]]:
     """Saare client records (parse-safe; corrupt lines skip).
 
     Side-effect: slug missing ho to backfill karke file rewrite karta hai
-    (idempotent - ek baar likhne ke baad dobara nahi). Backfill fail ho to bhi
+    (idempotent — ek baar likhne ke baad dobara nahi). Backfill fail ho to bhi
     in-memory records me slug set ho jaata hai (read kabhi raise nahi).
     """
     rows: list[dict[str, Any]] = []
     try:
-        # Resolver at each I/O site - binding to a local unbinds the allowlist (A3).
+        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
         if not os.path.isfile(_CLIENTS_FILE()):
             return rows
         with open(_CLIENTS_FILE(), encoding="utf-8") as f:
@@ -184,8 +184,7 @@ def _read_all() -> list[dict[str, Any]]:
     if changed:
         try:
             _rewrite(rows)
-        except Exception as e:  # pragma: no cover - file lock etc.
-        in-mem slug kaafi hai
+        except Exception as e:  # pragma: no cover - file lock etc.; in-mem slug kaafi hai
             logger.debug(f"[clients_store] slug backfill rewrite skip: {e}")
     return rows
 
@@ -193,13 +192,12 @@ def _read_all() -> list[dict[str, Any]]:
 def _file_lock(path: str):
     """Best-effort cross-process lock for `path` (web + worker + scheduler share
     the active runtime-data root). Falls back to a no-op contextmanager if `filelock`
-    isn't installed or the lock can't be acquired in time - module contract is
+    isn't installed or the lock can't be acquired in time — module contract is
     "never raise", so an unlocked write is preferred over a crash (production audit
     2026-07-01, F-DB5: closes the _append/_rewrite race, doesn't guarantee zero-race).
 
     Lock colocates with the ACTIVE ledger via ``resolve_lock_path`` when ``path``
-    is the authority path
-    monkeypatched test paths keep ``path + ".lock"``.
+    is the authority path; monkeypatched test paths keep ``path + ".lock"``.
     """
     try:
         from filelock import FileLock
@@ -235,13 +233,13 @@ def _file_lock(path: str):
 
 
 def _append(rec: dict[str, Any]) -> None:
-    # Resolver at each I/O site - binding to a local unbinds the allowlist (A3).
+    # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
     os.makedirs(os.path.dirname(_CLIENTS_FILE()) or ".", exist_ok=True)
     try:
         with _file_lock(_CLIENTS_FILE()):
             with open(_CLIENTS_FILE(), "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except Exception as e:  # lock timeout etc. - fall back to unlocked append
+    except Exception as e:  # lock timeout etc. — fall back to unlocked append
         logger.debug(f"[clients_store] _append lock skip: {e}")
         with open(_CLIENTS_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -285,7 +283,7 @@ def _rewrite(rows: list[dict[str, Any]]) -> None:
     try:
         with _file_lock(_CLIENTS_FILE()):
             _do_write()
-    except Exception as e:  # lock timeout etc. - fall back to unlocked rewrite
+    except Exception as e:  # lock timeout etc. — fall back to unlocked rewrite
         logger.debug(f"[clients_store] _rewrite lock skip: {e}")
         _do_write()
 
@@ -301,7 +299,7 @@ def add_client(
     product: str = "marketing",
 ) -> dict[str, Any]:
     """Naya marketing client banao (uuid id). Dedupe by phone (last-10) ya
-    business_name (case-insensitive) - existing mile to wahi return (no dup).
+    business_name (case-insensitive) — existing mile to wahi return (no dup).
     Brand bhi brand_kit me save hota hai (posters auto-brand). Kabhi raise nahi."""
     try:
         name = (business_name or "").strip()[:120] or "Aapka Business"
@@ -469,12 +467,12 @@ def link_billing_alias(
             out.update({"ok": True, "reason": "same_id"})
             return out
 
-        # Already resolvable to this marketing id -> idempotent success.
+        # Already resolvable to this marketing id → idempotent success.
         existing = resolve_client(bid)
         if existing and str(existing.get("id") or "").strip() == mid:
             out.update({"ok": True, "reason": "already_linked"})
             return out
-        # Alias (or direct id) owned by a different marketing tenant -> refuse.
+        # Alias (or direct id) owned by a different marketing tenant → refuse.
         if existing and str(existing.get("id") or "").strip() not in ("", mid):
             out.update(
                 {
@@ -484,7 +482,7 @@ def link_billing_alias(
             )
             return out
 
-        # billing_id is itself another marketing client's primary id -> refuse.
+        # billing_id is itself another marketing client's primary id → refuse.
         direct = get_client(bid)
         if direct and str(direct.get("id") or "").strip() not in ("", mid):
             out.update(
@@ -543,7 +541,7 @@ def link_billing_alias(
 
 
 def get_by_slug(slug: str) -> dict[str, Any] | None:
-    """Ek client by slug - mini-site /b/{slug} ke liye. None agar na mile.
+    """Ek client by slug — mini-site /b/{slug} ke liye. None agar na mile.
 
     _read_all() pehle missing slugs backfill karta hai, isliye purane records
     bhi match ho jaate hain. Case-insensitive. Kabhi raise nahi."""
@@ -575,21 +573,21 @@ _ALLOWED_FIELDS = {
     "status",
     "brand",
     "socials",
-    "trial",  # free-trial flag (bool) - conversion funnel
-    "trial_expires",  # ISO timestamp - trial khatam kab
-    "upi_vpa",  # client ka UPI ID (naam@bank) - payment QR poster (engage/upi-qr)
-    "setup_done",  # bool - onboarding complete (idempotency guard for AUTO_ONBOARD sweep)
-    "setup_at",  # ISO timestamp - onboarding kab hua
-    "crm",  # dict - per-client Zoho/HubSpot config (crm_sync.save_client_config)
-    "wizard_setup",  # dict - onboard wizard: custom opening_line + services/offer/business_type/niche
-    "offer",  # str - wizard/niche offer line (posters + voice copy)
-    "website",  # business site URL - AUTO_ONBOARD website->KB seed (audit 2026-07-04: was whitelist-blocked)
-    "awaiting_kb_interview",  # bool - no website at onboarding; WhatsApp business-info
+    "trial",  # free-trial flag (bool) — conversion funnel
+    "trial_expires",  # ISO timestamp — trial khatam kab
+    "upi_vpa",  # client ka UPI ID (naam@bank) — payment QR poster (engage/upi-qr)
+    "setup_done",  # bool — onboarding complete (idempotency guard for AUTO_ONBOARD sweep)
+    "setup_at",  # ISO timestamp — onboarding kab hua
+    "crm",  # dict — per-client Zoho/HubSpot config (crm_sync.save_client_config)
+    "wizard_setup",  # dict — onboard wizard: custom opening_line + services/offer/business_type/niche
+    "offer",  # str — wizard/niche offer line (posters + voice copy)
+    "website",  # business site URL — AUTO_ONBOARD website→KB seed (audit 2026-07-04: was whitelist-blocked)
+    "awaiting_kb_interview",  # bool — no website at onboarding; WhatsApp business-info
     # reply still pending (onboarding.py welcome message + wa selfhost webhook capture)
-    "delivery_state",  # str - value-delivery state machine (paid/assets_built/delivered/
+    "delivery_state",  # str — value-delivery state machine (paid/assets_built/delivered/
     # acknowledged); customer_delivery.py. Whitelist-block = re-send spam (2026-07-05).
-    "delivered_at",  # ISO timestamp - value delivered to customer kab
-    "acknowledged_at",  # ISO timestamp - customer ne reply/engage karke acknowledge kiya
+    "delivered_at",  # ISO timestamp — value delivered to customer kab
+    "acknowledged_at",  # ISO timestamp — customer ne reply/engage karke acknowledge kiya
     "services",  # description of services/products
     "target_area",  # local target areas/neighborhoods
     "whatsapp_phone",  # WhatsApp connection phone
@@ -599,16 +597,15 @@ _ALLOWED_FIELDS = {
     "blocked_reason",  # admin-facing tech error / reason blocked
     "email_notifications",  # approval/report email delivery preference
     "approval_email_opt_out",  # explicit approval-reminder opt-out
-    "trial_nudge_stage",  # str - last trial nudge stage ("expiring"/"expired") - trial_nudge.py idempotency (BLK-02)
-    "trial_nudge_at",  # ISO timestamp - last trial nudge kab gaya
-    "trial_nudge_count",  # int - lifetime trial-nudge count (cap enforcement)
+    "trial_nudge_stage",  # str — last trial nudge stage ("expiring"/"expired") — trial_nudge.py idempotency (BLK-02)
+    "trial_nudge_at",  # ISO timestamp — last trial nudge kab gaya
+    "trial_nudge_count",  # int — lifetime trial-nudge count (cap enforcement)
 }
 
 
 def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
     """Client ke fields update karo (whitelist). Updated dict ya None. Kabhi
-    raise nahi. Brand/socials dict-merge hote hain
-    brand change brand_kit me
+    raise nahi. Brand/socials dict-merge hote hain; brand change brand_kit me
     bhi mirror hota hai."""
     try:
         key = (cid or "").strip()
@@ -637,11 +634,11 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
             elif k in ("email_notifications", "approval_email_opt_out"):
                 found[k] = bool(v)
             elif k == "setup_done":
-                found["setup_done"] = bool(v)  # bool, NOT str("True") - idempotency guard
+                found["setup_done"] = bool(v)  # bool, NOT str("True") — idempotency guard
             elif k == "awaiting_kb_interview":
                 found["awaiting_kb_interview"] = bool(v)
             elif k in ("crm", "wizard_setup"):
-                # per-client config dicts - store as-is (generic else would str() it)
+                # per-client config dicts — store as-is (generic else would str() it)
                 found[k] = dict(v) if isinstance(v, dict) else found.get(k, {})
             elif k == "billing_client_ids":
                 vals = v if isinstance(v, list | tuple | set) else []
@@ -676,8 +673,8 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
 
 
 def delete_client(cid: str) -> bool:
-    """Ek client record permanently hatao (admin cleanup - test/junk). True agar
-    mila + hata. Never-raise. (Irreversible - UI confirm pe hi call karein.)"""
+    """Ek client record permanently hatao (admin cleanup — test/junk). True agar
+    mila + hata. Never-raise. (Irreversible — UI confirm pe hi call karein.)"""
     try:
         key = (cid or "").strip()
         if not key:
@@ -694,7 +691,7 @@ def delete_client(cid: str) -> bool:
 
 
 def dedupe_clients() -> dict[str, Any]:
-    """Exact-duplicate client records hatao - same phone (last-10), ya (phone na ho
+    """Exact-duplicate client records hatao — same phone (last-10), ya (phone na ho
     to) same business_name. Newest rakho. Returns {removed, kept}. Never-raise."""
     try:
         rows = _read_all()

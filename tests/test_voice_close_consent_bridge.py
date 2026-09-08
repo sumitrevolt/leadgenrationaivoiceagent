@@ -28,8 +28,7 @@ def _isolate(monkeypatch, tmp_path):
     TelecallerBrain refuses to construct without an LLM provider, and that check
     reads state captured at IMPORT time - so setting an env var here would be too
     late and the test would depend on the developer's .env (R4). Declare the
-    provider directly instead
-    nothing in this file exercises the LLM.
+    provider directly instead; nothing in this file exercises the LLM.
     """
     from app.voice_agent import free_ai as _free_ai
 
@@ -95,7 +94,7 @@ def test_enrolled_prospect_actually_passes_the_consent_gate():
 
 
 def test_no_phone_is_a_clean_no_op():
-    """Web-test calls have no dialed number yet - must not write anything."""
+    """Web-test calls have no dialed number yet — must not write anything."""
     b = _brain(phone="")
     b._on_close_signal()
     assert ap_store.list_prospects(limit=10) == []
@@ -127,5 +126,5 @@ def test_close_signal_never_raises_even_if_autopilot_store_fails(monkeypatch):
 
     monkeypatch.setattr(ap_store, "upsert_prospect", _boom)
     b = _brain()
-    b._on_close_signal()  # must not raise - the call must never break
+    b._on_close_signal()  # must not raise — the call must never break
     assert b.close_signal_fired is True

@@ -1,4 +1,4 @@
-"""Kavach - the OpenClaw Agent Harness Controller.
+"""Kavach — the OpenClaw Agent Harness Controller.
 
 Identity (NON-dispatchable, NOT a STAFF member, does not change the canonical
 31-agent count). Kavach is advisory/validation/orchestration only and reaches
@@ -89,7 +89,7 @@ def classify_harness_nl(text: str) -> dict[str, Any]:
     if any(x in low for x in ("harness status", "harness state", "status", "kaisa")):
         return prop("harness.status", "GREEN")
 
-    # Control intents (AMBER - parked for Owner OS approval)
+    # Control intents (AMBER — parked for Owner OS approval)
     if "shadow" in low:
         return prop(
             "harness.shadow.enable" if "enable" in low or "on" in low else "harness.shadow.disable",
@@ -138,7 +138,7 @@ def handle(
     if not is_enabled():
         return {
             "ok": False,
-            "error": "OPENCLAW_HARNESS_AGENT=0 - Kavach inert",
+            "error": "OPENCLAW_HARNESS_AGENT=0 — Kavach inert",
             "agent": KAVACH_AGENT["id"],
         }
 

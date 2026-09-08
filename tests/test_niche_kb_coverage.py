@@ -7,7 +7,7 @@ Har ACTIVE niche (app.niches.NICHES) ka ek conversation KB pack
 ke liye).
 
 Naya niche add karte waqt agar uska KB pack na ho (ya bahut shallow ho) to ye
-test FAIL karega - /verify me turant pakda jayega. "Har niche ka KB" permanent
+test FAIL karega — /verify me turant pakda jayega. "Har niche ka KB" permanent
 guarantee.
 
 Floor (current packs isse upar hain): >=3 facts, >=2 objection rebuttals, >=2 benefits.
@@ -44,13 +44,13 @@ def test_every_niche_pack_min_depth():
             thin.append({"niche": n, "facts": nf, "objections": no, "benefits": nb})
     assert not thin, (
         f"In niches ka KB pack shallow hai (floor {MIN_FACTS}f/{MIN_OBJECTIONS}o/"
-        f"{MIN_BENEFITS}b se kam) - depth add karo: {thin}"
+        f"{MIN_BENEFITS}b se kam) — depth add karo: {thin}"
     )
 
 
 def test_overlay_enrichment_applied():
     """Depth overlay (niche_knowledge_extra) base packs me merge hua ho."""
-    # ayurveda_wellness overlay me >=4 facts add karte hain -> merged pack richer hona chahiye
+    # ayurveda_wellness overlay me >=4 facts add karte hain → merged pack richer hona chahiye
     p = NICHE_KNOWLEDGE.get("ayurveda_wellness", {})
     assert len(p.get("facts", [])) >= 5, (
         "Depth overlay merge nahi hua (ayurveda_wellness facts kam)"

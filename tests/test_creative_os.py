@@ -1,4 +1,4 @@
-"""Creative Automation OS P1 - enqueue, worker, approval, QA, budget, isolation."""
+"""Creative Automation OS P1 — enqueue, worker, approval, QA, budget, isolation."""
 
 from __future__ import annotations
 
@@ -254,7 +254,7 @@ def test_enqueue_generate_binds_verified_brand_not_caller_business_name(monkeypa
     )
     out = service.enqueue_generate(
         tenant_id="acme01",
-        business_name="Acme - sirf ₹1,299",
+        business_name="Acme — sirf ₹1,299",
         niche="general",
         offer="Monsoon special",
     )

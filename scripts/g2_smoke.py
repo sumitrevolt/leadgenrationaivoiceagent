@@ -1,4 +1,4 @@
-"""Godmode-2 VPS smoke - public audit funnel + content pack + retention wiring."""
+"""Godmode-2 VPS smoke — public audit funnel + content pack + retention wiring."""
 
 import asyncio
 

@@ -2,7 +2,7 @@
 Natural Dialog Manager
 =======================
 
-Banata hai AI voice agent ko *human-jaisa* - customer ki baat dhyan se sun ke,
+Banata hai AI voice agent ko *human-jaisa* — customer ki baat dhyan se sun ke,
 samajh ke, context ke hisaab se SAHI aur natural jawab deta hai (robotic nahi).
 
 Yeh module existing pieces ko orchestrate karta hai (duplicate nahi):
@@ -12,10 +12,10 @@ Yeh module existing pieces ko orchestrate karta hai (duplicate nahi):
 
 Core ideas (Dograh / production voice-agent best practices):
   1. SUNO: garbled / khaali / "samajh nahi aaya" input ko detect karke naturally
-     dobara poochho - pretend mat karo.
+     dobara poochho — pretend mat karo.
   2. SAMJHO: har utterance ko classify karo (question / objection / answer /
      interested / not_interested / confused / chit-chat) + affect (annoyed/keen).
-  3. SAHI JAWAB: customer ke sawaal ka honest, grounded (KNOWN_FACTS se) jawab -
+  3. SAHI JAWAB: customer ke sawaal ka honest, grounded (KNOWN_FACTS se) jawab —
      jo nahi pata woh "team follow-up karegi", banao mat (no hallucination).
   4. INSAAN JAISA: chhota (1-2 line), acknowledge-then-answer, customer ki hi
      bhasha/tone match karo, ek hi cheez ek baar me poochho, repeat mat karo.
@@ -98,9 +98,9 @@ class DialogReply:
 
 
 # --------------------------------------------------------------------------- #
-# The human-like system prompt - yahi "insaan jaisa" ka dil hai
+# The human-like system prompt — yahi "insaan jaisa" ka dil hai
 # --------------------------------------------------------------------------- #
-VOICE_SYSTEM_PROMPT = """Tum {agent_name} ho - {client_name} ke liye phone call kar rahe ek warm, natural insaan ki tarah. Tum ek AI ho par baat ekdam insaan jaisi honi chahiye.
+VOICE_SYSTEM_PROMPT = """Tum {agent_name} ho — {client_name} ke liye phone call kar rahe ek warm, natural insaan ki tarah. Tum ek AI ho par baat ekdam insaan jaisi honi chahiye.
 
 TUM PHONE PAR HO. Isliye:
 - Reply CHHOTA rakho: 1-2 line, ~15-25 shabd. Phone par lambi speech koi nahi sunta.
@@ -109,8 +109,8 @@ TUM PHONE PAR HO. Isliye:
 - KABHI BHI BICH ME TOLO MAT (Do not interrupt). Jab customer bol raha ho, 100% chup raho.
 - "Ek second", "Hold on", "Let me check" bolne se bacho. Seedha answer do.
 - Customer kuch poochhe to PEHLE uska seedha, sahi jawab do, phir aage badho.
-- Tum ek FEMALE agent ho ({agent_name}) - hamesha feminine Hindi verb forms use karo.
-- Apna asli naam istemal karo ({agent_name}). Hamesha izzat se 'aap' aur 'sir/madam' bolo - informal slang mat use karo, tone respectful aur professional honi chahiye.
+- Tum ek FEMALE agent ho ({agent_name}) — hamesha feminine Hindi verb forms use karo.
+- Apna asli naam istemal karo ({agent_name}). Hamesha izzat se 'aap' aur 'sir/madam' bolo — informal slang mat use karo, tone respectful aur professional honi chahiye.
 
 TUMHARA GOAL: {goal}
 Par customer ka experience pehle aata hai.
@@ -128,16 +128,16 @@ CLIENT / BUSINESS:
 KNOWN FACTS (inhi se sahi jawab do):
 {known_facts}
 
-{captured_block}{goal_question_block}IMPORTANT: Sirf agent ka bola jaane wala agla SENTENCE likho. Koi stage direction, naam ka prefix, ya explanation nahi - bas spoken reply."""
+{captured_block}{goal_question_block}IMPORTANT: Sirf agent ka bola jaane wala agla SENTENCE likho. Koi stage direction, naam ka prefix, ya explanation nahi — bas spoken reply."""
 
 
-# Niche-wise chhoti FAQ/knowledge base - sahi (grounded) jawab ke liye.
+# Niche-wise chhoti FAQ/knowledge base — sahi (grounded) jawab ke liye.
 DEFAULT_KNOWLEDGE: dict[str, list[str]] = {
     "_global": [
         "Hum aapke business ke potential customers ko AI voice agent se call karke qualified leads laate hain.",
-        "Pricing per qualified lead hoti hai (₹200-500/lead) - aap sirf result ke paise dete ho.",
+        "Pricing per qualified lead hoti hai (₹200-500/lead) — aap sirf result ke paise dete ho.",
         "Demo free hai; 15 minute me dikha dete hain ki system kaise kaam karta hai.",
-        "Aapko kuch setup nahi karna - hum poora handle karte hain, leads aapke WhatsApp/CRM par aate hain.",
+        "Aapko kuch setup nahi karna — hum poora handle karte hain, leads aapke WhatsApp/CRM par aate hain.",
     ],
 }
 
@@ -159,7 +159,7 @@ class NaturalDialogManager:
     Listens, understands, and replies like a human across one phone conversation.
 
     Defensive by design: agar LLM/intent/flow modules available na hon, to
-    rule-based natural fallbacks use karta hai - kabhi crash nahi.
+    rule-based natural fallbacks use karta hai — kabhi crash nahi.
     """
 
     def __init__(
@@ -189,7 +189,7 @@ class NaturalDialogManager:
         self.flow = flow  # optional ConversationFlow for goal steering
         self._goal_questions = self._load_goal_questions(niche)
         # Optional production enhancements (KB grounding, in-call tools, AMD,
-        # fillers, post-call analysis). Sab lazy + defensive - na ho to skip.
+        # fillers, post-call analysis). Sab lazy + defensive — na ho to skip.
         self.kb = self._load_kb()
         self.tools = self._load_tools()
         self.amd = self._load_amd()
@@ -204,9 +204,9 @@ class NaturalDialogManager:
         return DialogState()
 
     async def opening_line(self, state: DialogState) -> str:
-        """Natural, short opening - pitch hook ke saath."""
+        """Natural, short opening — pitch hook ke saath."""
         line = (
-            f"Namaste! Main {self.agent_name} {self.client_name} se baat kar rahi hoon - "
+            f"Namaste! Main {self.agent_name} {self.client_name} se baat kar rahi hoon — "
             f"do minute hain aapke paas?"
         )
         try:
@@ -219,7 +219,7 @@ class NaturalDialogManager:
                     )
                 )
                 # LLM output sirf tab use karo jab usme koi placeholder na ho
-                # (kabhi-kabhi "[Your Name]" jaisa template aa jaata hai) -
+                # (kabhi-kabhi "[Your Name]" jaisa template aa jaata hai) —
                 # warna saaf hardcoded Hinglish line behtar hai.
                 if (
                     isinstance(got, str)
@@ -235,13 +235,13 @@ class NaturalDialogManager:
 
     async def respond(self, user_utterance: str, state: DialogState) -> DialogReply:
         """
-        Ek customer turn ka human-jaisa jawab. Yeh poora "suno->samjho->sahi jawab"
+        Ek customer turn ka human-jaisa jawab. Yeh poora "suno→samjho→sahi jawab"
         loop hai.
         """
         state.turn += 1
         utterance = (user_utterance or "").strip()
 
-        # 0) ANSWERING-MACHINE DETECTION - pehli baat sun ke voicemail pakdo.
+        # 0) ANSWERING-MACHINE DETECTION — pehli baat sun ke voicemail pakdo.
         if self.amd is not None and not self._amd_checked and utterance:
             self._amd_checked = True
             try:
@@ -274,10 +274,10 @@ class NaturalDialogManager:
             try:
                 gi = self.guardrails.check_input(utterance)
                 if not getattr(gi, "allowed", True):
-                    # Injected / unsafe - obey mat karo, naturally deflect.
+                    # Injected / unsafe — obey mat karo, naturally deflect.
                     state.add("user", utterance)
                     reply = DialogReply(
-                        text="Haha - main bas aapke business ki leads ke liye yahan hoon, usi pe baat karein?",
+                        text="Haha — main bas aapke business ki leads ke liye yahan hoon, usi pe baat karein?",
                         utterance_type=UtteranceType.CHITCHAT,
                     )
                     state.add("assistant", reply.text)
@@ -287,7 +287,7 @@ class NaturalDialogManager:
             except Exception as e:
                 logger.debug(f"guardrail input skipped: {e}")
 
-        # 1) SUNO - garbled / empty ko handle karo, pretend mat karo.
+        # 1) SUNO — garbled / empty ko handle karo, pretend mat karo.
         if self._is_unclear(utterance):
             state.unclear_streak += 1
             state.add("user", utterance)
@@ -300,14 +300,14 @@ class NaturalDialogManager:
                 )
             else:
                 reply = DialogReply(
-                    text="Maaf kijiye, aapki awaaz thodi clear nahi aayi - dobara bata sakte hain?",
+                    text="Maaf kijiye, aapki awaaz thodi clear nahi aayi — dobara bata sakte hain?",
                     utterance_type=UtteranceType.UNCLEAR,
                 )
             state.add("assistant", reply.text)
             return self._finalize(reply, state)
         state.unclear_streak = 0
 
-        # 2) SAMJHO - type + affect
+        # 2) SAMJHO — type + affect
         utype = await self._classify(utterance, state)
         affect = self._detect_affect(utterance)
         state.last_affect = affect
@@ -330,7 +330,7 @@ class NaturalDialogManager:
             state.add("assistant", reply.text)
             return self._finalize(reply, state)
 
-        # 3) SAHI JAWAB - context + grounding + goal steering ke saath generate.
+        # 3) SAHI JAWAB — context + grounding + goal steering ke saath generate.
         text = await self._generate_reply(utterance, utype, affect, state)
         text = self._humanize(text)
 
@@ -441,7 +441,7 @@ class NaturalDialogManager:
                 "accha",
             ]
         ):
-            # could be interested OR an answer - prefer intent detector
+            # could be interested OR an answer — prefer intent detector
             base = UtteranceType.INTERESTED
         else:
             base = UtteranceType.ANSWER
@@ -522,7 +522,7 @@ class NaturalDialogManager:
                 else:
                     out = None
                 if isinstance(out, str) and out.strip():
-                    # IN-CALL TOOL CALLING - agar LLM ne koi tool maanga
+                    # IN-CALL TOOL CALLING — agar LLM ne koi tool maanga
                     # (e.g. book_appointment), execute karke natural confirm do.
                     tool_text = await self._maybe_tool_call(out, state)
                     if tool_text:
@@ -531,7 +531,7 @@ class NaturalDialogManager:
         except Exception as e:
             logger.debug(f"LLM reply fallback ({e})")
 
-        # Rule-based natural fallback (no LLM) - still human-ish + correct.
+        # Rule-based natural fallback (no LLM) — still human-ish + correct.
         return self._fallback_reply(utterance, utype, affect, state)
 
     def _fallback_reply(self, utterance, utype, affect, state) -> str:
@@ -551,18 +551,18 @@ class NaturalDialogManager:
             except Exception as e:
                 logger.debug(f"niche objection match skipped: {e}")
             if "mehenga" in utterance.lower() or "expensive" in utterance.lower():
-                return "Samajh sakti hoon - par aap sirf qualified lead ke paise dete ho, fixed kharcha nahi. Ek baar dekh lein?"
+                return "Samajh sakti hoon — par aap sirf qualified lead ke paise dete ho, fixed kharcha nahi. Ek baar dekh lein?"
             if "busy" in utterance.lower() or "baad" in utterance.lower():
                 return "Koi baat nahi! Main aapko kis time call karoon jo aapke liye sahi rahe?"
-            return "Bilkul samajhti hoon. Bas ek chhoti baat - agar bina mehnat 5 qualified leads aayein, to ek 5-minute demo theek rahega?"
+            return "Bilkul samajhti hoon. Bas ek chhoti baat — agar bina mehnat 5 qualified leads aayein, to ek 5-minute demo theek rahega?"
         if utype == UtteranceType.INTERESTED:
             return (
                 self._next_goal_question(state)
-                or "Badhiya! Main aapke liye ek free demo set kar deti hoon - kal sham theek rahega?"
+                or "Badhiya! Main aapke liye ek free demo set kar deti hoon — kal sham theek rahega?"
             )
         if utype == UtteranceType.CONFUSED:
             return (
-                f"Main {self.agent_name}, {self.client_name} se - hum aapke business ke liye "
+                f"Main {self.agent_name}, {self.client_name} se — hum aapke business ke liye "
                 f"qualified customers laate hain. Ek line me bataoon kaise?"
             )
         # default: acknowledge + move goal forward
@@ -570,7 +570,7 @@ class NaturalDialogManager:
         return ("Achha, samajh gayi. " + nxt) if nxt else "Theek hai, samajh gayi. Aur bataiye?"
 
     def _grounded_answer(self, question: str) -> str:
-        """KB (RAG) se grounded jawab; warna KNOWN_FACTS se - hallucination se bachne ke liye."""
+        """KB (RAG) se grounded jawab; warna KNOWN_FACTS se — hallucination se bachne ke liye."""
         # Latency: repeated/FAQ-type sawaalon ke jawab cache karo (instant reply).
         cache = getattr(self.optimizer, "cache", None) if self.optimizer else None
         if cache is not None:
@@ -602,8 +602,8 @@ class NaturalDialogManager:
         if best and best[0] > 0:
             return best[1]
         if "price" in ql or "kitna" in ql or "kitne" in ql or "cost" in ql:
-            return "Pricing per qualified lead hoti hai, ₹200-500 ke beech - sirf result ke paise."
-        return "Achha sawaal - main aapke liye exact detail team se confirm karwa deti hoon."
+            return "Pricing per qualified lead hoti hai, ₹200-500 ke beech — sirf result ke paise."
+        return "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
 
     # ----------------------- prompt building ----------------------- #
     def _build_system_prompt(self, state, utype, affect) -> str:
@@ -621,9 +621,9 @@ class NaturalDialogManager:
             else ""
         )
         affect_hint = {
-            Affect.ANNOYED: "Customer thoda jaldi/irritate me lag raha hai - extra short raho, time ki value do.",
-            Affect.KEEN: "Customer interested lag raha hai - momentum lo, demo/next step ki taraf le jao.",
-            Affect.HESITANT: "Customer hesitant hai - reassure karo, pressure mat do.",
+            Affect.ANNOYED: "Customer thoda jaldi/irritate me lag raha hai — extra short raho, time ki value do.",
+            Affect.KEEN: "Customer interested lag raha hai — momentum lo, demo/next step ki taraf le jao.",
+            Affect.HESITANT: "Customer hesitant hai — reassure karo, pressure mat do.",
             Affect.NEUTRAL: "",
         }.get(affect, "")
 
@@ -654,13 +654,13 @@ class NaturalDialogManager:
     def _try_persona_prompt(self) -> str | None:
         """Try to get this agent's unique enterprise persona system prompt.
 
-        Maps agent_name -> STAFF key -> persona from agent_personas.py.
+        Maps agent_name → STAFF key → persona from agent_personas.py.
         Returns None if no persona found (caller falls back to generic prompt).
         """
         try:
             from app.platform.team import get_staff_persona_prompt
 
-            # agent_name -> staff_id mapping
+            # agent_name → staff_id mapping
             _NAME_TO_STAFF = {
                 "Riya": "riya",
                 "Swara": "swara",
@@ -786,7 +786,7 @@ class NaturalDialogManager:
     def _load_knowledge(self, niche: str) -> list[str]:
         kb = list(DEFAULT_KNOWLEDGE.get("_global", []))
         kb += DEFAULT_KNOWLEDGE.get(niche, [])
-        # per-niche grounded knowledge pack (end-customer facts) - yahi se LEADS
+        # per-niche grounded knowledge pack (end-customer facts) — yahi se LEADS
         # agent client ke offering ke baare me SAHI jawab deta hai (no hallucination).
         # Sirf real niche pack ke liye (general/unknown ke liye behaviour unchanged).
         try:
@@ -926,7 +926,7 @@ class NaturalDialogManager:
             logger.debug(f"Indic providers not registered: {e}")
 
     def thinking_filler(self, context: str = "thinking") -> str:
-        """Ek short natural filler jab LLM soch raha ho - call ke beech play karo."""
+        """Ek short natural filler jab LLM soch raha ho — call ke beech play karo."""
         if self.filler is not None:
             try:
                 return self.filler.next(context)

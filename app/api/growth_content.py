@@ -1,8 +1,7 @@
 """Competitor-parity content endpoints (carousel / meme / multilang).
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router()
-paths unchanged (/api/growth/...).
+Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
 """
 
 from __future__ import annotations
@@ -56,7 +55,7 @@ class MultilangIn(BaseModel):
 
 @router.post("/content/multilang")
 async def content_multilang(body: MultilangIn, _user=Depends(require_admin)):
-    """Caption -> Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
+    """Caption → Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
     from app.marketing import multilang_post
 
     return await multilang_post.translate_post(body.caption, body.langs)

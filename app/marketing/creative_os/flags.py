@@ -1,4 +1,4 @@
-"""Creative Automation OS flags - all default OFF (fail-closed)."""
+"""Creative Automation OS flags — all default OFF (fail-closed)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def provider_enabled(name: str) -> bool:
     if key == "hyperframes":
         # Named _ENABLED rather than the generic CREATIVE_PROVIDER_<NAME> shape.
         # Kept here so this function stays the single answer to "is provider X
-        # on?" - a second, differently-named check elsewhere is how a provider
+        # on?" — a second, differently-named check elsewhere is how a provider
         # ends up live while the flag snapshot still reports it off.
         return os_enabled() and _on("CREATIVE_PROVIDER_HYPERFRAMES_ENABLED")
     return os_enabled() and _on(f"CREATIVE_PROVIDER_{key.upper()}")
@@ -37,7 +37,7 @@ def comfyui_enabled() -> bool:
 
 
 def learning_enabled() -> bool:
-    """Recommendations surface only - never auto-mutates prompts."""
+    """Recommendations surface only — never auto-mutates prompts."""
     return os_enabled() and _on("CREATIVE_LEARNING_ENABLED", "1")
 
 

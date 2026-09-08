@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.json:
-        # No secrets, no records, no env values - path metadata only.
+        # No secrets, no records, no env values — path metadata only.
         print(
             json.dumps(
                 {
@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "ratchet":
         # Monotonic: existing frozen debt is tolerated, NEW unresolved debt and
         # classification regressions are not. Counts alone would not catch
-        # "one dangerous writer added, one unrelated finding removed" - the
+        # "one dangerous writer added, one unrelated finding removed" — the
         # comparison is over fingerprints, so that trade shows up.
         print("\n=== debt ratchet ===")
         print(f"  baseline fingerprints : {verdict['baseline_fingerprints']}")
@@ -157,11 +157,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  resolved since baseline: {len(verdict['resolved'])}")
         print(f"  removed since baseline : {len(verdict['removed'])}")
         if not verdict["ok"]:
-            print("\n  RATCHET FAILED - new debt or classification regression:\n")
+            print("\n  RATCHET FAILED — new debt or classification regression:\n")
             for block in _ratchet.format_failures(verdict):
                 print(block + "\n")
             return 1
-        print("\n  RATCHET OK - no new unresolved findings, no regressions")
+        print("\n  RATCHET OK — no new unresolved findings, no regressions")
         return 0
 
     # `validate` gates on schema + allowlist coherence + baseline integrity.

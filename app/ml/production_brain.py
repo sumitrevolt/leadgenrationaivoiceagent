@@ -720,7 +720,7 @@ Respond with JSON only:
                 # HONEST (2026-06-25 audit): these checklist items are NOT auto-verified
                 # in this method. The old code hardcoded `passed = True` for ALL of them,
                 # fabricating a 100% overall_score with an empty failed[]. Report them as
-                # UNVERIFIED instead - the REAL gate is scripts/prod_check.py +
+                # UNVERIFIED instead — the REAL gate is scripts/prod_check.py +
                 # GET /api/activation/readiness.
                 category_results.append(
                     {
@@ -745,7 +745,7 @@ Respond with JSON only:
         results["unverified"] = total_checks
         results["status"] = "unverified"
         results["note"] = (
-            "Static checklist - items are NOT auto-verified in this method. Use "
+            "Static checklist — items are NOT auto-verified in this method. Use "
             "scripts/prod_check.py or GET /api/activation/readiness for the live gate."
         )
 

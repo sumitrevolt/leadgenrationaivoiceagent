@@ -1,4 +1,4 @@
-"""STAFF bus runtime - append-only ledger, idempotency, DLQ, kill-switch."""
+"""STAFF bus runtime — append-only ledger, idempotency, DLQ, kill-switch."""
 
 from __future__ import annotations
 

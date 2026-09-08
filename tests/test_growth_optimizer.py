@@ -1,4 +1,4 @@
-"""Tests - self-healing growth optimizer + channel experiments + city rotation.
+"""Tests — self-healing growth optimizer + channel experiments + city rotation.
 Sync + asyncio.run pattern, tmp stores monkeypatch. No network/DB needed.
 """
 
@@ -57,7 +57,7 @@ def test_experiments_run_daily_launches(tmp_path, monkeypatch):
 
     out = asyncio.run(ce.run_daily(2))
     assert out["enabled"] is True
-    # generators free-LLM fallback templates use karte - kuch launch hona chahiye
+    # generators free-LLM fallback templates use karte — kuch launch hona chahiye
     assert len(out.get("launched") or []) >= 1
     assert ce.recent(5)
 

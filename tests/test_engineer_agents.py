@@ -1,8 +1,8 @@
-"""F.5 engineer agents - disabled / signal-based / disabled-vs-data behaviour.
+"""F.5 engineer agents — disabled / signal-based / disabled-vs-data behaviour.
 
 Audit Section H said: "add an engineer agent only if it creates MEASURABLE
 operational leverage." These tests assert each agent's score actually MOVES
-in response to its signals - a score that always returns 100 is no signal at all.
+in response to its signals — a score that always returns 100 is no signal at all.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def test_security_disabled_when_flag_unset() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Pranav - SRE / Reliability
+# Pranav — SRE / Reliability
 # --------------------------------------------------------------------------- #
 def _stub_psutil_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pin the capacity sub-score to neutral-50 so other signals are testable
@@ -58,7 +58,7 @@ def _stub_psutil_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     expected score (test flakes under parallel test runs / high system load).
 
     Implementation: drop a sentinel into sys.modules that raises on attribute
-    access - `import psutil` succeeds but `psutil.cpu_percent(...)` blows up,
+    access — `import psutil` succeeds but `psutil.cpu_percent(...)` blows up,
     landing in the agent's `except Exception` -> neutral-50 fallback."""
     import sys
 
@@ -107,11 +107,11 @@ def test_sre_score_drops_on_stale_backup(monkeypatch: pytest.MonkeyPatch, tmp_pa
     old = time.time() - 72 * 3600
     os.utime(p, (old, old))
     stale = ea.run_sre()["score"]
-    assert stale < fresh  # measurable signal - score actually moves
+    assert stale < fresh  # measurable signal — score actually moves
 
 
 # --------------------------------------------------------------------------- #
-# Vidya - FinOps / Cost
+# Vidya — FinOps / Cost
 # --------------------------------------------------------------------------- #
 def test_finops_zero_load_high_score(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FINOPS_AGENT", "1")
@@ -151,11 +151,11 @@ def test_finops_flags_litellm_inactive(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Arnav - Security / Compliance
+# Arnav — Security / Compliance
 # --------------------------------------------------------------------------- #
 def test_security_unarmed_secrets_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECURITY_AGENT", "1")
-    # All webhook secrets unset (Razorpay + Twilio removed - whatsapp only now;
+    # All webhook secrets unset (Razorpay + Twilio removed — whatsapp only now;
     # Vobiz doesn't sign its callbacks so there's nothing to arm for it)
     for k in (
         "WHATSAPP_APP_SECRET",
@@ -218,7 +218,7 @@ def test_run_all_returns_all_six(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Council 2026-06-25 - Kabir (DBRE) / Aryan (deps) / Diya (data-integrity)
+# Council 2026-06-25 — Kabir (DBRE) / Aryan (deps) / Diya (data-integrity)
 # --------------------------------------------------------------------------- #
 def test_new_engineers_disabled_when_flag_unset() -> None:
     assert ea.run_dbre()["status"] == "disabled"

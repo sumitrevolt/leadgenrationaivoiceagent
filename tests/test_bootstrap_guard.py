@@ -274,7 +274,7 @@ def test_fresh_target_reaches_the_first_intended_mutation(tmp_path: pathlib.Path
     assert proc.returncode not in (126, 127), f"HARNESS BROKEN: {proc.stderr}"
     recorded = log.read_text(encoding="utf-8")
     assert "git clone" in recorded, (
-        f"fresh target never reached the clone - denial tests may be vacuous.\n"
+        f"fresh target never reached the clone — denial tests may be vacuous.\n"
         f"rc={proc.returncode}\nSTDOUT:\n{proc.stdout}\nlog:\n{recorded}"
     )
 

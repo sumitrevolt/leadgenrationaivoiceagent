@@ -44,16 +44,16 @@ REQUIRED_SECTIONS = [
 ]
 
 REQUIRED_WORKFLOWS = [
-    "Lead discovery -> scoring -> outreach",
-    "Inquiry -> Hot Queue -> human follow-up",
-    "Content generation -> approval -> social publish",
-    "Reply agent -> classification -> guarded response",
-    "Customer signup -> onboarding -> delivery assurance",
-    "UPI/payment -> subscription -> invoice",
-    "AI agents -> scheduler -> execution -> audit",
-    "Self-improve -> evaluation -> approval/requeue",
-    "Runtime health -> alert -> recovery/DLQ",
-    "Inbound/missed-call -> consent gate -> callback",
+    "Lead discovery → scoring → outreach",
+    "Inquiry → Hot Queue → human follow-up",
+    "Content generation → approval → social publish",
+    "Reply agent → classification → guarded response",
+    "Customer signup → onboarding → delivery assurance",
+    "UPI/payment → subscription → invoice",
+    "AI agents → scheduler → execution → audit",
+    "Self-improve → evaluation → approval/requeue",
+    "Runtime health → alert → recovery/DLQ",
+    "Inbound/missed-call → consent gate → callback",
 ]
 
 EVIDENCE_LABELS = [
@@ -158,8 +158,7 @@ def test_public_health_independent_from_admin_overlays_preserved():
     html = _html()
     assert "const [healthR, summaryR] = await Promise.all([" in html
     assert "const adminRes = await Promise.allSettled([" in html
-    assert "try { renderNodes()
-    } catch(e) {}" in html
+    assert "try { renderNodes(); } catch(e) {}" in html
 
 
 def test_status_defaults_to_unknown_without_live_data():
@@ -248,5 +247,4 @@ def test_mode_switch_closes_blueprint_detail_drawer():
     html = _html()
     enter_mode = html[html.index("  enterMode(mode, legacyView){") :]
     enter_mode = enter_mode[: enter_mode.index("\n  _safe(fn){")]
-    assert enter_mode.index("this.closeDrawer()
-    ") < enter_mode.index("if(mode==='technical'){")
+    assert enter_mode.index("this.closeDrawer();") < enter_mode.index("if(mode==='technical'){")

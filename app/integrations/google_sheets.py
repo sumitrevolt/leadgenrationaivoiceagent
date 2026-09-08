@@ -80,9 +80,9 @@ class GoogleSheetsIntegration:
             import os
 
             # Only attempt auth if a REAL credentials file exists. A placeholder
-            # path (e.g. "path/to/credentials.json") must not raise - just skip.
+            # path (e.g. "path/to/credentials.json") must not raise — just skip.
             if not self.credentials_path or not os.path.isfile(self.credentials_path):
-                logger.info("Google Sheets not configured (no credentials file) - skipping.")
+                logger.info("Google Sheets not configured (no credentials file) — skipping.")
                 return
 
             import gspread

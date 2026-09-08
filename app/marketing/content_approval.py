@@ -1,4 +1,4 @@
-"""Client content-approval loop (agency-grade) - draft -> client 1-click approve.
+"""Client content-approval loop (agency-grade) — draft → client 1-click approve.
 
 Agency clients ko post publish hone se PEHLE approve karna hota hai. Yeh module
 har content piece ka approval record banata hai + client ko bhejne ka WhatsApp
@@ -9,8 +9,8 @@ har content piece ka approval record banata hai + client ko bhejne ka WhatsApp
   pending(client_id="")        -> pending approvals (latest state)
   get_by_token(token)          -> latest state of one approval
 
-Store: data/content_approvals.jsonl - append-on-update, latest line per id wins
-(minisite_builder config pattern - lock-free, multi-worker safe enough).
+Store: data/content_approvals.jsonl — append-on-update, latest line per id wins
+(minisite_builder config pattern — lock-free, multi-worker safe enough).
 Pure stdlib + file IO. NEVER raises. Test-monkeypatch: `_FILE` (call-time resolver).
 """
 
@@ -32,7 +32,7 @@ logger = setup_logger(__name__)
 
 
 def _FILE() -> str:
-    """Content approvals ledger - resolved per call, never frozen at import."""
+    """Content approvals ledger — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -48,11 +48,11 @@ _STATUSES = {"pending", "approved", "rejected"}
 
 # Loop-social-7 (2026-07-11): extended state machine (Phase 7). Additive over
 # `_STATUSES` (kept for backward compat with `_decide`'s legacy 3-state path).
-# The extended machine tracks post lifecycle after approval - a caller can now
+# The extended machine tracks post lifecycle after approval — a caller can now
 # mark `SCHEDULED / PUBLISHING / PUBLISHED / PARTIALLY_PUBLISHED / CANCELLED`
 # on an approval id and the append-latest-wins JSONL keeps the audit trail.
-# Legal transitions (source -> allowed destinations). Anything else is refused
-# with `{"ok": False, "error": "illegal_transition"}` - prevents e.g. a
+# Legal transitions (source → allowed destinations). Anything else is refused
+# with `{"ok": False, "error": "illegal_transition"}` — prevents e.g. a
 # published post being flipped back to pending, or a cancelled post reviving.
 _EXTENDED_STATUSES = {
     "pending",
@@ -110,7 +110,7 @@ def _append(rec: dict[str, Any]) -> None:
 
 
 def _read_all() -> list[dict[str, Any]]:
-    """All approval rows. Unresolvable authority -> [] (NEVER read as approved)."""
+    """All approval rows. Unresolvable authority → [] (NEVER read as approved)."""
     out: list[dict[str, Any]] = []
     try:
         _FILE()
@@ -138,7 +138,7 @@ def _read_all() -> list[dict[str, Any]]:
 
 
 def _latest_states() -> dict[str, dict[str, Any]]:
-    """id -> merged latest state (append-on-update; baad wali line jeet ti)."""
+    """id → merged latest state (append-on-update; baad wali line jeet ti)."""
     states: dict[str, dict[str, Any]] = {}
     for rec in _read_all():
         rid = str(rec.get("id") or "")
@@ -168,7 +168,7 @@ def approval_url(token: str, action: str = "approve") -> str:
 
 def wa_share_text(rec: dict[str, Any]) -> dict[str, str]:
     """Client ko bhejne wala WA message (1-click approve/reject links) + wa.me
-    draft link (ban-safe - human send)."""
+    draft link (ban-safe — human send)."""
     content = rec.get("content") or {}
     caption = str(content.get("caption") or content.get("text") or "")[:200]
     title = str(content.get("title") or content.get("occasion") or "naya post")[:80]
@@ -177,7 +177,7 @@ def wa_share_text(rec: dict[str, Any]) -> dict[str, str]:
         + (f"“{caption}”\n\n" if caption else "")
         + f"✅ Approve: {approval_url(str(rec.get('token') or ''), 'approve')}\n"
         + f"❌ Change chahiye: {approval_url(str(rec.get('token') or ''), 'reject')}\n\n"
-        + "Ek click me ho jayega - shukriya!"
+        + "Ek click me ho jayega — shukriya!"
     )
     phone = _client_phone(str(rec.get("client_id") or ""))
     wa_link = (
@@ -237,14 +237,13 @@ def bind_token_to_content(
 ) -> dict[str, Any]:
     """Bind an approval token to the EXACT content its recipient will see.
 
-    Issuance - not consumption - is where the binding has to happen: a token
+    Issuance — not consumption — is where the binding has to happen: a token
     that carries no revision or hash cannot be made safe later by checking
     harder at the door. Backfilling these fields onto an existing token would
     assert a content identity nobody was ever shown, so legacy tokens are
     refused for regeneration instead.
 
-    The token STRING is not returned or logged here
-    the caller already holds
+    The token STRING is not returned or logged here; the caller already holds
     it. ``token_record_id`` is the non-secret handle for audit.
     """
     import time as _time
@@ -278,7 +277,7 @@ def bind_token_to_content(
 
 
 def token_is_expired(record: dict[str, Any]) -> bool:
-    """Absent or unparsable expiry counts as EXPIRED - an unbounded token must
+    """Absent or unparsable expiry counts as EXPIRED — an unbounded token must
     never be treated as merely 'not yet expired'."""
     import time as _time
 
@@ -318,7 +317,7 @@ def get_by_token(token: str) -> dict[str, Any] | None:
 def persist_decision(
     token: str, status: str, note: str = "", *, txn_id: str = ""
 ) -> dict[str, Any]:
-    """LAYER A - persist ONLY the content-approval decision.
+    """LAYER A — persist ONLY the content-approval decision.
 
     No callback, no enqueue, no delivery-ledger event, no video-record
     mutation. Idempotent on ``txn_id``: replaying the same transaction returns
@@ -366,9 +365,9 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
     try:
         # CONTAINMENT (Stage 3B-close). A video approval must not be decided by
         # this legacy callback path at all. Four production entrypoints reach
-        # here - the unauthenticated GET link, decide_for_client (customer
+        # here — the unauthenticated GET link, decide_for_client (customer
         # portal + boss_council) and decide_by_id (product_one_delivery
-        # automation) - none of which carries a principal or a transaction.
+        # automation) — none of which carries a principal or a transaction.
         #
         # The refusal is BEFORE persist_decision, so no decision bytes, no
         # queue item and no delivery-ledger row are written for a refused video.
@@ -404,7 +403,7 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                 )
             except Exception:
                 pass
-            # Delivery ledger - this path creates a fresh queue item (not a
+            # Delivery ledger — this path creates a fresh queue item (not a
             # mark_item mutation), so it needs its own post_approved log;
             # auto_content.mark_item() covers the admin manual-approve path.
             try:
@@ -434,7 +433,7 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                     video_ad_cycle.on_changes_requested(merged)
             except Exception:
                 pass
-        # Best-effort team event - dashboard pe dikhe (kabhi raise nahi).
+        # Best-effort team event — dashboard pe dikhe (kabhi raise nahi).
         try:
             from app.platform.team import log_event
 
@@ -446,7 +445,7 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                 # split moved it into persist_decision and left this reference
                 # dangling, so every team event raised NameError into the
                 # swallow below and silently stopped being logged.
-                + (f" - note: {merged.get('note')}" if merged.get("note") else ""),
+                + (f" — note: {merged.get('note')}" if merged.get("note") else ""),
                 meta={"approval_id": merged.get("id"), "status": status},
             )
         except Exception:
@@ -491,7 +490,7 @@ def _by_id_for_client(client_id: str, approval_id: str) -> dict[str, Any] | None
 def decide_for_client(
     client_id: str, approval_id: str, action: str, note: str = ""
 ) -> dict[str, Any]:
-    """Authenticated customer portal - id se approve/reject (token expose nahi)."""
+    """Authenticated customer portal — id se approve/reject (token expose nahi)."""
     rec = _by_id_for_client(client_id, approval_id)
     if rec is None:
         return {"ok": False, "error": "approval nahi mila."}
@@ -502,7 +501,7 @@ def decide_for_client(
 
 
 def escalate_for_client(client_id: str, approval_id: str, note: str = "") -> dict[str, Any]:
-    """Boss/council unclear - status pending rakho, needs_admin=True flag (admin desk)."""
+    """Boss/council unclear — status pending rakho, needs_admin=True flag (admin desk)."""
     try:
         rec = _by_id_for_client(client_id, approval_id)
         if rec is None:
@@ -538,7 +537,7 @@ def escalate_for_client(client_id: str, approval_id: str, note: str = "") -> dic
 
 
 def decide_by_id(approval_id: str, action: str, note: str = "") -> dict[str, Any]:
-    """Admin/support - approval id se decide (client_id verify nahi)."""
+    """Admin/support — approval id se decide (client_id verify nahi)."""
     rec = _latest_states().get(str(approval_id or "").strip())
     if not rec:
         return {"ok": False, "error": "approval nahi mila."}
@@ -649,8 +648,7 @@ def cancel(approval_id: str, actor: str = "customer", note: str = "") -> dict[st
 def request_changes(approval_id: str, note: str = "", actor: str = "customer") -> dict[str, Any]:
     """Client asks for a revision (video_ad regen etc). Emits changes_requested
     then downstream `on_changes_requested` hook fires via engine wiring (video
-    pipeline already listens for status=='rejected'
-    the extended semantic here
+    pipeline already listens for status=='rejected'; the extended semantic here
     is that a targeted-note revision is not the same as an outright rejection)."""
     return transition(approval_id, "changes_requested", actor=actor, note=note)
 
@@ -659,7 +657,7 @@ def request_changes(approval_id: str, note: str = "", actor: str = "customer") -
 # Loop-social-20 (2026-07-11): Phase-7 edit/replace/reschedule actions.       #
 #                                                                             #
 # Rule: an approval that has already dispatched (`publishing/published`) or   #
-# is cancelled is FROZEN - editing after dispatch would silently lie to the   #
+# is cancelled is FROZEN — editing after dispatch would silently lie to the   #
 # provider (they already got the old body). Frontend must call `cancel()`     #
 # first and re-submit. Every edit appends a new JSONL row so the audit trail  #
 # preserves who changed what + when.                                          #
@@ -675,7 +673,7 @@ def _edit_action(
     note: str,
     event_label: str,
 ) -> dict[str, Any]:
-    """Common edit helper - never raises, atomic append, emits audit event."""
+    """Common edit helper — never raises, atomic append, emits audit event."""
     try:
         aid = str(approval_id or "").strip()
         if not aid:
@@ -689,7 +687,7 @@ def _edit_action(
                 "ok": False,
                 "error": "edit_locked",
                 "status": cur_status,
-                "message": "Post is already dispatched - cancel + resubmit for changes",
+                "message": "Post is already dispatched — cancel + resubmit for changes",
             }
         # Deep-copy content so we don't mutate the merged read view.
         content = dict(rec.get("content") or {})
@@ -800,7 +798,7 @@ def change_scheduled_time(
             parsed = _dt.datetime.fromisoformat(when)
         except ValueError:
             parsed = _dt.datetime.strptime(when[:19], "%Y-%m-%dT%H:%M:%S")
-        # Reject past times - a schedule-in-past is almost always a bug.
+        # Reject past times — a schedule-in-past is almost always a bug.
         if parsed < _dt.datetime.utcnow() - _dt.timedelta(minutes=1):
             return {"ok": False, "error": "past_time", "message": "Scheduled time is in the past"}
     except Exception as e:
@@ -831,13 +829,13 @@ def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
 
 
 def decision_html(result: dict[str, Any], action: str) -> str:
-    """Tiny Hinglish HTML - public approve/reject link ka response page."""
+    """Tiny Hinglish HTML — public approve/reject link ka response page."""
     reason = str(result.get("error") or "")
     if not result.get("ok"):
         if reason == "approval_token_regeneration_required":
             title, body = (
                 "Naya link chahiye",
-                "Is video ka approval link purana hai. Dashboard se approve karein - "
+                "Is video ka approval link purana hai. Dashboard se approve karein — "
                 "hum naya secure link bhej rahe hain.",
             )
         else:
@@ -851,12 +849,12 @@ def decision_html(result: dict[str, Any], action: str) -> str:
         st = (result.get("approval") or {}).get("status")
         emoji = "✅" if st == "approved" else "❌"
         title = "Pehle se ho chuka"
-        body = f"Yeh content pehle hi {('approve' if st == 'approved' else 'reject')} ho chuka hai - kuch aur karna ho to agency ko batao."
+        body = f"Yeh content pehle hi {('approve' if st == 'approved' else 'reject')} ho chuka hai — kuch aur karna ho to agency ko batao."
     elif action == "reject":
         emoji, title = "❌", "Reject ho gaya"
-        body = "Theek hai - team ko bata diya, naya version jald milega. Shukriya!"
+        body = "Theek hai — team ko bata diya, naya version jald milega. Shukriya!"
     else:
-        emoji, title = "✅", "Approve ho gaya - shukriya!"
+        emoji, title = "✅", "Approve ho gaya — shukriya!"
         body = "Post ab publish ke liye ready hai. Aapka time bachane ke liye dhanyawad!"
     return (
         "<!doctype html><html lang='hi'><head><meta charset='utf-8'>"
@@ -867,8 +865,7 @@ def decision_html(result: dict[str, Any], action: str) -> str:
         "<div style='text-align:center;padding:32px;max-width:420px'>"
         f"<div style='font-size:56px'>{emoji}</div>"
         f"<h2 style='margin:12px 0 8px'>{title}</h2>"
-        f"<p style='color:#94a3b8
-        line-height:1.5'>{body}</p>"
+        f"<p style='color:#94a3b8;line-height:1.5'>{body}</p>"
         # Machine-readable refusal reason. Non-sensitive by construction (a
         # fixed vocabulary of codes) and never the credential itself.
         + (f"<!--reason:{reason}-->" if reason else "")
@@ -970,7 +967,7 @@ def _redact_url_for_audit(url: str) -> str:
     `email=`, `phone=` query params by replacing their VALUES with
     `[REDACTED]`. Preserves scheme/host/path so operators still see
     approximate origin. Also strips the fragment (which may contain the
-    opaque delivery id - safe if kept, but stripped defensively so an
+    opaque delivery id — safe if kept, but stripped defensively so an
     accidental fragment-based identifier can't leak here either)."""
     if not url:
         return ""
@@ -1036,7 +1033,7 @@ def update_evidence_url(
 
     Rationale: `mark_published` was originally the only way to persist
     `evidence_url`, but it can only run from `approved`/`scheduled` and it
-    triggers a fresh `post_published` ledger event + automation log - which
+    triggers a fresh `post_published` ledger event + automation log — which
     would (a) refuse to run on already-published records (see gate at line
     674), (b) double-count publications on retry, (c) create a duplicate
     customer-visible "Post publish ho gaya" event. This narrow method exists
@@ -1049,7 +1046,7 @@ def update_evidence_url(
       - never increments any publication counter
       - never appends a `post_published` event to delivery_ledger
       - idempotent: same URL twice returns {"ok": True, "no_change": True}
-      - rejects blank/None (would erase evidence - refused)
+      - rejects blank/None (would erase evidence — refused)
       - rejects malformed non-http(s) (defensive against local paths)
       - writes an `evidence_amended` audit marker + `evidence_url_history`
         entry so the original URL is preserved for audit
@@ -1100,7 +1097,7 @@ def update_evidence_url(
     rec["evidence_url"] = new_url
     rec["evidence_url_updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    # Append to JSONL directly - do NOT call _save (which fires
+    # Append to JSONL directly — do NOT call _save (which fires
     # automation_log + delivery_ledger post_published event).
     try:
         update = dict(rec)
@@ -1153,7 +1150,7 @@ def _url_contains_pii(url: str) -> bool:
 
 
 def _opaque_dashboard_url(approval_id: str) -> str:
-    """Canonical opaque replacement - no tenant identifier."""
+    """Canonical opaque replacement — no tenant identifier."""
     return f"https://leadsgenai.in/app/dashboard#delivery/{approval_id}"
 
 
@@ -1347,11 +1344,11 @@ def _save(action: str, client_id: str, approval_id: str, rec: dict, **extra) -> 
 #
 # `pending` is the only non-terminal state and nothing ever ages out of it, so
 # the queue can only grow. Prod on 2026-08-09 held 422 pending rows, of which
-# 321 belonged to client ids that no longer exist in `clients_store` - work
+# 321 belonged to client ids that no longer exist in `clients_store` — work
 # literally nobody can ever decide. They inflate every backlog count, drown the
 # real items, and make the owner-facing "waiting on customer" number meaningless.
 #
-# This retires ONLY those orphans, and only by APPENDING a terminal row -
+# This retires ONLY those orphans, and only by APPENDING a terminal row —
 # consistent with this store's append-on-update contract, so the original
 # submission stays readable forever. Nothing is deleted and no decision is
 # fabricated: retiring is explicitly NOT approving. A live customer's pending
@@ -1370,14 +1367,13 @@ def retire_orphaned_pending(
 ) -> dict[str, Any]:
     """Retire pending rows whose client no longer exists. Never raises.
 
-    ``dry_run=True`` (the default) reports what WOULD change and writes nothing -
+    ``dry_run=True`` (the default) reports what WOULD change and writes nothing —
     this mutates live customer records, so the counts get reviewed before the
     write. Returns per-client counts either way.
 
-    ``live_client_ids`` is injectable for tests
-    production resolves it from
+    ``live_client_ids`` is injectable for tests; production resolves it from
     ``clients_store``. If that resolution fails the sweep refuses outright rather
-    than treating an empty set as "every client is dead" - the fail-closed
+    than treating an empty set as "every client is dead" — the fail-closed
     direction, since the open one would retire the entire queue.
     """
     out: dict[str, Any] = {
@@ -1398,7 +1394,7 @@ def retire_orphaned_pending(
                 return {
                     "ok": False,
                     "error": "no_live_clients_resolved",
-                    "detail": "refusing to retire anything - an empty client set would retire the whole queue",
+                    "detail": "refusing to retire anything — an empty client set would retire the whole queue",
                 }
 
         cap = max(1, min(int(limit or 1000), 20000))

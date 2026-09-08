@@ -3,7 +3,7 @@ Function / Tool Calling for the AI Voice Agent
 ==============================================
 
 Yeh wahi "in-call action" capability hai jo Retell/Vapi/Bland dete hain: LLM
-call ke beech me hi *tools* call kar sakta hai - appointment book karna,
+call ke beech me hi *tools* call kar sakta hai — appointment book karna,
 availability check karna, human ko warm-transfer karna, lead info capture
 karna, pricing batana, call end karna. LLM function/tool-calling se yeh trigger
 hota hai.
@@ -14,7 +14,7 @@ Pieces:
     - ToolResult    : handler ka unified output {ok, data, error}.
     - ToolRegistry  : tools register/get/list_schemas/execute karta hai
                       (defensive validation + execution).
-    - parse_tool_call(llm_output): LLM ke output se tool call nikaalta hai -
+    - parse_tool_call(llm_output): LLM ke output se tool call nikaalta hai —
                       OpenAI/Gemini-style JSON, ya simple "CALL name {json}".
     - build_default_registry(context): real services se wired built-in tools.
     - get_tool_registry(): module singleton.
@@ -142,7 +142,7 @@ class ToolRegistry:
     Holds tools, exposes their schemas to the LLM, and executes them safely.
 
     Defensive by design: unknown tools, bad args, and handler exceptions all
-    return a ToolResult(ok=False, error=...) - execute() never raises.
+    return a ToolResult(ok=False, error=...) — execute() never raises.
     """
 
     def __init__(self) -> None:
@@ -186,7 +186,7 @@ class ToolRegistry:
             logger.warning(f"execute(): unknown tool '{name}'.")
             return ToolResult(ok=False, error=f"Unknown tool: {name!r}")
 
-        # Validate required params (defensive - don't crash, just report).
+        # Validate required params (defensive — don't crash, just report).
         missing = [r for r in tool.required if r not in args or args[r] in (None, "")]
         if missing:
             return ToolResult(
@@ -234,11 +234,10 @@ def parse_tool_call(llm_output: Any) -> dict[str, Any] | None:
 
     2. Simple inline convention inside free text:
            CALL book_appointment {"when_iso": "2026-06-10T15:00", "name": "Rahul"}
-       (args JSON optional
-       missing -> {}).
+       (args JSON optional; missing -> {}).
 
     Returns {"name": str, "args": dict} or None if no tool call is present.
-    Never raises - bad JSON just yields None.
+    Never raises — bad JSON just yields None.
     """
     if llm_output is None:
         return None
@@ -248,7 +247,7 @@ def parse_tool_call(llm_output: Any) -> dict[str, Any] | None:
         parsed = _parse_dict_tool_call(llm_output)
         if parsed:
             return parsed
-        # maybe it's a chat-completion-like object serialized to dict - fall
+        # maybe it's a chat-completion-like object serialized to dict — fall
         # through to string scan of its content.
         text = json.dumps(llm_output)
     else:
@@ -314,7 +313,7 @@ def _parse_dict_tool_call(obj: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _coerce_args(raw: Any) -> dict[str, Any]:
-    """arguments may be a dict or a JSON string - normalize to dict."""
+    """arguments may be a dict or a JSON string — normalize to dict."""
     if isinstance(raw, dict):
         return raw
     if isinstance(raw, str):
@@ -350,7 +349,7 @@ def _loads_first_object(text: str) -> dict[str, Any] | None:
 
 
 # --------------------------------------------------------------------------- #
-# Built-in tools - wired to real services, simulate when unavailable.
+# Built-in tools — wired to real services, simulate when unavailable.
 # --------------------------------------------------------------------------- #
 def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistry:
     """
@@ -408,7 +407,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 data={
                     "when": when_iso,
                     "confirmation_text": (
-                        "Abhi booking system available nahi hai - main aapki detail le leti hoon, "
+                        "Abhi booking system available nahi hai — main aapki detail le leti hoon, "
                         "hamari team aapko call karke slot confirm kar degi."
                     ),
                     "provider": "unavailable",
@@ -453,8 +452,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 data={"date": date_str, "slots": slots[:8], "total": len(slots)},
             )
         except Exception as e:
-            logger.error(f"check_availability: calendar unavailable ({e})
-            offering standard hours")
+            logger.error(f"check_availability: calendar unavailable ({e}); offering standard hours")
             return ToolResult(
                 ok=True,
                 data={
@@ -524,7 +522,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 error=f"calendar unavailable: {e}",
                 data={
                     "confirmation_text": (
-                        "Abhi reschedule system available nahi - main note kar leti hoon, "
+                        "Abhi reschedule system available nahi — main note kar leti hoon, "
                         "team aapko call karke naya slot confirm kar degi."
                     ),
                 },
@@ -603,7 +601,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 data={
                     "status": "unavailable",
                     "confirmation_text": (
-                        "Abhi live transfer possible nahi hai - main aapka number note kar leti hoon, "
+                        "Abhi live transfer possible nahi hai — main aapka number note kar leti hoon, "
                         "hamari team turant callback karegi."
                     ),
                     "provider": "unavailable",
@@ -677,7 +675,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
     # ---------------- get_pricing_info ---------------- #
     async def _get_pricing_info(args: dict[str, Any]) -> ToolResult:
         niche = args.get("niche") or ctx.get("niche") or ""
-        # Grounded pricing - FLAT monthly per niche-band (voice_packages.py = source of truth).
+        # Grounded pricing — FLAT monthly per niche-band (voice_packages.py = source of truth).
         try:
             from app.marketing.voice_packages import (
                 BANDS,
@@ -693,7 +691,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 "price_inr_month": price,
                 "band": band,
                 "summary": (
-                    f"Flat ₹{price:,}/mo (Band {band}) - UNLIMITED AI calls aapke niche pe, "
+                    f"Flat ₹{price:,}/mo (Band {band}) — UNLIMITED AI calls aapke niche pe, "
                     f"koi per-lead ya per-minute charge nahi. Pehle {PILOT_DAYS}-din free pilot "
                     f"({PILOT_CALL_CAP} calls, ₹0, koi card nahi). Cancel anytime."
                 ),
@@ -702,7 +700,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
             pricing = {
                 "model": "flat_monthly_per_band",
                 "summary": (
-                    "Flat monthly per niche-band - Band A ₹4,999, B ₹9,999, C ₹19,999/mo. "
+                    "Flat monthly per niche-band — Band A ₹4,999, B ₹9,999, C ₹19,999/mo. "
                     "UNLIMITED AI calls, koi per-lead/per-minute charge nahi. Free 7-din pilot."
                 ),
             }

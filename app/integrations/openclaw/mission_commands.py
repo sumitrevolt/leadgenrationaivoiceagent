@@ -1,4 +1,4 @@
-"""Mission-control OpenClaw surface - GREEN chat ingress + AMBER controls.
+"""Mission-control OpenClaw surface — GREEN chat ingress + AMBER controls.
 
 Owner OS remains sole mutation authority. RED outbound never unlocked here.
 """
@@ -96,7 +96,7 @@ def _spawn(
 ) -> dict[str, Any]:
     from app.platform import mission_control as mc
 
-    # Never auto-mint keys from correlation_id - that would create a new mission per call.
+    # Never auto-mint keys from correlation_id — that would create a new mission per call.
     idem = str(params.get("idempotency_key") or "").strip()
     if not idem:
         return {
@@ -147,7 +147,7 @@ def _mission_chat(params: dict[str, Any], *, actor: str, correlation_id: str) ->
     from app.platform import mission_control as mc
 
     text = str(params.get("text") or params.get("command") or "").strip()
-    # GREEN handler: never pass confirm through - AMBER always parks from chat.
+    # GREEN handler: never pass confirm through — AMBER always parks from chat.
     out = mc.handle_chat(
         text,
         actor=actor,

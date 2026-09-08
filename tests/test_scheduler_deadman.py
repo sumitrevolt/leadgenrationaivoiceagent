@@ -1,16 +1,14 @@
-"""W1.2 - dead-man switch must record REAL sub-job status, not always-success.
+"""W1.2 — dead-man switch must record REAL sub-job status, not always-success.
 
 Bug: `_run_job_inner` wrapped the whole job dispatcher in one big try/except whose
 outer handler LOGGED the exception and swallowed it (fell through, returned None).
 So `_run_job` never saw a failure and `automation_health.record_run(job, True, …)`
-recorded success forever - the dead-man / overdue alert could never fire for a job
+recorded success forever — the dead-man / overdue alert could never fire for a job
 that throws on every run.
 
-Fix: `_run_job_inner` returns False when its outer except catches
-`_run_job`
-threads that into `record_run` as ok=False - WITHOUT re-raising (the tick's other
-jobs must still run
-scheduler_loop runs the whole tick under one try).
+Fix: `_run_job_inner` returns False when its outer except catches; `_run_job`
+threads that into `record_run` as ok=False — WITHOUT re-raising (the tick's other
+jobs must still run; scheduler_loop runs the whole tick under one try).
 """
 
 from __future__ import annotations

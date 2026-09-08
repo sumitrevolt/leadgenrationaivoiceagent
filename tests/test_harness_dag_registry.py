@@ -397,7 +397,7 @@ def test_observer_never_invokes_execute_step(monkeypatch, tmp_path):
 
     dag, run_id, calls, tp = _seed_real_dag(monkeypatch, tmp_path)
     asyncio.run(dag.advance(run_id))
-    assert calls["n"] == 1  # exactly the one legacy call - observer added none
+    assert calls["n"] == 1  # exactly the one legacy call — observer added none
 
 
 def test_journal_unchanged(monkeypatch, tmp_path):
@@ -442,8 +442,7 @@ def test_retry_attempts_distinct(monkeypatch):
 def test_repeated_observe_no_execution(monkeypatch):
     _env(monkeypatch)
     a = _obs()
-    b = _obs()  # record-only
-    neither executes the tool
+    b = _obs()  # record-only; neither executes the tool
     assert a["registry_comparison"] == "REGISTRY_MATCH"
     assert b["registry_comparison"] == "REGISTRY_MATCH"  # no crash, record-only
 

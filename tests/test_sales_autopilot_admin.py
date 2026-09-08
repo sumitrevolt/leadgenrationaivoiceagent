@@ -1,4 +1,4 @@
-"""Sales Autopilot - admin observability API + handoff adapters."""
+"""Sales Autopilot — admin observability API + handoff adapters."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def test_run_canary_is_dry_run(client, monkeypatch):
     r = client.post("/api/sales-autopilot/run-canary", json={"prospect_id": "c1"})
     assert r.status_code == 200
     res = r.json()["result"]
-    # SIMULATED (forced dry-run) or BLOCKED (outside hours) - never SENT.
+    # SIMULATED (forced dry-run) or BLOCKED (outside hours) — never SENT.
     assert res["outcome"] in ("SIMULATED", "BLOCKED")
 
 

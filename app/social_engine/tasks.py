@@ -1,6 +1,5 @@
-"""social_engine.tasks - Celery (Redis) drain task. Worker isse import kare to register
-hota
-warna scheduler `process_queue()` direct drain karta (guaranteed). NEVER breaks import."""
+"""social_engine.tasks — Celery (Redis) drain task. Worker isse import kare to register
+hota; warna scheduler `process_queue()` direct drain karta (guaranteed). NEVER breaks import."""
 
 from __future__ import annotations
 
@@ -25,5 +24,5 @@ try:
             logger.warning(f"[social_engine.task] drain failed: {e}")
             return {"error": str(e)[:150]}
 
-except Exception as e:  # celery app unavailable at import (web-only / tests) - fine
+except Exception as e:  # celery app unavailable at import (web-only / tests) — fine
     logger.debug(f"[social_engine] celery task not registered: {e}")

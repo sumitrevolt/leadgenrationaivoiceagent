@@ -1,4 +1,4 @@
-"""Campaign variants service - champion/challenger tracking + promotion gate."""
+"""Campaign variants service — champion/challenger tracking + promotion gate."""
 
 from __future__ import annotations
 
@@ -237,7 +237,7 @@ async def promotion_summary(script_id: str = "cold_email") -> dict[str, Any]:
 
 
 async def auto_promote_if_ready(script_id: str = "cold_email") -> dict[str, Any]:
-    """Try promote when gate passes - never raises."""
+    """Try promote when gate passes — never raises."""
     try:
         summary = await promotion_summary(script_id)
         if not summary.get("ready_to_promote"):

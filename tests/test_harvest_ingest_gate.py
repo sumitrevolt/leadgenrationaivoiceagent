@@ -1,6 +1,6 @@
 """Ingest-gate contract tests (backlog 2026-07-05: SERP-junk in ready pool).
 
-`ingest_reject_reason` pure function hai (no env/IO) - junk SERP titles reject,
+`ingest_reject_reason` pure function hai (no env/IO) — junk SERP titles reject,
 real business names accept. Flag helper HARVEST_INGEST_VALIDATION default-ON.
 """
 
@@ -54,7 +54,7 @@ class TestRealNamesAccepted:
         assert ingest_reject_reason("Hotel Airport Centre Point", P, "", "osm") == ""
 
     def test_opendata_seed_no_contact_ok(self):
-        # Udyam seeds phone-less hote hain - structured source, allow (needs_enrich path)
+        # Udyam seeds phone-less hote hain — structured source, allow (needs_enrich path)
         assert ingest_reject_reason("SHREE GANESH FABRICATORS", "", "", "opendata") == ""
 
     def test_empty_name_passthrough(self):

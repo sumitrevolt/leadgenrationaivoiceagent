@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Enable Automation-Max safe flags on VPS (.env) - draft/ops/ops-health only." "Philosophy (user mandate 2026-07-25): maximize automation so humans only approve" "high-impact/external actions. This script flips SAFE engines. It never enables" "ban/compliance killers." "Run ON the VPS:" "python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py" "python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py --with-email" "LEADGEN_APP_VERSION=<sha> python3 ...   # if leadgen_app is on :latest" "Idempotent. Backs up .env before write. Recreates app + celery stack so env reloads." "ADR-097: recreate ALWAYS pins APP_VERSION (never compose default :latest)." """"
+"""Enable Automation-Max safe flags on VPS (.env) — draft/ops/ops-health only.
+
+Philosophy (user mandate 2026-07-25): maximize automation so humans only approve
+high-impact/external actions. This script flips SAFE engines. It never enables
+ban/compliance killers.
+
+Run ON the VPS:
+  python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py
+  python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py --with-email
+  LEADGEN_APP_VERSION=<sha> python3 ...   # if leadgen_app is on :latest
+
+Idempotent. Backs up .env before write. Recreates app + celery stack so env reloads.
+ADR-097: recreate ALWAYS pins APP_VERSION (never compose default :latest).
+"""
 
 from __future__ import annotations
 
@@ -18,8 +31,8 @@ from app_version_pin import resolve_app_version_pin  # noqa: E402
 
 ENV_PATH = os.environ.get("LEADGEN_ENV", "/opt/leadgen/.env")
 
-# SAFE - draft / schedule / ops / health. Channel auto-send still gated per-channel.
-# Issue #307 (2026-08-10 owner): DUNNING_ENGINE stays OFF / dormant - NOT in WANT_SAFE.
+# SAFE — draft / schedule / ops / health. Channel auto-send still gated per-channel.
+# Issue #307 (2026-08-10 owner): DUNNING_ENGINE stays OFF / dormant — NOT in WANT_SAFE.
 # ADR-172: do NOT force SELF_IMPROVE_LOOP here (prod may be OWNER-ARMED=1).
 WANT_SAFE = {
     "OPS_WATCHDOG": "1",
@@ -77,7 +90,7 @@ def set_kv(text: str, key: str, val: str) -> tuple[str, bool]:
         raise SystemExit(f"REFUSED: {key} is on the NEVER list")
     if key in OWNER_GATED and str(val).strip().lower() in _TRUTHY:
         raise SystemExit(
-            f"REFUSED: {key} is OWNER_GATED (issue #307) - "
+            f"REFUSED: {key} is OWNER_GATED (issue #307) — "
             "Automation-Max safe script cannot enable it"
         )
     pat = re.compile(rf"^{re.escape(key)}=.*$", re.M)
@@ -101,7 +114,7 @@ def main() -> int:
     ap.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print planned changes" "do not write .env or recreate",
+        help="Print planned changes; do not write .env or recreate",
     )
     ap.add_argument(
         "--force-self-improve-off",
@@ -127,14 +140,14 @@ def main() -> int:
             print(f"OK  {k} already {v}")
 
     print("NEVER (left untouched): " + ", ".join(sorted(NEVER)))
-    print("OWNER_GATED (not in WANT_SAFE" "enable refused): " + ",".join(sorted(OWNER_GATED)))
+    print("OWNER_GATED (not in WANT_SAFE; enable refused): " + ", ".join(sorted(OWNER_GATED)))
 
     if not changed:
         print("No .env changes needed")
         return 0
 
     if args.dry_run:
-        print("DRY-RUN - no write / no recreate")
+        print("DRY-RUN — no write / no recreate")
         return 0
 
     bak = ENV_PATH + ".bak_automation_max"
@@ -156,12 +169,12 @@ def main() -> int:
     print("RECREATE app + celery stack OK")
     print("Verify: /health.version must equal pin (not latest)")
     print(
-        "NEXT: clear stale canary agent pauses if ops/watchdog still blocked - "
+        "NEXT: clear stale canary agent pauses if ops/watchdog still blocked — "
         "docker exec -w /app leadgen_app python "
         "/opt/leadgen/scripts/vps_clear_stale_canary_pauses.py"
     )
     print(
-        "NEXT: arm approval emails for paying clients without recreate - write "
+        "NEXT: arm approval emails for paying clients without recreate — write "
         "data/approval_email_client_allowlist.txt (one client_id per line, e.g. jiya-makeover). "
         "Env APPROVAL_EMAIL_NOTIFY=1 alone is fail-closed with empty allowlist."
     )

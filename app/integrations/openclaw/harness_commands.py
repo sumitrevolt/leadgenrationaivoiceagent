@@ -1,9 +1,8 @@
 """Kavach harness command surface for OpenClaw.
 
-Read-only (GREEN) handlers report real harness state
-control (AMBER) handlers
+Read-only (GREEN) handlers report real harness state; control (AMBER) handlers
 park through Owner OS exactly like the existing agent.* AMBER stubs. Kavach
-NEVER mutates directly - Owner OS remains sole authority. RED is impossible here
+NEVER mutates directly — Owner OS remains sole authority. RED is impossible here
 (no harness command mutates production, calling, billing, WhatsApp or secrets).
 
 Slots into app/integrations/openclaw alongside commands.py. Register the command
@@ -16,7 +15,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-# GREEN - read-only harness introspection.
+# GREEN — read-only harness introspection.
 HARNESS_GREEN = frozenset(
     {
         "harness.status",
@@ -38,7 +37,7 @@ HARNESS_GREEN = frozenset(
     }
 )
 
-# AMBER - control actions; every one parks for Owner OS approval.
+# AMBER — control actions; every one parks for Owner OS approval.
 HARNESS_AMBER = frozenset(
     {
         "harness.shadow.enable",
@@ -248,12 +247,12 @@ def _evaluate(params: dict[str, Any], *, actor: str, correlation_id: str) -> dic
 
 
 def _amber_stub(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
-    """AMBER harness control - must park via owner_os_adapter, never execute here."""
+    """AMBER harness control — must park via owner_os_adapter, never execute here."""
     return {
         "status": "APPROVAL_REQUIRED",
         "approval_required": True,
         "verified": True,
-        "result": {"note": "Harness control AMBER - Owner OS approval required"},
+        "result": {"note": "Harness control AMBER — Owner OS approval required"},
         "evidence": {"correlation_id": correlation_id, "actor": actor},
     }
 
@@ -545,7 +544,7 @@ HARNESS_HANDLERS: dict[str, Any] = {
     "harness.registry": _registry,
     "harness.registry.conformance": _registry_conformance,
     "harness.enforcement": _enforcement,
-    # AMBER controls - parked for Owner OS approval:
+    # AMBER controls — parked for Owner OS approval:
     "harness.shadow.enable": _amber_stub,
     "harness.shadow.disable": _amber_stub,
     "harness.canary.enable": _amber_stub,

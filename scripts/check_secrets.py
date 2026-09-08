@@ -1,6 +1,6 @@
-"""Secrets scanner - pre-push gate (project rule: secrets SIRF .env me).
+"""Secrets scanner — pre-push gate (project rule: secrets SIRF .env me).
 
-Adapted from luongnv89/claude-howto 06-hooks/security-scan.sh (MIT) - Python
+Adapted from luongnv89/claude-howto 06-hooks/security-scan.sh (MIT) — Python
 port, Windows-safe (no bash hooks), project-tailored patterns (Exotel/Razorpay/
 Stripe/Groq/Pollinations/JWT) + placeholder allowlist.
 
@@ -11,7 +11,7 @@ Usage:
 
 Exit 0 = clean · Exit 1 = potential secret mila (file:line print hota hai).
 Wired into /verify step 4. False-positive ho to us LINE me `nosecret` comment
-add karo (scanner skip kar dega) - ya value placeholder banao.
+add karo (scanner skip kar dega) — ya value placeholder banao.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
     ("Razorpay live key", re.compile(r"\brzp_live_[A-Za-z0-9]{8,}")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
     ("Groq/OpenAI-style key", re.compile(r"\b(?:gsk|sk-proj|sk-ant)[-_][A-Za-z0-9_\-]{20,}")),
-    # Google API key - project's PRIMARY voice keys are Gemini (AIza...), so this is high-value.
+    # Google API key — project's PRIMARY voice keys are Gemini (AIza...), so this is high-value.
     ("Google API key (Gemini/Maps/etc.)", re.compile(r"AIza[0-9A-Za-z_\-]{35}")),
     ("Slack token", re.compile(r"xox[baprs]-[0-9A-Za-z\-]{10,}")),
     ("JWT", re.compile(r"\beyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}")),
@@ -51,7 +51,7 @@ PLACEHOLDER = re.compile(
     r"(?i)(your[-_ ]|<|>|\{\{|xxx|changeme|change-me|example|dummy|placeholder|sample|redacted|\.\.\.|abcdef|1234567890)"
 )
 
-# NOTE: .agents/.claude excluded DELIBERATELY - 250 markdown skills = false-positive farm.
+# NOTE: .agents/.claude excluded DELIBERATELY — 250 markdown skills = false-positive farm.
 SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -89,9 +89,9 @@ SKIP_EXT = {
     ".pack",
 }
 SKIP_NAMES = {"check_secrets.py"}  # khud ke patterns pe trip na ho
-ENV_FILE = re.compile(r"(^|[\\/])\.env(\..*)?$")  # .env gitignored - waise bhi skip
+ENV_FILE = re.compile(r"(^|[\\/])\.env(\..*)?$")  # .env gitignored — waise bhi skip
 
-# On-disk sprawl sweep - STRUCTURAL blind spot. changed_files() uses
+# On-disk sprawl sweep — STRUCTURAL blind spot. changed_files() uses
 # `git ls-files --others --exclude-standard`, so GITIGNORED-on-disk files are NEVER
 # scanned. That is the exact vector of a real incident (a live key sat in a gitignored
 # local-config file). These explicit globs are swept regardless of .gitignore. Findings
@@ -148,7 +148,7 @@ def should_scan(rel: str) -> bool:
 
 
 def scan_file(rel: str, redact: bool = False) -> list[str]:
-    """redact=True -> file:line + pattern NAME only (never the matched value) -
+    """redact=True → file:line + pattern NAME only (never the matched value) —
     used by the on-disk sprawl sweep so a real secret is never echoed to stdout."""
     fp = ROOT / rel
     if not fp.is_file():
@@ -192,31 +192,31 @@ def main() -> int:
     for t in targets:
         findings.extend(scan_file(t))
 
-    # On-disk sprawl sweep - gitignored local-config files the normal (git-based)
+    # On-disk sprawl sweep — gitignored local-config files the normal (git-based)
     # scan can never see. Redacted output (name only, no value); advisory by default.
     sprawl_findings: list[str] = []
     for t in sprawl_files():
         sprawl_findings.extend(scan_file(t, redact=True))
     for f in sprawl_findings:
-        print(f"WARNING (on-disk, gitignored - cannot commit, but rotate/move to .env): {f}")
+        print(f"WARNING (on-disk, gitignored — cannot commit, but rotate/move to .env): {f}")
 
     rc = 0
     if findings:
         print(
-            "[FAIL] potential secrets mile - .env me daalo ya line pe `nosecret` (sirf false-positive pe):"
+            "[FAIL] potential secrets mile — .env me daalo ya line pe `nosecret` (sirf false-positive pe):"
         )
         for f in findings:
             print("  " + f)
         rc = 1
     if strict_sprawl and sprawl_findings:
         print(
-            f"[FAIL] on-disk sprawl secret(s) mile (--strict-sprawl) - rotate + move to .env ({len(sprawl_findings)})."
+            f"[FAIL] on-disk sprawl secret(s) mile (--strict-sprawl) — rotate + move to .env ({len(sprawl_findings)})."
         )
         rc = 1
     if rc == 0:
         print(
             "[OK] no secrets detected"
-            + (" (sprawl WARNINGs advisory - commit-safe)" if sprawl_findings else "")
+            + (" (sprawl WARNINGs advisory — commit-safe)" if sprawl_findings else "")
         )
     return rc
 

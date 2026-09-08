@@ -29,7 +29,7 @@ def rrf_merge(
     top_k: int = 3,
     k_const: int = 60,
 ) -> list[dict[str, Any]]:
-    """Reciprocal Rank Fusion - combine two ranked lists. Never raises."""
+    """Reciprocal Rank Fusion — combine two ranked lists. Never raises."""
     if not dense and not sparse:
         return []
     if not sparse:

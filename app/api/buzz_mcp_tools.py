@@ -1,4 +1,4 @@
-"""Buzz outbound MCP tools - voice / WhatsApp / email as safe /mcp-exposed tools.
+"""Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
 
 fastapi-mcp mount (app/main.py) `include_tags=[\"Platform\", ..., \"Agents\"]`
 se tools select hota hai, isliye routes tags={\"Platform\",\"Agents\"} rakhe
@@ -6,24 +6,22 @@ hain = Claude/Hermes/Buzz MCP clients inhe direct tools ki tarah call kar
 sakte hain.
 
 Safety rails (Enterprise Control Plane contract, t_97ecbdac):
-- **dry_run MANDATORY param** - default True
-True pe input validation +
+- **dry_run MANDATORY param** — default True; True pe input validation +
   suppression check chalte hain par KOI real send nahi hota.
-- **Deterministic idempotency** - ``AgentRuntimeIdempotency`` sha256(tool,
-  target, payload) key se Redis SETNX lock (24h TTL) rakhta hai
-  retried
+- **Deterministic idempotency** — ``AgentRuntimeIdempotency`` sha256(tool,
+  target, payload) key se Redis SETNX lock (24h TTL) rakhta hai; retried
   call duplicate send produce NAHI karti, structured ``duplicate`` reply
   deti hai.
-- **Per-channel rate limits** - voice 10/hour, WhatsApp 15/min, email
+- **Per-channel rate limits** — voice 10/hour, WhatsApp 15/min, email
   25/day (outreach cap §7). Limit cross = structured 429-shape refusal.
-- **DND/DPDP suppression fail-CLOSED** - ``email_unsub`` ledger se check;
+- **DND/DPDP suppression fail-CLOSED** — ``email_unsub`` ledger se check;
   unresolvable authority = suppressed (outage is not consent).
-- **Real sends INERT by default** - ``BUZZ_MCP_REAL_SEND=1`` env ke bina
+- **Real sends INERT by default** — ``BUZZ_MCP_REAL_SEND=1`` env ke bina
   live send attempt refuse hota hai (dry-run-only posture). Ye compliance
-  gates ko touch nahi karta - upar ki extra layer hai.
+  gates ko touch nahi karta — upar ki extra layer hai.
 
 Auth double-layered: route-level ``require_admin`` + /mcp middleware ka
-Bearer/IP gate (fail-closed prod) - ``ops_mcp_tools.py`` jaisa hi.
+Bearer/IP gate (fail-closed prod) — ``ops_mcp_tools.py`` jaisa hi.
 
 Rollback: main.py se is router ka include-block hatao (single line).
 
@@ -78,7 +76,7 @@ class AgentRuntimeIdempotency:
     """Redis SETNX-backed idempotency guard for agent-initiated outbound sends.
 
     Deterministic keys (sha256 of channel+target+payload) so a RETRIED call
-    maps to the SAME key and cannot double-send. Redis unavailable ->
+    maps to the SAME key and cannot double-send. Redis unavailable →
     **fail-closed** for real sends (an outage must never cause duplicates),
     dry-run me guard skip hota hai kyunki wahan kuch bheja hi nahi ja raha.
     """
@@ -170,7 +168,7 @@ async def _pre_send(
     dry_run: bool,
 ) -> BuzzToolResult | None:
     """None = all gates passed (proceed); BuzzToolResult = structured refusal."""
-    # 1) Suppression (DND/DPDP) - fail-closed, cheapest identity check first.
+    # 1) Suppression (DND/DPDP) — fail-closed, cheapest identity check first.
     allowed, reason = await _check_suppression(
         channel, email=(target if channel == "email" else ""), phone=target
     )
@@ -182,7 +180,7 @@ async def _pre_send(
     if not allowed:
         return BuzzToolResult(ok=False, dry_run=dry_run, channel=channel, detail=reason)
 
-    # 3) Idempotency claim (real sends only - dry-run sends nothing to claim).
+    # 3) Idempotency claim (real sends only — dry-run sends nothing to claim).
     if not dry_run:
         fp = _payload_fingerprint(channel, target, payload_body)
         idem = AgentRuntimeIdempotency(channel)

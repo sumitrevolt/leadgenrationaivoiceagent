@@ -1,8 +1,7 @@
-"""STAFF collaboration bus - Buzz-facing projections over the 31-agent workforce.
+"""STAFF collaboration bus — Buzz-facing projections over the 31-agent workforce.
 
 Canonical workforce = ``team.STAFF`` (31). Comb is reviewer infrastructure, NOT
-STAFF #32. Celery / Owner OS remain execution authority
-this bus is the
+STAFF #32. Celery / Owner OS remain execution authority; this bus is the
 collaboration/event plane only.
 
 Flag: ``STAFF_BUS_ENABLED`` (default OFF / inert). Synthetic canaries may run

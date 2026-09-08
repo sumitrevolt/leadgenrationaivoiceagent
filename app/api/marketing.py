@@ -1,49 +1,49 @@
 """
-Marketing API - Dhanda.app-style AI marketing tools (FREE stack).
+Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
 =================================================================
 
-  GET  /api/marketing/packages         - pricing packages (PUBLIC - landing page)
-  POST /api/marketing/post             - AI social post (caption+hashtags+image idea)
-  GET  /api/marketing/gbp-tips         - Google Business Profile checklist (static)
-  POST /api/marketing/calendar         - N-din content calendar
-  GET  /api/marketing/audit/questions  - GBP self-audit ke 16 sawal
-  POST /api/marketing/audit/score      - audit answers -> 0-100 score + fixes
-  POST /api/marketing/review-reply     - review ke 3 Hinglish replies
-  GET  /api/marketing/festivals        - upcoming Indian festivals (static calendar)
-  POST /api/marketing/festival-posts   - nearest festivals ke ready captions
-  GET  /api/marketing/poster/templates - SVG poster templates list
-  POST /api/marketing/poster           - 1080x1080 SVG poster generate
-  POST /api/marketing/whatsapp-pack    - broadcast + status + reply pack
-  POST /api/marketing/competitor       - competitor notes -> copy/exploit/action tips
-  POST /api/marketing/review-kit       - review-collection kit (QR + card + messages)
-  GET  /api/marketing/report           - monthly HTML marketing report
-  POST /api/marketing/reactivation     - purane customers ke win-back WA messages
-  POST /api/marketing/drip             - 4-step WhatsApp nurture sequence
-  POST /api/marketing/brand/{id}       - per-client brand profile save
-  GET  /api/marketing/brand/{id}       - saved brand profile
-  POST /api/marketing/crm/{id}/customers - customers add (phone dedupe)
-  GET  /api/marketing/crm/{id}/customers - customers list (?tag=)
-  GET  /api/marketing/crm/{id}/wishes  - aaj ke birthday/anniversary wishes
-  POST /api/marketing/upi-kit          - UPI QR + payment slip + WA message
-  POST /api/marketing/upi-qr           - UPI payment QR poster SVG
-  POST /api/marketing/missed-call-reply - missed-call auto-reply message
-  POST /api/marketing/catalog          - price-list SVG + WA catalog text
-  POST /api/marketing/ads-pack         - Google RSA + Meta ad copy pack
-  POST /api/marketing/reels            - n Reels scripts (hook/body/cta/tags)
-  GET  /api/marketing/lead-scores      - inquiries ka hot/warm/cold scoring
-  POST /api/marketing/gbp-texts        - GBP description + services + posts
-  POST /api/marketing/content-pack     - 1-click monthly client deliverable pack
-  GET  /api/marketing/blog             - published SEO articles list
-  POST /api/marketing/blog/run         - publish n new niche×city articles
-  GET  /api/marketing/blog/{slug}      - one article (full content)
-  POST /api/marketing/referral         - Refer & Earn kit (code + WA + link + card)
-  GET  /api/marketing/referral/stats   - referral usage counts (?code=)
-  POST /api/marketing/evergreen/{id}   - recycle old top posts into queue
+  GET  /api/marketing/packages         — pricing packages (PUBLIC — landing page)
+  POST /api/marketing/post             — AI social post (caption+hashtags+image idea)
+  GET  /api/marketing/gbp-tips         — Google Business Profile checklist (static)
+  POST /api/marketing/calendar         — N-din content calendar
+  GET  /api/marketing/audit/questions  — GBP self-audit ke 16 sawal
+  POST /api/marketing/audit/score      — audit answers → 0-100 score + fixes
+  POST /api/marketing/review-reply     — review ke 3 Hinglish replies
+  GET  /api/marketing/festivals        — upcoming Indian festivals (static calendar)
+  POST /api/marketing/festival-posts   — nearest festivals ke ready captions
+  GET  /api/marketing/poster/templates — SVG poster templates list
+  POST /api/marketing/poster           — 1080x1080 SVG poster generate
+  POST /api/marketing/whatsapp-pack    — broadcast + status + reply pack
+  POST /api/marketing/competitor       — competitor notes → copy/exploit/action tips
+  POST /api/marketing/review-kit       — review-collection kit (QR + card + messages)
+  GET  /api/marketing/report           — monthly HTML marketing report
+  POST /api/marketing/reactivation     — purane customers ke win-back WA messages
+  POST /api/marketing/drip             — 4-step WhatsApp nurture sequence
+  POST /api/marketing/brand/{id}       — per-client brand profile save
+  GET  /api/marketing/brand/{id}       — saved brand profile
+  POST /api/marketing/crm/{id}/customers — customers add (phone dedupe)
+  GET  /api/marketing/crm/{id}/customers — customers list (?tag=)
+  GET  /api/marketing/crm/{id}/wishes  — aaj ke birthday/anniversary wishes
+  POST /api/marketing/upi-kit          — UPI QR + payment slip + WA message
+  POST /api/marketing/upi-qr           — UPI payment QR poster SVG
+  POST /api/marketing/missed-call-reply — missed-call auto-reply message
+  POST /api/marketing/catalog          — price-list SVG + WA catalog text
+  POST /api/marketing/ads-pack         — Google RSA + Meta ad copy pack
+  POST /api/marketing/reels            — n Reels scripts (hook/body/cta/tags)
+  GET  /api/marketing/lead-scores      — inquiries ka hot/warm/cold scoring
+  POST /api/marketing/gbp-texts        — GBP description + services + posts
+  POST /api/marketing/content-pack     — 1-click monthly client deliverable pack
+  GET  /api/marketing/blog             — published SEO articles list
+  POST /api/marketing/blog/run         — publish n new niche×city articles
+  GET  /api/marketing/blog/{slug}      — one article (full content)
+  POST /api/marketing/referral         — Refer & Earn kit (code + WA + link + card)
+  GET  /api/marketing/referral/stats   — referral usage counts (?code=)
+  POST /api/marketing/evergreen/{id}   — recycle old top posts into queue
 
-Sab admin-auth (sirf /packages public hai - static pricing data, koi secret
+Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
-fallback built-in) - phir bhi unexpected par 500 + detail dete hain.
-Har generation team-log me jaata hai (isha) - import-safe, best-effort.
+fallback built-in) — phir bhi unexpected par 500 + detail dete hain.
+Har generation team-log me jaata hai (isha) — import-safe, best-effort.
 """
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -87,7 +87,7 @@ router = APIRouter(prefix="/marketing", tags=["Marketing"])
 
 
 def _log_isha(action: str, detail: str) -> None:
-    """Team activity log (best-effort - kabhi request fail nahi karata)."""
+    """Team activity log (best-effort — kabhi request fail nahi karata)."""
     try:
         from app.platform.team import log_event
 
@@ -154,7 +154,7 @@ def _get_pkg_cache():
 
 @router.get("/packages")
 async def get_marketing_packages():
-    """Pricing packages (PUBLIC - NO auth; landing page isse fetch karta hai). Redis-cached 10 min."""
+    """Pricing packages (PUBLIC — NO auth; landing page isse fetch karta hai). Redis-cached 10 min."""
     cache = _get_pkg_cache()
     if cache:
         try:
@@ -198,7 +198,7 @@ async def generate_marketing_post(
 
 
 class AiImageRequest(BaseModel):
-    """AI image (Pollinations free) - phrase se asli marketing image."""
+    """AI image (Pollinations free) — phrase se asli marketing image."""
 
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
@@ -214,7 +214,7 @@ async def generate_ai_image(
     req: AiImageRequest,
     current_user: User = Depends(require_admin),
 ):
-    """AI image generation (Pollinations Flux, FREE) - real marketing-image URL from a prompt."""
+    """AI image generation (Pollinations Flux, FREE) — real marketing-image URL from a prompt."""
     try:
         from app.marketing import ai_image
 
@@ -235,7 +235,7 @@ async def photo_poster(
     style: str = Form("vibrant professional"),
     current_user: User = Depends(require_admin),
 ):
-    """Photo -> AI poster (Predis/Canva-killer): user ki dukaan/product photo + prompt ->
+    """Photo → AI poster (Predis/Canva-killer): user ki dukaan/product photo + prompt →
     image-to-image (Pollinations kontext). POLLINATIONS_API_KEY required."""
     from app.marketing import ai_image
 
@@ -254,7 +254,7 @@ async def photo_poster(
     data, name = await ai_image.edit_image_bytes(full_prompt, photo)
     if not data:
         raise HTTPException(status_code=502, detail="image edit failed (upstream)")
-    _log_isha("photo_poster", f"{file.filename} -> poster")
+    _log_isha("photo_poster", f"{file.filename} → poster")
     return {
         "url": f"/api/marketing/ai-img-file/{name}",
         "prompt": full_prompt,
@@ -278,7 +278,7 @@ async def ai_img_file(name: str):
 @router.get("/ai-image-proxy", dependencies=[Depends(rate_limit("aiimg", 20, 60))])
 async def ai_image_proxy(prompt: str, w: int = 1024, h: int = 1024, seed: int | None = None):
     """sk_ key-safe image serve: server-side Pollinations fetch (Authorization header) +
-    disk cache (data/ai_images/) - key kabhi client tak nahi jaati, repeat load free.
+    disk cache (data/ai_images/) — key kabhi client tak nahi jaati, repeat load free.
     Public (img-tag se load hota) but rate-limited."""
     from fastapi.responses import Response
 
@@ -310,7 +310,7 @@ async def generate_complete_post(
     req: CompletePostRequest,
     current_user: User = Depends(require_admin),
 ):
-    """COMPLETE post ek phrase se - caption + hashtags + asli AI image (free), one shot."""
+    """COMPLETE post ek phrase se — caption + hashtags + asli AI image (free), one shot."""
     try:
         import asyncio
 
@@ -356,7 +356,7 @@ async def generate_post_variations(
     req: VariationsRequest,
     current_user: User = Depends(require_admin),
 ):
-    """N alag-alag post variations (A/B test) - ek saath generate."""
+    """N alag-alag post variations (A/B test) — ek saath generate."""
     try:
         import asyncio
 
@@ -402,7 +402,7 @@ async def marketing_chatbot(req: ChatbotRequest, current_user: User = Depends(re
 
 
 class SentimentRequest(BaseModel):
-    """Reviews/feedback list -> sentiment + themes."""
+    """Reviews/feedback list → sentiment + themes."""
 
     texts: list[str] = Field(..., min_length=1, max_length=50)
 

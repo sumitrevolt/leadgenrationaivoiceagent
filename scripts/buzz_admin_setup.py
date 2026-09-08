@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""buzz_admin_setup - make the Buzz workspace self-documenting.
+"""buzz_admin_setup — make the Buzz workspace self-documenting.
 
 The protocol lives in ~/.buzz/GUIDES/ on ONE machine. Agents in the workspace
 cannot read that, so they cannot follow it. This publishes the rules into Buzz
@@ -11,10 +11,9 @@ NIP-23 note (the full runbook, readable by any member on any machine).
 
 `canvas set` REPLACES the document, so --show prints what is there now and
 --apply refuses to clobber a canvas it did not author unless you pass --force.
-Read before you overwrite
-that rule applies to shared workspaces too.
+Read before you overwrite; that rule applies to shared workspaces too.
 
-Runbook source of truth stays ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md - this
+Runbook source of truth stays ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md — this
 publishes a copy so the workspace is not dependent on one laptop.
 """
 
@@ -33,10 +32,10 @@ RUNBOOK = Path.home() / ".buzz" / "GUIDES" / "BUZZ_END_TO_END_RUNBOOK.md"
 
 # Both canvases below are SUPERSETS of what was already published on
 # 2026-08-03/05. Every existing line is preserved verbatim; only new material is
-# added. The guard in `_dropped_lines` enforces that mechanically - this comment
+# added. The guard in `_dropped_lines` enforces that mechanically — this comment
 # is the intent, that function is the proof.
 
-BUILD_CANVAS = """# #build - Coding Agent Bridge
+BUILD_CANVAS = """# #build — Coding Agent Bridge
 
 **Plane:** developer tooling. NOT runtime STAFF, NOT prod control.
 
@@ -46,22 +45,18 @@ BUILD_CANVAS = """# #build - Coding Agent Bridge
 |--------|------|-------------|
 | `[CURSOR]` | Cursor | IDE-side edits, refactors, inline fixes |
 | `[CLAUDE]` | Claude Code / Cowork | Multi-file changes, audits, loop-engineer runs |
-| `[CODEX]` | Codex | Independent review of a Claude-authored diff
-scripted patches |
-| `[GOOSE]` | Goose | Block's harness
-spikes and one-off automation |
+| `[CODEX]` | Codex | Independent review of a Claude-authored diff; scripted patches |
+| `[GOOSE]` | Goose | Block's harness; spikes and one-off automation |
 | `[OPENCODE]` | OpenCode | Terminal-driven patches, scripted edits |
-| `[FREEBUFF]` | Freebuff | Desktop-app sessions (Electron
-no headless mode) |
+| `[FREEBUFF]` | Freebuff | Desktop-app sessions (Electron; no headless mode) |
 | `[MONKEY]` | Monkey Code | Experiments, throwaway spikes |
 
 Every message MUST start with the prefix. No prefix = untraceable = ignore it.
 
 `[CODEX]` is the keyboard-side Codex CLI. The Buzz agent **Comb** also runs on
-Codex and uses the same prefix and the same locks - one identity per harness, so
+Codex and uses the same prefix and the same locks — one identity per harness, so
 a line reads the same whoever drove it. Freebuff and OpenCode cannot be Buzz
-agents (Electron app / no binary on PATH)
-prefix + handoff is their complete
+agents (Electron app / no binary on PATH); prefix + handoff is their complete
 integration, not a placeholder.
 
 ## Claim-before-edit (hard rule)
@@ -70,15 +65,15 @@ The repo tree is chronically dirty and multiple tools edit it at once.
 Truncation and lost edits have already happened. So:
 
 1. **CLAIM** before touching files:
-   `[CLAUDE] CLAIM app/api/growth_revenue.py, tests/test_billing_truth_2026.py - reason: ADR-159 canary`
+   `[CLAUDE] CLAIM app/api/growth_revenue.py, tests/test_billing_truth_2026.py — reason: ADR-159 canary`
 2. **RELEASE** when done:
-   `[CLAUDE] RELEASE app/api/growth_revenue.py - 3 tests green, exit 0`
+   `[CLAUDE] RELEASE app/api/growth_revenue.py — 3 tests green, exit 0`
 3. If a file is already claimed, **do not edit it**. Post `[TOOL] BLOCKED ON <file> (held by <tool>)` and pick different work.
-4. Claims older than 4 hours are stale - anyone may post `STALE-BREAK <file>` and take it.
+4. Claims older than 4 hours are stale — anyone may post `STALE-BREAK <file>` and take it.
 
 Machine-readable mirror: `docs/coordination/LOCKS.json` in the repo.
 
-Use the CLI, do not hand-edit the JSON - it writes atomically and posts the
+Use the CLI, do not hand-edit the JSON — it writes atomically and posts the
 matching `#build` line in the same step:
 
 ```
@@ -90,12 +85,11 @@ python scripts/buzzlock.py release <paths> --tool <TOOL> --evidence "<proof>"
 **Exit 2 on claim = another tool holds it. That is a stop, not a warning.**
 Exit 1 = usage error, exit 0 = ok. Branch on 2 and only 2.
 (Until 2026-08-09 argparse also exited 2 on a typo'd flag, so a bad `--tool` read
-as a refusal - fixed, and pinned by tests.)
-`LOCKS.json` is gitignored and per-checkout
-the CLI creates it on first use.
+as a refusal — fixed, and pinned by tests.)
+`LOCKS.json` is gitignored and per-checkout; the CLI creates it on first use.
 
 A claim is only refused if the holder is a **different** tool **and** the lock is
-not stale (`stale_after_minutes`, default 240) - a stale lock is taken silently
+not stale (`stale_after_minutes`, default 240) — a stale lock is taken silently
 and returns 0.
 
 ## Handoff format
@@ -119,7 +113,7 @@ Touched:   <file list>
 """
 
 DEV_CANVAS = """# Dev
-Checkout: REPOS/leadgenrationaiagent -> Documents/leadgenrationaiagent
+Checkout: REPOS/leadgenrationaiagent → Documents/leadgenrationaiagent
 Context first: docs/context/{CURRENT_STATE,ACTIVE_WORK,SESSION_HANDOFF}.md
 No commit/push without owner ask. Swara/voice FROZEN.
 
@@ -133,11 +127,11 @@ No commit/push without owner ask. Swara/voice FROZEN.
 owner: @Fizz implement X          (Claude Code harness)
 Fizz:  patch + evidence
 owner: @Comb review Fizz's patch  (Codex harness)
-Comb:  findings - file:line + confidence + severity
+Comb:  findings — file:line + confidence + severity
 owner: decides
 ```
 
-**Agents do not @mention each other.** Respond-policy is owner-only on purpose -
+**Agents do not @mention each other.** Respond-policy is owner-only on purpose —
 it stops @-loops. The owner routes the second opinion.
 
 Why a different harness: two agents on the same model correlate their mistakes.
@@ -146,12 +140,12 @@ Comb runs on Codex precisely so it fails differently from Fizz.
 ## Reviewer rules
 
 - **Coverage, not filtering.** Report every finding with confidence and
-  severity. "Only high-severity issues" makes a reviewer withhold real bugs -
+  severity. "Only high-severity issues" makes a reviewer withhold real bugs —
   recall drops while it looks more precise. A later pass does the filtering.
 - **file:line or it didn't happen.** A finding without a location is a rumour.
 - **Evidence beats prose.** Exit codes, pytest output, `/health.version`.
   "Tests pass" is not evidence.
-- Absence of an error is not proof a fix worked - check when the error series
+- Absence of an error is not proof a fix worked — check when the error series
   actually stopped before crediting anything.
 
 ## Refusals (not tradeoffs)
@@ -159,7 +153,7 @@ Comb runs on Codex precisely so it fails differently from Fizz.
 DND fail-closed · TRAI 10-19 IST calling window · AI disclosure · consent
 suppression · DPDP retention · billing truth in `packages.py`. A change that
 loosens one of these is an ABORT you report, not a cost you weigh.
-Swara / the voice path is FROZEN - review it, never propose edits to it.
+Swara / the voice path is FROZEN — review it, never propose edits to it.
 
 ## Wake an agent properly
 
@@ -169,7 +163,7 @@ one. A workspace that looks dead is almost always this.
 """
 
 OWNER_BRIEF = """\
-**[SETUP] Buzz multi-harness plane - ADR-167**
+**[SETUP] Buzz multi-harness plane — ADR-167**
 
 Workspace is now self-documenting. `#build` and `#dev` canvases carry the
 protocol, and the full runbook is published as a note (`buzz-end-to-end-runbook`)
@@ -180,10 +174,10 @@ so it is readable from any machine, not just one laptop.
   buzzlock CLI. Every previous line preserved.
 - `#dev` canvas: added the owner-routed cross-check contract.
 - Cost/quota report posted to `#ops`. Headline: **Codex subscription peaked at
-  100% in 7 days** - quota, not money, is what takes an agent offline here.
+  100% in 7 days** — quota, not money, is what takes an agent offline here.
 
 **One action left for you (~30 seconds)**
-Comb - the Codex-harness reviewer - is CODE-READY but not created. Agent creation
+Comb — the Codex-harness reviewer — is CODE-READY but not created. Agent creation
 **cannot be scripted at all**: `agents draft-create` needs a NIP-OA auth tag,
 Buzz Desktop mints it in-process, and it is not in the credential store, on the
 relay, or behind any local port. Checked all three. It needs your click.
@@ -202,12 +196,11 @@ correlate their mistakes, so a same-harness "review" is theatre. Comb fails
 differently, which is the entire point.
 
 Route work as: `@Fizz` builds -> `@Comb` reviews -> you decide. Agents do not
-mention each other
-owner-only respond policy is deliberate and stays.
+mention each other; owner-only respond policy is deliberate and stays.
 """
 
 NOTE_NAME = "buzz-end-to-end-runbook"
-NOTE_TITLE = "Buzz End-to-End Runbook - multi-harness + OmniRoute combos"
+NOTE_TITLE = "Buzz End-to-End Runbook — multi-harness + OmniRoute combos"
 NOTE_SUMMARY = (
     "How this workspace is wired: two harnesses (Claude + Codex), seven "
     "keyboard tools under file locks, the owner-routed cross-check, and the "
@@ -219,7 +212,7 @@ NOTE_TAGS = ["buzz", "leadgen", "runbook", "omniroute", "codex"]
 def _buzz_exe() -> Path:
     local = os.environ.get("LOCALAPPDATA")
     if not local:
-        raise SystemExit("LOCALAPPDATA unset - cannot locate buzz.exe")
+        raise SystemExit("LOCALAPPDATA unset — cannot locate buzz.exe")
     exe = Path(local) / "Buzz" / "buzz.exe"
     if not exe.exists():
         raise SystemExit(f"buzz.exe not found at {exe}")
@@ -232,7 +225,7 @@ def _nsec() -> str:
 
     nsec = _owner_nsec()
     if not nsec:
-        raise SystemExit("Buzz owner credential unavailable - sign in to Buzz Desktop.")
+        raise SystemExit("Buzz owner credential unavailable — sign in to Buzz Desktop.")
     return nsec
 
 
@@ -257,8 +250,7 @@ def _dropped_lines(current: str | None, new: str) -> list[str]:
 
     `canvas set` replaces the whole document, so the only honest safety check is
     "does my replacement still say everything the old one said". Whitespace is
-    normalised because reflowing a paragraph is not data loss
-    a missing rule is.
+    normalised because reflowing a paragraph is not data loss; a missing rule is.
     """
     if not (current or "").strip():
         return []
@@ -295,7 +287,7 @@ def main() -> int:
     ap.add_argument(
         "--dump",
         action="store_true",
-        help="print each canvas in full and exit - read it before you replace it",
+        help="print each canvas in full and exit — read it before you replace it",
     )
     ap.add_argument(
         "--force",
@@ -345,7 +337,7 @@ def main() -> int:
         )
 
         if dropped and not args.force:
-            print("    REFUSED - this is not a superset. These lines would vanish:")
+            print("    REFUSED — this is not a superset. These lines would vanish:")
             for line in dropped[:8]:
                 print(f"      - {line}")
             if len(dropped) > 8:
@@ -354,7 +346,7 @@ def main() -> int:
             continue
 
         if not args.apply:
-            print("    would write (superset - nothing lost)")
+            print("    would write (superset — nothing lost)")
             continue
 
         rc, _, err = run(["canvas", "set", "--channel", cid, "--content", "-"], stdin=body)

@@ -28,8 +28,7 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
 
     requester = textwrap.dedent(
         f"""
-        import os
-        import sys
+        import os, sys
         sys.path.insert(0, {str(ROOT)!r})
         os.environ["AGENT_RUNTIME_CANCEL_BACKEND"] = "file"
         os.environ["AGENT_RUNTIME_CANCEL_FILE"] = {str(store)!r}
@@ -42,9 +41,7 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
 
     executor = textwrap.dedent(
         f"""
-        import asyncio
-        import os
-        import sys
+        import asyncio, os, sys
         sys.path.insert(0, {str(ROOT)!r})
         os.environ["AGENT_RUNTIME_CANCEL_BACKEND"] = "file"
         os.environ["AGENT_RUNTIME_CANCEL_FILE"] = {str(store)!r}
@@ -100,4 +97,4 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
     assert not marker.exists(), "engine must not run"
     assert "cross_process_cancellation = pass" or True
     print("cross_process_cancellation = pass")
-    print("backend = file  # CI stand-in for redis\n    prod uses redis")
+    print("backend = file  # CI stand-in for redis; prod uses redis")

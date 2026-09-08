@@ -17,7 +17,7 @@ from app.platform import approval_notifier as an
 
 @pytest.fixture(autouse=True)
 def _no_real_ledger_writes(monkeypatch):
-    """Keep tests hermetic - never touch the real data/delivery_ledger/ files."""
+    """Keep tests hermetic — never touch the real data/delivery_ledger/ files."""
     import app.marketing.delivery_ledger as dl
 
     monkeypatch.setattr(dl, "log_event", lambda *a, **k: True)
@@ -250,7 +250,7 @@ async def test_provider_failure_then_retry_succeeds(async_db_session):
 
 
 async def test_cross_tenant_recipient_isolation(async_db_session):
-    """Each approval is notified to ITS OWN client only - never another tenant."""
+    """Each approval is notified to ITS OWN client only — never another tenant."""
     directory = {"cli-1": "owner1@a.com", "cli-2": "owner2@b.com"}
     seen: list[tuple[str, str]] = []
 

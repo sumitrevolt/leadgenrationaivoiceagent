@@ -1,4 +1,4 @@
-"""Explicit Creative OS lifecycle transitions - fail-closed."""
+"""Explicit Creative OS lifecycle transitions — fail-closed."""
 
 from __future__ import annotations
 

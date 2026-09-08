@@ -1,12 +1,11 @@
 """
-Studio packs - pure-logic (zero-LLM, zero-network, never-raise) generators for
+Studio packs — pure-logic (zero-LLM, zero-network, never-raise) generators for
 the Customer AI Marketing Studio. Each returns a uniform shape:
 
     {"sections": [{"title": str, "items": [str, ...]}, ...], ...extra}
 
 so the frontend can render ALL of them with one generic formatter. Niche-aware
-where cheap
-always non-empty. These power the structural growth-OS features
+where cheap; always non-empty. These power the structural growth-OS features
 (#43,46,47,49,50,61,64,66,67,69,70,72,74,77,88,90) that don't need an external
 API or an LLM call.
 """
@@ -35,15 +34,15 @@ def business_description(business_name: str, niche: str, city: str = "") -> dict
             _sec(
                 "Short bio (Insta/GBP)",
                 [
-                    f"{biz} - {lbl}{where}. Quality service, sahi daam, time pe delivery. 📞 Call/WhatsApp karein.",
-                    f"{lbl} ka bharosemand naam{where} - {biz}. Aaj hi enquiry karein!",
+                    f"{biz} — {lbl}{where}. Quality service, sahi daam, time pe delivery. 📞 Call/WhatsApp karein.",
+                    f"{lbl} ka bharosemand naam{where} — {biz}. Aaj hi enquiry karein!",
                 ],
             ),
             _sec(
                 "Long description (website/GBP)",
                 [
                     f"{biz} ek trusted {lbl.lower()} service hai{where}. Humara focus hai customer ki "
-                    f"satisfaction - fast response, transparent pricing aur reliable kaam. Naye ho ya purane "
+                    f"satisfaction — fast response, transparent pricing aur reliable kaam. Naye ho ya purane "
                     f"customer, har kaam ko poori dhyan se karte hain. Aaj hi humse judein.",
                 ],
             ),
@@ -77,7 +76,7 @@ def brand_palette(niche: str) -> dict:
                 [
                     "Primary color = headings + buttons (CTA).",
                     "Accent = highlights/offers only (10% area).",
-                    "Background white/light rakho - text readable rahe.",
+                    "Background white/light rakho — text readable rahe.",
                     "Ek hi font-pair har jagah use karo (consistency = trust).",
                 ],
             ),
@@ -163,7 +162,7 @@ def local_event_campaign(niche: str, city: str = "") -> dict:
             _sec(
                 "Post angle",
                 [
-                    f"'{loc} ke logon ke liye special' - local pride hook",
+                    f"'{loc} ke logon ke liye special' — local pride hook",
                     "Local landmark ka mention (relatable lagta hai)",
                     "Local language/slang ka thoda tadka",
                 ],
@@ -189,7 +188,7 @@ def case_study(business_name: str, niche: str) -> dict:
             _sec(
                 "Ready template",
                 [
-                    f"Ek customer {lbl.lower()} problem leke aaye the. {biz} ne unhe sahi solution diya - "
+                    f"Ek customer {lbl.lower()} problem leke aaye the. {biz} ne unhe sahi solution diya — "
                     f"fast, affordable aur bharose ke saath. Aaj wo khush hain aur dobara aate hain. "
                     f"Aapko bhi aisa result chahiye? Aaj WhatsApp karein! 🙌",
                 ],
@@ -219,8 +218,8 @@ def grid_planner(niche: str) -> dict:
             _sec(
                 "Visual tip",
                 [
-                    "Ek color theme rakho (brand colors) - grid clean dikhe.",
-                    "Alternate: photo -> quote -> photo pattern.",
+                    "Ek color theme rakho (brand colors) — grid clean dikhe.",
+                    "Alternate: photo → quote → photo pattern.",
                 ],
             ),
         ]
@@ -263,7 +262,7 @@ def voiceover_script(business_name: str, niche: str, offer: str = "") -> dict:
                 "15-sec Hinglish voiceover",
                 [
                     f"Namaste! {lbl} ki tension? {biz} hai na. "
-                    f"Quality service, sahi daam, time pe kaam. Abhi {off} chal raha hai - "
+                    f"Quality service, sahi daam, time pe kaam. Abhi {off} chal raha hai — "
                     f"call ya WhatsApp karo, aaj hi! {biz}.",
                 ],
             ),
@@ -289,7 +288,7 @@ def youtube_metadata(business_name: str, niche: str, topic: str = "") -> dict:
                 "Title options",
                 [
                     f"{tp} | {biz}",
-                    f"{lbl} {tp} - jo koi nahi batata!",
+                    f"{lbl} {tp} — jo koi nahi batata!",
                     f"Best {lbl} {tp} (2026) | {biz}",
                 ],
             ),
@@ -327,11 +326,11 @@ def faq_page(business_name: str, niche: str) -> dict:
             _sec(
                 "Common FAQs (website pe daalo)",
                 [
-                    f"Q: {biz} kya service deta hai?  A: {lbl} ki full service - quality + sahi daam.",
-                    "Q: Rate kya hai?  A: Service pe depend karta - WhatsApp karein, exact quote denge.",
+                    f"Q: {biz} kya service deta hai?  A: {lbl} ki full service — quality + sahi daam.",
+                    "Q: Rate kya hai?  A: Service pe depend karta — WhatsApp karein, exact quote denge.",
                     "Q: Timing kya hai?  A: Subah 9 se shaam 7 (call anytime).",
-                    "Q: Booking kaise?  A: WhatsApp ya call - 2 min me confirm.",
-                    "Q: Payment options?  A: Cash / UPI / online - sab chalega.",
+                    "Q: Booking kaise?  A: WhatsApp ya call — 2 min me confirm.",
+                    "Q: Payment options?  A: Cash / UPI / online — sab chalega.",
                 ],
             ),
         ]
@@ -379,7 +378,7 @@ def conversion_tracking(niche: str) -> dict:
             ),
             _sec(
                 "Kyun zaroori",
-                ["Pata chalega kaunsa channel asli leads laata - wahin paisa lagao."],
+                ["Pata chalega kaunsa channel asli leads laata — wahin paisa lagao."],
             ),
         ]
     }
@@ -389,10 +388,10 @@ def lost_lead_reason(niche: str) -> dict:
     return {
         "sections": [
             _sec(
-                "Lead convert kyun nahi hua - common reasons",
+                "Lead convert kyun nahi hua — common reasons",
                 [
-                    "Late reply (2 min se zyada) -> lead thanda ho gaya",
-                    "Price clear nahi bataya -> confusion",
+                    "Late reply (2 min se zyada) → lead thanda ho gaya",
+                    "Price clear nahi bataya → confusion",
                     "Follow-up nahi kiya (1 message me chhod diya)",
                     "Trust nahi bana (reviews/photos nahi dikhaye)",
                     "Galat time pe contact kiya",
@@ -427,7 +426,7 @@ def complaint_recovery(business_name: str) -> dict:
             _sec(
                 "Ready reply",
                 [
-                    f"Namaste 🙏 {biz} ki taraf se sorry - aapko dikkat hui. Main personally ise theek "
+                    f"Namaste 🙏 {biz} ki taraf se sorry — aapko dikkat hui. Main personally ise theek "
                     f"karwata hoon. Bas 2 min me aapse baat karta hoon, sahi solution denge.",
                 ],
             ),
@@ -442,15 +441,15 @@ def ugc_request(business_name: str) -> dict:
             _sec(
                 "Customer se photo/video maangne ke messages",
                 [
-                    f"Namaste! 🙏 {biz} ki service achhi lagi ho to ek chhota photo/video bhej dijiye - "
+                    f"Namaste! 🙏 {biz} ki service achhi lagi ho to ek chhota photo/video bhej dijiye — "
                     f"hum aapko feature karenge (aur aapko surprise gift!) 🎁",
-                    f"Aapka 10-sec video testimonial dusron ki bahut madad karega - bhej denge? {biz} 🙌",
+                    f"Aapka 10-sec video testimonial dusron ki bahut madad karega — bhej denge? {biz} 🙌",
                 ],
             ),
             _sec(
                 "Tip",
                 [
-                    "UGC (customer ke real photo/video) sabse zyada trust banata - incentive do (discount/feature)."
+                    "UGC (customer ke real photo/video) sabse zyada trust banata — incentive do (discount/feature)."
                 ],
             ),
         ]
@@ -479,7 +478,7 @@ def nps_survey(business_name: str, niche: str) -> dict:
             _sec(
                 "Tip",
                 [
-                    "Survey chhota rakho (3 sawaal max) - zyada lamba = log chhod dete hain.",
+                    "Survey chhota rakho (3 sawaal max) — zyada lamba = log chhod dete hain.",
                     "Promoters ko turant Google review link bhejo.",
                 ],
             ),
@@ -504,15 +503,15 @@ def whatsapp_catalog(business_name: str, niche: str) -> dict:
             _sec(
                 "Catalog text (WhatsApp Business catalog me daalo)",
                 [
-                    f"{lbl} Service A - short desc - ₹___",
-                    f"{lbl} Service B - short desc - ₹___",
+                    f"{lbl} Service A — short desc — ₹___",
+                    f"{lbl} Service B — short desc — ₹___",
                     "Har item: clear photo + 1-line benefit + price.",
                 ],
             ),
             _sec(
                 "Tip",
                 [
-                    "QR code shop counter + Insta bio pe lagao -> seedha is WhatsApp pe le aao.",
+                    "QR code shop counter + Insta bio pe lagao → seedha is WhatsApp pe le aao.",
                     "Catalog + UPI link se customer chat me hi kharid le.",
                 ],
             ),
@@ -527,20 +526,20 @@ def click_to_whatsapp_ad(business_name: str, niche: str, offer: str = "") -> dic
     return {
         "sections": [
             _sec(
-                "Meta 'Click to WhatsApp' ad - Primary text",
+                "Meta 'Click to WhatsApp' ad — Primary text",
                 [
                     f"{lbl} ki tension? {biz} hai na! ✅ Quality service ✅ Sahi daam ✅ {off}. "
-                    f"Abhi 'Send Message' dabaayein - WhatsApp pe turant reply milega. 📲",
+                    f"Abhi 'Send Message' dabaayein — WhatsApp pe turant reply milega. 📲",
                 ],
             ),
             _sec(
                 "Headlines (≤40 char)",
-                [f"{biz} - {off}", "WhatsApp karo, aaj hi!", f"Best {lbl} near you"],
+                [f"{biz} — {off}", "WhatsApp karo, aaj hi!", f"Best {lbl} near you"],
             ),
             _sec(
                 "Setup tip",
                 [
-                    "Meta Ads Manager -> objective 'Engagement/Messages' -> WhatsApp.",
+                    "Meta Ads Manager → objective 'Engagement/Messages' → WhatsApp.",
                     "CTA button: 'Send WhatsApp Message'. Budget chhota se shuru (₹150-300/din).",
                 ],
             ),
@@ -578,12 +577,12 @@ def aeo_checklist(business_name: str, niche: str) -> dict:
     return {
         "sections": [
             _sec(
-                "Get found by AI (ChatGPT/Gemini/AI Overviews) - checklist",
+                "Get found by AI (ChatGPT/Gemini/AI Overviews) — checklist",
                 [
-                    "☐ Website pe clear FAQ (sawaal-jawab format) - AI inhe pick karta hai",
-                    "☐ FAQ schema (JSON-LD) lagao - Studio ka 'Schema Markup' use karo",
+                    "☐ Website pe clear FAQ (sawaal-jawab format) — AI inhe pick karta hai",
+                    "☐ FAQ schema (JSON-LD) lagao — Studio ka 'Schema Markup' use karo",
                     "☐ NAP (naam/address/phone) har jagah same rakho",
-                    "☐ Google reviews badhao - AI trust-signal maanta hai",
+                    "☐ Google reviews badhao — AI trust-signal maanta hai",
                     f"☐ '{lbl} in [city]' jaise clear headings + plain-language answers",
                     "☐ llms.txt / clear content structure (AI crawlers ke liye)",
                 ],
@@ -615,14 +614,14 @@ def loyalty_program(business_name: str, niche: str) -> dict:
             _sec(
                 "Gamified WhatsApp idea",
                 [
-                    "'Spin & Win' - customer chat me 'SPIN' bheje, random offer mile (5%/10%/free add-on).",
+                    "'Spin & Win' — customer chat me 'SPIN' bheje, random offer mile (5%/10%/free add-on).",
                     "Scratch-card image bhejo with hidden code.",
                 ],
             ),
             _sec(
                 "Tip",
                 [
-                    f"{biz} ka loyalty card digital rakho (WhatsApp pe points update bhejo) - repeat business 2x."
+                    f"{biz} ka loyalty card digital rakho (WhatsApp pe points update bhejo) — repeat business 2x."
                 ],
             ),
         ]
@@ -640,8 +639,8 @@ def rank_check_guide(business_name: str, niche: str, city: str = "") -> dict:
                     "1. Incognito window kholo (logged-out, taaki personalized result na aaye).",
                     f"2. Search karo: '{lbl.lower()} near me' aur '{lbl.lower()} in {loc}'.",
                     "3. Dekho aap Map-pack (top 3) me ho ya nahi.",
-                    "4. Apne area ke alag-alag points se search karo (DIY geo-grid) - rank badalta hai.",
-                    "5. Hafte me ek baar check karo, screenshot rakho - improvement track ho.",
+                    "4. Apne area ke alag-alag points se search karo (DIY geo-grid) — rank badalta hai.",
+                    "5. Hafte me ek baar check karo, screenshot rakho — improvement track ho.",
                 ],
             ),
             _sec(
@@ -663,7 +662,7 @@ def booking_link(business_name: str, niche: str) -> dict:
             _sec(
                 "Booking setup options (free)",
                 [
-                    "Google Business Profile -> 'Bookings' / 'Appointment' link add karo.",
+                    "Google Business Profile → 'Bookings' / 'Appointment' link add karo.",
                     "WhatsApp pe fixed message: 'Book karne ke liye time bhejo'.",
                     "Free tools: Google Calendar Appointment Schedule, Calendly free plan.",
                 ],
@@ -672,7 +671,7 @@ def booking_link(business_name: str, niche: str) -> dict:
                 "Booking message templates",
                 [
                     f"'{biz} me book karna hai? Bas apna naam + time bhej dein, main confirm kar deta hoon ✅'",
-                    "'Available slots: aaj 4 PM / kal 11 AM / kal 5 PM - kaunsa theek hai?'",
+                    "'Available slots: aaj 4 PM / kal 11 AM / kal 5 PM — kaunsa theek hai?'",
                 ],
             ),
         ]
@@ -687,7 +686,7 @@ def newsletter_outline(business_name: str, niche: str) -> dict:
             _sec(
                 "Monthly email/WhatsApp newsletter outline",
                 [
-                    f"Subject: '{biz} - is mahine ki khaas baatein 🎉'",
+                    f"Subject: '{biz} — is mahine ki khaas baatein 🎉'",
                     "1. Ek warm greeting (1-2 line)",
                     "2. Is mahine ka offer / naya service",
                     f"3. Ek {lbl.lower()} tip (value do)",
@@ -699,7 +698,7 @@ def newsletter_outline(business_name: str, niche: str) -> dict:
                 "Tip",
                 [
                     "Mahine me 1 baar bhejo (zyada = unsubscribe).",
-                    "Personal tone rakho, corporate nahi - local business ka charm yahi hai.",
+                    "Personal tone rakho, corporate nahi — local business ka charm yahi hai.",
                 ],
             ),
         ]
@@ -714,7 +713,7 @@ def evergreen_ideas(niche: str) -> dict:
                 "Evergreen posts (kabhi bhi repost karo)",
                 [
                     f"'{lbl} chunte waqt 5 cheezein dhyan rakhein' (educational)",
-                    "'Hamare bare me' - kahani + kyun bharose layak",
+                    "'Hamare bare me' — kahani + kyun bharose layak",
                     "Common myth vs fact (your industry)",
                     "Behind-the-scenes / ek din ka kaam",
                     "Customer ke aksar poochhe jaane wale sawaal (FAQ)",
@@ -724,7 +723,7 @@ def evergreen_ideas(niche: str) -> dict:
             _sec(
                 "Kyun useful",
                 [
-                    "Ye posts season pe depend nahi karte - jab content na soojhe, inme se ek daal do.",
+                    "Ye posts season pe depend nahi karte — jab content na soojhe, inme se ek daal do.",
                     "Best performing ko har 2-3 mahine repost karo (naye log dekhenge).",
                 ],
             ),

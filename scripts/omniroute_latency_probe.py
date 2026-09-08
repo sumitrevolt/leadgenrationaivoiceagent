@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""OmniRoute latency probe - evidence for the OMNIROUTE_ENABLED=1 decision.
+"""OmniRoute latency probe — evidence for the OMNIROUTE_ENABLED=1 decision.
 
 WHY THIS EXISTS
 ---------------
 The OmniRoute gateway is live on 127.0.0.1:20128 with 3570 models, but the app
 keeps it INERT because ``OMNIROUTE_ENABLED`` is unset. The last loop run in
 progress.md lists "OWNER: OMNIROUTE_ENABLED=1 + OMNIROUTE_VOICE=1" as a pending
-owner action - with no measured evidence either way.
+owner action — with no measured evidence either way.
 
 The project's #1 open product complaint is voice latency:
     prod turn_metrics llm_first = 2189 / 6839 / 6334 ms   (target: p50 < 1000 ms)
@@ -17,7 +17,7 @@ production flag. It is READ-ONLY with respect to app config.
 WHAT IT MEASURES
 ----------------
 TTFT (time to first token) over streaming /v1/chat/completions, because for a
-voice agent TTFT is what the caller actually feels - total latency is not.
+voice agent TTFT is what the caller actually feels — total latency is not.
 
 USAGE
 -----
@@ -173,9 +173,9 @@ def main() -> int:
 
     count = gateway_reachable(args.base, key)
     if count is None:
-        print("RESULT: gateway UNREACHABLE - cannot probe.")
+        print("RESULT: gateway UNREACHABLE — cannot probe.")
         return 2
-    print(f"gateway reachable - {count} models advertised\n")
+    print(f"gateway reachable — {count} models advertised\n")
 
     results: dict[str, list[dict]] = {}
     for model in models:
@@ -200,7 +200,7 @@ def main() -> int:
     for model, runs in results.items():
         ok = [r for r in runs if r.get("ttft_ms") is not None]
         if not ok:
-            print(f"{model:<28}{'0/' + str(len(runs)):>4}{'-':>10}{'-':>10}{'-':>10}{'-':>10}{'-':>12}")
+            print(f"{model:<28}{'0/' + str(len(runs)):>4}{'—':>10}{'—':>10}{'—':>10}{'—':>10}{'—':>12}")
             continue
         tt = [r["ttft_ms"] for r in ok]
         tot = [r["total_ms"] for r in ok]
@@ -216,7 +216,7 @@ def main() -> int:
     print("-" * 74)
     if best:
         verdict = "MEETS target (<1000ms)" if best[1] < 1000 else "MISSES target (>=1000ms)"
-        print(f"\nFastest: {best[0]} @ p50 {best[1]:.0f} ms - {verdict}")
+        print(f"\nFastest: {best[0]} @ p50 {best[1]:.0f} ms — {verdict}")
         if best[1] < 2189:
             print(f"vs prod baseline p50-ish 2189 ms -> {2189 - best[1]:.0f} ms faster")
     print("\nNOTE: probe is READ-ONLY. No app flag was changed.")

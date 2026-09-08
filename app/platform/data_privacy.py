@@ -1,22 +1,22 @@
 """
-data_privacy.py - DSAR / data-privacy helper layer.
+data_privacy.py — DSAR / data-privacy helper layer.
 ====================================================
 
 Ek thin orchestration layer jo existing dpdp.py ke upar baith ke 4 clean
 helper functions expose karta hai (parent task requirement):
 
-  anonymize_pii(value)              - mask phone/email/name in str or dict.
-  export_subject_data(identifier)   - DSAR Right-to-Access export (wraps dpdp).
-  delete_subject_data(identifier)   - DSAR erasure / dry-run preview (wraps dpdp).
-  enforce_retention(dry_run=True)   - Retention sweep: old records report/purge.
-  data_lineage(record)              - UTM/source/timestamp tags for a record.
+  anonymize_pii(value)              — mask phone/email/name in str or dict.
+  export_subject_data(identifier)   — DSAR Right-to-Access export (wraps dpdp).
+  delete_subject_data(identifier)   — DSAR erasure / dry-run preview (wraps dpdp).
+  enforce_retention(dry_run=True)   — Retention sweep: old records report/purge.
+  data_lineage(record)              — UTM/source/timestamp tags for a record.
 
 Design rules (match codebase):
-  - KABHI raise nahi karta - har function error dict lautata hai.
+  - KABHI raise nahi karta — har function error dict lautata hai.
   - Destructive ops: DATA_ERASURE=1 env gate + explicit confirm=True DONO.
   - Retention real action: DATA_RETENTION=1 gate + dry_run=False.
   - Default everything to safe / dry-run.
-  - Composing over dpdp.py - duplicate nahi karta.
+  - Composing over dpdp.py — duplicate nahi karta.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Store path for privacy ops audit log (owned by this module - dpdp has its own)
+# Store path for privacy ops audit log (owned by this module — dpdp has its own)
 # ---------------------------------------------------------------------------
 _PRIVACY_OPS_LOG = Path("data") / "privacy_ops.jsonl"
 
@@ -64,7 +64,7 @@ _PHONE_RUN_RE = re.compile(r"\d(?:[\s\-]?\d){9,}")
 _ERASURE_GATE = "DATA_ERASURE"
 _RETENTION_GATE = "DATA_RETENTION"
 
-# Default retention threshold (days) - DPDP / TRAI guidance
+# Default retention threshold (days) — DPDP / TRAI guidance
 _DEFAULT_RETENTION_DAYS = int(os.getenv("RETENTION_DAYS", "365"))
 
 
@@ -89,7 +89,7 @@ def _log_op(action: str, identifier: str, detail: dict[str, Any]) -> None:
 
 
 def _mask_phone_str(s: str) -> str:
-    """Keep last 2 digits, mask rest (e.g. 9876543210 -> XXXXXXXX10)."""
+    """Keep last 2 digits, mask rest (e.g. 9876543210 → XXXXXXXX10)."""
     s = str(s or "")
     if not s:
         return s
@@ -102,7 +102,7 @@ def _mask_phone_str(s: str) -> str:
 
 
 def _mask_email_str(s: str) -> str:
-    """Keep domain, mask local part (e.g. ravi@example.com -> r***@example.com)."""
+    """Keep domain, mask local part (e.g. ravi@example.com → r***@example.com)."""
     s = str(s or "")
     if "@" not in s:
         return "***"
@@ -112,7 +112,7 @@ def _mask_email_str(s: str) -> str:
 
 
 def _mask_name_str(s: str) -> str:
-    """Keep first initial, mask rest (e.g. Ravi Sharma -> R*** S***)."""
+    """Keep first initial, mask rest (e.g. Ravi Sharma → R*** S***)."""
     parts = str(s or "").split()
     return " ".join((p[:1] + "***") for p in parts) if parts else "***"
 
@@ -170,9 +170,8 @@ def _anonymize_dict(d: dict[str, Any], depth: int = 0) -> dict[str, Any]:
 def anonymize_pii(value: Any) -> Any:
     """Mask PII in a string or dict (recursive).
 
-    str  -> scrub embedded phone-runs
-    return masked string.
-    dict -> recursively mask values for keys matching PII_KEYS.
+    str  → scrub embedded phone-runs; return masked string.
+    dict → recursively mask values for keys matching PII_KEYS.
     other types returned as-is.
 
     Never raises.
@@ -250,13 +249,13 @@ async def export_subject_data(identifier: str) -> dict[str, Any]:
 async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[str, Any]:
     """DSAR Right-to-Erasure.
 
-    DRY-RUN by default - returns preview of what WOULD be deleted.
+    DRY-RUN by default — returns preview of what WOULD be deleted.
 
     Real erasure requires BOTH:
       - confirm=True (caller explicitly confirms)
       - env DATA_ERASURE=1 (ops-level gate)
 
-    If either is missing -> dry-run preview is returned with a clear message.
+    If either is missing → dry-run preview is returned with a clear message.
     Never raises.
     """
     identifier = str(identifier or "").strip()
@@ -269,7 +268,7 @@ async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[st
     # Explain why dry-run if caller asked for real but gate is missing
     gate_msg: str | None = None
     if confirm and not erasure_enabled:
-        gate_msg = "DATA_ERASURE=1 env gate set nahi hai - dry-run mode me chal raha hai."
+        gate_msg = "DATA_ERASURE=1 env gate set nahi hai — dry-run mode me chal raha hai."
 
     try:
         from app.platform import dpdp
@@ -316,9 +315,8 @@ async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[st
 def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
     """Sweep JSONL records older than RETENTION_DAYS (env, default 365).
 
-    dry_run=True (default)  -> report only
-    nothing deleted.
-    dry_run=False + DATA_RETENTION=1 env gate -> real purge (atomic rewrite +
+    dry_run=True (default)  → report only; nothing deleted.
+    dry_run=False + DATA_RETENTION=1 env gate → real purge (atomic rewrite +
     .bak copy per touched file).
 
     Returns summary dict. Never raises.
@@ -328,7 +326,7 @@ def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
 
     gate_msg: str | None = None
     if not dry_run and not retention_enabled:
-        gate_msg = "DATA_RETENTION=1 env gate set nahi hai - dry-run mode me chal raha hai."
+        gate_msg = "DATA_RETENTION=1 env gate set nahi hai — dry-run mode me chal raha hai."
         real_run = False
 
     cutoff_days = _DEFAULT_RETENTION_DAYS
@@ -391,7 +389,7 @@ def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
                             rec_dt = rec_dt.replace(tzinfo=timezone.utc)
                         is_old = rec_dt < cutoff
                     except Exception:
-                        pass  # unparseable ts -> keep
+                        pass  # unparseable ts → keep
 
                 if is_old:
                     old_count += 1
@@ -458,7 +456,7 @@ def data_lineage(record: Any) -> dict[str, Any]:
     """Extract source/lineage tags from a record dict.
 
     Returns dict with: source, utm_source, utm_medium, utm_campaign,
-    created_at, updated_at, store_hint - whatever is available.
+    created_at, updated_at, store_hint — whatever is available.
     Values not present are omitted. Never raises.
     """
     out: dict[str, Any] = {}

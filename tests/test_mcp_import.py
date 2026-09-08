@@ -25,7 +25,7 @@ def test_describe_top_level_fastapi_mcp_missing():
     level, message = describe_mcp_import_failure(error)
 
     assert level == "info"
-    assert message == "fastapi-mcp not installed - MCP exposure disabled"
+    assert message == "fastapi-mcp not installed — MCP exposure disabled"
 
 
 def test_describe_nested_dependency_missing_truthfully():

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Prospect Score V2 - SHADOW evaluation (read-only, no writes, no contact).
+"""Prospect Score V2 — SHADOW evaluation (read-only, no writes, no contact).
 
 Compares V1 vs V2 on the live prospects.jsonl dataset and answers the mission
 §4 acceptance questions:

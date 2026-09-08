@@ -1,4 +1,4 @@
-"""Desktop-app registry contract - doc JSON is the source, hub projects it read-only.
+"""Desktop-app registry contract — doc JSON is the source, hub projects it read-only.
 
 Covers: registry JSON validity, required per-app fields, buzzlock TOOL tokens
 matching scripts/buzzlock.py TOOLS, hub snapshot inclusion (inert-safe when

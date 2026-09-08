@@ -1,35 +1,32 @@
-"""Memory Stack admin API - 7-layer agent memory: diagnostics, preview, prospective.
+"""Memory Stack admin API — 7-layer agent memory: diagnostics, preview, prospective.
 
-  GET  /api/memory-stack/stats                     - config + counters (NO content)
-  GET  /api/memory-stack/diagnostics               - flag contract validation
-  POST /api/memory-stack/assemble                  - MASKED preview (super-admin to reveal)
-  GET  /api/memory-stack/prospective               - tenant-scoped rows
-  POST /api/memory-stack/prospective               - schedule (super-admin)
-  POST /api/memory-stack/prospective/{id}/cancel   - (super-admin)
-  POST /api/memory-stack/prospective/drain         - manual drain (super-admin)
-  POST /api/memory-stack/purge                     - DPDP delete (super-admin)
+  GET  /api/memory-stack/stats                     — config + counters (NO content)
+  GET  /api/memory-stack/diagnostics               — flag contract validation
+  POST /api/memory-stack/assemble                  — MASKED preview (super-admin to reveal)
+  GET  /api/memory-stack/prospective               — tenant-scoped rows
+  POST /api/memory-stack/prospective               — schedule (super-admin)
+  POST /api/memory-stack/prospective/{id}/cancel   — (super-admin)
+  POST /api/memory-stack/prospective/drain         — manual drain (super-admin)
+  POST /api/memory-stack/purge                     — DPDP delete (super-admin)
 
 CSRF (verified 2026-08-05, not assumed): admin auth here is `HTTPBearer`
-(`app/api/auth_deps.py:19`) - the token travels in an `Authorization` header, not
+(`app/api/auth_deps.py:19`) — the token travels in an `Authorization` header, not
 an ambient cookie, so a cross-site form/image cannot carry it. Classic CSRF is
-structurally not applicable to these routes
-the repo has no CSRF middleware for
+structurally not applicable to these routes; the repo has no CSRF middleware for
 that reason. The destructive-write safeguards used instead are the repo-native
 `Idempotency-Key` contract (`admin_idempotency`, bound to actor+scope+payload
-hash -> 409 on payload reuse) plus an explicit `confirm=true`.
+hash → 409 on payload reuse) plus an explicit `confirm=true`.
 
 SECURITY POSTURE (review P1):
   - Reads: `require_admin` (RBAC module grants apply). Writes/dispatch/purge:
-    `require_super_admin` - a scoped module grant is NOT enough to create or
+    `require_super_admin` — a scoped module grant is NOT enough to create or
     fire agent work.
   - `tenant_id` is a REQUIRED parameter on every route. There is no default and
-    no "all tenants" read of content
-    blank => 422.
+    no "all tenants" read of content; blank => 422.
   - GET routes are side-effect free. Drain is POST-only.
-  - Per-route rate limits
-  write buckets are tighter than read buckets.
+  - Per-route rate limits; write buckets are tighter than read buckets.
   - Preview is MASKED by default (per-layer token counts + a short redacted
-    head). Full text needs super-admin AND an explicit `reveal=true` - and is
+    head). Full text needs super-admin AND an explicit `reveal=true` — and is
     audit-logged.
 """
 
@@ -71,7 +68,7 @@ class ScheduleIn(BaseModel):
 def _idem_begin(request: Request, actor: Any, scope: str, payload: Any):
     """Repo-native destructive-write safeguard (`Idempotency-Key` header).
 
-    Same mechanism `admin_dashboard` already uses - a replayed key returns the
+    Same mechanism `admin_dashboard` already uses — a replayed key returns the
     stored result instead of firing the action twice, and a reused key with a
     different payload is a 409. Deliberately NOT a new parallel mechanism.
     """
@@ -95,7 +92,7 @@ def _idem_store(token: Any, response: Any) -> None:
 
 
 async def _audit(request: Request, actor: Any, action: str, meta: dict[str, Any]) -> None:
-    """Best-effort audit trail - never blocks the request (admin_audit redacts)."""
+    """Best-effort audit trail — never blocks the request (admin_audit redacts)."""
     try:
         from app.platform import admin_audit
 
@@ -137,7 +134,7 @@ async def assemble(
     request: Request,
     user=Depends(require_admin),
 ) -> dict[str, Any]:
-    """Preview only - nothing is stored. MASKED unless super-admin asks to reveal."""
+    """Preview only — nothing is stored. MASKED unless super-admin asks to reveal."""
     from app.platform import memory_stack as ms
 
     out = await ms.assemble(
@@ -180,8 +177,7 @@ async def prospective(
 ) -> dict[str, Any]:
     """Tenant-scoped listing, MASKED by default (POLICY B: secrets AND PII).
 
-    Raw memory payloads are never returned from a list endpoint
-    `payload` is
+    Raw memory payloads are never returned from a list endpoint; `payload` is
     replaced by its key names only.
     """
     from app.platform import memory_governance as gov
@@ -253,7 +249,7 @@ async def prospective_drain(
 ) -> dict[str, Any]:
     """Exactly what the scheduler runs. Fail-closed when config/store not ready."""
     if not confirm:
-        return {"ok": False, "error": "confirm=true required - drain creates real agent tasks"}
+        return {"ok": False, "error": "confirm=true required — drain creates real agent tasks"}
     from app.platform import memory_stack as ms
 
     token = _idem_begin(request, user, "memory_stack.drain", {"limit": limit})
@@ -352,7 +348,7 @@ async def purge(
     confirm: bool = Query(False),
     user=Depends(require_super_admin),
 ) -> dict[str, Any]:
-    """DPDP delete - durable rows + this process's working-memory namespace."""
+    """DPDP delete — durable rows + this process's working-memory namespace."""
     if not confirm:
         return {"ok": False, "error": "confirm=true required for destructive purge"}
     from app.platform import memory_stack as ms

@@ -67,7 +67,7 @@ class UpgradeRequest(BaseModel):
 tenant_manager = TenantManager()
 
 # NOTE: PlatformOrchestrator (Cloud-Run era) REMOVED. Sab scheduling
-# team_scheduler handle karta hai - /platform/start = manual growth pulse.
+# team_scheduler handle karta hai — /platform/start = manual growth pulse.
 _scheduler_running: bool = False
 
 
@@ -77,7 +77,7 @@ async def start_platform_api(
 ):
     """
     Trigger a manual growth pulse + confirm scheduler is running.
-    (Full automation team_scheduler me hoti hai - always-on via Docker.)
+    (Full automation team_scheduler me hoti hai — always-on via Docker.)
     """
     global _scheduler_running
     try:
@@ -90,22 +90,21 @@ async def start_platform_api(
     logger.info("🚀 Platform pulse triggered via API")
     return {
         "status": "started",
-        "message": "Growth pulse triggered - team_scheduler handles full automation",
+        "message": "Growth pulse triggered — team_scheduler handles full automation",
     }
 
 
 @router.post("/stop")
 async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     """
-    Mark scheduler flag off (informational - Docker-managed processes need
-    container stop
-    this endpoint is kept for API compatibility).
+    Mark scheduler flag off (informational — Docker-managed processes need
+    container stop; this endpoint is kept for API compatibility).
     """
     global _scheduler_running
     _scheduler_running = False
     return {
         "status": "stopped",
-        "message": "Flag cleared - to fully stop, bring down the container",
+        "message": "Flag cleared — to fully stop, bring down the container",
     }
 
 
@@ -129,7 +128,7 @@ async def get_platform_stats(current_user: User = Depends(require_admin)):
 @router.get("/dashboard")
 async def get_dashboard(current_user: User = Depends(require_admin)):
     """
-    Get dashboard data - live growth pulse + tenant stats.
+    Get dashboard data — live growth pulse + tenant stats.
     """
     try:
         from app.platform import growth_engine
@@ -195,7 +194,7 @@ async def create_tenant(
 
 
 # ============================================================================
-# CLIENTS (DB-backed) - onboarding with auto-provisioned agents
+# CLIENTS (DB-backed) — onboarding with auto-provisioned agents
 # ============================================================================
 
 
@@ -206,7 +205,7 @@ class ClientCreate(BaseModel):
     contact_name: str
     contact_email: str
     contact_phone: str
-    industry: str = ""  # free text ya NICHES key - resolve ho jata hai
+    industry: str = ""  # free text ya NICHES key — resolve ho jata hai
     niche: str | None = None  # explicit NICHES key (industry se priority)
     city: str | None = None
 
@@ -218,7 +217,7 @@ async def create_client(
     current_user: User = Depends(require_admin),
 ):
     """
-    New client onboarding: DB record + uske business ke hisab se 2 agents -
+    New client onboarding: DB record + uske business ke hisab se 2 agents —
     ek DATA agent (business data/KB) aur ek LEADS agent (end-customer calling).
     """
     import secrets as _secrets
@@ -260,7 +259,7 @@ async def create_client(
             "target_type": agents["target_type"],
         },
         "agents": agents["created"] + agents["existing"],
-        "message": "Client created - data agent + leads agent provisioned",
+        "message": "Client created — data agent + leads agent provisioned",
     }
 
 
@@ -272,7 +271,7 @@ async def provision_client_agents(
     current_user: User = Depends(require_admin),
 ):
     """
-    Existing client ke liye 2 agents ensure karo (idempotent) - purane
+    Existing client ke liye 2 agents ensure karo (idempotent) — purane
     (seeded) clients ko backfill karne ke liye.
     """
     from sqlalchemy import select as _select
@@ -451,11 +450,11 @@ async def trigger_tenant_scrape(
 @router.get("/health", dependencies=[Depends(require_admin)])
 async def health_check():
     """
-    Platform health check (admin-only - leaks tenant count + scheduler state).
+    Platform health check (admin-only — leaks tenant count + scheduler state).
 
     NOTE: the PUBLIC liveness probe is the top-level `/health` route (uptime/Caddy);
     this `/api/platform/health` is internal operator state and was anonymously
-    reachable (2026-07-06 sec sweep - the "one ungated route in a gated file" trap).
+    reachable (2026-07-06 sec sweep — the "one ungated route in a gated file" trap).
     """
     return {
         "status": "healthy",

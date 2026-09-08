@@ -3,9 +3,7 @@
 Hermetic: content_approval store, client list, cancel, and team feed are all
 monkeypatched, so NO live production data is read or mutated. Proves the business
 outcome (inactive-client stuck drafts get expired) AND the safety invariants
-(active-client drafts are NEVER cancelled
-execution is gated
-dry-run changes nothing).
+(active-client drafts are NEVER cancelled; execution is gated; dry-run changes nothing).
 """
 
 from __future__ import annotations

@@ -1,15 +1,14 @@
 """
-test_free_ai_chain_2026_models.py - pure-python (no network/DB/LLM).
+test_free_ai_chain_2026_models.py — pure-python (no network/DB/LLM).
 
 Asserts the supported 2026 EXTRA free Groq models (gpt-oss-120b + qwen3.6-27b)
-are present in the free-LLM fallback chain AS ADDITIONAL low-priority entries -
+are present in the free-LLM fallback chain AS ADDITIONAL low-priority entries —
 i.e. AFTER the proven primaries (mistral/groq-head/cerebras) so they only get
 hit when the primaries exhaust, and BEFORE the weaker gemini/openrouter-:free
 tail.
 
 Updated 2026-08-01 from Claude web-research: Groq is decommissioning
-llama-3.1-8b-instant + llama-3.3-70b-versatile on 2026-08-16
-qwen3-32b and
+llama-3.1-8b-instant + llama-3.3-70b-versatile on 2026-08-16; qwen3-32b and
 kimi-k2-instruct are already dead and must not appear in the chain.
 """
 
@@ -17,7 +16,7 @@ from app.voice_agent import free_ai
 
 
 def _chain(profile: str):
-    # _build_llm_chain reads only env (OLLAMA_*) - no network/DB. Returns list of
+    # _build_llm_chain reads only env (OLLAMA_*) — no network/DB. Returns list of
     # (provider, model) tuples.
     return free_ai._build_llm_chain(profile)
 

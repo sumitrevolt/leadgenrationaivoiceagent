@@ -1,4 +1,4 @@
-"""Groq raw detail probe - inspect the full response object + finish_reason.
+"""Groq raw detail probe — inspect the full response object + finish_reason.
 
 gpt-oss models are REASONING models: they spend tokens in `reasoning` and can
 return empty content when max_tokens is too low. This prints the evidence.

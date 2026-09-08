@@ -1,19 +1,18 @@
 """
-review_kit.py - Review COLLECTION kit (Birdeye-lite, 100% free stack).
+review_kit.py — Review COLLECTION kit (Birdeye-lite, 100% free stack).
 =======================================================================
 
 Chhote business ke liye Google-review maangne ka poora kit:
   - review_link(place_query): universal Google Maps search link + direct
     writereview-URL guidance (Place ID owner ke GBP dashboard se milta hai).
   - qr_svg(url): PURE-PYTHON QR encoder (byte mode, version auto 1-5,
-    EC level L, single RS block - koi external lib nahi) -> SVG string.
+    EC level L, single RS block — koi external lib nahi) → SVG string.
   - review_ask_pack(business_name): WhatsApp message + 800x1000 counter-card
-    SVG ({qr} slot ke saath) + SMS line - sab template, instant.
+    SVG ({qr} slot ke saath) + SMS line — sab template, instant.
   - full_kit(business_name, place_query): sab assemble (QR card me embedded),
     wa_message LLM-polish optional (free_ai), template fallback NEVER-empty.
 
-Pure stdlib
-generator functions kabhi raise nahi karte.
+Pure stdlib; generator functions kabhi raise nahi karte.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ _FONT = "Segoe UI, Arial, sans-serif"
 
 
 # ============================================================================ #
-# Minimal QR encoder - byte mode, versions 1-5, EC level L (sab single-block).
+# Minimal QR encoder — byte mode, versions 1-5, EC level L (sab single-block).
 # Reference algorithm: ISO/IEC 18004 (Nayuki-style construction). Deterministic.
 # ============================================================================ #
 
@@ -82,7 +81,7 @@ def _rs_ec(data: list[int], n_ec: int) -> list[int]:
     return rem[len(data) :]
 
 
-# Mask conditions (r=row, c=col) - module invert hota hai jab condition True.
+# Mask conditions (r=row, c=col) — module invert hota hai jab condition True.
 _MASKS = (
     lambda r, c: (r + c) % 2 == 0,
     lambda r, c: r % 2 == 0,
@@ -124,7 +123,7 @@ def _penalty(M: list[list[bool]]) -> int:
 
 
 def _qr_matrix(payload: bytes) -> list[list[bool]]:
-    """bytes -> QR module-matrix (True = dark). Version auto 1-5, EC L."""
+    """bytes → QR module-matrix (True = dark). Version auto 1-5, EC L."""
     version = 5
     for v in range(1, 6):
         if 8 * _QR_L[v][0] >= 12 + 8 * len(payload):
@@ -267,7 +266,7 @@ def _qr_matrix(payload: bytes) -> list[list[bool]]:
 
 
 def qr_svg(url: str, size: int = 320) -> str:
-    """URL -> scannable QR code SVG (4-module quiet zone). Deterministic, kabhi raise nahi."""
+    """URL → scannable QR code SVG (4-module quiet zone). Deterministic, kabhi raise nahi."""
     url = (url or "").strip() or "https://www.google.com/maps"
     try:
         matrix = _qr_matrix(url.encode("utf-8"))
@@ -294,7 +293,7 @@ def qr_svg(url: str, size: int = 320) -> str:
 
 
 # ============================================================================ #
-# Review links + ask pack (templates - instant, no LLM)
+# Review links + ask pack (templates — instant, no LLM)
 # ============================================================================ #
 
 
@@ -306,7 +305,7 @@ def review_link(place_query: str) -> dict[str, Any]:
         "direct_review_url_prefix": "https://search.google.com/local/writereview?placeid=",
         "direct_review_note": (
             "Sabse seedha link: https://search.google.com/local/writereview?placeid=<PLACE_ID> "
-            "- isme apna Google Place ID lagana hota hai. Ye link kholte hi review box "
+            "— isme apna Google Place ID lagana hota hai. Ye link kholte hi review box "
             "khul jaata hai (best conversion)."
         ),
         "how_to_get_place_id": [
@@ -315,7 +314,7 @@ def review_link(place_query: str) -> dict[str, Any]:
             "Ya developers.google.com/maps ke 'Place ID Finder' me business naam search karein",
         ],
         "tip": (
-            "Place ID na ho to maps_search_url use karein - customer business khol kar "
+            "Place ID na ho to maps_search_url use karein — customer business khol kar "
             "'Reviews' tab se review de sakta hai. QR isi link ka banta hai."
         ),
     }
@@ -340,7 +339,7 @@ _CARD_SVG = (
     'stroke="#7c3aed" stroke-width="3"/>'
     "{qr}"
     f'<text x="400" y="880" font-family="{_FONT}" font-size="28" fill="#374151" '
-    'text-anchor="middle">📱 Phone se scan karein - sirf 30 second</text>'
+    'text-anchor="middle">📱 Phone se scan karein — sirf 30 second</text>'
     f'<text x="400" y="945" font-family="{_FONT}" font-size="24" fill="#6b7280" '
     'text-anchor="middle">Aapka review hamare liye sabse bada gift hai ❤️</text>'
     "</svg>"
@@ -350,17 +349,17 @@ _CARD_SVG = (
 def review_ask_pack(business_name: str) -> dict[str, str]:
     """Review-request pack: wa_message + counter_card_svg ({qr} slot) + sms_line.
 
-    Pure template - instant, kabhi empty nahi. {qr} slot full_kit() fill karta hai
+    Pure template — instant, kabhi empty nahi. {qr} slot full_kit() fill karta hai
     (ya khud qr_svg() ka output replace kar lo).
     """
     name = (business_name or "").strip() or "Hamari team"
     wa_message = (
         f"Namaste! 🙏 {name} ko apni seva ka mauka dene ke liye dhanyawad. "
         "Aapko hamari service kaisi lagi? Agar achhi lagi ho to bas 30 second "
-        "nikaal kar Google par ek chhota review de dijiye - aapke 2 shabd "
+        "nikaal kar Google par ek chhota review de dijiye — aapke 2 shabd "
         "hamare liye bahut keemti hain aur dusre logon ki madad bhi karte hain ⭐"
     )
-    sms_line = f"{name}: Service achhi lagi? Google par 1-min me review dein - bahut madad hogi 🙏"
+    sms_line = f"{name}: Service achhi lagi? Google par 1-min me review dein — bahut madad hogi 🙏"
     card = _CARD_SVG.replace("{business_name}", escape(name, quote=True))
     return {
         "wa_message": wa_message,
@@ -372,7 +371,7 @@ def review_ask_pack(business_name: str) -> dict[str, str]:
 async def full_kit(business_name: str, place_query: str) -> dict[str, Any]:
     """Poora review kit assemble: links + QR + counter card (QR embedded) + messages.
 
-    wa_message LLM-polish hota hai (free_ai), fail par template - KABHI empty nahi.
+    wa_message LLM-polish hota hai (free_ai), fail par template — KABHI empty nahi.
     """
     name = (business_name or "").strip() or "Hamari team"
     links = review_link((place_query or "").strip() or name)

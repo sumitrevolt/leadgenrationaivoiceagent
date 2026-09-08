@@ -2,11 +2,10 @@
 """Idempotent .env key setter (VPS).
 
 GENERIC mode:  python3 scripts/env_set.py KEY=VALUE [KEY=VALUE ...] [--file PATH]
-               (existing key REPLACE, naya APPEND
-               backup .env.bak_envset_<ts>)
-LEGACY mode:   python3 scripts/env_set.py     (no args - purana fixed P1/P3 set)
+               (existing key REPLACE, naya APPEND; backup .env.bak_envset_<ts>)
+LEGACY mode:   python3 scripts/env_set.py     (no args — purana fixed P1/P3 set)
 
-Secrets is file me kabhi nahi - sirf flag-style keys CLI se do.
+Secrets is file me kabhi nahi — sirf flag-style keys CLI se do.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from datetime import datetime
 
 _DEFAULT_ENV = "/opt/leadgen/.env" if os.path.exists("/opt/leadgen/.env") else ".env"
 
-# LEGACY fixed set (no-args mode - backward compatible).
+# LEGACY fixed set (no-args mode — backward compatible).
 LEGACY_SET = {
     "NOTIFY_EMAIL": "admin@leadsgenai.in",
     "AUTO_EMAIL_OUTREACH": "true",
@@ -89,7 +88,7 @@ def main() -> int:
     for ln in open(env_path, encoding="utf-8"):
         if "=" in ln and not ln.strip().startswith("#"):
             cur[ln.split("=", 1)[0].strip()] = ln.split("=", 1)[1].strip()
-    print("=== NEEDS USER VALUE (left unset - can't fabricate) ===")
+    print("=== NEEDS USER VALUE (left unset — can't fabricate) ===")
     for k in REPORT_ONLY:
         print(f"  {k}: {'SET' if cur.get(k) else 'NOT SET (give me the value)'}")
     return 0

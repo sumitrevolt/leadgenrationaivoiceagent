@@ -1,21 +1,19 @@
 """
-Web-Call QA Tester Agent - khud baat karke bugs dhoondhta hai, report deta hai.
+Web-Call QA Tester Agent — khud baat karke bugs dhoondhta hai, report deta hai.
 
 Run (VPS ya kahin se bhi):  python scripts/webcall_tester.py [wss_url]
 Default URL: wss://leadsgenai.in/api/web-call/ws
 
 CHECKS per turn:
   1. EXACTLY 1 bot message per user turn (double-reply = double awaaz root cause)
-  2. audio_b64 present (natural Swara voice
-  None = robotic browser fallback)
-  3. Reply chhota ho (<= ~30 words - telecaller brevity rule)
+  2. audio_b64 present (natural Swara voice; None = robotic browser fallback)
+  3. Reply chhota ho (<= ~30 words — telecaller brevity rule)
   4. Meta-talk banned words ("maine pehle poocha", "unclear hai", "maaf kijiye")
   5. Same reply repeat na ho (gawaar-loop guard)
   6. Latency per turn (<6s target free stack pe)
 Exit code 0 = PASS, 1 = issues found. Report JSON bhi print hota hai.
 
-Note: canonical QA tester scripts/agent_tester.py hai
-yeh ek lightweight variant.
+Note: canonical QA tester scripts/agent_tester.py hai; yeh ek lightweight variant.
 """
 
 import asyncio

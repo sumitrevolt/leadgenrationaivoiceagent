@@ -1,10 +1,8 @@
 """File-ownership locks for the engineering control plane (Phase 3).
 
 Two workers must never edit the same files concurrently. ``overlapping`` is a
-pure conflict check
-the backend classes provide TTL-bounded acquire/release.
-A Redis backend is used when reachable (cross-process safety)
-otherwise an
+pure conflict check; the backend classes provide TTL-bounded acquire/release.
+A Redis backend is used when reachable (cross-process safety); otherwise an
 in-memory backend keeps a single-process worker correct and tests hermetic.
 """
 
@@ -22,7 +20,7 @@ def overlapping(requested: list[str], held_by_others: list[str]) -> list[str]:
 
 
 class InMemoryOwnershipLock:
-    """Process-local ownership lock - correct for a single worker; test backend."""
+    """Process-local ownership lock — correct for a single worker; test backend."""
 
     def __init__(self) -> None:
         self._held: dict[str, tuple[str, float]] = {}

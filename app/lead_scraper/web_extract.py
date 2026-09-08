@@ -1,13 +1,12 @@
-"""Clean web text + contact extraction via **trafilatura** - optional, defensive.
+"""Clean web text + contact extraction via **trafilatura** — optional, defensive.
 
 trafilatura is the highest-accuracy open-source main-text extractor (beats readability/
 boilerpipe in benchmarks). We use it to pull a business's real "about/services" text and
-contacts from their website - better competitor analysis and prospect enrichment than the
+contacts from their website — better competitor analysis and prospect enrichment than the
 current crude regex-on-raw-HTML. Free, CPU.
 
 No env flag: if trafilatura isn't installed, ``clean_text`` falls back to a crude tag
-strip
-``find_contacts`` is pure-regex and always works. Never raises.
+strip; ``find_contacts`` is pure-regex and always works. Never raises.
 
 Use:
   from app.lead_scraper import web_extract
@@ -56,7 +55,7 @@ def clean_text(html: str) -> str:
 
 
 def find_contacts(text_or_html: str) -> dict[str, Any]:
-    """Emails + Indian mobile numbers (deduped). Pure regex - always works."""
+    """Emails + Indian mobile numbers (deduped). Pure regex — always works."""
     s = text_or_html or ""
     emails = sorted({e.lower() for e in _EMAIL.findall(s) if "." in e.split("@")[-1]})
     phones = sorted(set(_PHONE.findall(s)))

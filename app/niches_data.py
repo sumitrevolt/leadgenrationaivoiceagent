@@ -1,4 +1,4 @@
-"""Niche catalog data - the builtin NICHES dict (per-niche tier / bands / copy / config).
+"""Niche catalog data — the builtin NICHES dict (per-niche tier / bands / copy / config).
 
 Extracted from app/niches.py (2026-06-20 refactor) to separate ~958 lines of pure
 catalog data from the logic helpers. Re-exported by niches.py so
@@ -7,7 +7,7 @@ catalog data from the logic helpers. Re-exported by niches.py so
 
 NICHES = {
     # ====================================================================== #
-    # S-TIER - flagship niches: sell these first
+    # S-TIER — flagship niches: sell these first
     # ====================================================================== #
     "ai_marketing": {
         "name": "AI Marketing Services",
@@ -25,10 +25,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹36,000–1,44,000/yr",
         "avg_ticket_inr": "₹3–12K/mo subscription (₹36K–1.44L/yr LTV)",
-        "pitch_hook": "posts, Google ranking, festival posters - plus an AI that calls every inquiry in 2 minutes; no Indian competitor bundles both",
+        "pitch_hook": "posts, Google ranking, festival posters — plus an AI that calls every inquiry in 2 minutes; no Indian competitor bundles both",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹650)
         "qualification_questions": [
-            "Abhi aap apni marketing kaise karte ho - khud, staff, ya agency?",
+            "Abhi aap apni marketing kaise karte ho — khud, staff, ya agency?",
             "Google pe aapka business search karne par dikhta hai kya?",
             "Website ya Google se aayi inquiries ka follow-up kaun karta hai?",
         ],
@@ -48,7 +48,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹2–3L commission/enrolled student (10–15% of first-year tuition)",
-        "pitch_hook": "every inquiry counselled within minutes - enrollments worth ₹2-3L commission each",
+        "pitch_hook": "every inquiry counselled within minutes — enrollments worth ₹2-3L commission each",
         "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1750)
         "qualification_questions": [
             "Do you handle admissions for USA/UK/Canada?",
@@ -72,7 +72,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹25,00,000+",
         "avg_ticket_inr": "₹23–33L avg ticket (DSA payout 0.5–1.5%)",
-        "pitch_hook": "your telecalling team replaced - eligibility-checked, doc-ready borrowers on your calendar",
+        "pitch_hook": "your telecalling team replaced — eligibility-checked, doc-ready borrowers on your calendar",
         "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1000)
         "qualification_questions": [
             "Are you an active DSA with bank/NBFC tie-ups?",
@@ -87,7 +87,7 @@ NICHES = {
         "content_focus": ["subsidy posts", "before-after reels", "offer posters"],
         "target_type": "b2c",
         "b2b_client": "Solar installers & EPC dealers (residential)",
-        "end_customer": "Homeowners (roof ownership, bill size, subsidy interest -> site-survey booking)",
+        "end_customer": "Homeowners (roof ownership, bill size, subsidy interest → site-survey booking)",
         "keywords": [
             "solar installers residential",
             "rooftop solar dealers",
@@ -133,7 +133,7 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2c",
         "b2b_client": "Insurance agencies, POSPs, broker teams",
-        "end_customer": "Families/professionals (age, cover need, premium budget) - IRDAI/DND compliant",
+        "end_customer": "Families/professionals (age, cover need, premium budget) — IRDAI/DND compliant",
         "keywords": [
             "insurance agents",
             "health insurance brokers",
@@ -142,11 +142,11 @@ NICHES = {
         ],
         "avg_deal_value": "₹25,000+",
         "avg_ticket_inr": "₹15–50K premium (35–40% first-year commission)",
-        "pitch_hook": "renewal reminders + new-policy qualification on autopilot - the classic telesales niche without telecaller churn",
+        "pitch_hook": "renewal reminders + new-policy qualification on autopilot — the classic telesales niche without telecaller churn",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "Are you an IRDAI-registered agent/broker/POSP?",
-            "Which products do you focus on - health, term, motor?",
+            "Which products do you focus on — health, term, motor?",
             "Do you have a renewal book to re-engage?",
         ],
     },
@@ -157,7 +157,7 @@ NICHES = {
         "content_focus": ["result posters", "admission posts", "reels", "reviews"],
         "target_type": "b2c",
         "b2b_client": "Test-prep coaching institutes",
-        "end_customer": "Parents/students (target exam, class, budget -> counseling session booking)",
+        "end_customer": "Parents/students (target exam, class, budget → counseling session booking)",
         "keywords": [
             "neet coaching institutes",
             "jee coaching centers",
@@ -166,7 +166,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–2.5L/year fees (₹58,000Cr industry)",
-        "pitch_hook": "every admission inquiry counselled the same hour - seats filled before parents compare brochures",
+        "pitch_hook": "every admission inquiry counselled the same hour — seats filled before parents compare brochures",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹850)
         "qualification_questions": [
             "Which exams do you coach for?",
@@ -175,7 +175,7 @@ NICHES = {
         ],
     },
     # ====================================================================== #
-    # A-TIER - strong economics, proven phone funnels
+    # A-TIER — strong economics, proven phone funnels
     # ====================================================================== #
     "interior_designers": {
         "name": "Interior Design Studios",
@@ -184,7 +184,7 @@ NICHES = {
         "content_focus": ["portfolio reels", "before-after posts", "festival posters"],
         "target_type": "b2c",
         "b2b_client": "Interior design firms & studios",
-        "end_customer": "Homeowners (BHK, budget band, possession date -> design-consult booking)",
+        "end_customer": "Homeowners (BHK, budget band, possession date → design-consult booking)",
         "keywords": ["interior designers", "home interior companies", "turnkey interior firms"],
         "avg_deal_value": "₹10,00,000+",
         "avg_ticket_inr": "₹4–20L per 2BHK project",
@@ -203,7 +203,7 @@ NICHES = {
         "content_focus": ["catalog posters", "before-after reels", "offers"],
         "target_type": "b2c",
         "b2b_client": "Modular kitchen brands & showrooms",
-        "end_customer": "Homeowners (kitchen size, budget, timeline -> showroom/site visit)",
+        "end_customer": "Homeowners (kitchen size, budget, timeline → showroom/site visit)",
         "keywords": [
             "modular kitchen manufacturers",
             "luxury kitchen showrooms",
@@ -226,7 +226,7 @@ NICHES = {
         "content_focus": ["before-after posts", "health-day posts", "reviews", "GBP optimization"],
         "target_type": "b2c",
         "b2b_client": "Dental clinics & chains",
-        "end_customer": "Patients (treatment need, budget -> appointment booking + reminders)",
+        "end_customer": "Patients (treatment need, budget → appointment booking + reminders)",
         "keywords": ["dental implant clinics", "cosmetic dentistry", "premium dental clinic"],
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹20–50K/tooth, full-mouth ₹3–8L",
@@ -245,7 +245,7 @@ NICHES = {
         "content_focus": ["before-after reels", "reviews", "offer posts"],
         "target_type": "b2c",
         "b2b_client": "Hair transplant & aesthetics clinics",
-        "end_customer": "Prospects (grade, budget, city -> consult booking; market CPQL ~₹4,100)",
+        "end_customer": "Prospects (grade, budget, city → consult booking; market CPQL ~₹4,100)",
         "keywords": ["hair transplant clinics", "hair restoration centers", "aesthetics clinics"],
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–3.5L per procedure",
@@ -264,11 +264,11 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2c",
         "b2b_client": "IVF & fertility centers",
-        "end_customer": "Couples (empathetic intake, history, budget -> doctor consult booking)",
+        "end_customer": "Couples (empathetic intake, history, budget → doctor consult booking)",
         "keywords": ["ivf centers", "fertility clinics", "ivf hospitals"],
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–2.5L per cycle",
-        "pitch_hook": "compassionate 24/7 intake - every inquiry answered, qualified and booked with a counselor",
+        "pitch_hook": "compassionate 24/7 intake — every inquiry answered, qualified and booked with a counselor",
         "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹1500)
         "qualification_questions": [
             "How many new patient inquiries do you get monthly?",
@@ -283,14 +283,14 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2c",
         "b2b_client": "Immigration/PR consultancies",
-        "end_customer": "Aspirants (eligibility points-check, country, budget -> consult booking)",
+        "end_customer": "Aspirants (eligibility points-check, country, budget → consult booking)",
         "keywords": ["immigration consultants", "canada pr consultants", "visa services australia"],
         "avg_deal_value": "₹75,000+",
         "avg_ticket_inr": "₹50K–1.25L per case",
         "pitch_hook": "eligibility-scored PR aspirants on your counselors' calendars every morning",
         "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹1400)
         "qualification_questions": [
-            "Which countries do you process - Canada, Australia, UK?",
+            "Which countries do you process — Canada, Australia, UK?",
             "Are you ICCRC/MARA registered or partnered?",
             "How many cases do you file monthly?",
         ],
@@ -302,7 +302,7 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2c",
         "b2b_client": "EdTech companies, certification institutes",
-        "end_customer": "Working professionals (career goal, budget, EMI eligibility -> counselor call)",
+        "end_customer": "Working professionals (career goal, budget, EMI eligibility → counselor call)",
         "keywords": [
             "edtech companies",
             "professional certification institutes",
@@ -310,7 +310,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "₹50K–3L per program",
-        "pitch_hook": "the BYJU's-style telecalling engine - without the 200-person telecalling floor",
+        "pitch_hook": "the BYJU's-style telecalling engine — without the 200-person telecalling floor",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "What programs do you sell and at what ticket size?",
@@ -334,7 +334,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "8.33–16.67% of CTC ≈ ₹50K–2L per placement",
-        "pitch_hook": "screen 200 candidates a day and qualify new employer mandates - one agent, both sides",
+        "pitch_hook": "screen 200 candidates a day and qualify new employer mandates — one agent, both sides",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "Do you do permanent hiring, staffing, or both?",
@@ -343,7 +343,7 @@ NICHES = {
         ],
     },
     # ====================================================================== #
-    # B-TIER - solid volume/strategic plays
+    # B-TIER — solid volume/strategic plays
     # ====================================================================== #
     "hvac_commercial": {
         "name": "Commercial HVAC",
@@ -375,11 +375,11 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2b",
         "b2b_client": "Manufacturers/wholesalers on IndiaMART/TradeIndia",
-        "end_customer": "Business buyers (RFQ follow-up in minutes - speed wins the order)",
+        "end_customer": "Business buyers (RFQ follow-up in minutes — speed wins the order)",
         "keywords": ["manufacturers india", "industrial suppliers", "wholesale suppliers b2b"],
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹50K–50L orders (IndiaMART BuyLead ₹16–24 raw)",
-        "pitch_hook": "every IndiaMART RFQ called back in 5 minutes - before the other 6 suppliers wake up",
+        "pitch_hook": "every IndiaMART RFQ called back in 5 minutes — before the other 6 suppliers wake up",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
             "Are you buying BuyLeads on IndiaMART today?",
@@ -394,7 +394,7 @@ NICHES = {
         "content_focus": ["package posters", "destination reels", "offers"],
         "target_type": "b2c",
         "b2b_client": "Travel agencies & tour operators",
-        "end_customer": "Families/couples (destination, dates, budget -> itinerary consult)",
+        "end_customer": "Families/couples (destination, dates, budget → itinerary consult)",
         "keywords": [
             "travel agencies international packages",
             "tour operators",
@@ -402,7 +402,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹3,00,000+",
         "avg_ticket_inr": "₹2.9–3.2L per international trip (couple)",
-        "pitch_hook": "itinerary-ready travellers with dates and budgets locked - not brochure collectors",
+        "pitch_hook": "itinerary-ready travellers with dates and budgets locked — not brochure collectors",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹700)
         "qualification_questions": [
             "Which destinations do you specialize in?",
@@ -417,11 +417,11 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2c",
         "b2b_client": "Relocation companies",
-        "end_customer": "Households/offices (move date, inventory size -> instant quote callback)",
+        "end_customer": "Households/offices (move date, inventory size → instant quote callback)",
         "keywords": ["packers and movers", "relocation services", "household shifting services"],
         "avg_deal_value": "₹30,000+",
         "avg_ticket_inr": "₹11–55K intercity moves",
-        "pitch_hook": "fastest quote wins the move - your agent calls back in 60 seconds, day or night",
+        "pitch_hook": "fastest quote wins the move — your agent calls back in 60 seconds, day or night",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹350)
         "qualification_questions": [
             "Which routes/cities do you cover?",
@@ -445,7 +445,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "MICE market $37.75B; corporate events high-value",
-        "pitch_hook": "banquet inquiries qualified for date, size and budget - sales team only talks to real events",
+        "pitch_hook": "banquet inquiries qualified for date, size and budget — sales team only talks to real events",
         "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1750)
         "qualification_questions": [
             "What is your banquet/hall capacity?",
@@ -464,7 +464,7 @@ NICHES = {
         "keywords": ["digital marketing agency", "seo company", "social media marketing agency"],
         "avg_deal_value": "₹50,000/mo",
         "avg_ticket_inr": "₹15–50K/mo retainers",
-        "pitch_hook": "white-label our voice agents - sell lead-gen calling to your clients under your brand",
+        "pitch_hook": "white-label our voice agents — sell lead-gen calling to your clients under your brand",
         "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1400)
         "qualification_questions": [
             "Are you accepting new white-label partners?",
@@ -479,7 +479,7 @@ NICHES = {
         "content_focus": ["offer posts", "lead forms"],
         "target_type": "b2b",
         "b2b_client": "CA firms, compliance/legal service providers",
-        "end_customer": "SMBs/startups (GST, ROC, IP, compliance needs -> consult booking)",
+        "end_customer": "SMBs/startups (GST, ROC, IP, compliance needs → consult booking)",
         "keywords": [
             "ca firms",
             "chartered accountants",
@@ -488,16 +488,16 @@ NICHES = {
         ],
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹10–50K recurring engagements",
-        "pitch_hook": "compliance-season pipelines filled - qualified SMBs booked while rivals rely on referrals",
+        "pitch_hook": "compliance-season pipelines filled — qualified SMBs booked while rivals rely on referrals",
         "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1050)
         "qualification_questions": [
-            "Which services do you focus on - GST, ROC, audit, IP?",
+            "Which services do you focus on — GST, ROC, audit, IP?",
             "Do you serve startups/SMBs?",
             "What is your typical engagement value?",
         ],
     },
     # ====================================================================== #
-    # MARKETING NICHES - local-business categories jinhe hum AI-marketing
+    # MARKETING NICHES — local-business categories jinhe hum AI-marketing
     # (posts / GBP / posters / festivals / reviews / reels) bechte hain.
     # category="marketing"; monthly_starter ₹2,999 retainer; pricing modest.
     # ====================================================================== #
@@ -512,10 +512,10 @@ NICHES = {
         "keywords": ["restaurant", "cafe", "cloud kitchen", "food joint", "dhaba"],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "roz ki dish reels, menu posters aur festival offers - Insta+Google pe aapka restaurant chamke, footfall badhe",
+        "pitch_hook": "roz ki dish reels, menu posters aur festival offers — Insta+Google pe aapka restaurant chamke, footfall badhe",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
-            "Abhi aap restaurant ki marketing kaise karte ho - khud post karte ho ya koi karta hai?",
+            "Abhi aap restaurant ki marketing kaise karte ho — khud post karte ho ya koi karta hai?",
             "Instagram aur Google pe roz naye photos/reels daalte ho kya?",
             "Festival ya naye offer ke posters kaun banata hai?",
         ],
@@ -531,7 +531,7 @@ NICHES = {
         "keywords": ["car service", "garage", "auto repair", "bike service", "car detailing"],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "service-offer aur seasonal-check posters - Google pe rank karke nazdeeki gaadi-walon ko laaye",
+        "pitch_hook": "service-offer aur seasonal-check posters — Google pe rank karke nazdeeki gaadi-walon ko laaye",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi service center ki marketing kaise karte ho?",
@@ -555,10 +555,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "aapke best shoots ke portfolio reels - Insta pe dikhe to wedding aur event bookings khud aayein",
+        "pitch_hook": "aapke best shoots ke portfolio reels — Insta pe dikhe to wedding aur event bookings khud aayein",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
-            "Abhi studio ki marketing kaise hoti hai - khud Insta chalate ho?",
+            "Abhi studio ki marketing kaise hoti hai — khud Insta chalate ho?",
             "Apne best shoots ke reels banate ho kya?",
             "Wedding season ke offer posters kaun banata hai?",
         ],
@@ -574,11 +574,11 @@ NICHES = {
         "keywords": ["pharmacy", "medical store", "chemist", "medical shop", "drug store"],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "Google Business Profile + health-day posts - nazdeeki log aapki dukaan dhoondh ke pahunchein aur delivery maangein",
+        "pitch_hook": "Google Business Profile + health-day posts — nazdeeki log aapki dukaan dhoondh ke pahunchein aur delivery maangein",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Google pe aapka medical store search karne par dikhta hai kya?",
-            "Home delivery offer karte ho - log ko pata hai kya?",
+            "Home delivery offer karte ho — log ko pata hai kya?",
             "Abhi koi WhatsApp/Insta pe marketing karta hai?",
         ],
     },
@@ -599,7 +599,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "product catalog posters aur festival offers - naye design Insta+WhatsApp pe dikhein, footfall badhe",
+        "pitch_hook": "product catalog posters aur festival offers — naye design Insta+WhatsApp pe dikhein, footfall badhe",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi furniture showroom ki marketing kaise karte ho?",
@@ -624,10 +624,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "weekly WhatsApp offers aur festival posters - mohalle ke customers baar-baar aapki dukaan pe aayein",
+        "pitch_hook": "weekly WhatsApp offers aur festival posters — mohalle ke customers baar-baar aapki dukaan pe aayein",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹165)
         "qualification_questions": [
-            "Abhi customers ko offers kaise batate ho - WhatsApp pe ya nahi?",
+            "Abhi customers ko offers kaise batate ho — WhatsApp pe ya nahi?",
             "Festival ya monthly offer ke posters kaun banata hai?",
             "Google pe aapki dukaan dikhti hai kya?",
         ],
@@ -649,7 +649,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "season package posters aur destination reels - Insta+WhatsApp pe travellers khud enquiry karein",
+        "pitch_hook": "season package posters aur destination reels — Insta+WhatsApp pe travellers khud enquiry karein",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi travel agency ki marketing kaise hoti hai?",
@@ -668,7 +668,7 @@ NICHES = {
         "keywords": ["gift shop", "stationery shop", "gift store", "novelty store", "card shop"],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "Rakhi-Diwali-Valentine ke gift posters aur offers - har occasion pe customers aapki shop yaad rakhein",
+        "pitch_hook": "Rakhi-Diwali-Valentine ke gift posters aur offers — har occasion pe customers aapki shop yaad rakhein",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹165)
         "qualification_questions": [
             "Abhi gift/stationery shop ki marketing kaise karte ho?",
@@ -677,7 +677,7 @@ NICHES = {
         ],
     },
     "hospital_appointments": {
-        "name": "Hospitals & Clinics - Appointment Booking",
+        "name": "Hospitals & Clinics — Appointment Booking",
         "tier": "A",
         "category": "both",
         "content_focus": [
@@ -689,7 +689,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "Multispecialty hospitals, polyclinics & nursing homes",
-        "end_customer": "Patients / families (symptom query -> right doctor -> OPD appointment booked; follow-up reminders)",
+        "end_customer": "Patients / families (symptom query → right doctor → OPD appointment booked; follow-up reminders)",
         "keywords": [
             "multispecialty hospital",
             "polyclinic",
@@ -700,24 +700,24 @@ NICHES = {
         ],
         "avg_deal_value": "₹83,988/yr",
         "avg_ticket_inr": "₹6,999/mo retainer (₹84K/yr LTV)",
-        "pitch_hook": "AI agent 24×7 inbound calls handle karta hai - symptom sunta hai, sahi doctor suggest karta hai, OPD appointment book karta hai, reminder bhejta hai; hospital staff free rehta hai",
+        "pitch_hook": "AI agent 24×7 inbound calls handle karta hai — symptom sunta hai, sahi doctor suggest karta hai, OPD appointment book karta hai, reminder bhejta hai; hospital staff free rehta hai",
         "lead_band": "A",  # voice-product band
         "qualification_questions": [
             "Hospital me roz kitne inbound inquiry calls aate hain aur kitne miss hote hain?",
-            "Abhi appointment booking kaun handle karta hai - receptionist ya WhatsApp?",
+            "Abhi appointment booking kaun handle karta hai — receptionist ya WhatsApp?",
             "Kaun-kaun se departments hain jahan patient zyada poochh-taach karte hain?",
         ],
         "niche_script": {
             "greeting": "Namaste! Main {hospital_name} ka AI assistant hoon. Aap kis department ya doctor se appointment lena chahte hain?",
             "qualification": [
-                "Aapko kya takleef ho rahi hai - thoda bata sakte hain taaki main sahi doctor suggest kar sakoon?",
-                "Appointment kab chahiye - aaj, kal, ya koi specific date?",
+                "Aapko kya takleef ho rahi hai — thoda bata sakte hain taaki main sahi doctor suggest kar sakoon?",
+                "Appointment kab chahiye — aaj, kal, ya koi specific date?",
                 "Aapka naam aur contact number bata dijiye, confirm karte hain.",
             ],
             "objection_handling": {
-                "price": "Hamare saath sirf qualified appointments pe charge hota hai - missed calls ya no-shows pe nahi.",
-                "trust": "Humara AI agent TRAI-compliant hai - aur sirf appointment book karta hai, medical advice nahi deta.",
-                "already_have": "Receptionist saari calls handle nahi kar paate - raat ko, Sunday ko, ya rush hour me calls miss hoti hain. Wahi gap hum fill karte hain.",
+                "price": "Hamare saath sirf qualified appointments pe charge hota hai — missed calls ya no-shows pe nahi.",
+                "trust": "Humara AI agent TRAI-compliant hai — aur sirf appointment book karta hai, medical advice nahi deta.",
+                "already_have": "Receptionist saari calls handle nahi kar paate — raat ko, Sunday ko, ya rush hour me calls miss hoti hain. Wahi gap hum fill karte hain.",
             },
         },
     },
@@ -734,7 +734,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "Dermatology clinics, skin & hair treatment centers, cosmetology clinics",
-        "end_customer": "Urban patients 18–45 (acne, pigmentation, anti-aging, laser, PRP -> consultation booking)",
+        "end_customer": "Urban patients 18–45 (acne, pigmentation, anti-aging, laser, PRP → consultation booking)",
         "keywords": [
             "dermatologist clinic",
             "skin clinic",
@@ -744,10 +744,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹83,988/yr",
         "avg_ticket_inr": "₹6,999/mo retainer (₹84K/yr LTV)",
-        "pitch_hook": "Instagram pe before-after reels aur skin-tip carousels - doctor influencer ban jaayein, mahine me 50+ naye consultation bookings",
+        "pitch_hook": "Instagram pe before-after reels aur skin-tip carousels — doctor influencer ban jaayein, mahine me 50+ naye consultation bookings",
         "lead_band": "A",
         "qualification_questions": [
-            "Abhi clinic ki marketing kaise hoti hai - Insta posts khud daalte ho ya koi?",
+            "Abhi clinic ki marketing kaise hoti hai — Insta posts khud daalte ho ya koi?",
             "Before-after photos ya patient testimonials post karte ho kya?",
             "Skin/hair treatment ke liye roz kitne inquiry calls aate hain?",
         ],
@@ -765,7 +765,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "LIC/POSP agents, mutual fund distributors, financial advisors, DSAs",
-        "end_customer": "Salaried professionals & families (investment, insurance, tax planning -> advisory call)",
+        "end_customer": "Salaried professionals & families (investment, insurance, tax planning → advisory call)",
         "keywords": [
             "financial advisor",
             "mutual fund distributor",
@@ -775,10 +775,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
-        "pitch_hook": "SIP aur insurance content se trust banta hai - 81% log Meta pe finance product dhundhte hain; aapka AI agent 24×7 inquiry handle kare",
+        "pitch_hook": "SIP aur insurance content se trust banta hai — 81% log Meta pe finance product dhundhte hain; aapka AI agent 24×7 inquiry handle kare",
         "lead_band": "B",
         "qualification_questions": [
-            "Abhi advisory business ki marketing kaise karte ho - referral pe depend ho?",
+            "Abhi advisory business ki marketing kaise karte ho — referral pe depend ho?",
             "Financial literacy posts ya SIP infographics daalte ho Insta/Facebook pe?",
             "Roz kitne naye clients ki zaroorat hai growth ke liye?",
         ],
@@ -796,7 +796,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "Independent educators, YouTubers, online course sellers, skill trainers",
-        "end_customer": "Students & working professionals (free content -> paid course -> community)",
+        "end_customer": "Students & working professionals (free content → paid course → community)",
         "keywords": [
             "online course creator",
             "youtube educator",
@@ -806,12 +806,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
-        "pitch_hook": "roz ek reel, ek carousel - audience badhao, course becho; AI content engine jo aapki voice me likhta hai",
+        "pitch_hook": "roz ek reel, ek carousel — audience badhao, course becho; AI content engine jo aapki voice me likhta hai",
         "lead_band": "A",
         "qualification_questions": [
             "Abhi social media pe content kitni baar post karte ho?",
             "Paid course ya community bechte ho?",
-            "Kaun-si platform pe sabse zyada audience hai - YouTube, Insta ya LinkedIn?",
+            "Kaun-si platform pe sabse zyada audience hai — YouTube, Insta ya LinkedIn?",
         ],
     },
     "cloud_kitchen": {
@@ -837,10 +837,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "food reels aur daily menu posts - Insta+WhatsApp se direct orders badhao, Zomato commission bachao",
+        "pitch_hook": "food reels aur daily menu posts — Insta+WhatsApp se direct orders badhao, Zomato commission bachao",
         "lead_band": "A",
         "qualification_questions": [
-            "Abhi orders kahan se aate hain - Zomato/Swiggy ya direct WhatsApp?",
+            "Abhi orders kahan se aate hain — Zomato/Swiggy ya direct WhatsApp?",
             "Food photos ya reels regularly daalte ho social media pe?",
             "Monthly kitne orders chahiye business stable karne ke liye?",
         ],
@@ -858,7 +858,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "Ayurveda clinics, panchakarma centers, naturopathy & holistic wellness centers",
-        "end_customer": "Health-conscious urban & semi-urban patients (chronic issues, immunity, weight -> consultation)",
+        "end_customer": "Health-conscious urban & semi-urban patients (chronic issues, immunity, weight → consultation)",
         "keywords": [
             "ayurveda clinic",
             "panchakarma center",
@@ -868,7 +868,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
-        "pitch_hook": "seasonal health tips aur treatment awareness reels - India-specific content jo log genuinely share karte hain",
+        "pitch_hook": "seasonal health tips aur treatment awareness reels — India-specific content jo log genuinely share karte hain",
         "lead_band": "A",
         "qualification_questions": [
             "Abhi clinic ki marketing kaise hoti hai?",
@@ -889,7 +889,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "D2C brands, Shopify/WooCommerce store owners, Amazon/Flipkart sellers going direct",
-        "end_customer": "Online shoppers (product discovery -> add-to-cart via Instagram/WhatsApp)",
+        "end_customer": "Online shoppers (product discovery → add-to-cart via Instagram/WhatsApp)",
         "keywords": [
             "d2c brand india",
             "ecommerce store india",
@@ -899,7 +899,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹71,988/yr",
         "avg_ticket_inr": "₹5,999/mo retainer (₹72K/yr LTV)",
-        "pitch_hook": "roz product reels aur festival sale banners - Instagram pe brand dikhao, website pe traffic laao, Amazon pe rank karo",
+        "pitch_hook": "roz product reels aur festival sale banners — Instagram pe brand dikhao, website pe traffic laao, Amazon pe rank karo",
         "lead_band": "A",
         "qualification_questions": [
             "Abhi store ka social media kaun handle karta hai?",
@@ -930,7 +930,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
-        "pitch_hook": "event highlight reels aur portfolio posts - Insta pe dikhoge to corporates aur families khud enquiry karein",
+        "pitch_hook": "event highlight reels aur portfolio posts — Insta pe dikhoge to corporates aur families khud enquiry karein",
         "lead_band": "A",
         "qualification_questions": [
             "Corporate events aur social events dono karte ho?",
@@ -955,7 +955,7 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "offer aur festival posters + Google listing - contractors aur ghar-walon ko aapki dukaan aasani se mile",
+        "pitch_hook": "offer aur festival posters + Google listing — contractors aur ghar-walon ko aapki dukaan aasani se mile",
         "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi hardware/paint shop ki marketing kaise hoti hai?",
@@ -985,10 +985,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "roz ke menu posters aur monthly-subscription offers - office zones aur mohalle ke log aapka tiffin order karein",
+        "pitch_hook": "roz ke menu posters aur monthly-subscription offers — office zones aur mohalle ke log aapka tiffin order karein",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi tiffin orders kaise milte hain - WhatsApp pe ya word-of-mouth?",
+            "Abhi tiffin orders kaise milte hain — WhatsApp pe ya word-of-mouth?",
             "Monthly subscription plan hai kya, ya sirf ek-din ke orders?",
             "Menu photos/offers ke posters kaun banata hai?",
         ],
@@ -1004,12 +1004,12 @@ NICHES = {
         "keywords": ["men's salon", "barber shop", "salon near me", "haircut", "grooming studio"],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "before-after reels aur beard/haircut styling posts - Insta+Google pe nazdeeki clients ko apni kala dikhayein, bookings aayein",
+        "pitch_hook": "before-after reels aur beard/haircut styling posts — Insta+Google pe nazdeeki clients ko apni kala dikhayein, bookings aayein",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi salon ki marketing kaise hoti hai - khud Insta chalate ho?",
+            "Abhi salon ki marketing kaise hoti hai — khud Insta chalate ho?",
             "Before-after photos/reels banate ho kya?",
-            "Google reviews collect karte ho kya - 'salon near me' pe dikhte ho?",
+            "Google reviews collect karte ho kya — 'salon near me' pe dikhte ho?",
         ],
     },
     "tuition_classes": {
@@ -1029,10 +1029,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "student result posts aur admission offers - parents ko bharosa dilayein, naye admission aayein",
+        "pitch_hook": "student result posts aur admission offers — parents ko bharosa dilayein, naye admission aayein",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi naye admissions kaise aate hain - word-of-mouth ya ads?",
+            "Abhi naye admissions kaise aate hain — word-of-mouth ya ads?",
             "Students ke results/toppers ke posts karte ho kya?",
             "Admission season me koi offer chalta hai kya?",
         ],
@@ -1059,10 +1059,10 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "campus photos aur activities reels - parents ko safe learning space dikhayein, admission season me inquiries aayein",
+        "pitch_hook": "campus photos aur activities reels — parents ko safe learning space dikhayein, admission season me inquiries aayein",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi admissions kaise aate hain - referrals ya ads?",
+            "Abhi admissions kaise aate hain — referrals ya ads?",
             "Campus photos/activities ke posts karte ho kya?",
             "Parent reviews kaise collect karte ho?",
         ],
@@ -1089,12 +1089,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "home-pickup aur festival dry-clean offers - societies aur office zones ke log aapki laundry ko repeat order karein",
+        "pitch_hook": "home-pickup aur festival dry-clean offers — societies aur office zones ke log aapki laundry ko repeat order karein",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi laundry ke naye customers kaise aate hain - word-of-mouth ya ads?",
+            "Abhi laundry ke naye customers kaise aate hain — word-of-mouth ya ads?",
             "Home pickup/delivery dete hain kya, kaunse zones me?",
-            "Google pe 'laundry near me' pe dikhte hain kya - reviews?",
+            "Google pe 'laundry near me' pe dikhte hain kya — reviews?",
         ],
     },
     "electronics_repair": {
@@ -1119,12 +1119,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "doorstep repair aur warranty offers - 'mobile repair near me' pe dikho to naye customers aate hain",
+        "pitch_hook": "doorstep repair aur warranty offers — 'mobile repair near me' pe dikho to naye customers aate hain",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
             "Abhi repair business ke naye customers kaise aate hain?",
             "Doorstep service dete hain kya aur warranty?",
-            "Google pe 'mobile repair near me' pe dikhte hain kya - reviews?",
+            "Google pe 'mobile repair near me' pe dikhte hain kya — reviews?",
         ],
     },
     "real_estate_luxury": {
@@ -1139,7 +1139,7 @@ NICHES = {
         ],
         "target_type": "b2c",
         "b2b_client": "Premium real estate developers, luxury brokers & HNI-focused agencies (₹2cr+)",
-        "end_customer": "High-net-worth home buyers/investors - privacy, NRI remote buying, curated inventory",
+        "end_customer": "High-net-worth home buyers/investors — privacy, NRI remote buying, curated inventory",
         "keywords": [
             "luxury flats",
             "sea view apartment",
@@ -1149,11 +1149,11 @@ NICHES = {
         ],
         "avg_deal_value": "₹2,00,00,000+",
         "avg_ticket_inr": "₹19,999/mo voice (band C premium)",
-        "pitch_hook": "₹2cr+ luxury property leads - private site visits + NRI virtual tours, inventory sirf serious buyers ko",
+        "pitch_hook": "₹2cr+ luxury property leads — private site visits + NRI virtual tours, inventory sirf serious buyers ko",
         "lead_band": "C",  # voice-product band (ADR-009; premium-HNI)
         "qualification_questions": [
             "Premium segment me kaunse areas/locations aapka main market hain?",
-            "NRI ya HNI buyers ke liye alag process hai kya - virtual tours?",
+            "NRI ya HNI buyers ke liye alag process hai kya — virtual tours?",
             "Confidentiality aur exclusive inventory ke liye kaise handle karte ho?",
         ],
     },
@@ -1179,12 +1179,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "bridal packages + before-after reels - 'salon near me' pe rank karo to repeat bookings aate hain",
+        "pitch_hook": "bridal packages + before-after reels — 'salon near me' pe rank karo to repeat bookings aate hain",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi salon ke naye customers kaise aate hain - walk-ins ya ads?",
+            "Abhi salon ke naye customers kaise aate hain — walk-ins ya ads?",
             "Bridal packages/offers chalate ho kya?",
-            "Google pe 'salon near me' pe dikhte ho kya - reviews?",
+            "Google pe 'salon near me' pe dikhte ho kya — reviews?",
         ],
     },
     "gym_fitness": {
@@ -1209,12 +1209,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "transformation reels + joining offers - 'gym near me' pe dikho to January/summer rush miss nahi hota",
+        "pitch_hook": "transformation reels + joining offers — 'gym near me' pe dikho to January/summer rush miss nahi hota",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi gym ke naye members kaise aate hain - referrals ya ads?",
+            "Abhi gym ke naye members kaise aate hain — referrals ya ads?",
             "Seasonal offers (January/summer) chalate ho kya?",
-            "Google pe 'gym near me' pe dikhte ho kya - reviews?",
+            "Google pe 'gym near me' pe dikhte ho kya — reviews?",
         ],
     },
     "boutique_fashion": {
@@ -1239,12 +1239,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "naye collection + festive offers - repeat WhatsApp orders aur reviews se 'boutique near me' pe rank",
+        "pitch_hook": "naye collection + festive offers — repeat WhatsApp orders aur reviews se 'boutique near me' pe rank",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi boutique ke naye customers kaise aate hain - Instagram ya walk-ins?",
+            "Abhi boutique ke naye customers kaise aate hain — Instagram ya walk-ins?",
             "Festive/wedding season me special collections/offers rakhte ho kya?",
-            "Google pe 'boutique near me' pe dikhte ho kya - reviews?",
+            "Google pe 'boutique near me' pe dikhte ho kya — reviews?",
         ],
     },
     "bakery_sweets": {
@@ -1269,12 +1269,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
-        "pitch_hook": "festive sweet/cake offers + WhatsApp order flow - party aur festive orders repeat hote hain",
+        "pitch_hook": "festive sweet/cake offers + WhatsApp order flow — party aur festive orders repeat hote hain",
         "lead_band": "A",  # voice-product band (ADR-009; mass-local)
         "qualification_questions": [
-            "Abhi bakery ke naye customers kaise aate hain - walk-ins ya orders?",
+            "Abhi bakery ke naye customers kaise aate hain — walk-ins ya orders?",
             "Custom cakes ya festive sweet boxes lete hain kya?",
-            "Google pe 'bakery near me' pe dikhte ho kya - reviews?",
+            "Google pe 'bakery near me' pe dikhte ho kya — reviews?",
         ],
     },
     "jewellery_store": {
@@ -1299,12 +1299,12 @@ NICHES = {
         ],
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
-        "pitch_hook": "festive collection + gold-scheme offers - wedding season aur festive pe walk-ins double hote hain",
+        "pitch_hook": "festive collection + gold-scheme offers — wedding season aur festive pe walk-ins double hote hain",
         "lead_band": "B",  # voice-product band (ADR-009; higher-ticket retail)
         "qualification_questions": [
-            "Abhi jewellery store ke naye customers kaise aate hain - walk-ins ya referrals?",
+            "Abhi jewellery store ke naye customers kaise aate hain — walk-ins ya referrals?",
             "Gold schemes ya festive offers chalate ho kya?",
-            "Google pe 'jewellery shop near me' pe dikhte ho kya - reviews?",
+            "Google pe 'jewellery shop near me' pe dikhte ho kya — reviews?",
         ],
     },
 }

@@ -1,13 +1,13 @@
 """RL voice-reward parity regression (2026-09-05).
 
 Root cause fixed here: of the 3 qualification writers, only
-post_call_hooks.auto_qualify_and_downstream recorded a voice reward - the
+post_call_hooks.auto_qualify_and_downstream recorded a voice reward — the
 LIVE vobiz_stream._auto_qualify path and the legacy call_manager path wrote
 data/call_qualifications.jsonl without any reward hook, so the voice domain
 had 0 rewards despite 159 qualifications (prod evidence 2026-09-05).
 
 These tests pin that EVERY qualification writer also records a reward
-(ref=call_id - record_reward's ref-dedupe makes double-record impossible
+(ref=call_id — record_reward's ref-dedupe makes double-record impossible
 when two paths fire for the same call), plus a functional end-to-end check
 through the vobiz_stream handler method.
 """
@@ -59,7 +59,7 @@ def test_reward_dedupe_same_call_id_single_row(tmp_path, monkeypatch):
 def test_reward_hook_sits_after_qual_write_in_each_writer():
     """Static structure pin: in EVERY qual-writer file, the reward hook must
     appear after the call_qualifications.jsonl write (i.e. it fires on real
-    qualifications). Heavy-module functional import avoided deliberately -
+    qualifications). Heavy-module functional import avoided deliberately —
     vobiz_stream pulls STT/whisper at import time (netguard-unsafe in tests)."""
     for rel in (
         "app/telephony/post_call_hooks.py",

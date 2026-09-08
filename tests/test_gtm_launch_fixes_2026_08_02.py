@@ -1,5 +1,5 @@
-"""GTM launch fixes (2026-08-02 Cursor session) - proposal truth, login alias,
-inquiry->autopilot feed, admin prospect add, guest UPI route contract.
+"""GTM launch fixes (2026-08-02 Cursor session) — proposal truth, login alias,
+inquiry→autopilot feed, admin prospect add, guest UPI route contract.
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ async def test_admin_add_prospect_requires_consent(tmp_path, monkeypatch):
 
 
 def test_upi_submit_guest_optional_auth(monkeypatch):
-    """Route must accept guests (optional_customer -> '') - regression for homepage pay."""
+    """Route must accept guests (optional_customer → '') — regression for homepage pay."""
     from app.api import upi_payments as route
     from app.platform import upi_payments as store_mod
 

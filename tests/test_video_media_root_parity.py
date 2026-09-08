@@ -1,4 +1,4 @@
-"""SERVABLE == APPROVABLE == PUBLISHABLE - one media-root authority.
+"""SERVABLE == APPROVABLE == PUBLISHABLE — one media-root authority.
 
 Every consumer resolves through `video_media_paths.resolve_video_media_file`,
 so an artifact can never be servable-but-unapprovable (or the reverse). These
@@ -81,7 +81,7 @@ def test_runtime_output_root_override_is_honoured(tmp_path, monkeypatch):
 
 
 def test_bare_relative_name_fails_closed(root, monkeypatch):
-    """The canonical writer never emits a bare name - do not hunt for it."""
+    """The canonical writer never emits a bare name — do not hunt for it."""
     _mp4(root, "fixture.mp4")
     monkeypatch.chdir(root)  # even standing in the root, a bare name is refused
     assert vmp.resolve_video_media_file("fixture.mp4") is None
@@ -114,7 +114,7 @@ def test_symlink_components_refused(root, tmp_path):
     assert vmp.resolve_video_media_file(str(escaping)) is None
 
     in_root = root / "in_root.mp4"
-    in_root.symlink_to(real)  # retargetable after approval -> refused
+    in_root.symlink_to(real)  # retargetable after approval → refused
     assert vmp.resolve_video_media_file(str(in_root)) is None
 
     sub = root / "sub"

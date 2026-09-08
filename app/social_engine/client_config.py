@@ -1,14 +1,14 @@
-"""social_engine.client_config - per-client SOCIAL NETWORKING setup (handles +
+"""social_engine.client_config — per-client SOCIAL NETWORKING setup (handles +
 posting preferences) for the customer-facing **Social Setup Wizard**.
 
-Yeh sirf ek PREFERENCE/config store hai - actual auto-posting abhi bhi master
+Yeh sirf ek PREFERENCE/config store hai — actual auto-posting abhi bhi master
 gate `SOCIAL_ENGINE` (`engine.enabled()`) + configured providers pe depend karta
 hai. Yahan config save karne se KUCH bhi AUTO-POST nahi hota (INERT-by-default
 invariant intact rehta hai). Downstream content/publish engines yeh prefs
 padh kar (cadence/channels/approval_mode) apna behaviour tune kar sakte hain,
 par default me sab draft/approval path pe hi rehta hai.
 
-Store: data/social_config.jsonl (latest (client_id) wins - vault/store jaisa
+Store: data/social_config.jsonl (latest (client_id) wins — vault/store jaisa
 append-only latest-wins pattern). NEVER raises.
 
   get(client_id) -> dict                # normalized, defaults-filled
@@ -29,7 +29,7 @@ logger = setup_logger(__name__)
 _PATH = os.path.join("data", "social_config.jsonl")
 
 # Handles jo wizard capture karta (str links/handles). instagram/facebook/gbp
-# clients_store.socials me bhi mirror hote (mini-site/page-kit unko padhta) -
+# clients_store.socials me bhi mirror hote (mini-site/page-kit unko padhta) —
 # youtube/linkedin/twitter sirf yahan. Additive: naya key add karna safe.
 _HANDLE_KEYS = ("instagram", "facebook", "gbp", "youtube", "linkedin", "twitter")
 
@@ -44,7 +44,7 @@ _VALID_CADENCE = ("daily", "3x_week", "weekly", "off")
 _VALID_APPROVAL = ("review", "draft", "auto")
 
 # Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 field completeness.
-# Additive - every new field defaults empty/list so existing wizard save calls
+# Additive — every new field defaults empty/list so existing wizard save calls
 # don't break, and the readiness endpoint can score against them.
 _VALID_POSTING_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _VALID_LANGUAGES = ("hi", "en", "hinglish", "gu", "mr", "ta", "te", "kn", "ml", "bn", "pa")
@@ -54,8 +54,8 @@ _DEFAULTS: dict[str, Any] = {
     "channels": [],
     "cadence": "daily",  # matches daily content engine; saved handles must not downgrade cadence
     "approval_mode": "auto",  # Changed to "auto" natively for SaaS 'set and forget' competitor parity
-    "postiz_integrations": [],  # optional/advanced - Postiz channel ids (admin-assisted)
-    # Loop-social-19: Step-1 business profile fields - persisted alongside
+    "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
+    # Loop-social-19: Step-1 business profile fields — persisted alongside
     # clients_store base profile. Wizard-level source of truth for the
     # social-delivery loop specifically.
     "timezone": "Asia/Kolkata",
@@ -65,11 +65,11 @@ _DEFAULTS: dict[str, Any] = {
     "products_or_services": "",  # freeform, comma-separated
     "preferred_language": "hinglish",
     # Loop-social-19: Step-4 content preferences.
-    "posting_days": [],  # ["mon","wed","fri"] etc - empty = every day
-    "posting_times": [],  # ["09:00","18:00"] IST - empty = auto
+    "posting_days": [],  # ["mon","wed","fri"] etc — empty = every day
+    "posting_times": [],  # ["09:00","18:00"] IST — empty = auto
     "content_categories": [],  # ["promo","tips","festivals","testimonials"]
     "prohibited_topics": [],  # ["politics","competitors","medical claims"]
-    "brand_safety_instructions": "",  # freeform - passed to LLM system prompt
+    "brand_safety_instructions": "",  # freeform — passed to LLM system prompt
 }
 
 
@@ -95,7 +95,7 @@ def _latest(client_id: str) -> dict[str, Any]:
 
 
 def _norm(raw: dict[str, Any] | None) -> dict[str, Any]:
-    """Defaults-filled + validated config. Kabhi raise nahi - bad values drop."""
+    """Defaults-filled + validated config. Kabhi raise nahi — bad values drop."""
     r = raw if isinstance(raw, dict) else {}
     handles_in = r.get("handles") if isinstance(r.get("handles"), dict) else {}
     handles = {k: str((handles_in or {}).get(k) or "").strip()[:300] for k in _HANDLE_KEYS}

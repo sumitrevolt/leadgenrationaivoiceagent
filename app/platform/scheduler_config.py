@@ -1,19 +1,17 @@
-"""Agent Scheduler - runtime job control (admin UI se, no-restart).
+"""Agent Scheduler — runtime job control (admin UI se, no-restart).
 
 KYA: AI-staff scheduled jobs ka single registry (label/cadence/owner) + per-job
 runtime enable/disable override + "run-due" recovery dispatch. Overrides
 `data/scheduler_overrides.json` me rehte (bind-mounted => container rebuild
-NAHI chahiye
-admin toggle turant live).
+NAHI chahiye; admin toggle turant live).
 
-KAHAN GATE LAGTA: `team_scheduler._run_job` (single choke-point - in-process
+KAHAN GATE LAGTA: `team_scheduler._run_job` (single choke-point — in-process
 loop AUR Celery `staff_jobs.run_staff_job` DONO isi se guzarte). Isliye toggle
-dono paths pe kaam karta hai
-beat entry fire hoti hai par job body skip.
+dono paths pe kaam karta hai; beat entry fire hoti hai par job body skip.
 
 SAFETY:
 - FAIL-OPEN: overrides file missing/corrupt/error => job ENABLED (aaj jaisa).
-- Compliance gates (TRAI/DND/calling-window) job body ke ANDAR hain - yeh
+- Compliance gates (TRAI/DND/calling-window) job body ke ANDAR hain — yeh
   module unhe kabhi touch nahi karta, sirf staff-job dispatch skip karta hai.
 - Import-safe, koi function kabhi raise nahi karta (record/log style).
 """
@@ -34,11 +32,11 @@ _OVERRIDES = os.path.join("data", "scheduler_overrides.json")
 # ---------------------------------------------------------------------------
 # Registry: har job jo team_scheduler._run_job dispatch karta hai.
 # cadence = IST human string (source: team_scheduler.scheduler_loop windows +
-# worker.py beat crontabs). Yeh DISPLAY-only hai - actual timing wahi 2 sources.
+# worker.py beat crontabs). Yeh DISPLAY-only hai — actual timing wahi 2 sources.
 # ---------------------------------------------------------------------------
 JOB_META: dict[str, dict[str, str]] = {
     "growth": {
-        "label": "Growth pulse - funnel check + auto-action",
+        "label": "Growth pulse — funnel check + auto-action",
         "cadence": "har 15 min",
         "owner": "boss",
     },
@@ -214,7 +212,7 @@ JOB_META: dict[str, dict[str, str]] = {
         "owner": "platform",
     },
     "social_drain": {
-        "label": "Social queue drain (Postiz/X - gated SOCIAL_ENGINE)",
+        "label": "Social queue drain (Postiz/X — gated SOCIAL_ENGINE)",
         "cadence": "hourly :10",
         "owner": "isha",
     },
@@ -256,7 +254,7 @@ JOB_META: dict[str, dict[str, str]] = {
 
 # Jobs jinhe run-due recovery kabhi auto-enqueue NAHI karega (side-effect heavy:
 # outbound calls/emails apni window ke bahar dobara nahi bhejne chahiye).
-# "digest" bhi: uske summary-email step me per-day dedupe nahi hai - recovery
+# "digest" bhi: uske summary-email step me per-day dedupe nahi hai — recovery
 # double-fire = duplicate internal digest email (audit 2026-07-04).
 RUN_DUE_EXCLUDE = {
     "platform_dial",
@@ -266,7 +264,7 @@ RUN_DUE_EXCLUDE = {
     "sales_autopilot",
     "hq_auto_chase",
     "reply_auto_send",
-    "trial_nudge",  # outbound customer email - no catch-up flood (BLK-02 2026-08-23)
+    "trial_nudge",  # outbound customer email — no catch-up flood (BLK-02 2026-08-23)
 }
 
 
@@ -371,9 +369,8 @@ def list_jobs() -> dict[str, Any]:
 
 
 def _dispatch(job: str, *, manual: bool = False) -> str:
-    """Job ko background me chalao - Celery prefer (durable, web-process block
-    nahi hota
-    idempotent_task ttl=3600 double-enqueue dedupe karta). Broker na
+    """Job ko background me chalao — Celery prefer (durable, web-process block
+    nahi hota; idempotent_task ttl=3600 double-enqueue dedupe karta). Broker na
     mile to in-process create_task fallback (rollback mode).
 
     Scheduled paths (manual=False) honor owner_schedulers kill via
@@ -398,7 +395,7 @@ def _dispatch(job: str, *, manual: bool = False) -> str:
             run_staff_job.delay(job)
         return "celery"
     except Exception as e:
-        logger.warning(f"[scheduler-config] celery dispatch failed ({e}) - inline fallback")
+        logger.warning(f"[scheduler-config] celery dispatch failed ({e}) — inline fallback")
     try:
         import asyncio
 
@@ -412,7 +409,7 @@ def _dispatch(job: str, *, manual: bool = False) -> str:
 
 
 def run_now(job: str, by: str = "admin") -> dict[str, Any]:
-    """Ek job ABHI chalao (background dispatch - HTTP request block nahi hota)."""
+    """Ek job ABHI chalao (background dispatch — HTTP request block nahi hota)."""
     job = str(job or "").strip()
     if job not in JOB_META:
         return {"ok": False, "error": f"unknown job '{job}'"}

@@ -1,6 +1,6 @@
-"""RBAC module grants - roles ke UPAR module-level access (design: docs/ADMIN_RBAC_DESIGN.md).
+"""RBAC module grants — roles ke UPAR module-level access (design: docs/ADMIN_RBAC_DESIGN.md).
 
-Storage: `users.preferences` JSON me `{"modules": [...], "must_change_password": bool}` -
+Storage: `users.preferences` JSON me `{"modules": [...], "must_change_password": bool}` —
 existing Text column reuse, koi migration nahi. Enforcement: auth_deps.require_admin
 member-roles (manager/agent/viewer) ke liye `module_for_path()` check karta hai.
 Pure-python, never-raise, import-safe.
@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-# Grantable modules -> path prefixes (naya admin router banao to yahan add karo,
-# warna module-limited members ke liye wo 403 rahega - fail-closed by design).
+# Grantable modules → path prefixes (naya admin router banao to yahan add karo,
+# warna module-limited members ke liye wo 403 rahega — fail-closed by design).
 MODULES: dict[str, list[str]] = {
     "marketing": ["/api/marketing", "/api/creative", "/api/contentauto", "/api/widgets"],
     "growth": ["/api/growth", "/api/seoops", "/api/localseo", "/api/brand"],
@@ -37,7 +37,7 @@ _PREFIX_TO_MODULE: list[tuple[str, str]] = sorted(
 
 
 def module_for_path(path: str) -> str | None:
-    """Request path -> module name (longest-prefix match), unmapped -> None."""
+    """Request path → module name (longest-prefix match), unmapped → None."""
     p = (path or "").split("?")[0]
     for prefix, mod in _PREFIX_TO_MODULE:
         if p == prefix or p.startswith(prefix + "/"):

@@ -1,9 +1,9 @@
-"""Outbound-campaign compliance pre-check - single source of truth for the
+"""Outbound-campaign compliance pre-check — single source of truth for the
 TRAI calling-window gate used by BOTH ``scripts/fire_calls.py`` (CLI) and the
 Celery ``run_campaign_task`` (``app/tasks/calling.py``).
 
 Extracted 2026-07-02 so the durable-Celery campaign path and the existing CLI
-path can never drift apart - one function, two callers. This is a pre-check
+path can never drift apart — one function, two callers. This is a pre-check
 only (cheap, no network): the AUTHORITATIVE per-call gate is still
 ``VobizClient.place_call()`` (DND/window/consent), which every individual
 call goes through regardless of how it was launched. This helper just avoids
@@ -21,10 +21,9 @@ def call_type_for(transactional: bool) -> str:
 
 
 def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tuple[bool, str]:
-    """(ok, reason) - IST calling-window check for promotional/transactional calls.
+    """(ok, reason) — IST calling-window check for promotional/transactional calls.
 
-    Mirrors TRAI's actual 9am-9pm
-    env defaults kept conservative (matches
+    Mirrors TRAI's actual 9am-9pm; env defaults kept conservative (matches
     scripts/fire_calls.py, unchanged). Never raises."""
     try:
         ist = (now_utc or datetime.utcnow()) + timedelta(hours=5, minutes=30)
@@ -37,7 +36,7 @@ def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tupl
         if start_hour <= ist.hour < end_hour:
             return True, ""
         return False, (
-            f"TRAI window CLOSED (IST {ist.hour:02d}:xx) - allowed "
+            f"TRAI window CLOSED (IST {ist.hour:02d}:xx) — allowed "
             f"{start_hour:02d}:00-{end_hour:02d}:00 IST for {call_type_for(transactional)}"
         )
     except Exception as e:  # pragma: no cover - defensive, never blocks on our own bug
@@ -45,11 +44,10 @@ def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tupl
 
 
 def readiness_ok() -> tuple[bool, int, list[str]]:
-    """(ok, score, actions) - telephony readiness gate (score>=70 required).
+    """(ok, score, actions) — telephony readiness gate (score>=70 required).
 
-    Never raises - a readiness-check failure fails OPEN (score 100) so a bug in
-    THIS check can't silently block every campaign
-    the per-call VobizClient
+    Never raises — a readiness-check failure fails OPEN (score 100) so a bug in
+    THIS check can't silently block every campaign; the per-call VobizClient
     gate is still the real backstop."""
     try:
         from app.telephony.telephony_readiness import run_checks

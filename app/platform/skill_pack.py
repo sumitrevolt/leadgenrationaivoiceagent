@@ -1,7 +1,7 @@
-"""Skill pack - Claude project skills ko VPS agents ke liye runtime-available banata hai.
+"""Skill pack — Claude project skills ko VPS agents ke liye runtime-available banata hai.
 
 Sources:
-  1. `.claude/skills/*/SKILL.md` (repo-committed, 35 skills - image me baked)
+  1. `.claude/skills/*/SKILL.md` (repo-committed, 35 skills — image me baked)
   2. `data/skills_extra/*.md` (agent/admin-authored, bind-mounted = runtime-live)
 
 Public API (sab never-raise):
@@ -11,8 +11,7 @@ Public API (sab never-raise):
     snippet_for(topic, max_chars=1200) -> prompt-injectable text ("" agar kuch nahi)
     author(name, text) -> Tier-1 safe write into data/skills_extra/ (validated)
     ingest_to_kb() -> Qdrant/KB namespace "skills" me chunks (semantic recall)
-    enabled() -> SKILL_PACK flag (wiring gates
-    manual API flag-independent)
+    enabled() -> SKILL_PACK flag (wiring gates; manual API flag-independent)
 
 Design: mtime-cached load, pure-python scoring (zero dep/latency), markdown-only,
 path-escape blocked. Flag OFF = prompt-injection wiring inert (zero behaviour change).
@@ -45,7 +44,7 @@ def enabled() -> bool:
 
 
 def _safe_name(name: str) -> str:
-    """Slug-only - path escape / weird chars block."""
+    """Slug-only — path escape / weird chars block."""
     return re.sub(r"[^a-z0-9_-]", "", (name or "").strip().lower())[:60]
 
 
@@ -170,7 +169,7 @@ def snippet_for(topic: str, max_chars: int = 1200) -> str:
 
 
 def author(name: str, text: str) -> dict[str, Any]:
-    """Tier-1 SAFE write - sirf data/skills_extra/*.md. Validated, capped, never-raise."""
+    """Tier-1 SAFE write — sirf data/skills_extra/*.md. Validated, capped, never-raise."""
     try:
         n = _safe_name(name)
         if not n:

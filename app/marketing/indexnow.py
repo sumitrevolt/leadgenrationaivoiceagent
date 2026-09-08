@@ -1,17 +1,16 @@
-"""indexnow.py - Bing/Yandex IndexNow auto-submit (FREE, no-key signup).
+"""indexnow.py — Bing/Yandex IndexNow auto-submit (FREE, no-key signup).
 
-Programmatic SEO pages/blog Google ke alawa Bing/Yandex pe TURANT index hon -
+Programmatic SEO pages/blog Google ke alawa Bing/Yandex pe TURANT index hon —
 naye /blog/{slug} + landing pages publish hote hi search engines ko ping.
 
 - Key: env `INDEXNOW_KEY` ya auto-generate persist `data/indexnow_key.txt`.
   Key file HAMARE host pe serve hoti hai: GET /indexnow-key.txt (main.py route),
   POST payload me `keyLocation` se point karte hain (root {key}.txt zaroori NAHI).
-- `submit_urls(urls)` - manual/any-time (cap 500/call, dedupe).
-- `submit_sitemap_if_enabled()` - GATED `INDEXNOW=1` (default OFF = zero change):
-  apna /sitemap.xml self-fetch (scheduled job me, hot path NAHI) -> <loc> parse ->
+- `submit_urls(urls)` — manual/any-time (cap 500/call, dedupe).
+- `submit_sitemap_if_enabled()` — GATED `INDEXNOW=1` (default OFF = zero change):
+  apna /sitemap.xml self-fetch (scheduled job me, hot path NAHI) → <loc> parse →
   sirf NAYE/changed URLs submit (cursor sha256 me last-submitted set).
-- Defensive: kabhi raise nahi karta
-network fail = {"ok": False}.
+- Defensive: kabhi raise nahi karta; network fail = {"ok": False}.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ def _base_url() -> str:
 
 
 def get_key() -> str:
-    """IndexNow key - env override, warna persisted auto-gen (32 hex)."""
+    """IndexNow key — env override, warna persisted auto-gen (32 hex)."""
     env_key = os.environ.get("INDEXNOW_KEY", "").strip()
     if env_key:
         return env_key
@@ -130,7 +129,7 @@ def parse_sitemap_locs(xml_text: str) -> list[str]:
 
 
 async def submit_sitemap_if_enabled(force: bool = False) -> dict[str, Any]:
-    """Daily blog job se call hota - sirf NAYE sitemap URLs submit (gated INDEXNOW=1).
+    """Daily blog job se call hota — sirf NAYE sitemap URLs submit (gated INDEXNOW=1).
 
     force=True (admin manual run) = flag bypass."""
     if not force and not _enabled():

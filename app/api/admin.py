@@ -148,7 +148,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.base import get_async_db
 
 # JWT Configuration
-# settings.jwt_secret_key is loaded from env/.env by pydantic-settings -
+# settings.jwt_secret_key is loaded from env/.env by pydantic-settings —
 # os.environ.get() would miss values that only exist in the .env file.
 # Must match app.api.auth_deps.JWT_SECRET (token issue + verify).
 JWT_SECRET = settings.jwt_secret_key
@@ -162,7 +162,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
 
     ``jti`` + ``iat`` are required for ``admin_sessions`` revocation (logout /
     password-reset epoch bump). Tokens without them cannot be killed server-side
-    before natural expiry - that gap made deploy-window 401 handling the only
+    before natural expiry — that gap made deploy-window 401 handling the only
     real "logout" path for many sessions.
     """
     now = datetime.now(timezone.utc)
@@ -210,11 +210,11 @@ def decode_token(token: str) -> dict:
 # ── Canonical auth (ADMIN-001 council fix 2026-06-26) ───────────────────────
 # These three deps previously had LOCAL copies here that had drifted WEAKER than
 # the canonical app.api.auth_deps versions: the local get_current_user blocked
-# only SUSPENDED (not INACTIVE -> a deprovisioned admin could still authenticate)
+# only SUSPENDED (not INACTIVE → a deprovisioned admin could still authenticate)
 # and the local require_admin skipped the RBAC module-grant path. Delegate to the
 # single canonical implementation so behaviour can no longer diverge. Other
 # modules importing `require_admin` from here (e.g. assessment.py) auto-inherit
-# the stronger version. auth_deps imports no app.api.* module -> no import cycle.
+# the stronger version. auth_deps imports no app.api.* module → no import cycle.
 from app.api.auth_deps import get_current_user, require_admin, require_super_admin  # noqa: E402
 
 
@@ -289,7 +289,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
 
     # 2FA step-up (Tier-1 Slice D): per-user TOTP takes precedence. The shared
     # ADMIN_TOTP_SECRET remains ONLY as a bootstrap / break-glass fallback for users who
-    # have not yet enrolled - so the owner can never be permanently locked out.
+    # have not yet enrolled — so the owner can never be permanently locked out.
     from app.platform import admin_2fa
 
     if admin_2fa.is_enabled(user):
@@ -398,7 +398,7 @@ async def logout(
 
     await db.commit()
 
-    # Tier-1 Slice C: the DB rows above were never checked on requests - the JWT itself
+    # Tier-1 Slice C: the DB rows above were never checked on requests — the JWT itself
     # stayed valid after logout. Actually revoke it now: blacklist this token's jti AND
     # epoch-bump the user (matches this endpoint's "invalidate ALL sessions" intent).
     from app.platform import admin_sessions
@@ -423,7 +423,7 @@ async def logout(
 
 
 # ============================================================================
-# Per-user 2FA (TOTP) - Tier-1 Slice D
+# Per-user 2FA (TOTP) — Tier-1 Slice D
 # ============================================================================
 
 
@@ -454,7 +454,7 @@ async def twofa_setup(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Begin enrollment: password re-auth -> returns otpauth URI + raw secret + recovery
+    """Begin enrollment: password re-auth → returns otpauth URI + raw secret + recovery
     codes ONCE (never persisted in plaintext, never logged). 2FA is not enabled until
     /2fa/activate confirms a code."""
     if not user.verify_password(body.password):
@@ -479,7 +479,7 @@ async def twofa_activate(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Confirm the pending enrollment with a TOTP code -> enable 2FA."""
+    """Confirm the pending enrollment with a TOTP code → enable 2FA."""
     from app.platform import admin_2fa
 
     if not admin_2fa.activate(user, body.code):
@@ -496,7 +496,7 @@ async def twofa_disable(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Disable 2FA: password re-auth + a current TOTP/recovery code -> revoke all sessions."""
+    """Disable 2FA: password re-auth + a current TOTP/recovery code → revoke all sessions."""
     from app.platform import admin_2fa, admin_sessions
 
     if not user.verify_password(body.password):
@@ -1000,7 +1000,7 @@ async def get_admin_stats(
     )
     active_users = active_users_result.scalar() or 0
 
-    # Real DB queries - models import lazy to avoid circular
+    # Real DB queries — models import lazy to avoid circular
     try:
         from sqlalchemy import func as _func
 
@@ -1036,7 +1036,7 @@ async def get_admin_stats(
         _rev_r = await db.execute(
             select(_func.sum(BillingRecord.amount)).where(BillingRecord.status == _BRS.PAID)
         )
-        # amount stored in paise -> convert to INR
+        # amount stored in paise → convert to INR
         total_revenue_inr = float((_rev_r.scalar() or 0) / 100.0)
     except Exception as _e:
         logger.warning(f"[admin_stats] DB query failed, using defaults: {_e}")

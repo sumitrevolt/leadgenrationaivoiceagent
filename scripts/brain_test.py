@@ -1,4 +1,4 @@
-"""Free-AI brain test - prove Cerebras/xAI answers a Hinglish sales turn (VPS)."""
+"""Free-AI brain test — prove Cerebras/xAI answers a Hinglish sales turn (VPS)."""
 
 import asyncio
 import sys
@@ -12,7 +12,7 @@ async def main() -> None:
     print("PROVIDERS:", f.describe()["providers"])
 
     sys_prompt = (
-        "Tum Swara ho - ek Indian solar lead-gen telecaller. Hinglish me, "
+        "Tum Swara ho — ek Indian solar lead-gen telecaller. Hinglish me, "
         "max 2 chhote sentence, ek sawaal. User ke jawab ko acknowledge karke aage badho."
     )
     msgs = [

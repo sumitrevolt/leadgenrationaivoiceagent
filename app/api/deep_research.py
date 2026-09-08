@@ -1,9 +1,8 @@
-"""Deep Research - multi-step web research with cited synthesis.
+"""Deep Research — multi-step web research with cited synthesis.
 
 Odysseus-inspired pattern (clean-room reimplement, AGPL-safe): "multi-step
 web research with source reading and report generation." LeadGen already
-runs SearXNG + agents
-this module wraps them into a single
+runs SearXNG + agents; this module wraps them into a single
 admin-callable "deep research" endpoint with a clean UI.
 
 Flow:
@@ -17,7 +16,7 @@ Dependencies:
     - `app.integrations.searxng` (already ships, SEARXNG_URL gated)
     - `app.voice_agent.free_ai.chat` (existing free-tier chain)
 
-Flag: `DEEP_RESEARCH_ENABLED=1` - INERT default (503 warna).
+Flag: `DEEP_RESEARCH_ENABLED=1` — INERT default (503 warna).
 
 Budget: each request = ~4 LLM calls (1 plan + 3 sub-search summaries + 1
 synthesis) + N SearXNG lookups. `budget_guard` scope="research" enforces.
@@ -230,122 +229,62 @@ async def status() -> dict:
 
 
 _PAGE_HTML = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Deep Research - LeadGen</title>
+<html><head><meta charset="utf-8"><title>Deep Research — LeadGen</title>
 <style>
- body{font-family:system-ui,Segoe UI,sans-serif
- margin:0
- background:#0f172a
- color:#e2e8f0}
- .wrap{max-width:1200px
- margin:0 auto
- padding:24px}
- h1{margin:0 0 6px 0
- font-size:22px}
- .sub{color:#94a3b8
- margin-bottom:20px
- font-size:13px}
- .card{background:#1e293b
- border:1px solid #334155
- border-radius:10px
- padding:16px
- margin-bottom:16px}
- input,textarea{width:100%
- background:#0f172a
- border:1px solid #334155
- color:#e2e8f0
- padding:8px
- border-radius:6px
- box-sizing:border-box}
- button{background:#3b82f6
- color:#fff
- border:0
- padding:10px 16px
- border-radius:6px
- cursor:pointer
- font-weight:600}
+ body{font-family:system-ui,Segoe UI,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
+ .wrap{max-width:1200px;margin:0 auto;padding:24px}
+ h1{margin:0 0 6px 0;font-size:22px}
+ .sub{color:#94a3b8;margin-bottom:20px;font-size:13px}
+ .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:16px}
+ input,textarea{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px;border-radius:6px;box-sizing:border-box}
+ button{background:#3b82f6;color:#fff;border:0;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600}
  button:disabled{background:#475569}
- .queries span{background:#334155
- padding:4px 10px
- border-radius:14px
- font-size:12px
- margin:2px
- display:inline-block}
- .report{background:#0f172a
- border:1px solid #334155
- border-radius:8px
- padding:16px
- white-space:pre-wrap
- font-size:14px
- line-height:1.6
- max-height:70vh
- overflow:auto}
- .src{padding:8px 0
- border-bottom:1px solid #334155
- font-size:13px}
- .src .t{color:#3b82f6
- font-weight:600}
- .src .u{color:#64748b
- font-size:11px
- font-family:ui-monospace,Menlo,monospace
- word-break:break-all}
- .src .s{color:#94a3b8
- margin-top:4px
- font-size:12px}
- .meta{color:#64748b
- font-size:12px
- margin-top:8px}
+ .queries span{background:#334155;padding:4px 10px;border-radius:14px;font-size:12px;margin:2px;display:inline-block}
+ .report{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.6;max-height:70vh;overflow:auto}
+ .src{padding:8px 0;border-bottom:1px solid #334155;font-size:13px}
+ .src .t{color:#3b82f6;font-weight:600}
+ .src .u{color:#64748b;font-size:11px;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+ .src .s{color:#94a3b8;margin-top:4px;font-size:12px}
+ .meta{color:#64748b;font-size:12px;margin-top:8px}
 </style></head>
 <body><div class="wrap">
  <h1>Deep Research · Multi-step + Cited</h1>
- <div class="sub">Topic -> LLM plans sub-queries -> SearXNG fanout -> cited markdown report.</div>
+ <div class="sub">Topic → LLM plans sub-queries → SearXNG fanout → cited markdown report.</div>
 
  <div class="card">
   <input id="topic" placeholder="e.g. 'Best CRM options for Indian solar installers 2026'">
-  <div style="margin-top:10px
-  display:flex
-  gap:10px">
+  <div style="margin-top:10px;display:flex;gap:10px">
    <button id="run">Research</button>
-   <span id="msg" style="color:#94a3b8
-   font-size:12px
-   align-self:center"></span>
+   <span id="msg" style="color:#94a3b8;font-size:12px;align-self:center"></span>
   </div>
  </div>
 
  <div id="qcard" class="card" style="display:none">
-  <h3 style="margin:0 0 8px 0
-  font-size:14px
-  color:#94a3b8">Sub-queries</h3>
+  <h3 style="margin:0 0 8px 0;font-size:14px;color:#94a3b8">Sub-queries</h3>
   <div id="queries" class="queries"></div>
   <div id="meta" class="meta"></div>
  </div>
 
  <div id="rcard" class="card" style="display:none">
-  <h3 style="margin:0 0 8px 0
-  font-size:14px
-  color:#94a3b8">Report</h3>
+  <h3 style="margin:0 0 8px 0;font-size:14px;color:#94a3b8">Report</h3>
   <div id="report" class="report"></div>
  </div>
 
  <div id="scard" class="card" style="display:none">
-  <h3 style="margin:0 0 8px 0
-  font-size:14px
-  color:#94a3b8">Sources</h3>
+  <h3 style="margin:0 0 8px 0;font-size:14px;color:#94a3b8">Sources</h3>
   <div id="sources"></div>
  </div>
 </div>
 <script>
 async function api(p,o={}){ const r = await fetch('/api/research/deep'+p,{...o,credentials:'include',
  headers:{'Content-Type':'application/json',...(o.headers||{})}}); if(!r.ok) throw new Error(r.status+': '+await r.text());
- return r.json()
- }
+ return r.json(); }
 
 const esc = (s) => (s||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 
 document.getElementById('run').onclick = async () => {
   const t = document.getElementById('topic').value.trim();
-  if(!t){ document.getElementById('msg').textContent = 'Topic zaroori.'
-  return
-  }
+  if(!t){ document.getElementById('msg').textContent = 'Topic zaroori.'; return; }
   document.getElementById('run').disabled = true;
   document.getElementById('msg').textContent = 'Planning + searching + synthesizing...';
   ['qcard','rcard','scard'].forEach(id=>document.getElementById(id).style.display='none');
@@ -360,10 +299,8 @@ document.getElementById('run').onclick = async () => {
         <div class="s">${esc(s.snippet||'')}</div></div>`).join('');
     ['qcard','rcard','scard'].forEach(id=>document.getElementById(id).style.display='block');
     document.getElementById('msg').textContent = 'Done.';
-  }catch(e){ document.getElementById('msg').textContent = 'Fail: '+e.message
-  }
-  finally{ document.getElementById('run').disabled = false
-  }
+  }catch(e){ document.getElementById('msg').textContent = 'Fail: '+e.message; }
+  finally{ document.getElementById('run').disabled = false; }
 };
 </script></body></html>
 """

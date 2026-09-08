@@ -1,4 +1,4 @@
-"""Compact Owner Copilot context - PII-minimized, tenant-aware, capped."""
+"""Compact Owner Copilot context — PII-minimized, tenant-aware, capped."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
             }
         )
         if wf.get("paused_manual_run"):
-            # Names only when cheap - avoid dumping full registry into every prompt.
+            # Names only when cheap — avoid dumping full registry into every prompt.
             try:
                 reg = owner_os.agent_registry()
                 agents["paused"] = [
@@ -87,7 +87,7 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
         customers["active_count"] = 1  # honest: Jiya is the only paying customer today
         if tenant_id:
             customers["filter_tenant"] = tenant_id
-            customers["note"] = "tenant filter applied - no cross-tenant expansion"
+            customers["note"] = "tenant filter applied — no cross-tenant expansion"
     except Exception as exc:
         platform["health"] = "degraded"
         platform["error"] = type(exc).__name__
@@ -113,7 +113,7 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
 
             # Prefer existing safe status report builder if present.
             if hasattr(_oos, "_build_status_report"):
-                rep = _oos._build_status_report(tenant_id)  # noqa: SLF001 - intentional reuse
+                rep = _oos._build_status_report(tenant_id)  # noqa: SLF001 — intentional reuse
                 risks = []
                 if isinstance(rep, dict):
                     if rep.get("pending_approvals") or rep.get("approval_pending"):
@@ -151,6 +151,6 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
         "workforce_memory": workforce_memory,
         "next_actions": next_actions[:5],
         "generated_at": _now(),
-        "max_payload_note": "compact context - no DB dump, no secrets, no cross-tenant",
+        "max_payload_note": "compact context — no DB dump, no secrets, no cross-tenant",
     }
     return redact_secrets(ctx)

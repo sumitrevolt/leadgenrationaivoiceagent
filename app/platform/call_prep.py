@@ -1,8 +1,8 @@
-"""Call Prep - Rowboat "prep me for my meeting with X" ka telecaller avatar.
+"""Call Prep — Rowboat "prep me for my meeting with X" ka telecaller avatar.
 
 Human dialer / AI sales agent ko call se PEHLE ek Hinglish brief: kaun hai,
 history, pain points, talking points, objections+jawab, next action. Sources:
-memory_vault snippet + prospector record + lead score -> free-LLM polish
+memory_vault snippet + prospector record + lead score → free-LLM polish
 (wait_for 25s), STATIC fallback (kabhi empty nahi). Import-safe, never raises.
 """
 
@@ -53,7 +53,7 @@ def _static_brief(ph10: str, rec: dict[str, Any], snippet: str, client_id: str) 
     if niche or city:
         kaun += f" ({niche}{', ' + city if city else ''})"
     history = (
-        snippet.splitlines()[-1][:200] if snippet else "Pehli baar baat ho rahi - koi history nahi."
+        snippet.splitlines()[-1][:200] if snippet else "Pehli baar baat ho rahi — koi history nahi."
     )
     return {
         "kaun_hai": kaun,
@@ -64,18 +64,18 @@ def _static_brief(ph10: str, rec: dict[str, Any], snippet: str, client_id: str) 
         ],
         "talking_points": [
             f"Namaste! {biz or 'Aapke business'} ke liye ek kaam ki baat thi",
-            "Har inquiry ka 2-min me AI follow-up - koi lead miss nahi",
+            "Har inquiry ka 2-min me AI follow-up — koi lead miss nahi",
             "Marketing + Google + reviews sab automated, ₹1,999/mo se shuru",
-            "Free GBP audit abhi bhej sakta hoon - leadsgenai.in/audit",
+            "Free GBP audit abhi bhej sakta hoon — leadsgenai.in/audit",
         ],
         "objections": [
             {
                 "objection": "Mehnga lagega",
-                "jawab": "Ek missed inquiry ₹15-20K ki hoti - ₹1,999/mo us se kam, pehle 10 leads FREE.",
+                "jawab": "Ek missed inquiry ₹15-20K ki hoti — ₹1,999/mo us se kam, pehle 10 leads FREE.",
             },
             {
                 "objection": "AI pe bharosa nahi",
-                "jawab": "2-min live demo karke khud sun lo - leadsgenai.in/app/test-call. Cancel anytime.",
+                "jawab": "2-min live demo karke khud sun lo — leadsgenai.in/app/test-call. Cancel anytime.",
             },
         ],
         "next_action": "Free audit link WhatsApp karo + 2-min demo offer karo",

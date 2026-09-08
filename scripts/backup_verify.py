@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Backup verify - create + test restore (Playbook zero-tolerance gate).
+"""Backup verify — create + test restore (Playbook zero-tolerance gate).
 
 Usage:
     python scripts/backup_verify.py          # full test
@@ -123,7 +123,7 @@ def main() -> int:
         return 1
 
     if quick:
-        print("[OK] Quick mode - backup created, restore skipped")
+        print("[OK] Quick mode — backup created, restore skipped")
         return 0
 
     # 2. Restore

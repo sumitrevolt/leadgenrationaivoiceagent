@@ -4,7 +4,7 @@
 Hermetic: every external primitive is monkeypatched (clients_store.list_clients +
 canonical_client_id, gst_invoice._read, subscription.PRICING_PLANS,
 packages.get_public_packages/get_packages, team.log_event), so NO live production
-tenant/invoice data is read and - critically - NO billing state is ever mutated.
+tenant/invoice data is read and — critically — NO billing state is ever mutated.
 
 Covers: paid-no-invoice detection, canonical billing-alias resolution
 (a client keyed by billing id d79d690f61b3 resolves to jiya-makeover), the
@@ -78,7 +78,7 @@ def _install(
 
     monkeypatch.setattr(clients_store, "canonical_client_id", _canon)
 
-    # immutable Rule-46 ledger reader - the ONLY invoice read the module touches
+    # immutable Rule-46 ledger reader — the ONLY invoice read the module touches
     monkeypatch.setattr(gst_invoice, "_read", lambda: [dict(r) for r in invoices])
 
     if public_packages is None:
@@ -100,7 +100,7 @@ def _install(
         packages, "get_packages", lambda include_trial=False: [dict(p) for p in all_packages]
     )
 
-    # subscription plan catalog reader (voice/combo/data ids in prod) - controlled here
+    # subscription plan catalog reader (voice/combo/data ids in prod) — controlled here
     monkeypatch.setattr(subscription, "PRICING_PLANS", pricing_plans or {})
 
     events: list = []
@@ -234,7 +234,7 @@ def test_entitlement_drift_flagged(monkeypatch):
 
 
 def test_scan_is_read_only_no_billing_mutation(monkeypatch):
-    """If ANY billing write primitive is invoked the stub raises - scan must still
+    """If ANY billing write primitive is invoked the stub raises — scan must still
     succeed (proves the scan never mutates billing state)."""
     _install(monkeypatch, [_JIYA], [], forbid_writes=True)
     res = ea.scan_entitlements()

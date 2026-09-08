@@ -1,9 +1,8 @@
-"""2026-07-19 loop fixes - 3 regression tests for the 72h-verdict open concerns.
+"""2026-07-19 loop fixes — 3 regression tests for the 72h-verdict open concerns.
 
 Fix 1: self_improve_tick must stop (without requeue) when tick_slot is denied
-       but flag is ON - denied duplicates must not multiply the queue. The slot
-       owner already schedules the next tick
-       watchdog revival is single-locked.
+       but flag is ON — denied duplicates must not multiply the queue. The slot
+       owner already schedules the next tick; watchdog revival is single-locked.
 
 Fix 2: VobizClient.get_balance uses split httpx.Timeout (connect=5s, read=10s)
        and downgrades recurring transport errors to WARNING (was ERROR spam).
@@ -47,8 +46,7 @@ class TestSelfImproveTickSlotDenial:
 
         staff_jobs.self_improve_tick.run()
 
-        assert not queued, "Denied duplicate must stop
-        only slot owner may requeue"
+        assert not queued, "Denied duplicate must stop; only slot owner may requeue"
 
     def test_no_requeue_when_flag_off(self, monkeypatch):
         from app.agents import self_improve as si
@@ -205,7 +203,7 @@ class TestVobizGetBalanceTimeoutHardening:
 # ============================================================ Fix 3
 class TestSentryIssueApiDiagnostic:
     """Startup must warn when SENTRY_DSN is armed but SENTRY_AUTH_TOKEN/ORG/PROJECT
-    are missing - surfaces the issue-level API review gap (operator-action)."""
+    are missing — surfaces the issue-level API review gap (operator-action)."""
 
     def test_warning_when_dsn_set_but_api_creds_missing(self, monkeypatch):
         from app.config import settings

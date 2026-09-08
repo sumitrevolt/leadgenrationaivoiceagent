@@ -1,8 +1,8 @@
 """
-dpdp.py - DPDP Act 2023 data-principal rights: discovery + export + erasure.
+dpdp.py — DPDP Act 2023 data-principal rights: discovery + export + erasure.
 =============================================================================
 
-/privacy page Access/Correction/Erasure rights PROMISE karta hai - yeh module
+/privacy page Access/Correction/Erasure rights PROMISE karta hai — yeh module
 woh promise REAL banata hai (legal gap close):
 
   - find_subject(phone/email)    -> kaunse stores me data hai (masked preview)
@@ -11,26 +11,25 @@ woh promise REAL banata hai (legal gap close):
                                     DB Lead anonymize (dry_run=True DEFAULT)
   - record_request(...)          -> public intake (data/dpdp_requests.jsonl)
   - audit log                    -> data/dpdp_audit.jsonl (subject = sha256
-                                    HASH only - kabhi plaintext nahi)
+                                    HASH only — kabhi plaintext nahi)
 
 SAFETY (destructive operation hai):
-  - dry_run=True default - pehle dekho kya hatne wala hai.
+  - dry_run=True default — pehle dekho kya hatne wala hai.
   - Rewrite se PEHLE har touched file ki `.bak_dpdp_<ts>` copy (same dir).
   - Atomic rewrite: tmp file + os.replace (minisite_builder._rewrite_jsonl
-    pattern) - half-written file kabhi nahi.
-  - Raw lines preserve hote hain (re-serialize NAHI) - jo line parse nahi hui
-    woh untouched rehti hai
-    jo FILE read nahi hui woh skip+report hoti hai.
-  - DB Lead rows DELETE nahi hote - anonymize (phone/email/name -> ERASED),
+    pattern) — half-written file kabhi nahi.
+  - Raw lines preserve hote hain (re-serialize NAHI) — jo line parse nahi hui
+    woh untouched rehti hai; jo FILE read nahi hui woh skip+report hoti hai.
+  - DB Lead rows DELETE nahi hote — anonymize (phone/email/name -> ERASED),
     row billing/audit integrity ke liye rehti hai. Core UPDATE (validators
-    bypass - 'ERASED' phone-format validator pass nahi karta, karna bhi nahi).
-  - KABHI kisi scheduler se auto-run nahi hota - sirf admin API se.
+    bypass — 'ERASED' phone-format validator pass nahi karta, karna bhi nahi).
+  - KABHI kisi scheduler se auto-run nahi hota — sirf admin API se.
 
 Sab functions never-raise (error dict lautate). Free stack, pure stdlib +
 lazy sqlalchemy import (DB down = graceful skip).
 
 KNOWN LIMITS (privacy page ke liye honest):
-  - Qdrant KB vectors (client:<id> namespaces) - embedded text erase nahi hota
+  - Qdrant KB vectors (client:<id> namespaces) — embedded text erase nahi hota
     yahan se (KB per-client business docs hote hain, lead-PII rare).
   - Backups (pg_dump 30d, data/ tarballs, .bak_dpdp_ files khud) me purana
     data retention-window tak rehta hai.
@@ -54,7 +53,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Stores (module-level - tests monkeypatch karte hain)
+# Stores (module-level — tests monkeypatch karte hain)
 # Filenames GREP-verified from owning modules (guess nahi):
 #   public_site._INQUIRIES_FILE, prospector._PROSPECTS_FILE,
 #   conversion._CHATS_FILE, reply_agent._DRAFTS_FILE, cadence._LEADS,
@@ -73,7 +72,7 @@ _CRM_DIR = os.path.join("data", "crm")  # per-client end-customer CRM (crm_lite)
 
 
 def _AUDIT_FILE() -> str:
-    """DPDP audit log - resolved per call, never captured at import.
+    """DPDP audit log — resolved per call, never captured at import.
 
     The function name keeps the allowlist symbol stable. Subject hashes only;
     never plaintext PII.
@@ -92,10 +91,9 @@ def _AUDIT_FILE() -> str:
 
 
 def _REQUESTS_FILE() -> str:
-    """DPDP request intake - sibling of the audit log under the same store id.
+    """DPDP request intake — sibling of the audit log under the same store id.
 
-    One manifest row covers both files
-    they stay two resolvers so a cutover
+    One manifest row covers both files; they stay two resolvers so a cutover
     cannot collapse requests into the audit path. The requests file lives
     beside the audit target (`compliance/dpdp_requests.jsonl`).
     """
@@ -134,7 +132,7 @@ def _norm_email(raw: Any) -> str:
 
 
 def subject_hash(phone: Any = None, email: Any = None) -> str:
-    """sha256 of normalized subject - audit log me YAHI jaata hai (plaintext kabhi nahi)."""
+    """sha256 of normalized subject — audit log me YAHI jaata hai (plaintext kabhi nahi)."""
     key = f"{_norm_phone(phone)}|{_norm_email(email)}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
@@ -153,10 +151,10 @@ def _mask_email(e: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Matching - record ki saari string/number values me subject dhundo
+# Matching — record ki saari string/number values me subject dhundo
 # --------------------------------------------------------------------------- #
 def _values_of(rec: Any, depth: int = 0) -> list[str]:
-    """Dict/list ki saari leaf string-values (max depth 2 - nested extras bhi)."""
+    """Dict/list ki saari leaf string-values (max depth 2 — nested extras bhi)."""
     out: list[str] = []
     if depth > 2:
         return out
@@ -205,7 +203,7 @@ def _scrub_numbers(s: str) -> str:
 
 
 def _mask_record(rec: dict[str, Any]) -> dict[str, Any]:
-    """Preview-safe copy - phone/email-jaisi values mask, free-text ke number-run
+    """Preview-safe copy — phone/email-jaisi values mask, free-text ke number-run
     scrub, lambi text truncate."""
     out: dict[str, Any] = {}
     try:
@@ -226,7 +224,7 @@ def _mask_record(rec: dict[str, Any]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# JSONL plumbing - raw-line preserve + atomic rewrite + .bak
+# JSONL plumbing — raw-line preserve + atomic rewrite + .bak
 # --------------------------------------------------------------------------- #
 def _read_raw_lines(path: str) -> list[str] | None:
     """File ki raw lines (None = file read hi nahi hui -> store SKIP+report).
@@ -255,7 +253,7 @@ def _atomic_write_lines(path: str, lines: list[str]) -> None:
 
 
 def _iter_stores() -> list[tuple[str, str]]:
-    """(store_name, path) - fixed stores + data/crm/<client_id>.jsonl sab."""
+    """(store_name, path) — fixed stores + data/crm/<client_id>.jsonl sab."""
     pairs = list(_STORES.items())
     try:
         for p in sorted(glob.glob(os.path.join(_CRM_DIR, "*.jsonl"))):
@@ -266,7 +264,7 @@ def _iter_stores() -> list[tuple[str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# Audit log - subject sirf HASH (DPDP audit khud PII leak na kare)
+# Audit log — subject sirf HASH (DPDP audit khud PII leak na kare)
 # --------------------------------------------------------------------------- #
 def _audit(
     action: str, phone: Any, email: Any, stores: list[str], actor: str, **extra: Any
@@ -284,7 +282,7 @@ def _audit(
         # was correct behaviour and wrong evidence: `runtime_data_scan`
         # attributes a finding to the expression it sees, so `open(audit_path)`
         # reports the bare name `audit_path` and the allowlist entry declaring
-        # `_AUDIT_FILE` stopped binding - which turned main red with
+        # `_AUDIT_FILE` stopped binding — which turned main red with
         # "STALE - no live finding at app/platform/dpdp.py:_AUDIT_FILE".
         os.makedirs(os.path.dirname(_AUDIT_FILE()) or ".", exist_ok=True)
         with open(_AUDIT_FILE(), "a", encoding="utf-8") as f:
@@ -294,10 +292,10 @@ def _audit(
 
 
 # --------------------------------------------------------------------------- #
-# 1) DISCOVERY (sync file core - DB-wala async find_subject neeche)
+# 1) DISCOVERY (sync file core — DB-wala async find_subject neeche)
 # --------------------------------------------------------------------------- #
 def scan_stores(phone: Any = None, email: Any = None, preview_per_store: int = 3) -> dict[str, Any]:
-    """Saare JSONL stores scan - {store: count} + masked previews. Never raises."""
+    """Saare JSONL stores scan — {store: count} + masked previews. Never raises."""
     phone10, em = _norm_phone(phone), _norm_email(email)
     if not (phone10 or em):
         return {"ok": False, "error": "valid phone (10-digit) ya email do."}
@@ -317,7 +315,7 @@ def scan_stores(phone: Any = None, email: Any = None, preview_per_store: int = 3
             try:
                 rec = json.loads(ln)
             except Exception:
-                continue  # corrupt line - match nahi, erase me bhi untouched
+                continue  # corrupt line — match nahi, erase me bhi untouched
             if isinstance(rec, dict) and _match(rec, phone10, em):
                 n += 1
                 if len(previews.setdefault(name, [])) < preview_per_store:
@@ -367,7 +365,7 @@ async def _db_lead_query(phone10: str, em: str) -> tuple[list[dict[str, Any]] | 
 async def find_subject(
     phone: Any = None, email: Any = None, include_db: bool = True, actor: str = "admin"
 ) -> dict[str, Any]:
-    """Discovery: files + (best-effort) DB Lead count. Masked - admin overview."""
+    """Discovery: files + (best-effort) DB Lead count. Masked — admin overview."""
     out = scan_stores(phone, email)
     if not out.get("ok"):
         return out
@@ -384,7 +382,7 @@ async def find_subject(
 
 
 # --------------------------------------------------------------------------- #
-# 2) EXPORT - Right to Access (full, unmasked - ADMIN-only route pe)
+# 2) EXPORT — Right to Access (full, unmasked — ADMIN-only route pe)
 # --------------------------------------------------------------------------- #
 async def export_subject(
     phone: Any = None, email: Any = None, include_db: bool = True, actor: str = "admin"
@@ -434,7 +432,7 @@ async def export_subject(
 
 
 # --------------------------------------------------------------------------- #
-# 3) ERASURE - Right to Erasure (dry_run DEFAULT; atomic + .bak)
+# 3) ERASURE — Right to Erasure (dry_run DEFAULT; atomic + .bak)
 # --------------------------------------------------------------------------- #
 def _erase_file(path: str, phone10: str, em: str, dry_run: bool) -> dict[str, Any]:
     """Ek store: matching records hatao (raw non-matching lines AS-IS preserve).
@@ -475,7 +473,7 @@ def _erase_file(path: str, phone10: str, em: str, dry_run: bool) -> dict[str, An
 
 
 async def _db_anonymize(phone10: str, em: str, dry_run: bool) -> dict[str, Any]:
-    """DB Lead rows anonymize - phone/email/name -> ERASED, row REHTI hai
+    """DB Lead rows anonymize — phone/email/name -> ERASED, row REHTI hai
     (billing/audit integrity). Core UPDATE = validators bypass. Best-effort."""
     rows, note = await _db_lead_query(phone10, em)
     if rows is None:
@@ -501,7 +499,7 @@ async def _db_anonymize(phone10: str, em: str, dry_run: bool) -> dict[str, Any]:
                     phone="ERASED",
                     email=None,
                     contact_name="ERASED",
-                    notes="[ERASED - DPDP erasure request]",
+                    notes="[ERASED — DPDP erasure request]",
                 )
             )
             await session.commit()
@@ -518,9 +516,8 @@ async def erase_subject(
     actor: str = "admin",
 ) -> dict[str, Any]:
     """Right to Erasure. dry_run=True (DEFAULT) = sirf dikhao kya hatega.
-    Real run: har touched jsonl ki .bak copy + atomic rewrite
-    DB anonymize.
-    KABHI scheduler se mat chalana - sirf admin-confirmed API call."""
+    Real run: har touched jsonl ki .bak copy + atomic rewrite; DB anonymize.
+    KABHI scheduler se mat chalana — sirf admin-confirmed API call."""
     phone10, em = _norm_phone(phone), _norm_email(email)
     if not (phone10 or em):
         return {"ok": False, "error": "valid phone (10-digit) ya email do."}
@@ -546,7 +543,7 @@ async def erase_subject(
         "skipped_stores": skipped,
         "note": (
             "Backups (pg_dump/tarballs/.bak_dpdp_) + Qdrant KB vectors + email-server "
-            "copies retention window tak rehte hain - privacy policy me disclosed."
+            "copies retention window tak rehte hain — privacy policy me disclosed."
         ),
     }
     if include_db:
@@ -563,13 +560,13 @@ async def erase_subject(
 
 
 # --------------------------------------------------------------------------- #
-# 4) REQUEST INTAKE (public) - 30-din processing promise
+# 4) REQUEST INTAKE (public) — 30-din processing promise
 # --------------------------------------------------------------------------- #
 def record_request(
     phone: Any = None, email: Any = None, req_type: str = "access", note: str = ""
 ) -> dict[str, Any]:
     """Data-principal ki request store karo (status=pending). Never raises.
-    NOTE: yahan contact PLAINTEXT store hota hai - process karne ke liye
+    NOTE: yahan contact PLAINTEXT store hota hai — process karne ke liye
     zaroori hai (audit log me sirf hash jaata hai)."""
     phone10, em = _norm_phone(phone), _norm_email(email)
     if not (phone10 or em):
@@ -592,7 +589,7 @@ def record_request(
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.warning(f"[dpdp] request write failed: {e}")
-        return {"ok": False, "error": "request save nahi hui - baad me try karo."}
+        return {"ok": False, "error": "request save nahi hui — baad me try karo."}
     _audit("request_" + t, phone10, em, [], "public")
     return {"ok": True, "request_id": rec["id"], "type": t}
 

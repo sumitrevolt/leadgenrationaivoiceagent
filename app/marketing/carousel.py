@@ -1,7 +1,7 @@
-"""Carousel post generator (Predis-style) - ek topic -> 3-5 branded SVG slides.
+"""Carousel post generator (Predis-style) — ek topic → 3-5 branded SVG slides.
 
 Instagram/LinkedIn carousel = 2026 ka highest-engagement format. Har slide:
-hook -> value points -> CTA. SVG self-contained (poster pipeline jaisa reliable,
+hook → value points → CTA. SVG self-contained (poster pipeline jaisa reliable,
 koi image-API dependency nahi). free-LLM se slide texts, template fallback.
 Import-safe, kabhi raise nahi.
 """
@@ -27,7 +27,7 @@ _COLORS = [
 
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
-# Default CTA (agency/admin carousel - LeadGen ka apna audit lead-magnet).
+# Default CTA (agency/admin carousel — LeadGen ka apna audit lead-magnet).
 # CUSTOMER carousels apni mini-site URL / phone pass karti hain (client_cta()).
 _DEFAULT_CTA = "leadsgenai.in/audit"
 
@@ -38,12 +38,10 @@ def _valid_hex(value: str) -> str | None:
 
 
 def client_cta(slug: str = "", phone: str = "") -> str:
-    """CUSTOMER carousel CTA - apni mini-site URL (/b/<slug>) ya phone.
+    """CUSTOMER carousel CTA — apni mini-site URL (/b/<slug>) ya phone.
 
-    slug diya = "leadsgenai.in/b/<slug>" (client ki apni booking page)
-    warna
-    phone
-    dono khali = "" (caller default use kare). CTA slot chhota hai to
+    slug diya = "leadsgenai.in/b/<slug>" (client ki apni booking page); warna
+    phone; dono khali = "" (caller default use kare). CTA slot chhota hai to
     "https://" strip karke sirf host+path dikhate hain (readable, brand-clean).
     """
     s = (slug or "").strip().strip("/")
@@ -60,8 +58,7 @@ def _slide_svg(
 ) -> str:
     """Ek slide ka self-contained square SVG (1080-style 540 viewBox).
 
-    cta = footer button ka text (customer = apni mini-site URL/phone
-    khali =
+    cta = footer button ka text (customer = apni mini-site URL/phone; khali =
     default leadsgenai.in/audit lead-magnet). fg_override (#RRGGBB) = client
     brand-primary color (accent-rotation ki jagah), invalid/khali = palette.
     """
@@ -91,12 +88,12 @@ def _fallback_slides(
     business: str, niche: str, topic: str, n: int, cta: str = ""
 ) -> list[dict[str, str]]:
     nm = (niche or "business").replace("_", " ")
-    # Last-slide CTA line - customer ho to apni mini-site/phone; warna default audit.
+    # Last-slide CTA line — customer ho to apni mini-site/phone; warna default audit.
     last_cta = (cta or "").strip() or _DEFAULT_CTA
     base = [
         {
             "title": topic or f"{nm} growth ka raaz",
-            "body": f"{business} - yeh carousel aapke kaam ka hai. Swipe karo ->",
+            "body": f"{business} — yeh carousel aapke kaam ka hai. Swipe karo →",
         },
         {
             "title": "80% leads kyu khoti hain?",
@@ -104,15 +101,15 @@ def _fallback_slides(
         },
         {
             "title": "Fix: 2-minute auto-callback",
-            "body": "AI har inquiry ko turant call/WhatsApp karta hai - aap sirf garam leads se baat karo.",
+            "body": "AI har inquiry ko turant call/WhatsApp karta hai — aap sirf garam leads se baat karo.",
         },
         {
             "title": "Roz ka content autopilot",
-            "body": "Festival posts, offers, reviews - sab AI banata hai, aap 1-click post karte ho.",
+            "body": "Festival posts, offers, reviews — sab AI banata hai, aap 1-click post karte ho.",
         },
         {
             "title": "Aaj hi shuru karo",
-            "body": f"Abhi book karo ya poocho - {last_cta}",
+            "body": f"Abhi book karo ya poocho — {last_cta}",
         },
     ]
     return base[: max(3, min(n, 5))]
@@ -130,11 +127,11 @@ async def generate_carousel(
 ) -> dict[str, Any]:
     """Carousel pack: slide texts (free-LLM, fallback) + per-slide SVG. Kabhi raise nahi.
 
-    slug/phone = CUSTOMER carousel ke liye - slide-footer CTA client ki apni
+    slug/phone = CUSTOMER carousel ke liye — slide-footer CTA client ki apni
     mini-site (/b/<slug>) ya phone banti hai (default leadsgenai.in/audit sirf
     tab jab dono khali = agency/admin use). `cta` = explicit override.
     brand_primary (#RRGGBB) = client brand color accent-rotation ki jagah.
-    Sab optional - na do to purana byte-identical behavior (backward-compat).
+    Sab optional — na do to purana byte-identical behavior (backward-compat).
     """
     business = (business_name or "Aapka Business").strip()[:80]
     n = max(3, min(int(slides or 4), 5))
@@ -146,9 +143,9 @@ async def generate_carousel(
 
         raw, _ = await chat(
             (
-                "Tu Indian local-business social media expert hai. Carousel slides bana - "
+                "Tu Indian local-business social media expert hai. Carousel slides bana — "
                 'JSON list: [{"title": "<6 words>", "body": "<25 words Hinglish>"}]. '
-                "Slide 1 = hook, last = CTA (is business ko book/contact karne ko bolo - "
+                "Slide 1 = hook, last = CTA (is business ko book/contact karne ko bolo — "
                 "koi external website/audit link mat likho). Salesy nahi, value-first."
             ),
             [
@@ -186,6 +183,6 @@ async def generate_carousel(
         "niche": niche,
         "topic": topic,
         "slides": out_slides,
-        "caption": f"{topic or 'Growth tips'} - swipe karo 👉 | {business}",
+        "caption": f"{topic or 'Growth tips'} — swipe karo 👉 | {business}",
         "note": "Har slide ka SVG download karke carousel post banao (IG/LinkedIn).",
     }

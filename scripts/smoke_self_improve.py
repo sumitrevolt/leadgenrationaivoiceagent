@@ -1,7 +1,7 @@
-"""Smoke - self-improve loop + skill library + naye social channels (VPS pe docker exec se).
+"""Smoke — self-improve loop + skill library + naye social channels (VPS pe docker exec se).
 
 Run: docker exec leadgen_worker python scripts/smoke_self_improve.py
-(worker container me - web event-loop touch nahi hota.)
+(worker container me — web event-loop touch nahi hota.)
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def main() -> None:
     )
     print("STATE", json.dumps(st.get("state") or {}, ensure_ascii=False))
 
-    # ek inline iteration (smoke) - pick->execute->learn
+    # ek inline iteration (smoke) — pick→execute→learn
     res = asyncio.run(self_improve.run_once())
     print(
         "RUN_ONCE",

@@ -1,4 +1,4 @@
-"""Hot Queue (GTM Track 1) - interested/question replies ki workable daily queue."""
+"""Hot Queue (GTM Track 1) — interested/question replies ki workable daily queue."""
 
 import json
 from urllib.parse import parse_qs, urlparse
@@ -15,7 +15,7 @@ def _seed(tmp_path, monkeypatch):
 
     f = tmp_path / "reply_drafts.jsonl"
     rows = [
-        # a@x.com ke 2 rows - dedupe me sirf LATEST (at=..10T12) rehna chahiye
+        # a@x.com ke 2 rows — dedupe me sirf LATEST (at=..10T12) rehna chahiye
         {
             "from": "a@x.com",
             "subject": "old ping",
@@ -84,7 +84,7 @@ def test_hot_queue_filters_dedupes_and_joins(tmp_path, monkeypatch):
     assert parse_qs(urlparse(a["wa_link"]).query)["text"] == ["naya draft"]
     b = q[0]
     assert b["wa_link"] == ""
-    assert b["phone"] == ""  # prospect map me nahi - graceful empty
+    assert b["phone"] == ""  # prospect map me nahi — graceful empty
 
 
 def test_hot_queue_email_requires_confirmed_outreach_prospect(tmp_path, monkeypatch):
@@ -226,7 +226,7 @@ def test_hot_queue_never_raises_on_missing_file(tmp_path, monkeypatch):
 
 
 def test_endpoints_working(tmp_path, monkeypatch):
-    # NOTE: tests/conftest.py globally mocks require_admin (line ~195) - anon-reject
+    # NOTE: tests/conftest.py globally mocks require_admin (line ~195) — anon-reject
     # ka real assert tests/security/ suite me hota hai (jo overrides strip karti hai).
     _seed(tmp_path, monkeypatch)
     r = client.get("/api/growth/reply/hot-queue")

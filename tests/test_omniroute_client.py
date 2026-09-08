@@ -1,4 +1,4 @@
-"""Test app/platform/omniroute_client.py - must stay fully INERT by default.
+"""Test app/platform/omniroute_client.py — must stay fully INERT by default.
 
 Audit 2026-07-12. Sumit's OmniRoute instance has no admin auth configured, so this
 module must never attempt a real network call unless explicitly enabled+keyed.
@@ -140,7 +140,7 @@ class TestOmniRouteResponsesAdapter:
 
         assert result is not None
         assert result.text == "safe result"
-        assert result.provider == "combo"  # bare combo id - not faked as a provider
+        assert result.provider == "combo"  # bare combo id — not faked as a provider
         assert seen["url"].endswith("/v1/responses")
         assert seen["payload"]["model"] == "leadsgen combo 1"
         assert "9876543210" not in str(seen["payload"])
@@ -195,7 +195,7 @@ class TestOmniRouteResponsesAdapter:
 
 
 class TestOmniRouteAgentHook:
-    """ADR-108: staff-agent opt-in gate - double-gated, sanitized, fail-open."""
+    """ADR-108: staff-agent opt-in gate — double-gated, sanitized, fail-open."""
 
     def _clear(self, monkeypatch):
         monkeypatch.delenv("OMNIROUTE_ENABLED", raising=False)
@@ -337,11 +337,11 @@ class TestOmniRouteAgentHook:
 
     @pytest.mark.asyncio
     async def test_free_ai_chat_bulk_uses_hook_and_realtime_never_does(self, monkeypatch):
-        """free_ai.chat: bulk profile -> omniroute pre-hook; realtime -> existing chain only.
+        """free_ai.chat: bulk profile → omniroute pre-hook; realtime → existing chain only.
 
         conftest.py suite-wide `free_ai.chat` ko stub karta hai (network-hang guard),
         isliye yahan module ki FRESH isolated copy load karke REAL chat test karte hai
-        - sys.modules untouched, baaki suite ka stub intact.
+        — sys.modules untouched, baaki suite ka stub intact.
         """
         import importlib.util
 
@@ -359,7 +359,7 @@ class TestOmniRouteAgentHook:
             return "omni agent reply"
 
         monkeypatch.setattr("app.platform.omniroute_client.try_agent_chat", fake_hook)
-        # Cache OFF for this test - hook se pehle cache-hit na aa jaye.
+        # Cache OFF for this test — hook se pehle cache-hit na aa jaye.
         monkeypatch.setattr(free_ai, "_llm_cache_on", lambda prof: False)
 
         text, provider = await free_ai.chat(
@@ -375,7 +375,7 @@ class TestOmniRouteAgentHook:
         assert calls[0]["agent_key"] == "zara"
         assert calls[0]["product"] == "marketing"
 
-        # Realtime (voice hot-path) must NEVER touch the hook - chain empty = ("","").
+        # Realtime (voice hot-path) must NEVER touch the hook — chain empty = ("","").
         monkeypatch.setattr(free_ai, "_build_llm_chain", lambda prof: [])
         text2, provider2 = await free_ai.chat(
             "system",

@@ -1,4 +1,4 @@
-"""Tests - Rowboat-inspired compounding memory (memory_vault, call_prep, live_notes).
+"""Tests — Rowboat-inspired compounding memory (memory_vault, call_prep, live_notes).
 
 Offline + isolated: koi network/DB nahi. Stores tmp_path pe monkeypatch,
 free_ai.chat mocked. Style: tests/test_parity_conversion.py jaisa.
@@ -16,7 +16,7 @@ def _setup_vault(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# memory_vault - events, profile facts, markdown round-trip
+# memory_vault — events, profile facts, markdown round-trip
 # --------------------------------------------------------------------------- #
 def test_add_event_and_profile(tmp_path, monkeypatch):
     mv = _setup_vault(tmp_path, monkeypatch)
@@ -82,7 +82,7 @@ def test_context_snippet(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# memory_vault.sync_all - cursor tail over jsonl stores
+# memory_vault.sync_all — cursor tail over jsonl stores
 # --------------------------------------------------------------------------- #
 def _write_jsonl(path, rows):
     with open(path, "w", encoding="utf-8") as f:
@@ -186,12 +186,12 @@ def test_sync_all_cursor(tmp_path, monkeypatch):
     # session B (no phone) skip hua
     assert mv.get_memory("prospects", "1111111111") is None
 
-    # second run - cursor se kuch naya nahi
+    # second run — cursor se kuch naya nahi
     res2 = mv.sync_all()
     assert res2["inquiries"] == 0 and res2["widget_chats"] == 0
     assert res2["dialer_logs"] == 0 and res2["deals"] == 0
 
-    # naya line append -> sirf wahi process ho
+    # naya line append → sirf wahi process ho
     with open(dialer, "a", encoding="utf-8") as f:
         f.write(json.dumps({"phone": "9876543210", "disposition": "callback", "notes": ""}) + "\n")
     res3 = mv.sync_all()
@@ -216,7 +216,7 @@ def test_sync_gate_off(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# call_prep - brief with LLM mock + static fallback
+# call_prep — brief with LLM mock + static fallback
 # --------------------------------------------------------------------------- #
 def test_prep_brief_llm_and_fallback(tmp_path, monkeypatch):
     mv = _setup_vault(tmp_path, monkeypatch)
@@ -269,7 +269,7 @@ def test_prep_brief_llm_and_fallback(tmp_path, monkeypatch):
     assert r["brief"]["objections"][0]["jawab"] == "10 leads free"
     assert isinstance(r["score"], int)
 
-    # LLM fail -> static fallback, never-empty
+    # LLM fail → static fallback, never-empty
     async def boom(*a, **kw):
         raise RuntimeError("429")
 
@@ -283,7 +283,7 @@ def test_prep_brief_llm_and_fallback(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# live_notes - registry + refresh + daily dedupe + gate
+# live_notes — registry + refresh + daily dedupe + gate
 # --------------------------------------------------------------------------- #
 def test_live_notes_topics_and_refresh(tmp_path, monkeypatch):
     mv = _setup_vault(tmp_path, monkeypatch)
@@ -311,7 +311,7 @@ def test_live_notes_topics_and_refresh(tmp_path, monkeypatch):
     import app.voice_agent.free_ai as free_ai
 
     async def fake_chat(sys, msgs, **kw):
-        return ("Aaj solar subsidy trending hai - post daalo.", "mock")
+        return ("Aaj solar subsidy trending hai — post daalo.", "mock")
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
@@ -343,7 +343,7 @@ def test_live_notes_gate_off(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# F4 glue - sales_assistant backward-compat (+ optional phone)
+# F4 glue — sales_assistant backward-compat (+ optional phone)
 # --------------------------------------------------------------------------- #
 def test_sales_assistant_phone_param(tmp_path, monkeypatch):
     mv = _setup_vault(tmp_path, monkeypatch)
@@ -361,12 +361,12 @@ def test_sales_assistant_phone_param(tmp_path, monkeypatch):
 
     from app.marketing import sales_assistant
 
-    # old signature (no phone) - backward compatible
+    # old signature (no phone) — backward compatible
     r = asyncio.run(sales_assistant.handle_message("kitna mehnga hai?", "Ravi Solar", "solar"))
     assert r["ok"] is True and r["intent"] == "price"
     assert "History" not in captured["user"]
 
-    # with phone - memory context prompt me prepend
+    # with phone — memory context prompt me prepend
     r2 = asyncio.run(
         sales_assistant.handle_message(
             "kitna mehnga hai?", "Ravi Solar", "solar", phone="9876543210"
@@ -375,7 +375,7 @@ def test_sales_assistant_phone_param(tmp_path, monkeypatch):
     assert r2["ok"] is True
     assert "History" in captured["user"] and "price poocha" in captured["user"]
 
-    # LLM fail + memory fail bhi -> template fallback ok
+    # LLM fail + memory fail bhi → template fallback ok
     async def boom(*a, **kw):
         raise RuntimeError("down")
 

@@ -2,23 +2,22 @@
 Per-niche knowledge + objection playbook for all builtin niches.
 
 `niches.py` me har niche ka TARGETING + PRICING config hai. Yeh module uska
-*conversation* counterpart hai - har niche ke liye:
+*conversation* counterpart hai — har niche ke liye:
 
   - facts:      grounded, end-customer-facing knowledge (jo agent SACH-SACH bol
                 sakta hai). DATA agent inhe client ke KB me seed karta hai aur
                 LEADS agent inse grounded jawab deta hai (hallucination se bachne
-                ke liye - natural_dialog ka anti-hallucination design).
+                ke liye — natural_dialog ka anti-hallucination design).
   - benefits:   end customer ko kyun farak padta hai (3-5 short points).
   - objections: objection_key -> Hinglish rebuttal (LEADS agent ke liye).
 
 Frame: LEADS agent client ke END CUSTOMER ko call karta hai (niche ka
 `target_type`/`end_customer` dekho). Isliye facts/objections end-customer ki
-bhasha me likhe hain, factual rakhe hain - jahan exact number/scheme vary karti
+bhasha me likhe hain, factual rakhe hain — jahan exact number/scheme vary karti
 hai wahan "team exact detail confirm karwa degi" pe defer karte hain.
 
 Keys EXACTLY app.niches.NICHES jaise hain. Naya niche add karte waqt yahan bhi
-ek pack add karo
-lookups `.get()` + generic fallback se safe hain.
+ek pack add karo; lookups `.get()` + generic fallback se safe hain.
 
 Usage:
     from app.niche_knowledge import knowledge_facts, objection_response
@@ -32,16 +31,16 @@ from typing import Any
 
 # Common objection rebuttals jo har niche pe kaam aate hain (per-niche pack inhe
 # override kar sakta hai). End-customer ke saath warm, non-pushy tone.
-# NOTE: ye canonical CATEGORY keys hain - har category ka ek generic fallback hai
+# NOTE: ye canonical CATEGORY keys hain — har category ka ek generic fallback hai
 # taaki koi bhi niche bina apne specific rebuttal ke bhi kuch sahi bol sake.
 _GENERIC_OBJECTIONS: dict[str, str] = {
-    "not_interested": "Bilkul samajhti hoon. Bas ek chhoti si baat - agar yeh aapke kaam ka na ho to main 1 minute me phone rakh deti hoon, par sun lijiye?",
+    "not_interested": "Bilkul samajhti hoon. Bas ek chhoti si baat — agar yeh aapke kaam ka na ho to main 1 minute me phone rakh deti hoon, par sun lijiye?",
     "busy": "Koi baat nahi, aap busy hain. Main aapko kis time call karoon jo aapke liye sahi rahe?",
     "send_details": "Zaroor, main WhatsApp pe detail bhej deti hoon. Bas 30 second me ek main baat bata doon taaki aapko pata ho kya bhej rahi hoon?",
-    "think_about_it": "Bilkul, sochna chahiye. Main koi pressure nahi de rahi - ek choti detail bhej deti hoon, aap aaram se dekh lena.",
-    "too_expensive": "Samajhti hoon. Aap apna budget batayein to main usi me best option nikaal deti hoon - aur EMI/flexible options bhi aksar hote hain.",
-    "already_have": "Achhi baat hai! Ek baar free compare/review kar lijiye - ho sakta hai behtar option ya thodi bachat mil jaaye, koi commitment nahi.",
-    "just_browsing": "Bilkul, abhi dekh-dekh rahe hain - samajh gayi. Main 1-2 options bhej deti hoon, jab man kare tab aage badhna, koi jaldi nahi.",
+    "think_about_it": "Bilkul, sochna chahiye. Main koi pressure nahi de rahi — ek choti detail bhej deti hoon, aap aaram se dekh lena.",
+    "too_expensive": "Samajhti hoon. Aap apna budget batayein to main usi me best option nikaal deti hoon — aur EMI/flexible options bhi aksar hote hain.",
+    "already_have": "Achhi baat hai! Ek baar free compare/review kar lijiye — ho sakta hai behtar option ya thodi bachat mil jaaye, koi commitment nahi.",
+    "just_browsing": "Bilkul, abhi dekh-dekh rahe hain — samajh gayi. Main 1-2 options bhej deti hoon, jab man kare tab aage badhna, koi jaldi nahi.",
 }
 
 # Canonical category -> niche pack me jo synonym keys ho sakti hain (preference
@@ -101,11 +100,11 @@ _OBJECTION_SYNONYMS: dict[str, list[str]] = {
 
 from app.niche_knowledge_data import NICHE_KNOWLEDGE  # noqa: F401  (data extracted 2026-06-20)
 
-# Generic pack - unknown niche ya missing fields ke liye safe fallback.
+# Generic pack — unknown niche ya missing fields ke liye safe fallback.
 _GENERIC_PACK: dict[str, Any] = {
     "facts": [
         "Hum aapke business ke potential customers ko AI voice agent se call karke qualified leads laate hain.",
-        "Aap sirf qualified result ke paise dete ho - koi bada fixed setup nahi.",
+        "Aap sirf qualified result ke paise dete ho — koi bada fixed setup nahi.",
         "Demo free hai; 15 minute me dikha dete hain system kaise kaam karta hai.",
     ],
     "benefits": [
@@ -128,7 +127,7 @@ def get_knowledge_pack(niche_key: str | None) -> dict[str, Any]:
 
 
 def knowledge_facts(niche_key: str | None) -> list[str]:
-    """Grounded facts for a niche - DATA agent KB seed + LEADS agent grounding."""
+    """Grounded facts for a niche — DATA agent KB seed + LEADS agent grounding."""
     return list(get_knowledge_pack(niche_key).get("facts", []))
 
 
@@ -273,5 +272,5 @@ try:
                 if _item not in _dst:
                     _dst.append(_item)
         _p.setdefault("objections", {}).update(_v.get("objections", {}))
-except Exception:  # pragma: no cover - overlay optional
+except Exception:  # pragma: no cover — overlay optional
     pass

@@ -266,7 +266,7 @@ class VoiceAgent:
         """Handle opt-out request"""
         context.status = CallStatus.COMPLETED
         context.detected_intent = "opt_out"
-        # TCCCPR: opt-out -> instant suppression-list (best-effort, never blocks the reply).
+        # TCCCPR: opt-out → instant suppression-list (best-effort, never blocks the reply).
         try:
             from app.telephony.consent_ledger import record_opt_out
 

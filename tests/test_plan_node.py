@@ -1,10 +1,9 @@
-"""COORD_PLAN_NODE - MetaGPT-ActionNode-style structured plan fill/review/revise.
+"""COORD_PLAN_NODE — MetaGPT-ActionNode-style structured plan fill/review/revise.
 
 Steal-item #1 from the MetaGPT evaluation (2026-08-05). Covers the pure
 parse/validate step, the fill -> review -> revise cycle (fake LLM), and the
 INERT contract: flag OFF => coordinator.plan() behaviour is byte-identical to
-legacy (plan_node never invoked)
-flag ON => plan_node is the canary with the
+legacy (plan_node never invoked); flag ON => plan_node is the canary with the
 legacy `_extract_list` path retained as fallback.
 """
 

@@ -1,24 +1,22 @@
-"""Static code diagnostics for engineering agents - OpenCode (anomalyco/opencode) parity.
+"""Static code diagnostics for engineering agents — OpenCode (anomalyco/opencode) parity.
 
 OpenCode ka defining engineering feature: jab agent code edit karta hai, woh LSP server
-se diagnostics (syntax/undefined-name/type errors) leke wapas LLM ko deta hai -> LLM khud
+se diagnostics (syntax/undefined-name/type errors) leke wapas LLM ko deta hai → LLM khud
 self-correct karta. Yeh "diagnostics-before-trust" loop is project me missing tha.
 
-Adapted honestly to our architecture (agents code GENERATE/APPLY nahi karte - sirf
+Adapted honestly to our architecture (agents code GENERATE/APPLY nahi karte — sirf
 proposals/sketches dete, deploy-gated): yeh module woh validation 2 jagah deta jahan
-genuine value hai -
-  1. `check_references()` -> Vikram code_upgrader ke proposal-cited paths REALLY exist
+genuine value hai —
+  1. `check_references()` → Vikram code_upgrader ke proposal-cited paths REALLY exist
      karte hain ya nahi (hallucinated file-path = top LLM failure-mode). Gated, low-noise.
-  2. `check_code()` (ast syntax + optional ruff lint) -> admin diagnostics endpoint, taaki
+  2. `check_code()` (ast syntax + optional ruff lint) → admin diagnostics endpoint, taaki
      admin patch-code ko approve karne se PEHLE validate kare (human-in-loop = hamara
      deploy-gated philosophy).
 
-Design (project patterns): never-raise, stdlib-baseline (`ast` always
-`ruff` OPTIONAL -
+Design (project patterns): never-raise, stdlib-baseline (`ast` always; `ruff` OPTIONAL —
 present ho to undefined-name/F-rules milte, warna sirf syntax). Read-only, import-safe.
 
-Flag: CODE_DIAGNOSTICS=1 (gates the AUTOMATIC Vikram self-check
-admin endpoint
+Flag: CODE_DIAGNOSTICS=1 (gates the AUTOMATIC Vikram self-check; admin endpoint
 flag-independent).
 """
 
@@ -44,12 +42,11 @@ def enabled() -> bool:
 
 
 def check_code(code: str, run_lint: bool = True) -> list[dict[str, Any]]:
-    """Validate a Python snippet -> diagnostics list.
+    """Validate a Python snippet → diagnostics list.
 
     Returns [{level, code, line, col, message}]. Empty = clean. Never raises.
     Baseline = `ast` syntax (stdlib). If `ruff` binary present, adds pyflakes-class
-    rules (undefined names etc.) - the LSP-diagnostics equivalent
-    absent -> syntax-only.
+    rules (undefined names etc.) — the LSP-diagnostics equivalent; absent → syntax-only.
     """
     src = textwrap.dedent(code or "").strip("\n")
     if not src.strip():
@@ -68,7 +65,7 @@ def check_code(code: str, run_lint: bool = True) -> list[dict[str, Any]]:
                 "message": (e.msg or "syntax error")[:_MSG_CAP],
             }
         )
-        return diags  # unparseable -> linting impossible
+        return diags  # unparseable → linting impossible
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"check_code ast failed: {e}")
         return diags
@@ -129,7 +126,7 @@ def _ruff_lint(src: str) -> list[dict[str, Any]]:
 def check_references(paths: list[str], project_root: str = ".") -> list[dict[str, Any]]:
     """Verify each cited path exists in the repo (catches hallucinated file refs).
 
-    `paths` may carry a ":line-range" suffix (e.g. "app/x.py:10-20") - stripped.
+    `paths` may carry a ":line-range" suffix (e.g. "app/x.py:10-20") — stripped.
     Never raises.
     """
     diags: list[dict[str, Any]] = []
@@ -164,7 +161,7 @@ def check_references(paths: list[str], project_root: str = ".") -> list[dict[str
 def summary(diags: list[dict[str, Any]]) -> str:
     """Compact human/LLM-readable diagnostics summary."""
     if not diags:
-        return "ok - no diagnostics"
+        return "ok — no diagnostics"
     errs = sum(1 for d in diags if d.get("level") == "error")
     warns = len(diags) - errs
     lines = [

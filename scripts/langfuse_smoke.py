@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""langfuse_smoke.py - Langfuse ingestion wiring verify (deploy ke baad).
+"""langfuse_smoke.py — Langfuse ingestion wiring verify (deploy ke baad).
 
 Container me chalao:  docker exec leadgen_app python scripts/langfuse_smoke.py
 Ek test trace POST karta + HTTP status print karta. Expect: 207 (multi-status =
-accepted). 401/403 = auth galat
-connection-error = network/endpoint. Trace
+accepted). 401/403 = auth galat; connection-error = network/endpoint. Trace
 "deploy-smoke-test" naam se Langfuse dashboard me dikhega (harmless).
 """
 

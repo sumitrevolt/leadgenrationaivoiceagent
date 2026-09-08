@@ -1,4 +1,4 @@
-"""Voice AUDIO-path diagnostic - kyun agent 'reply nahi deta' real call me.
+"""Voice AUDIO-path diagnostic — kyun agent 'reply nahi deta' real call me.
 Brain (text) theek ho sakta hai par AUDIO toot-ta hai: STT (sunna) ya TTS (bolna).
 Run: docker cp scripts/voice_audio_check.py leadgen_app:/tmp/ && docker exec leadgen_app python /tmp/voice_audio_check.py
 """
@@ -28,10 +28,10 @@ def _sec(t):
 print("VOICE AUDIO CHECK")
 
 # 1. STT key (agent 'sunne' ke liye Groq whisper chahiye)
-_sec("1. STT (sunna) - GROQ key + provider")
+_sec("1. STT (sunna) — GROQ key + provider")
 g = os.environ.get("GROQ_API_KEY", "")
 print(
-    f"  GROQ_API_KEY: {'SET (len ' + str(len(g)) + ')' if g else 'MISSING ❌ - STT fail -> agent sun nahi payega'}"
+    f"  GROQ_API_KEY: {'SET (len ' + str(len(g)) + ')' if g else 'MISSING ❌ — STT fail -> agent sun nahi payega'}"
 )
 for k in ("GEMINI_API_KEY", "CEREBRAS_API_KEY", "MISTRAL_API_KEY"):
     print(f"  {k}: {'set' if os.environ.get(k) else 'missing'}")
@@ -45,8 +45,8 @@ try:
 except Exception as e:
     print(f"  [ERR] {e}")
 
-# 3. TTS (agent 'bolne' ke liye EdgeTTS) - REAL synth test
-_sec("3. TTS (bolna) - EdgeTTS synth test")
+# 3. TTS (agent 'bolne' ke liye EdgeTTS) — REAL synth test
+_sec("3. TTS (bolna) — EdgeTTS synth test")
 try:
     import edge_tts  # type: ignore
 
@@ -72,7 +72,7 @@ async def _tts_test():
 try:
     n = asyncio.run(_tts_test())
     if isinstance(n, int) and n > 1000:
-        print(f"  ✅ EdgeTTS synth OK - {n} bytes audio (agent bol sakta hai)")
+        print(f"  ✅ EdgeTTS synth OK — {n} bytes audio (agent bol sakta hai)")
     else:
         print(f"  ❌ EdgeTTS synth problem: {n} (agent ki reply audio nahi banegi -> silence)")
 except Exception as e:
@@ -100,8 +100,8 @@ try:
 except Exception as e:
     print(f"  [ERR] {e}")
 
-# 5. End-to-end brain reply (text) - confirm brain bolne-layak reply deta
-_sec("5. Brain reply (text) - sanity")
+# 5. End-to-end brain reply (text) — confirm brain bolne-layak reply deta
+_sec("5. Brain reply (text) — sanity")
 
 
 async def _brain_test():

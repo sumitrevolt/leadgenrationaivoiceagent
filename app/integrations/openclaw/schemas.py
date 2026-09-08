@@ -15,8 +15,7 @@ class CopilotCommandIn(BaseModel):
     text: str | None = Field(
         None,
         max_length=2000,
-        description="Optional natural-language original
-        never executed directly",
+        description="Optional natural-language original; never executed directly",
     )
     idempotency_key: str | None = Field(None, max_length=80)
     confirm: bool = False
@@ -24,7 +23,7 @@ class CopilotCommandIn(BaseModel):
 
 
 class CopilotNlIn(BaseModel):
-    """Natural language -> typed proposal (preview or execute)."""
+    """Natural language → typed proposal (preview or execute)."""
 
     text: str = Field(..., min_length=3, max_length=2000)
     execute: bool = False

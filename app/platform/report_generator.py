@@ -67,7 +67,7 @@ def _gap_rows(gaps: list[Gap], dashboard: str) -> list[list[str]]:
     return [
         [
             g.name,
-            ", ".join(g.competitive_reference) or "-",
+            ", ".join(g.competitive_reference) or "—",
             str(g.prevalence),
             g.impact.value.title(),
             g.effort.value.title(),
@@ -86,8 +86,8 @@ def _ux_rows_by_severity(issues: list[UXIssue], severity: Severity) -> list[list
             i.dashboard.title(),
             i.dimension,
             "Yes" if i.wcag_violation else "No",
-            i.wcag_criterion or "-",
-            textwrap.shorten(i.remediation, width=60, placeholder="...") if i.remediation else "-",
+            i.wcag_criterion or "—",
+            textwrap.shorten(i.remediation, width=60, placeholder="...") if i.remediation else "—",
         ]
         for i in filtered
     ]
@@ -100,7 +100,7 @@ def _backlog_section(items: list[BacklogItem]) -> str:
     for rank, bi in enumerate(items, 1):
         effort_label = f"{bi.estimated_days}d"
         lines.append(
-            f"{rank}. **{bi.item}** ({bi.dashboard}) - "
+            f"{rank}. **{bi.item}** ({bi.dashboard}) — "
             f"Category: {bi.category} | Effort: {effort_label} | "
             f"Rank: {bi.priority_rank:.0f}"
         )
@@ -273,9 +273,9 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
 
     # ── 7. Roadmap to Completion ───────────────────────────────────────────
     lines += ["## Roadmap to Completion", ""]
-    lines += [_sprint_section("Sprint 1 - Must Have (2 weeks)", roadmap["sprint_1"])]
-    lines += [_sprint_section("Sprint 2 - Should Have (2 weeks)", roadmap["sprint_2"])]
-    lines += [_sprint_section("Sprint 3+ - Remaining (4 weeks)", roadmap["sprint_3_plus"])]
+    lines += [_sprint_section("Sprint 1 — Must Have (2 weeks)", roadmap["sprint_1"])]
+    lines += [_sprint_section("Sprint 2 — Should Have (2 weeks)", roadmap["sprint_2"])]
+    lines += [_sprint_section("Sprint 3+ — Remaining (4 weeks)", roadmap["sprint_3_plus"])]
 
     lines += [
         f"**Total estimated effort:** {roadmap['total_days']} dev-days "
@@ -297,9 +297,9 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
         ep_rows = [
             [
                 d.get("method", "GET"),
-                d.get("path", "-"),
-                d.get("description", "-"),
-                d.get("effort", "-"),
+                d.get("path", "—"),
+                d.get("description", "—"),
+                d.get("effort", "—"),
             ]
             for d in new_endpoints
         ]
@@ -310,7 +310,7 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
     lines += ["### Backend Logic Changes", ""]
     if backend_changes:
         bc_rows = [
-            [d.get("component", "-"), d.get("change", "-"), d.get("effort", "-")]
+            [d.get("component", "—"), d.get("change", "—"), d.get("effort", "—")]
             for d in backend_changes
         ]
         lines += [md_table(["Component", "Change", "Effort"], bc_rows), ""]
@@ -386,7 +386,7 @@ def generate_prioritized_backlog_md(backlog: list[BacklogItem], roadmap: dict) -
         return f"## {title}\n\n**Items:** {len(items)} | **Total effort:** {total_d} dev-days\n\n{tbl}\n\n"
 
     lines = [
-        "# Prioritized Backlog - Dashboard Assessment",
+        "# Prioritized Backlog — Dashboard Assessment",
         "",
         f"**Generated:** {datetime.now(tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}  ",
         f"**Total items:** {len(backlog)} | "
@@ -508,7 +508,7 @@ def save_reports(
     - dashboard_metrics.json
     - PRIORITIZED_BACKLOG.md
 
-    Returns a dict mapping logical name -> absolute Path.
+    Returns a dict mapping logical name → absolute Path.
     """
     docs_dir.mkdir(parents=True, exist_ok=True)
 

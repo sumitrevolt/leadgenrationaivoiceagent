@@ -1,6 +1,6 @@
-"""Omnichannel Cadence Orchestrator - 2026 ka winning pattern.
+"""Omnichannel Cadence Orchestrator — 2026 ka winning pattern.
 
-Ek lead ko EK multi-channel sequence pe chalata: email -> SMS -> voice -> LinkedIn ->
+Ek lead ko EK multi-channel sequence pe chalata: email → SMS → voice → LinkedIn →
 WhatsApp, day-offset ke saath. Har step ban-safe **DRAFT/setup** deta (auto-send
 sirf us channel ke apne gate pe: email AUTO_EMAIL_OUTREACH, SMS SMS_DLT_ENABLED,
 WhatsApp opted-in only). Yahi "bahut saare approaches" ko EK system me baandhta hai.
@@ -25,7 +25,7 @@ logger = setup_logger(__name__)
 
 
 def _LEADS() -> str:
-    """Cadence per-lead state - resolved per call, never frozen at import."""
+    """Cadence per-lead state — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -38,7 +38,7 @@ def _LEADS() -> str:
 
 
 def _RUNS() -> str:
-    """Cadence step-run drafts - sibling file under the same store family."""
+    """Cadence step-run drafts — sibling file under the same store family."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -87,7 +87,7 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
-    # Lock + atomic - web (API enroll) + celery (run_due) dono likhte hain.
+    # Lock + atomic — web (API enroll) + celery (run_due) dono likhte hain.
     try:
         from app.utils.file_lock import locked_rewrite
 
@@ -112,7 +112,7 @@ def enroll(lead: dict[str, Any]) -> dict[str, Any]:
     biz = (lead.get("business_name") or lead.get("name") or "Business").strip()
     phone = "".join(c for c in str(lead.get("phone") or "") if c.isdigit())[-10:]
     email = (lead.get("email") or "").strip().lower()
-    # Resolver at each I/O site - binding to a local unbinds the allowlist (A3).
+    # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
     rows = _read(_LEADS())
     for r in rows:
         if (phone and r.get("phone") == phone) or (email and r.get("email") == email):
@@ -138,7 +138,7 @@ def enroll_many(leads: list[dict[str, Any]]) -> int:
 
 
 async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
-    """Ek channel-step chalao -> draft/result. Ban-safe (auto-send channel-gate pe)."""
+    """Ek channel-step chalao → draft/result. Ban-safe (auto-send channel-gate pe)."""
     ch, action = step["channel"], step["action"]
     biz, niche = rec["business_name"], rec["niche"]
     phone, city = rec.get("phone", ""), rec.get("city", "")
@@ -146,7 +146,7 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
     try:
         if ch == "email":
             out["draft"] = (
-                f"[Email/{action}] {biz} - AI marketing + 2-min inquiry calling. Free audit: leadsgenai.in/audit"
+                f"[Email/{action}] {biz} — AI marketing + 2-min inquiry calling. Free audit: leadsgenai.in/audit"
             )
             out["note"] = "auto via AUTO_EMAIL_OUTREACH (Rohan)"
         elif ch == "sms":
@@ -168,7 +168,7 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
             try:
                 pitch = prospector.build_pitch(biz, niche, city)
             except Exception:
-                pitch = f"Namaste {biz}! LeadGen AI - AI se leads. Free audit: leadsgenai.in/audit"
+                pitch = f"Namaste {biz}! LeadGen AI — AI se leads. Free audit: leadsgenai.in/audit"
             out["draft"] = pitch
             if phone:
                 out["wa_link"] = (
@@ -177,15 +177,14 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
             out["note"] = "1-click human send (cold auto = ban)"
         elif ch == "voice":
             out["note"] = "AI callback queued (telephony+DLT live hone par auto)"
-            out["draft"] = f"Voice: {biz} ko AI callback - qualify + demo + booking."
+            out["draft"] = f"Voice: {biz} ko AI callback — qualify + demo + booking."
         elif ch == "linkedin":
             from app.marketing import linkedin_assist
 
             d = await linkedin_assist.draft_outreach(biz, biz, niche)
             out["draft"] = d.get("connect_note")
             out["linkedin"] = {k: d.get(k) for k in ("comment", "connect_note", "dm")}
-            out["note"] = "manual send (ToS)
-            comment-first"
+            out["note"] = "manual send (ToS); comment-first"
     except Exception as e:  # noqa: BLE001
         out["error"] = str(e)[:120]
     return out
@@ -195,7 +194,7 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
     """Due steps advance karo across enrolled leads. GATED CADENCE_ENGINE. Kabhi raise nahi.
 
     ``limit`` = max ACTIVE leads to examine (not file-prefix rows). Prod pe pehle
-    ~100 ``done`` rows file ke top pe baithe the -> ``rows[:limit]`` sirf unhe
+    ~100 ``done`` rows file ke top pe baithe the → ``rows[:limit]`` sirf unhe
     dekhta tha aur 7k+ active leads starve ho rahe the (Anika idle).
     """
     if not _enabled():
@@ -241,7 +240,7 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
     active = sum(1 for r in rows if r.get("status") == "active")
     if advanced:
         # Staff-visibility (2026-07-01): omnichannel cadence runs on a schedule
-        # (team_scheduler.py) with zero staff attribution today - invisible on
+        # (team_scheduler.py) with zero staff attribution today — invisible on
         # /app/team. Attribute to "anika" (Cadence Manager).
         try:
             from app.platform import team
@@ -269,7 +268,7 @@ def list_runs(limit: int = 50) -> list[dict[str, Any]]:
 def stats() -> dict[str, Any]:
     rows = _read(_LEADS())
     # Apollo-style per-step analytics: har channel/action pe kitne touches gaye
-    # (sequence ka kaunsa step kitna chala - drop-off saaf dikhta).
+    # (sequence ka kaunsa step kitna chala — drop-off saaf dikhta).
     step_counts: dict[str, int] = {}
     try:
         for r in _read(_RUNS()):

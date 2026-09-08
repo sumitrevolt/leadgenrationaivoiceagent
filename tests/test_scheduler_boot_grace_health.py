@@ -58,7 +58,7 @@ def test_same_day_boot_grace_is_scheduled_off_not_overdue(tmp_path, monkeypatch)
 
 
 def test_same_day_boot_grace_after_window_is_recoverable(tmp_path, monkeypatch):
-    """Lost deferred countdown after window -> overdue so run_due can re-dispatch."""
+    """Lost deferred countdown after window → overdue so run_due can re-dispatch."""
     from zoneinfo import ZoneInfo
 
     from app.platform import automation_health as ah

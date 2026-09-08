@@ -1,4 +1,4 @@
-"""Revenue Sprint Engine - 24x7 continuous cycle manager for the ₹5L/7-day goal.
+"""Revenue Sprint Engine — 24x7 continuous cycle manager for the ₹5L/7-day goal.
 
 This is the project-tracked/path-hardened copy of the owner's auto-pilot. It drives
 the **owner's Hermes Desktop CLI** (`hermes kanban swarm`) to launch one sprint
@@ -7,14 +7,13 @@ done, the next tick launches the next cycle automatically.
 
 Compliance GUARDRAILS (never relax these) are baked into every goal text:
 
-* NO bulk or cold WhatsApp auto-sends - drafts only, owner 1-click review.
+* NO bulk or cold WhatsApp auto-sends — drafts only, owner 1-click review.
 * Email volume max 25/day.
 * Outbound calling ONLY via the VPS scheduler (DND fail-closed, TRAI window untouched).
-* Payment/UPI confirmations are OWNER-ONLY - never automate money steps.
+* Payment/UPI confirmations are OWNER-ONLY — never automate money steps.
 
 This engine is owner-gated and read-mostly: it spawns Hermes bots that DRAFT
-outreach
-it never sends, and never automates money.
+outreach; it never sends, and never automates money.
 
 Usage (run from the project root on the owner's Windows machine):
 
@@ -144,18 +143,13 @@ def launch_cycle(cycle: int, log) -> tuple[dict | None, str]:
         f"REVENUE SPRINT CYCLE-{cycle} (goal Rs {GOAL_TOTAL_INR:,} in {GOAL_DAYS} days, "
         f"today=day{day}). Live data ke liye run karo: python "
         f"{brief_path()} (read-only prod stats). WORKERS: sales=draft personalized "
-        f"follow-up EMAILs for top warm leads
-        mercury=draft 2 social posts + 1 blog "
-        f"outline promoting LeadGen Main plan Rs1999
-        operations=pipeline audit - "
+        f"follow-up EMAILs for top warm leads; mercury=draft 2 social posts + 1 blog "
+        f"outline promoting LeadGen Main plan Rs1999; operations=pipeline audit - "
         f"stale/blocked leads + dialer readiness. VERIFIER sentry: reject compliance "
         f"violations + wrong pricing (Rs1999/Rs5999 only). SYNTHESIZER commander: final "
         f"ranked action list for OWNER. GUARDRAILS: NO bulk/cold WhatsApp auto-sends - "
-        f"drafts only for owner 1-click review
-        email volume max 25/day
-        outbound calling "
-        f"ONLY via VPS scheduler (DND fail-closed, TRAI window untouched)
-        payment/UPI "
+        f"drafts only for owner 1-click review; email volume max 25/day; outbound calling "
+        f"ONLY via VPS scheduler (DND fail-closed, TRAI window untouched); payment/UPI "
         f"confirmations are OWNER-ONLY - never automate money steps."
     )
     cmd = [
@@ -211,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         if st.get("synth_id"):
             log(f"SYNTH_STAT : {task_status(st['synth_id'])}")
         else:
-            log("SYNTH_STAT : none (fresh start - next tick launches cycle 1)")
+            log("SYNTH_STAT : none (fresh start — next tick launches cycle 1)")
         return 0
 
     # If the current cycle's synthesizer is still working, wait for it.

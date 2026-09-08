@@ -1,4 +1,4 @@
-"""ADR-184: Enterprise Sales-Force Persona Registry - contract tests.
+"""ADR-184: Enterprise Sales-Force Persona Registry — contract tests.
 
 Har staff agent ka DISTINCT enterprise persona hona chahiye:
   - unique system_prompt (word-for-word different)

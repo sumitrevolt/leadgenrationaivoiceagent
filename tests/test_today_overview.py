@@ -1,4 +1,4 @@
-"""today_overview - plain-Hinglish '🏠 Aaj' admin snapshot.
+"""today_overview — plain-Hinglish '🏠 Aaj' admin snapshot.
 
 Guards the admin-friendly contract: build() never raises, returns the expected
 shape, and every scheduled job has a human Hinglish label (no raw job-keys leak
@@ -44,7 +44,7 @@ def test_needs_decision_pulls_from_approvals_bridge(monkeypatch):
 
 
 def test_needs_decision_fail_open_zero(monkeypatch):
-    """Bridge toote/creds na ho to 0 (fail-open) - kabhi false 'pending' alarm nahi."""
+    """Bridge toote/creds na ho to 0 (fail-open) — kabhi false 'pending' alarm nahi."""
     import app.platform.approvals_bridge as approvals_bridge
 
     def _boom(include_decided=False):
@@ -57,7 +57,7 @@ def test_needs_decision_fail_open_zero(monkeypatch):
 
 def test_headline_says_auto_done_not_pending(monkeypatch):
     """Jab kaam auto ho-chuka ho aur koi approval pending na ho, headline 'KIYE'
-    (past, done) bole + 'kuch atka nahi' - NOT 'pending boss work'."""
+    (past, done) bole + 'kuch atka nahi' — NOT 'pending boss work'."""
     import app.platform.approvals_bridge as approvals_bridge
     import app.platform.team as team
 
@@ -94,7 +94,7 @@ def test_job_info_covers_every_scheduled_job():
 
 
 def test_prospect_label_matches_job_meta_owner():
-    """JOB_META prospect.owner=rohan - UI must not blame Dev (KNOWN_DRIFT class)."""
+    """JOB_META prospect.owner=rohan — UI must not blame Dev (KNOWN_DRIFT class)."""
     info = today_overview.JOB_INFO["prospect"]
     assert "Rohan" in info["label"]
     assert "Dev" not in info["label"]

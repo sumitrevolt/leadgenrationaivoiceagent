@@ -1,6 +1,6 @@
-"""Tests - Agent D SEO/Ops batch (rank tracker, conversations inbox, dialer).
+"""Tests — Agent D SEO/Ops batch (rank tracker, conversations inbox, dialer).
 
-Pure-python: no network, no DB - file stores tmp_path pe monkeypatch hote.
+Pure-python: no network, no DB — file stores tmp_path pe monkeypatch hote.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import json
 import os
 
 # --------------------------------------------------------------------------- #
-# F1 - rank_tracker
+# F1 — rank_tracker
 # --------------------------------------------------------------------------- #
 
 
@@ -22,11 +22,11 @@ def test_match_position_phone_and_fuzzy_name():
         {"name": "Sharma Solar Energy Pvt Ltd", "phone": "098450 22222"},
         {"name": "Green Power Co", "phone": ""},
     ]
-    # phone exact (last-10 digits) - position 2
+    # phone exact (last-10 digits) — position 2
     assert match_position(results, "Totally Different Name", "+919845022222") == 2
-    # fuzzy name substring - position 1
+    # fuzzy name substring — position 1
     assert match_position(results, "surya solar", None) == 1
-    # token-overlap fuzzy - "Sharma Solar" vs full name
+    # token-overlap fuzzy — "Sharma Solar" vs full name
     assert match_position(results, "Sharma Solar", None) == 2
     # not in list
     assert match_position(results, "Patel Tiles", None) is None
@@ -51,7 +51,7 @@ def test_rank_track_config_upsert_and_history(tmp_path, monkeypatch):
     assert out.get("ok") is True
     assert out["config"]["keywords"] == ["solar installer", "solar panel dealer"]
 
-    # upsert - same client dobara = 1 hi config
+    # upsert — same client dobara = 1 hi config
     rt.track("c1", ["solar installer"], "Pune", business_name="Sharma Solar")
     configs = rt.list_configs()
     assert len(configs) == 1
@@ -88,7 +88,7 @@ def test_check_rank_missing_inputs_never_raises():
 
 
 # --------------------------------------------------------------------------- #
-# F2 - conversations
+# F2 — conversations
 # --------------------------------------------------------------------------- #
 
 
@@ -100,7 +100,7 @@ def test_thread_key_phone_email_session():
     assert thread_key({"from": "919876543210@whatsapp"}) == "p:9876543210"
     assert thread_key({"session_id": "abc123"}) == "s:abc123"
     assert thread_key({}) == ""
-    assert thread_key({"phone": "123"}) == ""  # too short - unkeyable
+    assert thread_key({"phone": "123"}) == ""  # too short — unkeyable
 
 
 def test_conversations_aggregate_and_reply_draft(tmp_path, monkeypatch):
@@ -175,7 +175,7 @@ def test_conversations_aggregate_and_reply_draft(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# F3 - dialer_log
+# F3 — dialer_log
 # --------------------------------------------------------------------------- #
 
 

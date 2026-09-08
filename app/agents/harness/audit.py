@@ -13,8 +13,7 @@ This module mints ONE ``run_id`` and threads it everywhere:
   ``replay(run_id)`` can reconstruct trace -> action -> observation -> eval ->
   approval (OB-02).
 
-Append-only JSONL keeps it simple and durable
-swap the sink for your DB later.
+Append-only JSONL keeps it simple and durable; swap the sink for your DB later.
 """
 
 from __future__ import annotations
@@ -41,8 +40,7 @@ _RUN_LOG = os.getenv("HARNESS_RUN_LOG", "data/harness_runs.jsonl")
 
 def _emit_span_attr(ctx: RunContext, **attrs: Any) -> None:
     """Attach run_id (and extras) to the current LLM/OTel span if the app's
-    observability layer is available. Best-effort
-    never raises."""
+    observability layer is available. Best-effort; never raises."""
     try:
         from app import observability_llm as obs  # type: ignore
 

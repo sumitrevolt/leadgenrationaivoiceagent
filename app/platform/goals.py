@@ -1,8 +1,8 @@
-"""Goal hierarchy - Paperclip-inspired first-class goal records.
+"""Goal hierarchy — Paperclip-inspired first-class goal records.
 
-Company -> team -> agent goals with status lifecycle
-(planned -> active -> achieved | cancelled), optional task linkage and
-customer isolation. Additive: does NOT touch AgentTask / agent_task_queue -
+Company → team → agent goals with status lifecycle
+(planned → active → achieved | cancelled), optional task linkage and
+customer isolation. Additive: does NOT touch AgentTask / agent_task_queue —
 task linkage is advisory (goal.linked_task_ids), so the task queue's atomic
 checkout stays the single source of truth for task state.
 
@@ -111,9 +111,9 @@ async def create_goal(
     if not title:
         return {"ok": False, "error": "title required"}
     if not _valid_level(level):
-        return {"ok": False, "error": f"invalid level {level!r} - {GOAL_LEVELS}"}
+        return {"ok": False, "error": f"invalid level {level!r} — {GOAL_LEVELS}"}
     if not _valid_status(status):
-        return {"ok": False, "error": f"invalid status {status!r} - {GOAL_STATUSES}"}
+        return {"ok": False, "error": f"invalid status {status!r} — {GOAL_STATUSES}"}
     parent_goal_id = (parent_goal_id or "").strip() or None
     if parent_goal_id:
         parent = await get_goal(parent_goal_id)
@@ -143,7 +143,7 @@ async def create_goal(
             db.commit()
             db.refresh(goal)
         return {"ok": True, **goal.to_dict()}
-    except Exception as e:  # pragma: no cover - DB down path
+    except Exception as e:  # pragma: no cover — DB down path
         logger.warning("goals.create_goal failed: %s", e)
         return {"ok": False, "error": str(e)}
 
@@ -228,7 +228,7 @@ async def update_goal(
             if status is not None:
                 s = (status or "").strip()
                 if not _valid_status(s):
-                    return {"ok": False, "error": f"invalid status {s!r} - {GOAL_STATUSES}"}
+                    return {"ok": False, "error": f"invalid status {s!r} — {GOAL_STATUSES}"}
                 if s != row.status:
                     allowed = _GOAL_TRANSITIONS.get(row.status, ())
                     if s not in allowed:

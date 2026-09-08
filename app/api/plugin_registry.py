@@ -1,10 +1,10 @@
 """
 Plugin Registry Admin API
 =========================
-GET /api/admin/plugins          -> full manifest table + drift detection
-GET /api/admin/plugins/{id}     -> single plugin detail
-POST /api/admin/plugins/drift   -> drift check against a supplied snapshot
-GET /api/admin/plugins/health   -> live health status per plugin
+GET /api/admin/plugins          → full manifest table + drift detection
+GET /api/admin/plugins/{id}     → single plugin detail
+POST /api/admin/plugins/drift   → drift check against a supplied snapshot
+GET /api/admin/plugins/health   → live health status per plugin
 
 Auth: require_admin (Bearer JWT from /app/admin-login).
 """
@@ -343,7 +343,7 @@ async def get_plugin(
     plugin_id: str,
     _admin: Any = Depends(require_admin),
 ):
-    """Single plugin detail - full manifest with all fields."""
+    """Single plugin detail — full manifest with all fields."""
     reg = _ensure_catalog()
     m = reg.get(plugin_id)
     if m is None:
@@ -356,7 +356,7 @@ async def check_drift(
     _admin: Any = Depends(require_admin),
 ):
     """
-    Drift detection - compare current registry against the on-disk snapshot.
+    Drift detection — compare current registry against the on-disk snapshot.
 
     Returns list of MISSING/NEW/CHANGED entries. Empty = no drift.
     The snapshot is the manifest table exported at last catalog bootstrap.
@@ -505,11 +505,11 @@ def _compute_plugin_health(m: Any) -> PluginHealthEntry:
     health = "healthy"
 
     if flag_enabled is False and flag_status == "unset" and m.feature_flag:
-        # Flag exists but unset - degraded (component is dormant, not broken)
+        # Flag exists but unset — degraded (component is dormant, not broken)
         health = "degraded"
         reasons.append(f"flag {m.feature_flag} unset")
     elif flag_enabled is True:
-        pass  # flag ON - good
+        pass  # flag ON — good
     elif flag_status == "off":
         health = "degraded"
         reasons.append(f"flag {m.feature_flag} off")
@@ -552,8 +552,7 @@ def _compute_plugin_health(m: Any) -> PluginHealthEntry:
         probe_healthy=probe_healthy,
         queue_depth=queue_depth,
         dlq_count=dlq_count,
-        reason="
-        ".join(reasons),
+        reason="; ".join(reasons),
     )
 
 

@@ -1,7 +1,7 @@
 """Contract tests for the persistent project-context layer (scripts/*context*).
 
 Guards the three properties the layer promises: idempotent, secret-safe, and
-degrades. Pure-stdlib - runs without the full app import.
+degrades. Pure-stdlib — runs without the full app import.
 """
 
 from __future__ import annotations
@@ -53,11 +53,11 @@ def test_dry_run_writes_nothing(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_redact_masks_common_secret_shapes():
     samples = [
-        "sk-ABCDEF0123456789ABCDEF",  # nosecret - synthetic fixture, not a real key
-        "AKIAIOSFODNN7EXAMPLE",  # nosecret - synthetic fixture
-        "AIzaSyD-abc123_ABC456def789ghiJKL012mno",  # nosecret - synthetic fixture
-        "ghp_ABCDEFabcdef0123456789ABCDEFabcdef01",  # nosecret - synthetic fixture
-        "MISTRAL_API_KEY=abcdef0123456789xyz",  # nosecret - synthetic fixture
+        "sk-ABCDEF0123456789ABCDEF",  # nosecret — synthetic fixture, not a real key
+        "AKIAIOSFODNN7EXAMPLE",  # nosecret — synthetic fixture
+        "AIzaSyD-abc123_ABC456def789ghiJKL012mno",  # nosecret — synthetic fixture
+        "ghp_ABCDEFabcdef0123456789ABCDEFabcdef01",  # nosecret — synthetic fixture
+        "MISTRAL_API_KEY=abcdef0123456789xyz",  # nosecret — synthetic fixture
     ]
     for s in samples:
         assert pc._REDACTED in pc.redact(s), s

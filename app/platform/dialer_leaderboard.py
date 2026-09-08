@@ -1,10 +1,10 @@
-"""Dialer leaderboard - telecaller gamification (NeoDove-style) over dialer_logs.
+"""Dialer leaderboard — telecaller gamification (NeoDove-style) over dialer_logs.
 
 Kyun: jin clients ke paas khud ke telecallers hain, unke liye daily/weekly
 ranking = motivation + visibility ("🏆 Aaj ka top caller"). Data source =
-EXISTING `data/dialer_logs.jsonl` (dialer_log.log_disposition likhta - rebuild
+EXISTING `data/dialer_logs.jsonl` (dialer_log.log_disposition likhta — rebuild
 NAHI). Records: {phone, disposition, notes, at} (+ optional "caller"/"by" field
-- abhi disposition API caller naam nahi leta, isliye unnamed = "Team" bucket;
+— abhi disposition API caller naam nahi leta, isliye unnamed = "Team" bucket;
 caller field aate hi leaderboard per-person ho jayega, code ready).
 
 Scoring (pure-python, koi LLM/DB nahi):
@@ -114,11 +114,11 @@ def leaderboard(days: int = 1) -> dict[str, Any]:
             top = ranking[0]
             label = "Aaj ka" if days == 1 else f"Pichhle {days} din ka"
             shoutout = (
-                f"🏆 {label} top caller: {top['caller']} - {top['calls']} calls, "
+                f"🏆 {label} top caller: {top['caller']} — {top['calls']} calls, "
                 f"{top['interested']} interested ({top['score']} points)! Shabaash! 🎉"
             )
         else:
-            shoutout = "Abhi koi calls logged nahi - dialer kholo aur shuru karo! 📞"
+            shoutout = "Abhi koi calls logged nahi — dialer kholo aur shuru karo! 📞"
 
         return {
             "period_days": days,

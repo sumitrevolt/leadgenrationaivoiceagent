@@ -3,7 +3,7 @@
 Koi number humein ring kare aur miss ho jaye -> 2 min me AI us number ko wapas
 call kare (qualify + book). Research: missed-call-callback = highest SMB ROI.
 
-Reuses EXISTING callback path (telephony_vobiz.start_stream_call - wahi jo
+Reuses EXISTING callback path (telephony_vobiz.start_stream_call — wahi jo
 public_site._auto_callback use karta). Lead bhi capture hota.
 
 STATUS: ready-to-flip. GATED `MISSED_CALL_CALLBACK=1` + telephony reachable +
@@ -49,7 +49,7 @@ async def handle_missed_call(
     if not num:
         return {"ok": False, "reason": "no number"}
 
-    # 1) Lead capture (hamesha - callback ho ya na ho, lead na khoye)
+    # 1) Lead capture (hamesha — callback ho ya na ho, lead na khoye)
     try:
         from app.api.public_site import _append_jsonl, _save_lead_db
 
@@ -58,7 +58,7 @@ async def handle_missed_call(
             "business_name": business or "Missed caller",
             "phone": num,
             "niche": niche or "general",
-            "message": "Missed inbound call - callback pending",
+            "message": "Missed inbound call — callback pending",
             "source": "missed_call",
         }
         _append_jsonl(rec)
@@ -86,12 +86,12 @@ async def handle_missed_call(
         _RECENT[num] = time.time()
         # transactional callback to a number that rang us. NOTE: positional call
         # here previously stuffed `business` (free text) into start_stream_call's
-        # 3rd positional param, which is `client_id` - not a display name (there
+        # 3rd positional param, which is `client_id` — not a display name (there
         # is no client_name param; the callee resolves the real business name
         # from a genuine client_id via clients_store, if one is ever threaded
         # through here). Keyword args prevent that class of bug from recurring.
         # Wizard opening: webhook niche (e.g. salon_spa) + business name ho to
-        # wahi personalized opening use karein - resolve fail = "" -> niche-script
+        # wahi personalized opening use karein — resolve fail = "" → niche-script
         # chain (unchanged).
         from app.platform.inquiry_hooks import resolve_wizard_opening
 

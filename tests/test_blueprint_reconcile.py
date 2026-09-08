@@ -62,7 +62,7 @@ def test_merged_entries_name_a_canonical_node():
 
 
 def test_migrate_verified_is_evidence_backed():
-    """ "Verified" is never granted on a description - only on a real file."""
+    """ "Verified" is never granted on a description — only on a real file."""
     m = br.reconcile()
     for e in m["entries"]:
         if e["classification"] == "MIGRATE_VERIFIED":
@@ -80,7 +80,7 @@ def test_missing_runtime_has_no_file_claim():
 def test_subnodes_carry_their_parent():
     m = br.reconcile()
     subs = [e for e in m["entries"] if e["kind"] == "subnode"]
-    assert subs, "no SUBNODES parsed - parser regression"
+    assert subs, "no SUBNODES parsed — parser regression"
     for e in subs:
         assert e["parent_legacy_id"], f"subnode {e['legacy_id']} lost its parent"
 

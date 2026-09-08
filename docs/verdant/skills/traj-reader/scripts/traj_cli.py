@@ -332,7 +332,7 @@ def cmd_summary(args):
 
     if is_corrupted:
         print(f"[!] CORRUPTED: traj file is truncated/invalid JSON: {summary['path']}")
-        print("(counts below reflect only what could be parsed" "likely 0)")
+        print("    (counts below reflect only what could be parsed; likely 0)")
     print(f"File:       {summary['file']}")
     print(f"Path:       {summary['path']}")
     print(f"Timestamp:  {summary['timestamp']}")

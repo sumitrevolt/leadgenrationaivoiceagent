@@ -1,12 +1,12 @@
 """
-reels.py - Instagram Reels / YouTube Shorts script generator (free stack).
+reels.py — Instagram Reels / YouTube Shorts script generator (free stack).
 ===========================================================================
 
   - reels_scripts(business_name, niche, topic="", n=3) -> dict:
       n scripts, har ek {hook (3s), body (15s), cta, caption, hashtags[5],
-      duration:"30s"} - script total ≤120 words (HARD enforce).
+      duration:"30s"} — script total ≤120 words (HARD enforce).
       LLM-first (free_ai, 1 call), 3 deterministic template fallbacks
-      (festival / offer / tip patterns) - KABHI khali nahi.
+      (festival / offer / tip patterns) — KABHI khali nahi.
 
 Kabhi raise nahi karta.
 """
@@ -62,7 +62,7 @@ def _words(s: str) -> int:
 
 
 def _enforce_budget(script: dict[str, Any]) -> dict[str, Any]:
-    """hook+body+cta+caption total ≤120 words - body se trim hota hai."""
+    """hook+body+cta+caption total ≤120 words — body se trim hota hai."""
     fixed = _words(script["hook"]) + _words(script["cta"]) + _words(script["caption"])
     body_budget = max(5, _MAX_WORDS - fixed)
     body_words = (script["body"] or "").split()
@@ -72,18 +72,18 @@ def _enforce_budget(script: dict[str, Any]) -> dict[str, Any]:
 
 
 def _fallback_scripts(biz: str, label: str, topic: str) -> list[dict[str, Any]]:
-    """3 patterns: offer / tip / festival - deterministic, chhote, ready."""
+    """3 patterns: offer / tip / festival — deterministic, chhote, ready."""
     t = (topic or "").strip() or label
     return [
         {  # OFFER pattern
             "hook": f"Ruk jao! 🛑 {t} pe itna bada offer miss mat karna.",
             "body": (
-                f"{biz} laya hai limited-time deal - wahi quality, kam "
+                f"{biz} laya hai limited-time deal — wahi quality, kam "
                 f"daam. Pehle aao, pehle pao. Sirf is hafte ke liye, "
                 "slots tezi se bhar rahe hain."
             ),
             "cta": "Abhi WhatsApp karo 'OFFER' likh kar! 📲",
-            "caption": f"🔥 {biz} ka dhamaka offer - bio link pe details!",
+            "caption": f"🔥 {biz} ka dhamaka offer — bio link pe details!",
         },
         {  # TIP pattern
             "hook": f"99% log {t} me ye galti karte hain! 😱",
@@ -93,16 +93,16 @@ def _fallback_scripts(biz: str, label: str, topic: str) -> list[dict[str, Any]]:
                 "samjhate hain, phir aap aaram se choose karo."
             ),
             "cta": "Aisi tips ke liye follow karo + share karo! 🔁",
-            "caption": f"💡 {t} pro tip - save kar lo, kaam aayegi!",
+            "caption": f"💡 {t} pro tip — save kar lo, kaam aayegi!",
         },
         {  # FESTIVAL pattern
             "hook": "Is tyohar kuch khaas hone wala hai... ✨",
             "body": (
                 f"{biz} ki poori team ki taraf se aapko dher saari "
                 f"shubhkamnayein! Celebration ke saath {t} ka special "
-                "surprise bhi - story pe nazar rakhna."
+                "surprise bhi — story pe nazar rakhna."
             ),
-            "cta": "Visit karo ya DM karo - festive slot book karo! 🎉",
+            "cta": "Visit karo ya DM karo — festive slot book karo! 🎉",
             "caption": f"🪔 Tyohar ki shubhkamnayein {biz} ki taraf se ❤️",
         },
     ]
@@ -182,7 +182,7 @@ async def reels_scripts(
                 if len(tags) >= 5:
                     break
         script = {
-            "hook": str(src.get("hook") or "").strip()[:200] or f"{biz} - ye dekhna mat bhoolna!",
+            "hook": str(src.get("hook") or "").strip()[:200] or f"{biz} — ye dekhna mat bhoolna!",
             "body": str(src.get("body") or "").strip()[:900],
             "cta": str(src.get("cta") or "").strip()[:200] or "Follow karo aur DM karo! 📲",
             "caption": str(src.get("caption") or "").strip()[:300] or f"✨ {biz} ✨",
@@ -201,5 +201,5 @@ async def reels_scripts(
         "scripts": scripts,
         "provider": provider,
         "tip": "Hook pehle 3 second me bolo (text overlay ke saath), phone "
-        "vertical 9:16, trending audio low-volume pe - reach 2-3x.",
+        "vertical 9:16, trending audio low-volume pe — reach 2-3x.",
     }

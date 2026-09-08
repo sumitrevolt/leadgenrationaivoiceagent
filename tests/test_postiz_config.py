@@ -1,4 +1,4 @@
-"""Postiz runtime config - env -> encrypted-vault fallback (no-restart set) +
+"""Postiz runtime config — env -> encrypted-vault fallback (no-restart set) +
 SOCIAL_ENGINE data-file fallback. Recreate-forbidden VPS pattern (upi_config)."""
 
 import json
@@ -141,7 +141,7 @@ def test_status_counts_env_integrations_not_just_vault(monkeypatch):
     assert len(effective) == 3, "env-configured channels must be visible to status"
     assert pp.integrations_source() == "env"
     assert pp.api_url() == "https://postiz.leadsgenai.in/api"
-    # publish_video() would proceed - status must not contradict that.
+    # publish_video() would proceed — status must not contradict that.
     assert pp.enabled() is True
 
 
@@ -205,7 +205,7 @@ def test_publish_proof_ignores_dry_run_ids(tmp_path, monkeypatch):
 
 
 async def test_admin_status_reports_dry_run_when_env_set(monkeypatch):
-    """ADR-098 class: dry_run must be visible on status (not omit -> fake ready)."""
+    """ADR-098 class: dry_run must be visible on status (not omit → fake ready)."""
     from app.api import growth_automation as ga
 
     _mock_vault(monkeypatch, integrations="fb1")
@@ -314,7 +314,7 @@ def test_select_pinterest_skipped_when_board_missing():
 
 
 def test_select_skips_platforms_from_env(monkeypatch):
-    """X credits-depleted etc. - operator can skip without rewriting integrations CSV."""
+    """X credits-depleted etc. — operator can skip without rewriting integrations CSV."""
     from app.marketing import postiz_publish as pp
 
     monkeypatch.setenv("POSTIZ_SKIP_PLATFORMS", "x,youtube")

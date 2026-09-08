@@ -3,7 +3,7 @@
 Production 2026-08-07: `customer_deliverables` held 20 rows, ALL
 `billing_cycle_month = '2026-07'`, newest created 2026-07-18, and no scheduler
 job referenced deliverables at all. `initialize_deliverables_for_client` is
-called from exactly one place - `app/billing/usage.py` on plan activation - so
+called from exactly one place — `app/billing/usage.py` on plan activation — so
 nothing creates the next month's rows.
 
 Consequence: the one paying customer was 30+ days into a paid month with no
@@ -39,7 +39,7 @@ def test_flag_on_tokens(monkeypatch):
 
 
 def test_cycle_month_is_ist_not_utc():
-    """Indian billing cycles - a UTC boundary would roll the month 5h30m early
+    """Indian billing cycles — a UTC boundary would roll the month 5h30m early
     for the customer."""
     from datetime import datetime, timedelta
 
@@ -170,7 +170,7 @@ def test_cancelled_subscription_is_skipped(monkeypatch):
 
 
 def test_missing_db_client_is_skipped_not_raised(monkeypatch):
-    """FK guard - seeding against a missing clients row would raise."""
+    """FK guard — seeding against a missing clients row would raise."""
     sess = _Sess([_Sub("ghost")], {})
     calls = []
     _patch(monkeypatch, sess, lambda *a, **k: calls.append(a))

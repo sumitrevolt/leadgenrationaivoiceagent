@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""autonomous_workforce_orchestrator.py - 24/7 Autonomous Workforce Coordinator & Peer-Healing Engine.
+"""autonomous_workforce_orchestrator.py — 24/7 Autonomous Workforce Coordinator & Peer-Healing Engine.
 
 Council Standard (2026-09-06):
   Ensures all 31 AI agents across all 5 desktop apps (Hermes, WorkBuddy, OpenClaw, Claude, Verdant)
@@ -64,8 +64,7 @@ def _resolve_combo_key(combo_name: str) -> str:
     _COMBO_KEY_CACHE[combo_name] = fallback
     return fallback
 
-COMBO_KEYS: dict[str, str] = {}  # deprecated - use _resolve_combo_key()
-# kept for compat
+COMBO_KEYS: dict[str, str] = {}  # deprecated — use _resolve_combo_key(); kept for compat
 
 
 # 31 Agents Roster with primary combo and designated peer helper

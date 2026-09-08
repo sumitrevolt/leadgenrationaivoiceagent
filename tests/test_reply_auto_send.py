@@ -1009,7 +1009,7 @@ async def test_reply_agent_interaction_log_opt_out_skips_record(tmp_path, monkey
 
 @pytest.mark.asyncio
 async def test_interaction_log_skipped_emits_warning_keeps_sent(tmp_path, monkeypatch, caplog):
-    """INTERACTION_LOG off returns skipped dict - must warn, must not undo send."""
+    """INTERACTION_LOG off returns skipped dict — must warn, must not undo send."""
     import logging
 
     path = tmp_path / "reply_drafts.jsonl"

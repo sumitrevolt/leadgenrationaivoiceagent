@@ -1,21 +1,21 @@
-"""3×3 local grid rank tracker (Synup/LocalFalcon parity) - geo-grid GBP ranking.
+"""3×3 local grid rank tracker (Synup/LocalFalcon parity) — geo-grid GBP ranking.
 
 Kyun: single-point rank (app/platform/rank_tracker.py) "city me #4" batata hai,
-par local rank LOCATION pe depend karta hai - station ke paas #2, Kothrud me #9.
+par local rank LOCATION pe depend karta hai — station ke paas #2, Kothrud me #9.
 Yeh module 9 grid points (center ± offsets) pe Places(New) searchText
 locationBias ke saath chala ke per-point rank deta hai + Hinglish summary.
 
 Design (project patterns, rank_tracker REUSE):
 - Places API (New) call style + fuzzy match = rank_tracker ka hi (match_position
-  REUSE - duplicate matching logic NAHI).
-- NEVER raises - error/quota pe {"ok": False, "reason"/"error": ...}.
+  REUSE — duplicate matching logic NAHI).
+- NEVER raises — error/quota pe {"ok": False, "reason"/"error": ...}.
 - COST CAP: max 9 lookups/call (fixed 3×3) + max 3 keyword-runs/day
-  (data/grid_rank_runs.jsonl counter) - Places quota safe.
-- httpx ASYNC, 10s timeout per lookup, 9 points asyncio.gather (parallel) -
+  (data/grid_rank_runs.jsonl counter) — Places quota safe.
+- httpx ASYNC, 10s timeout per lookup, 9 points asyncio.gather (parallel) —
   endpoint `asyncio.wait_for(..., 25)` me poora call fit hota hai.
-- Key missing -> {"ok": False, "reason": "maps_key_missing"} (graceful).
+- Key missing → {"ok": False, "reason": "maps_key_missing"} (graceful).
 
-Store: data/grid_rank_runs.jsonl (append-only - daily counter + history).
+Store: data/grid_rank_runs.jsonl (append-only — daily counter + history).
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ def _append_jsonl(path: str, rec: dict[str, Any]) -> bool:
 # Pure geometry (unit-testable, no network)
 # --------------------------------------------------------------------------- #
 def grid_points(lat: float, lng: float, radius_km: float = 2.0) -> list[dict[str, Any]]:
-    """9 points: center + 8 around (±radius_km). km->degree approx (India-fine)."""
+    """9 points: center + 8 around (±radius_km). km→degree approx (India-fine)."""
     radius_km = max(0.5, min(10.0, float(radius_km)))
     lat_step = radius_km / 110.574
     lng_step = radius_km / (111.320 * max(0.2, math.cos(math.radians(float(lat)))))
@@ -123,12 +123,12 @@ def runs_today() -> int:
 
 
 def summarize(grid: list[dict[str, Any]]) -> str:
-    """Hinglish summary - best/worst point + action. Pure function."""
+    """Hinglish summary — best/worst point + action. Pure function."""
     try:
         found = [g for g in grid if isinstance(g.get("rank"), int)]
         if not found:
             return (
-                "Kisi bhi grid point pe top-20 me nahi mile - GBP optimize karo "
+                "Kisi bhi grid point pe top-20 me nahi mile — GBP optimize karo "
                 "(category, photos, reviews) aur /audit se full report lo."
             )
         best = min(found, key=lambda g: g["rank"])
@@ -136,9 +136,9 @@ def summarize(grid: list[dict[str, Any]]) -> str:
         missing = len(grid) - len(found)
         line = f"{best['label']} me rank {best['rank']}"
         if worst is not best and worst["rank"] != best["rank"]:
-            line += f", {worst['label']} me {worst['rank']} - wahan GBP posts + reviews badhao"
+            line += f", {worst['label']} me {worst['rank']} — wahan GBP posts + reviews badhao"
         if missing:
-            line += f". {missing} points pe top-20 ke bahar - un areas me visibility weak hai."
+            line += f". {missing} points pe top-20 ke bahar — un areas me visibility weak hai."
         return line
     except Exception:
         return ""
@@ -215,7 +215,7 @@ async def grid_check(
     radius_km: float = 2.0,
     phone: str = "",
 ) -> dict[str, Any]:
-    """3×3 grid rank check - 9 Places lookups (parallel), per-point rank ya ">20".
+    """3×3 grid rank check — 9 Places lookups (parallel), per-point rank ya ">20".
 
     Cost caps: 9 lookups/call (fixed), 3 runs/day. Never raises.
     """
@@ -238,7 +238,7 @@ async def grid_check(
             return {
                 "ok": False,
                 "reason": "daily_cap_reached",
-                "message": f"Aaj ke {_DAILY_CAP} grid-runs ho chuke (quota care) - kal try karo.",
+                "message": f"Aaj ke {_DAILY_CAP} grid-runs ho chuke (quota care) — kal try karo.",
             }
 
         # REUSE rank_tracker ka fuzzy matcher (duplicate logic nahi)

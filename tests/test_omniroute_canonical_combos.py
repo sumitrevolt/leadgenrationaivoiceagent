@@ -2,7 +2,7 @@
 
 The app's `_TASK_ROUTES` must reference the CANONICAL `leadsgen combo N`
 ids that actually exist in the gateway DB (see scripts/seed_omniroute_14combos.py)
-- legacy alias ids (leadgen-free-first, hermes-*, claude-code, vps-01/02) are
+— legacy alias ids (leadgen-free-first, hermes-*, claude-code, vps-01/02) are
 registered as same-UUID aliases for backward compat but are NOT the routing
 authority anymore.
 

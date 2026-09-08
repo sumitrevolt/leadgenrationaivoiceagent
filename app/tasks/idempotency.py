@@ -1,4 +1,4 @@
-"""Celery task idempotency - prevent duplicate side effects on retry.
+"""Celery task idempotency — prevent duplicate side effects on retry.
 
 Usage: wrap any task function with @idempotent_task(task_name, ttl=3600)
 Redis setnx with task_id = dedup. TTL = window jisme retry acceptable.
@@ -42,8 +42,8 @@ def idempotent_task(task_name: str, ttl: int = 3600) -> Callable:
 
             # Include the retry count: a genuine self.retry() reuses the same task_id,
             # so without this the retry hits the live key and is skipped as a "duplicate"
-            # - silently swallowing the failure (never re-runs, never reaches the DLQ).
-            # True redeliveries of the SAME attempt keep the same retries -> still deduped.
+            # — silently swallowing the failure (never re-runs, never reaches the DLQ).
+            # True redeliveries of the SAME attempt keep the same retries → still deduped.
             retries = getattr(getattr(self, "request", None), "retries", 0) or 0
             key = f"celery:idem:{task_name}:{task_id}:{retries}"
             r = _redis_client()

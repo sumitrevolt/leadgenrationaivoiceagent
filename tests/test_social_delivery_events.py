@@ -52,7 +52,7 @@ def test_all_new_event_types_registered():
 def test_customer_visible_flags_reasonable():
     """Ops-only events must be customer_visible=False (avoid timeline noise);
     customer-relevant events must be True."""
-    # These are ops-only churn - the shop owner should not see raw retry pings.
+    # These are ops-only churn — the shop owner should not see raw retry pings.
     ops_only = {"token_refreshed", "post_publish_started", "post_retry_scheduled"}
     for ev in ops_only:
         assert delivery_ledger.LABELS[ev][3] is False, f"{ev} should be ops-only"
@@ -72,7 +72,7 @@ def test_customer_visible_flags_reasonable():
 
 
 def test_pre_existing_labels_untouched():
-    """Loop-social-6 must NOT rewrite existing labels - purely additive."""
+    """Loop-social-6 must NOT rewrite existing labels — purely additive."""
     assert "post_published" in delivery_ledger.LABELS
     assert "post_failed" in delivery_ledger.LABELS
     assert "post_approved" in delivery_ledger.LABELS
@@ -135,7 +135,7 @@ def test_process_queue_emits_publish_started(engine_iso):
 
 
 def test_process_queue_emits_retry_scheduled_on_transient_failure(engine_iso):
-    """A single failed dispatch (attempts<max) -> post_retry_scheduled logged."""
+    """A single failed dispatch (attempts<max) → post_retry_scheduled logged."""
     engine_iso["engine"].enqueue_publish("c1", caption="hi", platforms=["failing"])
     out = asyncio.run(engine_iso["engine"].process_queue())
     assert out["retried"] == 1
@@ -145,11 +145,11 @@ def test_process_queue_emits_retry_scheduled_on_transient_failure(engine_iso):
     assert len(retry_events) >= 1
     cid, detail = retry_events[0]
     assert cid == "c1"
-    assert "attempt" in detail  # "attempt 1/4 - rate_limit"
+    assert "attempt" in detail  # "attempt 1/4 — rate_limit"
 
 
 def test_process_queue_emits_customer_action_on_inert_provider(engine_iso):
-    """Unconfigured provider -> skipped + customer_action_required emitted."""
+    """Unconfigured provider → skipped + customer_action_required emitted."""
     engine_iso["engine"].enqueue_publish("c1", caption="hi", platforms=["inert"])
     out = asyncio.run(engine_iso["engine"].process_queue())
     assert out["skipped"] == 1

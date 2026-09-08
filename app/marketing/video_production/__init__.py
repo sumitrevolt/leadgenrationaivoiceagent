@@ -2,7 +2,7 @@
 
 Authoritative reuse: video_ad_cycle + video_pipeline + content_approval + postiz.
 This package adds state machine, feedback classification, WhatsApp review,
-publish gating, and harness tool registrations - not a second agent framework.
+publish gating, and harness tool registrations — not a second agent framework.
 """
 
 from __future__ import annotations

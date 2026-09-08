@@ -1,11 +1,11 @@
 """Sentiment-gated review GENERATION engine (Reviewly/Birdeye-lite, free-stack).
 
 `review_kit.py` review-request CONTENT banata hai (WhatsApp msg + QR + card). Yeh
-engine us par ORCHESTRATION add karta - yahi 2026 ka naya hissa:
+engine us par ORCHESTRATION add karta — yahi 2026 ka naya hissa:
 
   * SENTIMENT-GATE: khush customer -> Google review request (public);
     naraz customer -> PRIVATE feedback message (rating bachao). Google-compliant:
-    sabko maangte, customer decide karta - bas unhappy ko public push nahi.
+    sabko maangte, customer decide karta — bas unhappy ko public push nahi.
   * TRACK: data/review_requests.jsonl (kisko/kab/gate/status).
   * SEND: DEFAULT 1-click (message + link return, human bheje). Auto-send SIRF
     WHATSAPP_AUTO_SEND=1 + Cloud API creds (existing integrations/whatsapp.py).
@@ -27,8 +27,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _STORE = os.path.join("data", "review_requests.jsonl")
-HAPPY_THRESHOLD = 4  # 1-5 scale: >= => Google review
-warna private feedback
+HAPPY_THRESHOLD = 4  # 1-5 scale: >= => Google review; warna private feedback
 
 
 def _now() -> str:
@@ -65,7 +64,7 @@ def _private_feedback_msg(name: str, biz: str) -> str:
     return (
         f"Namaste {name or 'ji'} 🙏 {biz} ki taraf se sorry agar experience perfect "
         "nahi raha. Aap please 1 line me bata dijiye kya improve karein? Aapka feedback "
-        "seedha owner tak jaata hai - hum theek karenge. Dhanyawad!"
+        "seedha owner tak jaata hai — hum theek karenge. Dhanyawad!"
     )
 
 

@@ -3,9 +3,9 @@
 An adapter never runs a shell, never writes files and never calls a provider.
 It does exactly two things:
 
-  1. ``build_packet(mission)`` - the structured, redacted brief an external
+  1. ``build_packet(mission)`` — the structured, redacted brief an external
      agent session (Cursor Composer / Claude Code) must obey.
-  2. ``validate_result(mission, result)`` - deterministic acceptance of the
+  2. ``validate_result(mission, result)`` — deterministic acceptance of the
      result manifest that session returns, including scope-breach detection.
 
 That keeps prompt text firmly out of the execution path: nothing an agent
@@ -33,22 +33,22 @@ _STOP_CONDITIONS = (
 )
 
 RESULT_SCHEMA: dict[str, str] = {
-    "mission_id": "str - must equal the assigned mission",
-    "executor": "str - cursor|claude",
-    "changed_files": "list[str] - repo-relative; empty for review-only missions",
-    "commands": "list[str] - exact commands run",
+    "mission_id": "str — must equal the assigned mission",
+    "executor": "str — cursor|claude",
+    "changed_files": "list[str] — repo-relative; empty for review-only missions",
+    "commands": "list[str] — exact commands run",
     "tests": "list[{command,exit_code,summary}]",
     "summary": "str",
-    "evidence": "dict - freeform, redacted",
-    "scope_breach": "bool - self-declared; verified independently",
+    "evidence": "dict — freeform, redacted",
+    "scope_breach": "bool — self-declared; verified independently",
 }
 
 REVIEW_SCHEMA: dict[str, str] = {
     "mission_id": "str",
     "reviewer": "str",
     "verdict": "PASS|CHANGES_REQUIRED|BLOCKED",
-    "findings": "list[str] - each must cite file/line, test or command output",
-    "citations": "list[str] - file:line, test name or command",
+    "findings": "list[str] — each must cite file/line, test or command output",
+    "citations": "list[str] — file:line, test name or command",
 }
 
 
@@ -186,7 +186,7 @@ class ClaudeAdapter(_BaseAdapter):
         evidence_status = str(review.get("evidence_status") or "").upper()
         if not citations:
             if evidence_status == "MISSING":
-                # Explicit absence - PASS is never allowed; other verdicts stay invalid
+                # Explicit absence — PASS is never allowed; other verdicts stay invalid
                 # for the adapter accept gate (submit_review still records the attempt).
                 violations.append("review evidence_status=MISSING without citations")
             else:

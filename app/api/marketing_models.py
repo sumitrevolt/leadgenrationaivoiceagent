@@ -1,4 +1,4 @@
-"""Marketing request models - Pydantic schemas for app/api/marketing.py endpoints.
+"""Marketing request models — Pydantic schemas for app/api/marketing.py endpoints.
 
 Extracted from app/api/marketing.py (2026-06-20 refactor) to separate data from routes.
 Re-imported by marketing.py so endpoint refs and external imports keep working.
@@ -49,7 +49,7 @@ class FestivalPostsRequest(BaseModel):
 
 
 class PosterRequest(BaseModel):
-    """SVG poster generation request (brand colors optional - brand_kit se)."""
+    """SVG poster generation request (brand colors optional — brand_kit se)."""
 
     template_id: str = Field(..., min_length=1, max_length=60)
     business_name: str = Field(..., min_length=1, max_length=120)
@@ -227,13 +227,13 @@ class ContentPackRequest(BaseModel):
 
 
 class BlogRunRequest(BaseModel):
-    """Programmatic SEO blog - kitne naye articles publish karne hain."""
+    """Programmatic SEO blog — kitne naye articles publish karne hain."""
 
     n: int = Field(3, ge=1, le=25)
 
 
 class ReferralRequest(BaseModel):
-    """Refer & Earn kit request (brand colors optional - card gradient)."""
+    """Refer & Earn kit request (brand colors optional — card gradient)."""
 
     business_name: str = Field(..., min_length=1, max_length=120)
     reward: str = Field("10% off", max_length=80)

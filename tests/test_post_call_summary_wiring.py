@@ -1,9 +1,9 @@
 """Tests: post-call AI summary wiring into auto_qualify_and_downstream.
 
 Covers:
-  - qualified call -> send_post_call_summary called with qualifier + context
-  - NOT qualified -> no summary send
-  - POST_CALL_SUMMARY flag OFF -> send skipped (formatter gate)
+  - qualified call → send_post_call_summary called with qualifier + context
+  - NOT qualified → no summary send
+  - POST_CALL_SUMMARY flag OFF → send skipped (formatter gate)
   - flag registry documents POST_CALL_SUMMARY
 """
 
@@ -154,7 +154,7 @@ async def test_formatter_sends_qualified(monkeypatch):
             sent.append((phone, msg))
             return {"messages": [{"id": "wamid_1"}]}
 
-    # get_whatsapp_sender is imported INSIDE send_post_call_summary - patch the
+    # get_whatsapp_sender is imported INSIDE send_post_call_summary — patch the
     # source module where the import resolves (app.integrations.whatsapp).
     monkeypatch.setattr(
         "app.integrations.whatsapp.get_whatsapp_sender",

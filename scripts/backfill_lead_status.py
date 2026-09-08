@@ -3,8 +3,7 @@
 WHY
 ---
 Measured on production ``f096a08d`` (2026-07-25): ``leads`` = 10,759 rows, every
-single one ``status='new'``
-``lead_status_history`` = 0 rows (never written in
+single one ``status='new'``; ``lead_status_history`` = 0 rows (never written in
 the product's life). ``scripts/backfill_interaction_identity.py`` has since linked
 ``interactions.lead_id``, so 1,363 distinct leads now demonstrably received an
 OUTBOUND touch (``direction='out'``). An outbound touch is a fact: we contacted
@@ -21,8 +20,7 @@ HARD SCOPE - contacted only, no opinions
   whose bodies say "Not required as of now. Hence, case is closed.").
 * Closure-noise exclusion: any interaction whose ``body_summary`` matches the SAME
   guard regex used by ``app/platform/reply_agent._is_case_closure`` is NOT counted
-  as a real touch. (Outbound copy never matches this in practice
-  the filter is a
+  as a real touch. (Outbound copy never matches this in practice; the filter is a
   belt-and-braces guarantee that a mislabelled closure row can never promote.)
 * NEVER downgrades: only rows currently at ``new`` are touched (SQL-guarded), so a
   lead already past contacted is left exactly as-is.
@@ -196,8 +194,7 @@ def main(argv: list[str]) -> int:
         )
         return 0
 
-    print(f"\n[APPLIED] promoted {r['promoted']} lead(s) "
-    f"wrote {r['history']} history row(s).")
+    print(f"\n[APPLIED] promoted {r['promoted']} lead(s); wrote {r['history']} history row(s).")
     return 0
 
 

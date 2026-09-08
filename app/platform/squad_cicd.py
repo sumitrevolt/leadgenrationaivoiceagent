@@ -1,4 +1,4 @@
-# Squad Lead - CI/CD Pipeline (Squad 11)
+# Squad Lead — CI/CD Pipeline (Squad 11)
 # Responsibility: GitHub Actions, Trivy scan, CodeQL, lint, prod_check gate
 # Autopilot: Auto-run on every push, daily status, gate compliance
 
@@ -34,7 +34,7 @@ def run_trivy():
 
 def run_codeql():
     """Run CodeQL analysis."""
-    # Simplified - in production: GitHub Actions CodeQL workflow
+    # Simplified — in production: GitHub Actions CodeQL workflow
     return {"status": "codeql_queued", "note": "CodeQL analysis runs on every push to main"}
 
 def check_prod_gates():

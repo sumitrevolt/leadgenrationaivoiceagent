@@ -477,13 +477,13 @@ class FreeSTTManager:
             logger.debug(f"SpeechRecognition not available: {e}")
 
         # SAFETY (2026-06-25 audit): a mock that returns CANNED transcripts would
-        # make the agent "hear" fake speech in production - worse than honest
+        # make the agent "hear" fake speech in production — worse than honest
         # silence. Only allow it when ALLOW_MOCK_STT=1 (tests). Otherwise leave NO
         # active provider; transcribe() then returns "" and the caller degrades.
         if (os.getenv("ALLOW_MOCK_STT", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
             self.providers["mock"] = MockSTTProvider()
             self.active_provider = "mock"
-            logger.warning("⚠️ Using Mock STT (ALLOW_MOCK_STT=1 - testing only)")
+            logger.warning("⚠️ Using Mock STT (ALLOW_MOCK_STT=1 — testing only)")
             return "mock"
         self.active_provider = None
         logger.error(
@@ -500,7 +500,7 @@ class FreeSTTManager:
 
     async def transcribe(self, audio_data: bytes, **kwargs) -> str:
         """Transcribe audio using active provider. Returns "" when no real provider
-        is available (honest silence - never a fabricated transcript)."""
+        is available (honest silence — never a fabricated transcript)."""
         if not self.active_provider:
             return ""
         return await self.get_provider().transcribe(audio_data, **kwargs)

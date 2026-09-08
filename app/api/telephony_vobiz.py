@@ -1,14 +1,13 @@
 """
-Vobiz Telephony API - outbound test calls via the Vobiz Direct Call REST API.
+Vobiz Telephony API — outbound test calls via the Vobiz Direct Call REST API.
 
-Endpoints (mounted by main.py under /api -> /api/telephony/vobiz/*):
-    POST /telephony/vobiz/test-call       (admin) - place a test call
-    speaks an
+Endpoints (mounted by main.py under /api → /api/telephony/vobiz/*):
+    POST /telephony/vobiz/test-call       (admin) — place a test call; speaks an
                                           LLM-generated (or supplied) Hinglish
                                           greeting, then hangs up.
-    GET|POST /telephony/vobiz/answer/{token}  (NO auth - Vobiz fetches this)
-                                          - returns VobizXML for the call.
-    GET  /telephony/vobiz/status          (admin) - config + balance snapshot.
+    GET|POST /telephony/vobiz/answer/{token}  (NO auth — Vobiz fetches this)
+                                          — returns VobizXML for the call.
+    GET  /telephony/vobiz/status          (admin) — config + balance snapshot.
 
 NOTE (DLT pending): test calls sirf own/known numbers pe (transactional);
 promo cold-calls 140-DID + DLT ke baad hi.
@@ -35,12 +34,12 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/telephony/vobiz", tags=["Telephony"])
 
-# In-memory message store: token -> Speak text. Single-process best-effort -
+# In-memory message store: token -> Speak text. Single-process best-effort —
 # fine for admin test calls (Vobiz fetches the answer_url within seconds).
 _PENDING_MESSAGES: dict[str, str] = {}
 # Streaming calls: token -> {"niche", "client_id"} (answer-stream + WS read it).
 # In-memory = same-process fallback; Redis = cross-process (docker exec fire_calls
-# vs uvicorn worker - bina Redis niche hamesha general ho jati thi).
+# vs uvicorn worker — bina Redis niche hamesha general ho jati thi).
 _PENDING_STREAMS: dict[str, dict[str, Any]] = {}
 _MAX_PENDING = 200
 _STREAM_REDIS_PREFIX = "vobiz:pending:"
@@ -57,17 +56,17 @@ def _answer_stream_qs(
     template_id: str | None = None,
     voice_role: str | None = None,
 ) -> str:
-    """Query string embedded in answer_url - survives cross-process pending loss.
+    """Query string embedded in answer_url — survives cross-process pending loss.
 
     lead_phone (2026-07-03): the number we dialed, threaded through to the WS
     session so close-signal durable actions (sales-pipeline deal + WhatsApp
-    send) have a reliable phone on OUTBOUND calls - Vobiz's start event carries
+    send) have a reliable phone on OUTBOUND calls — Vobiz's start event carries
     no customParameters, so without this the session's _lead_phone stayed None
     and every close/onboard action silently no-op'd on real campaign calls.
 
     lead_id (2026-08-06): the CRM `leads.id` we dialed, on the SAME rail and for
     the same reason. The CallLog is written at WS teardown, minutes later and
-    possibly in another worker, where the dialer's `p.id` is long out of scope -
+    possibly in another worker, where the dialer's `p.id` is long out of scope —
     so every campaign row landed with `lead_id=NULL`. That in turn left
     `niche_database.update_after_call()` (the ONLY code that moves a lead to
     QUALIFIED / CALLBACK / NOT_INTERESTED / DND / WRONG_NUMBER) unreachable, so
@@ -79,7 +78,7 @@ def _answer_stream_qs(
     PHONE alias. Reusing the name there would silently overwrite _lead_phone.
 
     template_id / voice_role (console test-call): which call template the
-    tenant picked, and the voice role to speak it in. Safe wire names - neither
+    tenant picked, and the voice role to speak it in. Safe wire names — neither
     is touched by the phone-alias loop above. Both are optional and truncated
     (they ride in a URL), so an over-long tenant-supplied value cannot bloat
     the answer_url past what Vobiz will fetch."""
@@ -161,14 +160,14 @@ class TestCallRequest(BaseModel):
     call_type: str = Field(
         "transactional",
         description="'transactional' (consented/known, lenient) or 'promotional' "
-        "(cold outreach - DND + 10-19 IST window + DLT/140 enforced)",
+        "(cold outreach — DND + 10-19 IST window + DLT/140 enforced)",
     )
 
 
 async def _generate_message(niche: str) -> str:
     """LLM-generated Hinglish demo greeting; static fallback on any failure."""
     try:
-        from app.voice_agent.llm_brain import LLMBrain  # heavy - import lazily
+        from app.voice_agent.llm_brain import LLMBrain  # heavy — import lazily
 
         brain = LLMBrain()
         text = await brain.generate_response(
@@ -207,7 +206,7 @@ async def place_test_call(
 
     message = (request.message or "").strip() or await _generate_message(request.niche)
     # TRAI AI-disclosure: admin-supplied custom text was spoken verbatim (LLM
-    # path + fallback already disclose) - enforce on every spoken message
+    # path + fallback already disclose) — enforce on every spoken message
     # (audit 2026-07-04). No-op if the text already discloses; never raises.
     try:
         from app.voice_agent.niche_scripts import ensure_ai_disclosure
@@ -248,16 +247,16 @@ async def place_test_call(
 
 @router.api_route("/answer/{token}", methods=["GET", "POST"], include_in_schema=False)
 async def answer_xml(token: str) -> Response:
-    """Answer-URL webhook - Vobiz fetches this (NO auth). Returns VobizXML.
+    """Answer-URL webhook — Vobiz fetches this (NO auth). Returns VobizXML.
 
-    Unknown/expired tokens get a generic greeting (never an error - the call
+    Unknown/expired tokens get a generic greeting (never an error — the call
     is already live when Vobiz hits this)."""
     text = _PENDING_MESSAGES.get(token) or _FALLBACK_GREETING
     return Response(content=build_speak_xml(text), media_type="application/xml")
 
 
 # --------------------------------------------------------------------------- #
-# Conversational streaming (two-way WebSocket audio) - P3.
+# Conversational streaming (two-way WebSocket audio) — P3.
 # --------------------------------------------------------------------------- #
 class StreamCallRequest(BaseModel):
     """Outbound conversational (WebSocket-streamed) call request."""
@@ -267,7 +266,7 @@ class StreamCallRequest(BaseModel):
     client_id: str | None = Field(None, max_length=100, description="Client id for the bot")
     call_type: str = Field(
         "transactional",
-        description="'transactional' (consented/known) or 'promotional' (cold - "
+        description="'transactional' (consented/known) or 'promotional' (cold — "
         "DND + 10-19 IST window + DLT/140 enforced)",
     )
     lead_id: str | None = Field(
@@ -275,7 +274,7 @@ class StreamCallRequest(BaseModel):
         max_length=64,
         description="CRM leads.id, when the caller dialed a known lead. Threads to "
         "the CallLog written at WS teardown so the call attributes back to the "
-        "lead and post-call status transition can run. Optional - the admin "
+        "lead and post-call status transition can run. Optional — the admin "
         "manual-call form may dial a raw number with no lead behind it.",
     )
 
@@ -298,15 +297,14 @@ async def start_stream_call(
     template_id: str | None = None,
     voice_role: str | None = None,
 ) -> dict[str, Any]:
-    """INTERNAL helper - conversational stream call lagao (no HTTP/auth layer).
+    """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
     Wahi token + _PENDING_STREAMS + answer-stream URL flow jo POST /stream-call
-    use karta hai
-    auto-callback (inquiry -> AI call) jaise internal callers ke
-    liye. NEVER raises - fail pe {"placed": False, "error": ...} return.
+    use karta hai; auto-callback (inquiry → AI call) jaise internal callers ke
+    liye. NEVER raises — fail pe {"placed": False, "error": ...} return.
 
     dry_run=True (verification smoke): pending store + answer_url poora banta
-    hai (opening_line threaded) par Vobiz dial skip hota hai - chain verify
+    hai (opening_line threaded) par Vobiz dial skip hota hai — chain verify
     karo bina real call lagaye. Return me "dry_run": True + stream_token.
     """
     try:
@@ -314,7 +312,7 @@ async def start_stream_call(
         if not client.available():
             return {"placed": False, "error": "vobiz_not_configured"}
 
-        # Signed token (INERT unless VOBIZ_STREAM_SECRET set) - stable across a
+        # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — stable across a
         # mid-call WS reconnect so it still verifies AFTER _pop_pending removed
         # the pending state. Same string is the pending KEY and the URL token.
         token = _sign_stream_token(uuid.uuid4().hex[:10])
@@ -348,12 +346,12 @@ async def start_stream_call(
         answer_url = (
             f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}?{_qs}"
         )
-        # Per-call hangup_url so Vobiz posts HangupCause/CallStatus -> disposition
+        # Per-call hangup_url so Vobiz posts HangupCause/CallStatus → disposition
         # tally (NUP/no_answer/answered). Without this, stream-calls never hit
         # /api/webhooks/vobiz/status (proven 2026-07-17 live call gap).
         hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
         if dry_run:
-            # Verification smoke - pending + answer-url ready, dial nahi hoga.
+            # Verification smoke — pending + answer-url ready, dial nahi hoga.
             return {
                 "placed": True,
                 "dry_run": True,
@@ -399,7 +397,7 @@ async def place_stream_call(
             detail="Vobiz not configured (VOBIZ_AUTH_ID / VOBIZ_AUTH_TOKEN missing)",
         )
 
-    # Signed token (INERT unless VOBIZ_STREAM_SECRET set) - see start_stream_call.
+    # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — see start_stream_call.
     token = _sign_stream_token(uuid.uuid4().hex[:10])
     niche_key = (request.niche or "general").strip() or "general"
     await _store_pending(
@@ -443,7 +441,7 @@ async def place_stream_call(
         log_event(
             "swara",
             "call_placed",
-            f"Conversational call -> {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
+            f"Conversational call → {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
             status="ok" if placed else "error",
             meta={"client_id": str(getattr(request, "client_id", "") or "")},
         )
@@ -461,7 +459,7 @@ async def place_stream_call(
 async def answer_stream_xml(token: str, request: Request) -> Response:
     """Answer-URL webhook for streamed calls (NO auth). Returns VobizXML that
     bridges the call to our WebSocket. Unknown tokens still get a valid stream
-    (niche=general) - the call is already live when Vobiz fetches this."""
+    (niche=general) — the call is already live when Vobiz fetches this."""
     pend = await _peek_pending(token)
     niche = (request.query_params.get("niche") or pend.get("niche") or "general").strip()
     client_id = request.query_params.get("client_id") or pend.get("client_id")
@@ -504,8 +502,7 @@ async def vobiz_stream_ws(
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
     conversation loop. niche/client/lead_phone/crm_lead_id come from query
-    params or the pending store (filled by /stream-call)
-    customParameters in
+    params or the pending store (filled by /stream-call); customParameters in
     the start event win."""
     from app.telephony.vobiz_stream import VobizStreamSession
 
@@ -514,7 +511,7 @@ async def vobiz_stream_ws(
     # Anti-abuse gate (INERT by default). "known" = pending existed (our just-
     # placed / mid-race call) OR the token carries a valid HMAC signature (our
     # outbound token surviving a _pop_pending reconnect). We reject ONLY when the
-    # operator has BOTH set a secret AND opted into enforcement - otherwise this
+    # operator has BOTH set a secret AND opted into enforcement — otherwise this
     # is a no-op and unknown tokens run exactly as before (the unknown-token
     # fallback is load-bearing: mid-call reconnects look "unknown" post-pop).
     known = bool(pend) or _verify_stream_token(token)
@@ -585,7 +582,7 @@ async def vobiz_status(user: User = Depends(require_admin)) -> dict[str, Any]:
         "caller_id_set": bool(settings.vobiz_caller_id),
         "balance": None,
     }
-    # Streaming (conversational) capability snapshot - verify VPS deps are live.
+    # Streaming (conversational) capability snapshot — verify VPS deps are live.
     try:
         from app.telephony import vobiz_stream as _vs
 
@@ -599,7 +596,7 @@ async def vobiz_status(user: User = Depends(require_admin)) -> dict[str, Any]:
             streaming["stt_chain"] = _vs._stt_chain()
         except Exception:
             pass
-        # Free-AI resilience snapshot - confirm keys are picked up WITHOUT a
+        # Free-AI resilience snapshot — confirm keys are picked up WITHOUT a
         # paid call: Gemini multi-key count + free LLM/STT provider availability.
         try:
             from app.voice_agent.gemini_keys import key_count
@@ -619,7 +616,6 @@ async def vobiz_status(user: User = Depends(require_admin)) -> dict[str, Any]:
     if client.available():
         try:
             out["balance"] = await client.get_balance()
-        except Exception as e:  # belt-and-braces
-        client already never raises
+        except Exception as e:  # belt-and-braces; client already never raises
             out["balance"] = {"status_code": 0, "body": {"error": str(e)}}
     return out

@@ -1,12 +1,11 @@
 """Reusable integration-health classifier + honest status adapters.
 
 Single source of truth for integration/webhook expiry honesty. The classifier is a
-PURE function over an *evidence* dict - it never invents evidence. Real evidence
+PURE function over an *evidence* dict — it never invents evidence. Real evidence
 comes from the social-token vault (`app/social_engine/vault.py`: authoritative
-`expires_at` for facebook/instagram/linkedin
-soft-`deleted`) and, where present,
+`expires_at` for facebook/instagram/linkedin; soft-`deleted`) and, where present,
 operational failure signals. When configuration exists but there is no trustworthy
-verification evidence, the status is `unknown` - NOT `healthy`. Env-var presence
+verification evidence, the status is `unknown` — NOT `healthy`. Env-var presence
 alone is never `healthy`.
 
 Statuses: healthy | expiring_soon | expired | revoked | unauthorized |
@@ -55,21 +54,20 @@ _CUSTOMER_ACTION = {
     EXPIRED: "Reconnect this integration to resume.",
     REVOKED: "Reconnect this integration to resume.",
     UNAUTHORIZED: "Reconnect this integration to resume.",
-    TRANSIENT_FAILURE: "No action needed - it will retry automatically.",
-    UNREACHABLE: "No action needed - please check back shortly.",
+    TRANSIENT_FAILURE: "No action needed — it will retry automatically.",
+    UNREACHABLE: "No action needed — please check back shortly.",
     NEVER_CONFIGURED: "Connect this integration to enable it.",
     UNKNOWN: "We could not verify this connection yet.",
 }
 _ADMIN_ACTION = {
     EXPIRED: "Trigger reconnect/OAuth refresh for this client.",
-    REVOKED: "Access revoked provider-side - reconnect required.",
-    UNAUTHORIZED: "Auth failing (401/403) - re-authorize credentials.",
+    REVOKED: "Access revoked provider-side — reconnect required.",
+    UNAUTHORIZED: "Auth failing (401/403) — re-authorize credentials.",
     EXPIRING_SOON: "Schedule a proactive reconnect before expiry.",
-    TRANSIENT_FAILURE: "Transient provider/server failure - monitor
-    auto-retry.",
-    UNREACHABLE: "Provider unreachable within timeout - check network/provider status.",
+    TRANSIENT_FAILURE: "Transient provider/server failure — monitor; auto-retry.",
+    UNREACHABLE: "Provider unreachable within timeout — check network/provider status.",
     NEVER_CONFIGURED: "Not configured for this client.",
-    UNKNOWN: "Configured but unverified - no trustworthy health evidence.",
+    UNKNOWN: "Configured but unverified — no trustworthy health evidence.",
     HEALTHY: "",
 }
 

@@ -1,4 +1,4 @@
-"""Code-upgrader patch status CLI (ops helper - SSH quoting se bachne ke liye).
+"""Code-upgrader patch status CLI (ops helper — SSH quoting se bachne ke liye).
 
 Usage (VPS): docker exec leadgen_app python scripts/patch_status.py <patch_id> <status> [note...]
 status = approved | rejected | applied

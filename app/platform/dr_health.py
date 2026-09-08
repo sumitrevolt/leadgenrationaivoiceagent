@@ -1,4 +1,4 @@
-"""dr_health.py - warm-DR replica health probe (Postgres logical replication).
+"""dr_health.py — warm-DR replica health probe (Postgres logical replication).
 
 The audit (F.5) called out "cheap warm-DR" as one of the five genuine
 remaining blind spots: a single VPS is a SPOF, and the cheap mitigation that
@@ -10,8 +10,8 @@ configured. Without it the audit warned: "An untested backup is a maybe-backup."
 
 Configuration (env on the live app, NOT on the DR target):
   DR_REPLICA_URL = postgres://user:pass@neon.tech/dbname  (read-only replica)
-  DR_LAG_WARN_S  = 60   (lag above this -> WARN - default 60 sec)
-  DR_LAG_FAIL_S  = 600  (lag above this -> FAIL - default 10 min)
+  DR_LAG_WARN_S  = 60   (lag above this -> WARN — default 60 sec)
+  DR_LAG_FAIL_S  = 600  (lag above this -> FAIL — default 10 min)
 
 What it checks (single SQL round-trip on the REPLICA):
   SELECT now() - pg_last_xact_replay_timestamp() AS lag_interval;
@@ -60,7 +60,7 @@ def configured() -> bool:
 
 def probe() -> dict[str, Any]:
     """Single SQL round-trip on the replica. Always returns a structured dict
-    - never raises (callers may be on a hot-path)."""
+    — never raises (callers may be on a hot-path)."""
     url = _replica_url()
     if not url:
         return {
@@ -111,7 +111,7 @@ def probe() -> dict[str, Any]:
             "configured": True,
             "status": "OK",
             "lag_s": None,
-            "summary": "replica idle (no recent primary activity) - connection healthy",
+            "summary": "replica idle (no recent primary activity) — connection healthy",
             "ts": int(time.time()),
         }
     if lag_s >= fail_s:

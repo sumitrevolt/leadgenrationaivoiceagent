@@ -1,4 +1,4 @@
-"""Runtime trust keys - env first, admin data-file fallback (UPI pattern).
+"""Runtime trust keys — env first, admin data-file fallback (UPI pattern).
 
 Turnstile: no-restart configure via admin dashboard.
 Sentry DSN: saved to file + lazy init on configure (restart still recommended for worker).

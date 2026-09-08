@@ -58,7 +58,7 @@ def _get_sync_engine():
                 sync_url = f"sqlite:///{abs_path}"
 
             # Sync engine = migrations + occasional background sync only (rarely
-            # concurrent) -> small pool. Shares the same PgBouncer/PG budget as the
+            # concurrent) → small pool. Shares the same PgBouncer/PG budget as the
             # async engine (audit P1-2).
             _engine = create_engine(
                 sync_url,
@@ -243,12 +243,12 @@ def init_db():
 def _apply_schema_upgrades(sync_conn) -> None:
     """
     Lightweight, idempotent in-place migrations for columns added after the
-    first release. create_all() only creates NEW tables - existing tables
+    first release. create_all() only creates NEW tables — existing tables
     need explicit ALTERs. Safe on SQLite and Postgres.
     """
     from sqlalchemy import inspect, text
 
-    # All three components (table, column, DDL) are hardcoded literals -
+    # All three components (table, column, DDL) are hardcoded literals —
     # none come from user input or runtime variables, so there is no
     # injection surface. The allowlist check below is an additional guard
     # against any future code path that might add dynamic entries (CWE-89).
@@ -258,7 +258,7 @@ def _apply_schema_upgrades(sync_conn) -> None:
     }
     _SAFE_TABLES: frozenset[str] = frozenset(_UPGRADES.keys())
     _SAFE_COLS: frozenset[str] = frozenset(col for cols in _UPGRADES.values() for col, _ in cols)
-    # DDL type strings are also allowlisted - only these exact strings may
+    # DDL type strings are also allowlisted — only these exact strings may
     # appear in an ALTER TABLE statement; no user-controlled data ever reaches here.
     _SAFE_DDL: frozenset[str] = frozenset(ddl for cols in _UPGRADES.values() for _, ddl in cols)
 
@@ -280,7 +280,7 @@ def _apply_schema_upgrades(sync_conn) -> None:
                     continue
                 if col not in existing:
                     # table, col, and ddl are all validated against hardcoded
-                    # frozensets above - no user-controlled data can reach here.
+                    # frozensets above — no user-controlled data can reach here.
                     # Identifiers are also double-quoted for defence-in-depth.
                     stmt = text(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {ddl}')
                     sync_conn.execute(stmt)
@@ -292,16 +292,16 @@ def _apply_schema_upgrades(sync_conn) -> None:
 async def init_async_db():
     """Initialize database tables (async).
 
-    DB_CREATE_ALL (default "1" = aaj jaisa behaviour) - boot pe create_all +
+    DB_CREATE_ALL (default "1" = aaj jaisa behaviour) — boot pe create_all +
     idempotent column-ALTERs. Alembic-only cutover ke liye (audit P2): pehle
     migrations live DB ke against verify karo (`alembic upgrade head` clean), FIR
-    `DB_CREATE_ALL=0` set karo - tab schema purely Alembic-managed. Default ON
+    `DB_CREATE_ALL=0` set karo — tab schema purely Alembic-managed. Default ON
     rakha kyunki blind flip = missing-table/column risk (isliye opt-in, deliberate).
     """
     import os as _os
 
     if _os.environ.get("DB_CREATE_ALL", "1").strip().lower() not in ("1", "true", "yes"):
-        logger.info("DB_CREATE_ALL=0 - create_all skipped (Alembic-only schema mode)")
+        logger.info("DB_CREATE_ALL=0 — create_all skipped (Alembic-only schema mode)")
         return
     engine = _get_async_engine()
     if engine:

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
-# Allowed redirect origins - must be explicitly configured
+# Allowed redirect origins — must be explicitly configured
 # These are the only hosts we allow redirects to
 ALLOWED_REDIRECT_ORIGINS = {
     "https://leadsgenai.in",
@@ -39,7 +39,7 @@ def validate_redirect_url(url: str | None, is_dev: bool = False) -> str:
         HTTPException: 400 if URL is not in allowlist
     """
     if not url or not url.strip():
-        # Empty/None redirect -> default to homepage
+        # Empty/None redirect → default to homepage
         return "https://leadsgenai.in"
 
     url = url.strip()
@@ -47,14 +47,14 @@ def validate_redirect_url(url: str | None, is_dev: bool = False) -> str:
     # Don't allow relative URLs to be redirected externally
     # (relative URLs are safe, but we want to be explicit)
     if url.startswith("/"):
-        # Relative URL is safe - return as-is
+        # Relative URL is safe — return as-is
         return url
 
     # For absolute URLs, validate against allowlist
     try:
         parsed = urlparse(url)
     except Exception:
-        # Malformed URL - reject
+        # Malformed URL — reject
         raise HTTPException(status_code=400, detail="Invalid redirect URL")
 
     # Reconstruct origin from parsed URL

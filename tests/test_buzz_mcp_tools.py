@@ -1,10 +1,10 @@
-"""Buzz MCP tools (/api/buzz/*) - safety-rail contract tests.
+"""Buzz MCP tools (/api/buzz/*) — safety-rail contract tests.
 
 t_574a3fbe (CTRL-P0-D2 rework): file MODULE-LEVEL import hoti hai (function-
-level import trap se bachne ke liye - CLAUDE.md landmine §7), taaki import
+level import trap se bachne ke liye — CLAUDE.md landmine §7), taaki import
 khud hi proof ban jaaye ki deliverable repo me EXIST karti hai.
 
-Auth: conftest.py globally require_admin override karta hai (mock-admin) -
+Auth: conftest.py globally require_admin override karta hai (mock-admin) —
 yahan business-logic gates test hote hain.
 """
 
@@ -78,7 +78,7 @@ def test_module_and_class_exist():
 )
 def test_tools_registered_with_operation_ids(path, op):
     # NOTE: app.routes me wrapped routers '_IncludedRouter' hote hain (.path
-    # nahi) - isliye source-router se inspect karte hain. Router-level paths
+    # nahi) — isliye source-router se inspect karte hain. Router-level paths
     # prefix-less hain (/buzz/...); main.py /api prefix add karta hai.
     routes = {r.path: getattr(r, "operation_id", "") for r in buzz_mod.router.routes}
     assert routes.get(path.replace("/api", "", 1)) == op
@@ -145,7 +145,7 @@ async def test_idempotency_duplicate_blocked():
 
 @pytest.mark.anyio
 async def test_real_send_retry_is_single_send(client, monkeypatch):
-    """Retried real-send call -> duplicate refusal, provider exactly once."""
+    """Retried real-send call → duplicate refusal, provider exactly once."""
     _patch_suppression(monkeypatch)
     monkeypatch.setenv("BUZZ_MCP_REAL_SEND", "1")
 
@@ -163,7 +163,7 @@ async def test_real_send_retry_is_single_send(client, monkeypatch):
     r1 = client.post("/api/buzz/whatsapp-message", json=payload)
     assert r1.json()["ok"] is True
 
-    # Same payload retry -> deterministic key match -> duplicate blocked.
+    # Same payload retry → deterministic key match → duplicate blocked.
     r2 = client.post("/api/buzz/whatsapp-message", json=payload)
     body2 = r2.json()
     assert body2["ok"] is False

@@ -150,7 +150,7 @@ async def get_client_id(
     if user and hasattr(user, "client_id"):
         return user.client_id
 
-    # Anonymous request: PRODUCTION me block karo - warna koi bhi bina auth ke
+    # Anonymous request: PRODUCTION me block karo — warna koi bhi bina auth ke
     # metered lead-search/export/reports hit karke shared credits drain kar leta.
     # Dev/test me hi "demo-client" shortcut allowed.
     from app.config import settings
@@ -326,8 +326,8 @@ def _get_niches_cache():
 
 async def _niches_cache_gen(cache) -> int:
     """Current cache generation. Every listing key is namespaced by this; bumping it
-    (on create/delete) invalidates ALL filter-combo keys at once - works regardless of
-    key format and across workers (token lives in the shared cache). Fail-soft -> 0."""
+    (on create/delete) invalidates ALL filter-combo keys at once — works regardless of
+    key format and across workers (token lives in the shared cache). Fail-soft → 0."""
     if not cache:
         return 0
     try:
@@ -338,11 +338,10 @@ async def _niches_cache_gen(cache) -> int:
 
 async def _invalidate_niches_cache() -> None:
     """Bust the cached niches listing after a create/delete so the new/removed niche
-    shows up immediately (else stale up to TTL - and stale across tests in a shared
-    process). Bumps the generation token
-    old keys orphan + TTL-expire. Never raises.
+    shows up immediately (else stale up to TTL — and stale across tests in a shared
+    process). Bumps the generation token; old keys orphan + TTL-expire. Never raises.
     The real Cache exposes only get/set/delete (no keys/flush), so we can't prefix-scan
-    - generation bump is the portable invalidation."""
+    — generation bump is the portable invalidation."""
     cache = _get_niches_cache()
     if not cache:
         return
@@ -361,7 +360,7 @@ async def get_available_niches(target_type: str = None, tier: str = None, produc
     """
     List available industry niches (research-finalized top 25 + custom).
     Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C,
-    product=marketing|voice (ADR-009 - dono products ke niche sets ALAG).
+    product=marketing|voice (ADR-009 — dono products ke niche sets ALAG).
     Redis-cached 5 min (static data, hot endpoint).
     """
     cache = _get_niches_cache()
@@ -411,7 +410,7 @@ async def get_available_niches(target_type: str = None, tier: str = None, produc
 
 
 class NicheCreate(BaseModel):
-    """Custom niche - sirf name zaroori, baaki optional (defaults sensible)."""
+    """Custom niche — sirf name zaroori, baaki optional (defaults sensible)."""
 
     name: str
     key: str | None = None
@@ -422,8 +421,7 @@ class NicheCreate(BaseModel):
     pitch_hook: str = ""
     keywords: list[str] | None = None
     qualification_questions: list[str] | None = None
-    lead_band: str = "A"  # voice-product band A|B|C (ADR-009
-    per-lead pricing removed)
+    lead_band: str = "A"  # voice-product band A|B|C (ADR-009; per-lead pricing removed)
 
 
 @router.post("/niches")
@@ -432,7 +430,7 @@ async def create_custom_niche(
     current_user=Depends(require_admin),
 ):
     """
-    Naya custom niche add karo - turant flows/KB/agents/web-call sab me
+    Naya custom niche add karo — turant flows/KB/agents/web-call sab me
     kaam karta hai. data/custom_niches.json me persist hota hai.
     """
     from app.niches import add_custom_niche
@@ -453,7 +451,7 @@ async def create_custom_niche(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
-    # KB seed (best-effort) - naya niche turant grounded-answers de sake.
+    # KB seed (best-effort) — naya niche turant grounded-answers de sake.
     try:
         from app.voice_agent.kb_loader import bootstrap_default_kb
 
@@ -469,7 +467,7 @@ async def create_custom_niche(
         pass
 
     await _invalidate_niches_cache()  # new niche turant listing me dikhe (stale cache bust)
-    return {"id": key, "niche": cfg, "message": "Custom niche added - agents/flows/KB sab me live"}
+    return {"id": key, "niche": cfg, "message": "Custom niche added — agents/flows/KB sab me live"}
 
 
 @router.delete("/niches/{niche_key}")
@@ -533,7 +531,7 @@ class PendingNicheIn(BaseModel):
 
 @router.post("/niches/pending")
 async def submit_pending_niche(payload: PendingNicheIn, current_user=Depends(require_admin)):
-    """Admin ne koi nayi niche submit ki - review queue me save karo."""
+    """Admin ne koi nayi niche submit ki — review queue me save karo."""
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="name required")
@@ -556,7 +554,7 @@ async def submit_pending_niche(payload: PendingNicheIn, current_user=Depends(req
         "id": item["id"],
         "name": name,
         "status": "pending",
-        "message": "Niche review queue me add ho gayi - admin approve karne ke baad permanent list me aayegi",
+        "message": "Niche review queue me add ho gayi — admin approve karne ke baad permanent list me aayegi",
     }
 
 
@@ -568,7 +566,7 @@ async def list_pending_niches(current_user=Depends(require_admin)):
 
 @router.post("/niches/pending/{pending_id}/approve")
 async def approve_pending_niche(pending_id: str, current_user=Depends(require_admin)):
-    """Admin: pending niche approve karo -> custom niches permanent list me add ho jaati hai."""
+    """Admin: pending niche approve karo → custom niches permanent list me add ho jaati hai."""
     items = _read_pending()
     item = next((i for i in items if i.get("id") == pending_id), None)
     if not item:
@@ -579,10 +577,10 @@ async def approve_pending_niche(pending_id: str, current_user=Depends(require_ad
     refresh_custom_niches()
     slug = _re_pending.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:50]
     if slug in NICHES:
-        # already added - just remove from pending
+        # already added — just remove from pending
         items = [i for i in items if i.get("id") != pending_id]
         _write_pending(items)
-        return {"ok": True, "message": "Niche pehle se exist karti hai - pending se remove kiya"}
+        return {"ok": True, "message": "Niche pehle se exist karti hai — pending se remove kiya"}
     try:
         key, cfg = add_custom_niche(name=name, lead_band="A")
     except ValueError as e:
@@ -595,7 +593,7 @@ async def approve_pending_niche(pending_id: str, current_user=Depends(require_ad
         "ok": True,
         "niche_key": key,
         "name": name,
-        "message": f"'{name}' approve ho gayi - ab permanently niches list me hai",
+        "message": f"'{name}' approve ho gayi — ab permanently niches list me hai",
     }
 
 
@@ -616,7 +614,7 @@ async def get_available_cities(
     db: AsyncSession = Depends(get_async_db),
     client_id: str = Depends(
         get_client_id
-    ),  # metered Lead aggregate - block anon in prod (matches siblings)
+    ),  # metered Lead aggregate — block anon in prod (matches siblings)
 ):
     """Get list of cities with company counts"""
     from sqlalchemy import func, select
@@ -656,7 +654,7 @@ async def get_credit_pricing():
     """Get credit costs for each operation.
 
     Single source: app/models/data_credits.py CREDIT_COSTS. The old hardcoded
-    credit-PACK list (₹2,500/8,000/17,500/30,000) was dead data - no consumer
+    credit-PACK list (₹2,500/8,000/17,500/30,000) was dead data — no consumer
     ever fetched it (grep 2026-08-01) aur hardcoded pricing billing-truth ka
     violation hai. Operations costs hi kaafi hain."""
     return {

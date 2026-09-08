@@ -1,5 +1,5 @@
 """
-Swara Golden Utterances - curated library of approved Hinglish responses.
+Swara Golden Utterances — curated library of approved Hinglish responses.
 
 Rule 8: Maintain swara_golden_utterances organized by intent:
     greeting, lead_qualification, appointment_booking, pricing,
@@ -11,7 +11,7 @@ Each golden example includes:
     intent, context, english_semantic_meaning, approved_hinglish_response,
     tone, voice_instructions, quality_score, version.
 
-Rule 19: Version everything - swara_golden_utterances_v1
+Rule 19: Version everything — swara_golden_utterances_v1
 """
 
 from __future__ import annotations
@@ -53,9 +53,9 @@ class GoldenUtterance:
 
 
 # -----------------------------------------------------------------------------
-# DEFAULT GOLDEN UTTERANCES - PROJECT-SPECIFIC
+# DEFAULT GOLDEN UTTERANCES — PROJECT-SPECIFIC
 # These are the canonical Swara responses for LeadGen AI domain.
-# Add new golden examples here - they become the single source of truth.
+# Add new golden examples here — they become the single source of truth.
 # -----------------------------------------------------------------------------
 
 DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
@@ -192,8 +192,8 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
         GoldenUtterance(
             intent="pricing",
             context="payment_terms_upi",
-            english_semantic_meaning="Payment is via UPI only - you'll receive a payment link, and we confirm once we see the credit in our bank.",
-            approved_hinglish_response="Payment sirf UPI se hoti hai - aapko link milega, aur jaise hi hamare bank me credit aata hai, confirm kar denge.",
+            english_semantic_meaning="Payment is via UPI only — you'll receive a payment link, and we confirm once we see the credit in our bank.",
+            approved_hinglish_response="Payment sirf UPI se hoti hai — aapko link milega, aur jaise hi hamare bank me credit aata hai, confirm kar denge.",
             tone="transparent",
             voice_instructions="clear_process, emphasize_manual_verification",
             quality_score=0.98,
@@ -205,8 +205,8 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
         GoldenUtterance(
             intent="objection_handling",
             context="price_too_high",
-            english_semantic_meaning="I understand budget is a concern. The value you get - automated leads, follow-ups, and appointments - typically pays for itself within the first month.",
-            approved_hinglish_response="Samajh sakti hoon budget concern hai. Lekin jo value milegi - automated leads, follow-ups, appointments - wo usually pehle mahine me hi recover ho jaati hai.",
+            english_semantic_meaning="I understand budget is a concern. The value you get — automated leads, follow-ups, and appointments — typically pays for itself within the first month.",
+            approved_hinglish_response="Samajh sakti hoon budget concern hai. Lekin jo value milegi — automated leads, follow-ups, appointments — wo usually pehle mahine me hi recover ho jaati hai.",
             tone="empathetic",
             voice_instructions="acknowledge_first, then_value_pitch",
             quality_score=0.97,
@@ -216,7 +216,7 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
             intent="objection_handling",
             context="not_interested",
             english_semantic_meaning="I completely respect that. May I ask what would make you consider a solution like ours in the future?",
-            approved_hinglish_response="Bilkul respect karti hoon. Ek sawal pooch sakti hoon - future me kya cheez aapko aisa solution consider karne pe majboor karegi?",
+            approved_hinglish_response="Bilkul respect karti hoon. Ek sawal pooch sakti hoon — future me kya cheez aapko aisa solution consider karne pe majboor karegi?",
             tone="respectful",
             voice_instructions="genuine_curiosity, no_push",
             quality_score=0.96,
@@ -225,8 +225,8 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
         GoldenUtterance(
             intent="objection_handling",
             context="already_have_provider",
-            english_semantic_meaning="That's great that you have a provider! Many of our clients started with another provider and switched because we automate the full funnel - leads, follow-ups, AND appointments - in one platform.",
-            approved_hinglish_response="Accha hai ki provider hai! Hamare kaafi clients pehle dusre provider pe the, par switch kiye kyunki hum poora funnel automate karte hain - leads, follow-ups, aur appointments - ek hi platform me.",
+            english_semantic_meaning="That's great that you have a provider! Many of our clients started with another provider and switched because we automate the full funnel — leads, follow-ups, AND appointments — in one platform.",
+            approved_hinglish_response="Accha hai ki provider hai! Hamare kaafi clients pehle dusre provider pe the, par switch kiye kyunki hum poora funnel automate karte hain — leads, follow-ups, aur appointments — ek hi platform me.",
             tone="consultative",
             voice_instructions="validate_first, then_differentiate",
             quality_score=0.97,
@@ -249,7 +249,7 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
             intent="customer_confusion",
             context="who_is_this",
             english_semantic_meaning="This is Swara, an AI assistant calling from [client_name]. I'm not a human operator.",
-            approved_hinglish_response="Yeh Swara hai, ek AI assistant - {client_name} ki taraf se call kiya hai. Main human operator nahi hoon.",
+            approved_hinglish_response="Yeh Swara hai, ek AI assistant — {client_name} ki taraf se call kiya hai. Main human operator nahi hoon.",
             tone="transparent",
             voice_instructions="clear_ai_disclosure, honest_tone",
             quality_score=0.98,
@@ -258,8 +258,8 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
         GoldenUtterance(
             intent="customer_confusion",
             context="what_is_this_about",
-            english_semantic_meaning="I'm calling about marketing automation for your business - helping you get more leads and appointments automatically.",
-            approved_hinglish_response="Main marketing automation ke baare me call kar rahi hoon - aapke business ke liye leads aur appointments automatically lane ke liye.",
+            english_semantic_meaning="I'm calling about marketing automation for your business — helping you get more leads and appointments automatically.",
+            approved_hinglish_response="Main marketing automation ke baare me call kar rahi hoon — aapke business ke liye leads aur appointments automatically lane ke liye.",
             tone="clear",
             voice_instructions="simple_explanation, no_jargon",
             quality_score=0.97,
@@ -281,8 +281,8 @@ DEFAULT_GOLDEN_UTTERANCES: dict[str, list[GoldenUtterance]] = {
         GoldenUtterance(
             intent="follow_up",
             context="no_response_followup",
-            english_semantic_meaning="Just checking in - did you have a chance to review the information I shared?",
-            approved_hinglish_response="Bas check kar rahi thi - kya aapko wo information review karne ka time mila jo maine bheji thi?",
+            english_semantic_meaning="Just checking in — did you have a chance to review the information I shared?",
+            approved_hinglish_response="Bas check kar rahi thi — kya aapko wo information review karne ka time mila jo maine bheji thi?",
             tone="gentle",
             voice_instructions="soft_nudge, not_pushy",
             quality_score=0.95,

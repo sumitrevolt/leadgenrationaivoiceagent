@@ -1,13 +1,12 @@
-"""postiz_publish.py - Postiz public-API se client ke connected social accounts
+"""postiz_publish.py — Postiz public-API se client ke connected social accounts
 (Facebook Page / Instagram / YouTube / LinkedIn / X etc.) pe video+caption AUTO-post.
 
 Kyun Postiz: Meta/Google direct API approval-blocked hain (CLAUDE.md). Postiz =
 client ke APNE connected accounts pe legitimate post karta (SMM-standard, ban-safe
 kyunki client ka apna account/token). Self-host ya cloud dono.
 
-GATED: `POSTIZ_API_KEY` (Postiz settings -> API). Optional `POSTIZ_API_URL`
-(default cloud https://api.postiz.com
-self-host = https://<your-host>).
+GATED: `POSTIZ_API_KEY` (Postiz settings → API). Optional `POSTIZ_API_URL`
+(default cloud https://api.postiz.com; self-host = https://<your-host>).
 Channel ids: client record `postiz_integrations` (list/csv) ya env
 `POSTIZ_INTEGRATIONS` (csv) fallback. Key unset = inert ({"sent": False}).
 NEVER raises. Heavy upload = worker/scheduler se hi call karo.
@@ -27,10 +26,9 @@ logger = setup_logger(__name__)
 def _vault_cfg() -> dict[str, Any]:
     """Global Postiz config from the encrypted social vault (client '_global').
 
-    Env vars still win (below) - this fallback exists so the key can be set at
+    Env vars still win (below) — this fallback exists so the key can be set at
     RUNTIME via the admin configure endpoint without a container recreate
-    (running containers carry docker-cp drift
-    recreate = hotfix loss).
+    (running containers carry docker-cp drift; recreate = hotfix loss).
     Never raises."""
     try:
         from app.social_engine import vault
@@ -70,13 +68,13 @@ _OWN_BRAND_IDS = frozenset({"leadgenai-self", "leadgen-ai"})
 def _is_own_brand(client: dict[str, Any] | None) -> bool:
     """True when publish context is LeadGen own-brand (or admin/global, no client).
 
-    Customer records MUST NOT inherit ``POSTIZ_INTEGRATIONS`` / vault globals -
+    Customer records MUST NOT inherit ``POSTIZ_INTEGRATIONS`` / vault globals —
     that posted customer copy onto corporate FB/IG (audit 2026-07-17).
 
     NOTE: an empty/falsy client legitimately means "own-brand, no client
     context" at this boundary (see tests/test_postiz_config.py publish_video
     calls). Callers that resolved a REAL customer id and got nothing back must
-    therefore refuse BEFORE reaching here - see
+    therefore refuse BEFORE reaching here — see
     ``video_ad_cycle._resolve_publish_client``.
     """
     if not client:
@@ -90,7 +88,7 @@ def _is_own_brand(client: dict[str, Any] | None) -> bool:
 
 
 def _parse_integration_ids(raw: Any) -> list[str]:
-    """Parse CSV/list integration ids - empty rejected, order preserved, deduped."""
+    """Parse CSV/list integration ids — empty rejected, order preserved, deduped."""
     if isinstance(raw, str):
         ids = [x.strip() for x in raw.split(",")]
     elif isinstance(raw, list | tuple):
@@ -110,7 +108,7 @@ def _parse_integration_ids(raw: Any) -> list[str]:
 
 
 def _social_config_integrations(client_id: str) -> list[str]:
-    """Wizard writes postiz_integrations to social_config.jsonl - merge for publish."""
+    """Wizard writes postiz_integrations to social_config.jsonl — merge for publish."""
     cid = str(client_id or "").strip()
     if not cid:
         return []
@@ -126,8 +124,8 @@ def _social_config_integrations(client_id: str) -> list[str]:
 def _integration_ids(client: dict[str, Any] | None) -> list[str]:
     """Channel ids for a publish.
 
-    Precedence: client record -> social_config wizard -> (own-brand/global only)
-    env ``POSTIZ_INTEGRATIONS`` -> vault. Customers without their own IDs get [].
+    Precedence: client record → social_config wizard → (own-brand/global only)
+    env ``POSTIZ_INTEGRATIONS`` → vault. Customers without their own IDs get [].
     """
     raw: Any = (client or {}).get("postiz_integrations") if client else None
     ids = _parse_integration_ids(raw)
@@ -142,11 +140,11 @@ def _integration_ids(client: dict[str, Any] | None) -> list[str]:
 
 
 # Platforms that reject text-only posts (Postiz "Should have at least one
-# media" error) - media-required, unlike FB/X/LinkedIn which accept text.
+# media" error) — media-required, unlike FB/X/LinkedIn which accept text.
 _MEDIA_REQUIRED_PLATFORMS = frozenset({"instagram", "tiktok", "pinterest", "youtube"})
 
 # Platforms that 400 the WHOLE multi-channel create-post batch unless
-# provider-specific settings are present. Skip them unless configured -
+# provider-specific settings are present. Skip them unless configured —
 # one bad channel must not block Facebook/IG/X (Stage 2 canary lesson).
 _BOARD_REQUIRED_PLATFORMS = frozenset({"pinterest"})
 
@@ -193,12 +191,10 @@ def _publish_max_channels() -> int | None:
     """Channel cap for one create-post call.
 
     Semantics:
-    - unset -> ``None`` (no cap
-    legacy multi-channel fan-out)
-    - ``0`` / negative -> ``0`` (zero targets
-    publish blocked, no API call)
-    - invalid string -> ``None`` with warning (preserve prior uncapped behavior)
-    - ``N`` > ceiling -> clamped to ``_PUBLISH_MAX_CHANNELS_CEILING``
+    - unset → ``None`` (no cap; legacy multi-channel fan-out)
+    - ``0`` / negative → ``0`` (zero targets; publish blocked, no API call)
+    - invalid string → ``None`` with warning (preserve prior uncapped behavior)
+    - ``N`` > ceiling → clamped to ``_PUBLISH_MAX_CHANNELS_CEILING``
     """
     raw = (os.getenv("POSTIZ_PUBLISH_MAX_CHANNELS") or "").strip()
     if not raw:
@@ -206,8 +202,7 @@ def _publish_max_channels() -> int | None:
     try:
         n = int(raw)
     except ValueError:
-        logger.warning("[postiz] POSTIZ_PUBLISH_MAX_CHANNELS invalid
-        treating as unset (uncapped)")
+        logger.warning("[postiz] POSTIZ_PUBLISH_MAX_CHANNELS invalid; treating as unset (uncapped)")
         return None
     if n <= 0:
         return 0
@@ -321,7 +316,7 @@ def plan_publish_channels(
 
 async def _fetch_integration_platforms() -> dict[str, str]:
     """id -> identifier (e.g. "instagram") map from Postiz's own integrations
-    list. Best-effort, never raises - empty dict on any failure (caller then
+    list. Best-effort, never raises — empty dict on any failure (caller then
     sends to all ids unfiltered, same as before this existed)."""
     try:
         import httpx
@@ -420,7 +415,7 @@ async def upload_media(
             obj = j[0] if isinstance(j, list) and j else j
             if isinstance(obj, dict) and (obj.get("path") or obj.get("id")):
                 return {"id": obj.get("id") or "", "path": obj.get("path") or ""}
-        # 5xx: remote may have stored the object - surface as ambiguous to caller.
+        # 5xx: remote may have stored the object — surface as ambiguous to caller.
         if int(r.status_code) >= 500:
             raise RuntimeError(f"postiz_upload_ambiguous:{r.status_code}")
         logger.warning(f"[postiz] upload {r.status_code}: {r.text[:140]}")
@@ -451,8 +446,7 @@ async def publish_video(
     """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
     Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
     Returns {sent, channels, post_id, post_ids, post_url, reason}.  Postiz's
-    create-post API returns one ``postId`` per integration
-    preserving those
+    create-post API returns one ``postId`` per integration; preserving those
     ids is mandatory launch evidence (``sent=True`` alone only proves that the
     request was accepted, not which provider records were created).
 
@@ -479,7 +473,7 @@ async def publish_video(
             "reason": "koi postiz_integrations id nahi (client/env)",
             "provider_idempotency": False,
         }
-    # Platform map (id -> identifier e.g. "youtube") - needed both to skip
+    # Platform map (id -> identifier e.g. "youtube") — needed both to skip
     # media-required platforms on text-only posts AND to build YouTube's own
     # required settings below. Best-effort; empty dict on failure (fine, just
     # means no per-platform special-casing happens, same as before either fix
@@ -507,7 +501,7 @@ async def publish_video(
                 filename=filename or (os.path.basename(video_path) if video_path else "video.mp4"),
             )
         except RuntimeError as e:
-            # Ambiguous upload transport/5xx - do not classify as retryable failed.
+            # Ambiguous upload transport/5xx — do not classify as retryable failed.
             return {
                 "sent": False,
                 "outcome": "unknown",
@@ -537,13 +531,13 @@ async def publish_video(
         return [{"content": content, "image": media_list}]
 
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
-    # ("should not be null or undefined") - every platform needs this. X also
+    # ("should not be null or undefined") — every platform needs this. X also
     # requires settings.who_can_reply_post; harmless extra field on other
     # platforms (ignored), so send both unconditionally rather than branching
     # per-platform (keeps this additive and simple).
     base_settings = {"post_type": "post", "who_can_reply_post": "everyone"}
     # 2026-07-04 fix: YouTube's own settings DTO additionally REQUIRES
-    # "title" (2-100 chars) and "type" (public/private/unlisted) - missing
+    # "title" (2-100 chars) and "type" (public/private/unlisted) — missing
     # either 400s with "settings.title should not be null or undefined".
     # Derive title from the caption's first line (YouTube video titles are
     # short) rather than making callers pass a separate title everywhere.
@@ -573,7 +567,7 @@ async def publish_video(
             for i in ids
         ],
     }
-    # Note: idempotency_key is intentionally NOT forwarded - Postiz docs do not
+    # Note: idempotency_key is intentionally NOT forwarded — Postiz docs do not
     # accept/enforce it. Local reservation is the only exactly-once guarantee.
     _ = idempotency_key
     try:
@@ -594,7 +588,7 @@ async def publish_video(
                 "reason": f"{code}: {r.text[:160]}",
                 "provider_idempotency": False,
             }
-        # Definitive client refusal - safe to classify as failed (retryable).
+        # Definitive client refusal — safe to classify as failed (retryable).
         if code // 100 == 4:
             return {
                 "sent": False,
@@ -650,12 +644,12 @@ async def publish_video(
 
 def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]:
     """Channel ids `publish_video()` would ACTUALLY use, in its real precedence
-    order (client record -> env `POSTIZ_INTEGRATIONS` -> vault meta).
+    order (client record → env `POSTIZ_INTEGRATIONS` → vault meta).
 
     Public wrapper so status/diagnostic surfaces report the EFFECTIVE config
     instead of reading ONE source and guessing. `/social/postiz/status` used to
     count only the vault field and reported `integrations_count: 0` while
-    publishing was fully wired via env - a status surface that lies sends
+    publishing was fully wired via env — a status surface that lies sends
     operators chasing a bug that does not exist (ADR-095/096/098 class).
     Never raises."""
     try:
@@ -665,7 +659,7 @@ def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]
 
 
 def integrations_source(client: dict[str, Any] | None = None) -> str:
-    """Which source `effective_integration_ids()` resolved from - "client" /
+    """Which source `effective_integration_ids()` resolved from — "client" /
     "social_config" / "env" / "vault" / "none". Operator triage: tells you WHERE
     to change the value. Customers never report env/vault unless own-brand.
     Never raises."""
@@ -685,7 +679,7 @@ def integrations_source(client: dict[str, Any] | None = None) -> str:
 
 
 def api_url() -> str:
-    """Effective Postiz base URL (env -> vault -> cloud default). Never raises."""
+    """Effective Postiz base URL (env → vault → cloud default). Never raises."""
     try:
         return _base()
     except Exception:  # pragma: no cover

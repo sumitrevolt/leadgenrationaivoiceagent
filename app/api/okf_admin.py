@@ -1,8 +1,8 @@
-"""Admin OKF knowledge-stack API - status / dry-run / ingest (ADR-119 Phase-1).
+"""Admin OKF knowledge-stack API — status / dry-run / ingest (ADR-119 Phase-1).
 
   GET  /api/admin/okf/status
   POST /api/admin/okf/dry-run
-  POST /api/admin/okf/ingest   - requires OKF_INGEST_ENABLED=1 (or force=false path)
+  POST /api/admin/okf/ingest   — requires OKF_INGEST_ENABLED=1 (or force=false path)
   GET  /api/admin/okf/recall?q=
 
 Ingest is fail-closed when flag OFF. No customer namespaces. No secrets.
@@ -24,8 +24,7 @@ router = APIRouter(prefix="/api/admin/okf", tags=["OKF"])
 class IngestIn(BaseModel):
     force: bool = Field(
         False,
-        description="Ignored in prod paths - kept for explicitness
-        flag must still be ON.",
+        description="Ignored in prod paths — kept for explicitness; flag must still be ON.",
     )
 
 
@@ -50,7 +49,7 @@ async def okf_status(_user=Depends(require_admin)) -> dict[str, Any]:
     from app.platform import okf_bundle
 
     snap = okf_bundle.snapshot()
-    # Trim body listings for status - keep counts + paths only
+    # Trim body listings for status — keep counts + paths only
     return {
         "okf_version": snap["okf_version"],
         "root": snap["root"],
@@ -85,7 +84,7 @@ async def okf_ingest_route(
 ) -> dict[str, Any]:
     from app.platform import okf_ingest
 
-    # force flag on body does NOT bypass OKF_INGEST_ENABLED - never arm from request alone
+    # force flag on body does NOT bypass OKF_INGEST_ENABLED — never arm from request alone
     _ = body  # reserved
     out = okf_ingest.ingest(force=False)
     await _audit(

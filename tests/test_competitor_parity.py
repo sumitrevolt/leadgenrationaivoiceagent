@@ -1,4 +1,4 @@
-"""Tests - competitor-parity batch (totp 2FA, loyalty, client API keys, templates, report stats)."""
+"""Tests — competitor-parity batch (totp 2FA, loyalty, client API keys, templates, report stats)."""
 
 from __future__ import annotations
 
@@ -69,5 +69,5 @@ def test_ai_image_cache_name_safety():
     assert ai_image.cache_file_path("../../etc/passwd") is None
     assert (
         ai_image.cache_file_path("aaaaaaaaaaaaaaaaaaaaaaaa.jpg") is None or True
-    )  # not exists -> None
+    )  # not exists → None
     assert ai_image.cache_file_path("ZZ.jpg") is None

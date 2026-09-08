@@ -2,20 +2,19 @@
 
 WHY THIS TEST EXISTS (2026-07-15 production admin audit):
 The first `GET https://leadsgenai.in/health` of the audit returned a body that
-was 12.7 HOURS old - `version: 91e7d37`, `uptime: 13m 53s`,
-`timestamp: 2026-07-14T12:59:06` - while production was actually running
+was 12.7 HOURS old — `version: 91e7d37`, `uptime: 13m 53s`,
+`timestamp: 2026-07-14T12:59:06` — while production was actually running
 `b12d1e97` with 8h24m uptime. The stale body was indistinguishable from a fresh
 one. Only re-requesting with a `?cb=` query string (a different cache key)
 exposed the real version.
 
 That is a *measurement* failure, not a cosmetic one. CLAUDE.md designates the
 `version` field of `/health` as THE deploy-drift detector:
-    "/health ka version field hi tumhara drift detector hai - `latest` dikhe to
+    "/health ka version field hi tumhara drift detector hai — `latest` dikhe to
      prod ka code UNKNOWN hai."
 A drift detector that can be served from cache reports the wrong SHA with full
 confidence, which is precisely the ADR-097 failure mode one layer out: there the
-running image's provenance was unknown
-here the provenance REPORT itself lied.
+running image's provenance was unknown; here the provenance REPORT itself lied.
 
 Root enabler: these endpoints returned a bare dict with no cache directives, and
 a response with no Cache-Control/Expires is heuristically cacheable by browsers
@@ -44,7 +43,7 @@ def test_health_endpoints_forbid_caching(client, path):
 
 
 def test_health_version_is_not_cacheable():
-    """The version field specifically - the documented drift detector.
+    """The version field specifically — the documented drift detector.
 
     Guards the exact regression observed in production: a cached /health body
     advertising a version the running process does not have.
@@ -56,7 +55,7 @@ def test_health_version_is_not_cacheable():
 
 
 def test_health_reports_live_uptime_not_a_frozen_value(client):
-    """A cached body would also freeze uptime/timestamp - assert they move.
+    """A cached body would also freeze uptime/timestamp — assert they move.
 
     This is the symptom that made the stale response detectable in hindsight
     (uptime 13m while the container had been up 8h24m), so it is worth pinning.

@@ -1,4 +1,4 @@
-"""Tests - conversion widgets batch (popup_widgets / bio_link / site_beacon).
+"""Tests — conversion widgets batch (popup_widgets / bio_link / site_beacon).
 
 Pure-python, tmp_path monkeypatch (no network, no DB, no LLM).
 Run: pytest tests/test_tools_widgets.py -q
@@ -55,7 +55,7 @@ def test_popup_trigger_and_delay_validation(stores):
         "sharma-solar",
         {"popup": {"enabled": True, "trigger": "evil_trigger", "delay_s": 99999}},
     )
-    assert r["config"]["popup"]["trigger"] == "delay"  # invalid -> default
+    assert r["config"]["popup"]["trigger"] == "delay"  # invalid → default
     assert r["config"]["popup"]["delay_s"] == 120  # clamp
     r2 = popup_widgets.save_config("sharma-solar", {"popup": {"trigger": "exit_intent"}})
     assert r2["config"]["popup"]["trigger"] == "exit_intent"
@@ -87,7 +87,7 @@ def test_render_js_escapes_and_embed_contract(stores):
         },
     )
     js = popup_widgets.render_js("sharma-solar")
-    # user text json-escaped - raw </script> breakout kabhi nahi
+    # user text json-escaped — raw </script> breakout kabhi nahi
     assert "</script>" not in js
     assert '\\"hi\\"' in js or '\\"' in js
     # CORS-free contract: proven embed iframe + 1/day localStorage cap
@@ -140,7 +140,7 @@ def test_bio_save_get_and_block_clean(stores):
     assert r["ok"] is True
     cfg = bio_link.get_bio("sharma-solar")
     assert len(cfg["blocks"]) == 3
-    assert cfg["blocks"][1]["type"] == "link"  # unknown type -> link
+    assert cfg["blocks"][1]["type"] == "link"  # unknown type → link
     assert cfg["blocks"][3 - 1]["id"] == "paynow"  # id sanitized
     assert cfg["blocks"][0]["id"] == "b1"  # autogen
 
@@ -149,7 +149,7 @@ def test_bio_resolve_targets_and_security(stores):
     bio_link.save_bio(
         "sharma-solar",
         [
-            {"id": "wa", "type": "whatsapp", "label": "WA"},  # value nahi -> client phone
+            {"id": "wa", "type": "whatsapp", "label": "WA"},  # value nahi → client phone
             {"id": "call", "type": "call", "label": "Call", "value": "098765 43210"},
             {"id": "upi", "type": "upi", "label": "Pay"},
             {"id": "site", "type": "link", "label": "Site", "url": "https://sharma.in/x"},
@@ -191,18 +191,15 @@ def test_render_bio_html_escapes_and_tracking(stores):
     assert res["ok"] is True
     html_out = res["html"]
     assert "<script>alert(1)</script>" not in html_out
-    assert "&lt
-    script&gt
-    " in html_out
-    assert "Sharma &amp
-    Sons" in html_out
+    assert "&lt;script&gt;" in html_out
+    assert "Sharma &amp; Sons" in html_out
     assert "/api/widgets/bio/sharma-solar/c/wa" in html_out  # tracking redirect href
     assert "#16a34a" in html_out  # brand color
-    # config na ho par CLIENT ho -> default blocks (WA/call/website) auto-render
+    # config na ho par CLIENT ho → default blocks (WA/call/website) auto-render
     res2 = bio_link.render_bio_html("koi-aur")
     assert res2["ok"] is True
     assert "WhatsApp" in res2["html"]
-    # client bhi na ho -> ok False (caller redirect kare)
+    # client bhi na ho → ok False (caller redirect kare)
     import types
 
     orig = bio_link._load_client

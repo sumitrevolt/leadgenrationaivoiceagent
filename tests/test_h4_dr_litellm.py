@@ -1,4 +1,4 @@
-"""H.4 - dr_health + litellm_costs probes.
+"""H.4 — dr_health + litellm_costs probes.
 
 These probes are the OPERATIONAL eyes on platform survival + margin. The
 tests assert each one degrades gracefully when its dependency is absent
@@ -27,7 +27,7 @@ def test_dr_unconfigured_is_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_dr_unreachable_returns_fail(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A configured but unreachable replica is a FAIL, not a NEUTRAL - silent
+    """A configured but unreachable replica is a FAIL, not a NEUTRAL — silent
     'DR off' is the exact gap the audit flagged. We must NOT mask it."""
     monkeypatch.setenv("DR_REPLICA_URL", "postgres://nobody@127.0.0.1:1/db")
     out = dr_health.probe()

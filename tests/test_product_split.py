@@ -1,4 +1,4 @@
-"""Tests - ADR-009 two-product split (2026-06-11).
+"""Tests — ADR-009 two-product split (2026-06-11).
 
 Locks: (1) voice product catalog (per-niche per-10-leads, hybrid tiers+packs),
 (2) niches lead_band + per-product sets (per-lead pricing REMOVED),
@@ -17,7 +17,7 @@ import importlib
 def test_voice_packages_catalog():
     from app.marketing import voice_packages as vp
 
-    # S = Starter Voice ₹1,999 (100 min) · F = Freemium ₹0 (10 calls/mo) - added 2026-08
+    # S = Starter Voice ₹1,999 (100 min) · F = Freemium ₹0 (10 calls/mo) — added 2026-08
     assert set(vp.BANDS) == {"S", "F", "A", "B", "C"}
     # flat monthly prices, band ladder A < B < C
     pa, pb, pc = (vp.BANDS[b]["price_month"] for b in ("A", "B", "C"))
@@ -75,7 +75,7 @@ def test_niches_lead_band_and_no_per_lead_pricing():
 
     builtins = {k: v for k, v in n.NICHES.items() if not v.get("custom")}
     # curated builtin set + wizard catalog extension 2026-08 (12 SMB niches,
-    # real_estate folded into real_estate_luxury as builtin) - 39 + 12 = 51
+    # real_estate folded into real_estate_luxury as builtin) — 39 + 12 = 51
     assert len(builtins) == 51
     for k, cfg in builtins.items():
         assert "pricing_inr" not in cfg, f"per-lead pricing leftover in {k}"
@@ -147,11 +147,11 @@ def test_billing_plans_two_products():
     import app.billing.subscription as sub
 
     importlib.reload(sub)  # ensure sync ran with current packages
-    # marketing (Product 1) - merged marketing automation price
+    # marketing (Product 1) — merged marketing automation price
     assert float(sub.PRICING_PLANS["starter"].monthly_price) == 1999.0
     assert float(sub.PRICING_PLANS["growth"].monthly_price) == 2999.0
     assert float(sub.PRICING_PLANS["advanced"].monthly_price) == 5999.0
-    # voice (Product 2) - flat per-band plans (monthly + annual) + free pilot
+    # voice (Product 2) — flat per-band plans (monthly + annual) + free pilot
     from app.marketing.voice_packages import BANDS, UNLIMITED_QUOTA, VOICE_PLAN_IDS
 
     for pid in VOICE_PLAN_IDS:

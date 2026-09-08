@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""context_health.py - health check for the persistent-context layer.
+"""context_health.py — health check for the persistent-context layer.
 
 Checks (all read-only, no network):
   1. graphify MCP binary present (AST code-graph navigation).
@@ -7,8 +7,7 @@ Checks (all read-only, no network):
   3. project_context.json present + valid + head_sha matches current HEAD.
   4. memory/ fallback files present (safe degradation target).
 
-Exit code: 0 if usable (context available OR memory fallback present)
-1 only on
+Exit code: 0 if usable (context available OR memory fallback present); 1 only on
 hard failure (store unreadable/corrupt AND memory fallback also missing).
 """
 
@@ -48,11 +47,10 @@ def check() -> dict:
     results["code_graph"] = {
         "ok": graph_present,
         "detail": (
-            f"graph.json present
-            report_sha={grpt or '?'} head={head[:8]} "
+            f"graph.json present; report_sha={grpt or '?'} head={head[:8]} "
             f"{'FRESH' if grpt and head.startswith(grpt) else 'STALE/unknown'}"
             if graph_present
-            else "FAIL-LOUD: app/graphify-out/graph.json MISSING - Graphify MCP cold. "
+            else "FAIL-LOUD: app/graphify-out/graph.json MISSING — Graphify MCP cold. "
             "Run scripts/graphify_refresh.bat (or .sh) before graphify query/explain."
         ),
     }
@@ -68,7 +66,7 @@ def check() -> dict:
             "ok": store.get("meta", {}).get("content_hash") == recomputed,
             "detail": f"nodes={store['meta'].get('node_count')} "
             f"store_sha={store['meta'].get('head_sha', '?')[:8]} head={head[:8]} "
-            f"{'FRESH' if sha_ok else 'STALE - run sync'} "
+            f"{'FRESH' if sha_ok else 'STALE — run sync'} "
             f"hash={'valid' if store['meta'].get('content_hash') == recomputed else 'CORRUPT'}",
         }
 

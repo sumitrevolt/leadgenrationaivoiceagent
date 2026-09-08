@@ -1,4 +1,4 @@
-"""OpenClaw audit helpers - always redacted, always correlatable."""
+"""OpenClaw audit helpers — always redacted, always correlatable."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def audit_openclaw(
                 **meta,
             },
         )
-    except Exception as exc:  # pragma: no cover - fail-open on audit store
+    except Exception as exc:  # pragma: no cover — fail-open on audit store
         logger.warning("openclaw audit store failed: %s", type(exc).__name__)
     logger.info(
         "openclaw_audit action=%s command=%s lane=%s corr=%s actor=%s",

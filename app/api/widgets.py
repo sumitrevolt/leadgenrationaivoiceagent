@@ -1,4 +1,4 @@
-"""Widgets API - conversion widgets pack (popup/announcement-bar/spin-wheel) +
+"""Widgets API — conversion widgets pack (popup/announcement-bar/spin-wheel) +
 bio-link page (Linktree-killer) + first-party site beacon (Plausible-lite).
 
 Mount (main session):
@@ -9,7 +9,7 @@ PUBLIC (rate-limited, no auth):
   GET  /api/widgets/popup.js?slug=          popup-pack JS (client site pe embed)
   GET  /api/widgets/beacon.js?slug=         analytics beacon JS
   POST /api/widgets/beacon                  beacon collect (sendBeacon text/plain)
-  GET  /api/widgets/bio/{slug}/c/{block_id} bio-link click track -> 302
+  GET  /api/widgets/bio/{slug}/c/{block_id} bio-link click track → 302
 
 ADMIN:
   GET/POST /api/widgets/popup-config        per-slug popup pack config
@@ -20,7 +20,7 @@ ADMIN:
   GET  /api/widgets/site-stats?slug=&days=  beacon analytics + Hinglish summary
 
 Sab additive + free-stack + never-raise (modules error dicts dete). Public
-paths pure file-IO light hain (NO LLM/KB/ML - prod-down lesson). Slugs
+paths pure file-IO light hain (NO LLM/KB/ML — prod-down lesson). Slugs
 regex-locked ([a-z0-9-]).
 """
 
@@ -66,7 +66,7 @@ class WheelCouponsIn(BaseModel):
 
 @router.get("/popup.js", dependencies=[Depends(rate_limit("widgetjs", 60, 60))])
 async def popup_js(slug: str = Query("", max_length=64)):
-    """Popup-pack JS (PUBLIC) - client site pe ek <script> line se embed."""
+    """Popup-pack JS (PUBLIC) — client site pe ek <script> line se embed."""
     from fastapi.responses import Response
 
     s = _valid_slug(slug)
@@ -170,7 +170,7 @@ async def bio_config_save(body: BioConfigIn, _user=Depends(require_admin)):
 
 @router.get("/bio/{slug}/c/{block_id}", dependencies=[Depends(rate_limit("bioclick", 120, 60))])
 async def bio_click(slug: str, block_id: str, request: Request):
-    """Bio-link block click -> log + 302 (PUBLIC). Unknown = graceful home redirect."""
+    """Bio-link block click → log + 302 (PUBLIC). Unknown = graceful home redirect."""
     from fastapi.responses import RedirectResponse
 
     url: str | None = None
@@ -206,7 +206,7 @@ async def bio_stats(
 # --------------------------- site beacon (analytics) ----------------------- #
 @router.get("/beacon.js", dependencies=[Depends(rate_limit("widgetjs", 60, 60))])
 async def beacon_js(slug: str = Query("", max_length=64)):
-    """Analytics beacon JS (~1KB, PUBLIC) - no cookies, privacy-coarse."""
+    """Analytics beacon JS (~1KB, PUBLIC) — no cookies, privacy-coarse."""
     from fastapi.responses import Response
 
     from app.platform import site_beacon
@@ -222,8 +222,8 @@ async def beacon_js(slug: str = Query("", max_length=64)):
 
 @router.post("/beacon", dependencies=[Depends(rate_limit("beacon", 120, 60))])
 async def beacon_collect(request: Request):
-    """Beacon collect (PUBLIC) - sendBeacon text/plain body, isliye raw parse.
-    Hamesha 200 {ok} - widget kabhi client site pe error na dikhaye."""
+    """Beacon collect (PUBLIC) — sendBeacon text/plain body, isliye raw parse.
+    Hamesha 200 {ok} — widget kabhi client site pe error na dikhaye."""
     data: dict[str, Any] = {}
     try:
         raw = await request.body()
@@ -251,7 +251,7 @@ async def site_stats(
     days: int = Query(7, ge=1, le=30),
     _user=Depends(require_admin),
 ):
-    """Beacon analytics - visitors/top paths/sources/wa-tel clicks + Hinglish summary (admin)."""
+    """Beacon analytics — visitors/top paths/sources/wa-tel clicks + Hinglish summary (admin)."""
     from app.platform import site_beacon
 
     s = _valid_slug(slug)

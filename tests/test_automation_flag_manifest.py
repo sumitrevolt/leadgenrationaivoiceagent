@@ -1,4 +1,4 @@
-"""Typed AUTOMATION_FLAGS manifest - explicit kinds; no mass enablement."""
+"""Typed AUTOMATION_FLAGS manifest — explicit kinds; no mass enablement."""
 
 from __future__ import annotations
 

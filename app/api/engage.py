@@ -1,4 +1,4 @@
-"""Engage API - engagement batch (UPI QR, short-links, reviews widget, lead alerts).
+"""Engage API — engagement batch (UPI QR, short-links, reviews widget, lead alerts).
 
   POST /api/engage/upi-qr            (admin)  client UPI payment QR pack
   POST /api/engage/links             (admin)  short link create (own-domain)
@@ -8,7 +8,7 @@
   GET  /api/engage/reviews-snippet   (admin)  copy-paste snippet for client
   POST /api/engage/alerts/test       (admin)  test lead alert (setup verify)
 
-  GET  /r/{code}                     (public, rate-limited) 302 redirect - yeh
+  GET  /r/{code}                     (public, rate-limited) 302 redirect — yeh
        `redirect_router` pe hai (NO /api prefix): main.py me alag mount karo.
 
 Mount (main session):
@@ -17,7 +17,7 @@ Mount (main session):
     app.include_router(redirect_router)                # /r/{code}
 
 Sab additive + free-stack + never-raise (modules error dicts dete). Koi
-ML/KB/heavy-sync nahi - public paths pure file-IO light hain (prod-down lesson).
+ML/KB/heavy-sync nahi — public paths pure file-IO light hain (prod-down lesson).
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/engage", tags=["Engage"])
-redirect_router = APIRouter(tags=["Engage"])  # NO prefix - /r/{code}
+redirect_router = APIRouter(tags=["Engage"])  # NO prefix — /r/{code}
 
 
 # ------------------------- F1: UPI payment QR (admin) ---------------------- #
@@ -62,7 +62,7 @@ class LinkIn(BaseModel):
 
 @router.post("/links")
 async def create_link(body: LinkIn, _user=Depends(require_admin)):
-    """Own-domain short link banao (leadsgenai.in/r/xxxxxx) - attribution-ready."""
+    """Own-domain short link banao (leadsgenai.in/r/xxxxxx) — attribution-ready."""
     from app.platform import short_links
 
     return short_links.create(
@@ -72,7 +72,7 @@ async def create_link(body: LinkIn, _user=Depends(require_admin)):
 
 @router.get("/links/stats")
 async def link_stats(code: str = Query("", max_length=12), _user=Depends(require_admin)):
-    """Click stats - by code/channel/day (?code= se single link)."""
+    """Click stats — by code/channel/day (?code= se single link)."""
     from app.platform import short_links
 
     return short_links.stats(code)
@@ -80,8 +80,8 @@ async def link_stats(code: str = Query("", max_length=12), _user=Depends(require
 
 @redirect_router.get("/r/{code}", dependencies=[Depends(rate_limit("shortlink", 120, 60))])
 async def short_redirect(code: str, request: Request):
-    """Short link 302 redirect (PUBLIC). Unknown code -> homepage (kabhi 404 nahi
-    - printed QR/posters pe purane codes bhi graceful)."""
+    """Short link 302 redirect (PUBLIC). Unknown code → homepage (kabhi 404 nahi
+    — printed QR/posters pe purane codes bhi graceful)."""
     from fastapi.responses import RedirectResponse
 
     from app.platform import short_links
@@ -106,7 +106,7 @@ async def reviews_widget_page(slug: str):
     from app.marketing import reviews_widget
 
     # NOTE: SecurityHeadersMiddleware har response pe X-Frame-Options=DENY likhta
-    # hai (existing /b/{slug}/embed widget bhi isi ke saath LIVE chal raha) -
+    # hai (existing /b/{slug}/embed widget bhi isi ke saath LIVE chal raha) —
     # iframe-exempt karna ho to middleware me path-exemption chahiye (main session).
     return HTMLResponse(
         reviews_widget.reviews_widget_html(slug),
@@ -116,7 +116,7 @@ async def reviews_widget_page(slug: str):
 
 @router.get("/reviews-widget.js/{slug}", dependencies=[Depends(rate_limit("rvwidget", 60, 60))])
 async def reviews_widget_js(slug: str):
-    """JS injector - client site pe inline iframe insert (PUBLIC)."""
+    """JS injector — client site pe inline iframe insert (PUBLIC)."""
     from fastapi.responses import Response
 
     from app.marketing import reviews_widget
@@ -145,7 +145,7 @@ class AlertTestIn(BaseModel):
 
 @router.post("/alerts/test")
 async def alerts_test(body: AlertTestIn, _user=Depends(require_admin)):
-    """Test alert bhejo - email setup verify karne ke liye (admin).
+    """Test alert bhejo — email setup verify karne ke liye (admin).
 
     Dedupe bypass ke liye unique test phone use hota hai."""
     import time as _t
@@ -154,9 +154,9 @@ async def alerts_test(body: AlertTestIn, _user=Depends(require_admin)):
 
     rec: dict[str, Any] = {
         "name": "Test Lead (setup check)",
-        "phone": f"9{int(_t.time()) % 1000000000:09d}",  # unique -> dedupe skip
+        "phone": f"9{int(_t.time()) % 1000000000:09d}",  # unique → dedupe skip
         "source": "alerts-test",
-        "message": "Yeh test alert hai - email setup verify.",
+        "message": "Yeh test alert hai — email setup verify.",
     }
     if body.client_id:
         rec["client_id"] = body.client_id

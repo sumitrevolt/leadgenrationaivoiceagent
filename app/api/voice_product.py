@@ -1,11 +1,11 @@
-"""Voice Product API - AI Voice Calling Agent (Product 2, ADR-009) ka ALAG surface.
+"""Voice Product API — AI Voice Calling Agent (Product 2, ADR-009) ka ALAG surface.
 
 Marketing product (/api/marketing/*) se separate handling:
-  - GET  /api/voice/packages        PUBLIC - /voice-agent page pricing fetch (band/niche resolved)
-  - GET  /api/voice/niches          PUBLIC - voice-product niches (category leadgen/both)
-  - GET  /api/voice/quota           admin  - client ka lead quota status (flat plans = unlimited)
-  - POST /api/voice/record-lead     admin  - manual qualified-lead record (dispute-fix/override)
-  - POST /api/voice/topup-link      admin  - RETIRED, band ka flat monthly fee batata hai
+  - GET  /api/voice/packages        PUBLIC — /voice-agent page pricing fetch (band/niche resolved)
+  - GET  /api/voice/niches          PUBLIC — voice-product niches (category leadgen/both)
+  - GET  /api/voice/quota           admin  — client ka lead quota status (flat plans = unlimited)
+  - POST /api/voice/record-lead     admin  — manual qualified-lead record (dispute-fix/override)
+  - POST /api/voice/topup-link      admin  — RETIRED, band ka flat monthly fee batata hai
 
 Pricing model: **FLAT MONTHLY per niche-band** (voice_packages.py = single source):
 Band A ₹4,999 / B ₹9,999 / C ₹19,999 per month, unlimited AI calls, koi lead-counting
@@ -14,7 +14,7 @@ Sab handlers defensive (kabhi 500 nahi on data issues), public endpoints rate-li
 
 ⚠️ 2026-07-14: is module ne 7 din prod me 500 diya kyunki ye retired
 `lead_topup_price()` import kar raha tha. Pricing helper hatate waqt uske SAARE
-callers grep karo - module-level nahi, function-level import tha isliye startup pe
+callers grep karo — module-level nahi, function-level import tha isliye startup pe
 nahi phata, sirf request pe. Contract: `tests/test_voice_product_contract.py`.
 """
 
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/voice", tags=["Voice Product"])
 # ----------------------------- PUBLIC pricing ----------------------------- #
 @router.get("/agents", dependencies=[Depends(rate_limit("voice_agents", 30, 60))])
 async def voice_agents():
-    """Voice product personas - telecaller, booking agent, receptionist."""
+    """Voice product personas — telecaller, booking agent, receptionist."""
     from app.voice_agent.voice_roles import list_voice_agents
 
     return {"product": "voice_agent", "agents": list_voice_agents(), "count": 3}
@@ -42,7 +42,7 @@ async def voice_agents():
 
 @router.get("/packages", dependencies=[Depends(rate_limit("voice_pkg", 30, 60))])
 async def voice_packages(band: str | None = None, niche: str | None = None):
-    """Voice product tiers + 10-lead top-up pack - band ya niche se prices resolve."""
+    """Voice product tiers + 10-lead top-up pack — band ya niche se prices resolve."""
     from app.marketing.voice_packages import get_voice_packages
 
     return get_voice_packages(band=band, niche=niche)
@@ -54,7 +54,7 @@ async def voice_niches():
 
     PRICING NOTE (2026-07-14): pehle yahan `lead_topup_price(band)` se
     `topup_pack_inr` nikalta tha. Wo function 2026-06-12 ke flat per-band pricing
-    switch me retire ho gaya ("Koi lead-counting nahi" - voice_packages.py), par
+    switch me retire ho gaya ("Koi lead-counting nahi" — voice_packages.py), par
     import yahan reh gaya -> har request pe ImportError -> **7 din tak prod 500**.
     Ab band ka FLAT monthly price hi truth hai (§5: voice_packages = single source).
     """
@@ -112,11 +112,11 @@ class TopupLinkIn(BaseModel):
 
 @router.post("/topup-link")
 async def lead_topup_link(body: TopupLinkIn, _user=Depends(require_admin)):
-    """RETIRED (2026-07-14) - flat per-band pricing me lead top-up hota hi nahi.
+    """RETIRED (2026-07-14) — flat per-band pricing me lead top-up hota hi nahi.
 
     History: ye 10-lead top-up pack ka price deta tha. 2026-06-12 ko voice pricing
     lead-counting se FLAT per-niche-band ho gayi (unlimited calls), aur tab
-    `lead_topup_price()` hata diya gaya - par yahan import reh gaya, jo har call pe
+    `lead_topup_price()` hata diya gaya — par yahan import reh gaya, jo har call pe
     ImportError deta tha. Route ko delete karne ke bajaye retain kiya (koi purana
     caller 404 na khaye) par ab wo band ka SACH bolta hai: flat monthly fee.
     """
@@ -127,7 +127,7 @@ async def lead_topup_link(body: TopupLinkIn, _user=Depends(require_admin)):
     return {
         "ok": False,
         "error": (
-            "Lead top-up retire ho chuka - voice plans FLAT per-band monthly hain "
+            "Lead top-up retire ho chuka — voice plans FLAT per-band monthly hain "
             "(unlimited calls). Band ka monthly fee manual UPI se collect karo."
         ),
         "band": band,

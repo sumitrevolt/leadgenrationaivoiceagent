@@ -1,4 +1,4 @@
-"""W2.2 deferred-half - QA real-transcript replay (gated QA_REAL_TRANSCRIPTS).
+"""W2.2 deferred-half — QA real-transcript replay (gated QA_REAL_TRANSCRIPTS).
 
 run_qa replayed only canned SCRIPTS/_GENERIC_TURNS, so QA never exercised what
 REAL callers actually say (Hinglish STT quirks included) or the niches real calls
@@ -44,8 +44,8 @@ def test_real_transcript_turns_extraction(tmp_path, monkeypatch):
                 "messages": [
                     {"role": "user", "content": "price kya hai bhaiya"},
                     {"role": "assistant", "content": "haan ji batata hoon"},
-                    {"role": "user", "content": "..."},  # junk STT -> skip
-                    {"role": "user", "content": "price kya hai bhaiya"},  # dupe -> skip
+                    {"role": "user", "content": "..."},  # junk STT → skip
+                    {"role": "user", "content": "price kya hai bhaiya"},  # dupe → skip
                     {"role": "user", "content": "timing kya hai"},
                 ],
             },
@@ -65,7 +65,7 @@ def test_run_qa_inert_without_flag(tmp_path, monkeypatch):
     monkeypatch.setattr("app.voice_agent.telecaller_brain.TelecallerBrain", _StubBrain)
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
     res = asyncio.run(staff.run_qa(niches=["insurance"]))
-    assert res["niches"] == ["insurance"], "flag OFF -> transcript niches must NOT be pulled in"
+    assert res["niches"] == ["insurance"], "flag OFF → transcript niches must NOT be pulled in"
     assert res["turns"] == len(staff.SCRIPTS["insurance"])
 
 

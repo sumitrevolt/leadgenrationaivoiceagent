@@ -1,23 +1,21 @@
-"""Self-Improve CONTINUOUS loop - task complete -> agla task, koi fixed timing nahi.
+"""Self-Improve CONTINUOUS loop — task complete → agla task, koi fixed timing nahi.
 
 DESIGN (2026 self-improving agent pattern, free-stack):
   pick task (queue ya auto-generate from weakest funnel stage + skill_library)
-  -> execute (SAB existing engines reuse - rebuild nahi)
-  -> learn (skill_library.record_use
-  har N runs pe LLM reflection -> lesson)
-  -> agla task turant queue (Celery self-requeue, countdown=gap) -> repeat forever.
+  → execute (SAB existing engines reuse — rebuild nahi)
+  → learn (skill_library.record_use; har N runs pe LLM reflection → lesson)
+  → agla task turant queue (Celery self-requeue, countdown=gap) → repeat forever.
 
 SAFETY (prod-down + Groq-TPD lessons baked-in):
   - GATED `SELF_IMPROVE_LOOP=1` (default OFF = sab no-op). Web process me KABHI
-    heavy run nahi - sirf Celery worker me (tick task), API sirf enqueue/status.
+    heavy run nahi — sirf Celery worker me (tick task), API sirf enqueue/status.
   - Guards: SELF_IMPROVE_GAP_S (default 180s min gap, token safety),
     SELF_IMPROVE_MAX_PER_DAY (default 60), per-iteration hard timeout 240s,
     LLM-heavy actions skip jab providers degraded (llm_metrics ok-rate).
-  - Loop kabhi marta nahi: exception pe bhi requeue
-  watchdog `ensure_alive()`
+  - Loop kabhi marta nahi: exception pe bhi requeue; watchdog `ensure_alive()`
     stale heartbeat pe revive karta (dead-man safe).
 
-Ban-safe: koi auto-send/post nahi - sirf wahi engines jo khud gated/draft-only.
+Ban-safe: koi auto-send/post nahi — sirf wahi engines jo khud gated/draft-only.
 Stores: data/self_improve_state.json · self_improve_queue.jsonl · self_improve_runs.jsonl.
 Import-safe, kabhi raise nahi.
 """
@@ -43,7 +41,7 @@ _RUNS = os.path.join("data", "self_improve_runs.jsonl")
 _VOICE_LEARN_STATE = os.path.join("data", "voice_learn_state.json")
 
 _ITER_TIMEOUT_S = 240  # ek iteration ka hard cap (event-loop/token safety)
-_REFLECT_EVERY = 8  # har N runs pe LLM reflection -> lesson
+_REFLECT_EVERY = 8  # har N runs pe LLM reflection → lesson
 
 
 def _now() -> datetime:
@@ -55,7 +53,7 @@ def enabled() -> bool:
 
 
 def gap_seconds() -> int:
-    """Task-complete -> agla task ka min gap (koi cron timing nahi, bas token-safety pause)."""
+    """Task-complete → agla task ka min gap (koi cron timing nahi, bas token-safety pause)."""
     try:
         return max(30, int(os.environ.get("SELF_IMPROVE_GAP_S", "180")))
     except Exception:
@@ -99,9 +97,9 @@ def acquire_tick_slot() -> str:
     token = uuid.uuid4().hex
     r = _redis_client()
     if r is None:
-        # W1.5: FAIL-CLOSED - Redis client unavailable = koi slot NAHI (guard ke bina
+        # W1.5: FAIL-CLOSED — Redis client unavailable = koi slot NAHI (guard ke bina
         # duplicate self-requeue chains ban jate the). Caller "" ko clean-skip karta.
-        logger.debug("[self-improve] tick-slot: Redis client unavailable - fail-closed skip")
+        logger.debug("[self-improve] tick-slot: Redis client unavailable — fail-closed skip")
         return ""
     try:
         next_allowed = float(_redis_value(r.get(_TICK_NEXT_ALLOWED_KEY)) or 0)
@@ -115,9 +113,9 @@ def acquire_tick_slot() -> str:
             return ""
         return token
     except Exception as e:
-        # W1.5: FAIL-CLOSED - Redis error (down) pe slot mat do; ek missed tick
+        # W1.5: FAIL-CLOSED — Redis error (down) pe slot mat do; ek missed tick
         # duplicate chains se behtar. No per-tick stack-trace (debug-log only).
-        logger.debug("[self-improve] tick-slot: Redis error - fail-closed skip: %s", e)
+        logger.debug("[self-improve] tick-slot: Redis error — fail-closed skip: %s", e)
         return ""
 
 
@@ -213,10 +211,10 @@ def _heartbeat(extra: dict[str, Any] | None = None) -> None:
         status = str(st.get("status") or "tick")
         last_action = str(st.get("last_action") or "")
         note = last_action if status == "ok" and last_action else status
-        # ENTERPRISE FIX (2026-07-10): pehle hamesha ok=True send hota tha -
+        # ENTERPRISE FIX (2026-07-10): pehle hamesha ok=True send hota tha —
         # automation_health pe self_improve ka card kabhi red nahi hota chahe
         # daily_cap / gate_skip / budget_cap / approval_pending ho. Ab sirf
-        # "ok" status hi ok=True - baaki sab WARNING ya ERROR (not OK).
+        # "ok" status hi ok=True — baaki sab WARNING ya ERROR (not OK).
         is_ok = status == "ok"
         automation_health.record_run("self_improve", ok=is_ok, seconds=0.0, note=note)
     except Exception:
@@ -227,7 +225,7 @@ def _heartbeat(extra: dict[str, Any] | None = None) -> None:
 
 
 def add_task(task: str, action: str = "", source: str = "manual") -> dict[str, Any]:
-    """Manual/agent task queue me daalo - loop ise pehle uthayega."""
+    """Manual/agent task queue me daalo — loop ise pehle uthayega."""
     try:
         t = (task or "").strip()
         if not t:
@@ -289,11 +287,11 @@ def _mark_done(task_id: str, result: str = "") -> None:
 
 # ---------------------------------------------------------------- actions (SAB reuse)
 
-# action -> (LLM-heavy?, description). Side-effect engines khud gated hain.
+# action → (LLM-heavy?, description). Side-effect engines khud gated hain.
 ACTIONS: dict[str, tuple[bool, str]] = {
     "scrape_leads": (False, "naye prospects scrape (42-niche rotation, Places/OSM)"),
     "harvest_leads": (False, "multi-source harvest (websearch/opendata/enrich, legal-only)"),
-    "channel_experiments": (True, "2 channel experiments (bandit) - drafts/SEO pages"),
+    "channel_experiments": (True, "2 channel experiments (bandit) — drafts/SEO pages"),
     "content_pack": (True, "best-niche content pack (posts+hashtags+offer)"),
     "seo_pages": (True, "2 niche×city SEO landing pages (organic inbound)"),
     "sales_deepdive": (True, "top hot-leads pe 5-agent sales deep-dive (drafts)"),
@@ -301,12 +299,12 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "revenue_sweep": (False, "dunning + lifecycle nurture due-runs"),
     "optimizer": (True, "growth optimizer full pass (weakest stage + corrective)"),
     "campaign_optimize": (True, "Kiran campaign optimization (proposals + bandit + voice eval)"),
-    "reflection": (True, "recent runs pe LLM reflection -> lesson save"),
-    "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack -> skill_library)"),
+    "reflection": (True, "recent runs pe LLM reflection → lesson save"),
+    "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
     "skill_sweep": (True, "project skills ko stable round-robin me one-by-one study karo"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
     "voice_eval": (False, "voice agent persona eval smoke (Swara/Arjun, gated VOICE_EVAL_AUTO)"),
-    "voice_learn": (True, "real call transcripts analyze -> voice lesson (brain consume, compound)"),
+    "voice_learn": (True, "real call transcripts analyze → voice lesson (brain consume, compound)"),
     "rescore_pipeline": (False, "DB leads rescore + hot-lead surface (Neha/Rohan, revenue)"),
     "cadence_sweep": (False, "omnichannel cadence due-steps advance (gated CADENCE_ENGINE)"),
     "dialer_sprint_prep": (
@@ -320,7 +318,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     ),
 }
 
-# funnel weakest-stage -> preferred actions (deterministic bias)
+# funnel weakest-stage → preferred actions (deterministic bias)
 # 2026-06-13 REBALANCE: agents 90%+ INTERNAL busywork (study_skills/reflection/
 # social_drafts) kar rahe the, real outbound/revenue kam. Har stage ko ab OUTBOUND/
 # revenue actions (harvest_leads, sales_deepdive, revenue_sweep, channel_experiments,
@@ -453,7 +451,7 @@ async def _pick_next() -> dict[str, Any]:
 
 
 async def _execute(action: str, task: str) -> dict[str, Any]:
-    """Action dispatch - sab existing engines, lazy import, bounded."""
+    """Action dispatch — sab existing engines, lazy import, bounded."""
     if action == "scrape_leads":
         from app.platform import niche_prospector
 
@@ -614,7 +612,7 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
 
 async def _voice_eval() -> dict[str, Any]:
     """Voice agent persona eval smoke (dormant eval_suite wire). Gated VOICE_EVAL_AUTO.
-    brain=None = LLM-free rule-based run -> cheap regression catch (double/repeat/pushy)."""
+    brain=None = LLM-free rule-based run → cheap regression catch (double/repeat/pushy)."""
     if os.environ.get("VOICE_EVAL_AUTO", "0").strip().lower() not in ("1", "true", "yes"):
         return {"ok": True, "detail": "VOICE_EVAL_AUTO off (skip)"}
     try:
@@ -674,8 +672,8 @@ def _save_voice_learn_state(st: dict[str, Any]) -> None:
 async def _voice_learn() -> dict[str, Any]:
     """REAL recent call transcripts (data/call_transcripts) ko analyze karke EK voice
     lesson nikaalo jo `telecaller_brain` khud consume karta hai (skill_library
-    lessons_snippet `voice_{niche}` / `voice_general`) - yeh loop ka voice-agent
-    COMPOUNDING step: real call -> weakness -> lesson -> agli live call behtar.
+    lessons_snippet `voice_{niche}` / `voice_general`) — yeh loop ka voice-agent
+    COMPOUNDING step: real call → weakness → lesson → agli live call behtar.
 
     Reuse-only (rebuild nahi): live_eval.eval_recent_calls (deterministic scorer,
     off-loop thread) + 1 bounded free-LLM lesson. Side-effect KOI nahi (sirf lesson
@@ -745,7 +743,7 @@ async def _voice_learn() -> dict[str, Any]:
             pass
     if not lesson:
         lesson = (
-            f"Call score {target.get('score')} ({niche}) weak - findings: {str(findings)[:160]}. "
+            f"Call score {target.get('score')} ({niche}) weak — findings: {str(findings)[:160]}. "
             "Inhe agli call me sudhaar (ACP: short, ek sawaal, KB-grounded)."
         )
 
@@ -775,8 +773,8 @@ async def _voice_learn() -> dict[str, Any]:
 
 
 async def _study_skills(task: str) -> dict[str, Any]:
-    """Skill pack se relevant (ya least-studied) skill padho -> EK lesson skill_library me.
-    Yahi 'LLM seekhta rahe' loop hai: skills -> lessons -> future prompts condition karte."""
+    """Skill pack se relevant (ya least-studied) skill padho → EK lesson skill_library me.
+    Yahi 'LLM seekhta rahe' loop hai: skills → lessons → future prompts condition karte."""
     try:
         from app.platform import skill_pack
     except Exception as e:
@@ -892,7 +890,7 @@ def _next_skill_sweep_name(skills: list[dict[str, Any]]) -> tuple[str, dict[str,
 
 
 async def _reflect() -> dict[str, Any]:
-    """Recent runs pe free-LLM reflection -> lesson skill_library me. Fallback static."""
+    """Recent runs pe free-LLM reflection → lesson skill_library me. Fallback static."""
     runs = _read_jsonl(_RUNS)[-12:]
     if not runs:
         return {"ok": True, "detail": "no runs yet"}
@@ -914,9 +912,9 @@ async def _reflect() -> dict[str, Any]:
                     digest += f"\n\nRelevant internal playbook:\n{sn}"
         except Exception:
             pass
-        # Reflexion memory - loop ke apne purane self_improve lessons recall karo taaki
+        # Reflexion memory — loop ke apne purane self_improve lessons recall karo taaki
         # gyaan compound ho (har N-run reflection amnesiac na rahe). lessons_snippet(
-        # "self_improve") ab tak write-only tha (sirf voice topics consume hote the) -
+        # "self_improve") ab tak write-only tha (sirf voice topics consume hote the) —
         # yahan loop apne lessons ko khud consume karta hai.
         try:
             from app.platform import skill_library as _sl
@@ -926,9 +924,9 @@ async def _reflect() -> dict[str, Any]:
                 digest += f"\n\nPehle ke apne lessons (inpe build karo, repeat mat karo):\n{prior}"
         except Exception:
             pass
-        # SONA replay - best winning traces ka grounding (TRAJECTORY_LEARN gated).
+        # SONA replay — best winning traces ka grounding (TRAJECTORY_LEARN gated).
         # record_trajectory ne wins likhe the; replay_hint() ab tak 0-caller dormant tha
-        # (replay-into-loop deliberate follow-up). _execute ko risky maan ke nahi chhua -
+        # (replay-into-loop deliberate follow-up). _execute ko risky maan ke nahi chhua —
         # reflection (safe meta-step) me wire kiya: top-reward actions ke winning traces
         # se lesson ground hota hai. Flag OFF = zero behaviour change.
         try:
@@ -979,9 +977,9 @@ async def _reflect() -> dict[str, Any]:
     if not lesson:
         fails = [r.get("action") for r in runs if not r.get("ok")]
         lesson = (
-            f"Actions failing zyada: {', '.join(sorted({str(f) for f in fails}))} - inke flags/creds check karo."
+            f"Actions failing zyada: {', '.join(sorted({str(f) for f in fails}))} — inke flags/creds check karo."
             if fails
-            else "Sab actions theek chal rahe - explore naya channel via channel_experiments."
+            else "Sab actions theek chal rahe — explore naya channel via channel_experiments."
         )
     try:
         from app.platform import skill_library
@@ -989,7 +987,7 @@ async def _reflect() -> dict[str, Any]:
         skill_library.record_lesson("self_improve", lesson, source="reflection", agent="meera")
     except Exception:
         pass
-    # Hivemind: reflection lessons -> KB skills namespace (cross-agent sharing)
+    # Hivemind: reflection lessons → KB skills namespace (cross-agent sharing)
     if (
         lesson
         and len(lesson) > 20
@@ -1025,7 +1023,7 @@ async def _reflect() -> dict[str, Any]:
 
 def _acquire_revive_lock() -> bool:
     """Single-chain guard: Redis NX lock taaki concurrent revivers (watchdog hourly +
-    self_improve_revive */20min) ek hi stale-window me DO chains na bana dein -> queue
+    self_improve_revive */20min) ek hi stale-window me DO chains na bana dein → queue
     flood (2501 self_improve_tick lesson). TTL ~gap*2: chain sach me mari ho to expire
     hoke agla revive reseed kar lega. Redis unavailable/error par fail-closed
     rakho: watchdog ko duplicate chain seed karne ki permission nahi milni chahiye
@@ -1037,18 +1035,18 @@ def _acquire_revive_lock() -> bool:
         ttl = max(300, gap_seconds() * 2)
         return bool(r.set("self_improve:revive_lock", str(int(time.time())), nx=True, ex=ttl))
     except Exception as e:
-        logger.debug("[self-improve] revive-lock unavailable - fail-closed: %s", e)
+        logger.debug("[self-improve] revive-lock unavailable — fail-closed: %s", e)
         return False
 
 
 def ensure_alive() -> dict[str, Any]:
-    """Watchdog hook (light, sync): flag ON + heartbeat stale -> Celery tick enqueue.
-    Web process me kabhi inline run nahi (prod-down lesson). Single-chain locked -
+    """Watchdog hook (light, sync): flag ON + heartbeat stale → Celery tick enqueue.
+    Web process me kabhi inline run nahi (prod-down lesson). Single-chain locked —
     concurrent/repeat revivals chain multiply nahi karte.
 
     Cap-aware (2026-07-28 prod OOM correlation): after ``daily_cap``/``budget_cap``
     the owner chain deliberately requeues with a ~3600s countdown. Heartbeat is
-    fresh at the skip, then goes quiet for up to an hour - the old
+    fresh at the skip, then goes quiet for up to an hour — the old
     ``max(900, gap*4)`` stale window treated that intentional sleep as death and
     seeded a parallel chain every ~15 minutes. Those revives mostly hit
     ``tick_slot`` (owner still holds ``next_allowed``) or re-hit the cap, but
@@ -1078,13 +1076,13 @@ def ensure_alive() -> dict[str, Any]:
         stale = (time.time() - last) > max(900, gap_seconds() * 4)
         if not stale:
             return {"enabled": True, "alive": True}
-        # stale -> revive, PAR sirf agar koi dusra reviver abhi-abhi na chala ho (NX lock)
+        # stale → revive, PAR sirf agar koi dusra reviver abhi-abhi na chala ho (NX lock)
         if not _acquire_revive_lock():
             return {"enabled": True, "alive": False, "revive_skipped": "lock"}
         from app.tasks.staff_jobs import self_improve_tick
 
         self_improve_tick.delay()
-        logger.info("[self-improve] stale heartbeat - tick re-enqueued (lock acquired)")
+        logger.info("[self-improve] stale heartbeat — tick re-enqueued (lock acquired)")
         return {"enabled": True, "alive": False, "revived": True}
     except Exception as e:
         return {"enabled": True, "error": str(e)[:120]}
@@ -1199,8 +1197,7 @@ class CostTracker:
 
     Spent counter persists to `data/self_improve_cost.json` so worker restart
     mid-day does not reset the advisory budget. max_per_day() run-count remains
-    the hard durable gate
-    this tracker is estimated $/task (not measured tokens).
+    the hard durable gate; this tracker is estimated $/task (not measured tokens).
     """
 
     def __init__(self, daily_cap: float = 50.0):
@@ -1333,12 +1330,11 @@ class ApprovalQueue:
 
     Cross-process by design: self-improve ticks run in the Celery worker
     container (RUN_IN_PROCESS_SCHEDULER=0 in prod) while the approve/reject
-    API + Office HQ UI run in the app container - an in-memory list is
+    API + Office HQ UI run in the app container — an in-memory list is
     invisible across that boundary (a task queued by the worker would never
     be visible to, or approvable from, the app process). `data/self_improve_
     approvals.jsonl` (bind-mounted, shared by both containers) is the single
-    source of truth
-    state is folded to the latest record per task id, same
+    source of truth; state is folded to the latest record per task id, same
     reconciliation pattern already used by app/marketing/content_approval.py.
     """
 
@@ -1366,11 +1362,10 @@ class ApprovalQueue:
         """Queue task for approval (or consume an already-approved one).
 
         Returns a truthy value (an id) if the caller should execute the
-        action NOW - either auto-approved, or a previously-approved request
-        for this same action is being consumed - else "" if it's still
+        action NOW — either auto-approved, or a previously-approved request
+        for this same action is being consumed — else "" if it's still
         waiting/newly queued. `is_approved()` used to be dead code (nothing
-        ever re-ran an approved task)
-        consuming here is what makes approval
+        ever re-ran an approved task); consuming here is what makes approval
         actually resume execution.
         """
         if not self.approval_required:
@@ -1382,12 +1377,12 @@ class ApprovalQueue:
                 self._append_decision(rec, "consumed")
                 self._log(
                     "selfimprove_approval_consumed",
-                    f"{task_name} approved earlier - running now",
+                    f"{task_name} approved earlier — running now",
                     {"id": rec.get("id"), "task": task_name},
                 )
                 return str(rec.get("id") or "auto")
             if rec.get("status") == "waiting":
-                return ""  # already queued for this action - don't duplicate
+                return ""  # already queued for this action — don't duplicate
 
         # Risk-scored auto-approve (gated RISK_AUTO_APPROVE): clearly low-risk + cheap
         # actions skip the human gate by policy; risky/ban-sensitive ones still queue.
@@ -1413,7 +1408,7 @@ class ApprovalQueue:
         _append(self._approval_file, rec)
         self._log(
             "selfimprove_approval_queued",
-            f"{task_name} needs approval - {reason[:160]}",
+            f"{task_name} needs approval — {reason[:160]}",
             {"id": rec["id"], "task": task_name, "cost": rec["cost"]},
         )
         return ""
@@ -1489,7 +1484,7 @@ def _get_approval_queue() -> ApprovalQueue:
 
 async def run_once() -> dict[str, Any]:
     """
-    EK iteration: pick -> deterministic-gates -> execute -> learn.
+    EK iteration: pick → deterministic-gates → execute → learn.
     Loop continuation Celery requeue se (tasks/staff_jobs.self_improve_tick).
     Kabhi raise nahi.
 
@@ -1540,7 +1535,7 @@ async def run_once() -> dict[str, Any]:
     skip, skip_reason = should_skip_task(action, cost_remaining, last_outcome)
     if skip:
         _heartbeat({"status": "gate_skip"})
-        logger.info(f"[self-improve] deterministic gate: {action} - {skip_reason}")
+        logger.info(f"[self-improve] deterministic gate: {action} — {skip_reason}")
         return {
             "enabled": True,
             "skipped": "gate_skip",
@@ -1563,7 +1558,7 @@ async def run_once() -> dict[str, Any]:
     if aq.approval_required and ACTIONS.get(action, (False, ""))[0]:
         task_id = aq.queue_task(
             action,
-            reason=f"{picked.get('task', '')[:100]} - LLM-heavy action",
+            reason=f"{picked.get('task', '')[:100]} — LLM-heavy action",
             cost_estimate=estimated_cost,
         )
         if not task_id:
@@ -1607,8 +1602,8 @@ async def run_once() -> dict[str, Any]:
     # ===== D1: eval_gate reward signal (baseline-relative regression detect) =====
     # Deterministic outcome_value slow-drift miss karta (0.85->0.62 har baar 0.6 pass).
     # eval_gate median-baseline se regression pakadta. INERT unless EVAL_GATE=1 (tab
-    # bhi sirf logging) - EVAL_GATE_HARD=1 pe 'reject' action ko SOFT de-prioritize
-    # (outcome_value gira do -> credit/skill_library kam, KOI destructive rollback nahi).
+    # bhi sirf logging) — EVAL_GATE_HARD=1 pe 'reject' action ko SOFT de-prioritize
+    # (outcome_value gira do → credit/skill_library kam, KOI destructive rollback nahi).
     # Best-effort, kabhi raise nahi.
     try:
         from app.agents import eval_gate
@@ -1625,12 +1620,12 @@ async def run_once() -> dict[str, Any]:
                 outcome_value = min(float(outcome_value), 0.2)
                 logger.info(
                     f"[self-improve] eval_gate REJECT {action} ratio={_verdict.get('ratio')}"
-                    " - outcome de-prioritized (hard mode)"
+                    " — outcome de-prioritized (hard mode)"
                 )
     except Exception as _eg_exc:
         logger.debug(f"[self-improve] eval_gate hook skip: {_eg_exc}")
 
-    # Learn - har run skill_library me (with outcome value)
+    # Learn — har run skill_library me (with outcome value)
     try:
         from app.platform import skill_library
 
@@ -1639,7 +1634,7 @@ async def run_once() -> dict[str, Any]:
         )
     except Exception:
         pass
-    # Hivemind: HIGH-VALUE runs (outcome >= 0.7) -> KB skills namespace (Activeloop pattern)
+    # Hivemind: HIGH-VALUE runs (outcome >= 0.7) → KB skills namespace (Activeloop pattern)
     if (
         result.get("ok")
         and outcome_value >= 0.7
@@ -1678,7 +1673,7 @@ async def run_once() -> dict[str, Any]:
         "at": _now().isoformat(),
     }
     _append(_RUNS, rec)
-    # RL reward spine (Phase 0) - mirror outcome_value into the unified reward log.
+    # RL reward spine (Phase 0) — mirror outcome_value into the unified reward log.
     try:
         from app.agents.rl import reward as _rl_reward
 
@@ -1691,10 +1686,10 @@ async def run_once() -> dict[str, Any]:
         )
     except Exception:
         pass
-    # Trajectory record (Ruflo SONA / training-export #13) - gated TRAJECTORY_LEARN,
+    # Trajectory record (Ruflo SONA / training-export #13) — gated TRAJECTORY_LEARN,
     # never-raise, low-volume (~max_per_day lines). Feeds trajectory.best_trajectories
     # + export_dataset with REAL run data. Replay-into-loop NOW WIRED via _reflect()
-    # (best winning traces ground the reflection lesson) - the safe path. Direct replay
+    # (best winning traces ground the reflection lesson) — the safe path. Direct replay
     # into _execute action dispatch stays deferred (would touch sub-engine prompts = risky).
     try:
         from app.agents import trajectory
@@ -1710,7 +1705,7 @@ async def run_once() -> dict[str, Any]:
     except Exception:
         pass
     _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
-    # Obsidian - append self-improve run to Sessions/ (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian — append self-improve run to Sessions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         import datetime as _dt
 
@@ -1719,7 +1714,7 @@ async def run_once() -> dict[str, Any]:
         _obs.append_note(
             "Sessions",
             _dt.datetime.utcnow().strftime("%Y-%m-%d"),
-            f"self_improve [{action}] {'OK' if rec['ok'] else 'FAIL'} - {rec['detail'][:80]}",
+            f"self_improve [{action}] {'OK' if rec['ok'] else 'FAIL'} — {rec['detail'][:80]}",
             member="self_improve",
             tags=["self-improve"],
         )
@@ -1741,7 +1736,7 @@ async def run_once() -> dict[str, Any]:
         team.log_event(
             "manager",
             "self_improve",
-            f"{action}: {'OK' if rec['ok'] else 'FAIL'} - ${rec['cost']:.2f} (value={rec['outcome_value']:.2f}) - {rec['detail'][:70]}{gate_info}",
+            f"{action}: {'OK' if rec['ok'] else 'FAIL'} — ${rec['cost']:.2f} (value={rec['outcome_value']:.2f}) — {rec['detail'][:70]}{gate_info}",
         )
         team.team_pulse(max_members=2)  # har tick 2 under-active staff ko bhi heartbeat
     except Exception:

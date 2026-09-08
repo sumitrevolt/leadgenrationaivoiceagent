@@ -3,7 +3,7 @@ Unified stop / budget controller (ST-01 / ST-02 / ST-03).
 
 The audit found the stop logic scattered and inert:
 * `dev_control/budgets.py` has next_attempt_decision / is_repeat_prompt /
-  budget_state - never wired into the single-shot runner;
+  budget_state — never wired into the single-shot runner;
 * `gateway.admit_cost` is fail-closed but estimate-only;
 * `llm/budget_guard.allow()` is explicitly FAIL-OPEN;
 * the kill switch is an env var (needs redeploy) covering only the LLM path.
@@ -83,7 +83,7 @@ class StopController:
 
     @staticmethod
     def request_kill(run_id: str = "all", ttl_s: int = 3600) -> bool:
-        """Operator API/CLI calls this - no redeploy needed."""
+        """Operator API/CLI calls this — no redeploy needed."""
         r = _redis()
         if r is None:
             return False
@@ -136,7 +136,7 @@ class StopController:
         These caps ARE the run-level ceiling. Provider-level admission
         (dev_control.service.admit_cost, which needs provider + token estimates)
         is wired via an injected ``cost_admitter`` at the model-call site, not
-        from this generic point - so we never call it with the wrong signature.
+        from this generic point — so we never call it with the wrong signature.
         """
         if ctx.spent_usd + est_usd > self.budget.max_usd:
             return False

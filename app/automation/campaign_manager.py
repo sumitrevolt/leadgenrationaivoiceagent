@@ -115,7 +115,7 @@ class CampaignManager:
 
         self.campaigns: dict[str, Campaign] = {}
         self.campaign_leads: dict[str, list[UnifiedLead]] = {}
-        # Strong refs to background pipeline/monitor tasks - without this the loop
+        # Strong refs to background pipeline/monitor tasks — without this the loop
         # only weak-refs them and they can be GC'd mid-run (campaign silently stalls).
         self._bg_tasks: set[asyncio.Task] = set()
 
@@ -326,7 +326,7 @@ class CampaignManager:
                 campaign.callbacks_scheduled = sum(1 for c in completed if c.outcome == "callback")
                 campaign.updated_at = datetime.now()
 
-                # Process hot leads - dedupe so each lead is alerted ONCE, not on
+                # Process hot leads — dedupe so each lead is alerted ONCE, not on
                 # every 60s tick (was re-sending WhatsApp/email/HubSpot/Sheets each loop).
                 for call in completed:
                     if (
@@ -337,9 +337,9 @@ class CampaignManager:
                         campaign.notified_lead_ids.add(call.lead_id)
 
                 # Check if campaign is complete. Phoneless leads are skipped at queue
-                # time, so leads_called can never reach leads_scraped - compare against
+                # time, so leads_called can never reach leads_scraped — compare against
                 # the callable-lead count (else this monitor loops forever, re-spinning
-                # every 60s). callable==0 -> nothing to call -> complete immediately.
+                # every 60s). callable==0 → nothing to call → complete immediately.
                 callable_leads = sum(
                     1
                     for lead in self.campaign_leads.get(campaign.id, [])

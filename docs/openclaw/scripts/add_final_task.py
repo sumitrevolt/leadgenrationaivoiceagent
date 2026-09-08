@@ -14,7 +14,7 @@ new_task = '''
 )
 @idempotent_task("whatsapp_automation", ttl=3600)
 def whatsapp_automation(self):
-    """WhatsApp full automation - hourly within 9am-7pm TRAI window.
+    """WhatsApp full automation — hourly within 9am-7pm TRAI window.
 
     GATED: WHATSAPP_AUTO_SEND=1 + WHATSAPP_AUTO_SEND_HARD_OFF=0
     ⚠️ HIGH RISK: cold/bulk auto-send = number ban in 72 hours

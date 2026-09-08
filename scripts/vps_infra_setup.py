@@ -83,7 +83,7 @@ if smtp_pass:
     except Exception as e:
         LOG.append(f"alertmanager_smtp_pass: {e}")
 else:
-    LOG.append("alertmanager_smtp_pass: SMTP_PASSWORD not set - skip")
+    LOG.append("alertmanager_smtp_pass: SMTP_PASSWORD not set — skip")
 
 # Print results
 print("\n".join(LOG))

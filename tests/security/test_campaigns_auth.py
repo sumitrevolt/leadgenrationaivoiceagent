@@ -1,10 +1,9 @@
 """SEC-001: confirm /api/campaigns/* endpoints reject unauthenticated requests.
 
 Workflow audit 2026-06-26 found `app/api/campaigns.py` mounted at /api/campaigns
-with ZERO auth on all 9 endpoints - unauthenticated attacker could list /
+with ZERO auth on all 9 endpoints — unauthenticated attacker could list /
 create / start / pause / resume campaigns. Fix added Depends(require_admin) to
-every route
-these tests lock the fix so a regression CAN'T silently re-open
+every route; these tests lock the fix so a regression CAN'T silently re-open
 the hole."""
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ def clear_auth_overrides() -> None:
         app.dependency_overrides.pop(dependency, None)
 
 
-# All campaign endpoints - full surface coverage so future endpoint adds get caught.
+# All campaign endpoints — full surface coverage so future endpoint adds get caught.
 CAMPAIGN_ROUTES_GET: list[str] = [
     "/api/campaigns/",
     "/api/campaigns/some-id",

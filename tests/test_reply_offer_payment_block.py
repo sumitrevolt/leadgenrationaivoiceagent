@@ -1,9 +1,9 @@
-"""Interested-reply offer footer - the funnel's money step.
+"""Interested-reply offer footer — the funnel's money step.
 
 Regression cover for 2026-08-04: ``reply_agent._draft`` read ``os.environ["UPI_VPA"]``
 directly, so a VPA armed at runtime through ``POST /api/admin/upi/configure``
 (which writes ``data/platform_upi.json``, no restart) produced an interested-prospect
-reply with NO payment instruction - while ``/api/public/pay-info`` and
+reply with NO payment instruction — while ``/api/public/pay-info`` and
 ``activation._payments_ready`` both reported UPI enabled off the same store.
 
 Pure python: ``upi_config`` store path monkeypatched to tmp_path, no network/LLM.
@@ -18,12 +18,12 @@ import pytest
 def cfg(tmp_path, monkeypatch):
     """upi_config pointed at a tmp store, with ALL THREE resolver sources cleared.
 
-    ``get_vpa()`` resolves ``UPI_VPA`` env -> ``settings.upi_vpa`` -> data file.
+    ``get_vpa()`` resolves ``UPI_VPA`` env → ``settings.upi_vpa`` → data file.
     Clearing only env + file left the middle link live: ``app.config.settings`` is
     built by pydantic from the ``.env`` FILE at import time, so ``delenv`` cannot
     reach it. On any checkout whose ``.env`` carries a real VPA the "unarmed"
     precondition was never actually established and the store-armed VPA was
-    shadowed - the absence-asserting tests failed for an environment reason, not
+    shadowed — the absence-asserting tests failed for an environment reason, not
     a code reason (AGENT_WORK_RULES R4). Neutralise the whole chain here.
     """
     from app.config import settings
@@ -53,7 +53,7 @@ def test_dashboard_armed_vpa_reaches_the_offer(cfg, block):
 
 
 def test_env_vpa_still_wins(cfg, block, monkeypatch):
-    """Existing .env deployments keep working - env is first in the resolver chain."""
+    """Existing .env deployments keep working — env is first in the resolver chain."""
     monkeypatch.setenv("UPI_VPA", "envvpa@ybl")
 
     out = block("Sharma Salon")
@@ -64,7 +64,7 @@ def test_env_vpa_still_wins(cfg, block, monkeypatch):
 def test_settings_vpa_is_honoured_between_env_and_file(cfg, block, monkeypatch):
     """Locks the middle resolver link, which previously had NO coverage.
 
-    ``get_vpa()`` documents ``env -> settings -> file``. Only env and file were
+    ``get_vpa()`` documents ``env → settings → file``. Only env and file were
     exercised, so the settings branch was free to shadow a dashboard-armed VPA
     without any test noticing. Pin it: settings ships when env is absent.
     """
@@ -85,7 +85,7 @@ def test_settings_vpa_shadows_dashboard_armed_vpa(cfg, block, monkeypatch):
     arrives via settings (a ``.env`` file entry that never reached the process
     environment), an admin can arm a new VPA, get ``ok: true`` back, and still
     have every payment surface serve the OLD one. Asserted as current behaviour,
-    not endorsed - see the owner note in SESSION_HANDOFF.
+    not endorsed — see the owner note in SESSION_HANDOFF.
     """
     from app.config import settings
 
@@ -103,18 +103,18 @@ def test_unarmed_upi_appends_nothing(cfg, block):
 
     The footer must stay conditional because `whatsapp_reply` drafts through the
     same `_draft`. Making it unconditional put a pricing line into WhatsApp
-    replies that never carried one - caught by `test_wa_conversation` in CI.
+    replies that never carried one — caught by `test_wa_conversation` in CI.
     """
     assert block("Sharma Salon") == ""
 
 
 def test_deeplink_prefills_no_amount(cfg, block):
-    """No `am=` - the plan is unknown here and the catalogue is multi-price.
+    """No `am=` — the plan is unknown here and the catalogue is multi-price.
 
     `_draft` gets no plan/deal binding, and the catalogue spans Marketing Main
     ₹1,999, Combo ₹5,999 and Voice bands ₹4,999/₹9,999/₹19,999. Prefilling the
     Starter price would give a Combo- or Voice-interested prospect a one-tap link
-    that underpays their plan - a billing-truth break (CLAUDE.md §5). Locked so a
+    that underpays their plan — a billing-truth break (CLAUDE.md §5). Locked so a
     later edit cannot silently re-add it without a real plan binding.
     """
     cfg.set_vpa("leadsgen@okhdfcbank", set_by="test")
@@ -129,7 +129,7 @@ def test_deeplink_prefills_no_amount(cfg, block):
 
 
 def test_note_carries_business_name_as_context(cfg, block):
-    """`tn` is human-readable context only - NOT a unique payment reference.
+    """`tn` is human-readable context only — NOT a unique payment reference.
 
     No immutable prospect/deal/order id exists at this point in the state
     machine, so business name alone does not guarantee bank reconciliation.
@@ -153,7 +153,7 @@ def test_business_name_is_url_quoted(cfg, block):
 
 
 def test_never_raises_on_broken_config(cfg, block, monkeypatch):
-    """Broken config behaves like unarmed - and must never lose the draft.
+    """Broken config behaves like unarmed — and must never lose the draft.
 
     `pricing` is bound after the VPA check, so returning it from the handler
     would UnboundLocalError and take the whole reply down with it.

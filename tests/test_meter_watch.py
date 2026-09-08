@@ -116,7 +116,7 @@ def test_check_never_raises(mw, monkeypatch):
     # if an internal helper raises unexpectedly.
     monkeypatch.setattr(mw, "_read_state", lambda: (_ for _ in ()).throw(ValueError("x")))
     _patch_llen(mw, monkeypatch, 10)
-    # Should not propagate - meter_watch is best-effort. It may return a dict or
+    # Should not propagate — meter_watch is best-effort. It may return a dict or
     # swallow; assert it does not raise.
     try:
         mw.check_meter_failures()

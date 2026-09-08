@@ -1,12 +1,12 @@
-"""team_report.py - "aapki AI team ne is hafte yeh kiya" client-facing weekly story.
+"""team_report.py — "aapki AI team ne is hafte yeh kiya" client-facing weekly story.
 
 HubSpot-Breeze-style packaging: team.recent_events (7 din) ko categorize karke
-Hinglish NARRATIVE HTML banata hai - staff names ke saath ("Isha ne 12 posts
+Hinglish NARRATIVE HTML banata hai — staff names ke saath ("Isha ne 12 posts
 banaye, Rohan ne 25 emails bheje..."). client_report.py (monthly white-label
-STATS report) se ALAG - yeh weekly AI-STAFF story hai (retention/wow factor).
+STATS report) se ALAG — yeh weekly AI-STAFF story hai (retention/wow factor).
 
 free_ai se 2-3 line polish intro (1 call, deterministic fallback). Weekly sweep
-`run_weekly_if_enabled()` GATED `TEAM_REPORT=1` (default OFF) -> file
+`run_weekly_if_enabled()` GATED `TEAM_REPORT=1` (default OFF) → file
 data/team_reports/<id>.html + optional client email (flag-on + email ho tabhi).
 NEVER raises, sab imports lazy.
 """
@@ -24,7 +24,7 @@ logger = setup_logger(__name__)
 
 _OUT_DIR = os.path.join("data", "team_reports")
 
-# action keyword -> (category, Hinglish line template "{n}" ke saath)
+# action keyword → (category, Hinglish line template "{n}" ke saath)
 _CATEGORIES: list[tuple[tuple[str, ...], str, str]] = [
     (
         ("content", "post", "blog", "repurpose", "month_plan", "reel", "carousel"),
@@ -93,7 +93,7 @@ def _lines(counts: dict[str, int]) -> list[str]:
             out.append(tpl.format(n=n))
     if not out:
         out.append(
-            "🤖 Team standby pe rahi - naye kaam ke liye taiyaar (KB, scripts, monitors sab ready)."
+            "🤖 Team standby pe rahi — naye kaam ke liye taiyaar (KB, scripts, monitors sab ready)."
         )
     return out
 
@@ -101,7 +101,7 @@ def _lines(counts: dict[str, int]) -> list[str]:
 async def _polish_intro(business: str, total: int) -> str:
     """free_ai 2-line Hinglish intro (deterministic fallback)."""
     fallback = (
-        f"Namaste! Yeh raha {business} ke liye is hafte ka AI-team report - "
+        f"Namaste! Yeh raha {business} ke liye is hafte ka AI-team report — "
         f"total {total} kaam aapke business ke liye automatically hue. 🚀"
     )
     try:
@@ -128,37 +128,19 @@ async def _polish_intro(business: str, total: int) -> str:
 
 def _render_html(business: str, primary: str, intro: str, lines: list[str], period: str) -> str:
     lis = "".join(
-        f"<li style='padding:8px 0
-        border-bottom:1px solid #eee
-        font-size:15px'>{ln}</li>"
+        f"<li style='padding:8px 0;border-bottom:1px solid #eee;font-size:15px'>{ln}</li>"
         for ln in lines
     )
-    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif
-    background:#f6f7fb
-    margin:0
-    padding:24px">
-<div style="max-width:560px
-margin:auto
-background:#fff
-border-radius:12px
-overflow:hidden
-box-shadow:0 2px 10px rgba(0,0,0,.07)">
-<div style="background:{primary}
-color:#fff
-padding:22px 24px">
-<h2 style="margin:0">🤖 Aapki AI Team - Weekly Report</h2>
+    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f7fb;margin:0;padding:24px">
+<div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)">
+<div style="background:{primary};color:#fff;padding:22px 24px">
+<h2 style="margin:0">🤖 Aapki AI Team — Weekly Report</h2>
 <div style="opacity:.9">{business} · {period}</div></div>
-<div style="padding:18px 24px
-color:#333
-font-size:15px">{intro}</div>
-<ul style="list-style:none
-margin:0
-padding:0 24px 12px">{lis}</ul>
-<div style="padding:14px 24px 20px
-color:#555
-font-size:13px">Yeh sab aapki AI staff (Isha, Rohan, Swara & team)
-ne automatically kiya - aap business pe focus karo, marketing hum sambhalte hain. 💪<br><br>
-- Team LeadsGenAI · leadsgenai.in</div></div></body></html>"""
+<div style="padding:18px 24px;color:#333;font-size:15px">{intro}</div>
+<ul style="list-style:none;margin:0;padding:0 24px 12px">{lis}</ul>
+<div style="padding:14px 24px 20px;color:#555;font-size:13px">Yeh sab aapki AI staff (Isha, Rohan, Swara & team)
+ne automatically kiya — aap business pe focus karo, marketing hum sambhalte hain. 💪<br><br>
+— Team LeadsGenAI · leadsgenai.in</div></div></body></html>"""
 
 
 async def weekly_narrative(client_id: str | None = None) -> dict[str, Any]:
@@ -262,7 +244,7 @@ async def run_weekly_if_enabled(max_clients: int = 20, send: bool | None = None)
 
                         if await email_sender.send_email(
                             [to],
-                            f"🤖 {r.get('business_name')} - AI Team Weekly Report",
+                            f"🤖 {r.get('business_name')} — AI Team Weekly Report",
                             r["html"],
                         ):
                             out["emailed"] += 1

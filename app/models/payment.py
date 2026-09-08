@@ -34,7 +34,7 @@ def _enum_values(enum_cls):
 class PaymentGateway(enum.Enum):
     """Supported payment gateways"""
 
-    # STRIPE removed 2026-07-10 - project me Stripe use nahi hota.
+    # STRIPE removed 2026-07-10 — project me Stripe use nahi hota.
     RAZORPAY = "razorpay"  # Legacy: Razorpay also removed 2026-06-18
 
 
@@ -106,7 +106,7 @@ class Subscription(Base):
     plan_name = Column(String(100), nullable=False)
     pricing_model = Column(String(20), default="subscription")
 
-    # Status - Enum(native_enum=False) renders as VARCHAR (Postgres-compatible,
+    # Status — Enum(native_enum=False) renders as VARCHAR (Postgres-compatible,
     # no native ENUM type / no migration) while letting all callers use enum
     # semantics (assign SubscriptionStatus.X, read .status.value, filter .in_([...])).
     status = Column(
@@ -234,7 +234,7 @@ class Payment(Base):
     currency = Column(String(3), default="INR")
     amount_refunded = Column(Numeric(12, 2), default=0)
 
-    # Status - see Subscription.status note (Enum, VARCHAR-backed, no migration).
+    # Status — see Subscription.status note (Enum, VARCHAR-backed, no migration).
     status = Column(
         Enum(PaymentStatus, native_enum=False, values_callable=_enum_values),
         default=PaymentStatus.PENDING,
@@ -321,7 +321,7 @@ class Invoice(Base):
     stripe_invoice_id = Column(String(255), unique=True, nullable=True)
     razorpay_invoice_id = Column(String(255), unique=True, nullable=True)
 
-    # Status - see Subscription.status note (Enum, VARCHAR-backed, no migration).
+    # Status — see Subscription.status note (Enum, VARCHAR-backed, no migration).
     status = Column(
         Enum(InvoiceStatus, native_enum=False, values_callable=_enum_values),
         default=InvoiceStatus.DRAFT,

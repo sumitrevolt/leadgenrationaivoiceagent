@@ -1,22 +1,17 @@
 """ADR-027 (council 2026-07-06): phone-type gate + learned DID blocklist + feedback loop.
 
 Prod audit: 6,169 "ready" prospects me 649 FIXED_LINE cloud-IVR DIDs (Livspace
-8047759152/34/33 sequential block, HDFC 8071888414) - 05-Jul batch ne inhe dial
+8047759152/34/33 sequential block, HDFC 8071888414) — 05-Jul batch ne inhe dial
 karke IVR-machines ko pitch kiya. RED-proven: DIAL_TEST_MODE=0 par purana
 dial_gate.check('+918047759152','promotional') == (True,'test_mode_off').
 
 Layers under test:
-1. dial_gate.phone_quality - libphonenumber IN-plan mapping (numbers prod-verified).
-2. dial_gate.check - promotional par fixed/tollfree/invalid BLOCK; mobile/flom pass;
-   allowlist = owner override
-   transactional kabhi gated nahi
-   flag rollback.
-3. call_feedback.record_ivr_confirmed - number-block turant
-prefix-block sirf
-   >= 3 DISTINCT confirmed numbers (over-block guard)
-   audit trail
-   prospect tag.
-4. lead_harvester._valid_phone - ab sach me MOBILE enforce karta hai.
+1. dial_gate.phone_quality — libphonenumber IN-plan mapping (numbers prod-verified).
+2. dial_gate.check — promotional par fixed/tollfree/invalid BLOCK; mobile/flom pass;
+   allowlist = owner override; transactional kabhi gated nahi; flag rollback.
+3. call_feedback.record_ivr_confirmed — number-block turant; prefix-block sirf
+   >= 3 DISTINCT confirmed numbers (over-block guard); audit trail; prospect tag.
+4. lead_harvester._valid_phone — ab sach me MOBILE enforce karta hai.
 """
 
 from __future__ import annotations
@@ -33,7 +28,7 @@ FIXED_LINE_IVR = "8047759152"  # Livspace cloud-DID (dialed 05-Jul, IVR)
 FIXED_LINE_IVR_2 = "8047759134"  # same DID block
 FIXED_LINE_IVR_3 = "8047759133"  # same DID block
 MOBILE_REAL = "9623767939"  # real mobile from same batch
-FLOM_HOT_LEAD = "7498797259"  # hot lead tha - FLOM ko hard-block NAHI karna
+FLOM_HOT_LEAD = "7498797259"  # hot lead tha — FLOM ko hard-block NAHI karna
 TOLL_FREE = "1800123456"
 
 
@@ -74,7 +69,7 @@ def test_phone_quality_accepts_e164_and_prefixed():
 
 
 # --------------------------------------------------------------------------- #
-# 2. dial_gate.check - phone-type layer
+# 2. dial_gate.check — phone-type layer
 # --------------------------------------------------------------------------- #
 def test_fixed_line_promotional_blocked(monkeypatch, tmp_path):
     """THE 05-Jul bug: fixed-line IVR DID promotional-dial ab BLOCKED."""
@@ -90,7 +85,7 @@ def test_tollfree_promotional_blocked(monkeypatch, tmp_path):
 
 
 def test_mobile_and_flom_promotional_allowed(monkeypatch, tmp_path):
-    """Mobile pass; FLOM bhi pass (hot lead isi type ka tha - council decision)."""
+    """Mobile pass; FLOM bhi pass (hot lead isi type ka tha — council decision)."""
     _isolate(monkeypatch, tmp_path)
     assert dial_gate.check("+91" + MOBILE_REAL, "promotional") == (True, "gates_passed")
     assert dial_gate.check("+91" + FLOM_HOT_LEAD, "promotional") == (True, "gates_passed")
@@ -122,7 +117,7 @@ def test_test_mode_on_still_blocks_everything_unlisted(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# 3. call_feedback - self-improve loop
+# 3. call_feedback — self-improve loop
 # --------------------------------------------------------------------------- #
 def _no_prospect_store(monkeypatch):
     from app.platform import prospector
@@ -141,7 +136,7 @@ def test_confirmed_number_blocks_immediately(monkeypatch, tmp_path):
 
 
 def test_prefix_blocks_only_at_threshold(monkeypatch, tmp_path):
-    """Council/risk guard: prefix over-block nahi - 3 DISTINCT confirmed chahiye."""
+    """Council/risk guard: prefix over-block nahi — 3 DISTINCT confirmed chahiye."""
     _isolate(monkeypatch, tmp_path)
     _no_prospect_store(monkeypatch)
     other_same_prefix = "8047759199"  # unconfirmed number, same 804775 block
@@ -159,7 +154,7 @@ def test_prefix_blocks_only_at_threshold(monkeypatch, tmp_path):
 def test_duplicate_confirms_count_distinct_numbers(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
     _no_prospect_store(monkeypatch)
-    for _ in range(5):  # same number 5x - sirf 1 distinct
+    for _ in range(5):  # same number 5x — sirf 1 distinct
         r = call_feedback.record_ivr_confirmed(FIXED_LINE_IVR)
     assert r["prefix_hits"] == 1 and r["prefix_active"] is False
 
@@ -207,14 +202,14 @@ def test_learned_blocklist_flag_rollback(monkeypatch, tmp_path):
     _no_prospect_store(monkeypatch)
     call_feedback.record_ivr_confirmed(FIXED_LINE_IVR)
     monkeypatch.setenv("LEARNED_DID_BLOCKLIST", "0")
-    # blocklist off => sirf phone-type gate bacha (fixed line phir bhi block -
+    # blocklist off => sirf phone-type gate bacha (fixed line phir bhi block —
     # reason alag hona chahiye)
     allowed, reason = dial_gate.check("+91" + FIXED_LINE_IVR, "promotional")
     assert allowed is False and "learned_block" not in reason
 
 
 # --------------------------------------------------------------------------- #
-# 4. lead_harvester._valid_phone - mobile enforcement
+# 4. lead_harvester._valid_phone — mobile enforcement
 # --------------------------------------------------------------------------- #
 def test_harvester_rejects_fixed_line():
     assert _valid_phone("+91" + FIXED_LINE_IVR) == ""

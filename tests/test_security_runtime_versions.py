@@ -35,8 +35,7 @@ def _version_tuple(v: str) -> tuple[int, ...]:
 def test_starlette_runtime_version_fixed() -> None:
     installed = _version_tuple(starlette.__version__)
     assert installed >= MIN_STARLETTE, (
-        f"starlette {starlette.__version__} reintroduces reachable advisories
-        "
+        f"starlette {starlette.__version__} reintroduces reachable advisories; "
         f"requirements.lock.txt must stay >= {'.'.join(map(str, MIN_STARLETTE))}"
     )
 
@@ -45,8 +44,7 @@ def test_cryptography_runtime_version_fixed() -> None:
     installed = _version_tuple(cryptography.__version__)
     assert installed >= MIN_CRYPTOGRAPHY, (
         f"cryptography {cryptography.__version__} reintroduces OpenSSL-wheel "
-        f"advisories
-        requirements.lock.txt must stay >= {'.'.join(map(str, MIN_CRYPTOGRAPHY))}"
+        f"advisories; requirements.lock.txt must stay >= {'.'.join(map(str, MIN_CRYPTOGRAPHY))}"
     )
 
 
@@ -69,7 +67,7 @@ def test_openssl_runtime_inspectable() -> None:
 
 
 def test_fastapi_imports_with_new_starlette() -> None:
-    """fastapi 0.141.1 declares starlette>=0.46.0 - 1.3.1 must import cleanly."""
+    """fastapi 0.141.1 declares starlette>=0.46.0 — 1.3.1 must import cleanly."""
     import fastapi  # noqa: F401
     from fastapi.testclient import TestClient  # noqa: F401
 

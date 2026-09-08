@@ -1,4 +1,4 @@
-"""Tests: scripts/verify_armed_flags.py - deploy post-check armed-state logic.
+"""Tests: scripts/verify_armed_flags.py — deploy post-check armed-state logic.
 
 Covers:
   - _read_env: simple .env parsing (values, quoted, comments skipped)
@@ -45,7 +45,7 @@ def test_read_env_missing_file_returns_empty(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# check_env - flag states + cross-gates
+# check_env — flag states + cross-gates
 # --------------------------------------------------------------------------- #
 
 
@@ -72,7 +72,7 @@ def test_check_env_summary_armed_all_gates(tmp_path):
 
 
 def test_check_env_summary_missing_gates(tmp_path):
-    # POST_CALL_SUMMARY=1 par baaki gates off -> problems
+    # POST_CALL_SUMMARY=1 par baaki gates off → problems
     p = _env_file(tmp_path, "POST_CALL_SUMMARY=1\n")
     vaf.PROBLEMS.clear()
     vaf.WARNINGS.clear()
@@ -81,7 +81,7 @@ def test_check_env_summary_missing_gates(tmp_path):
 
 
 def test_check_env_qualify_on_summary_off(tmp_path):
-    # AUTO_QUALIFY_CALLS=1 par POST_CALL_SUMMARY=0 -> warning (not problem)
+    # AUTO_QUALIFY_CALLS=1 par POST_CALL_SUMMARY=0 → warning (not problem)
     p = _env_file(tmp_path, "AUTO_QUALIFY_CALLS=1\n")
     vaf.PROBLEMS.clear()
     vaf.WARNINGS.clear()
@@ -107,7 +107,7 @@ def test_check_manifest_flags_documented():
 
 
 def test_main_exit_mapping(tmp_path, monkeypatch):
-    # Inert .env -> warnings only -> exit 2
+    # Inert .env → warnings only → exit 2
     p = _env_file(tmp_path, "")
     monkeypatch.setattr(vaf, "ROOT", pathlib.Path(__file__).resolve().parent.parent)
     monkeypatch.setattr("sys.argv", ["verify_armed_flags.py", "--env", str(p)])
@@ -116,7 +116,7 @@ def test_main_exit_mapping(tmp_path, monkeypatch):
 
 
 def test_main_problem_exit(tmp_path, monkeypatch):
-    # Summary armed without gates -> problems -> exit 1
+    # Summary armed without gates → problems → exit 1
     p = _env_file(tmp_path, "POST_CALL_SUMMARY=1\n")
     monkeypatch.setattr("sys.argv", ["verify_armed_flags.py", "--env", str(p)])
     rc = vaf.main()
@@ -124,7 +124,7 @@ def test_main_problem_exit(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Live endpoint probe (check_live) - 423 unarmed / 200 armed signals
+# Live endpoint probe (check_live) — 423 unarmed / 200 armed signals
 # --------------------------------------------------------------------------- #
 
 

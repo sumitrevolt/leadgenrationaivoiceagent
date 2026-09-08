@@ -1,11 +1,11 @@
-"""Supervisor-family shadow adapter - record-only observation of the LangGraph
+"""Supervisor-family shadow adapter — record-only observation of the LangGraph
 `supervisor` and `staff_supervisor` implementations (one loop family).
 
 Boundary observed: the graph's NORMALIZED routing/selection object after the
 graph finishes a step (supervisor.py: `out["route"]` -> a worker node;
 staff_supervisor.py: the supervisor's routed reply). These are structured
 routing decisions, not raw prose. When no structured selection is available the
-record is MISSING_CONTEXT - never a guessed tool.
+record is MISSING_CONTEXT — never a guessed tool.
 
 Never calls the model, executes the selected node/agent, alters graph state,
 consumes the real tool-call id, or raises into LangGraph. Includes replay/
@@ -42,7 +42,7 @@ SUPERVISOR_ROUTE_MAP: dict[str, str] = {
 
 # target agent -> (canonical tool, version, claimed RiskClass). Dev REUSES the
 # coordinator's agent.delegate.dev (GREEN read-only). Rohan = agent.delegate.rohan
-# classified AMBER (EXTERNAL_SEND) by Rohan's broadest capability (outreach) - the
+# classified AMBER (EXTERNAL_SEND) by Rohan's broadest capability (outreach) — the
 # claimed risk is raised to match the registry so REGISTRY_MATCH is honest, never
 # lowered. Every unmapped agent stays UNREGISTERED.
 SUPERVISOR_DELEGATION: dict[str, tuple[str, str, RiskClass]] = {
@@ -108,7 +108,7 @@ def observe_supervisor_action(
 
     dedup_key = f"{_SOURCE_LOOP}:{graph_run_id}:{graph_step}:{tool_call_id or 'idx'}:{attempt}"
     if _dedup_seen(dedup_key):
-        # Bounded diagnostic - a duplicate callback/replay was suppressed.
+        # Bounded diagnostic — a duplicate callback/replay was suppressed.
         try:
             from app.agents.harness import audit
             from app.agents.harness.contracts import RunContext

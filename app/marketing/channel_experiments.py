@@ -1,4 +1,4 @@
-"""Channel Experiment Engine - naye FREE+LEGAL customer-approach ways khud try,
+"""Channel Experiment Engine — naye FREE+LEGAL customer-approach ways khud try,
 measure aur scale karta (multi-armed bandit, epsilon-greedy).
 
 PROBLEM: community/seo/partnership/linkedin drafters EXIST karte the par koi
@@ -7,7 +7,7 @@ tha kaunsa channel kaam kar raha. Yeh engine roz kuch channels pick karta
 (70% exploit best-performing, 30% explore naya), assets generate karta (sab
 ban-safe drafts ya live SEO pages), aur outcome ratio se agli baar better pick.
 
-Channels (sab free + legal, ToS-safe - auto-POST kahin nahi, sirf draft/own-site):
+Channels (sab free + legal, ToS-safe — auto-POST kahin nahi, sirf draft/own-site):
   seo_page (live niche×city landing) · quora · reddit · whatsapp_group ·
   linkedin_article · medium · partnership (CA/web-designer/IT pitch) · linkedin_dm
 
@@ -43,7 +43,7 @@ CHANNELS = [
     "medium",
     "partnership",
     "linkedin_dm",
-    # naye customer-approach channels (social_channels.py - sab ban-safe drafts)
+    # naye customer-approach channels (social_channels.py — sab ban-safe drafts)
     "instagram_comment",
     "youtube_shorts",
     "gbp_qna",
@@ -169,13 +169,12 @@ def _pick_niche_city() -> tuple[str, str]:
 
 async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
     """Channel-specific asset generate (sab reuse, rebuild nahi). Draft = human
-    1-click post
-    seo_page = LIVE page (own site, fully legal inbound)."""
+    1-click post; seo_page = LIVE page (own site, fully legal inbound)."""
     if channel == "seo_page":
         from app.marketing import seo_pages
 
         page = await seo_pages.generate_page(niche, city)
-        # SEO page = LIVE own-site page -> auto-record as outcome (fully legal/safe)
+        # SEO page = LIVE own-site page → auto-record as outcome (fully legal/safe)
         if page and (page.get("url") or page.get("slug")):
             record_outcome("seo_page", value=1)
         return {
@@ -217,7 +216,7 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
 
 
 async def run_daily(n: int = 3) -> dict[str, Any]:
-    """Roz ke channel experiments. GATED CHANNEL_EXPERIMENTS=1 - off = no-op."""
+    """Roz ke channel experiments. GATED CHANNEL_EXPERIMENTS=1 — off = no-op."""
     if not _enabled():
         return {"enabled": False}
     launched: list[dict[str, Any]] = []
@@ -245,7 +244,7 @@ async def run_daily(n: int = 3) -> dict[str, Any]:
                 team.log_event(
                     "isha",
                     "channel_experiments",
-                    f"{len(launched)} experiments ({', '.join(r['channel'] for r in launched)}) - {niche}/{city}",
+                    f"{len(launched)} experiments ({', '.join(r['channel'] for r in launched)}) — {niche}/{city}",
                 )
             except Exception:
                 pass
@@ -258,7 +257,7 @@ async def run_daily(n: int = 3) -> dict[str, Any]:
 def record_outcome(
     channel: str, kind: str = "inquiry", value: int = 1, note: str = ""
 ) -> dict[str, Any]:
-    """Outcome attribute karo (inquiry/reply/signup jo bhi channel se aaya) -
+    """Outcome attribute karo (inquiry/reply/signup jo bhi channel se aaya) —
     bandit isi se seekhta. Kabhi raise nahi."""
     try:
         ch = (channel or "").strip().lower()
@@ -274,7 +273,7 @@ def record_outcome(
                 "at": _now().isoformat(),
             },
         )
-        # RL reward spine (Phase 0, logging-only) - INERT unless RL_ENGINE=1, never raises.
+        # RL reward spine (Phase 0, logging-only) — INERT unless RL_ENGINE=1, never raises.
         try:
             from app.agents.rl import reward as _rl_reward
 

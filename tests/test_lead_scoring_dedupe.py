@@ -1,7 +1,7 @@
 """top_hot_leads() phone-dedupe + scan-cap regression (2026-07-04 dialer-sprint
 audit). Same underlying business can be stored under two raw phone formats by
 different ingestion paths (see tests/test_lead_dedup_2026_07_01.py for the
-ingestion-side fix) - the "who to call next" ranking must not surface both.
+ingestion-side fix) — the "who to call next" ranking must not surface both.
 """
 
 from __future__ import annotations
@@ -64,7 +64,7 @@ def test_phone_key_normalizes_format_variants():
 @pytest.mark.asyncio
 async def test_top_hot_leads_dedupes_cross_format_duplicates(monkeypatch):
     """The exact live scenario: same business, two Lead rows, phone stored
-    with vs without '+91' - must appear ONCE in the ranked output."""
+    with vs without '+91' — must appear ONCE in the ranked output."""
     monkeypatch.setenv("LEAD_HOT_THRESHOLD", "0")  # everything counts as "hot" for this test
     items = [
         _FakeLead(
@@ -106,9 +106,9 @@ async def test_top_hot_leads_dedupes_cross_format_duplicates(monkeypatch):
 async def test_top_hot_leads_keeps_higher_scoring_duplicate(monkeypatch):
     """When duplicates differ in completeness (one has category/niche set,
     contributing +6 niche-fit points), the dedupe must keep the HIGHER-scored
-    row, not an arbitrary one - the richer record is the better one to call with.
+    row, not an arbitrary one — the richer record is the better one to call with.
 
-    Note: source alone isn't a safe differentiator here - _SOURCE_PTS gives
+    Note: source alone isn't a safe differentiator here — _SOURCE_PTS gives
     google_maps(10) vs import(4), which happens to exactly offset the +6
     niche_fit bonus from category/niche being set. So this fixture adds
     phone_verified (+8) to the richer duplicate to force an unambiguous gap,
@@ -132,7 +132,7 @@ async def test_top_hot_leads_keeps_higher_scoring_duplicate(monkeypatch):
         niche=None,
         phone_verified=False,
     )
-    _patch_leads(monkeypatch, [thinner, richer])  # order shouldn't matter - rank() sorts first
+    _patch_leads(monkeypatch, [thinner, richer])  # order shouldn't matter — rank() sorts first
 
     out = await lead_scoring.top_hot_leads(limit=25)
 

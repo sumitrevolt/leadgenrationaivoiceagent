@@ -1,7 +1,6 @@
 """Auth / fail-closed contract for the Blueprint API (PR #125 hardening).
 
-Internal architecture endpoints must be admin-only
-the public contract must
+Internal architecture endpoints must be admin-only; the public contract must
 be sanitized. Uses TestClient (imports the app) so it runs in CI's
 `prod_check + pytest` job. Kept in its own module so the fast static graph
 contract tests stay import-light.
@@ -23,7 +22,7 @@ def _client():
 
 
 def test_full_graph_requires_auth_fail_closed():
-    """conftest overrides require_admin->mock-admin for tests; pop it to prove the
+    """conftest overrides require_admin→mock-admin for tests; pop it to prove the
     REAL gate is fail-closed (autouse restore_dependency_overrides puts it back)."""
     from app.api.auth_deps import get_current_user, require_admin
     from app.main import app
@@ -73,7 +72,7 @@ def test_meta_public_and_minimal():
     assert r.status_code == 200
     body = r.json()
     assert "schema_version" in body and "counts" in body
-    # counts only - no node/edge detail
+    # counts only — no node/edge detail
     assert "nodes" not in body
 
 

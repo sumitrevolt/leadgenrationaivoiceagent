@@ -1,11 +1,11 @@
 """
-Observability - Per-Call Tracing
+Observability — Per-Call Tracing
 ================================
 
 Har voice call ka *poora* picture: kab kya hua, har step (STT / LLM / TTS) me
 kitna time laga, kitne tokens / kitna paisa (telephony) khārch hua, aur outcome
-kya raha. Yeh exactly woh hai jo LiveKit / Braintrust / Bland dikhate hain -
-spans + latency-per-step + token/cost estimate - taaki dashboard par har call
+kya raha. Yeh exactly woh hai jo LiveKit / Braintrust / Bland dikhate hain —
+spans + latency-per-step + token/cost estimate — taaki dashboard par har call
 "replay" / debug ho sake.
 
 Design:
@@ -34,7 +34,7 @@ OpenTelemetry note:
     Yeh module deliberately stdlib-only hai. Agar OTel chahiye to `span()` ke
     andar ek OTel span start/end wrap kiya ja sakta hai (e.g.
     `opentelemetry.trace.get_tracer(__name__).start_as_current_span(name)`),
-    par yahan koi hard dependency NAHI hai - production me OTel optional rahe.
+    par yahan koi hard dependency NAHI hai — production me OTel optional rahe.
 """
 
 from __future__ import annotations
@@ -119,7 +119,7 @@ class Span:
 
 @dataclass
 class CallTrace:
-    """Ek poori call ka trace - spans + events + totals + cost + outcome."""
+    """Ek poori call ka trace — spans + events + totals + cost + outcome."""
 
     trace_id: str
     call_id: str
@@ -181,8 +181,7 @@ class Tracer:
     Records per-call spans/events and keeps a ring buffer of recent traces so a
     dashboard can read the last N calls without any DB.
 
-    Thread-safety: simple append-only usage
-    good enough for single-process
+    Thread-safety: simple append-only usage; good enough for single-process
     async pipelines. (Add a lock if you go multi-thread.)
     """
 
@@ -226,7 +225,7 @@ class Tracer:
         """
         Context manager: enter pe span start, exit pe close + totals roll-up.
         Exceptions ko swallow nahi karta (re-raise) par span phir bhi close hota
-        hai - taaki failed step ka bhi timing dikhe.
+        hai — taaki failed step ka bhi timing dikhe.
         """
         sp = self.start_span(trace, name, **attrs)
         try:
@@ -272,7 +271,7 @@ class Tracer:
 
     # ----------------------- VAQI (Deepgram-style reliability legs) ------ #
     # Dormant until call code (turn_detector.py / vobiz_stream.py) calls these
-    # at its existing barge-in / no-reply decision points - additive only, no
+    # at its existing barge-in / no-reply decision points — additive only, no
     # telephony code is touched by shipping these methods. Once wired, they
     # feed `vaqi_summary()` below the same way `latencies`/`missed` already
     # feed the self-test harness's own VAQI number (scripts/agent_tester.py).
@@ -281,7 +280,7 @@ class Tracer:
     ) -> None:
         """Log a barge-in/interruption occurrence. ``premature=True`` means the
         agent was still speaking when genuine user speech started (Deepgram's
-        VAQI 'Interruptions' leg) - as opposed to a clean, expected barge-in."""
+        VAQI 'Interruptions' leg) — as opposed to a clean, expected barge-in."""
         self.event(trace, "interruption", {"premature": bool(premature), **data})
 
     def record_missed_response(self, trace: CallTrace, **data: Any) -> None:
@@ -292,7 +291,7 @@ class Tracer:
 
     def vaqi_summary(self, n: int = 50) -> dict[str, Any]:
         """VAQI (Voice Agent Quality Index) over the last ``n`` traces:
-        Interruptions / Missed responses / Latency - the same 3-leg
+        Interruptions / Missed responses / Latency — the same 3-leg
         reliability score Deepgram's guide recommends for production voice
         agents. Interruption/missed-response legs read as ``None`` (not 0,
         which would misleadingly read as "perfect") until call code starts
@@ -331,7 +330,7 @@ class Tracer:
 
     # ----------------------- dashboard read ----------------------- #
     def recent(self, n: int = 20) -> list[CallTrace]:
-        """Last `n` traces (newest last) - dashboard ke liye."""
+        """Last `n` traces (newest last) — dashboard ke liye."""
         if n <= 0:
             return []
         items = list(self._buffer)

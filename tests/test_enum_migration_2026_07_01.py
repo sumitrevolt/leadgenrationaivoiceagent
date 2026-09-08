@@ -1,20 +1,19 @@
 """F-DB4 enum-column retrofit (production audit 2026-07-01).
 
 The full migration (alembic/versions/010_enum_columns_to_varchar.py) is
-Postgres-specific - it queries information_schema/pg_type and runs
+Postgres-specific — it queries information_schema/pg_type and runs
 `ALTER COLUMN ... TYPE VARCHAR USING LOWER(...)`, none of which exist on
 SQLite. This test only confirms the dialect guard: on SQLite (this project's
 CI/dev default), the migration must be a clean no-op, never raise, and never
-touch the column type is meaningless here - SQLite has no native enum type to
+touch the column type is meaningless here — SQLite has no native enum type to
 begin with. The Postgres-specific behavior (real type conversion + the
 NAME->value casing fix) was verified end-to-end this session against a real
-local Postgres 16 instance - see docs/archive/2026-07/TEST_RESULTS.md for the full command +
-output
-that verification is not repeated here as a permanent CI dependency
+local Postgres 16 instance — see docs/archive/2026-07/TEST_RESULTS.md for the full command +
+output; that verification is not repeated here as a permanent CI dependency
 since the migration only ever needs to run once against real prod/staging.
 
 Also confirms the model-level change (native_enum=False, values_callable) does
-not break ordinary CRUD against SQLite - the actual value stored is the
+not break ordinary CRUD against SQLite — the actual value stored is the
 enum's .value either way on a dialect with no native enum type.
 """
 
@@ -32,7 +31,7 @@ from app.models.lead import Lead, LeadSource, LeadStatus
 
 
 def _load_migration_module():
-    """alembic/versions/010_*.py can't be `import`ed normally - a filename
+    """alembic/versions/010_*.py can't be `import`ed normally — a filename
     starting with a digit isn't a valid Python module name. Load it directly
     from its file path, same as alembic's own runtime loader does."""
     path = os.path.join("alembic", "versions", "010_enum_columns_to_varchar.py")
@@ -47,7 +46,7 @@ enum_migration = _load_migration_module()
 
 def test_migration_upgrade_is_noop_on_sqlite():
     """Actually invoke the real upgrade() function (not just its dialect
-    check) against a live SQLite engine, via Alembic's own Operations API -
+    check) against a live SQLite engine, via Alembic's own Operations API —
     same mechanism Alembic uses at runtime, just without the CLI."""
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
@@ -68,7 +67,7 @@ def test_migration_upgrade_is_noop_on_sqlite():
         finally:
             global_op._proxy = None
 
-    # Confirm nothing changed - schema still has the exact original columns.
+    # Confirm nothing changed — schema still has the exact original columns.
     from sqlalchemy import inspect
 
     insp = inspect(engine)

@@ -1,4 +1,4 @@
-"""Canonical 31-agent bus manifest - derive from code, never invent a 32nd STAFF."""
+"""Canonical 31-agent bus manifest — derive from code, never invent a 32nd STAFF."""
 
 from __future__ import annotations
 

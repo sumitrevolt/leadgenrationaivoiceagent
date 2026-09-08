@@ -104,7 +104,7 @@ def validate(
     if findings is not None:
         problems.extend(_check_liveness(entries, findings))
         # PRIMARY evidence. The source-text basename check above is secondary
-        # defence only - it passes on comments, docstrings and dead constants.
+        # defence only — it passes on comments, docstrings and dead constants.
         problems.extend(_check_finding_binding(entries, findings))
     return problems
 
@@ -138,7 +138,7 @@ def _check_path_pattern(eid: str, entry: dict[str, Any], src: Path) -> list[str]
     # character. This is what distinguishes `.json` from `.jsonl`.
     if not re.search(re.escape(basename) + r"(?![A-Za-z0-9_])", text):
         return [
-            f"{eid}: path_pattern {raw!r} does not appear in {entry['file']} - "
+            f"{eid}: path_pattern {raw!r} does not appear in {entry['file']} — "
             "the declared path does not match the code"
         ]
     return []
@@ -194,7 +194,7 @@ def _symbol_table(file: str) -> dict[str, str]:
             # walk already found. A helper whose root comes from a local wrapper
             # renders as an opaque `<_env>`, and taking that over the assignment
             # text would replace a path containing the real filename with a
-            # placeholder - resolution going backwards, not forwards.
+            # placeholder — resolution going backwards, not forwards.
             if any(mark in pattern for mark in ("/", "<$", ".")) or name not in table:
                 table[name] = pattern
     except Exception:  # pragma: no cover - defensive
@@ -209,7 +209,7 @@ def _resolved_path_of(finding: dict[str, Any], depth: int = 4) -> str:
     A finding on `open(path, ...)` normalizes to `path`, whose definition is
     `_CLIENTS_FILE`, whose definition is
     `os.path.join('data', 'marketing_clients.jsonl')`. Only the last of those
-    carries the filename, so binding has to walk the chain - one hop is not
+    carries the filename, so binding has to walk the chain — one hop is not
     enough, and stopping early is how a declaration ends up compared against a
     variable name instead of a path.
     """
@@ -225,7 +225,7 @@ def _resolved_path_of(finding: dict[str, Any], depth: int = 4) -> str:
         # walk stopped on the call text and a declaration ended up compared
         # against `_kill_file()` rather than the store file it opens. Only
         # helpers the scanner has already PROVEN are in the table, and the
-        # argument list is discarded - a runtime id must never reach a
+        # argument list is discarded — a runtime id must never reach a
         # declaration comparison.
         call = None if bare else re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\([^()]*\)", text)
         name = bare.group(0) if bare else (call.group(1) if call else None)
@@ -243,10 +243,9 @@ def _companion_of_primary(
 ) -> bool:
     """Is this finding a `.lock`/`.tmp` DERIVED from the entry's primary store?
 
-    A companion literal never appears in code - it is built as
+    A companion literal never appears in code — it is built as
     `_STORE + '.lock'` or `target.with_suffix(...)`. So the binding cannot look
-    for the filename
-    it must prove the derivation:
+    for the filename; it must prove the derivation:
 
       1. the entry declares a `.tmp` / `.lock` companion,
       2. the detected expression is a suffix derivation, and
@@ -342,7 +341,7 @@ def _check_finding_binding(
             )
         ]
         if not matched:
-            problems.append(f"{eid}: no scanner finding at {key} - declaration is unbound")
+            problems.append(f"{eid}: no scanner finding at {key} — declaration is unbound")
             continue
 
         path_ok = [
@@ -355,8 +354,7 @@ def _check_finding_binding(
             observed = sorted({_scan.normalized_path(f)[:70] for f in matched})
             problems.append(
                 f"{eid}: declared path {e['path_pattern']!r} does not match any detected "
-                f"path at {key}
-                detected {observed}"
+                f"path at {key}; detected {observed}"
             )
             continue
 
@@ -364,7 +362,7 @@ def _check_finding_binding(
             cls = f["classification"]
             if cls in (_scan.FIXTURE_ONLY, _scan.STATIC_ASSET):
                 problems.append(
-                    f"{eid}: bound to a {cls} finding - an allowlist entry must "
+                    f"{eid}: bound to a {cls} finding — an allowlist entry must "
                     "describe production state"
                 )
             if e["production_relevance"] == "LIVE" and not f.get("production_relevant"):
@@ -396,7 +394,7 @@ def _check_liveness(entries: list[dict[str, Any]], findings: list[dict[str, Any]
         observed = by_key.get(key)
         if observed is None:
             problems.append(
-                f"{e['allowlist_id']}: STALE - no live finding at {key}. "
+                f"{e['allowlist_id']}: STALE — no live finding at {key}. "
                 "Remove the entry or point it at the code that replaced it."
             )
             continue
@@ -404,7 +402,7 @@ def _check_liveness(entries: list[dict[str, Any]], findings: list[dict[str, Any]
         undeclared_ops = observed - declared
         if undeclared_ops:
             problems.append(
-                f"{e['allowlist_id']}: operation mismatch at {key} - code performs "
+                f"{e['allowlist_id']}: operation mismatch at {key} — code performs "
                 f"{sorted(undeclared_ops)} which the entry does not declare"
             )
     return problems
@@ -416,7 +414,7 @@ def index(entries: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
 
 
 def coverage(findings: list[dict[str, Any]]) -> dict[str, int]:
-    """Gate-relevant counts, all derived - never hand-maintained."""
+    """Gate-relevant counts, all derived — never hand-maintained."""
     return {
         "undeclared_mutable_paths": sum(
             1 for f in findings if f["classification"] == _scan.UNDECLARED_MUTABLE_PATH

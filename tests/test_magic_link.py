@@ -1,6 +1,6 @@
 """Unit tests for magic-link login (app/api/customer_auth.py).
 
-No SMTP / no full app - endpoint coroutines direct call, deps monkeypatched.
+No SMTP / no full app — endpoint coroutines direct call, deps monkeypatched.
 Critical invariants: flag-gating, NO email-enumeration leak, single-use, expiry.
 """
 
@@ -79,7 +79,7 @@ async def test_request_no_enumeration(monkeypatch):
     # known email
     monkeypatch.setattr(ca, "_find", lambda e: {"client_id": "c9", "email": e})
     r_known = await ca.magic_link_request(ca.MagicRequestIn(email="real@x.com"))
-    # send is now fire-and-forget (anti-timing-oracle) - let the detached task run.
+    # send is now fire-and-forget (anti-timing-oracle) — let the detached task run.
     for _ in range(5):
         await asyncio.sleep(0)
 

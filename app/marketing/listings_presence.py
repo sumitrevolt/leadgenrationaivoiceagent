@@ -1,13 +1,13 @@
-"""India listings presence score - NAP/citation checklist (NO scraping).
+"""India listings presence score — NAP/citation checklist (NO scraping).
 
 Kyun: local SEO ka base = consistent listings (Google, Justdial, Sulekha...).
-Competitors (Synup/BrightLocal) auto-scan bechte hain - par Justdial/Sulekha/
+Competitors (Synup/BrightLocal) auto-scan bechte hain — par Justdial/Sulekha/
 IndiaMART auto-scrape = ToS violation (project `_BLOCKED_DOMAINS` policy).
 Isliye yeh module ZERO HTTP fetch karta hai: curated directory list + manual
 deep-link search URLs (human khud click karke dekhe) + self-reported status
 se 0-100 score + Hinglish gap tips.
 
-Design: pure file-IO (no network, no LLM) - public-safe by construction.
+Design: pure file-IO (no network, no LLM) — public-safe by construction.
 NEVER raises. Store: data/listings_status.jsonl (per-client self-reported).
 """
 
@@ -25,15 +25,15 @@ logger = setup_logger(__name__)
 
 _STATUS_FILE = os.path.join("data", "listings_status.jsonl")
 
-# Curated India directories - key, naam, weight (sum=100), kyu (Hinglish),
+# Curated India directories — key, naam, weight (sum=100), kyu (Hinglish),
 # search-template ({q} = quoted "business city"), free listing URL.
-# POLICY: in URLs ka HTTP fetch KABHI nahi - sirf manual deep-links.
+# POLICY: in URLs ka HTTP fetch KABHI nahi — sirf manual deep-links.
 _DIRECTORIES: list[dict[str, Any]] = [
     {
         "key": "google_business",
         "name": "Google Business Profile",
         "weight": 30,
-        "why": "Local search + Maps ka #1 source - iske bina local customers milte hi nahi.",
+        "why": "Local search + Maps ka #1 source — iske bina local customers milte hi nahi.",
         "search_url": "https://www.google.com/maps/search/{q}",
         "listing_url": "https://business.google.com/create",
     },
@@ -41,7 +41,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "justdial",
         "name": "Justdial",
         "weight": 12,
-        "why": "India ka sabse bada local directory - call-leads ke liye strong.",
+        "why": "India ka sabse bada local directory — call-leads ke liye strong.",
         "search_url": "https://www.justdial.com/search?q={q}",
         "listing_url": "https://www.justdial.com/Free-Listing",
     },
@@ -57,7 +57,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "indiamart",
         "name": "IndiaMART",
         "weight": 8,
-        "why": "B2B/wholesale buyers ka sabse bada platform - manufacturer/trader ke liye must.",
+        "why": "B2B/wholesale buyers ka sabse bada platform — manufacturer/trader ke liye must.",
         "search_url": "https://dir.indiamart.com/search.mp?ss={q}",
         "listing_url": "https://seller.indiamart.com/",
     },
@@ -65,7 +65,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "tradeindia",
         "name": "TradeIndia",
         "weight": 5,
-        "why": "Doosra bada B2B directory - extra backlink + buyer inquiries.",
+        "why": "Doosra bada B2B directory — extra backlink + buyer inquiries.",
         "search_url": "https://www.tradeindia.com/search.html?keyword={q}",
         "listing_url": "https://www.tradeindia.com/register/",
     },
@@ -73,7 +73,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "facebook",
         "name": "Facebook Page",
         "weight": 10,
-        "why": "Social proof + reviews + WhatsApp link - customers yahin check karte hain.",
+        "why": "Social proof + reviews + WhatsApp link — customers yahin check karte hain.",
         "search_url": "https://www.facebook.com/search/pages/?q={q}",
         "listing_url": "https://www.facebook.com/pages/create",
     },
@@ -81,7 +81,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "instagram",
         "name": "Instagram Business",
         "weight": 8,
-        "why": "Young customers ka discovery channel - photos/reels se trust banta hai.",
+        "why": "Young customers ka discovery channel — photos/reels se trust banta hai.",
         "search_url": "https://www.instagram.com/explore/search/keyword/?q={q}",
         "listing_url": "https://business.instagram.com/getting-started",
     },
@@ -89,7 +89,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "apple_maps",
         "name": "Apple Maps (Business Connect)",
         "weight": 6,
-        "why": "iPhone users ka default Maps - free listing, competitors miss karte hain.",
+        "why": "iPhone users ka default Maps — free listing, competitors miss karte hain.",
         "search_url": "https://maps.apple.com/search?query={q}",
         "listing_url": "https://businessconnect.apple.com/",
     },
@@ -97,7 +97,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "bing_places",
         "name": "Bing Places",
         "weight": 6,
-        "why": "Bing/Copilot AI-search isi se uthata hai - GBP se import 5-min me ho jata hai.",
+        "why": "Bing/Copilot AI-search isi se uthata hai — GBP se import 5-min me ho jata hai.",
         "search_url": "https://www.bing.com/maps?q={q}",
         "listing_url": "https://www.bingplaces.com/",
     },
@@ -105,7 +105,7 @@ _DIRECTORIES: list[dict[str, Any]] = [
         "key": "mapmyindia",
         "name": "MapmyIndia (Mappls)",
         "weight": 7,
-        "why": "Indian cars/apps ka native map - local India traffic ke liye free listing.",
+        "why": "Indian cars/apps ka native map — local India traffic ke liye free listing.",
         "search_url": "https://www.mappls.com/search/{q}",
         "listing_url": "https://about.mappls.com/places/",
     },
@@ -146,7 +146,7 @@ def _append_jsonl(path: str, rec: dict[str, Any]) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Checklist + score (pure functions - no network)
+# Checklist + score (pure functions — no network)
 # --------------------------------------------------------------------------- #
 def checklist(business_name: str, city: str = "", niche: str = "") -> dict[str, Any]:
     """Curated directories + manual deep-link search URLs (LINK only, NO fetch)."""
@@ -175,8 +175,8 @@ def checklist(business_name: str, city: str = "", niche: str = "") -> dict[str, 
             "directories": dirs,
             "how": (
                 "Har 'search_url' khol ke dekho business listed hai ya nahi, phir "
-                "POST /api/localseo/listings-status se present/absent mark karo - "
-                "score + gap tips mil jayenge. (Auto-scan ToS-safe nahi - manual hi sahi.)"
+                "POST /api/localseo/listings-status se present/absent mark karo — "
+                "score + gap tips mil jayenge. (Auto-scan ToS-safe nahi — manual hi sahi.)"
             ),
         }
     except Exception as e:  # pragma: no cover - defensive
@@ -185,7 +185,7 @@ def checklist(business_name: str, city: str = "", niche: str = "") -> dict[str, 
 
 
 def score(present: dict[str, Any] | None) -> dict[str, Any]:
-    """Self-reported present-map -> weighted 0-100 + Hinglish gap tips. Never raises."""
+    """Self-reported present-map → weighted 0-100 + Hinglish gap tips. Never raises."""
     try:
         present = present if isinstance(present, dict) else {}
         total = 0
@@ -199,17 +199,17 @@ def score(present: dict[str, Any] | None) -> dict[str, Any]:
                 gaps.append(d)
         gaps.sort(key=lambda d: -d["weight"])
         tips = [
-            f"{d['name']} pe FREE listing banao ({d['listing_url']}) - {d['why']}" for d in gaps[:5]
+            f"{d['name']} pe FREE listing banao ({d['listing_url']}) — {d['why']}" for d in gaps[:5]
         ]
         if total >= 80:
-            verdict = "Listings presence solid hai - ab reviews + posts pe focus karo."
+            verdict = "Listings presence solid hai — ab reviews + posts pe focus karo."
         elif total >= 50:
             verdict = (
-                "Theek hai, par gaps hain - missing directories pe listing banao (sab FREE hain)."
+                "Theek hai, par gaps hain — missing directories pe listing banao (sab FREE hain)."
             )
         else:
             verdict = (
-                "Listings presence weak hai - customers aur AI search dono ko aap mil nahi rahe."
+                "Listings presence weak hai — customers aur AI search dono ko aap mil nahi rahe."
             )
         return {
             "ok": True,
@@ -263,7 +263,7 @@ def get_status(client_id: str) -> dict[str, Any]:
                 "ok": True,
                 "client_id": client_id,
                 "status": None,
-                "note": "Abhi koi status saved nahi - pehle checklist se manual check karo.",
+                "note": "Abhi koi status saved nahi — pehle checklist se manual check karo.",
             }
         # Newest-wins, deterministically. The jsonl is append-only so file order IS
         # chronological; sort ASCENDING by updated_at (stable) and take the LAST row.

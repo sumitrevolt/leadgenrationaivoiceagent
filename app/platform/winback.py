@@ -1,25 +1,21 @@
 """
-winback.py - inactive prospects/customers ko wapas lao (re-engagement drafts).
+winback.py — inactive prospects/customers ko wapas lao (re-engagement drafts).
 ===============================================================================
 
-"2 mahine ho gaye!" - jo prospects/customers lambe time se chup hain, unke
+"2 mahine ho gaye!" — jo prospects/customers lambe time se chup hain, unke
 liye Hinglish WA + email win-back DRAFTS ready karo. KABHI auto-send nahi
-(WA bulk auto = number ban
-email bhi yahan draft-only - human 1-click).
+(WA bulk auto = number ban; email bhi yahan draft-only — human 1-click).
 
 Sources (sab lazy + best-effort, koi bhi fail = skip):
-  - prospector store (data/prospects.jsonl) - last touch = emailed_at /
-    updated_at / created_at
-    status dead/client/replied skip
-  - customer_crm (crm_lite store) - per marketing-client end-customers
-    (added_at se age
-    date missing = skip, guess nahi karte)
+  - prospector store (data/prospects.jsonl) — last touch = emailed_at /
+    updated_at / created_at; status dead/client/replied skip
+  - customer_crm (crm_lite store) — per marketing-client end-customers
+    (added_at se age; date missing = skip, guess nahi karte)
 
 Public API (sab never-raise):
   - find_inactive(days=60, limit=200)  -> [{type, name, phone, email, ...}]
   - draft(entity)                      -> Hinglish WA msg + email subject/body + wa.me
-  - run_due_if_enabled()               -> async
-  GATED `WINBACK_ENGINE=1`:
+  - run_due_if_enabled()               -> async; GATED `WINBACK_ENGINE=1`:
                                           drafts -> data/winback_drafts.jsonl
                                           (30-din dedupe per phone/email) + team event
   - list_drafts(limit=100)             -> saved drafts (newest last)
@@ -193,7 +189,7 @@ def find_inactive(days: int = 60, limit: int = 200) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Draft (Hinglish WA + email - DRAFT only, no send)
+# Draft (Hinglish WA + email — DRAFT only, no send)
 # --------------------------------------------------------------------------- #
 def draft(entity: dict[str, Any] | None) -> dict[str, Any]:
     """Ek inactive entity -> win-back draft (WA msg + wa.me + email subject/body).
@@ -213,27 +209,27 @@ def draft(entity: dict[str, Any] | None) -> dict[str, Any]:
         if etype == "customer":
             biz = str(ent.get("business_name") or "").strip() or "Hum"
             wa_msg = (
-                f"Namaste {name} ji! 🙏 {months} mahine ho gaye - humein aapki yaad aayi! "
+                f"Namaste {name} ji! 🙏 {months} mahine ho gaye — humein aapki yaad aayi! "
                 f"{biz} pe is week wapas aaiye aur 15% off paaiye. "
-                f"Bas yeh message dikhayein. Milte hain! 😊\n- {biz}"
+                f"Bas yeh message dikhayein. Milte hain! 😊\n— {biz}"
             )
-            subject = f"{name} ji, {months} mahine ho gaye - 15% off ke saath wapas aaiye!"
+            subject = f"{name} ji, {months} mahine ho gaye — 15% off ke saath wapas aaiye!"
             body = (
-                f"Namaste {name} ji,\n\n{months} mahine ho gaye aapko dekhe hue - "
+                f"Namaste {name} ji,\n\n{months} mahine ho gaye aapko dekhe hue — "
                 f"humein aapki yaad aayi! {biz} pe is week aaiye aur special 15% off "
-                f"paaiye (yeh email dikhana kaafi hai).\n\nMilte hain!\n- {biz}"
+                f"paaiye (yeh email dikhana kaafi hai).\n\nMilte hain!\n— {biz}"
             )
         else:
             wa_msg = (
-                f"Namaste {name} ji! 🙏 Kuch mahine pehle humne baat ki thi - "
+                f"Namaste {name} ji! 🙏 Kuch mahine pehle humne baat ki thi — "
                 "AI marketing se naye customers laane ke baare me. Ab hamare paas "
                 "naye features + ₹1,999/mahina starter plan hai. 2-minute ka FREE "
                 f"Google audit dekh lijiye: {_SITE_URL}/audit?utm_source=winback 😊"
             )
-            subject = f"{name} - wapas hello! (free audit + naya ₹1,999 plan)"
+            subject = f"{name} — wapas hello! (free audit + naya ₹1,999 plan)"
             body = (
                 f"Namaste,\n\n{name} ke liye kuch time pehle humne free marketing "
-                "audit offer kiya tha. Tab busy honge - koi baat nahi!\n\n"
+                "audit offer kiya tha. Tab busy honge — koi baat nahi!\n\n"
                 "Ab hamare paas aur bhi features hain (AI posts, Google ranking, "
                 "review automation) aur starter plan sirf ₹1,999/mahina.\n\n"
                 f"2 minute me apna FREE audit dekh lijiye: {_SITE_URL}/audit?utm_source=winback\n\n"
@@ -252,7 +248,7 @@ def draft(entity: dict[str, Any] | None) -> dict[str, Any]:
             "email_subject": subject,
             "email_body": body,
             "days_inactive": days,
-            "status": "draft",  # NEVER auto-sent - human 1-click only
+            "status": "draft",  # NEVER auto-sent — human 1-click only
         }
     except Exception as e:
         logger.warning(f"[winback] draft failed: {e}")
@@ -303,7 +299,7 @@ def _recent_keys(days: int = _DEDUPE_DAYS) -> set[str]:
 
 
 async def run_due_if_enabled(days: int = 60) -> dict[str, Any]:
-    """Scheduler hook - GATED `WINBACK_ENGINE=1` (default OFF = graceful skip).
+    """Scheduler hook — GATED `WINBACK_ENGINE=1` (default OFF = graceful skip).
     Drafts banata hai (NO auto-send), 30-din dedupe per phone/email. Never raises."""
     if not _enabled():
         return {"ok": True, "skipped": True, "reason": f"{_FLAG} flag OFF"}
@@ -318,7 +314,7 @@ async def run_due_if_enabled(days: int = 60) -> dict[str, Any]:
             if (key_phone and key_phone in seen) or (key_email and key_email in seen):
                 continue
             if not key_phone and not key_email:
-                continue  # contact hi nahi - draft bekaar
+                continue  # contact hi nahi — draft bekaar
             d = draft(ent)
             if not d.get("ok"):
                 continue
@@ -349,7 +345,7 @@ async def run_due_if_enabled(days: int = 60) -> dict[str, Any]:
             "ok": True,
             "drafts_created": len(created),
             "drafts": created,
-            "note": "Auto-send NAHI hota - wa_link/email se human 1-click bhejo (ban-safe).",
+            "note": "Auto-send NAHI hota — wa_link/email se human 1-click bhejo (ban-safe).",
         }
     except Exception as e:
         logger.warning(f"[winback] run failed: {e}")

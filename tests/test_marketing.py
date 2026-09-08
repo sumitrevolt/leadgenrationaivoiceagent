@@ -4,7 +4,7 @@ Tests: marketing module (Dhanda-style posts + GBP tips + content calendar
 + competitor tips + growth v3: review kit/QR, monthly report, reactivation,
 drip, brand kit, CRM-lite + v4: UPI kit, catalog, ads copy, reels,
 lead scoring, GBP texts + v5: client content pack, data retention).
-No network - free_ai.chat is monkeypatched to return ("","") so every path
+No network — free_ai.chat is monkeypatched to return ("","") so every path
 exercises the TEMPLATE fallback (the never-empty guarantee).
 """
 
@@ -43,7 +43,7 @@ from app.marketing import (
 
 @pytest.fixture
 def no_llm(monkeypatch):
-    """free_ai.chat ko hamesha ("","") return karwao - template path force."""
+    """free_ai.chat ko hamesha ("","") return karwao — template path force."""
 
     async def _empty(*args, **kwargs):
         return "", ""
@@ -219,10 +219,7 @@ class TestPosters:
         )
         svg = result["svg"]
         assert svg.startswith("<svg")
-        assert "R&amp
-        D &lt
-        Solar&gt
-        " in svg  # XML-escaped
+        assert "R&amp;D &lt;Solar&gt;" in svg  # XML-escaped
         assert "<Solar>" not in svg  # raw injection nahi
         assert "Diwali" in svg and "10% off" in svg and "9876543210" in svg
 
@@ -303,10 +300,7 @@ class TestReviewKit:
         assert "Sharma Solar" in card
         # XML-escape check
         esc = review_kit.review_ask_pack("R&D <Solar>")
-        assert "R&amp
-        D &lt
-        Solar&gt
-        " in esc["counter_card_svg"]
+        assert "R&amp;D &lt;Solar&gt;" in esc["counter_card_svg"]
         assert "<Solar>" not in esc["counter_card_svg"]
 
     @pytest.mark.asyncio
@@ -499,7 +493,7 @@ class TestUpiKit:
         assert "&am=499" in link
         assert "&tn=Order%2012" in link
         assert kit["vpa_valid"] is True
-        # QR (review_kit encoder reuse) - dark modules as rects
+        # QR (review_kit encoder reuse) — dark modules as rects
         assert kit["qr_svg"].startswith("<svg")
         assert kit["qr_svg"].count("<rect") > 100
         # slip: QR embedded (nested svg), slot replaced, vpa + amount dikhte
@@ -532,10 +526,7 @@ class TestUpiKit:
         assert len(bad["instructions"]) == 2
         # XML-escape (injection-safe slip)
         esc_kit = upi_kit.payment_kit("R&D <Solar>", "rd@upi")
-        assert "R&amp
-        D &lt
-        Solar&gt
-        " in esc_kit["slip_svg"]
+        assert "R&amp;D &lt;Solar&gt;" in esc_kit["slip_svg"]
         assert "<Solar>" not in esc_kit["slip_svg"]
 
 
@@ -551,8 +542,7 @@ class TestCatalog:
         )
         svg = result["svg"]
         assert svg.startswith("<svg")
-        assert "Paneer &amp
-        Tikka" in svg  # XML-escaped
+        assert "Paneer &amp; Tikka" in svg  # XML-escaped
         assert "<fresh>" not in svg  # raw injection nahi
         assert "₹249" in svg and "₹199" in svg
         assert "Gupta Sweets" in svg
@@ -831,8 +821,7 @@ class TestContentPack:
     async def test_pack_escapes_inputs_never_raises(self, no_llm):
         result = await content_pack.build_client_pack("R&D <Solar>", "general")
         html = result["html"]
-        assert "R&amp
-        D" in html
+        assert "R&amp;D" in html
         assert "<Solar>" not in html  # raw injection nahi
         assert isinstance(result["counts"], dict)
 

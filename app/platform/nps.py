@@ -1,15 +1,15 @@
-"""nps.py - NPS/CSAT collector (Formbricks/Fider ka free in-house lite).
+"""nps.py — NPS/CSAT collector (Formbricks/Fider ka free in-house lite).
 
-Retention truth: clients khush hain ya nahi - guess nahi, MEASURE. 0-10 score:
+Retention truth: clients khush hain ya nahi — guess nahi, MEASURE. 0-10 score:
 9-10 promoter · 7-8 passive · 0-6 detractor. NPS = %promoters - %detractors.
 
-- Public submit (rate-limited route growth.py me) - client/uske customer dono.
-- Detractor (<=6) -> turant alert email Sumit ko, GATED `NPS_ALERTS=1`
-  (OFF = record-only, zero change). Promoter (>=9) -> review-request ka
-  natural candidate (response me `suggest_review: True` - review_engine reuse).
-- `request_drafts()` - har active client ke liye 1-click WhatsApp survey link
+- Public submit (rate-limited route growth.py me) — client/uske customer dono.
+- Detractor (<=6) → turant alert email Sumit ko, GATED `NPS_ALERTS=1`
+  (OFF = record-only, zero change). Promoter (>=9) → review-request ka
+  natural candidate (response me `suggest_review: True` — review_engine reuse).
+- `request_drafts()` — har active client ke liye 1-click WhatsApp survey link
   (ban-safe DRAFT, auto-send nahi).
-- Store `data/nps_responses.jsonl`. Defensive - kabhi raise nahi karta.
+- Store `data/nps_responses.jsonl`. Defensive — kabhi raise nahi karta.
 """
 
 from __future__ import annotations
@@ -100,9 +100,9 @@ async def submit(
                 if notify:
                     await email_sender.send_email(
                         [notify],
-                        f"🔴 NPS detractor ({score}/10) - {row['client_slug'] or row['name'] or 'anon'}",
+                        f"🔴 NPS detractor ({score}/10) — {row['client_slug'] or row['name'] or 'anon'}",
                         f"Score: {score}/10\nKaun: {row['name']} {row['phone']} (client: {row['client_slug']})\n"
-                        f"Comment: {row['comment'] or '(khali)'}\n\nJaldi call/WhatsApp karke issue solve karo - rating bachao.",
+                        f"Comment: {row['comment'] or '(khali)'}\n\nJaldi call/WhatsApp karke issue solve karo — rating bachao.",
                     )
             except Exception as e:
                 logger.warning(f"[nps] alert fail: {e}")
@@ -143,7 +143,7 @@ def request_drafts(limit: int = 20) -> list[dict]:
             phone = (c.get("phone") or "").strip()
             slug = c.get("slug") or ""
             msg = (
-                f"Namaste {c.get('business_name', '')}! 🙏 Ek chhota sa sawaal - humari AI marketing "
+                f"Namaste {c.get('business_name', '')}! 🙏 Ek chhota sa sawaal — humari AI marketing "
                 f"service ko 0-10 me kitna score denge? Reply me number bhej dijiye, ya yahan rate karein: "
                 f"{base}/api/public/nps?slug={quote(slug)}"
             )

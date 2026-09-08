@@ -1,4 +1,4 @@
-"""50 simulated Day-1 onboardings - fake tenants, never Jiya, never web process."""
+"""50 simulated Day-1 onboardings — fake tenants, never Jiya, never web process."""
 
 from __future__ import annotations
 

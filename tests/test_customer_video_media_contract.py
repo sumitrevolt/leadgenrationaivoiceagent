@@ -1,8 +1,7 @@
 """Contract tests for /api/customer/videos/{id}/media HTTP Range + revision gate.
 
 Ported from antigravity/ws3-video-preview-clean (PR #101) and adapted for main's
-revision-gated media endpoint - Range is additive
-version mismatch stays 409.
+revision-gated media endpoint — Range is additive; version mismatch stays 409.
 """
 
 from __future__ import annotations
@@ -188,8 +187,7 @@ def test_inline_disposition_and_headers(media_client):
 
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("video/mp4")
-    assert res.headers["content-disposition"] == 'inline
-    filename="video_ad_vid_hdr.mp4"'
+    assert res.headers["content-disposition"] == 'inline; filename="video_ad_vid_hdr.mp4"'
     assert res.headers["accept-ranges"] == "bytes"
     assert res.headers["content-length"] == str(len(mp4_bytes))
     assert "private" in res.headers.get("cache-control", "")

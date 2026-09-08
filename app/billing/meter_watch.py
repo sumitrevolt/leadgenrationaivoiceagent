@@ -1,25 +1,25 @@
-"""meter_watch.py - billing meter-failure WATCHER (SP1 code half).
+"""meter_watch.py — billing meter-failure WATCHER (SP1 code half).
 
-WHY: dono billing meters fail-OPEN hain (call kabhi billing-bug se na ruke) -
+WHY: dono billing meters fail-OPEN hain (call kabhi billing-bug se na ruke) —
 `lead_usage.py` (qualified-lead meter, Product 2) aur `usage.py` (minute meter,
 marketing-Advanced prepaid-minutes revenue path). Fail-open ka matlab: meter
 write fail ho to call CHALTI rehti par revenue SILENTLY leak ho sakta. Dono
 meters ab failure ko durable Redis list `billing:meter_failures` me record karte
-(`_record_meter_failure`). Yeh module wahi list WATCH karta - agar failures
+(`_record_meter_failure`). Yeh module wahi list WATCH karta — agar failures
 threshold se zyada badh jaayein, ops ko ALERT karo (ntfy via ops_alerts pattern).
 
 Design (ops_alerts.py jaisa hi posture):
-- **Master flag `METER_ALERTS=1`** - OFF default = INERT, zero behaviour change.
+- **Master flag `METER_ALERTS=1`** — OFF default = INERT, zero behaviour change.
   (ntfy bhejne ke liye OPS_ALERTS infra/ntfy creds bhi chahiye, par yeh module
   apni khud ki gate rakhta taaki minute-meter watcher independently toggle ho.)
 - **Delta-based**: har run pe Redis list ki LENGTH padho. Pichli baar dekhi gayi
-  length se compare - agar GROWTH > threshold ho to alert. Last-seen count ek
+  length se compare — agar GROWTH > threshold ho to alert. Last-seen count ek
   chhoti state-file me persist (data/meter_watch_state.json) taaki har run pe
   re-alert na ho (sirf naye failures pe).
 - **Cooldown**: alert ke baad min-interval tak dobara alert nahi.
 - **NEVER raises**: redis unset / file IO / kuch bhi = silent no-op dict.
 
-Wiring (main session applies - see wiring_snippets):
+Wiring (main session applies — see wiring_snippets):
   scheduler hourly job  -> meter_watch.check_meter_failures()
 """
 
@@ -42,7 +42,7 @@ _STATE_PATH = _DATA_DIR / "meter_watch_state.json"
 
 # Naye failures (delta) jiske baad alert (ek run me itne naye = page).
 _GROWTH_THRESHOLD = int(os.environ.get("METER_ALERT_GROWTH_THRESHOLD", "5") or "5")
-# Alert cooldown (seconds) - meter list lagataar badhti rahe to spam na ho.
+# Alert cooldown (seconds) — meter list lagataar badhti rahe to spam na ho.
 _COOLDOWN_SEC = int(os.environ.get("METER_ALERT_COOLDOWN_SEC", str(6 * 3600)) or str(6 * 3600))
 
 
@@ -94,7 +94,7 @@ def _alert(count: int, delta: int) -> None:
 
         title = f"🚨 Billing meter failures: +{delta} (total {count})"
         body = (
-            f"{delta} naye meter-write failures last check ke baad - total {count} "
+            f"{delta} naye meter-write failures last check ke baad — total {count} "
             f"in {_REDIS_LIST}. Revenue-leak risk (fail-open billing). "
             f"Replay: redis-cli lrange {_REDIS_LIST} 0 -1"
         )[:1500]
@@ -106,7 +106,7 @@ def _alert(count: int, delta: int) -> None:
 
 
 def check_meter_failures() -> dict[str, Any]:
-    """Redis `billing:meter_failures` list ko WATCH karo - naye failures (delta)
+    """Redis `billing:meter_failures` list ko WATCH karo — naye failures (delta)
     threshold se zyada badhe to ops ko ntfy alert. State-file me last-seen count +
     last-alert-ts persist taaki re-alert/spam na ho. Returns small status dict
     (scheduler log ke liye). KABHI raise nahi karta.
@@ -126,7 +126,7 @@ def check_meter_failures() -> dict[str, Any]:
         last_alert_ts = float(state.get("last_alert_ts") or 0.0)
         now = time.time()
 
-        # Delta - list trimmed/replayed ho ke ghat bhi sakti, to negative ko 0.
+        # Delta — list trimmed/replayed ho ke ghat bhi sakti, to negative ko 0.
         delta = max(0, count - last_count)
 
         # Har run pe last_count refresh (warna trim ke baad delta galat aata).

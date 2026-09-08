@@ -3,8 +3,7 @@ Verify the 'bot doesn't listen / just monologues' fix.
 
 Proves that the conversation now LISTENS -> understands -> answers the customer's
 question, and keeps replies SHORT (<=2 sentences). Runs with brain=None
-(rule-based, no API key) = the deterministic worst case
-with Gemini on the VPS
+(rule-based, no API key) = the deterministic worst case; with Gemini on the VPS
 the same path is even more natural.
 """
 

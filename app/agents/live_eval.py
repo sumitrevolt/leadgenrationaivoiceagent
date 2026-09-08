@@ -1,21 +1,20 @@
 """
-Live-transcript evaluation (P4-3) - close the eval loop on REAL calls.
+Live-transcript evaluation (P4-3) — close the eval loop on REAL calls.
 =====================================================================
 
 `eval_metrics.transcript_quality` + `eval_suite` personas score SYNTHETIC convos.
 This module scores the **live** call transcripts (`data/call_transcripts/*.jsonl`,
 written by vobiz_stream / web_call) so quality drift on real calls feeds
-`eval_gate` - the missing "eval_gate -> live transcripts" edge.
+`eval_gate` — the missing "eval_gate → live transcripts" edge.
 
 Three layers:
-  * `score_transcript(messages)` - deterministic 0..1 quality = `voice_turn_score`
+  * `score_transcript(messages)` — deterministic 0..1 quality = `voice_turn_score`
     (empty/too-long/double-question/repeat) DENTED by the D-13 `qa_checks`
     findings (pushy-after-softno / talk-listen / missing-permission / literal).
-  * `eval_recent_calls(n)` - score the last N live calls, mean -> `eval_gate`
-    (suite `live_calls`, metric `conversation_quality`)
-    reports per-call findings
+  * `eval_recent_calls(n)` — score the last N live calls, mean → `eval_gate`
+    (suite `live_calls`, metric `conversation_quality`); reports per-call findings
     + interruption stats. Used by the nightly Arjun guardrail.
-  * `llm_judge_transcript(messages)` - OPTIONAL free-LLM judge that returns a score
+  * `llm_judge_transcript(messages)` — OPTIONAL free-LLM judge that returns a score
     WITH a rationale (gated `LLM_JUDGE`, default OFF = cost-free).
 
 Interruption tracking: reports the barge count per call (`barge_count`, logged by
@@ -23,8 +22,7 @@ vobiz_stream) + per-turn outcome distribution. The false-vs-missed CLASSIFICATIO
 needs STT-validated barge events (ties to the D-6 backchannel-allowlist arch gap)
 and is flagged as `classification: "unclassified"` until that lands.
 
-Import-safe, never raises
-deterministic layers are free (no LLM/network).
+Import-safe, never raises; deterministic layers are free (no LLM/network).
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ logger = setup_logger(__name__)
 
 
 def _TRANSCRIPTS_DIR() -> Path:
-    """Live call transcripts dir - resolved per call, never frozen at import."""
+    """Live call transcripts dir — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return call_transcripts_dir()
@@ -189,8 +187,7 @@ _JUDGE_SYSTEM = (
 
 async def llm_judge_transcript(messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Optional free-LLM judge that returns a score WITH a rationale (P4-3).
-    Gated `LLM_JUDGE` (default OFF). Never raises
-    returns
+    Gated `LLM_JUDGE` (default OFF). Never raises; returns
     {available: False} when disabled/unparseable."""
     if not _judge_enabled():
         return {"available": False, "reason": "disabled"}

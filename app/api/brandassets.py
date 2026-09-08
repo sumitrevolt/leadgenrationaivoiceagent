@@ -1,16 +1,16 @@
-"""Brand Assets API - branded frames, digital card, magic resize, review-post, stickers.
+"""Brand Assets API — branded frames, digital card, magic resize, review-post, stickers.
 
 AdBanao-parity creative pack on top of EXISTING modules (posters/festivals/
-brand_kit/clients_store/review_kit - rebuild nahi):
+brand_kit/clients_store/review_kit — rebuild nahi):
 
-- GET  /api/brand/frames/daily?slug=        (admin) - aaj ke 3 ready branded posts
-- POST /api/brand/frames/compose            (admin) - template SVG × brand frame
-- GET  /api/brand/card/{slug}.vcf           (public, rate-limited) - vCard download
-- GET  /api/brand/card/{slug}               (public, rate-limited) - digital visiting card
-- POST /api/brand/resize                    (admin, multipart) - 1 creative -> 4 social sizes
+- GET  /api/brand/frames/daily?slug=        (admin) — aaj ke 3 ready branded posts
+- POST /api/brand/frames/compose            (admin) — template SVG × brand frame
+- GET  /api/brand/card/{slug}.vcf           (public, rate-limited) — vCard download
+- GET  /api/brand/card/{slug}               (public, rate-limited) — digital visiting card
+- POST /api/brand/resize                    (admin, multipart) — 1 creative → 4 social sizes
 - GET  /api/brand/resize-file/{name}        (public, regex-locked serve)
-- POST /api/brand/review-post               (admin) - 4-5★ review -> thank-you poster
-- POST /api/brand/stickers                  (admin) - 6 WhatsApp sticker PNGs
+- POST /api/brand/review-post               (admin) — 4-5★ review → thank-you poster
+- POST /api/brand/stickers                  (admin) — 6 WhatsApp sticker PNGs
 - GET  /api/brand/sticker-file/{slug}/{name} (public, regex-locked serve)
 
 Mount (creative.py pattern): `app.include_router(brandassets_router, prefix="/api")`.
@@ -42,7 +42,7 @@ _FILE_RE = re.compile(r"^[a-z0-9_-]+\.png$")
 # --------------------------- F1: branded frames ---------------------------- #
 @router.get("/frames/daily")
 async def frames_daily(slug: str, date: str | None = None, _user=Depends(require_admin)):
-    """Aaj ka ready-post feed - 3 branded-frame posters + captions (1-click post)."""
+    """Aaj ka ready-post feed — 3 branded-frame posters + captions (1-click post)."""
     from app.marketing import brand_frames
 
     return await brand_frames.daily_feed(slug, date)
@@ -84,7 +84,7 @@ async def frames_compose(body: ComposeIn, _user=Depends(require_admin)):
 # NOTE: .vcf route PEHLE declare hota hai (warna /card/{slug} greedy match kar leta).
 @router.get("/card/{slug}.vcf", dependencies=[Depends(rate_limit("card", 30, 60))])
 async def card_vcf(slug: str):
-    """Save-contact vCard (.vcf) - public, rate-limited."""
+    """Save-contact vCard (.vcf) — public, rate-limited."""
     from app.marketing import business_card
 
     res = business_card.render_vcf(slug)
@@ -92,16 +92,14 @@ async def card_vcf(slug: str):
         raise HTTPException(status_code=404, detail=res.get("error", "card not found"))
     return Response(
         content=res["vcf"],
-        media_type="text/vcard
-        charset=utf-8",
-        headers={"Content-Disposition": f'attachment
-        filename="{res["filename"]}"'},
+        media_type="text/vcard; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{res["filename"]}"'},
     )
 
 
 @router.get("/card/{slug}", dependencies=[Depends(rate_limit("card", 30, 60))])
 async def card_html(slug: str):
-    """Digital visiting card (mobile-first standalone page) - public, rate-limited."""
+    """Digital visiting card (mobile-first standalone page) — public, rate-limited."""
     from app.marketing import business_card
 
     res = business_card.render_card_html(slug)
@@ -119,7 +117,7 @@ async def magic_resize_endpoint(
     slug: str = Form(""),
     _user=Depends(require_admin),
 ):
-    """Ek creative (photo upload YA SVG string) -> square/story/banner/wa_status pack."""
+    """Ek creative (photo upload YA SVG string) → square/story/banner/wa_status pack."""
     from app.marketing import magic_resize
 
     image_path = None
@@ -168,7 +166,7 @@ async def resize_file(name: str):
     raise HTTPException(status_code=404, detail="not found")
 
 
-# --------------------------- F4: review -> post ----------------------------- #
+# --------------------------- F4: review → post ----------------------------- #
 class ReviewPostIn(BaseModel):
     review_text: str = Field(..., min_length=3, max_length=600)
     author: str = Field("", max_length=60)
@@ -178,7 +176,7 @@ class ReviewPostIn(BaseModel):
 
 @router.post("/review-post")
 async def review_post(body: ReviewPostIn, _user=Depends(require_admin)):
-    """4-5★ review -> branded thank-you poster SVG + Hinglish caption."""
+    """4-5★ review → branded thank-you poster SVG + Hinglish caption."""
     from app.marketing import review_to_post
 
     return await review_to_post.from_review(body.review_text, body.author, body.rating, body.slug)

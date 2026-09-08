@@ -95,7 +95,7 @@ def test_tenant_only_ever_enters_path_as_hash(wfm_env):
     scopes = os.listdir(tenants_dir)
     assert len(scopes) == 1
     scope = scopes[0]
-    # 16-char sha256 hexdigest - safe charset, no separators, no dot-dot.
+    # 16-char sha256 hexdigest — safe charset, no separators, no dot-dot.
     assert re.fullmatch(r"[0-9a-f]{16}", scope), f"tenant scope must be a hash, got {scope!r}"
     assert ".." not in scope
     assert os.path.isfile(os.path.join(tenants_dir, scope, "entries.jsonl"))

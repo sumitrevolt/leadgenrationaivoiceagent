@@ -1,8 +1,7 @@
-"""Shadow adapter - record-only observation of a real legacy agent execution.
+"""Shadow adapter — record-only observation of a real legacy agent execution.
 
 Contract (mission Stage A):
-  legacy path stays authoritative and executes exactly once
-  this adapter
+  legacy path stays authoritative and executes exactly once; this adapter
   receives a COPY of the execution intent + result and asks the harness what it
   WOULD have decided. It never executes the tool, never mutates, never touches
   the legacy idempotency key, never activates a peer agent, and never raises
@@ -67,8 +66,7 @@ def shadow_eligible(agent_id: str) -> bool:
 def shadow_loop_eligible(agent_id: str, source_loop: str) -> bool:
     """Loop-scoped eligibility: agent eligible AND the source loop is explicitly
     allowlisted (AGENT_HARNESS_CANARY_LOOPS). Empty loop allowlist => False.
-    Used by loop adapters (e.g. dag_engine) that opt in per-loop
-    the run_member
+    Used by loop adapters (e.g. dag_engine) that opt in per-loop; the run_member
     adapter stays agent-only so it is unaffected by this gate."""
     if not shadow_eligible(agent_id):
         return False
@@ -134,7 +132,7 @@ class _JobArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-async def _noop(**_: Any) -> Any:  # never called by observe() - presence-only
+async def _noop(**_: Any) -> Any:  # never called by observe() — presence-only
     raise AssertionError("shadow tool executor must never be invoked")
 
 
@@ -160,7 +158,7 @@ def observe_legacy_run(
         aid = agent_id.strip().lower()
         risk = _classify(aid)
         rrid = real_run_id or ("run_" + uuid.uuid4().hex[:12])
-        # Shadow-safe derived reference - NOT the legacy idempotency key.
+        # Shadow-safe derived reference — NOT the legacy idempotency key.
         shadow_ref = f"shadow:{rrid}:{action_index}"
         legacy_tool = action or f"staff.run_{aid}"  # the REAL executor identity
         # Canonical identity resolution: a mapped STAFF member maps to a canonical

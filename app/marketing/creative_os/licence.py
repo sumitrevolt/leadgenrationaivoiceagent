@@ -1,4 +1,4 @@
-"""Creative provider licence allowlist - software ≠ model-weight clearance."""
+"""Creative provider licence allowlist — software ≠ model-weight clearance."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ LICENCE_REGISTRY: dict[str, dict[str, Any]] = {
         "model": "hyperframes-cli",
         "model_revision": "0.7.87",
         # Verified 2026-08-01 from the upstream repo's LICENSE via the GitHub API
-        # and the published package's own `license` field - both Apache-2.0.
+        # and the published package's own `license` field — both Apache-2.0.
         "software_licence": "Apache-2.0",
         # No ML weights are involved: this is an HTML -> Chrome -> FFmpeg
         # renderer. "n/a" (not "unknown") is what keeps assert_provider_allowed
@@ -37,7 +37,7 @@ LICENCE_REGISTRY: dict[str, dict[str, Any]] = {
         "restrictions": (
             "Local subprocess render only; HeyGen cloud/lambda/cloudrun subcommands "
             "and telemetry are disabled. Fonts are bundled Noto (OFL-1.1). GSAP is "
-            "deliberately NOT bundled - its Standard 'no charge' licence is not OSI. "
+            "deliberately NOT bundled — its Standard 'no charge' licence is not OSI. "
             "Upstream commit 343c0251 (2026-08-01), npm hyperframes@0.7.87."
         ),
         "approval_date": "2026-08-01",
@@ -98,7 +98,7 @@ LICENCE_REGISTRY: dict[str, dict[str, Any]] = {
     },
 }
 
-# Hard rejects - never production-eligible in this OS.
+# Hard rejects — never production-eligible in this OS.
 _REJECTED_MODELS = frozenset(
     {
         "ltx-2",

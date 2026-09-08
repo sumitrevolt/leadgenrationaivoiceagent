@@ -1,7 +1,6 @@
-"""Runtime Gemini-key store - admin "Voice Keys" page persistence + voice-primary.
+"""Runtime Gemini-key store — admin "Voice Keys" page persistence + voice-primary.
 
-Locks: save_runtime_keys() persists + reloads so keys join the pool
-voice_primary
+Locks: save_runtime_keys() persists + reloads so keys join the pool; voice_primary
 flows to telecaller brain via the runtime store (no .env / restart needed).
 """
 

@@ -1,6 +1,6 @@
 """Bridge platform website inquiries into Hot Queue (1-click human close).
 
-Only LeadGen-owned inquiries (no mini-site ``client_id``) become HQ cards -
+Only LeadGen-owned inquiries (no mini-site ``client_id``) become HQ cards —
 customer mini-site leads stay on the customer portal. Ban-safe: wa.me draft only.
 Never raises.
 """
@@ -28,7 +28,7 @@ def _india_wa(phone: str) -> str:
 def _draft_for(rec: dict[str, Any]) -> str:
     name = str(rec.get("business_name") or rec.get("name") or "").strip() or "ji"
     return (
-        f"Namaste {name}! LeadGen AI se Sumit. Aapki inquiry mil gayi - "
+        f"Namaste {name}! LeadGen AI se Sumit. Aapki inquiry mil gayi — "
         f"AI Marketing Automation se roz leads + content automate hota hai "
         f"(₹1,999/mo). 2-min demo chahiye? Pricing: https://leadsgenai.in/pricing "
         f"· Start: https://leadsgenai.in/start"
@@ -42,7 +42,7 @@ def bridge_inquiry_to_hot_queue(rec: dict[str, Any]) -> dict[str, Any]:
     """
     out: dict[str, Any] = {"ok": False}
     try:
-        # Mini-site / customer-owned -> do not pollute owner Hot Queue.
+        # Mini-site / customer-owned → do not pollute owner Hot Queue.
         if str(rec.get("client_id") or "").strip() or str(rec.get("source_slug") or "").strip():
             out["skipped"] = "customer_owned"
             return out

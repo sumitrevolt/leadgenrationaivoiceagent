@@ -1,4 +1,4 @@
-"""ADR-104 (2026-07-15) - in-page confirmation modal for approval/publish/
+"""ADR-104 (2026-07-15) — in-page confirmation modal for approval/publish/
 scheduling/delivery actions, replacing native confirm()/prompt()-only gating.
 
 Background: a native confirm() dialog was proven THIS SESSION to auto-accept
@@ -91,9 +91,7 @@ def test_modal_returns_a_promise_not_a_synchronous_value():
 
 def test_modal_shows_all_required_fields():
     """User spec: customer; content title; action; target channel; internal
-    vs public
-    whether a channel is connected
-    irreversible/public impact."""
+    vs public; whether a channel is connected; irreversible/public impact."""
     for text in (_text(AUTOMATION), _text(DELIVERY)):
         body = _modal_body(text)
         assert "opts.customer" in body

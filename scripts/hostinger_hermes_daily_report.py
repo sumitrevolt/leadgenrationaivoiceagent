@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Hostinger Managed Hermes - daily project health report.
+"""Hostinger Managed Hermes — daily project health report.
 
 Runs INSIDE the Hostinger Hermes sandbox (read-only). Probes the live deployment,
 runs prod_check against the cloned repo, collects metrics, and emails a digest to
 NOTIFY_EMAIL. No write access to repo or VPS.
 
 Naming note: this targets the *Hostinger* product "Hermes Agent". The project
-already has an internal Hermes agent (`app/platform/infra_handler.py`) - different.
+already has an internal Hermes agent (`app/platform/infra_handler.py`) — different.
 
 Usage:
     python3 scripts/hostinger_hermes_daily_report.py            # send email
@@ -72,8 +72,7 @@ def load_config() -> dict[str, str]:
     return cfg
 
 
-_ANSI_RE = __import__("re").compile(r"\x1b\[[0-9
-]*[A-Za-z]")
+_ANSI_RE = __import__("re").compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 def _strip_ansi(s: str) -> str:
@@ -161,17 +160,17 @@ def section_external_health(cfg: dict[str, str]) -> tuple[str, str]:
     overall = "ok" if h["status"] == "ok" and r["status"] == "ok" else "degraded"
     body = (
         f"GET {cfg['HEALTH_URL']}\n"
-        f"  -> {h['code']} in {h['elapsed_ms']}ms ({h['status']})\n"
+        f"  → {h['code']} in {h['elapsed_ms']}ms ({h['status']})\n"
         f"  body excerpt: {h['body'][:200]}\n\n"
         f"GET {cfg['READY_URL']}\n"
-        f"  -> {r['code']} in {r['elapsed_ms']}ms ({r['status']})\n"
+        f"  → {r['code']} in {r['elapsed_ms']}ms ({r['status']})\n"
         f"  body excerpt: {r['body'][:200]}"
     )
     return overall, body
 
 
 def section_pending_patches() -> tuple[str, str]:
-    """code_upgrader proposed patches (read-only - file in repo data/)."""
+    """code_upgrader proposed patches (read-only — file in repo data/)."""
     patches_file = REPO_ROOT / "data" / "code_patches.jsonl"
     if not patches_file.exists():
         return "ok", "data/code_patches.jsonl absent (no patches yet)"
@@ -247,7 +246,7 @@ def build_report(cfg: dict[str, str]) -> str:
     headline = "ALL GREEN" if not bad else f"ATTENTION: {', '.join(bad)}"
 
     lines = [
-        "LeadGen AI - daily health report",
+        "LeadGen AI — daily health report",
         f"Generated: {now}",
         f"Reporter: Hostinger Managed Hermes (sandbox: {socket.gethostname()})",
         f"Headline: {headline}",

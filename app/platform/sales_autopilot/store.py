@@ -1,9 +1,8 @@
-"""Sales Autopilot persistence - prospect state + attempt ledger + idempotency.
+"""Sales Autopilot persistence — prospect state + attempt ledger + idempotency.
 
 Self-contained JSON/JSONL under ``data/sales_autopilot/``. This is a *coordination*
 ledger for the autopilot loop, NOT a second CRM: prospect identity/enrichment stays in
-the platform's existing stores
-here we only track sales-lifecycle state + every send
+the platform's existing stores; here we only track sales-lifecycle state + every send
 attempt (for idempotency, audit, and observability). Never raises.
 """
 
@@ -26,7 +25,7 @@ _ATTEMPTS_FILE = os.path.join(_DIR, "attempts.jsonl")
 _LOCK = threading.RLock()
 
 # ------------------------------------------------------------------ #
-# Estique - verified truth. Owner already manually contacted; initial done.
+# Estique — verified truth. Owner already manually contacted; initial done.
 # ------------------------------------------------------------------ #
 ESTIQUE_ID = "1009985f-bd15-422a-93e4-69b6b8efd6bd"
 ESTIQUE_PHONE = "+919702475550"
@@ -269,7 +268,7 @@ def attempts_today(status: str | None = None, channel: str | None = None) -> int
 
 
 # ------------------------------------------------------------------ #
-# Scheduler last-run truth (observability - one small JSON, latest wins)
+# Scheduler last-run truth (observability — one small JSON, latest wins)
 # ------------------------------------------------------------------ #
 def _last_tick_file() -> str:
     # Derived from _DIR at call-time so test monkeypatch of _DIR is honoured.
@@ -311,8 +310,7 @@ def get_last_tick() -> dict[str, Any] | None:
 def ensure_estique_seed() -> dict[str, Any]:
     """Idempotently seed Estique as ``manual_owner_confirmed`` with the initial step done.
 
-    Safe to call repeatedly
-    never overwrites a richer existing record's status downward.
+    Safe to call repeatedly; never overwrites a richer existing record's status downward.
     """
     existing = get_prospect(ESTIQUE_ID)
     rec = upsert_prospect(

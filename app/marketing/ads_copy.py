@@ -1,11 +1,11 @@
 """
-ads_copy.py - Google RSA + Meta ad copy pack (free stack).
+ads_copy.py — Google RSA + Meta ad copy pack (free stack).
 ===========================================================
 
   - ads_pack(business_name, niche, offer="", city="") -> dict:
       google: 15 headlines (HARD ≤30 chars har ek) + 4 descriptions (≤90 chars)
       meta:   3 primary texts (≤125 words) + 2 CTA button texts
-      LLM 2 calls max (free_ai), deterministic Hinglish fallback sets -
+      LLM 2 calls max (free_ai), deterministic Hinglish fallback sets —
       counts/limits HAMESHA enforce hote hain, LLM kuch bhi de.
 
 Kabhi raise nahi karta, kabhi khali nahi deta.
@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
 
 try:
     # Paid-media specialist personas (agency-agents pack) ko prompt-grounding ke
-    # liye on-demand search karte hain. Defensive - missing ho to no-op.
+    # liye on-demand search karte hain. Defensive — missing ho to no-op.
     from app.platform import skill_pack  # type: ignore
 except Exception:  # pragma: no cover
     skill_pack = None  # type: ignore
@@ -50,15 +50,14 @@ def _label(niche: str) -> str:
 
 
 def _clip_chars(s: str, n: int) -> str:
-    """HARD char clip - word boundary pe kaato, guarantee len <= n."""
+    """HARD char clip — word boundary pe kaato, guarantee len <= n."""
     s = re.sub(r"\s+", " ", (s or "")).strip().strip('"').strip()
     if len(s) <= n:
         return s
     cut = s[:n]
     if " " in cut:
         cut = cut[: cut.rfind(" ")]
-    return cut.rstrip(" ,.
-    :-–-!|")[:n]
+    return cut.rstrip(" ,.;:-–—!|")[:n]
 
 
 def _clip_words(s: str, n: int) -> str:
@@ -67,7 +66,7 @@ def _clip_words(s: str, n: int) -> str:
 
 
 def _dedupe_fill(cands: list[str], fillers: list[str], count: int, max_len: int) -> list[str]:
-    """Clip -> dedupe(case-insensitive) -> exactly `count` items (fillers se pad)."""
+    """Clip → dedupe(case-insensitive) → exactly `count` items (fillers se pad)."""
     out: list[str] = []
     seen = set()
     for s in list(cands) + list(fillers):
@@ -90,7 +89,7 @@ def _fallback_headlines(name: str, label: str, offer: str, city: str) -> list[st
     if offer:
         cands.append(offer)
     if c:
-        cands += [f"Best {label} - {c}", f"{c} Ka Bharosemand Naam"]
+        cands += [f"Best {label} — {c}", f"{c} Ka Bharosemand Naam"]
     cands += [f"{label} Experts", f"Top Rated {label}"]
     return cands
 
@@ -120,10 +119,10 @@ def _fallback_descriptions(name: str, label: str, offer: str, city: str) -> list
     out = [
         f"{name}: {label} ke liye trusted naam. Aaj hi call karein, free quote paayein.",
         "Hazaron khush customers. Quality kaam, sahi daam, time pe delivery. Abhi baat karein.",
-        f"{c} me ghar baithe {label} - WhatsApp pe enquiry karein, turant jawab milega.",
+        f"{c} me ghar baithe {label} — WhatsApp pe enquiry karein, turant jawab milega.",
     ]
     out.append(
-        f"{offer} - offer limited hai, aaj hi book karein!"
+        f"{offer} — offer limited hai, aaj hi book karein!"
         if offer
         else "Free consultation + transparent pricing. Pehle baat karein, phir decide karein."
     )
@@ -138,18 +137,18 @@ def _fallback_primaries(name: str, label: str, offer: str, city: str) -> list[st
             f"Kya aap {c} me bharosemand {label} dhundh rahe hain? 🤔 {name} ne "
             f"hazaron customers ka kaam time par, sahi daam me poora kiya hai."
             f"{offer_line} Quality ki guarantee, transparent pricing aur friendly "
-            "team - sab ek jagah. Aaj hi WhatsApp pe message karein aur FREE "
+            "team — sab ek jagah. Aaj hi WhatsApp pe message karein aur FREE "
             "consultation paayein. Der mat kijiye, slot limited hain! 📲"
         ),
         (
             f"⭐⭐⭐⭐⭐ '{name} ne kaam itna accha kiya ki maine 3 dost refer kar "
-            f"diye!' - aise reviews hi hamari pehchan hain. {label} me {c} ka "
+            f"diye!' — aise reviews hi hamari pehchan hain. {label} me {c} ka "
             f"trusted naam.{offer_line} Pehle baat karein, estimate lein, phir "
-            "decide karein - koi pressure nahi. Abhi call ya message karein. 📞"
+            "decide karein — koi pressure nahi. Abhi call ya message karein. 📞"
         ),
         (
             f"STOP scrolling! 🛑 Agar {label.lower()} ki zarurat hai to ye post "
-            f"aapke liye hai. {name} - {c} me quality + speed + sahi daam ka "
+            f"aapke liye hai. {name} — {c} me quality + speed + sahi daam ka "
             f"perfect combo.{offer_line} Sirf is hafte ke liye special slots "
             "khule hain. Comment ya DM karein 'INFO' aur hum turant details "
             "bhejenge. 🚀"
@@ -173,7 +172,7 @@ def _parse_marked(text: str) -> dict[str, list[str]]:
 def _persona(topic: str, max_chars: int = 460) -> tuple[str, str]:
     """Paid-media persona pack se (name, system-prompt grounding prefix).
 
-    skill_pack.find/snippet_for use karta - ppc/paid-social/creative/tracking
+    skill_pack.find/snippet_for use karta — ppc/paid-social/creative/tracking
     personas ko surface karke LLM ko expert guidance deta. Defensive: kuch na
     mile (ya skill_pack missing) to ('', '')."""
     if skill_pack is None:
@@ -208,7 +207,7 @@ def _niche_keywords(niche: str) -> list[str]:
 def campaign_plan(
     name: str, label: str, offer: str = "", city: str = "", niche: str = ""
 ) -> dict[str, Any]:
-    """Deterministic paid-media campaign plan - ppc + paid-social + tracking
+    """Deterministic paid-media campaign plan — ppc + paid-social + tracking
     persona best-practices ka structured Hinglish form. LLM-free (quota-safe),
     kabhi khali/raise nahi."""
     c = (city or "").strip()
@@ -223,7 +222,7 @@ def campaign_plan(
             if v and v not in seen:
                 seen.add(v)
                 keywords.append(v)
-    # SEM keyword matrix (advertools via seo_tools) - additive + defensive. advertools
+    # SEM keyword matrix (advertools via seo_tools) — additive + defensive. advertools
     # VPS pe opt-in installed; missing/locally => [] (naive `keywords` list upar already
     # deta). Closes the seo_tools orphan (docs/Automation_Marketing_Repos.md). Never-raise.
     keyword_matrix: list[dict[str, Any]] = []
@@ -239,7 +238,7 @@ def campaign_plan(
             "google_pct": 60,
             "meta_pct": 40,
             "note": (
-                f"Local {low} me search-intent zyada hota hai -> Google pe ~60%. "
+                f"Local {low} me search-intent zyada hota hai → Google pe ~60%. "
                 "₹300-500/din se start karein; 10-14 din data ke baad jo channel "
                 "sasta lead de, usme budget shift karein."
             ),
@@ -255,7 +254,7 @@ def campaign_plan(
         "keyword_matrix": keyword_matrix,
         "negative_keywords": ["free", "sasta", "jobs", "salary", "vacancy", "diy", "kaise kare"],
         "measurement": [
-            "🔗 Har ad-link par UTM lagayein (utm_source=google/meta) - lead ka source pata chale.",
+            "🔗 Har ad-link par UTM lagayein (utm_source=google/meta) — lead ka source pata chale.",
             "📞 Call-tracking + WhatsApp-click ko conversion mark karein (sirf clicks nahi).",
             "🎯 KPI: cost-per-lead (CPL). Pehle 2 hafte target ₹100-300/lead (niche pe depend).",
             "📅 Hafte me ek baar search-terms report dekhein, fizool keywords negative me daalein.",
@@ -300,7 +299,7 @@ async def ads_pack(
         try:
             g_sys = (
                 "Tu Google Ads expert hai. Hinglish (Roman script) me likh: "
-                "15 ad headlines (har ek MAX 30 characters - STRICT) aur "
+                "15 ad headlines (har ek MAX 30 characters — STRICT) aur "
                 "4 ad descriptions (har ek MAX 90 characters). Format: har "
                 "headline 'H: ...' line par, har description 'D: ...' line "
                 "par. Sirf ye lines, koi commentary nahi."
@@ -373,6 +372,6 @@ async def ads_pack(
         "plan": campaign_plan(name, label, offer_c, city_c, niche),
         "grounded_by": grounded_by,
         "provider": provider,
-        "tip": "Google RSA me sab 15 headlines paste karo - Google khud best "
+        "tip": "Google RSA me sab 15 headlines paste karo — Google khud best "
         "combos test karta hai. Meta pe 3 primaries A/B test karo.",
     }

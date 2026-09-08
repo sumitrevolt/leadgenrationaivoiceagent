@@ -1,4 +1,4 @@
-"""Boss + Second Brain governed decision approvals - contract tests."""
+"""Boss + Second Brain governed decision approvals — contract tests."""
 
 from __future__ import annotations
 
@@ -762,7 +762,7 @@ def test_owner_os_governed_consumer_flag_off(gov_root, monkeypatch):
 
 
 def test_owner_os_governed_consumer_approve_consume(gov_root, monkeypatch):
-    """Real Owner OS adapter invokes create->stamp->boss_approve->consume once."""
+    """Real Owner OS adapter invokes create→stamp→boss_approve→consume once."""
     amber = bdg.propose_decision(
         tenant_id="t1",
         agent_id="isha",
@@ -792,7 +792,7 @@ def test_owner_os_governed_consumer_approve_consume(gov_root, monkeypatch):
         if row is not None:
             row["status"] = "approved" if decision == "approve" else "rejected"
             return {"ok": True, "status": row["status"]}
-        # Propose-time mirror ids (fixture / unrelated) - stamp ok, no side effects.
+        # Propose-time mirror ids (fixture / unrelated) — stamp ok, no side effects.
         return {"ok": True, "status": "approved", "noop": True}
 
     monkeypatch.setattr("app.platform.approvals_bridge.create_verification_approval", _create)
@@ -889,7 +889,7 @@ class _FakeRedis:
     [
         (True, False, True),
         (False, False, False),
-        (True, True, False),  # redis error -> fail-closed
+        (True, True, False),  # redis error → fail-closed
     ],
 )
 def test_atomic_claim_redis_path(gov_root, monkeypatch, nx_ok, raises, expected):

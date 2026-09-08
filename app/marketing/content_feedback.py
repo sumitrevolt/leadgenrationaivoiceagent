@@ -1,10 +1,10 @@
-"""Content performance feedback loop - drafts ke baad system andha na rahe.
+"""Content performance feedback loop — drafts ke baad system andha na rahe.
 
 Kya karta:
 - tracked_link(): har draft ke CTA link me utm_source auto + is.gd short link (free, no-key).
-- record_feedback(): human/client 1-click "post chala / nahi chala" -> jsonl + (chala to)
+- record_feedback(): human/client 1-click "post chala / nahi chala" → jsonl + (chala to)
   channel_experiments.record_outcome attribution.
-- theme_stats()/best_themes(): theme×format×niche level Laplace score - post_generator
+- theme_stats()/best_themes(): theme×format×niche level Laplace score — post_generator
   / content jobs ko pata chale kaunsa content convert karta hai.
 
 Free-stack, defensive, NEVER raises. Store: data/content_feedback.jsonl
@@ -31,7 +31,7 @@ def _now() -> str:
 
 
 def shorten(url: str) -> str:
-    """is.gd free shortener - fail ho to original URL hi lauta do (never raise)."""
+    """is.gd free shortener — fail ho to original URL hi lauta do (never raise)."""
     url = (url or "").strip()
     if not url.startswith("http"):
         return url
@@ -53,7 +53,7 @@ def shorten(url: str) -> str:
 
 
 def tracked_link(url: str, source: str, campaign: str = "") -> str:
-    """URL me utm_source (+campaign) daal ke short karo - attribution-ready CTA."""
+    """URL me utm_source (+campaign) daal ke short karo — attribution-ready CTA."""
     url = (url or "").strip()
     if not url.startswith("http"):
         return url
@@ -93,7 +93,7 @@ def record_feedback(
     channel: str = "",
     note: str = "",
 ) -> dict[str, Any]:
-    """1-click feedback - worked=True pe channel bandit ko bhi outcome credit."""
+    """1-click feedback — worked=True pe channel bandit ko bhi outcome credit."""
     rec = {
         "ts": _now(),
         "theme": (theme or "").strip().lower()[:80],

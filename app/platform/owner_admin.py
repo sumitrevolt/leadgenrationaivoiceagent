@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Owner Admin Interface - autopilot mode for 1000 engineers.
+Owner Admin Interface — autopilot mode for 1000 engineers.
 Owner whatsApp: +91xxxxxx or web at /admin
-All commands gated through compliance checks - no gate weakening allowed.
+All commands gated through compliance checks — no gate weakening allowed.
 """
 
 import json
@@ -32,7 +32,7 @@ from app.platform.squad_voice_calling import run_daily_beat as squad_voice_run_d
 from app.platform.squad_whatsapp import check_wa_status
 
 # Initialize FastAPI app
-app = FastAPI(title="LeadGen AI - Owner Admin", version="bc5800cb")
+app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
 
 # CORS for owner-facing endpoints
 app.add_middleware(
@@ -110,7 +110,7 @@ def cmd_squad_task(squad_num: int):
     return {"error": f"Squad {squad_num} not configured"}
 
 # ── WebSocket / long-polling for owner updates ───────────────────────
-# (Simplified - in production: ntfy integration + real-time updates)
+# (Simplified — in production: ntfy integration + real-time updates)
 
 # ── Health check for admin subsystem ─────────────────────────────────
 @app.get("/admin/health", summary="Admin subsystem health")
@@ -133,21 +133,21 @@ async def admin_health():
 async def owner_root():
     """Minimal owner dashboard HTML (could be WhatsApp-styled)."""
     return JSONResponse({
-        "message": "LeadGen AI - Owner Admin Interface",
+        "message": "LeadGen AI — Owner Admin Interface",
         "version": "bc5800cb",
         "available_commands": [
-            "1. hotqueue -> 42 leads status",
-            "2. compliance -> TRAI/DND/kill-fence gates",
-            "3. deploy -> 2-step deploy initiation",
-            "4. squads -> All 15 squad health",
-            "5. knowledge -> Ask question from KB",
-            "6. controls -> Adjust params (gated)",
-            "7. campaign -> Hourly outreach",
-            "8. wa_status -> WhatsApp status",
-            "9. squad N -> Execute squad task",
-            "10. admin/health -> Full status",
+            "1. hotqueue → 42 leads status",
+            "2. compliance → TRAI/DND/kill-fence gates",
+            "3. deploy → 2-step deploy initiation",
+            "4. squads → All 15 squad health",
+            "5. knowledge → Ask question from KB",
+            "6. controls → Adjust params (gated)",
+            "7. campaign → Hourly outreach",
+            "8. wa_status → WhatsApp status",
+            "9. squad N → Execute squad task",
+            "10. admin/health → Full status",
         ],
-        "compliance_gates_note": "All commands gated - cannot weaken TRAI/DND/kill-fence",
+        "compliance_gates_note": "All commands gated — cannot weaken TRAI/DND/kill-fence",
         "autopilot": "1000 engineers across 15 squads active",
     })
 

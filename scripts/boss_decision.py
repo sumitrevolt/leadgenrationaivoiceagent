@@ -1,4 +1,4 @@
-"""Boss Decision CLI - thin read-only adapter over boss_decision_governance.
+"""Boss Decision CLI — thin read-only adapter over boss_decision_governance.
 
 NOT a second decision engine. Mutation/execution belongs to
 app.platform.boss_autonomy (flag-gated) and Owner OS. This CLI only:

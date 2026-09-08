@@ -1,17 +1,16 @@
-"""Per-run job history - read-side of the (previously write-only) job_runs.jsonl.
+"""Per-run job history — read-side of the (previously write-only) job_runs.jsonl.
 
 Covers three fixes that landed together:
   1. `automation_health.record_run` enriched (error_class/error_message/trigger/
-     started_at, keyword-only, additive) - old positional callers must still work
+     started_at, keyword-only, additive) — old positional callers must still work
      and old-shape records must stay readable.
-  2. `automation_health.run_history` - newest-first reader with job/status filters,
-     failures-first ordering, limit cap, missing-file -> [], never raises.
-  3. `team_scheduler._run_job` - threads real failure detail into record_run
-     (error_class="job_reported_failure" when inner returns False
-     exception
+  2. `automation_health.run_history` — newest-first reader with job/status filters,
+     failures-first ordering, limit cap, missing-file → [], never raises.
+  3. `team_scheduler._run_job` — threads real failure detail into record_run
+     (error_class="job_reported_failure" when inner returns False; exception
      type/message when an exception reaches the wrapper) WITHOUT changing the
      wrapper's never-raise / heartbeat-on-finally behaviour.
-  4. `GET /api/platform/team/scheduler/runs` - admin-gated read endpoint.
+  4. `GET /api/platform/team/scheduler/runs` — admin-gated read endpoint.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ def ah(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 1. record_run - backward-compat + enriched round-trip
+# 1. record_run — backward-compat + enriched round-trip
 # ---------------------------------------------------------------------------
 
 
@@ -74,12 +73,12 @@ def test_record_run_enriched_round_trip(ah):
 
 
 def test_record_run_never_raises_on_bad_input(ah):
-    # None job / weird seconds - must swallow, not raise
+    # None job / weird seconds — must swallow, not raise
     ah.record_run(None, True, "not-a-number")  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
-# 2. run_history - filters, ordering, caps, missing file
+# 2. run_history — filters, ordering, caps, missing file
 # ---------------------------------------------------------------------------
 
 
@@ -138,7 +137,7 @@ def test_run_history_limit_capped_at_500(ah):
 
 
 # ---------------------------------------------------------------------------
-# 3. _run_job wrapper - threads real failure detail, never changes behaviour
+# 3. _run_job wrapper — threads real failure detail, never changes behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +212,7 @@ def test_run_job_success_records_no_error(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 4. GET /scheduler/runs endpoint - admin auth + happy path
+# 4. GET /scheduler/runs endpoint — admin auth + happy path
 # ---------------------------------------------------------------------------
 
 

@@ -1,9 +1,9 @@
-"""Desktop-app coordination registry - read-only projection source.
+"""Desktop-app coordination registry — read-only projection source.
 
 Loads docs/coordination/desktop_registry.json (machine-readable truth)
 and exposes it for the Coordination Hub snapshot. Never raises: missing,
 unreadable, or invalid JSON degrades to {"ok": False, "apps": []}.
-Mutations stay on Owner OS / missions / buzzlock - this is a doc loader.
+Mutations stay on Owner OS / missions / buzzlock — this is a doc loader.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _valid_app(row: Any) -> bool:
 
 
 def load_registry(path: str | os.PathLike | None = None) -> dict[str, Any]:
-    """Load the desktop registry. Never raises - always returns a dict."""
+    """Load the desktop registry. Never raises — always returns a dict."""
     target = Path(path) if path else _REGISTRY_PATH
     try:
         with open(target, encoding="utf-8") as fh:
@@ -57,7 +57,7 @@ def load_registry(path: str | os.PathLike | None = None) -> dict[str, Any]:
             "version": int(data.get("version") or 0),
             "updated": str(data.get("updated") or ""),
             "apps": apps,
-            "note": "Projected from docs/coordination/desktop_registry.json - Hub does not own enrollment.",
+            "note": "Projected from docs/coordination/desktop_registry.json — Hub does not own enrollment.",
         }
     except OSError:
         logger.debug("[coord_desktop_registry] registry unreadable: %s", target)
@@ -68,7 +68,7 @@ def load_registry(path: str | os.PathLike | None = None) -> dict[str, Any]:
 
 
 def registry_slice() -> dict[str, Any]:
-    """Hub-facing slice - static registry projection, inert-safe."""
+    """Hub-facing slice — static registry projection, inert-safe."""
     out = load_registry()
     return {
         "ok": out.get("ok") is True,
@@ -77,7 +77,7 @@ def registry_slice() -> dict[str, Any]:
         "version": out.get("version") or 0,
         "updated": out.get("updated") or "",
         "error": out.get("error"),
-        "note": "Read-only projection - enrollment changes via Owner OS.",
+        "note": "Read-only projection — enrollment changes via Owner OS.",
     }
 
 

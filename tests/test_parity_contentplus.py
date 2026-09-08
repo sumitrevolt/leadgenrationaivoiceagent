@@ -1,4 +1,4 @@
-"""Tests - content/outreach plus batch (agent E).
+"""Tests — content/outreach plus batch (agent E).
 
 Pure-python + mocks: NO network, NO ffmpeg, NO LLM (fallback paths assert).
 Covers: outreach_variants (spintax/A-B/mailbox rotation), service_reminders,
@@ -16,7 +16,7 @@ import pytest
 
 
 # --------------------------------------------------------------------------- #
-# F1: outreach_variants - spintax + A/B
+# F1: outreach_variants — spintax + A/B
 # --------------------------------------------------------------------------- #
 def test_spintax_render_deterministic():
     from app.marketing import outreach_variants as ov
@@ -34,7 +34,7 @@ def test_spintax_render_deterministic():
 def test_spintax_preserves_format_placeholders():
     from app.marketing import outreach_variants as ov
 
-    out = ov.render("{name} - {free|FREE} audit", seed=1)
+    out = ov.render("{name} — {free|FREE} audit", seed=1)
     assert "{name}" in out  # no-pipe braces untouched
     assert out.endswith("audit")
 
@@ -159,7 +159,7 @@ def test_service_cycle_due_run_dedupe(tmp_path, monkeypatch):
     run2 = sr.run_due()
     assert run2["count"] == 0  # same-cycle dedupe
 
-    # service ho gayi -> naya cycle future me -> due empty
+    # service ho gayi → naya cycle future me → due empty
     sr.mark_serviced(d[0]["id"])
     assert sr.due(days_ahead=3) == []
 
@@ -224,7 +224,7 @@ def test_clip_job_status_not_found(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# F5: gif_maker (PIL local - no network)
+# F5: gif_maker (PIL local — no network)
 # --------------------------------------------------------------------------- #
 def test_gif_maker_creates_animated_gif(tmp_path, monkeypatch):
     pytest.importorskip("PIL")

@@ -19,11 +19,8 @@ cd /opt/leadgen
 git fetch origin
 git checkout main
 git pull origin main || true
-if ! git merge-base --is-ancestor {COMMIT} HEAD 2>/dev/null
-then
-  git cherry-pick {COMMIT} || {{ git cherry-pick --abort
-  exit 1
-  }}
+if ! git merge-base --is-ancestor {COMMIT} HEAD 2>/dev/null; then
+  git cherry-pick {COMMIT} || {{ git cherry-pick --abort; exit 1; }}
 fi
 docker compose -f docker-compose.vps.yml build app
 docker compose -f docker-compose.vps.yml up -d --no-deps app
@@ -31,8 +28,7 @@ docker compose -f docker-compose.vps.yml --profile celery up -d worker scheduler
 sleep 14
 curl -sf http://127.0.0.1:8000/health | head -c 200
 echo
-for j in qa trainer pipeline
-do
+for j in qa trainer pipeline; do
   docker exec leadgen_worker celery -A app.worker call app.tasks.staff_jobs.run_staff_job --args='["'"$j"'"]' || true
 done
 echo DONE

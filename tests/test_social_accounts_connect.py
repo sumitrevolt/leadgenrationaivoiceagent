@@ -1,23 +1,21 @@
 """Loop-social-1 (2026-07-11): customer-facing per-platform social ACCOUNT connect
 CRUD + admin social-delivery cockpit.
 
-Closes audit gaps G1 (no OAuth callback -> wizard captures handles, not tokens),
+Closes audit gaps G1 (no OAuth callback → wizard captures handles, not tokens),
 G2 (customer can't self-serve mark platform "connected"), G3 (no per-platform
 status in wizard), and G4 (no admin triage for social publish queue).
 
 Contract:
-- GET  /api/customer/social/accounts       -> list vault accounts (token NEVER
-  leaked
-  only presence + masked account_ref + updated_at + meta.source).
-- POST /api/customer/social/accounts/connect -> Fernet-encrypt + store a per-client
+- GET  /api/customer/social/accounts       → list vault accounts (token NEVER
+  leaked; only presence + masked account_ref + updated_at + meta.source).
+- POST /api/customer/social/accounts/connect → Fernet-encrypt + store a per-client
   per-platform token (interim provider-mediated fallback until FB/IG/LI/GBP OAuth
   app-review completes). IDOR-safe: client_id from JWT, never body.
-- DELETE /api/customer/social/accounts/{platform}?account_ref=… -> soft-delete via
+- DELETE /api/customer/social/accounts/{platform}?account_ref=… → soft-delete via
   vault.delete (append-only latest-wins).
-- GET  /api/growth/social/jobs             -> admin cockpit
-filters + rollup
+- GET  /api/growth/social/jobs             → admin cockpit; filters + rollup
   counts, read-only over `social_engine.store.list_jobs()`.
-- POST /api/growth/social/jobs/{id}/retry  -> admin idempotent re-queue.
+- POST /api/growth/social/jobs/{id}/retry  → admin idempotent re-queue.
 
 Never auto-posts. SOCIAL_ENGINE master flag still gates whether ANY dispatch
 actually happens.
@@ -32,7 +30,7 @@ import pytest
 
 
 # =========================================================================== #
-# Isolated vault + store fixture - mirrors tests/test_social_engine.py pattern #
+# Isolated vault + store fixture — mirrors tests/test_social_engine.py pattern #
 # =========================================================================== #
 @pytest.fixture()
 def iso(monkeypatch):
@@ -53,7 +51,7 @@ def iso(monkeypatch):
 
 
 # =========================================================================== #
-# Customer routes - dependency override forces require_customer to return a    #
+# Customer routes — dependency override forces require_customer to return a    #
 # known client_id (mirror tests/test_customer_change_password.py pattern).     #
 # =========================================================================== #
 @pytest.fixture()
@@ -97,7 +95,7 @@ def test_accounts_list_empty_returns_all_platforms_not_connected(client, iso, as
         "youtube",
         "postiz",
     }
-    # Nothing stored -> every direct-API platform is provider_review_pending;
+    # Nothing stored → every direct-API platform is provider_review_pending;
     # postiz alone is not_connected (no review path).
     for p in ("facebook", "instagram", "gbp", "linkedin", "x", "youtube"):
         assert plats[p]["connected"] is False
@@ -128,7 +126,7 @@ def test_accounts_list_after_connect_shows_connected_state(client, iso, as_custo
     assert plats["facebook"]["state"] == "connected"
     assert plats["facebook"]["account_count"] == 1
 
-    # Token MUST NOT leak in the account payload - only presence sentinel.
+    # Token MUST NOT leak in the account payload — only presence sentinel.
     row = body["accounts"]["facebook"][0]
     assert "token" not in row
     assert "tok" not in row
@@ -230,7 +228,7 @@ def test_connect_is_idor_safe_uses_jwt_client_id_not_body(client, iso, as_custom
         json={
             "platform": "x",
             "token": "X_BEARER_TOKEN_12345",
-            "client_id": "c_ATTACKER",  # extra field - must be ignored
+            "client_id": "c_ATTACKER",  # extra field — must be ignored
         },
     )
     assert r.status_code == 200
@@ -269,7 +267,7 @@ def test_disconnect_rejects_unknown_platform(client, iso, as_customer):
 
 
 # =========================================================================== #
-# Admin cockpit - /api/growth/social/jobs                                     #
+# Admin cockpit — /api/growth/social/jobs                                     #
 # =========================================================================== #
 def _seed_job(store, **overrides) -> str:
     """Enqueue a raw social-post job for cockpit tests."""

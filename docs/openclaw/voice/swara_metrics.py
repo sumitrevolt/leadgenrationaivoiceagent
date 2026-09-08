@@ -1,7 +1,7 @@
 """
 Swara Observability & Shadow Mode Infrastructure.
 
-Rule 11: Shadow mode A/B evaluation - new behavior runs in shadow first.
+Rule 11: Shadow mode A/B evaluation — new behavior runs in shadow first.
 Rule 18: Maintain metrics including:
     hinglish_quality_score, pronunciation_error_rate, customer_interruptions,
     barge_in_success_rate, response_latency, conversation_completion_rate,
@@ -10,9 +10,9 @@ Rule 18: Maintain metrics including:
     vaqi_interruption_rate, vaqi_premature_interruption_rate, vaqi_missed_response_rate,
     vaqi_latency_p50, vaqi_latency_p95, vaqi_latency_p99, vaqi_turns_total
 
-Rule 19: Version everything - metrics schema versioned.
+Rule 19: Version everything — metrics schema versioned.
 
-VAQI (Voice Agent Quality Index) - Deepgram's 3-leg reliability score:
+VAQI (Voice Agent Quality Index) — Deepgram's 3-leg reliability score:
     1. Interruptions (premature barge-ins / total barge-ins)
     2. Missed responses (turns with no agent reply / total turns)
     3. Latency (P50/P95/P99 response times)
@@ -45,7 +45,7 @@ METRICS_SCHEMA_VERSION = "swara_metrics_v1"
 
 
 # -----------------------------------------------------------------------------
-# VAQI (Voice Agent Quality Index) - Deepgram 3-leg reliability score
+# VAQI (Voice Agent Quality Index) — Deepgram 3-leg reliability score
 # -----------------------------------------------------------------------------
 
 def _vaqi_latency_summary(samples_ms: list[float]) -> dict[str, float]:

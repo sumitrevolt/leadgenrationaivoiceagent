@@ -1,12 +1,12 @@
-"""Sales pipeline automation - deal stages + auto next-best-action.
+"""Sales pipeline automation — deal stages + auto next-best-action.
 
-Interested lead -> DEAL. Har stage ka ek automated next-action hota:
-  new/contacted -> intro (cadence)         interested -> demo-link + booking bhejo
-  demo_sent     -> proposal bhejo          proposal_sent -> payment-link + follow-up
-  won           -> auto-onboard            lost -> nurture
+Interested lead → DEAL. Har stage ka ek automated next-action hota:
+  new/contacted → intro (cadence)         interested → demo-link + booking bhejo
+  demo_sent     → proposal bhejo          proposal_sent → payment-link + follow-up
+  won           → auto-onboard            lost → nurture
 
-Stages signals se aage badhte (reply->interested, demo->demo_sent, paid->won).
-Self-serve CLOSE = /pricing->signup->pay (NO human). High-touch demo = human.
+Stages signals se aage badhte (reply→interested, demo→demo_sent, paid→won).
+Self-serve CLOSE = /pricing→signup→pay (NO human). High-touch demo = human.
 GATED `SALES_ENGINE=1`. Store data/deals.jsonl. Reuse proposal+sales_assistant+booking.
 Import-safe, kabhi raise nahi karta.
 """
@@ -37,7 +37,7 @@ STAGES = [
 ]
 
 # Forward-only progress rank (data-integrity guard). The early-funnel stages
-# new/contacted/interested are interchangeable ENTRY-LEVEL (same rank 0) - a lead
+# new/contacted/interested are interchangeable ENTRY-LEVEL (same rank 0) — a lead
 # can be "interested" before it is operationally "contacted", so moving between
 # them is NOT a downgrade. Only a clearly-advanced deal (demo_sent and beyond,
 # esp. negotiating/won) being pulled back to an earlier rank is a silent
@@ -66,7 +66,7 @@ def _is_downgrade(current: str | None, new_stage: str) -> bool:
     try:
         if not current or current == new_stage:
             return False
-        if new_stage == "lost":  # terminal sink - always allowed
+        if new_stage == "lost":  # terminal sink — always allowed
             return False
         return _STAGE_RANK.get(new_stage, 0) < _STAGE_RANK.get(current, 0)
     except Exception:
@@ -98,7 +98,7 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
-    # Cross-process lock + atomic replace - web workers (API deal/stage) aur
+    # Cross-process lock + atomic replace — web workers (API deal/stage) aur
     # celery content-job (run_pipeline) ek saath rewrite kar sakte the.
     try:
         from app.utils.file_lock import locked_rewrite
@@ -156,12 +156,11 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
 
 
 def set_stage(deal_id: str, stage: str, allow_reverse: bool = False) -> bool:
-    """Set a deal's stage. Forward-only by default - a backward move (e.g. a
+    """Set a deal's stage. Forward-only by default — a backward move (e.g. a
     re-classified reply pulling a won/negotiating deal back to interested) is
     BLOCKED as a silent overwrite: the current stage is kept and the no-op still
     returns True (deal found). Pass allow_reverse=True for an explicit/admin
-    downgrade. Invalid stage -> False
-    deal not found -> False. Never raises.
+    downgrade. Invalid stage → False; deal not found → False. Never raises.
     """
     if stage not in STAGES:
         return False
@@ -175,10 +174,9 @@ def set_stage(deal_id: str, stage: str, allow_reverse: bool = False) -> bool:
             if not allow_reverse and _is_downgrade(current, stage):
                 logger.warning(
                     f"[sales] blocked backward stage move deal={deal_id} "
-                    f"{current} -> {stage} (keeping {current}
-                    pass allow_reverse=True to force)"
+                    f"{current} -> {stage} (keeping {current}; pass allow_reverse=True to force)"
                 )
-                continue  # keep current stage - no silent downgrade
+                continue  # keep current stage — no silent downgrade
             r["stage"] = stage
             r["updated_at"] = _now()
             changed = True
@@ -204,7 +202,7 @@ async def next_action(deal: dict[str, Any]) -> dict[str, Any]:
             return {
                 "action": "send_demo_booking",
                 "channel": "whatsapp/email",
-                "content": f"Namaste {biz}! 2-min live demo: {BASE}/app/test-call - ya apna pasand ka time batao, booking: {BASE}/audit",
+                "content": f"Namaste {biz}! 2-min live demo: {BASE}/app/test-call — ya apna pasand ka time batao, booking: {BASE}/audit",
                 "demo_link": f"{BASE}/app/test-call",
             }
         if stage == "demo_sent":
@@ -228,7 +226,7 @@ async def next_action(deal: dict[str, Any]) -> dict[str, Any]:
             return {
                 "action": "onboard",
                 "channel": "auto",
-                "content": f"{biz} won - auto-onboard (KB + first content).",
+                "content": f"{biz} won — auto-onboard (KB + first content).",
             }
         return {
             "action": "nurture",
@@ -250,7 +248,7 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
         if d.get("stage") in ("won", "lost"):
             continue
         # Isolation: client-owned deal (client_id stamped) LeadGen ke apne
-        # sales-funnel ka nahi hai - usko LeadGen cadence enroll / sales actions
+        # sales-funnel ka nahi hai — usko LeadGen cadence enroll / sales actions
         # se SKIP karo (warna client ka end-customer LeadGen ka "plan lo" draft paata).
         if str(d.get("client_id") or "").strip():
             continue
@@ -267,11 +265,11 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
         )
         produced += 1
 
-        # Auto-execute safe actions (draft/enroll - auto-send kabhi nahi):
+        # Auto-execute safe actions (draft/enroll — auto-send kabhi nahi):
         action_type = act.get("action", "")
         try:
             if action_type == "send_intro" and d.get("stage") in ("new", "contacted"):
-                # New deal -> cadence enroll (email intro sequence)
+                # New deal → cadence enroll (email intro sequence)
                 from app.marketing import cadence as _cad
 
                 _cad.enroll(
@@ -287,7 +285,7 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
                     set_stage(d["id"], "contacted")
                 executed += 1
             elif action_type == "onboard":
-                # Won deal -> auto-onboard KB seed (gated AUTO_ONBOARD=1)
+                # Won deal → auto-onboard KB seed (gated AUTO_ONBOARD=1)
                 cid = d.get("client_id") or ""
                 if cid:
                     try:

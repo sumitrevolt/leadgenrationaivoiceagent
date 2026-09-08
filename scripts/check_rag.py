@@ -1,6 +1,6 @@
 """Verify the vector RAG fix: embedder loads + semantic retrieve works (not keyword).
 Run on VPS: cd /opt/leadgen && .venv/bin/python scripts/check_rag.py
-(First run downloads the fastembed model - may take ~30-60s.)
+(First run downloads the fastembed model — may take ~30-60s.)
 """
 
 import os
@@ -40,6 +40,6 @@ try:
         "| top_score=",
         (round(hits[0].get("score", 0), 3) if hits else None),
     )
-    print("TOP:", (hits[0].get("text", "")[:70] if hits else "-"))
+    print("TOP:", (hits[0].get("text", "")[:70] if hits else "—"))
 except Exception as e:
     print("RETRIEVE: FAIL ->", repr(e))

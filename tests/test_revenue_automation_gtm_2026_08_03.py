@@ -1,4 +1,4 @@
-"""World-class revenue automation - refill, pay-truth, inquiry Hot Queue bridge."""
+"""World-class revenue automation — refill, pay-truth, inquiry Hot Queue bridge."""
 
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
-"""Immutable offer/order entity - identity, pricing truth, idempotency (#240).
+"""Immutable offer/order entity — identity, pricing truth, idempotency (#240).
 
 Cardinality note (why this is a separate entity, not deal fields):
 ``sales_pipeline.upsert_deal`` dedupes by phone/email and returns the EXISTING
 deal, so a deal is long-lived. A prospect can be quoted Main today, Combo on
-upgrade, and top-up packs repeatedly. Deal 1..N offer - a single mutable
+upgrade, and top-up packs repeatedly. Deal 1..N offer — a single mutable
 ``order_ref`` on the deal would let a second quote silently overwrite a link the
 prospect is already holding.
 
@@ -68,7 +68,7 @@ def test_supersede_preserves_original_and_links(off):
 
     assert second["supersedes_order_ref"] == first["order_ref"]
     assert off.get_offer(first["order_ref"])["status"] == off.STATUS_SUPERSEDED
-    # original row still exists and keeps its quoted amount - audit intact
+    # original row still exists and keeps its quoted amount — audit intact
     assert off.get_offer(first["order_ref"])["quoted_amount"] == first["quoted_amount"]
 
 

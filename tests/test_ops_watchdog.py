@@ -1,9 +1,9 @@
-"""ops_watchdog - redis-down detection (proactive critical alert).
+"""ops_watchdog — redis-down detection (proactive critical alert).
 
 Redis is the Celery broker + cache + rate-limit + distributed call-state. When it
 goes down, automation_health.queue_depth() silently returns -1 (looks like 'no
 backlog'), so before this guard the operator got NO alert that Redis itself died.
-These tests pin the new sense->alert behavior.
+These tests pin the new sense→alert behavior.
 """
 
 from app.platform import ops_watchdog

@@ -60,8 +60,7 @@ class JsonRpcProcess:
         while time.monotonic() < deadline:
             if self.process.poll() is not None and self.lines.empty():
                 raise SmokeFailure(
-                    f"DSH exited before {label}: rc={self.process.returncode}
-                    "
+                    f"DSH exited before {label}: rc={self.process.returncode}; "
                     f"stderr_lines={len(self.stderr)}"
                 )
             try:
@@ -73,8 +72,7 @@ class JsonRpcProcess:
             if predicate(message):
                 return message
             self.backlog.append(message)
-        raise SmokeFailure(f"timed out waiting for {label}
-        observed={observed[-8:]}")
+        raise SmokeFailure(f"timed out waiting for {label}; observed={observed[-8:]}")
 
 
 def _run(*args: str, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:

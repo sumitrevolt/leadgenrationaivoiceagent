@@ -1,4 +1,4 @@
-"""Security test - lifecycle_hooks SSRF guard (audit HIGH finding fix).
+"""Security test — lifecycle_hooks SSRF guard (audit HIGH finding fix).
 
 Uses IP LITERALS / internal hostnames so the checks resolve offline (no real DNS).
 """

@@ -1,9 +1,9 @@
 """
 Tests: referral_kit + evergreen (last 2 free-buildable marketing features).
 
-No network - free_ai.chat is monkeypatched to ("","") so every path exercises
+No network — free_ai.chat is monkeypatched to ("","") so every path exercises
 the deterministic TEMPLATE / never-empty fallback. File path resolvers (_REFERRALS_FILE, auto_content._QUEUE_DIR) tmp_path pe redirect
-hote hain - real data/ na chhue.
+hote hain — real data/ na chhue.
 """
 
 import json
@@ -16,7 +16,7 @@ from app.marketing import auto_content, evergreen, referral_kit
 
 @pytest.fixture
 def no_llm(monkeypatch):
-    """free_ai.chat ko hamesha ("","") return karwao - template path force."""
+    """free_ai.chat ko hamesha ("","") return karwao — template path force."""
 
     async def _empty(*args, **kwargs):
         return "", ""
@@ -59,10 +59,8 @@ class TestMakeReferral:
         # malicious business name must be escaped in the card SVG
         r = referral_kit.make_referral("Evil<script>alert(1)</script>", reward='"x"&y')
         assert "<script>" not in r["card_svg"]
-        assert "&lt
-        script&gt
-        " in r["card_svg"]
-        # escaped reward (quotes/amp) - raw quote/amp pair must not appear unescaped
+        assert "&lt;script&gt;" in r["card_svg"]
+        # escaped reward (quotes/amp) — raw quote/amp pair must not appear unescaped
         assert '"x"&y' not in r["card_svg"]
 
     def test_never_raises_empty_input(self):

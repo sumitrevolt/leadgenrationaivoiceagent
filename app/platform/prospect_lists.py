@@ -2,10 +2,10 @@
 
 Apollo ki asli taakat = filterable database + saved lists + list-pe-action.
 Yahi humare apne prospects (scraped + imported) pe: filter search (niche/city/
-status/has_email/text/min_score - score live compute, EXISTING lead_scoring),
-saved lists (snapshot), list -> cadence enroll (EXISTING cadence engine).
+status/has_email/text/min_score — score live compute, EXISTING lead_scoring),
+saved lists (snapshot), list → cadence enroll (EXISTING cadence engine).
 
-Plus: Apollo-CSV import - unke free exports (ya kisi bhi CSV) ko humari pipeline
+Plus: Apollo-CSV import — unke free exports (ya kisi bhi CSV) ko humari pipeline
 me daalo (dedupe phone/email, prospector store + DB mirror, auto-score).
 
 Store: data/lead_lists.jsonl. Import-safe, kabhi raise nahi.
@@ -52,13 +52,12 @@ def _write_lists(rows: list[dict[str, Any]]) -> None:
         logger.warning(f"[lists] write failed: {e}")
 
 
-_V2_ENABLED = None  # lazily cached (env PROSPECT_SCORE_V2=1
-default OFF)
+_V2_ENABLED = None  # lazily cached (env PROSPECT_SCORE_V2=1; default OFF)
 
 
 def _score_v2_on() -> bool:
-    """Feature-flag gate: PROSPECT_SCORE_V2=1 -> V2 scorer. Default OFF (V1 read
-    path preserved - backward-compatible)."""
+    """Feature-flag gate: PROSPECT_SCORE_V2=1 → V2 scorer. Default OFF (V1 read
+    path preserved — backward-compatible)."""
     global _V2_ENABLED
     if _V2_ENABLED is None:
         _V2_ENABLED = (os.environ.get("PROSPECT_SCORE_V2", "0") or "0").strip() == "1"
@@ -135,7 +134,7 @@ def search(
 def create_list(
     name: str, prospect_ids: list[str] | None = None, filters: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Saved list - explicit ids YA filters-snapshot se. Kabhi raise nahi."""
+    """Saved list — explicit ids YA filters-snapshot se. Kabhi raise nahi."""
     try:
         ids = list(prospect_ids or [])
         if not ids and filters:
@@ -164,8 +163,8 @@ def get_lists() -> list[dict[str, Any]]:
 
 
 def enroll_list_to_cadence(list_id: str) -> dict[str, Any]:
-    """List ke saare prospects -> cadence sequence (dedupe cadence khud karta).
-    Sends apne channel-gates pe - ban-safe. Kabhi raise nahi."""
+    """List ke saare prospects → cadence sequence (dedupe cadence khud karta).
+    Sends apne channel-gates pe — ban-safe. Kabhi raise nahi."""
     try:
         target = next((r for r in _read_lists() if r.get("id") == list_id), None)
         if not target:
@@ -217,7 +216,7 @@ def _map_row(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def import_rows(rows: list[dict[str, Any]], source: str = "apollo_import") -> dict[str, Any]:
-    """Apollo export (ya koi bhi) rows -> prospector store (dedupe phone/email)
+    """Apollo export (ya koi bhi) rows → prospector store (dedupe phone/email)
     + DB mirror + auto-score-ready. Kabhi raise nahi."""
     added = skipped = 0
     try:
@@ -274,7 +273,7 @@ def import_rows(rows: list[dict[str, Any]], source: str = "apollo_import") -> di
 
 
 def import_csv_text(csv_text: str, source: str = "apollo_import") -> dict[str, Any]:
-    """Raw CSV paste -> rows -> import_rows. Kabhi raise nahi."""
+    """Raw CSV paste → rows → import_rows. Kabhi raise nahi."""
     try:
         import csv
         import io

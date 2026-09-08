@@ -1,7 +1,7 @@
-"""Tests for /api/admin/owner-brief - single-call owner operational intelligence.
+"""Tests for /api/admin/owner-brief — single-call owner operational intelligence.
 
 The endpoint composes existing modules (today_overview, automation_health,
-command_center, paid_activations, upi_payments, team) - each in its own
+command_center, paid_activations, upi_payments, team) — each in its own
 try/except. Tests verify the shape, severity sorting, and exception
 classification without requiring a real DB or Redis.
 """
@@ -16,7 +16,7 @@ import pytest
 @pytest.fixture()
 def _empty_mocks(monkeypatch):
     """Patch all downstream modules to return empty/minimal data."""
-    # today_overview.build -> empty
+    # today_overview.build → empty
     monkeypatch.setattr(
         "app.api.owner_brief._build_owner_brief",
         lambda: {

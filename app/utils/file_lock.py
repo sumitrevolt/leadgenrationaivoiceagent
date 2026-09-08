@@ -1,11 +1,11 @@
 """Cross-process file lock for jsonl/json stores (multi-worker corruption fix).
 
-PROBLEM: app ab 2 uvicorn workers + celery worker(s) - sab `data/*.jsonl`
+PROBLEM: app ab 2 uvicorn workers + celery worker(s) — sab `data/*.jsonl`
 stores pe likh sakte hain. Single-line APPEND (<4KB) Linux pe O_APPEND se
 ~atomic hota hai, par READ-MODIFY-WRITE (trim/rewrite/json.dump snapshot)
 do process me ek saath chale to file TRUNCATE/corrupt ho sakti hai.
 
-YEH UTILITY: sidecar `<path>.lock` file pe OS-level lock -
+YEH UTILITY: sidecar `<path>.lock` file pe OS-level lock —
   - Linux/mac: fcntl.flock (containers me yahi chalta)
   - Windows: msvcrt.locking (dev machine)
   - dono unavailable (exotic env): graceful no-op (aaj jaisa)
@@ -15,9 +15,8 @@ Use:
     with file_lock(path):           # default timeout 5s
         ...read-modify-write...
 
-Timeout pe bhi block NAHI karte - lock na mile to bina lock aage badh jaate
-(defensive: store-write kabhi automation ko hang nahi karna chahiye
-warna
+Timeout pe bhi block NAHI karte — lock na mile to bina lock aage badh jaate
+(defensive: store-write kabhi automation ko hang nahi karna chahiye; warna
 lock-file leak/crash pe sab ruk jata). KABHI raise nahi.
 """
 
@@ -60,7 +59,7 @@ def file_lock(path: str, timeout_s: float = 5.0):
                         msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
                         locked = True
                         break
-                    else:  # no locking primitive - no-op
+                    else:  # no locking primitive — no-op
                         break
                 except OSError:
                     time.sleep(0.05)
@@ -97,7 +96,7 @@ def locked_append(path: str, line: str, timeout_s: float = 5.0) -> bool:
 
 
 def locked_rewrite(path: str, content: str, timeout_s: float = 5.0) -> bool:
-    """Lock + ATOMIC rewrite (tmp file + os.replace) - half-written file kabhi
+    """Lock + ATOMIC rewrite (tmp file + os.replace) — half-written file kabhi
     visible nahi hoti, crash-safe. KABHI raise nahi. Return: written?"""
     try:
         with file_lock(path, timeout_s):

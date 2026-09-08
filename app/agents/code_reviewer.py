@@ -1,23 +1,23 @@
-"""Dedicated code-review agent - Kilo-Code "Review agent" parity.
+"""Dedicated code-review agent — Kilo-Code "Review agent" parity.
 
 Kilo Code ka ek alag standout mode = dedicated "Review agent" jo diff/code ko
 multi-dimension (correctness/security/performance/style/tests) pe LLM se review
-karwa ke structured findings deta - blind one-shot prompt nahi. Is project me
+karwa ke structured findings deta — blind one-shot prompt nahi. Is project me
 review-bot skills the par koi RUNTIME review-agent endpoint nahi tha.
 
 Yeh module woh capability AI staff + admin ko deta (read-only, never-raise, gated):
-  - `review(code, dimensions)` -> free-LLM se JSON findings ({dimension, severity,
-    line, message} + summary). LLM fail/garbage -> static minimal result (never empty).
-  - Admin POST /api/agents-ext/code-review -> ad-hoc code/diff review.
+  - `review(code, dimensions)` → free-LLM se JSON findings ({dimension, severity,
+    line, message} + summary). LLM fail/garbage → static minimal result (never empty).
+  - Admin POST /api/agents-ext/code-review → ad-hoc code/diff review.
   - coordinator engineering crew future me same helper reuse kar sakte.
 
 Design (project patterns):
-  - `enabled()` sirf AUTOMATIC agent-review ko gate karta - default OFF = zero
+  - `enabled()` sirf AUTOMATIC agent-review ko gate karta — default OFF = zero
     behaviour change. `review()` khud hamesha safe-callable (admin endpoint ke liye),
     bilkul jaise code_search.search flag-independent chalta.
-  - free_ai LAZY import (heavy chain) - function ke andar, module-top pe nahi.
-  - Defensive JSON parse (LLM kabhi prose+json mix deta) - strip to {...}.
-  - Koi error / LLM down -> static fallback dict (kabhi raise nahi, kabhi empty nahi).
+  - free_ai LAZY import (heavy chain) — function ke andar, module-top pe nahi.
+  - Defensive JSON parse (LLM kabhi prose+json mix deta) — strip to {...}.
+  - Koi error / LLM down → static fallback dict (kabhi raise nahi, kabhi empty nahi).
 
 Flag: CODE_REVIEWER=1
 """
@@ -54,10 +54,10 @@ def _normalize_dimensions(dimensions: list[str] | None) -> list[str]:
 
 
 def _static_result(code: str, dimensions: list[str], note: str) -> dict[str, Any]:
-    """LLM-independent minimal review - kabhi empty/raise na ho is liye floor."""
+    """LLM-independent minimal review — kabhi empty/raise na ho is liye floor."""
     return {
         "ok": False,
-        "summary": f"static review ({note}) - LLM grounding unavailable",
+        "summary": f"static review ({note}) — LLM grounding unavailable",
         "dimensions": dimensions,
         "findings": [
             {
@@ -95,7 +95,7 @@ def _extract_json(text: str) -> dict[str, Any] | None:
 
 
 def _clean_findings(obj: dict[str, Any]) -> list[dict[str, Any]]:
-    """Parsed findings ko normalize - severity/line ko safe banao."""
+    """Parsed findings ko normalize — severity/line ko safe banao."""
     rows = obj.get("findings")
     if not isinstance(rows, list):
         return []
@@ -125,20 +125,18 @@ def _clean_findings(obj: dict[str, Any]) -> list[dict[str, Any]]:
 async def review(code: str, dimensions: list[str] | None = None) -> dict[str, Any]:
     """Code/diff ka structured multi-dimension review.
 
-    `code` = raw source YA unified-diff string (pass-through
-    LLM dono samajh leta).
+    `code` = raw source YA unified-diff string (pass-through; LLM dono samajh leta).
     `dimensions` default = correctness/security/performance/style/tests.
 
     Returns {ok, summary, dimensions, findings:[{dimension,severity,line,message}]}.
-    Never raises
-    LLM fail/garbage -> static minimal result (never empty).
+    Never raises; LLM fail/garbage → static minimal result (never empty).
     """
     dims = _normalize_dimensions(dimensions)
     src = (code or "").strip()
     if not src:
         return {
             "ok": True,
-            "summary": "empty input - nothing to review",
+            "summary": "empty input — nothing to review",
             "dimensions": dims,
             "findings": [],
         }

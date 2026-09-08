@@ -1,8 +1,7 @@
 """Trending hashtag research + best-time-to-post (niche + city). free_ai + template.
 
 Hashtag discovery + posting-time tips are standard social-marketing features. free_ai
-generates a relevant mix (popular + niche + local)
-template fallback never-empty.
+generates a relevant mix (popular + niche + local); template fallback never-empty.
 
 research(niche, city, count) -> {hashtags[], best_times[], niche, city}
 """

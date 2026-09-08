@@ -1,4 +1,4 @@
-"""Web-call test sessions - durable transcript log (jsonl, import-safe).
+"""Web-call test sessions — durable transcript log (jsonl, import-safe).
 
 Each browser `lead_key` gets a stable identity for agent_memory recall
 (`web:{lead_key}`) and a chronological call history with ISO timestamps.
@@ -22,7 +22,7 @@ _SID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 
 
 def _TRANSCRIPTS_DIR() -> Path:
-    """Training transcript dir - resolved per call, never frozen at import."""
+    """Training transcript dir — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return call_transcripts_dir()
@@ -43,7 +43,7 @@ def _valid_sid(session_id: str | None) -> str | None:
 
 
 def _turns_to_messages(turns: list[Any] | None) -> list[dict[str, str]]:
-    """Web-call turns {role,text} -> vobiz-style {role,content} for training."""
+    """Web-call turns {role,text} → vobiz-style {role,content} for training."""
     msgs: list[dict[str, str]] = []
     for t in turns or []:
         if not isinstance(t, dict):
@@ -58,7 +58,7 @@ def _turns_to_messages(turns: list[Any] | None) -> list[dict[str, str]]:
 
 
 def _training_transcript_exists(session_id: str) -> bool:
-    """Dedupe - same web session do baar training me na aaye."""
+    """Dedupe — same web session do baar training me na aaye."""
     sid = (session_id or "").strip()
     if not sid or not _TRANSCRIPTS_DIR().is_dir():
         return False
@@ -86,7 +86,7 @@ def _training_transcript_exists(session_id: str) -> bool:
 
 
 def mirror_session_to_training_transcript(row: dict[str, Any]) -> bool:
-    """Web test-call -> data/call_transcripts/YYYY-MM-DD.jsonl (Meera/voice_learn fuel).
+    """Web test-call → data/call_transcripts/YYYY-MM-DD.jsonl (Meera/voice_learn fuel).
 
     Same shape as vobiz_stream._persist_transcript so training scripts pick it up.
     Never raises.
@@ -129,7 +129,7 @@ def mirror_session_to_training_transcript(row: dict[str, Any]) -> bool:
 
 
 def backfill_training_transcripts(*, limit: int = 200) -> dict[str, int]:
-    """Existing web_call_sessions.jsonl -> call_transcripts (one-time / repair)."""
+    """Existing web_call_sessions.jsonl → call_transcripts (one-time / repair)."""
     scanned = mirrored = skipped = 0
     if not _STORE.is_file():
         return {"scanned": 0, "mirrored": 0, "skipped": 0}
@@ -266,7 +266,7 @@ def list_all_sessions(
 ) -> list[dict[str, Any]]:
     """ADMIN-wide: newest-first sessions across ALL browser lead_keys.
 
-    Unlike list_sessions() this is NOT filtered by lead_key - it is the
+    Unlike list_sessions() this is NOT filtered by lead_key — it is the
     admin cockpit view of every saved web test-call. Never raises.
     """
     if not _STORE.is_file():

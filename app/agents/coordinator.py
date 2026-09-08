@@ -1,4 +1,4 @@
-"""Multi-agent COORDINATOR - free-stack, always-on coordination over the STAFF roster.
+"""Multi-agent COORDINATOR — free-stack, always-on coordination over the STAFF roster.
 
 Existing pieces (REBUILD NAHI): `team.STAFF` (31-staff roster), `staff.py` (concrete
 capabilities run_ops/qa/trainer/content/email), `supervisor.py` (langgraph routing,
@@ -7,10 +7,10 @@ lightweight coordinator jo bina kisi heavy dep ke poore roster ko orchestrate ka
 
 Coordination mechanisms:
   - supervisor/planner : Boss goal ko ordered sub-tasks me todta (free-LLM).
-  - sequential handoff : har agent ka output shared blackboard me -> agle agent ko context.
+  - sequential handoff : har agent ka output shared blackboard me → agle agent ko context.
   - parallel fan-out   : independent agents asyncio.gather se ek saath, phir aggregate.
   - shared blackboard  : run-state jo agents read/write karte.
-  - traced             : har step `team.log_event` -> agent_events (-> /app/team dashboard).
+  - traced             : har step `team.log_event` → agent_events (→ /app/team dashboard).
 
 SAFE by default: `execute=False` = sirf reasoning/drafts (zero side-effect). `execute=True`
 sirf agent ki SAFE capability fn chalata (woh khud already gated/defensive hain).
@@ -37,7 +37,7 @@ _LEGACY_AGENTS = ("manager", "rohan", "swara", "dev", "arjun", "meera", "kavya",
 
 
 def _agent_keys() -> tuple[str, ...]:
-    """All STAFF keys - planner may assign any; execute uses _TOOLS subset."""
+    """All STAFF keys — planner may assign any; execute uses _TOOLS subset."""
     roster = _roster()
     return tuple(roster.keys()) if roster else _LEGACY_AGENTS
 
@@ -56,7 +56,7 @@ def _roster() -> dict[str, dict]:
 
 
 def _guess_niche(text: str) -> str:
-    """Loose keyword-match goal/task -> a configured niche key (fallback 'general')."""
+    """Loose keyword-match goal/task → a configured niche key (fallback 'general')."""
     try:
         from app.niches import NICHES
 
@@ -76,11 +76,11 @@ def _guess_niche(text: str) -> str:
 
 # --------------------------------------------------------------------------- #
 # Per-agent REAL tools (execute-mode): goal-aware, ACTUAL artifacts produce karte
-# (sirf draft nahi). SAFE only - koi auto-send/call nahi. Side-effect agents
-# (rohan=outreach, swara=calls) jaan-bujhke OUT -> woh draft hi rehte (ban-safe).
+# (sirf draft nahi). SAFE only — koi auto-send/call nahi. Side-effect agents
+# (rohan=outreach, swara=calls) jaan-bujhke OUT → woh draft hi rehte (ban-safe).
 # --------------------------------------------------------------------------- #
 async def _tool_isha(task: str, goal: str) -> dict:
-    """Marketing - real social post (caption + hashtags + image idea)."""
+    """Marketing — real social post (caption + hashtags + image idea)."""
     from app.marketing import post_generator
 
     p = await post_generator.generate_post(
@@ -95,7 +95,7 @@ async def _tool_isha(task: str, goal: str) -> dict:
 
 
 async def _tool_dev(task: str, goal: str) -> dict:
-    """Data/research - real trending hashtags + best-time research for the niche."""
+    """Data/research — real trending hashtags + best-time research for the niche."""
     from app.marketing import hashtags
 
     h = await hashtags.research(_guess_niche(goal + " " + task), "", count=12)
@@ -103,21 +103,21 @@ async def _tool_dev(task: str, goal: str) -> dict:
 
 
 async def _tool_kavya(task: str, goal: str) -> dict:
-    """Ops - real system health snapshot."""
+    """Ops — real system health snapshot."""
     from app.agents import staff
 
     return {"tool": "run_ops", "result": await staff.run_ops()}
 
 
 async def _tool_arjun(task: str, goal: str) -> dict:
-    """QA - real agent scorecard run."""
+    """QA — real agent scorecard run."""
     from app.agents import staff
 
     return {"tool": "run_qa", "result": await staff.run_qa()}
 
 
 async def _tool_meera(task: str, goal: str) -> dict:
-    """Trainer - real transcript-quality analysis."""
+    """Trainer — real transcript-quality analysis."""
     from app.agents import staff
 
     return {"tool": "run_trainer", "result": await staff.run_trainer()}
@@ -173,9 +173,9 @@ def _heartbeat(pattern: str, ok: bool, t0: float, note: str = "") -> None:
 
 # --- D2: coordinator LLM cost guard (INERT unless COORDINATOR_LLM_CAP_PER_MIN>0) ---
 # self_improve ke paas SELFIMPROVE_COST_CAP hai; coordinator ke LLM calls (plan/
-# coordinate/fan_out/reflect/debate) ka koi cap nahi tha - recurring/public path me
+# coordinate/fan_out/reflect/debate) ka koi cap nahi tha — recurring/public path me
 # unbounded cost risk. Yeh rolling 60s-window rate-cap deta: over-budget pe call SKIP
-# (fail-open - empty reply, callers already graceful). cap<=0 = default unchanged.
+# (fail-open — empty reply, callers already graceful). cap<=0 = default unchanged.
 _LLM_WINDOW: dict[str, float] = {"start": 0.0, "count": 0.0}
 
 
@@ -185,7 +185,7 @@ def _llm_rate_ok() -> bool:
     except Exception:
         cap = 0
     if cap <= 0:
-        return True  # INERT - behaviour unchanged
+        return True  # INERT — behaviour unchanged
     now = time.monotonic()
     if now - _LLM_WINDOW["start"] >= 60.0:
         _LLM_WINDOW["start"] = now
@@ -198,12 +198,12 @@ def _llm_rate_ok() -> bool:
 
 async def _llm(system: str, user: str, max_tokens: int = 260, temperature: float = 0.4):
     if not _llm_rate_ok():
-        logger.info("coordinator LLM rate-cap reached - skipping call (fail-open)")
+        logger.info("coordinator LLM rate-cap reached — skipping call (fail-open)")
         return "", "rate_capped"
     # COORD_GUARDRAILS (OFF default, INERT): PRE-LLM PII-redact + injection-block on
     # the user prompt, POST-LLM system-leak/unsafe-promise block on the reply.
     # Voice path (natural_dialog) already guards its brain; the agent/coordinator
-    # LLM path was the unwired one. Fail-open - guardrail error = original text.
+    # LLM path was the unwired one. Fail-open — guardrail error = original text.
     grd = None
     if os.environ.get("COORD_GUARDRAILS", "").strip().lower() in ("1", "true", "yes", "on"):
         try:
@@ -281,7 +281,7 @@ def _memory_canary_on() -> bool:
     """Dedicated canary flag for the memory-stack context path (default OFF).
 
     OFF = byte-identical legacy behaviour (`hint[:600]`). Subordinate to the
-    memory stack's own master flag - canary alone can never turn it on.
+    memory stack's own master flag — canary alone can never turn it on.
     """
     if (os.environ.get("MEMORY_STACK_COORDINATOR_CANARY", "").strip().lower()) not in (
         "1",
@@ -301,7 +301,7 @@ def _memory_canary_on() -> bool:
 async def _plan_context(goal: str, hint: str) -> str:
     """Canary: token-budgeted memory block; ANY problem => legacy hint slice.
 
-    Never raises and never blocks planning - a memory miss degrades to exactly
+    Never raises and never blocks planning — a memory miss degrades to exactly
     what the legacy path would have produced.
     """
     legacy = f"\nPichhle learnings (inhe dhyan me rakho): {hint[:600]}" if hint else ""
@@ -331,8 +331,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     plan ke liye condition karta (Reflexion). Canary flag ON ho to yeh hint ke
     saath memory-stack ka budgeted block bhi jodta hai (fallback = legacy).
     """
-    roster_desc = "
-    ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
+    roster_desc = "; ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
     sys = (
         "Tum LeadGenAI ke Manager (Boss) ho. Goal ko 2-4 ORDERED sub-tasks me todo, har ek "
         "ek STAFF agent ko assign. SIRF JSON array lautao: "
@@ -391,8 +390,8 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
                     goal,
                 )
                 return _res["steps"]
-            logger.info("manager plan_node produced no plan - legacy fallback")
-        except Exception as e:  # defensive - canary never breaks plan()
+            logger.info("manager plan_node produced no plan — legacy fallback")
+        except Exception as e:  # defensive — canary never breaks plan()
             logger.debug("manager plan_node canary err: %s", e)
     raw, _ = await _llm(sys, user, max_tokens=300, temperature=0.2)
     steps = [
@@ -411,7 +410,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
 
 
 async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> dict:
-    """Ek agent apna sub-task kare - concrete capability (execute) ya free-LLM reasoning."""
+    """Ek agent apna sub-task kare — concrete capability (execute) ya free-LLM reasoning."""
     if execute and agent in _TOOLS:
         _t0 = time.monotonic()
         _res = None
@@ -447,19 +446,19 @@ async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> 
             pass
         return _out
     # Budget governor on the DRAFT/LLM branch (the execute branch above already ran under
-    # staff's own governance at app/agents/staff.py:1436 - don't change its behaviour).
+    # staff's own governance at app/agents/staff.py:1436 — don't change its behaviour).
     # fan_out/agentverse/debate/council issue one LLM call per agent per round, and
     # _llm_rate_ok() caps burst-per-minute, NOT the daily total. Without this a swarm can
     # eat the day's free-tier quota (Groq TPD) that the revenue-bearing voice path shares.
     # INERT by construction: check() returns allowed=True when AGENT_BUDGET_ENABLED is off.
-    # Fail-OPEN - a budget-subsystem error must never block the agent.
+    # Fail-OPEN — a budget-subsystem error must never block the agent.
     try:
         from app.platform import agent_budget
 
         _b = agent_budget.check(agent)
         if not _b.get("allowed", True):
             logger.info(
-                "coordinator: %s skipped - budget exceeded (tier %s)", agent, _b.get("tier")
+                "coordinator: %s skipped — budget exceeded (tier %s)", agent, _b.get("tier")
             )
             return {"mode": "skipped", "reason": "budget_exceeded", "budget": _b, "output": ""}
     except Exception:
@@ -467,7 +466,7 @@ async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> 
     v = _roster().get(agent, {})
     prior = json.dumps(blackboard.get("results", [])[-3:], ensure_ascii=False)[:1200]
     sys = (
-        f"Tum {v.get('name', agent)} ho - {v.get('title', '')}. Duties: {v.get('duties', '')}. "
+        f"Tum {v.get('name', agent)} ho — {v.get('title', '')}. Duties: {v.get('duties', '')}. "
         "Apna sub-task concise Hinglish me poora karo (3-5 line, actionable). Sirf output do."
     )
     out, prov = await _llm(
@@ -534,7 +533,7 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
         temperature=0.4,
     )
     _log("manager", "coordinate_done", summary or "done")
-    # Hivemind: executed steps with success -> KB skills namespace (cross-agent sharing)
+    # Hivemind: executed steps with success → KB skills namespace (cross-agent sharing)
     if os.environ.get("COORD_KB_SHARE", "").strip() in ("1", "true", "yes", "on"):
         _executed_ok = [
             r
@@ -571,7 +570,7 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
 
 
 async def fan_out(goal: str, agents: list[str] | None = None, max_agents: int = 4) -> dict:
-    """Parallel coordination - multiple agents ek saath (asyncio.gather), phir aggregate."""
+    """Parallel coordination — multiple agents ek saath (asyncio.gather), phir aggregate."""
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
@@ -665,7 +664,7 @@ def memory_log(limit: int = 50) -> list[dict]:
 
 
 def _remember(topic: str, reflection: str, score: float) -> None:
-    """Episodic memory write - verbal reflection + score (bounded, append-only)."""
+    """Episodic memory write — verbal reflection + score (bounded, append-only)."""
     if not reflection:
         return
     try:
@@ -685,7 +684,7 @@ def _remember(topic: str, reflection: str, score: float) -> None:
             )
     except Exception:
         pass
-    # ADR-154: dual-write into workforce hub for Boss (manager) - fail-open.
+    # ADR-154: dual-write into workforce hub for Boss (manager) — fail-open.
     try:
         from app.platform import workforce_memory as _wfm
 
@@ -709,9 +708,9 @@ def _recall(topic: str, k: int = _MAX_MEM) -> list[str]:
 
 
 async def _verify(goal: str, results: list[dict]) -> dict:
-    """Critic/Evaluator (Arjun=QA persona, MAR separation) -> score 0-1 + weaknesses + fixes."""
+    """Critic/Evaluator (Arjun=QA persona, MAR separation) → score 0-1 + weaknesses + fixes."""
     sys = (
-        "Tum Arjun ho - QA Engineer (critic). Team ke kaam ko goal ke against kathorta se grade karo. "
+        "Tum Arjun ho — QA Engineer (critic). Team ke kaam ko goal ke against kathorta se grade karo. "
         'SIRF JSON lautao: {"score":0.0-1.0,"weak":["..."],"fixes":["..."]}. '
         "score=kitna goal poora hua. weak=kya missing/kamzor. fixes=kya improve karna. Aur kuch nahi."
     )
@@ -732,12 +731,12 @@ async def _verify(goal: str, results: list[dict]) -> dict:
         fixes = d.get("fixes") if isinstance(d.get("fixes"), list) else []
         return {"score": max(0.0, min(1.0, score)), "weak": weak[:5], "fixes": fixes[:5]}
     except Exception:
-        # Neutral fallback - loop ko stuck/infinite hone se bachao.
+        # Neutral fallback — loop ko stuck/infinite hone se bachao.
         return {"score": 0.6, "weak": [], "fixes": []}
 
 
 async def _reflect(goal: str, results: list[dict], critique: dict) -> str:
-    """Self-Reflection module - verbal feedback: kya galat tha + agli baar kaise behtar."""
+    """Self-Reflection module — verbal feedback: kya galat tha + agli baar kaise behtar."""
     out, _ = await _llm(
         "Tum reflective strategist ho. Critique dekh ke 2-3 line Hinglish reflection do: kya kamzor tha aur "
         "agli iteration me kaise improve karein. Sirf reflection text.",
@@ -755,8 +754,8 @@ async def coordinate_advanced(
     execute: bool = False,
     max_steps: int = 4,
 ) -> dict:
-    """Reflexion orchestration: recall memory -> plan -> execute (handoff) -> VERIFY (critic) ->
-    score<bar & iterations left ho to REFLECT + retry -> aggregate.
+    """Reflexion orchestration: recall memory → plan → execute (handoff) → VERIFY (critic) →
+    score<bar & iterations left ho to REFLECT + retry → aggregate.
 
     Guardrails: `max_iterations` (cap 3) + `quality_bar` (early-stop on convergence).
     Episodic memory persist (reflections). SAFE default (execute=False=drafts). Never raises.
@@ -816,7 +815,7 @@ async def coordinate_advanced(
         "at": _now(),
     }
     _persist(out)
-    # Obsidian - log reflexion run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian — log reflexion run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
@@ -833,7 +832,7 @@ async def coordinate_advanced(
 
 
 async def debate(question: str, rounds: int = 1) -> dict:
-    """Consensus pattern - Rohan (pro) vs Kavya (con) argue, Boss judge decides. Never raises."""
+    """Consensus pattern — Rohan (pro) vs Kavya (con) argue, Boss judge decides. Never raises."""
     question = (question or "").strip()
     if len(question) < 3:
         return {"ok": False, "error": "question bahut chhota hai"}
@@ -867,7 +866,7 @@ async def debate(question: str, rounds: int = 1) -> dict:
         "at": _now(),
     }
     _persist(out)
-    # Obsidian - log debate verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian — log debate verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
@@ -883,7 +882,7 @@ async def debate(question: str, rounds: int = 1) -> dict:
 
 
 # =========================================================================== #
-# HIERARCHICAL orchestration (2026 supervisor->sub-supervisor->workers topology).
+# HIERARCHICAL orchestration (2026 supervisor→sub-supervisor→workers topology).
 # Boss goal ko relevant DOMAIN sub-teams me baantta; har sub-team ka supervisor
 # apne members ko coordinate karta (teams PARALLEL); Boss top-level merge.
 # =========================================================================== #
@@ -930,8 +929,7 @@ async def _assign_teams(goal: str) -> dict[str, str]:
     """Boss decides which sub-team(s) handle the goal + each team's objective."""
     topology = coordination_topology()
     teams = _coordination_teams()
-    catalog = "
-    ".join(
+    catalog = "; ".join(
         f"{row.get('id')}({row.get('purpose')})" for row in (topology.get("teams") or [])
     )
     sys = (
@@ -980,7 +978,7 @@ async def _run_team(team: str, objective: str, execute: bool) -> dict:
 
 
 async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
-    """2-level hierarchy: Boss -> sub-teams (PARALLEL) -> members -> Boss merge. Never raises."""
+    """2-level hierarchy: Boss → sub-teams (PARALLEL) → members → Boss merge. Never raises."""
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
@@ -1061,7 +1059,7 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
         "at": _now(),
     }
     _persist(out)
-    # Obsidian - log hierarchical run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian — log hierarchical run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
@@ -1085,21 +1083,21 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# AgentVerse-style task-solving (OpenBMB, ICLR'24 - arXiv:2308.10848).
-# 4-stage CLOSED LOOP: RECRUIT (dynamic, task-tailored experts) -> COLLABORATE
-# (experts contribute + solver synthesizes) -> EXECUTE (safe staff tools, execute=True)
-# -> EVALUATE (_verify) -> feedback se team RE-COMPOSE + refine (rounds tak).
+# AgentVerse-style task-solving (OpenBMB, ICLR'24 — arXiv:2308.10848).
+# 4-stage CLOSED LOOP: RECRUIT (dynamic, task-tailored experts) → COLLABORATE
+# (experts contribute + solver synthesizes) → EXECUTE (safe staff tools, execute=True)
+# → EVALUATE (_verify) → feedback se team RE-COMPOSE + refine (rounds tak).
 # coordinate_advanced (FIXED roster Reflexion) se ALAG: yahan team khud goal ke hisaab
 # se banti hai aur evaluator-feedback pe har round badalti (AgentVerse ka signature).
 # All free-stack (free_ai), reuses _verify/_recall/_remember/_persist. NEVER raises.
 # --------------------------------------------------------------------------- #
 async def _recruit_experts(goal: str, feedback: str = "", team_size: int = 3) -> list[dict]:
-    """Stage 1 - RECRUITER (HR-manager persona) goal ke liye 2-4 TAILORED expert roles
+    """Stage 1 — RECRUITER (HR-manager persona) goal ke liye 2-4 TAILORED expert roles
     design karta (fixed roster nahi). feedback (evaluator se) team ko RE-COMPOSE karta."""
     staff_keys = ", ".join(_agent_keys())
     sys = (
         "Tum ek RECRUITER ho (HR manager jaisa). Goal ke liye 2-4 EXPERT roles design karo jo "
-        "milke ise best solve karein - roles goal ke hisaab se TAILORED hon (generic nahi). "
+        "milke ise best solve karein — roles goal ke hisaab se TAILORED hon (generic nahi). "
         'SIRF JSON array lautao: [{"role":"<expert title>","expertise":"<1-line kya laata hai>",'
         f'"staff":"<closest in {staff_keys}, warna khaali>"}}]. Aur kuch mat likho.'
     )
@@ -1129,7 +1127,7 @@ async def _recruit_experts(goal: str, feedback: str = "", team_size: int = 3) ->
 
 
 async def _expert_contribution(expert: dict, goal: str, board: str, execute: bool) -> dict:
-    """Stage 2/3 - ek recruited expert apna perspective de. execute + staff-bound + real
+    """Stage 2/3 — ek recruited expert apna perspective de. execute + staff-bound + real
     tool ho to ACTUAL artifact (safe capability), warna free-LLM draft."""
     staff = expert.get("staff") or ""
     if execute and staff in _TOOLS:
@@ -1142,7 +1140,7 @@ async def _expert_contribution(expert: dict, goal: str, board: str, execute: boo
         except Exception as e:  # pragma: no cover - defensive
             _err = str(e)[:200]
             _out = {"role": expert["role"], "staff": staff, "mode": "executed", "error": _err}
-        # Harness coordinator shadow - SECOND executor boundary (_expert_contribution).
+        # Harness coordinator shadow — SECOND executor boundary (_expert_contribution).
         # Record-only; INERT unless canary flags on. NEVER re-runs the tool, never
         # changes the contribution, never raises.
         try:
@@ -1167,7 +1165,7 @@ async def _expert_contribution(expert: dict, goal: str, board: str, execute: boo
             pass
         return _out
     sys = (
-        f"Tum '{expert['role']}' ho - expertise: {expert.get('expertise', '')}. Apne expert lens se "
+        f"Tum '{expert['role']}' ho — expertise: {expert.get('expertise', '')}. Apne expert lens se "
         "goal pe concrete, actionable contribution do (3-5 line Hinglish). Sirf apna output."
     )
     out, prov = await _llm(
@@ -1183,7 +1181,7 @@ async def _expert_contribution(expert: dict, goal: str, board: str, execute: boo
 
 
 async def _solver_synthesize(goal: str, contributions: list[dict], feedback: str = "") -> str:
-    """Stage 2 (vertical solver) - experts ke contributions ko ek coherent, actionable
+    """Stage 2 (vertical solver) — experts ke contributions ko ek coherent, actionable
     SOLUTION me synthesize karo (evaluator feedback ko address karte hue)."""
     sys = (
         "Tum SOLVER ho. Experts ke contributions ko ek single, coherent, actionable SOLUTION me "
@@ -1203,8 +1201,8 @@ async def coordinate_agentverse(
     quality_bar: float = 0.75,
     team_size: int = 3,
 ) -> dict:
-    """AgentVerse task-solving loop (arXiv:2308.10848): RECRUIT -> COLLABORATE+SOLVE ->
-    EXECUTE -> EVALUATE -> feedback se team RE-COMPOSE + refine (rounds tak, best-of kept).
+    """AgentVerse task-solving loop (arXiv:2308.10848): RECRUIT → COLLABORATE+SOLVE →
+    EXECUTE → EVALUATE → feedback se team RE-COMPOSE + refine (rounds tak, best-of kept).
 
     Guardrails: max_rounds (cap 3) + quality_bar (early-stop). Episodic memory (_recall/
     _remember) cross-run learning. SAFE default (execute=False=drafts). Never raises.
@@ -1229,7 +1227,7 @@ async def coordinate_agentverse(
         _log("manager", "av_recruit", f"r{rnd}: " + ", ".join(e["role"] for e in experts))
         board = ""
         contributions: list[dict] = []
-        for ex in experts:  # collaborative - har expert pichhla board dekhta (shared context)
+        for ex in experts:  # collaborative — har expert pichhla board dekhta (shared context)
             c = await _expert_contribution(ex, goal, board, execute)
             contributions.append(c)
             board += f"\n[{c['role']}] {json.dumps(c.get('output'), ensure_ascii=False)[:400]}"
@@ -1255,9 +1253,8 @@ async def coordinate_agentverse(
             }
         if score >= quality_bar:
             break
-        # EVALUATE -> feedback se team RE-COMPOSE (AgentVerse ka core loop)
-        fb = "
-        ".join(critique.get("fixes", []) or critique.get("weak", []))
+        # EVALUATE → feedback se team RE-COMPOSE (AgentVerse ka core loop)
+        fb = "; ".join(critique.get("fixes", []) or critique.get("weak", []))
         feedback = (feedback + " | " + fb)[:800] if feedback else fb
         if fb:
             _remember(goal, fb, score)
@@ -1292,13 +1289,13 @@ async def coordinate_agentverse(
 
 
 # --------------------------------------------------------------------------- #
-# ENGINEERING crew (MetaGPT / OpenHands-inspired): Architect -> Engineer -> Reviewer
-# -> Tester. GOAL-driven feature/design aid. DRAFT-ONLY - code KABHI auto-apply nahi
+# ENGINEERING crew (MetaGPT / OpenHands-inspired): Architect → Engineer → Reviewer
+# → Tester. GOAL-driven feature/design aid. DRAFT-ONLY — code KABHI auto-apply nahi
 # (code_upgrader ki philosophy: core code admin-approve pe hi badle). Yeh code_upgrader
-# (signal->patch) ka complement = goal->design+plan+tests. Free-stack, never raises.
+# (signal→patch) ka complement = goal→design+plan+tests. Free-stack, never raises.
 # --------------------------------------------------------------------------- #
 async def coordinate_engineering(goal: str, context: str = "") -> dict:
-    """4-role SDE crew -> design + implementation plan + review + test plan (DRAFT)."""
+    """4-role SDE crew → design + implementation plan + review + test plan (DRAFT)."""
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
@@ -1315,7 +1312,7 @@ async def coordinate_engineering(goal: str, context: str = "") -> dict:
     )
     implementer, _ = await _llm(
         "Tum ENGINEER ho. Architect ke design pe step-by-step IMPLEMENTATION PLAN do (files/functions, "
-        "pseudo-code level - ACTUAL code apply mat karo). 6-10 line Hinglish. Sirf plan.",
+        "pseudo-code level — ACTUAL code apply mat karo). 6-10 line Hinglish. Sirf plan.",
         f"Goal: {goal}\nDesign: {architect[:1200]}",
         max_tokens=460,
         temperature=0.4,
@@ -1345,7 +1342,7 @@ async def coordinate_engineering(goal: str, context: str = "") -> dict:
         "implementation_plan": implementer or "(plan pending)",
         "review": reviewer or "(review pending)",
         "test_plan": tester or "(tests pending)",
-        "note": "DRAFT only - code auto-apply NAHI hua. Changes sirf code_upgrader/admin-approve se.",
+        "note": "DRAFT only — code auto-apply NAHI hua. Changes sirf code_upgrader/admin-approve se.",
         "at": _now(),
     }
     _persist(out)
@@ -1353,7 +1350,7 @@ async def coordinate_engineering(goal: str, context: str = "") -> dict:
 
 
 async def council(question: str) -> dict:
-    """Karpathy LLM Council - cross-model opinions -> anonymized peer rank -> Chairman synthesis."""
+    """Karpathy LLM Council — cross-model opinions → anonymized peer rank → Chairman synthesis."""
     from app.agents import llm_council
 
     question = (question or "").strip()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Automation Health Audit - Daily/Weekly/Monthly checks for self-improve loop.
+Automation Health Audit — Daily/Weekly/Monthly checks for self-improve loop.
 
 Usage:
   python scripts/automation_health_audit.py --daily-check
@@ -160,8 +160,7 @@ def check_alive() -> dict[str, Any]:
                 detail = f"Scheduler heartbeat stale ({last_tick_min}m ago)"
             else:
                 status = "green"
-                detail = f"Historical scheduler heartbeat stale ({last_tick_min}m ago) "
-                "loop not enabled now"
+                detail = f"Historical scheduler heartbeat stale ({last_tick_min}m ago); loop not enabled now"
     elif self_improve_on or team_auto_on:
         status = "red"
         detail = "No heartbeat found even though always-on automation is enabled"
@@ -178,7 +177,7 @@ def check_alive() -> dict[str, Any]:
 
 
 def check_budget() -> dict[str, Any]:
-    """Cost tracking - spent vs. cap."""
+    """Cost tracking — spent vs. cap."""
     runs = _read_jsonl("data/self_improve_runs.jsonl")
 
     today_key = _now().strftime("%Y-%m-%d")
@@ -239,7 +238,7 @@ def check_anomalies() -> dict[str, Any]:
 
         # Real DLQ depth (Redis dlq:failed_tasks + dlq:dead), same source as
         # `--dlq-status`. `data/dlq_failed_tasks.jsonl` is legacy/dev-only and
-        # is never written in prod (DLQ lives in Redis) - reading it here
+        # is never written in prod (DLQ lives in Redis) — reading it here
         # always reported 0 and masked a real backlog.
         dlq_status = check_dlq_status()
         depths = dlq_status.get("depths", {})
@@ -383,9 +382,9 @@ def check_dlq_status() -> dict[str, Any]:
 def _optout_ledger_writable() -> bool:
     """Real opt-out enforcement is app.telephony.consent_ledger (JSONL +
     optional Postgres dual-write), wired into ComplianceGate.check() step 2.5
-    - NOT a `data/dnd_cache.json` file (no code path ever writes that file,
+    — NOT a `data/dnd_cache.json` file (no code path ever writes that file,
     so an mtime-freshness check on it always reported "stale"). A quiet day
-    with zero new opt-outs is healthy, not stale - so check the real store
+    with zero new opt-outs is healthy, not stale — so check the real store
     is reachable/writable instead of guessing from file age."""
     try:
         from app.telephony.consent_ledger import suppression_path
@@ -459,7 +458,7 @@ def format_daily_check_human() -> str:
 
     output = []
     output.append("╔════════════════════════════════════════════════════════╗")
-    output.append(f"║ AUTOMATION HEALTH CHECK - {_now().strftime('%Y-%m-%d %H:%M:%S')}Z        ║")
+    output.append(f"║ AUTOMATION HEALTH CHECK — {_now().strftime('%Y-%m-%d %H:%M:%S')}Z        ║")
     output.append("╚════════════════════════════════════════════════════════╝")
     output.append("")
 
@@ -547,11 +546,11 @@ def format_daily_check_human() -> str:
     verdict = _daily_check_verdict(checks_for_verdict)
     verdict_icon = status_icons.get(verdict, "?")
     verdict_text = (
-        "All green - loop healthy"
+        "All green — loop healthy"
         if verdict == "green"
-        else "Issues detected - investigate"
+        else "Issues detected — investigate"
         if verdict == "red"
-        else "Minor issues - monitor"
+        else "Minor issues — monitor"
     )
 
     output.append("═══════════════════════════════════════════════════════════")
@@ -562,7 +561,7 @@ def format_daily_check_human() -> str:
 
 
 def _daily_check_verdict(checks: dict) -> str:
-    """Aggregate per-check status -> green|yellow|red (shared by human + JSON)."""
+    """Aggregate per-check status → green|yellow|red (shared by human + JSON)."""
     all_statuses = [
         (checks.get("alive") or {}).get("status"),
         (checks.get("budget") or {}).get("status"),
@@ -583,7 +582,7 @@ def _daily_check_verdict(checks: dict) -> str:
 
 
 def format_daily_check_json() -> str:
-    """JSON format for daily check - verdict matches human formatter (ADR-114)."""
+    """JSON format for daily check — verdict matches human formatter (ADR-114)."""
     checks = {
         "alive": check_alive(),
         "budget": check_budget(),
@@ -606,7 +605,7 @@ def format_weekly_audit_human() -> str:
     """Human-readable weekly audit."""
     output = []
     output.append("╔════════════════════════════════════════════════════════╗")
-    output.append(f"║ WEEKLY AUDIT - {_now().strftime('%Y-%m-%d')}                         ║")
+    output.append(f"║ WEEKLY AUDIT — {_now().strftime('%Y-%m-%d')}                         ║")
     output.append("╚════════════════════════════════════════════════════════╝")
     output.append("")
 
@@ -645,7 +644,7 @@ def format_monthly_report_human() -> str:
     """Human-readable monthly report."""
     output = []
     output.append("╔════════════════════════════════════════════════════════╗")
-    output.append(f"║ MONTHLY REPORT - {_now().strftime('%B %Y')}                       ║")
+    output.append(f"║ MONTHLY REPORT — {_now().strftime('%B %Y')}                       ║")
     output.append("╚════════════════════════════════════════════════════════╝")
     output.append("")
 

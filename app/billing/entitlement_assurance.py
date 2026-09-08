@@ -1,15 +1,15 @@
-"""Billing / Entitlement Assurance - read-only entitlement-drift detection (GREEN lane).
+"""Billing / Entitlement Assurance — read-only entitlement-drift detection (GREEN lane).
 
-WHY (2026-07-20, Agent-OS assurance slice - Revenue Ops / Nikhil domain): the
+WHY (2026-07-20, Agent-OS assurance slice — Revenue Ops / Nikhil domain): the
 billing primitives all exist (``gst_invoice`` immutable Rule-46 ledger,
 ``packages`` public-pricing truth, ``clients_store`` tenant records, the
 ``subscription`` plan catalog) but nobody composes them into the one question
 Revenue Ops actually needs answered: *"which paying tenants have an
-entitlement that their billing record does NOT back up - and where's the proof?"*
+entitlement that their billing record does NOT back up — and where's the proof?"*
 A plan is SELECTED at signup BEFORE any money moves (that is exactly how a
 never-invoiced "Test Biz" once masqueraded as a paying customer), so plan name
 alone is not payment proof. This module cross-checks plan ↔ invoice ↔
-subscription state and surfaces the mismatches - WITHOUT ever touching money.
+subscription state and surfaces the mismatches — WITHOUT ever touching money.
 
 This mirrors ``app/marketing/delivery_assurance.py`` (same shape, same safety
 contract) but for the highest-sensitivity domain: billing.
@@ -26,16 +26,14 @@ SAFETY CONTRACT (enforced by tests):
     marketing id, e.g. d79d690f61b3 -> jiya-makeover) so an invoice under a
     legacy/recreated billing id still credits the right tenant and a customer is
     never mis-attributed or double-counted.
-  - NEVER RAISES. Every client is best-effort
-  one bad record cannot sink the
+  - NEVER RAISES. Every client is best-effort; one bad record cannot sink the
     scan. Any failure degrades to a shaped result (``status='error'``).
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
-  strictly
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
     billing + marketing-domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``nikhil`` (Revenue Ops)
-- a paid tenant with no invoice / an entitlement drift is a revenue-leak or
-compliance risk, which is nikhil's lane - so the run is visible on the existing
+— a paid tenant with no invoice / an entitlement drift is a revenue-leak or
+compliance risk, which is nikhil's lane — so the run is visible on the existing
 team activity feed with a real owner (no new persona invented). Escalation
 target for a flagged item is the owner (human).
 
@@ -55,14 +53,14 @@ logger = setup_logger(__name__)
 # Observability owner for entitlement-assurance runs. Revenue Ops owns "paid
 # tenant not backed by billing evidence = revenue leak / entitlement drift".
 # Kept as a module constant so the attribution is explicit and testable (NOT a
-# new persona - one of the existing roster).
+# new persona — one of the existing roster).
 _OWNER_MEMBER = "nikhil"
 
 # Plan values that are NOT a real paid plan (mirrors
-# customer_delivery._PAID_PLACEHOLDER_PLANS - single behaviour, no drift).
+# customer_delivery._PAID_PLACEHOLDER_PLANS — single behaviour, no drift).
 _PLACEHOLDER_PLANS = frozenset({"", "free", "trial", "none", "pending"})
 
-# Statuses where being non-active is EXPECTED (intentional churn) - a historical
+# Statuses where being non-active is EXPECTED (intentional churn) — a historical
 # invoice on such a tenant is normal, so it is NOT flagged as a mismatch.
 _TERMINAL_STATUSES = frozenset({"cancelled", "canceled", "churned", "dead", "deleted", "expired"})
 
@@ -86,7 +84,7 @@ def _canonical_id(cid: str) -> str:
 
 
 def _billing_clients() -> list[dict[str, Any]]:
-    """All tenant records (every status - inactive-with-invoice mismatch needs
+    """All tenant records (every status — inactive-with-invoice mismatch needs
     non-active tenants too). Read-only. Never raises."""
     try:
         from app.marketing import clients_store
@@ -120,7 +118,7 @@ def _invoice_index(rows: list[dict[str, Any]] | None = None) -> dict[str, list[d
                 continue
             num = str(r.get("number") or "").strip()
             if num and num in voided:
-                continue  # voided invoice - number consumed but excluded from truth
+                continue  # voided invoice — number consumed but excluded from truth
             raw = str(r.get("client_id") or "").strip()
             if not raw:
                 continue
@@ -181,7 +179,7 @@ def _plan_catalog() -> dict[str, dict[str, Any]]:
     Sources (read-only, defensive): ``packages`` public pricing (truth) +
     ``packages`` full list (legacy/hidden Growth) + ``subscription.PRICING_PLANS``
     (voice/combo/data plan ids). Used to decide plan-known and whether a plan
-    actually carries entitlement features. Never raises - partial catalog on any
+    actually carries entitlement features. Never raises — partial catalog on any
     source failure."""
     cat: dict[str, dict[str, Any]] = {}
     try:
@@ -239,7 +237,7 @@ def assess_client_entitlement(
     catalog: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Structured, tenant-safe, evidence-backed entitlement assessment for ONE
-    tenant. Pure READ. Never raises - returns a shaped record even on partial
+    tenant. Pure READ. Never raises — returns a shaped record even on partial
     failure (so one bad tenant can't break the aggregate scan).
 
     Detects (read-only):
@@ -284,7 +282,7 @@ def assess_client_entitlement(
     }
     reasons: list[str] = []
 
-    # invoice evidence (immutable Rule-46 ledger, canonicalised) - read-only
+    # invoice evidence (immutable Rule-46 ledger, canonicalised) — read-only
     try:
         invoices = _client_invoices(client, cid, invoice_index)
         rec["has_invoice"] = bool(invoices)
@@ -301,7 +299,7 @@ def assess_client_entitlement(
         rec["plan_priced_inr"] = meta.get("price_inr")
     plan_has_features = bool(meta and meta.get("has_features"))
 
-    # eligibility + delivered read signal (pure functions - no I/O, no mutation)
+    # eligibility + delivered read signal (pure functions — no I/O, no mutation)
     is_active = status == "active"
     is_paid_plan = bool(plan) and plan not in _PLACEHOLDER_PLANS
     active_paid = is_active and is_paid_plan
@@ -358,7 +356,7 @@ def scan_entitlements(limit: int = 200) -> dict[str, Any]:
     billing/entitlement mismatches, grouped by issue type. AgentRunResult-shaped.
 
     NO billing mutation, NO invoice writes, NO subscription changes, NO sends.
-    Emits one observability event (nikhil). Never raises - returns a shaped
+    Emits one observability event (nikhil). Never raises — returns a shaped
     record with ``status='error'`` + error string on failure.
     """
     run_id = str(uuid.uuid4())
@@ -428,7 +426,7 @@ def scan_entitlements(limit: int = 200) -> dict[str, Any]:
     result["completed_at"] = _iso(completed)
     result["latency_ms"] = int((completed - started).total_seconds() * 1000)
 
-    # observability - one team event under the revenue-ops owner (no new persona)
+    # observability — one team event under the revenue-ops owner (no new persona)
     try:
         from app.platform import team
 

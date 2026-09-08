@@ -1,4 +1,4 @@
-"""Versioned STAFF bus envelopes - fail-closed validation."""
+"""Versioned STAFF bus envelopes — fail-closed validation."""
 
 from __future__ import annotations
 

@@ -1,13 +1,13 @@
 """
-reactivation.py - Database Reactivation campaign (GHL-style, manual-send).
+reactivation.py — Database Reactivation campaign (GHL-style, manual-send).
 ===========================================================================
 
-Purane/inactive customers ki list do -> har ek ke liye personalized Hinglish
+Purane/inactive customers ki list do → har ek ke liye personalized Hinglish
 win-back WhatsApp message + ready wa.me link milta hai. Bulk auto-send NAHI
-(WhatsApp ban risk) - user one-click karke khud bhejta hai (outreach pattern).
+(WhatsApp ban risk) — user one-click karke khud bhejta hai (outreach pattern).
 
 LLM se 1 batch call me 3 message STYLES bante hain ({name}/{offer} slots),
-phir per-customer template-fill hota hai (50 cap). LLM fail -> built-in styles.
+phir per-customer template-fill hota hai (50 cap). LLM fail → built-in styles.
 KABHI empty, KABHI raise nahi.
 """
 
@@ -44,18 +44,18 @@ _STYLES = [
     (
         "warm",
         "Namaste {name} ji! 🙏 {biz} se. Aapko humse seva liye kaafi time ho "
-        "gaya - aapki yaad aayi! {offer_line} Is hafte aaiye, special dhyan "
+        "gaya — aapki yaad aayi! {offer_line} Is hafte aaiye, special dhyan "
         "rakhenge. Bas is message ka reply kar dijiye 😊",
     ),
     (
         "offer",
         "Hello {name} ji! {biz} ki taraf se sirf purane customers ke liye "
-        "khaas: {offer_line} Limited time hai - reply karein ya isi number "
+        "khaas: {offer_line} Limited time hai — reply karein ya isi number "
         "par call karein, turant book kar denge 🎁",
     ),
     (
         "feedback",
-        "Namaste {name} ji, {biz} se. Aap kaafi time se nahi aaye - kya "
+        "Namaste {name} ji, {biz} se. Aap kaafi time se nahi aaye — kya "
         "hum kuch behtar kar sakte the? Aapka 1 reply hamare liye bahut "
         "keemti hai. {offer_line} Wapas aane par special welcome pakka 🙏",
     ),
@@ -72,7 +72,7 @@ def _offer_line(offer: str) -> str:
 
 
 def _parse_llm_styles(text: str) -> list[str]:
-    """STYLE1:/STYLE2:/STYLE3: parse - sirf {name} slot wale valid maane jaate."""
+    """STYLE1:/STYLE2:/STYLE3: parse — sirf {name} slot wale valid maane jaate."""
     out: list[str] = []
     try:
         for i in (1, 2, 3):
@@ -154,10 +154,10 @@ async def reactivation_campaign(
         )
 
     tips = [
-        "Roz 15-20 se zyada mat bhejo aur har message personalized rakho - "
+        "Roz 15-20 se zyada mat bhejo aur har message personalized rakho — "
         "bulk-identical messages par WhatsApp number ban kar deta hai.",
         "Jo reply kare use 5 minute ke andar jawab do (ya AI agent se callback "
-        "karwao) - win-back leads sabse garam tabhi hoti hain.",
+        "karwao) — win-back leads sabse garam tabhi hoti hain.",
     ]
     return {
         "business_name": biz,

@@ -1,4 +1,4 @@
-"""Prospect Score V2 - contract tests (mission prospect-score-v2, 2026-07-31).
+"""Prospect Score V2 — contract tests (mission prospect-score-v2, 2026-07-31).
 
 Covers the design rules that make V2 safe to promote:
   - determinism (same record -> same score, no env/clock dependence)
@@ -208,7 +208,7 @@ def test_gate_off_search_uses_v1_range(monkeypatch, tmp_path):
     monkeypatch.setattr(prospect_lists, "_LISTS", str(tmp_path / "lists.jsonl"))
     monkeypatch.delenv("PROSPECT_SCORE_V2", raising=False)
     prospect_lists._V2_ENABLED = None
-    # V1 can never reach 50 (max 33) - a min_score=50 search must return nothing.
+    # V1 can never reach 50 (max 33) — a min_score=50 search must return nothing.
     res = prospect_lists.search(status="ready", min_score=50, limit=10)
     assert res == []
 
@@ -399,7 +399,7 @@ def test_backfill_rollback_restores_sidecar_only(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 def test_dialer_sprint_prep_uses_search_min_score_50(monkeypatch):
     """The governed entry point must route through search(min_score=50), so the
-    flag flip is the ONLY thing that changes eligibility - no sprint-code edit."""
+    flag flip is the ONLY thing that changes eligibility — no sprint-code edit."""
     import inspect
 
     from app.agents import sprint_actions

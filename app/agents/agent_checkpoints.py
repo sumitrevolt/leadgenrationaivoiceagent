@@ -1,20 +1,20 @@
-"""Agent checkpoints + rollback - Hermes/Kilo "snapshot before mutate" parity.
+"""Agent checkpoints + rollback — Hermes/Kilo "snapshot before mutate" parity.
 
 Kilo Code / Hermes-class agents data mutate karne se PEHLE ek checkpoint banate hain
 taaki bad-edit ko ek click me rollback kiya ja sake. Is project me agents data/*.jsonl
 + data/skills_extra/ me write karte the par koi undo-net nahi tha.
 
 Yeh module woh safety-net deta (shutil copy + manifest, never-raise, path-guarded):
-  - `snapshot(paths, label)` -> har existing path ko data/agent_checkpoints/<id>/ me
+  - `snapshot(paths, label)` → har existing path ko data/agent_checkpoints/<id>/ me
     relative-path preserve karke copy + manifest.json likhta.
-  - `list_checkpoints(limit)` -> recent checkpoints (newest-first).
-  - `rollback(ckpt_id)` -> files wapas apni jagah copy.
+  - `list_checkpoints(limit)` → recent checkpoints (newest-first).
+  - `rollback(ckpt_id)` → files wapas apni jagah copy.
 
 Design (project patterns + SAFETY):
   - **Path-guard**: SIRF repo-root ke andar `data/` aur `app/` relative paths allow;
     absolute path / `..` escape / kuch aur = REFUSE (traversal-safe).
   - never-raise: har public fn ANY exception pe {ok:False, error} deta.
-  - `enabled()` sirf AUTOMATIC background snapshotting ko gate karta - default OFF =
+  - `enabled()` sirf AUTOMATIC background snapshotting ko gate karta — default OFF =
     zero behaviour change. Teeno helpers khud flag-independent (admin endpoint ke liye).
 
 Flag: AGENT_CHECKPOINTS=1
@@ -114,7 +114,7 @@ def snapshot(paths: list[str], label: str = "") -> dict[str, Any]:
                 logger.debug(f"snapshot copy failed {rel}: {e}")
                 skipped.append(rel)
         if not saved:
-            # kuch save nahi hua -> khaali ckpt dir mat chhodo
+            # kuch save nahi hua → khaali ckpt dir mat chhodo
             try:
                 if dest_root.exists():
                     shutil.rmtree(dest_root, ignore_errors=True)

@@ -1,8 +1,7 @@
 """Deliverability / bookings / reviews / webhook-register endpoints.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router()
-paths unchanged (/api/growth/...).
+Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ async def deliverability_check(_user=Depends(require_admin)):
 
 @router.get("/deliverability/summary")
 async def deliverability_summary(_user=Depends(require_admin)):
-    """DNS + warmup + complaint gate - admin cockpit (2026 deliverability)."""
+    """DNS + warmup + complaint gate — admin cockpit (2026 deliverability)."""
     from app.platform import eval_hub
 
     return await eval_hub.deliverability_summary()
@@ -34,7 +33,7 @@ async def deliverability_summary(_user=Depends(require_admin)):
 
 @router.post("/infra/rag-retrieval-ab")
 async def infra_rag_retrieval_ab(_user=Depends(require_admin)):
-    """Run offline RAG A/B gate (baseline vs rerank/hybrid/full) - prove before flip."""
+    """Run offline RAG A/B gate (baseline vs rerank/hybrid/full) — prove before flip."""
     from app.platform import eval_hub
 
     return await eval_hub.run_rag_ab_gate(timeout_s=120.0)

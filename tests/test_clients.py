@@ -2,7 +2,7 @@
 Tests: marketing clients_store + auto_content engine (per-client social media).
 ================================================================================
 
-No network - post_generator.free_ai.chat monkeypatched to ("","") so every
+No network — post_generator.free_ai.chat monkeypatched to ("","") so every
 content piece exercises the TEMPLATE fallback (never-empty guarantee). File
 paths are redirected to tmp_path via _CLIENTS_FILE (module-level) and
 auto_content._QUEUE_DIR (call-time resolver) so tests never touch the real data/ dir.
@@ -18,7 +18,7 @@ from app.marketing import auto_content, clients_store, post_generator
 
 @pytest.fixture
 def no_llm(monkeypatch):
-    """free_ai.chat ko ("","") force karo - har content piece template path se."""
+    """free_ai.chat ko ("","") force karo — har content piece template path se."""
 
     async def _empty(*args, **kwargs):
         return "", ""

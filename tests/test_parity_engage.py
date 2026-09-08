@@ -9,7 +9,7 @@ import json
 
 
 # --------------------------------------------------------------------------- #
-# F1: upi_qr - build_upi_uri / qr_image_url / payment_qr_pack
+# F1: upi_qr — build_upi_uri / qr_image_url / payment_qr_pack
 # --------------------------------------------------------------------------- #
 def test_build_upi_uri_valid_and_encoding():
     from app.marketing.upi_qr import build_upi_uri
@@ -20,7 +20,7 @@ def test_build_upi_uri_valid_and_encoding():
     assert "pn=Sharma%20Solar" in uri
     assert "am=499" in uri
     assert "tn=Site%20visit" in uri and "cu=INR" in uri
-    # no amount/note -> params skip
+    # no amount/note → params skip
     bare = build_upi_uri("a@ybl", "Biz")
     assert "am=" not in bare and "tn=" not in bare
 
@@ -52,11 +52,11 @@ def test_payment_qr_pack_with_client(tmp_path, monkeypatch):
     rec = clients_store.add_client("Sharma Solar", "solar", phone="9876500001")
     cid = rec["id"]
 
-    # bina upi_vpa -> friendly error
+    # bina upi_vpa → friendly error
     res = payment_qr_pack(cid)
     assert res["ok"] is False and "upi_vpa" in res["error"]
 
-    # upi_vpa set (naya allowed field) -> full pack
+    # upi_vpa set (naya allowed field) → full pack
     assert clients_store.update_client(cid, upi_vpa="sharma@oksbi") is not None
     assert clients_store.get_client(cid)["upi_vpa"] == "sharma@oksbi"
     res2 = payment_qr_pack(cid, amount=999, note="advance")
@@ -68,12 +68,12 @@ def test_payment_qr_pack_with_client(tmp_path, monkeypatch):
     assert "sharma@oksbi" in res2["share_text"]
     assert res2["wa_share_url"].startswith("https://wa.me/?text=")
 
-    # unknown client -> error, no raise
+    # unknown client → error, no raise
     assert payment_qr_pack("nahi-hai")["ok"] is False
 
 
 # --------------------------------------------------------------------------- #
-# F2: short_links - create / resolve / stats / bandit credit
+# F2: short_links — create / resolve / stats / bandit credit
 # --------------------------------------------------------------------------- #
 def _fresh_short_links(tmp_path, monkeypatch):
     from app.platform import short_links
@@ -125,9 +125,9 @@ def test_short_link_bandit_credit_once_per_day(tmp_path, monkeypatch):
     sl.resolve(code)
     sl.resolve(code)
     sl.resolve(code)
-    assert credited == [("quora", "click")]  # 3 clicks -> sirf 1 credit/day
+    assert credited == [("quora", "click")]  # 3 clicks → sirf 1 credit/day
 
-    # channel-less link -> no credit at all
+    # channel-less link → no credit at all
     code2 = sl.create("https://leadsgenai.in/")["code"]
     sl.resolve(code2)
     assert len(credited) == 1
@@ -143,7 +143,7 @@ def test_short_link_cache_miss_reload(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# F3: reviews_widget - approved-only render + injector + snippet
+# F3: reviews_widget — approved-only render + injector + snippet
 # --------------------------------------------------------------------------- #
 def test_reviews_widget_approved_only(tmp_path, monkeypatch):
     from app.api import minisite_builder as mb
@@ -164,7 +164,7 @@ def test_reviews_widget_approved_only(tmp_path, monkeypatch):
     assert "★★★★★" in html
     assert "Powered by" in html and "LeadsGenAI" in html
 
-    # empty feed -> graceful placeholder (never raises)
+    # empty feed → graceful placeholder (never raises)
     html2 = reviews_widget.reviews_widget_html("no-reviews-slug")
     assert "pehla review" in html2
 
@@ -181,7 +181,7 @@ def test_reviews_widget_js_and_snippet():
 
 
 # --------------------------------------------------------------------------- #
-# F4: lead_alerts - dedupe + gating + bg scheduler
+# F4: lead_alerts — dedupe + gating + bg scheduler
 # --------------------------------------------------------------------------- #
 def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
     from app.platform import lead_alerts
@@ -211,7 +211,7 @@ def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
     assert "9876543210" in body and "wa.me/919876543210" in body and "Ravi Kumar" in body
     assert "NAYA LEAD" in body
 
-    # same phone within hour -> dedupe, no extra sends
+    # same phone within hour → dedupe, no extra sends
     n_before = len(sent)
     res2 = asyncio.run(lead_alerts.notify_new_lead(rec))
     assert res2["deduped"] is True
@@ -245,12 +245,12 @@ def test_lead_alert_bg_never_raises(tmp_path, monkeypatch):
         return {"ok": True}
 
     monkeypatch.setattr(lead_alerts, "notify_new_lead", fake_notify)
-    # no running loop (sync context) -> daemon thread path, no raise
+    # no running loop (sync context) → daemon thread path, no raise
     lead_alerts.notify_new_lead_bg({"name": "BG", "phone": "9000000001"})
     # garbage input bhi safe
     lead_alerts.notify_new_lead_bg(None)
 
-    # running-loop path -> create_task, no raise
+    # running-loop path → create_task, no raise
     async def in_loop():
         lead_alerts.notify_new_lead_bg({"name": "Loop", "phone": "9000000002"})
         await asyncio.sleep(0)

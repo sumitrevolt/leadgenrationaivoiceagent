@@ -1,6 +1,6 @@
-"""Tests - lifecycle/email tools batch (newsletter, winback, email_signature, lead_magnet).
+"""Tests — lifecycle/email tools batch (newsletter, winback, email_signature, lead_magnet).
 
-Pure-python: koi network/LLM/SMTP nahi - sab monkeypatched. Stores tmp_path pe.
+Pure-python: koi network/LLM/SMTP nahi — sab monkeypatched. Stores tmp_path pe.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def nl_store(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Newsletter - subscribers + unsub
+# Newsletter — subscribers + unsub
 # --------------------------------------------------------------------------- #
 def test_newsletter_add_subscribers_dedupe(nl_store):
     res = newsletter.add_subscribers(
@@ -70,7 +70,7 @@ def test_newsletter_unsubscribe_token_flow(nl_store):
 
 
 # --------------------------------------------------------------------------- #
-# Newsletter - compose + run + rss
+# Newsletter — compose + run + rss
 # --------------------------------------------------------------------------- #
 def test_newsletter_compose_deterministic_fallback(nl_store, monkeypatch):
     async def _no_llm(*a, **k):
@@ -135,7 +135,7 @@ def test_newsletter_run_flag_on_sends_and_month_dedupes(nl_store, monkeypatch):
     )
     out = asyncio.run(newsletter.run_due_if_enabled())
     assert out["enabled"] is True and out["sent"] == 2
-    # month dedupe - dusri run me kuch nahi
+    # month dedupe — dusri run me kuch nahi
     out2 = asyncio.run(newsletter.run_due_if_enabled())
     assert out2["sent"] == 0 and out2["recorded"] == 0
     assert len(sent) == 2
@@ -165,7 +165,7 @@ def test_newsletter_rss_to_email(nl_store, monkeypatch):
     d = newsletter.rss_to_email()
     assert d["ok"] is True and len(d["posts"]) == 2
     assert "post-1" in d["html"] and d["status"] == "draft"
-    # marker likha - same posts dobara nahi
+    # marker likha — same posts dobara nahi
     d2 = newsletter.rss_to_email()
     assert d2["posts"] == []
 
@@ -259,7 +259,7 @@ def test_winback_run_gated_and_dedupes(wb_store, monkeypatch):
     out = asyncio.run(winback.run_due_if_enabled())
     assert out["ok"] is True and out["drafts_created"] == 1
     assert winback.list_drafts()[0]["phone"] == "9876543210"
-    # 30-din dedupe - dobara draft nahi
+    # 30-din dedupe — dobara draft nahi
     out2 = asyncio.run(winback.run_due_if_enabled())
     assert out2["drafts_created"] == 0
 
@@ -282,7 +282,7 @@ def test_email_signature_branded(monkeypatch):
     )
     monkeypatch.setattr(clients_store, "get_client", lambda c: None)
     kit = email_signature.generate(
-        slug="sharma-solar", campaign_banner_text="Diwali offer - 20% off!"
+        slug="sharma-solar", campaign_banner_text="Diwali offer — 20% off!"
     )
     assert kit["ok"] is True
     assert "Sharma Solar" in kit["html"]
@@ -352,7 +352,7 @@ def test_lead_magnet_unknown_niche_generic_points(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Router import smoke (mount sanity - no app boot needed)
+# Router import smoke (mount sanity — no app boot needed)
 # --------------------------------------------------------------------------- #
 def test_lifecycle_router_imports_and_routes():
     from app.api.lifecycle import router

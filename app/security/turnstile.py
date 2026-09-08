@@ -1,4 +1,4 @@
-"""Cloudflare Turnstile bot-protection - public form gate.
+"""Cloudflare Turnstile bot-protection — public form gate.
 
 Verifies a user-submitted Turnstile token (site-key on client, secret on server)
 against Cloudflare's siteverify API. Wired as a FastAPI dependency on public
@@ -10,16 +10,15 @@ Project ethos:
 - INERT without creds: TURNSTILE_SECRET_KEY unset = dep is a pure pass-through,
   zero behaviour change vs today. Same pattern as Razorpay/Sentry/PostHog.
 - Fail-CLOSED when armed: secret set + missing/invalid token = 403. The whole
-  point of a CAPTCHA is rejection on failure - no silent bypass.
+  point of a CAPTCHA is rejection on failure — no silent bypass.
 - Fail-OPEN on infra error: Cloudflare unreachable / HTTP error / timeout =
   request passes. Don't break the funnel for transient Cloudflare issues.
-- Token sources (preferred -> fallback):
+- Token sources (preferred → fallback):
     1. `X-Turnstile-Token` header
     2. `cf-turnstile-response` form field (Cloudflare's default)
     3. `_turnstile_token` JSON field
 
-httpx async, 5s hard timeout. Tokens are single-use per Turnstile API
-no
+httpx async, 5s hard timeout. Tokens are single-use per Turnstile API; no
 client-side cache.
 """
 
@@ -72,7 +71,7 @@ def _client_ip(request: Request) -> str:
 
 
 async def _extract_token(request: Request) -> str:
-    """Pull token from header -> form -> JSON body. Never raises."""
+    """Pull token from header → form → JSON body. Never raises."""
     tok = (request.headers.get("x-turnstile-token") or "").strip()
     if tok:
         return tok
@@ -98,7 +97,7 @@ async def _siteverify(token: str, remote_ip: str) -> bool:
     """Call Cloudflare siteverify. Fail-OPEN on infra error."""
     secret = _secret()
     if not secret:
-        return True  # defensive - caller should have short-circuited
+        return True  # defensive — caller should have short-circuited
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
             resp = await client.post(
@@ -106,7 +105,7 @@ async def _siteverify(token: str, remote_ip: str) -> bool:
                 data={"secret": secret, "response": token, "remoteip": remote_ip},
             )
             if resp.status_code != 200:
-                logger.info("turnstile siteverify HTTP %d -> fail-OPEN", resp.status_code)
+                logger.info("turnstile siteverify HTTP %d → fail-OPEN", resp.status_code)
                 return True
             data = resp.json()
             ok = bool(data.get("success", False))
@@ -119,14 +118,14 @@ async def _siteverify(token: str, remote_ip: str) -> bool:
 
 
 async def verify_turnstile(request: Request) -> None:
-    """FastAPI dependency - gate public form on a valid Turnstile token.
+    """FastAPI dependency — gate public form on a valid Turnstile token.
 
     Behaviour matrix:
-        TURNSTILE_SECRET_KEY unset -> no-op (INERT, today's behaviour).
-        Secret set + token missing -> 403.
-        Secret set + token invalid -> 403.
-        Secret set + Cloudflare unreachable -> pass (fail-OPEN).
-        Secret set + token valid -> pass.
+        TURNSTILE_SECRET_KEY unset → no-op (INERT, today's behaviour).
+        Secret set + token missing → 403.
+        Secret set + token invalid → 403.
+        Secret set + Cloudflare unreachable → pass (fail-OPEN).
+        Secret set + token valid → pass.
     """
     if not _enabled():
         return
@@ -136,7 +135,7 @@ async def verify_turnstile(request: Request) -> None:
         # client (broken site-key/domain config, blocked CDN, unsupported
         # mobile browser). The client-side loader ALREADY fails-OPEN in this
         # case (turnstile.js resolves "" on render/script error), so hard-403
-        # here blocked 100% of REAL customers whenever the widget was down -
+        # here blocked 100% of REAL customers whenever the widget was down —
         # a revenue outage worse than the spam it prevents (2026-07-04 launch
         # incident: every free-trial signup 403'd). Fail-OPEN on MISSING to
         # match the client + the other funnel guards (honeypot + rate-limit +
@@ -147,7 +146,7 @@ async def verify_turnstile(request: Request) -> None:
                 status_code=403,
                 detail="Bot-check token missing. Page refresh karke dobara try karo.",
             )
-        logger.info("turnstile: missing token -> fail-OPEN (widget likely not rendering)")
+        logger.info("turnstile: missing token → fail-OPEN (widget likely not rendering)")
         return
     ok = await _siteverify(token, _client_ip(request))
     if not ok:

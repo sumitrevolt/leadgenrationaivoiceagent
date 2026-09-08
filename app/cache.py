@@ -177,8 +177,7 @@ async def get_redis_client():
     Get Redis client instance
     Falls back to in-memory cache if Redis is not available
     """
-    global _redis_client, _use_fallback  # module-level singletons
-    asyncio-safe (single event loop)
+    global _redis_client, _use_fallback  # module-level singletons; asyncio-safe (single event loop)
 
     if _use_fallback:
         return _fallback_cache
@@ -731,7 +730,7 @@ def cache_response(ttl: int = 300, prefix: str = "response"):
             import hashlib
 
             # Cache key is built from function name + args and stored in Redis only.
-            # It is NEVER rendered in HTML - no XSS risk at this layer.
+            # It is NEVER rendered in HTML — no XSS risk at this layer.
             # Callers must escape any cached HTML string before web output.
             key_parts = [func.__name__]
             key_parts.extend(str(a) for a in args)

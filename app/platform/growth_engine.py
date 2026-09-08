@@ -1,30 +1,30 @@
 """
-Growth Engine - "self-run + self-improve" data-driven pulse (100% FREE).
+Growth Engine — "self-run + self-improve" data-driven pulse (100% FREE).
 ========================================================================
 
 User vision: "project self run and grow minute by minute by getting data,
 knowledge and self-improvement techniques."
 
 REALITY CHECK (honest, no magic): yeh koi self-aware AI nahi hai. Yeh ek
-FREQUENT scheduler tick hai jo -
+FREQUENT scheduler tick hai jo —
   1) live metrics aggregate karta hai (prospects/inquiries/emails/blog/
-     content/clients/agent-actions) - ek "growth pulse" snapshot,
+     content/clients/agent-actions) — ek "growth pulse" snapshot,
   2) apni pipelines ko SELF-HEAL karta hai (blog patla ho to ek article,
      content queue khali ho to generate, prospects kam ho to soch-samajh ke
-     thoda scrape - cost-respecting),
-  3) apne hi RESULTS se seekhta hai - kaunse niche/pitch se sabse zyada
-     'replied'/'client' aaye, simple RATIO se (koi ML lib nahi) -> best_niche
+     thoda scrape — cost-respecting),
+  3) apne hi RESULTS se seekhta hai — kaunse niche/pitch se sabse zyada
+     'replied'/'client' aaye, simple RATIO se (koi ML lib nahi) → best_niche
      + insights store karta hai taaki outreach wahi double-down kare,
   4) ek growth_pulse event log karta hai (Boss/manager ke naam).
 
-Sab steps GUARDED hain - koi step fail ho to baaki chalte hain, pulse() KABHI
+Sab steps GUARDED hain — koi step fail ho to baaki chalte hain, pulse() KABHI
 raise nahi karta. Free stack only: filesystem snapshots, koi paid API nahi.
 
 Storage:
   - data/growth_pulse.json     -> latest snapshot (frontend isi ko padhता hai)
   - data/growth_history.jsonl  -> har pulse ki ek timestamped line (trend ke liye)
 
-Scheduler (team_scheduler) har 15 min "growth" job se pulse() chalata hai -
+Scheduler (team_scheduler) har 15 min "growth" job se pulse() chalata hai —
 "minute by minute" ka realistic free version. On-demand: POST /api/platform/
 team/growth/run.
 
@@ -45,15 +45,15 @@ logger = setup_logger(__name__)
 # IST for "today" boundaries (team_status/inquiries digest jaisa hi).
 _IST = timezone(timedelta(hours=5, minutes=30))
 
-# Snapshot + trend files. Tests inhe monkeypatch karte hain - hamesha module
+# Snapshot + trend files. Tests inhe monkeypatch karte hain — hamesha module
 # attribute ke through padho (globals()), taaki monkeypatch effective rahe.
 _PULSE_FILE = os.path.join("data", "growth_pulse.json")
 _HISTORY_FILE = os.path.join("data", "growth_history.jsonl")
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
-# Self-heal thresholds (sab tunable - over-action se bachne ke liye conservative).
-_MIN_BLOG_ARTICLES = 10  # itne se kam blog -> ek naya article banao
-_MIN_PROSPECTS_READY = 10  # itne se kam ready prospects -> light top-up (gated)
+# Self-heal thresholds (sab tunable — over-action se bachne ke liye conservative).
+_MIN_BLOG_ARTICLES = 10  # itne se kam blog → ek naya article banao
+_MIN_PROSPECTS_READY = 10  # itne se kam ready prospects → light top-up (gated)
 _SCRAPE_TRIGGER_READY = 5  # sirf tab scrape jab ready isse bhi neeche ho
 _SCRAPE_MIN_GAP_HOURS = 6.0  # last prospecting run se itne ghante baad hi (cost-respect)
 _HISTORY_TRIM = 2000  # history.jsonl me last itni lines hi rakho (file bound)
@@ -94,7 +94,7 @@ def _append_history(line_obj: dict[str, Any]) -> None:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(line_obj, ensure_ascii=False, default=str) + "\n")
-        # Best-effort trim - file bahut badi na ho.
+        # Best-effort trim — file bahut badi na ho.
         try:
             with open(path, encoding="utf-8") as f:
                 lines = f.readlines()
@@ -108,7 +108,7 @@ def _append_history(line_obj: dict[str, Any]) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# inquiries.jsonl helpers - total + today (IST)
+# inquiries.jsonl helpers — total + today (IST)
 # --------------------------------------------------------------------------- #
 def _inquiry_rows() -> list[dict[str, Any]]:
     """Saari inquiries (parse-safe; corrupt lines skip). Kabhi raise nahi."""
@@ -158,10 +158,10 @@ def _count_today_ist(rows: list[dict[str, Any]], ts_key: str = "at") -> int:
 
 
 # --------------------------------------------------------------------------- #
-# collect_metrics - live snapshot of the whole platform
+# collect_metrics — live snapshot of the whole platform
 # --------------------------------------------------------------------------- #
 def collect_metrics() -> dict[str, Any]:
-    """Ek live growth snapshot dict banao. Har source apne try/except me - koi
+    """Ek live growth snapshot dict banao. Har source apne try/except me — koi
     bhi source fail ho to uska metric 0/empty, baaki aate rahein. Snapshot ko
     data/growth_pulse.json me save karta hai (latest) + history me ek line
     append karta hai. KABHI raise nahi karta.
@@ -334,7 +334,7 @@ def collect_metrics() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Pitch learning - kaunse niche se sabse zyada conversions (replied/client)?
+# Pitch learning — kaunse niche se sabse zyada conversions (replied/client)?
 # --------------------------------------------------------------------------- #
 def _learn_best_niche() -> dict[str, Any]:
     """Prospects ke statuses + inquiries se per-niche conversion RATIO nikalo.
@@ -342,7 +342,7 @@ def _learn_best_niche() -> dict[str, Any]:
     Conversion signal = status in {replied, client} (warm/won). Ratio =
     conversions / total_prospects(niche). 'best_niche' = highest ratio jiska
     sample chhota na ho (min 3 prospects). Inquiries ke niche/package bhi count
-    hote hain (demand signal). Pure logic - koi ML lib nahi. Failure -> {}.
+    hote hain (demand signal). Pure logic — koi ML lib nahi. Failure -> {}.
     """
     out: dict[str, Any] = {
         "best_niche": None,
@@ -386,7 +386,7 @@ def _learn_best_niche() -> dict[str, Any]:
                 best_niche = niche
         out["by_niche"] = by_niche
 
-        # Inquiries -> demand by niche/package (jo log khud aaye).
+        # Inquiries → demand by niche/package (jo log khud aaye).
         inq_niches: dict[str, int] = {}
         for r in _inquiry_rows():
             key = str(r.get("niche") or r.get("package") or r.get("interest") or "").strip().lower()
@@ -407,23 +407,23 @@ def _learn_best_niche() -> dict[str, Any]:
         if best_niche and best_ratio > 0:
             insights.append(
                 f"Best converting niche: '{best_niche}' "
-                f"({int(best_ratio * 100)}% prospects warm/won) - yahan zyada outreach karo."
+                f"({int(best_ratio * 100)}% prospects warm/won) — yahan zyada outreach karo."
             )
         elif best_niche:
             insights.append(
-                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai - ispe focus badhao."
+                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai — ispe focus badhao."
             )
-        # Dead-heavy niches -> pitch revisit.
+        # Dead-heavy niches → pitch revisit.
         for niche, d in by_niche.items():
             if d["total"] >= 5 and d.get("conversion_ratio", 0) == 0:
                 insights.append(
-                    f"'{niche}' me {d['total']} prospects par 0 conversion - "
+                    f"'{niche}' me {d['total']} prospects par 0 conversion — "
                     "pitch/targeting revisit karo."
                 )
                 break
         if not insights:
             insights.append(
-                "Abhi conversion data patla hai - pipeline bharo, "
+                "Abhi conversion data patla hai — pipeline bharo, "
                 "thode replies aate hi best niche auto-detect hoga."
             )
         out["insights"] = insights[:4]
@@ -433,14 +433,14 @@ def _learn_best_niche() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Self-heal - pipelines ko bhara rakho (cost-respecting, guarded)
+# Self-heal — pipelines ko bhara rakho (cost-respecting, guarded)
 # --------------------------------------------------------------------------- #
 async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
     """Patli pipelines ko top-up karo. Har action apne try/except me; KABHI
     raise nahi. Returns {"actions": [...]} (kya-kya kiya, dashboard ke liye)."""
     actions: list[str] = []
 
-    # (a) Blog patla ho -> ek naya article (free LLM + template fallback).
+    # (a) Blog patla ho → ek naya article (free LLM + template fallback).
     try:
         if int(metrics.get("blog_articles", 0) or 0) < _MIN_BLOG_ARTICLES:
             from app.marketing import seo_blog
@@ -452,7 +452,7 @@ async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[growth] self-heal blog failed: {e}")
 
-    # (b) Content queue khali ho (active clients hain par 0 items) -> generate.
+    # (b) Content queue khali ho (active clients hain par 0 items) → generate.
     try:
         clients = int(metrics.get("marketing_clients_active", 0) or 0)
         items = int(metrics.get("content_items", 0) or 0)
@@ -466,7 +466,7 @@ async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[growth] self-heal content failed: {e}")
 
-    # (c) Prospects bahut kam -> SOCH-SAMAJH ke light top-up (over-scrape nahi).
+    # (c) Prospects bahut kam → SOCH-SAMAJH ke light top-up (over-scrape nahi).
     #     Sirf tab jab ready < _SCRAPE_TRIGGER_READY AND last run > 6h purana
     #     (Google Maps billing + OSM politeness respect). Gap last growth_pulse
     #     ke "last_scrape_at" marker se track hota hai.
@@ -487,11 +487,11 @@ async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
             if gap_ok:
                 from app.platform import prospector
 
-                # Chhota limit - surprise cost na ho (daily 09:30 run bada hai).
+                # Chhota limit — surprise cost na ho (daily 09:30 run bada hai).
                 res = await prospector.run_prospecting(limit_per_query=5)
                 new = (res or {}).get("new", 0)
                 actions.append(f"prospect top-up +{new}")
-                # Marker - next pulse 6h tak dobara scrape na kare.
+                # Marker — next pulse 6h tak dobara scrape na kare.
                 try:
                     cur = _read_json(globals().get("_PULSE_FILE", _PULSE_FILE))
                     cur["last_scrape_at"] = datetime.utcnow().isoformat() + "Z"
@@ -505,12 +505,11 @@ async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# pulse - the frequent "self-run" tick (scheduler har 15 min)
+# pulse — the frequent "self-run" tick (scheduler har 15 min)
 # --------------------------------------------------------------------------- #
 async def pulse() -> dict[str, Any]:
-    """Ek growth pulse: metrics collect -> self-heal pipelines -> pitch learning
-    -> event log. Har step guarded
-    KABHI raise nahi karta. Returns the merged
+    """Ek growth pulse: metrics collect → self-heal pipelines → pitch learning
+    → event log. Har step guarded; KABHI raise nahi karta. Returns the merged
     pulse dict (jo data/growth_pulse.json me bhi save hota hai)."""
     try:
         # (a) live snapshot (also persists growth_pulse.json + history line)
@@ -579,9 +578,9 @@ async def pulse() -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[growth] pulse event log failed: {e}")
 
-        logger.info(f"[growth] pulse done - healed={merged.get('healed')}")
+        logger.info(f"[growth] pulse done — healed={merged.get('healed')}")
         return merged
-    except Exception as e:  # absolute guard - scheduler/API kabhi na gire
+    except Exception as e:  # absolute guard — scheduler/API kabhi na gire
         logger.warning(f"[growth] pulse failed: {e}")
         return {"error": str(e)}
 

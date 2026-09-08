@@ -1,4 +1,4 @@
-"""Contract tests for scripts/eval_golden.py - new golden-suite behaviour.
+"""Contract tests for scripts/eval_golden.py — new golden-suite behaviour.
 
 Deterministic layer only (no network). Semantic LLM-judge is skip-safe in CI
 and covered here via --deterministic-only + fixture helpers.

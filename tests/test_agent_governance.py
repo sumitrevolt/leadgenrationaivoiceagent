@@ -1,4 +1,4 @@
-"""Tests - agent governance: per-tool permissions (OpenCode ACL), lifecycle
+"""Tests — agent governance: per-tool permissions (OpenCode ACL), lifecycle
 hooks (Hermes/Ruflo), custom agents (OpenCode/Kilo personas).
 
 Pure-python, no network/DB. tmp_path data files via monkeypatch (skill_pack
@@ -13,7 +13,7 @@ import os
 
 
 # --------------------------------------------------------------------------- #
-# 1) agent_permissions - per-tool ACL, fail-open vs fail-safe high-risk
+# 1) agent_permissions — per-tool ACL, fail-open vs fail-safe high-risk
 # --------------------------------------------------------------------------- #
 def _perms(monkeypatch, tmp_path):
     from app.agents import agent_permissions as ap
@@ -26,7 +26,7 @@ def test_permissions_flag_gate(monkeypatch, tmp_path):
     ap = _perms(monkeypatch, tmp_path)
     monkeypatch.delenv("AGENT_PERMISSIONS", raising=False)
     assert ap.enabled() is False
-    # OFF -> allow-all even for high-risk (zero behaviour change)
+    # OFF → allow-all even for high-risk (zero behaviour change)
     assert ap.can("swara", "place_call") is True
     assert ap.can("rohan", "spend") is True
     monkeypatch.setenv("AGENT_PERMISSIONS", "1")
@@ -36,10 +36,10 @@ def test_permissions_flag_gate(monkeypatch, tmp_path):
 def test_permissions_fail_open_vs_high_risk(monkeypatch, tmp_path):
     ap = _perms(monkeypatch, tmp_path)
     monkeypatch.setenv("AGENT_PERMISSIONS", "1")
-    # unset normal tool -> fail-OPEN (allow)
+    # unset normal tool → fail-OPEN (allow)
     assert ap.can("rohan", "send_email") is True
     assert ap.can("rohan", "write_code") is True
-    # unset HIGH_RISK tool -> fail-SAFE (deny)
+    # unset HIGH_RISK tool → fail-SAFE (deny)
     assert ap.can("rohan", "spend") is False
     assert ap.can("rohan", "place_call") is False
     assert ap.can("rohan", "send_whatsapp") is False
@@ -72,7 +72,7 @@ def test_permissions_set_validation(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# 2) lifecycle_hooks - register/list/fire (log never network, bounded)
+# 2) lifecycle_hooks — register/list/fire (log never network, bounded)
 # --------------------------------------------------------------------------- #
 def _hooks(monkeypatch, tmp_path):
     from app.agents import lifecycle_hooks as lh
@@ -126,7 +126,7 @@ def test_hooks_fire_log_only_no_network(monkeypatch, tmp_path):
     res = asyncio.run(lh.fire("pre_task", {"task": "score_lead"}))
     assert res["ok"] and res["fired"] == 1
     assert res["results"][0] == {"name": "log-it", "type": "log", "ok": True}
-    # non-matching event -> nothing fired
+    # non-matching event → nothing fired
     assert asyncio.run(lh.fire("post_task", {}))["fired"] == 0
 
 
@@ -145,7 +145,7 @@ def test_hooks_fire_network_bounded_best_effort(monkeypatch, tmp_path):
     assert res["results"][0]["ok"] is True
     assert calls["url"] == "https://example.com/hook"
 
-    # _post raising is swallowed -> ok:False, never propagates
+    # _post raising is swallowed → ok:False, never propagates
     async def _raise(url, payload):
         raise RuntimeError("down")
 
@@ -155,7 +155,7 @@ def test_hooks_fire_network_bounded_best_effort(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# 3) custom_agents - data-defined personas, validate + register + roster
+# 3) custom_agents — data-defined personas, validate + register + roster
 # --------------------------------------------------------------------------- #
 def _custom(monkeypatch, tmp_path):
     from app.agents import custom_agents as ca
@@ -215,7 +215,7 @@ def test_custom_agents_merged_roster(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# 4) router - wiring sanity (routes exist on the prefix, no mount needed)
+# 4) router — wiring sanity (routes exist on the prefix, no mount needed)
 # --------------------------------------------------------------------------- #
 def test_router_routes_present():
     from app.api import agent_governance as ag

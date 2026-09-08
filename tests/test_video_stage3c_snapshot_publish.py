@@ -1,10 +1,8 @@
-"""Stage 3C adversarial proofs - provider streams a verified snapshot descriptor.
+"""Stage 3C adversarial proofs — provider streams a verified snapshot descriptor.
 
-Red-first: every refusal path leaves provider counters at zero
-the success
+Red-first: every refusal path leaves provider counters at zero; the success
 path permits exactly one fake-provider call reading the already-open fd.
-Local reservation is durable
-external exactly-once is NOT claimed (Postiz
+Local reservation is durable; external exactly-once is NOT claimed (Postiz
 has no documented provider idempotency key).
 """
 
@@ -188,9 +186,8 @@ async def test_4_path_replaced_after_descriptor_open_still_uploads_verified_byte
     open for that snapshot is a test failure.
 
     Note: in-place overwrite of an already-open Windows file shares the inode
-    with the fd - that is NOT path replacement. This test renames the path to
-    a new inode when the OS allows it
-    otherwise it still proves no reopen.
+    with the fd — that is NOT path replacement. This test renames the path to
+    a new inode when the OS allows it; otherwise it still proves no reopen.
     """
     from app.marketing import video_ad_cycle as vac
 
@@ -429,7 +426,7 @@ async def test_12_concurrent_duplicate_shares_one_reservation(iso, publish_env):
     )
     publish_env["rec"]["publish_idempotency_key"] = publish_idempotency_key(identity)
     publish_env["rec"]["publish_attempt_state"] = ps.PROVIDER_INFLIGHT
-    # Fresh timestamp -> active hold (not stale recovery).
+    # Fresh timestamp → active hold (not stale recovery).
     publish_env["rec"]["publish_attempt_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is False
@@ -475,7 +472,7 @@ async def test_12c_inflight_write_failure_zero_provider_calls(iso, publish_env, 
 
 @pytest.mark.asyncio
 async def test_12d_stale_inflight_becomes_unknown_not_retryable(iso, publish_env, monkeypatch):
-    """P1 hard-kill: aged provider_inflight -> publish_outcome_unknown."""
+    """P1 hard-kill: aged provider_inflight → publish_outcome_unknown."""
     from app.marketing import video_ad_cycle as vac
 
     identity = canonical_publish_identity(
@@ -529,10 +526,7 @@ def test_12e_subprocess_kill_seam_recovers_stale_inflight(tmp_path, monkeypatch)
     store.write_text(json.dumps(seed) + "\n", encoding="utf-8")
 
     child = r"""
-import json
-import os
-import sys
-import time
+import json, os, sys, time
 from filelock import FileLock
 path = sys.argv[1]
 rid = sys.argv[2]

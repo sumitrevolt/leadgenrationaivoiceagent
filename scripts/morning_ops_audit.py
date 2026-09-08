@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot morning ops audit - emails, calls, agent_events, scheduler heartbeats."""
+"""One-shot morning ops audit — emails, calls, agent_events, scheduler heartbeats."""
 
 from __future__ import annotations
 

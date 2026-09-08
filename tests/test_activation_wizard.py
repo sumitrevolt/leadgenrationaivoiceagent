@@ -1,4 +1,4 @@
-"""P.1 activation wizard - next-step-by-phase logic.
+"""P.1 activation wizard — next-step-by-phase logic.
 
 The wizard is the operator's primary entry point for activation: incorrect
 next-step picks waste operator time. Tests pin the ordering contract:
@@ -20,7 +20,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Strip every env key any probe might read so each test starts at zero.
 
     Also isolate the `first_paid_delivery` probe (2026-07-11 addition) from
-    real `data/clients.jsonl` - this test file exercises the wizard's
+    real `data/clients.jsonl` — this test file exercises the wizard's
     phase-ordering contract, not the delivery-outcome storage layer. Without
     this isolation, a real paying customer sitting stale in production data
     would flip Phase 1 to actionable and break every "all-done" assertion.
@@ -63,7 +63,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         monkeypatch.delenv(k, raising=False)
 
-    # Isolate first_paid_delivery from live clients_store - hermetic wizard test.
+    # Isolate first_paid_delivery from live clients_store — hermetic wizard test.
     import app.marketing.clients_store as _clients_store
 
     monkeypatch.setattr(_clients_store, "list_clients", lambda **kw: [])
@@ -76,7 +76,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # Next-step picking
 # --------------------------------------------------------------------------- #
 async def test_empty_env_picks_sentry_first() -> None:
-    """Razorpay deferred (NEUTRAL) - wizard surfaces first WARN (Sentry)."""
+    """Razorpay deferred (NEUTRAL) — wizard surfaces first WARN (Sentry)."""
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
     assert out["all_done"] is False
     assert out["next_step"]["key"] == "sentry"
@@ -85,7 +85,7 @@ async def test_empty_env_picks_sentry_first() -> None:
 
 
 async def test_sentry_is_first_phase1_step() -> None:
-    """Razorpay removed 2026-06-18 - Sentry (WARN) is the first Phase-1 step."""
+    """Razorpay removed 2026-06-18 — Sentry (WARN) is the first Phase-1 step."""
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
     assert out["next_step"]["key"] == "sentry"
     assert out["next_step"]["status"] == "WARN"

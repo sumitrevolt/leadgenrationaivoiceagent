@@ -2,10 +2,10 @@
 
 Mission contract:
   * EXACTLY VOICE_CALLS_PER_SESSION (default 30) provider-attempts per session
-  * counter Redis-backed -> worker/scheduler restart RESET nahi karta
+  * counter Redis-backed → worker/scheduler restart RESET nahi karta
   * reset SIRF canonical create_voice_session() lifecycle se
   * attempt 31 provider boundary se PEHLE blocked (session_limit_reached)
-  * concurrent dispatches -> at most cap provider calls
+  * concurrent dispatches → at most cap provider calls
   * emergency session stop blocks new reservations
   * attempted/connected/answered/failed/retried/completed counted ALAG se
   * operator-visible used / cap / remaining
@@ -110,8 +110,8 @@ def test_create_session_sets_current_and_zero_counter(monkeypatch):
 
 
 def test_worker_restart_does_not_reset_counter(monkeypatch):
-    """Counter Redis-backed hai - 'restart' = same redis, koi lifecycle call nahi
-    -> count preserve. SIRF create_voice_session reset karta hai."""
+    """Counter Redis-backed hai — 'restart' = same redis, koi lifecycle call nahi
+    → count preserve. SIRF create_voice_session reset karta hai."""
     fake = _FakeRedis()
     monkeypatch.setattr(vl, "_redis", lambda: _async(fake))
     sid = _run(vl.create_voice_session(owner="test"))
@@ -155,7 +155,7 @@ def test_exactly_cap_reservations_then_31st_blocked(monkeypatch):
 
 
 def test_concurrent_reservations_still_exactly_cap(monkeypatch):
-    """Concurrent dispatch (asyncio.gather, 2x cap attempts) -> at most cap ok."""
+    """Concurrent dispatch (asyncio.gather, 2x cap attempts) → at most cap ok."""
     fake = _FakeRedis()
     monkeypatch.setattr(vl, "_redis", lambda: _async(fake))
     sid = _run(vl.create_voice_session(owner="test"))
@@ -285,7 +285,7 @@ def test_session_status_shape_running_then_limit(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Dialer integration - session cap wired at the dispatch boundary
+# Dialer integration — session cap wired at the dispatch boundary
 # --------------------------------------------------------------------------- #
 def _prospects(n):
     from types import SimpleNamespace
@@ -346,8 +346,8 @@ def test_dialer_enforces_session_cap(monkeypatch):
 
 
 def test_dialer_31st_blocked_before_any_provider_request(monkeypatch):
-    """Session exhausted (30 pre-reserved) -> loop ke andar attempt 31 provider
-    boundary se PEHLE block - start_stream_call kabhi call nahi hota."""
+    """Session exhausted (30 pre-reserved) → loop ke andar attempt 31 provider
+    boundary se PEHLE block — start_stream_call kabhi call nahi hota."""
     fake = _FakeRedis()
     ssc_calls: list = []
     calling = _wire_dialer(monkeypatch, fake, ssc_calls=ssc_calls)
@@ -384,7 +384,7 @@ def test_dialer_session_stop_blocks_dispatch(monkeypatch):
 
 def test_dialer_idempotency_prevents_redial_after_restart(monkeypatch):
     """Worker crash between claim and provider call simulated: claim already held
-    (same session Redis) -> lead SKIPPED, at-most-once, no double provider call."""
+    (same session Redis) → lead SKIPPED, at-most-once, no double provider call."""
     fake = _FakeRedis()
     ssc_calls: list = []
     calling = _wire_dialer(monkeypatch, fake, ssc_calls=ssc_calls)
@@ -416,7 +416,7 @@ def test_dialer_compliance_block_releases_session_slot(monkeypatch):
 
 
 def test_dialer_daily_cap_still_enforced_before_session(monkeypatch):
-    """Daily cap lower than session cap -> daily wins (aggregate backstop)."""
+    """Daily cap lower than session cap → daily wins (aggregate backstop)."""
     fake = _FakeRedis()
     calling = _wire_dialer(monkeypatch, fake)
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "1")

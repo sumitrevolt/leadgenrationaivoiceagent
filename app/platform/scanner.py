@@ -1,5 +1,5 @@
 """
-Dashboard Scanner - extracts feature inventory from HTML/JS files.
+Dashboard Scanner — extracts feature inventory from HTML/JS files.
 Static heuristic analysis: detects PRESENCE of patterns, not runtime correctness.
 """
 
@@ -429,7 +429,7 @@ def scan_dashboard(filepath: pathlib.Path, dashboard_name: str) -> dict:
             "category": FeatureCategory.ACTION.value,
             "status": FeatureStatus.COMPLETE.value if has_aria else FeatureStatus.BROKEN.value,
             "description": (
-                "ARIA labels and roles present" if has_aria else "No ARIA labels - WCAG violation"
+                "ARIA labels and roles present" if has_aria else "No ARIA labels — WCAG violation"
             ),
             "ui_elements": [],
             "api_endpoints": [],
@@ -457,7 +457,7 @@ def scan_dashboard(filepath: pathlib.Path, dashboard_name: str) -> dict:
             "description": (
                 ":focus styles present"
                 if _match([r":focus\b"], html)
-                else "No :focus styling - WCAG violation"
+                else "No :focus styling — WCAG violation"
             ),
             "ui_elements": [],
             "api_endpoints": [],

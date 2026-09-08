@@ -1,4 +1,4 @@
-"""Owner OS litmus - ADR-155 deterministic HITL harvest."""
+"""Owner OS litmus — ADR-155 deterministic HITL harvest."""
 
 from __future__ import annotations
 

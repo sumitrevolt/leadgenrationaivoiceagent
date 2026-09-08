@@ -1,4 +1,4 @@
-"""Tests - brand assets batch (brand_frames, business_card, magic_resize,
+"""Tests — brand assets batch (brand_frames, business_card, magic_resize,
 review_to_post, sticker_pack + /api/brand router).
 
 Pure-python: tmp stores (clients_store/brand_kit monkeypatched), free_ai.chat
@@ -52,9 +52,7 @@ def test_compose_frame_svg_escaped():
     assert out["ok"] is True and out["format"] == "svg"
     assert out["svg"].startswith("<svg") and out["height"] == 1080 + 110
     assert "<script>" not in out["svg"]  # XML-escaped
-    assert "&lt
-    script&gt
-    " in out["svg"]
+    assert "&lt;script&gt;" in out["svg"]
     assert "9876543210" in out["svg"] and "#112233" in out["svg"]
 
 
@@ -138,8 +136,7 @@ def test_card_html_escapes_injection(tmp_path, monkeypatch):
     rec = clients_store.add_client("Evil <img src=x onerror=alert(1)>", "gym", phone="9123456780")
     res = business_card.render_card_html(rec["slug"])
     assert res["ok"] is True
-    assert "<img src=x" not in res["html"] and "&lt
-    img" in res["html"]
+    assert "<img src=x" not in res["html"] and "&lt;img" in res["html"]
 
 
 def test_card_vcf(tmp_path, monkeypatch):
@@ -150,8 +147,7 @@ def test_card_vcf(tmp_path, monkeypatch):
     assert res["ok"] is True
     vcf = res["vcf"]
     assert vcf.startswith("BEGIN:VCARD") and "END:VCARD" in vcf
-    assert "FN:Sharma Solar" in vcf and "TEL
-    TYPE=CELL,VOICE:9876543210" in vcf
+    assert "FN:Sharma Solar" in vcf and "TEL;TYPE=CELL,VOICE:9876543210" in vcf
     assert res["filename"].endswith(".vcf")
 
 
@@ -220,9 +216,7 @@ def test_review_post_ok_and_escaped(tmp_path, monkeypatch):
         )
     )
     assert out["ok"] is True and out["svg"].startswith("<svg")
-    assert "<script>" not in out["svg"] and "&lt
-    script&gt
-    " in out["svg"]
+    assert "<script>" not in out["svg"] and "&lt;script&gt;" in out["svg"]
     assert "★★★★★" in out["svg"] and "Sharma Solar" in out["svg"]
     assert out["caption"].strip() and "Khush" in out["caption"]
 

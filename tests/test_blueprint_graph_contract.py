@@ -3,7 +3,7 @@
 These are the pass/fail evidence artifacts for the canonical graph (the
 Agent Harness Engineering Standard's §5/§6 control-matrix + eval-gate analogue):
 they lock the schema, the 9-layer / 18-domain / 11-flow shape, the honesty
-rules, and the HARD-OFF cold-outbound invariant. Static - no live server.
+rules, and the HARD-OFF cold-outbound invariant. Static — no live server.
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def test_edges_resolve_and_no_orphans():
         deg[e["source"]] += 1
         deg[e["target"]] += 1
     # Orphan rule is an L0 rule. L1/L2 detail nodes are reached by hierarchy
-    # (domain / flow / group expansion), not by overview edges - demanding an
+    # (domain / flow / group expansion), not by overview edges — demanding an
     # edge here would force fabricated connections. Their reachability is
     # proven by the depth gates in validate_graph().
     depth = {n["id"]: n.get("depth_level", 0) for n in bg.NODES}
@@ -124,7 +124,7 @@ def test_workforce_matches_canonical_registry_not_hardcoded():
 
     wf = bg._workforce()
     assert wf["source"] == "registry"
-    assert wf["count"] == len(STAFF)  # fails on drift - the whole point
+    assert wf["count"] == len(STAFF)  # fails on drift — the whole point
     g = bg.build_graph()
     assert g["workforce"]["count"] == len(STAFF)
     assert g["counts"]["workforce"] == len(STAFF)

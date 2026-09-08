@@ -2,18 +2,18 @@
 Tata Tele Smartflo Voice Streaming API
 =======================================
 
-Endpoints (mounted by main.py under /api -> /api/telephony/smartflo/*):
+Endpoints (mounted by main.py under /api → /api/telephony/smartflo/*):
 
   GET|POST /telephony/smartflo/endpoint   (Dynamic Endpoint resolver)
     Smartflo calls this to get the wss:// URL for each call.
     Returns: {"success": true, "wss_url": "wss://leadsgenai.in/api/telephony/smartflo/stream?..."}
 
-  GET|POST /telephony/smartflo/stream     (WebSocket - Smartflo connects here)
-    Receives bidirectional mulaw 8kHz audio. Runs STT->LLM->TTS conversation loop.
+  GET|POST /telephony/smartflo/stream     (WebSocket — Smartflo connects here)
+    Receives bidirectional mulaw 8kHz audio. Runs STT→LLM→TTS conversation loop.
 
-  GET  /telephony/smartflo/status         (admin) - config + capability snapshot
+  GET  /telephony/smartflo/status         (admin) — config + capability snapshot
 
-Setup in Smartflo portal (Settings -> Channels -> Voice Bot):
+Setup in Smartflo portal (Settings → Channels → Voice Bot):
   Option A (Static): set wss://leadsgenai.in/api/telephony/smartflo/stream
   Option B (Dynamic): POST to https://leadsgenai.in/api/telephony/smartflo/endpoint
                       with $callId, $fromNumber, $toNumber mapped to body
@@ -94,7 +94,7 @@ async def smartflo_dynamic_endpoint(request: Request) -> JSONResponse:
 
     logger.info(
         f"[smartflo-endpoint] resolved call_id={call_id} "
-        f"from={from_number} to={to_number} -> wss://{host}/..."
+        f"from={from_number} to={to_number} → wss://{host}/..."
     )
 
     return JSONResponse(
@@ -179,7 +179,7 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test call (admin) - place a one-shot outbound call via Smartflo C2C
+# Test call (admin) — place a one-shot outbound call via Smartflo C2C
 # ---------------------------------------------------------------------------
 
 

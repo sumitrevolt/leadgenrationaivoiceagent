@@ -78,7 +78,7 @@ def kpis(text: str) -> list[str]:
 
 
 index_lines = [
-    "# Agent OS - VPS AI Staff Index (generated from app/platform/team.py - code = truth)",
+    "# Agent OS — VPS AI Staff Index (generated from app/platform/team.py — code = truth)",
     "",
 ]
 for key, a in staff.items():
@@ -86,10 +86,10 @@ for key, a in staff.items():
     g = gates(a["duties"] + " " + a["schedule"])
     k = kpis(a["duties"])
     lines = [
-        f"# {a['emoji']} {a['name']} - {a['title']}",
+        f"# {a['emoji']} {a['name']} — {a['title']}",
         "",
         f'> Source of truth: `app/platform/team.py` STAFF["{key}"] + '
-        f"`app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai - "
+        f"`app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — "
         f"code badle to `python scripts/gen_agent_os_specs.py` re-run karo. "
         f"Code vs spec conflict = code wins.",
         "",
@@ -120,30 +120,28 @@ for key, a in staff.items():
         "- Compliance gates (DND fail-closed, AI-disclosure, 9am-7pm window, consent ledger) KABHI disable nahi.",
         "- Customer data cross-client leak nahi; secrets sirf `.env`.",
         "- Free AI stack only; external call KABHI route/agent crash nahi karta (graceful degradation).",
-        "- `log_event()` se har kaam attribute karo - invisible automation nahi.",
+        "- `log_event()` se har kaam attribute karo — invisible automation nahi.",
         "",
     ]
     (outdir / f"{key}.md").write_text("\n".join(lines), encoding="utf-8")
     index_lines.append(
-        f"- **{a['name']}** (`{key}`) - {a['title']} · {a['product']} · {a['schedule']}"
+        f"- **{a['name']}** (`{key}`) — {a['title']} · {a['product']} · {a['schedule']}"
     )
 
 (outdir / "INDEX.md").write_text("\n".join(index_lines) + "\n", encoding="utf-8")
 
-TEMPLATE = """# 🆕 NEW AGENT TEMPLATE - naya AI staff agent add karne ka SOP
+TEMPLATE = """# 🆕 NEW AGENT TEMPLATE — naya AI staff agent add karne ka SOP
 
 > Council rule (2026-06-25 billionaire-audit): naya agent SIRF tab jab wo *measurable operational leverage* de jo current roster nahi deta. Pehle folding/reuse consider karo (Hermes ne Kavya/Tara ke engines REUSE kiye the).
 
 ## Checklist (sab mandatory)
 
-1. **Roster entry:** `app/platform/team.py` STAFF me key add karo - `product` (voice/marketing/platform), `name`, `emoji`, `title`, `duties` (KPI naam ke saath), `schedule`.
+1. **Roster entry:** `app/platform/team.py` STAFF me key add karo — `product` (voice/marketing/platform), `name`, `emoji`, `title`, `duties` (KPI naam ke saath), `schedule`.
 2. **Feature gate:** naya env flag (e.g. `MY_AGENT=1`), INERT default, `AUTOMATION_FLAGS` registry me register.
-3. **Routing policy:** `app/platform/agent_os_routing.py` me `_AGENT_OVERRIDES` entry - category, OmniRoute task (ya NONE), privacy class, contact/publish/write flags, retries/timeout/queue.
-4. **Engine module:** `app/agents/<name>.py` - padosi copy karo (lazy `from app.voice_agent import free_ai` FUNCTION ke andar, module-top pe nahi
-try/except + graceful degradation
-`log_event()` attribution).
-5. **Scheduler wiring:** `team_scheduler.py` me job (boot-grace respect karo) - heavy kaam Celery only, web process me nahi.
-6. **Spec regenerate:** `python scripts/gen_agent_os_specs.py` - agent-os/agents/<key>.md auto-banega (routing block included).
+3. **Routing policy:** `app/platform/agent_os_routing.py` me `_AGENT_OVERRIDES` entry — category, OmniRoute task (ya NONE), privacy class, contact/publish/write flags, retries/timeout/queue.
+4. **Engine module:** `app/agents/<name>.py` — padosi copy karo (lazy `from app.voice_agent import free_ai` FUNCTION ke andar, module-top pe nahi; try/except + graceful degradation; `log_event()` attribution).
+5. **Scheduler wiring:** `team_scheduler.py` me job (boot-grace respect karo) — heavy kaam Celery only, web process me nahi.
+6. **Spec regenerate:** `python scripts/gen_agent_os_specs.py` — agent-os/agents/<key>.md auto-banega (routing block included).
 7. **Test + verify:** targeted pytest + `prod_check.py` + duplicate-route grep. Evidence ke bina done nahi.
 8. **Memory write-back:** `memory/decisions.md` me ADR + CLAUDE.md `## Current State`.
 
@@ -170,16 +168,13 @@ try/except + graceful degradation
 | Success metric | post_id non-empty |
 | Health check | SOCIAL_ENGINE + queue depth |
 | Disable switch | `SOCIAL_ENGINE=0` / Office pause |
-| Rollback | unset gate
-restore prior job status |
+| Rollback | unset gate; restore prior job status |
 
 ## Standards jo HAR agent pe lagte hai
 
 - `agent-os/standards/global/config.md` · `global/logging.md` · `global/feature-flags.md`
-- Product-specific: voice -> `voice/*`
-marketing -> `backend/error-handling`, `backend/lazy-imports`
-platform -> `backend/*`
-- Billing touch -> `billing/billing-truth.md` (packages.py = single source)
+- Product-specific: voice → `voice/*`; marketing → `backend/error-handling`, `backend/lazy-imports`; platform → `backend/*`
+- Billing touch → `billing/billing-truth.md` (packages.py = single source)
 
 ## OmniRoute (optional, double-gated)
 
@@ -206,7 +201,7 @@ for root, _, files in os.walk(std_dir):
 entries.sort()
 yml = [
     "# Agent OS Standards Index",
-    "# Generated by scripts/gen_agent_os_specs.py - /index-standards se refresh hota hai",
+    "# Generated by scripts/gen_agent_os_specs.py — /index-standards se refresh hota hai",
     "standards:",
 ]
 for rel, title in entries:

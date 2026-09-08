@@ -1,12 +1,12 @@
 """Live-prod triage fixes (2026-07-06 VPS audit).
 
 1. ntfy: emoji-titles ascii-strip ke baad LEADING SPACE bachta tha ("⏭ Boot-grace
-   skip" -> " Boot-grace skip") -> httpx "Illegal header value" -> founder ko alert
+   skip" → " Boot-grace skip") → httpx "Illegal header value" → founder ko alert
    deliver hi nahi hota tha. Header-safe sanitize (collapse whitespace + strip).
-2. google_maps geocode: bare city ("Thane"/"Aurangabad" - ambiguous across states)
-   par ZERO_RESULTS -> poori city ke prospects skip. ", India" bias retry.
+2. google_maps geocode: bare city ("Thane"/"Aurangabad" — ambiguous across states)
+   par ZERO_RESULTS → poori city ke prospects skip. ", India" bias retry.
 3. vobiz get_balance/place_call: blank `str(e)` ("failed: ") se root-cause
-   undiagnosable - exception TYPE bhi log/return me chahiye.
+   undiagnosable — exception TYPE bhi log/return me chahiye.
 """
 
 from __future__ import annotations
@@ -125,7 +125,7 @@ def test_vobiz_error_includes_exception_type(monkeypatch):
             return False
 
         async def get(self, *a, **k):
-            raise httpx.ConnectTimeout("")  # blank str(e) - the live symptom
+            raise httpx.ConnectTimeout("")  # blank str(e) — the live symptom
 
     monkeypatch.setattr(httpx, "AsyncClient", _BoomClient)
     client = VobizClient.__new__(VobizClient)

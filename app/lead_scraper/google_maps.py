@@ -80,10 +80,9 @@ class GoogleMapsScraper:
             except Exception:
                 remaining = 0
             if remaining:
-                logger.warning("Places quota cooldown active (%ss)
-                search skipped", remaining)
+                logger.warning("Places quota cooldown active (%ss); search skipped", remaining)
                 return []
-            # Places API (New) pehle - legacy textsearch ab REQUEST_DENIED deta hai
+            # Places API (New) pehle — legacy textsearch ab REQUEST_DENIED deta hai
             # (Google ne naye projects pe legacy band kar di). New fail ho to
             # legacy try, phir scraping.
             try:
@@ -95,8 +94,7 @@ class GoogleMapsScraper:
             try:
                 return await self._search_with_api(query, location, radius_km, max_results)
             except Exception as e:
-                logger.warning(f"legacy Places API failed ({e})
-                scraping fallback")
+                logger.warning(f"legacy Places API failed ({e}); scraping fallback")
                 return await self._search_with_scraping(query, location, max_results)
         else:
             return await self._search_with_scraping(query, location, max_results)
@@ -104,16 +102,16 @@ class GoogleMapsScraper:
     async def _search_with_places_new(
         self, query: str, location: str, max_results: int
     ) -> list[BusinessLead]:
-        """Google Places API (New) - POST places:searchText. Returns phone +
+        """Google Places API (New) — POST places:searchText. Returns phone +
         rating + reviews + website + address in ONE call (no separate details).
-        Never raises - [] on any failure (caller falls back)."""
+        Never raises — [] on any failure (caller falls back)."""
         url = "https://places.googleapis.com/v1/places:searchText"
         field_mask = (
             "places.displayName,places.nationalPhoneNumber,"
             "places.internationalPhoneNumber,places.rating,places.userRatingCount,"
             "places.formattedAddress,places.websiteUri,places.id,"
             "places.primaryType,places.types,places.businessStatus,"
-            "nextPageToken"  # MUST be in mask or Places API (New) omits it -> pagination dead (capped at 20/query)
+            "nextPageToken"  # MUST be in mask or Places API (New) omits it → pagination dead (capped at 20/query)
         )
         headers = {
             "Content-Type": "application/json",
@@ -137,7 +135,7 @@ class GoogleMapsScraper:
                     if resp.status_code != 200:
                         logger.warning(f"Places(New) HTTP {resp.status_code}: {resp.text[:160]}")
                         # "places" is in integration_health.KNOWN but was never
-                        # instrumented - a dead/expired key was invisible on the
+                        # instrumented — a dead/expired key was invisible on the
                         # integrations dashboard (audit 2026-07-04).
                         try:
                             from app.platform.integration_health import record_failure
@@ -338,7 +336,7 @@ class GoogleMapsScraper:
         """Convert location name to coordinates.
 
         Bare city names ("Thane", "Aurangabad") ambiguous/ZERO_RESULTS de sakte
-        (live 2026-07-06 - poori city ke prospects silently skip) -> miss pe
+        (live 2026-07-06 — poori city ke prospects silently skip) → miss pe
         ", India" bias ke saath ek retry.
         """
         coords = await self._geocode_once(location)
@@ -364,7 +362,7 @@ class GoogleMapsScraper:
                 geometry = data["results"][0].get("geometry", {})
                 location_data = geometry.get("location", {})
                 lat, lng = location_data.get("lat"), location_data.get("lng")
-                # Only return real coords - otherwise the caller would build a
+                # Only return real coords — otherwise the caller would build a
                 # "None,None" location string and waste a Google API call.
                 if lat is not None and lng is not None:
                     return {"lat": lat, "lng": lng}
@@ -378,9 +376,8 @@ class GoogleMapsScraper:
         """
         Fetch a business website and extract the first non-junk email address.
 
-        Prefers the centralized extractor (app.lead_scraper.web_extract -
-        trafilatura-backed, de-duplicated + validated)
-        falls back to the inline
+        Prefers the centralized extractor (app.lead_scraper.web_extract —
+        trafilatura-backed, de-duplicated + validated); falls back to the inline
         regex. Filters out placeholder/asset-embedded addresses. Returns None if
         the site is unreachable or no usable email is found.
         """
@@ -531,6 +528,6 @@ class GoogleMapsScraper:
         return all_leads
 
 
-# Legacy / pipeline alias - udyam_pipeline imports GoogleMapsClient.
+# Legacy / pipeline alias — udyam_pipeline imports GoogleMapsClient.
 # Without this, UDYAM Maps enrich ImportError'd forever and silently fell through to OSM.
 GoogleMapsClient = GoogleMapsScraper

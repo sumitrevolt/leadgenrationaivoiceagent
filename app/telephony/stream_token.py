@@ -1,8 +1,8 @@
-"""HMAC-signed Vobiz media-stream token (stateless, no store) - INERT by default.
+"""HMAC-signed Vobiz media-stream token (stateless, no store) — INERT by default.
 
 PROBLEM (2026-07-06 security sweep, [M]): the media WebSocket at
 `/api/telephony/vobiz/stream/{token}` runs a full STT->LLM->TTS conversation
-loop for ANY token - `answer_stream_xml` deliberately serves unknown tokens
+loop for ANY token — `answer_stream_xml` deliberately serves unknown tokens
 (niche=general) because a legit call is already live when Vobiz fetches it. But
 that same leniency means an anonymous attacker who reaches the WS and speaks the
 wire protocol can burn the free-AI capacity (the #1 bottleneck). Unlike Twilio
@@ -10,13 +10,13 @@ webhooks there is no signature.
 
 FIX: OUR outbound `/stream-call` mints a raw uuid token, `sign()`s it, and hands
 the signed form to Vobiz. A signed token is STABLE, so it still `verify()`s on a
-mid-call WS reconnect AFTER `_pop_pending` removed the pending state - that's the
+mid-call WS reconnect AFTER `_pop_pending` removed the pending state — that's the
 whole point (survives the pending-pop, unlike pending-only checks). The WS then
 treats "pending existed OR verify(token)" as known, and (only when explicitly
 gated on) rejects everything else.
 
 INERT DEFAULT: the secret comes from `VOBIZ_STREAM_SECRET` at call-time. If it is
-unset, `sign()` returns the raw token unchanged and `verify()` returns True - so
+unset, `sign()` returns the raw token unchanged and `verify()` returns True — so
 with no env set there is ZERO behavior change. Rejection is a second, separate
 opt-in (`VOBIZ_STREAM_REQUIRE_TOKEN`) enforced by the caller. Stdlib-only (no
 app imports) so INERT stays self-contained and circular-import-free. Never raises.
@@ -29,8 +29,7 @@ import hmac
 import os
 import time
 
-_TTL_S = 3600  # signed token valid 1h - calls connect within minutes
-a long
+_TTL_S = 3600  # signed token valid 1h — calls connect within minutes; a long
 #                live call's reconnect still lands inside this window.
 _SIG_LEN = 16  # sig = first 16 hex chars of the HMAC-SHA256 digest.
 
@@ -48,11 +47,10 @@ def sign(raw: str, exp: int | None = None) -> str:
     """Return a signed token ``"<raw>.<exp>.<sig>"`` for a raw token string.
 
     INERT: if `VOBIZ_STREAM_SECRET` is unset, returns `raw` unchanged (the token
-    Vobiz receives is then identical to today's uuid - zero behavior change).
+    Vobiz receives is then identical to today's uuid — zero behavior change).
     `exp` = unix seconds the signature stops being valid (default now+1h);
-    exposed for tests. Never raises - on any error returns `raw` as-is (fail-open
-    minting
-    a call must never be dropped by a signing bug)."""
+    exposed for tests. Never raises — on any error returns `raw` as-is (fail-open
+    minting; a call must never be dropped by a signing bug)."""
     try:
         secret = _secret()
         if not secret:
@@ -68,14 +66,13 @@ def verify(token: str) -> bool:
     secret. Constant-time compare (`hmac.compare_digest`).
 
     INERT: if `VOBIZ_STREAM_SECRET` is unset, returns True (verification is a
-    no-op - every token is accepted, today's behavior). Also True for a token
-    that simply has no `.<exp>.<sig>` suffix ONLY when inert
-    when a secret IS
+    no-op — every token is accepted, today's behavior). Also True for a token
+    that simply has no `.<exp>.<sig>` suffix ONLY when inert; when a secret IS
     set, an unsigned/malformed/expired/tampered token returns False. Never raises."""
     try:
         secret = _secret()
         if not secret:
-            return True  # inert - accept everything (current behavior)
+            return True  # inert — accept everything (current behavior)
         parts = (token or "").rsplit(".", 2)
         if len(parts) != 3:
             return False

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deep wiring audit - onclick handlers + api()/fetch paths vs FastAPI routes."""
+"""Deep wiring audit — onclick handlers + api()/fetch paths vs FastAPI routes."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from functools import cache, lru_cache
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Auto-discover ALL frontend pages (exhaustive - nothing left out).
+# Auto-discover ALL frontend pages (exhaustive — nothing left out).
 PAGES = sorted((ROOT / "frontend").glob("*.html"))
 
 SKIP_HANDLERS = {
@@ -54,7 +54,7 @@ SKIP_HANDLERS = {
     "renderAll",
     "filterByCampaign",
     # JS keywords + DOM-event built-ins (inline onclicks like
-    # onclick="event.stopPropagation();realFn()" - first stmt is a built-in).
+    # onclick="event.stopPropagation();realFn()" — first stmt is a built-in).
     "event",
     "if",
     "else",
@@ -127,13 +127,12 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
     html = path.read_text(encoding="utf-8", errors="ignore")
     onclicks: set[str] = set()
     for m in re.finditer(r'onclick="([^"]+)"', html):
-        expr = m.group(1).split("
-        ")[0].strip()
+        expr = m.group(1).split(";")[0].strip()
         if "(" in expr:
             onclicks.add(re.sub(r"\(.*", "", expr).strip())
     funcs = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", html))
     funcs |= set(re.findall(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
-    # window.NAME = (async) function / arrow - IIFE-scoped globals (real runtime
+    # window.NAME = (async) function / arrow — IIFE-scoped globals (real runtime
     # handlers; regex blind-spot pehle inhe "dead handler" bata raha tha).
     funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function", html))
     funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
@@ -182,7 +181,7 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
         p
         for p in apis
         if (p.startswith("/api") or p.startswith("/health"))
-        and _url_ok.match(p)  # skip desc/label strings ("/api/x · y -> z")
+        and _url_ok.match(p)  # skip desc/label strings ("/api/x · y → z")
         and not route_exists(p, routes)
     )
     # sidebar anchors

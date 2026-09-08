@@ -1,4 +1,4 @@
-"""UPI pending unactioned probe - backup page when submit-time ntfy misses.
+"""UPI pending unactioned probe — backup page when submit-time ntfy misses.
 
 Uses setattr on ``upi_payments.list_actionable`` (not ``sys.modules`` stub): a
 ``from app.platform import upi_payments`` inside the probe binds the real

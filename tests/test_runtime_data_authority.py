@@ -48,7 +48,7 @@ def _write_marker(root: Path, store_ids: list[str], monkeypatch) -> Path:
     """A marker the real validator accepts.
 
     The validator refuses to call a store 'migrated' while the manifest still
-    records it as LEGACY_IN_CHECKOUT, so the manifest row is moved here too -
+    records it as LEGACY_IN_CHECKOUT, so the manifest row is moved here too —
     that transition is commit 3's job, and this test must not depend on the
     order the commits land in.
     """
@@ -163,7 +163,7 @@ def test_canonical_mode_accepts_an_override_pointing_at_the_canonical_target(mon
 
 
 def test_canonical_mode_has_no_legacy_read_fallback(monkeypatch, tmp_path):
-    """The canonical file is absent - the answer is still the canonical path.
+    """The canonical file is absent — the answer is still the canonical path.
 
     Falling back here would answer a suppression or consent question from a
     checkout copy that is no longer authoritative.

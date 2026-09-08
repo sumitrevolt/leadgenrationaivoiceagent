@@ -15,8 +15,7 @@ boots into *Project* Blueprint mode. Live prod ``/app/admin`` HTML contained
 the deep-link had no way in. This module is the regression guard for that link.
 
 Updated 2026-08-19: c18e3384 refactored the nav to 8 numbered groups. The bare
-/app/explorer link was removed
-only the ``?view=master`` deep-link survives
+/app/explorer link was removed; only the ``?view=master`` deep-link survives
 under the System group. Tests updated to match.
 """
 
@@ -41,7 +40,7 @@ def _nav_block(html: str) -> str:
 def test_master_blueprint_link_present_in_admin_nav():
     nav = _nav_block(_admin_html())
     assert f'href="{MASTER_HREF}"' in nav, (
-        "admin sidebar has no Master Blueprint entry - the canonical graph is unreachable"
+        "admin sidebar has no Master Blueprint entry — the canonical graph is unreachable"
     )
 
 

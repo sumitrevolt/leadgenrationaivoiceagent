@@ -1,15 +1,15 @@
-"""ADR-104 Phase B follow-up (2026-07-15) - Delivery Cockpit DLQ truth fix.
+"""ADR-104 Phase B follow-up (2026-07-15) — Delivery Cockpit DLQ truth fix.
 
 Live discovery: /app/delivery-command-center showed "DLQ khaali" (all clear)
 while /app/office's Reliability Console (fixed under Phase B) correctly showed
 Dead(exhausted)=4. Root cause: this page's loadDlq() only ever fetched ONE
 Redis key (whichever tab was selected, defaulting to "failed") instead of
-both - so a nonzero dlq:dead count sitting behind the unselected "Dead" tab
+both — so a nonzero dlq:dead count sitting behind the unselected "Dead" tab
 was invisible at a glance.
 
 No JS test runner is assumed to be on PATH (same constraint as
 test_deploy_vps_retention.py), so these are pure text/structure assertions
-against the shipped HTML/JS - cheap, portable, and they still catch the
+against the shipped HTML/JS — cheap, portable, and they still catch the
 regressions that matter: summary missing, summary computed from only one
 key, or the "all clear" message reachable while dead > 0.
 """

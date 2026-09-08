@@ -139,7 +139,7 @@ def test_broad_directory_ownership_is_not_a_signal():
     """The derivation must not reintroduce directory-proximity mapping."""
     src = (bd.ROOT / "scripts" / "blueprint_derive.py").read_text(encoding="utf-8")
     assert "DEP_RELATIONS" in src
-    # `contains` is structural nesting, not a dependency - must stay excluded
+    # `contains` is structural nesting, not a dependency — must stay excluded
     assert "contains" not in bd.DEP_RELATIONS
     assert "rationale_for" not in bd.DEP_RELATIONS
 

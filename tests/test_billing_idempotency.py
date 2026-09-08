@@ -1,8 +1,8 @@
 """Hermetic tests for seen_before_sync / forget_sync sync primitives.
 
-No real Redis, no network, no DB - monkeypatch _sync_redis to force the two code paths:
-  - raise  -> memory fallback (_mem_seen)
-  - return mock -> real SET NX EX path
+No real Redis, no network, no DB — monkeypatch _sync_redis to force the two code paths:
+  - raise  → memory fallback (_mem_seen)
+  - return mock → real SET NX EX path
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def _reset_mem(idem_module):
 
 
 # ---------------------------------------------------------------------------
-# Tests - memory-fallback path (_sync_redis raises -> fail-open)
+# Tests — memory-fallback path (_sync_redis raises → fail-open)
 # ---------------------------------------------------------------------------
 
 
@@ -78,7 +78,7 @@ def test_forget_sync_clears_key(monkeypatch):
     idem.seen_before_sync(key)
     assert idem.seen_before_sync(key) is True, "Should be True before forget"
 
-    # Forget - _sync_redis raises here too (forget_sync catches silently); _MEM.pop still runs
+    # Forget — _sync_redis raises here too (forget_sync catches silently); _MEM.pop still runs
     idem.forget_sync(key)
 
     # Now it must look new again
@@ -87,7 +87,7 @@ def test_forget_sync_clears_key(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Test - real mock-Redis path (SET NX EX wiring)
+# Test — real mock-Redis path (SET NX EX wiring)
 # ---------------------------------------------------------------------------
 
 
@@ -110,8 +110,8 @@ def test_seen_before_sync_with_real_mock_redis(monkeypatch):
     first = idem.seen_before_sync(key, ttl_s=ttl)
     second = idem.seen_before_sync(key, ttl_s=ttl)
 
-    assert first is False, "SET returned True (created) -> should be False (not seen before)"
-    assert second is True, "SET returned None (already exists) -> should be True (seen before)"
+    assert first is False, "SET returned True (created) → should be False (not seen before)"
+    assert second is True, "SET returned None (already exists) → should be True (seen before)"
 
     # Verify both calls used correct Redis args
     rk = idem._PREFIX + key

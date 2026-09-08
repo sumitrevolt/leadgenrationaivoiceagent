@@ -1,9 +1,8 @@
-"""Circuit breaker - gated pass-through + CLOSED->OPEN->HALF_OPEN->CLOSED transitions.
+"""Circuit breaker — gated pass-through + CLOSED→OPEN→HALF_OPEN→CLOSED transitions.
 
 docs/GAP_ANALYSIS_SaaS_Infra_Upgrade_2026.md §3.3. Master gate CIRCUIT_BREAKER
 (default OFF) = allow() ALWAYS True (zero behaviour change). Logic is in-memory,
-never-raises. free_ai (LLM) has its own breaker
-this is for the other externals.
+never-raises. free_ai (LLM) has its own breaker; this is for the other externals.
 """
 
 import pytest
@@ -35,7 +34,7 @@ def test_trips_open_after_threshold(monkeypatch):
     br.record_failure()
     br.record_failure()
     assert br.allow() is True  # still below threshold
-    br.record_failure()  # 3rd failure -> trip
+    br.record_failure()  # 3rd failure → trip
     assert br.state == "open"
     assert br.allow() is False  # fast-fail while OPEN
 
@@ -64,7 +63,7 @@ def test_half_open_failure_reopens(monkeypatch):
     br.record_failure()  # OPEN
     clock["t"] += 11
     assert br.allow() is True  # HALF_OPEN trial
-    br.record_failure()  # trial fails -> OPEN again
+    br.record_failure()  # trial fails → OPEN again
     assert br.state == "open"
     assert br.allow() is False
 

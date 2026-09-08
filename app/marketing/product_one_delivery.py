@@ -176,7 +176,7 @@ def _deliverable_type_candidates(did: str) -> list[str]:
     `initialize_deliverables_for_client` re-runs for the same client+cycle. Rows
     seeded before the rename and never re-seeded still hold the OLD names, so a
     writer passing the current name (`social_posts`) misses a row stored as
-    `social_post_draft`. Matching both is read-side only - no data is rewritten.
+    `social_post_draft`. Matching both is read-side only — no data is rewritten.
     """
     key = str(did or "").strip()
     if not key:
@@ -193,18 +193,17 @@ def _deliverable_client_id_candidates(cid: str) -> list[str]:
 
     The two stores use different ids on purpose (`clients_store.resolve_client`
     docstring). `customer_deliverables.client_id` is an FK to Postgres
-    `clients.id`, so rows are seeded under the BILLING id - while every writer
+    `clients.id`, so rows are seeded under the BILLING id — while every writer
     that advances them (`auto_content`, admin actions) passes the MARKETING id.
     Exact-match therefore returns 0 rows and `sync_customer_deliverable_status`
-    silently returns False
-    production showed 24 successful content runs against
+    silently returns False; production showed 24 successful content runs against
     20 rows still reading `not_started`.
 
     Every other marketing-domain consumer already got the canonicalisation
     retrofit (`customer_delivery_status`, `customer_auth`, `_billing_client_ids`);
-    this writer is the one that was missed. Expanding the match - rather than
+    this writer is the one that was missed. Expanding the match — rather than
     re-keying rows or moving the seed to the marketing id (which would violate
-    the FK) - keeps the fix read-side and reversible.
+    the FK) — keeps the fix read-side and reversible.
 
     Never raises: an unresolvable id degrades to exact-match, i.e. today's
     behaviour.
@@ -231,7 +230,7 @@ def _deliverable_client_id_candidates(cid: str) -> list[str]:
 
 
 def cycle_seed_enabled() -> bool:
-    """`DELIVERABLE_CYCLE_SEED` gate - unset/0 = INERT (default)."""
+    """`DELIVERABLE_CYCLE_SEED` gate — unset/0 = INERT (default)."""
     return os.environ.get("DELIVERABLE_CYCLE_SEED", "").strip().lower() in (
         "1",
         "true",
@@ -241,7 +240,7 @@ def cycle_seed_enabled() -> bool:
 
 
 def current_cycle_month() -> str:
-    """Billing cycle key `YYYY-MM` in IST - these are Indian-business cycles, and
+    """Billing cycle key `YYYY-MM` in IST — these are Indian-business cycles, and
     a UTC month boundary would flip 5h30m early for the customer."""
     return (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m")
 
@@ -258,7 +257,7 @@ def seed_current_cycle_deliverables(
     """Create the CURRENT billing cycle's deliverable rows for every live tenant.
 
     WHY THIS EXISTS (2026-08-07). `initialize_deliverables_for_client` is called
-    from exactly one place - `app/billing/usage.py` on plan activation. Nothing
+    from exactly one place — `app/billing/usage.py` on plan activation. Nothing
     re-seeds when the month rolls over. Production proof: `customer_deliverables`
     held 20 rows, ALL `billing_cycle_month = '2026-07'`, newest created
     2026-07-18, and no scheduler job referenced deliverables at all. The one
@@ -268,14 +267,14 @@ def seed_current_cycle_deliverables(
 
     Selector is the SUBSCRIPTION, not `clients.status`: a subscription that is
     not in a terminal state is the only honest definition of "still paying".
-    This also keeps quarantined fixture tenants out by construction - they have
+    This also keeps quarantined fixture tenants out by construction — they have
     no subscription rows at all.
 
     Seeds under the BILLING id (Postgres `clients.id`) because
     `customer_deliverables.client_id` is an FK to that table. The marketing-id
     side is handled read-side by `_deliverable_client_id_candidates`.
 
-    Idempotent - `initialize_deliverables_for_client` already skips existing
+    Idempotent — `initialize_deliverables_for_client` already skips existing
     types for the same client+cycle, so re-running is a no-op. Never raises.
     """
     out: dict[str, Any] = {
@@ -316,7 +315,7 @@ def seed_current_cycle_deliverables(
                         out["skipped_dead_subscription"] += 1
                         continue
 
-                    # FK guard - seeding against a missing client row would raise.
+                    # FK guard — seeding against a missing client row would raise.
                     client = db.get(Client, cid)
                     if client is None:
                         out["skipped_no_db_client"] += 1
@@ -460,8 +459,7 @@ def sync_customer_deliverable_status(
     """Best-effort DB row sync for real delivery actions.
 
     This intentionally updates existing rows only. Plan activation owns row
-    creation because that path guarantees a DB Client row exists
-    generation/
+    creation because that path guarantees a DB Client row exists; generation/
     publish paths may still be serving jsonl-only customers and must never fail
     or create FK errors while doing delivery work.
     """
@@ -470,7 +468,7 @@ def sync_customer_deliverable_status(
     if not cid or not did:
         return False
 
-    # Alias-expand BOTH keys before querying - see the two helpers above for why
+    # Alias-expand BOTH keys before querying — see the two helpers above for why
     # exact-match silently lost every update on the dual-id / pre-rename path.
     cid_candidates = _deliverable_client_id_candidates(cid)
     did_candidates = _deliverable_type_candidates(did)
@@ -821,7 +819,7 @@ def _monthly_report_on_disk(cid: str, client: dict[str, Any] | None = None) -> b
 
 
 # Persisted by POST /api/customer/gbp/score (customer_dashboard._GBP_DIR).
-# Override in tests via monkeypatch - never invent a score from GBP URL alone.
+# Override in tests via monkeypatch — never invent a score from GBP URL alone.
 _GBP_AUDIT_DIR = os.path.join("data", "gbp_audits")
 
 
@@ -844,7 +842,7 @@ def _gbp_scored_audit(cid: str) -> dict[str, Any] | None:
 
 
 def _ledger_recent_failures(cid: str) -> int:
-    """24h rolling failure count - used for health score RED flag instead of
+    """24h rolling failure count — used for health score RED flag instead of
     all-time `automation_failures`. Prevents historical failures from
     permanently tanking the score once the root cause is fixed."""
     try:
@@ -874,7 +872,7 @@ def _client_plan_paid(client: dict[str, Any]) -> bool:
 # --------------------------------------------------------------------------- #
 # Customer Health + Approval Reminder + SLA Recovery (2026-07-08 Product 1
 # Customer Deliverability layer). These are DERIVED, read-mostly additions on
-# top of the state already computed above - no new store, no duplicate agent.
+# top of the state already computed above — no new store, no duplicate agent.
 # --------------------------------------------------------------------------- #
 _APPROVAL_STALE_HOURS = 24
 _APPROVAL_URGENT_HOURS = 48
@@ -918,7 +916,7 @@ def _approval_escalation_level(hours_open: float) -> str:
 def _escalate_approvals(pending_approvals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Approval Reminder Agent scoring: age every pending approval into a
     normal/stale_24h/urgent_48h/admin_manual_action escalation level (never
-    sends anything - notification is a separate, explicitly-gated channel)."""
+    sends anything — notification is a separate, explicitly-gated channel)."""
     out: list[dict[str, Any]] = []
     for a in pending_approvals:
         created = str(a.get("created_at") or a.get("at") or "")
@@ -939,7 +937,7 @@ def _escalate_approvals(pending_approvals: list[dict[str, Any]]) -> list[dict[st
 # Lifecycle/bookkeeping events, not marketing deliverables. `ensure_backfilled`
 # writes `customer_created` (and sometimes `onboarding_completed`) with an
 # "at"=now() timestamp on a customer's FIRST ever ledger read, regardless of
-# whether any real content exists - so if these counted toward "last
+# whether any real content exists — so if these counted toward "last
 # deliverable", a paid customer with zero posts/reports would look freshly
 # delivered the moment anyone opened their dashboard, masking exactly the
 # "zero deliverables" red flag this health check exists to catch.
@@ -959,7 +957,7 @@ def _last_deliverable_hours(
     Delivery Ledger event, OR a successful Delivery Cockpit manual action
     (generate content / publish manual / monthly report). The cockpit's manual
     actions only write the internal `admin_manual_action` ledger marker
-    (customer_visible=False, by design - see delivery_ledger.LABELS), so
+    (customer_visible=False, by design — see delivery_ledger.LABELS), so
     without also checking `actions` here, an admin manually publishing/
     generating for a customer would correctly mark the deliverable "done" but
     never register as recent activity for health scoring. Both lists are
@@ -995,8 +993,7 @@ def _customer_health(
     actions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Customer Health Agent: green/yellow/red + score + reason codes + SLA
-    countdown. Only meaningful for paid Product 1 customers
-    unpaid/trial
+    countdown. Only meaningful for paid Product 1 customers; unpaid/trial
     customers are always 'green' (not yet an SLA-bearing relationship)."""
     if not _client_plan_paid(client):
         return {"status": "green", "score": 100, "reasons": [], "sla_hours_remaining": None}
@@ -1010,7 +1007,7 @@ def _customer_health(
             worst_escalation = a["escalation"]
 
     hours_since_last = _last_deliverable_hours(led_events, actions)
-    # IMPORTANT: "blank" means no CUSTOMER-VISIBLE deliverable ever happened -
+    # IMPORTANT: "blank" means no CUSTOMER-VISIBLE deliverable ever happened —
     # not "the ledger file is empty". Ops-only events (automation_failed,
     # admin_manual_action, sla_breached/sla_recovered) are customer_visible=
     # False, so without this the SLA sweep's OWN sla_breached write would
@@ -1190,7 +1187,7 @@ def customer_delivery_status(
             i for i in items if str(i.get("status") or "").lower() in ("posted", "published")
         ]
         pending_approvals = [a for a in approvals if str(a.get("status") or "") == "pending"]
-        # 24h rolling window - historical failures don't permanently tank
+        # 24h rolling window — historical failures don't permanently tank
         # health score; once root cause is fixed, score recovers within a day.
         failed_count = _ledger_recent_failures(cid)
 
@@ -1212,30 +1209,30 @@ def customer_delivery_status(
 
         # Database-backed CustomerDeliverable sync (2026-07-08, parallel track).
         # This is real forward progress toward a proper per-billing-cycle
-        # deliverable ledger - but its rows are NOT what gets returned below.
+        # deliverable ledger — but its rows are NOT what gets returned below.
         # Reasons: (1) its deliverable_type taxonomy and row-id (a UUID) don't
         # match the semantic ids every existing consumer keys on (frontend
         # customer_dashboard.html, admin_customer_card, this module's own
         # _customer_status_notes/_monthly_summary, and every acceptance test)
-        # - swapping the return shape here would silently break all of them;
+        # — swapping the return shape here would silently break all of them;
         # (2) initializing it here used to run on every call to this function
         # (every dashboard load, every admin cockpit render, every hourly
-        # sweep) - a mandatory DB round-trip through the sync engine's small
+        # sweep) — a mandatory DB round-trip through the sync engine's small
         # background-only pool (app/models/base.py, pool_size=3) that FK-
         # violated for every client without a DB `Client` row (self-serve
         # signups + Stripe customers live jsonl-only until they hit the UPI/
-        # admin `ensure_subscription=True` path - see app/billing/usage.py's
+        # admin `ensure_subscription=True` path — see app/billing/usage.py's
         # _ensure_db_client), silently failing on every single request for
         # most customers with zero benefit since the rows were never read
         # back anyway (database-architect audit, 2026-07-08). Initialization
         # now happens once, at plan-activation time, in
-        # app.billing.usage._create_subscription_row - right after the DB
-        # Client row is guaranteed to exist - instead of on every read here.
+        # app.billing.usage._create_subscription_row — right after the DB
+        # Client row is guaranteed to exist — instead of on every read here.
         # Once the DB taxonomy is reconciled with the ids below, this can
         # become the source of truth for `deliverables` in one deliberate
-        # change with its own migration/test pass - not a silent swap.
+        # change with its own migration/test pass — not a silent swap.
 
-        # Integration readiness - so customer/admin know if real posting is blocked
+        # Integration readiness — so customer/admin know if real posting is blocked
         _social_engine_on = os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in (
             "1",
             "true",
@@ -1255,9 +1252,9 @@ def customer_delivery_status(
 
         def _missing_social_integration() -> str:
             if not _social_engine_on:
-                return "SOCIAL_ENGINE flag OFF - posts generated but auto-publishing nahi ho raha. Admin ko flag ON karna hoga."
+                return "SOCIAL_ENGINE flag OFF — posts generated but auto-publishing nahi ho raha. Admin ko flag ON karna hoga."
             if not _social_autopost_on:
-                return "SOCIAL_AUTOPOST OFF - Meta Graph posting MOCK hai. Meta app review + token ke baad ON karo."
+                return "SOCIAL_AUTOPOST OFF — Meta Graph posting MOCK hai. Meta app review + token ke baad ON karo."
             if not _postiz_key_set:
                 return "Postiz API key set nahi hai. Multi-channel auto-publish ke liye POSTIZ_API_KEY set karo."
             return ""
@@ -1290,7 +1287,7 @@ def customer_delivery_status(
                 *DELIVERABLES[2],
                 "done" if len(posters) >= 4 else ("in_progress" if posters else "pending"),
                 proof_note=f"{len(posters)}/4 creatives ready",
-                next_action="Admin -> Generate Content dabao" if not posters else "",
+                next_action="Admin → Generate Content dabao" if not posters else "",
                 owner="AI",
             ),
             _deliverable(
@@ -1298,7 +1295,7 @@ def customer_delivery_status(
                 "done" if len(post_like) >= 12 else ("in_progress" if post_like else "pending"),
                 proof_note=f"{len(post_like)}/12 posts ready",
                 next_action=(
-                    "Daily content job automated hai - abhi "
+                    "Daily content job automated hai — abhi "
                     + ("kuch posts ready" if post_like else "generate hone ka wait")
                     if post_like
                     else ""
@@ -1329,7 +1326,7 @@ def customer_delivery_status(
                 next_action=(
                     ""
                     if gbp_done
-                    else "Reports -> GBP Audit (0–100) complete karo - top-5 fixes milenge"
+                    else "Reports → GBP Audit (0–100) complete karo — top-5 fixes milenge"
                 ),
             ),
             _deliverable(
@@ -1372,7 +1369,7 @@ def customer_delivery_status(
                     or ("report file on disk" if report_on_disk else "")
                 ),
                 next_action=(
-                    "Mahine ke end me auto-generate hoga - Admin Monthly Report button se bhi bana sakta hai"
+                    "Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai"
                     if not report_action and not report_on_disk
                     else ""
                 ),
@@ -1728,8 +1725,7 @@ def _event_next_action(status: str, ev: dict[str, Any]) -> str:
     if status == "pending":
         return "Customer approval ya admin review pending."
     if status == "skipped":
-        return "Reason check karo
-        zarurat ho to manual fallback."
+        return "Reason check karo; zarurat ho to manual fallback."
     return "No action needed."
 
 
@@ -1793,7 +1789,7 @@ def _admin_health(state: dict[str, Any]) -> dict[str, Any]:
     reason_text = reasons[0] if reasons else ""
 
     if reason_text == "automation_failed":
-        reason_text = "Automation fail hui - manual fallback chahiye"
+        reason_text = "Automation fail hui — manual fallback chahiye"
     elif reason_text == "blank_timeline":
         reason_text = "Abhi koi customer-visible deliverable nahi bana"
     elif reason_text == "no_deliverable_24h":
@@ -1810,7 +1806,7 @@ def _admin_health(state: dict[str, Any]) -> dict[str, Any]:
         reason_text = "Manual publish mode hai"
 
     if not next_action and status == "red":
-        next_action = "Admin manual action lo - automation fail/block hai"
+        next_action = "Admin manual action lo — automation fail/block hai"
     elif not next_action and status == "yellow":
         next_action = "Customer ko follow-up karo ya approval push karo"
 
@@ -1826,7 +1822,7 @@ def _admin_health(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _cockpit_client_mrr(c: dict[str, Any]) -> int:
-    """Active client monthly ₹ - lightweight, never raises."""
+    """Active client monthly ₹ — lightweight, never raises."""
     try:
         status = str(c.get("status") or "").strip().lower()
         if status not in ("active", "trial"):
@@ -1847,7 +1843,7 @@ def delivery_cockpit() -> dict[str, Any]:
     except Exception:
         raw = []
 
-    # ADR-121b: deduplicate by client id - marketing_clients.jsonl can have
+    # ADR-121b: deduplicate by client id — marketing_clients.jsonl can have
     # duplicate id rows (e.g. leadgenai-self written twice) or near-duplicate
     # entries (Sharma Solar ×3 from a rapid-fire test run). First-seen wins
     # (list is newest-first from list_clients).
@@ -1867,7 +1863,7 @@ def delivery_cockpit() -> dict[str, Any]:
         by_stage[st] = by_stage.get(st, 0) + 1
 
     # Customer Health Agent requirement: "admin dashboard must sort red customers
-    # first" - worst health + lowest score first so admin understands risk in
+    # first" — worst health + lowest score first so admin understands risk in
     # the first screen, not after scrolling.
     _health_order = {"red": 0, "yellow": 1, "green": 2}
     cards.sort(
@@ -1877,9 +1873,9 @@ def delivery_cockpit() -> dict[str, Any]:
         )
     )
 
-    # Revenue MRR breakdown - ADR-121b: gate on _has_paid_evidence() so MRR
-    # matches dashboard KPI (was: cockpit counted test/self-brand clients ->
-    # ₹7,997 vs KPI ₹1,999 - same _has_paid_evidence miss as ADR-101).
+    # Revenue MRR breakdown — ADR-121b: gate on _has_paid_evidence() so MRR
+    # matches dashboard KPI (was: cockpit counted test/self-brand clients →
+    # ₹7,997 vs KPI ₹1,999 — same _has_paid_evidence miss as ADR-101).
     mrr_total = 0
     by_plan: dict[str, dict[str, int]] = {}
     paying = 0
@@ -2020,7 +2016,7 @@ def automation_events(filter_key: str = "", client_id: str = "") -> list[dict[st
 _KNOWN_LOG_FILTERS = {
     "failed_today",
     "manual_required",
-    "manual_action_required",  # alias - same meaning, used by the acceptance test/spec wording
+    "manual_action_required",  # alias — same meaning, used by the acceptance test/spec wording
     "customer_blocked",
     "ready_to_publish",
     "report_pending",
@@ -2052,7 +2048,7 @@ def _matches_filter(row: dict[str, Any], key: str) -> bool:
     if k == "payment_received_setup_incomplete":
         return "setup" in action or "onboarding" in str(row.get("workflow_name") or "").lower()
     # Unknown filter key: fail closed (empty results) rather than silently
-    # returning every row - a typo'd filter must never look like "no filter".
+    # returning every row — a typo'd filter must never look like "no filter".
     return False
 
 
@@ -2215,7 +2211,7 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
     """Scheduled Customer Health + Approval Reminder + SLA Recovery sweep
     (team_scheduler job `product_one_health`, hourly). Combines 3 of the
     Product 1 Customer Deliverability agents into one pass over active paid
-    clients because each needs the same per-client state computed once -
+    clients because each needs the same per-client state computed once —
     running 3 separate hourly client-list scans would triple ledger/content
     reads for no behavioural benefit (council decision 2026-07-08, see
     memory/decisions.md ADR).
@@ -2227,7 +2223,7 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
     (`generate_content` via `record_manual_action`, same as an admin clicking
     "Generate content" in the cockpit) at most once per customer per day,
     only when a paid customer has zero content after the 24h SLA window.
-    Never raises - every customer is isolated in its own try/except so one
+    Never raises — every customer is isolated in its own try/except so one
     bad record can't block the rest of the sweep.
     """
     out: dict[str, Any] = {
@@ -2258,7 +2254,7 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
         try:
             # Pre-ledger customers (signed up before the ledger existed) must
             # not be scored on a blank timeline they never had a chance to
-            # fill - reuse the existing backfill primitive (ADR-035/036),
+            # fill — reuse the existing backfill primitive (ADR-035/036),
             # do not reimplement it.
             delivery_ledger.ensure_backfilled(cid)
             state = customer_delivery_status(cid, client)
@@ -2278,7 +2274,7 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
 
                 # SLA Recovery: only the specific, safe, already-existing
                 # "no content yet" case. Approval / automation-failure reasons
-                # need a human, not more auto-generation - left to admin.
+                # need a human, not more auto-generation — left to admin.
                 if ("blank_timeline" in reasons or "no_deliverable_24h" in reasons) and int(
                     state.get("content_generated") or 0
                 ) == 0:
@@ -2301,7 +2297,7 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
                             out["errors"].append(f"{cid}:recovery:{str(exc)[:120]}")
             elif status == "green":
                 # Transition-based (not level-based) so a healthy customer
-                # doesn't get a fresh "recovered" event every green hour -
+                # doesn't get a fresh "recovered" event every green hour —
                 # only fires the hour health actually flips back from red.
                 recent = delivery_ledger.timeline(cid, limit=1, customer_only=False)
                 if recent and recent[0].get("event") == "sla_breached":
@@ -2337,10 +2333,10 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
             out["errors"].append(f"{cid}:{str(exc)[:150]}")
             continue
 
-    # Delivery-assurance observability (read-only, additive - 2026-07-20): emit the
+    # Delivery-assurance observability (read-only, additive — 2026-07-20): emit the
     # periodic missed/at-risk heartbeat + counts so the hourly sweep leaves a
     # visible, evidence-backed trace on the team feed (owner: nikhil). Reuses the
-    # delivery_assurance aggregator (canonical id + ledger evidence) - no sends, no
+    # delivery_assurance aggregator (canonical id + ledger evidence) — no sends, no
     # state mutation. Fully defensive: a failure here never changes the sweep's own
     # recovery result.
     try:
@@ -2356,17 +2352,16 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Integration Health Agent (2026-07-08) - maps PLATFORM integration failures
+# Integration Health Agent (2026-07-08) — maps PLATFORM integration failures
 # and scheduler/queue health to the SPECIFIC Product 1 paid customers they
 # affect, instead of a generic "integration down" admin message. Reuses the
 # existing low-level primitives (`integration_health.snapshot`, which already
 # counts real failures for smtp/email_api/imap/vobiz today, and
 # `automation_health.health`, which already tracks overdue jobs + Celery
-# queue backlog) - this module only adds the customer-mapping layer on top,
+# queue backlog) — this module only adds the customer-mapping layer on top,
 # it does not re-implement failure counting.
 # --------------------------------------------------------------------------- #
-_INTEGRATION_FAIL_THRESHOLD = 3  # ignore one-off blips
-only map "affecting customers" past this
+_INTEGRATION_FAIL_THRESHOLD = 3  # ignore one-off blips; only map "affecting customers" past this
 
 # name (matches app/platform/integration_health.py KNOWN) -> (customer-safe
 # reason if this ever needs to reach a customer view, admin-technical reason,
@@ -2388,7 +2383,7 @@ _INTEGRATION_IMPACT: dict[str, tuple[str, str, str]] = {
         "ops_only",
     ),
     "vobiz": (
-        "Aapke voice calls me technical dikkat aa rahi hai - team dekh rahi hai.",
+        "Aapke voice calls me technical dikkat aa rahi hai — team dekh rahi hai.",
         "Vobiz telephony failing",
         "voice_product",
     ),
@@ -2404,7 +2399,7 @@ _INTEGRATION_IMPACT: dict[str, tuple[str, str, str]] = {
     ),
     "qdrant": ("", "Qdrant RAG lookup failing (content quality degrade, not blocking)", "ops_only"),
     "places": ("", "Google Places prospecting failing (not a customer-delivery issue)", "ops_only"),
-    "stripe": ("", "Stripe removed 2026-07-10 - payments via UPI only", "ops_only"),
+    "stripe": ("", "Stripe removed 2026-07-10 — payments via UPI only", "ops_only"),
 }
 
 _RECOMMENDED_FIX: dict[str, str] = {
@@ -2416,7 +2411,7 @@ _RECOMMENDED_FIX: dict[str, str] = {
     "pollinations": "Pollinations API status check karo (free-tier rate-limit ho sakta).",
     "qdrant": "Qdrant container/connection check karo.",
     "places": "Google Places API key/quota check karo.",
-    "stripe": "Stripe removed 2026-07-10 - payments via UPI only.",
+    "stripe": "Stripe removed 2026-07-10 — payments via UPI only.",
 }
 
 
@@ -2429,15 +2424,15 @@ def _affected_clients_for_scope(
         ]
     if scope == "all_paid":
         return list(paid_clients)
-    return []  # ops_only - real signal, but not a Product 1 customer-delivery impact
+    return []  # ops_only — real signal, but not a Product 1 customer-delivery impact
 
 
 def integration_readiness(hours: int = 6) -> dict[str, Any]:
     """Integration Health Agent: platform integration failures + scheduler/queue
-    health -> the exact Product 1 paid customers affected + a human reason +
+    health → the exact Product 1 paid customers affected + a human reason +
     recommended fix. Never raises. Logs a (deduped, internal-only)
     `integration_failed` ledger event per affected customer per integration
-    per day - never for `ops_only`-scoped integrations, since those don't
+    per day — never for `ops_only`-scoped integrations, since those don't
     actually touch customer delivery.
     """
     out: dict[str, Any] = {
@@ -2528,7 +2523,7 @@ def integration_readiness(hours: int = 6) -> dict[str, Any]:
             if cid:
                 affected_ids.add(cid)
         reason = (
-            f"Content generation delayed - scheduled job(s) overdue: {', '.join(overdue[:5])}"
+            f"Content generation delayed — scheduled job(s) overdue: {', '.join(overdue[:5])}"
             if overdue
             else "Content generation delayed because the heavy worker queue isn't consuming"
         )

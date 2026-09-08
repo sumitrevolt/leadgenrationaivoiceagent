@@ -1,8 +1,8 @@
 """
-brand_kit.py - per-client brand profile (naam/tagline/phone/colors/tone).
+brand_kit.py — per-client brand profile (naam/tagline/phone/colors/tone).
 ==========================================================================
 
-Ek baar brand save karo -> posters/posts har jagah wahi branding auto-apply.
+Ek baar brand save karo → posters/posts har jagah wahi branding auto-apply.
 Persistence: data/brand_kits/{client_id}.json (gitignored data dir, pure
 stdlib). Colors strict #RRGGBB validate hote hain (SVG injection-safe).
 
@@ -10,7 +10,7 @@ stdlib). Colors strict #RRGGBB validate hote hain (SVG injection-safe).
   get_brand(client_id)                     -> dict | None
   apply_brand_to_poster_args(client_id, a) -> poster args + brand merge
     (missing business_name/tagline/phone fill + brand_primary/brand_accent
-     colors - posters.generate_poster inhe gradient stops me lagata hai).
+     colors — posters.generate_poster inhe gradient stops me lagata hai).
 """
 
 from __future__ import annotations
@@ -47,8 +47,7 @@ def _clean_color(value: Any) -> str:
 def save_brand(client_id: Any, data: dict[str, Any] | None) -> dict[str, Any]:
     """Brand profile save karo (data/brand_kits/{id}.json). Saved dict lautata hai.
 
-    Unknown/extra keys ignore
-    colors invalid hon to "" (kabhi raw inject nahi).
+    Unknown/extra keys ignore; colors invalid hon to "" (kabhi raw inject nahi).
     """
     data = data if isinstance(data, dict) else {}
     colors = data.get("colors") if isinstance(data.get("colors"), dict) else {}
@@ -87,8 +86,7 @@ def get_brand(client_id: Any) -> dict[str, Any] | None:
 
 def delete_brand(client_id: Any) -> bool:
     """Delete saved brand profile file (admin customer removal). Returns True
-    if a file was removed
-    never raises.
+    if a file was removed; never raises.
 
     The path is built from _BRAND_DIR at the call site rather than via _path()
     so the runtime-data scanner can prove WHICH store this DELETE touches. A

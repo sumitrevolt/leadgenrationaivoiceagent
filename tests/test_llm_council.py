@@ -1,4 +1,4 @@
-"""LLM Council - parse helpers + orchestration (mocked providers)."""
+"""LLM Council — parse helpers + orchestration (mocked providers)."""
 
 import asyncio
 

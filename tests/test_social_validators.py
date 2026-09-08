@@ -62,7 +62,7 @@ def test_prohibited_claim_is_warn_not_block():
     issues = v.validate_post(
         "facebook",
         {
-            "caption": "100% safe cure for diabetes - GUARANTEED results!",
+            "caption": "100% safe cure for diabetes — GUARANTEED results!",
             "media_type": "text",
         },
     )

@@ -1,11 +1,9 @@
-"""Unit tests for VOICE_LLM_RACE - parallel LLM backend race in TelecallerBrain.
+"""Unit tests for VOICE_LLM_RACE — parallel LLM backend race in TelecallerBrain.
 
 Diagnosed 2026-06-26 from live-prod agent_tester scorecard: sequential
-Gemini -> free_ai with each capped at _REPLY_TIMEOUT_S=8s gave a 7-17s tail
+Gemini → free_ai with each capped at _REPLY_TIMEOUT_S=8s gave a 7-17s tail
 plus 2× NO-REPLY at 12s ("atak jata" symptom). The race fires both backends
-in parallel
-first non-empty wins
-loser is cancelled. Default OFF =
+in parallel; first non-empty wins; loser is cancelled. Default OFF =
 byte-identical sequential behaviour (regression-safe rollout)."""
 
 from __future__ import annotations
@@ -67,7 +65,7 @@ async def test_race_skips_empty_winner(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_race_returns_empty_when_both_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Both empty -> caller falls to script_fallback (returns ("","")) - never crashes."""
+    """Both empty → caller falls to script_fallback (returns ("","")) — never crashes."""
     brain = _make_brain(monkeypatch)
 
     async def _empty(_p: str) -> str:
@@ -106,7 +104,7 @@ async def test_race_survives_one_exception(monkeypatch: pytest.MonkeyPatch) -> N
 async def test_race_disabled_by_default_preserves_sequential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """VOICE_LLM_RACE unset -> existing sequential behaviour byte-identical."""
+    """VOICE_LLM_RACE unset → existing sequential behaviour byte-identical."""
     monkeypatch.delenv("VOICE_LLM_RACE", raising=False)
     monkeypatch.delenv("VOICE_GEMINI_PRIMARY", raising=False)
     monkeypatch.delenv("GEMINI_PRIMARY", raising=False)

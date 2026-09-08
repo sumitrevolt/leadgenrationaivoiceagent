@@ -1,8 +1,8 @@
-"""Sales Autopilot admin observability API - read-first, action-gated.
+"""Sales Autopilot admin observability API — read-first, action-gated.
 
 A NEW admin router (mounted in ``app/main.py``) so we never edit the protected
 ``admin_dashboard.html`` / ``admin_dashboard.py`` surfaces owned by other PRs. All
-endpoints are admin-only. The engine is INERT until ``SALES_AUTOPILOT_ENABLED=1`` - this
+endpoints are admin-only. The engine is INERT until ``SALES_AUTOPILOT_ENABLED=1`` — this
 router simply reports policy, decisions, attempts, and lets an operator run a SIMULATED
 canary (``force_dry_run=True`` always) or seed the Estique guard.
 
@@ -30,8 +30,7 @@ router = APIRouter(prefix="/api/sales-autopilot", tags=["Sales Autopilot"])
 
 def _scheduler_runtime() -> dict[str, Any]:
     """Runtime-wiring truth: is the canary tick actually registered in beat/staff, at what
-    cadence, is it no-catch-up excluded, and what did the last tick do. Read-only
-    never
+    cadence, is it no-catch-up excluded, and what did the last tick do. Read-only; never
     raises (missing registration just reports ``scheduler_registered: False``)."""
     info: dict[str, Any] = {
         "scheduler_registered": False,
@@ -115,7 +114,7 @@ async def refill_now(
     payload: dict[str, Any] = Body(default={}),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
-    """Manual prospector->autopilot refill. force=1 bypasses SALES_AUTOPILOT_REFILL flag."""
+    """Manual prospector→autopilot refill. force=1 bypasses SALES_AUTOPILOT_REFILL flag."""
     from app.platform.sales_autopilot import refill as _refill
 
     force = bool(payload.get("force"))
@@ -184,7 +183,7 @@ async def run_canary(
 
     Both branches force dry-run at the SEND layer. The tick branch previously
     passed nothing and relied on ``policy.dry_run`` being set, which meant this
-    docstring's promise was only as true as the stored config - a live-configured
+    docstring's promise was only as true as the stored config — a live-configured
     policy turned the canary into a real sender.
     """
     pid = str(payload.get("prospect_id") or "").strip()
@@ -225,7 +224,7 @@ async def add_prospect(
 
     Requires email and/or phone + explicit ``consent_basis`` (DPDP fail-closed).
     Does NOT mark ``manual_owner_confirmed`` (that blocks initial outreach).
-    Never live-sends - next scheduler tick evaluates eligibility.
+    Never live-sends — next scheduler tick evaluates eligibility.
     """
     import uuid
 

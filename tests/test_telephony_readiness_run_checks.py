@@ -1,10 +1,9 @@
-"""Contract tests - telephony readiness ``run_checks()`` outbound-probe integration.
+"""Contract tests — telephony readiness ``run_checks()`` outbound-probe integration.
 
 2026-09-05 fix under test: ``run_checks`` previously hardcoded ``outbound_ok = True``
 (the false-green blind spot where the caller-ID was configured but NOT owned by the
-Vobiz account - prod failure "The from number 911171366938 is not owned by this
-account"). Now the probe is consulted when armed
-when unarmed it is weight=0 and
+Vobiz account — prod failure "The from number 911171366938 is not owned by this
+account"). Now the probe is consulted when armed; when unarmed it is weight=0 and
 honestly reported as skipped, so the readiness score never claims verified
 ownership that was never checked.
 """

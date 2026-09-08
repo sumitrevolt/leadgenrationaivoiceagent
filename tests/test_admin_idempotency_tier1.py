@@ -1,10 +1,9 @@
-"""Tier-1 governance - regression tests for admin Idempotency-Key protection.
+"""Tier-1 governance — regression tests for admin Idempotency-Key protection.
 
 Covers the spec scenarios: double-click (replay), concurrent duplicate (in-progress
 reject), key reuse with a different payload (fail-safe conflict), expired key
 (re-execute), and the documented Redis-failure policy (fail-open default vs
-fail-closed flag). Uses an in-memory fake Redis
-no live Redis needed.
+fail-closed flag). Uses an in-memory fake Redis; no live Redis needed.
 """
 
 import pytest
@@ -66,7 +65,7 @@ def test_no_key_returns_none(monkeypatch):
     assert idem.begin(request=_req(key=None), actor_id="u1", scope="s", payload={}) is None
 
 
-# ---- double-click -> execute once, then replay ---------------------------------
+# ---- double-click → execute once, then replay ---------------------------------
 
 
 def test_double_click_executes_once_then_replays(monkeypatch):
@@ -83,7 +82,7 @@ def test_double_click_executes_once_then_replays(monkeypatch):
     assert second.response == {"ok": True, "deleted": True}
 
 
-# ---- concurrent duplicate (in-progress, not yet stored) -> 409 -----------------
+# ---- concurrent duplicate (in-progress, not yet stored) → 409 -----------------
 
 
 def test_concurrent_duplicate_rejected_while_in_progress(monkeypatch):
@@ -100,7 +99,7 @@ def test_concurrent_duplicate_rejected_while_in_progress(monkeypatch):
     assert "in progress" in str(ei.value.detail).lower()
 
 
-# ---- key reuse with a different payload -> fail-safe 409 -----------------------
+# ---- key reuse with a different payload → fail-safe 409 -----------------------
 
 
 def test_key_reuse_different_payload_conflicts(monkeypatch):
@@ -119,7 +118,7 @@ def test_key_reuse_different_payload_conflicts(monkeypatch):
     assert "different payload" in str(ei.value.detail).lower()
 
 
-# ---- expired key (dropped from store) -> re-execute ----------------------------
+# ---- expired key (dropped from store) → re-execute ----------------------------
 
 
 def test_expired_key_reexecutes(monkeypatch):
@@ -145,7 +144,7 @@ def test_key_is_scoped_per_actor(monkeypatch):
     a = idem.begin(request=_req(), actor_id="userA", scope="client.delete", payload=p)
     idem.store(a, {"ok": "A"})
     b = idem.begin(request=_req(), actor_id="userB", scope="client.delete", payload=p)
-    assert isinstance(b, idem._Owner)  # different actor -> not deduped against userA
+    assert isinstance(b, idem._Owner)  # different actor → not deduped against userA
 
 
 # ---- documented Redis-failure policy ------------------------------------------
@@ -158,7 +157,7 @@ def _raise_redis():
 def test_redis_down_fail_open_by_default(monkeypatch):
     monkeypatch.delenv("ADMIN_IDEMPOTENCY_FAIL_CLOSED", raising=False)
     monkeypatch.setattr(idem, "_redis", _raise_redis, raising=True)
-    # default policy = fail-open: proceed without dedup (returns None -> caller executes)
+    # default policy = fail-open: proceed without dedup (returns None → caller executes)
     assert idem.begin(request=_req(), actor_id="u1", scope="s", payload={}) is None
 
 

@@ -3,8 +3,7 @@
 Merges the routing catalog (``registry.MODEL_CATALOG``) with the live
 circuit-breaker state that ``app.voice_agent.free_ai`` already maintains
 (`_LLM_COOLDOWN_UNTIL` escalating cooldowns). No new breaker is implemented --
-free_ai remains the single owner of provider cooldown truth
-this module only
+free_ai remains the single owner of provider cooldown truth; this module only
 observes it so routing/admin surfaces can show quota health without another
 parallel health system.
 

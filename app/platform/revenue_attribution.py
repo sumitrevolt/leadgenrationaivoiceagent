@@ -1,4 +1,4 @@
-"""Multi-touch revenue attribution - inquiry UTM -> subscription linkage."""
+"""Multi-touch revenue attribution — inquiry UTM → subscription linkage."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def record_touch(
     amount_inr: int = 0,
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Log attribution touch (inquiry -> signup -> payment). Never raises."""
+    """Log attribution touch (inquiry → signup → payment). Never raises."""
     rec = {
         "client_id": client_id,
         "channel": channel,

@@ -2,19 +2,18 @@
 
 `delivery_ledger._ledger_path(cid)` interpolated the client id straight into
 `data/delivery_ledger/<cid>.jsonl`. Empirically, `cid="../email_suppression"`
-resolved to `data/email_suppression.jsonl` - a real compliance store - and
+resolved to `data/email_suppression.jsonl` — a real compliance store — and
 `cid="x/../../secrets"` climbed out of the data root entirely.
 
 That is two distinct bugs, which is why the guard sits in `_ledger_path` and
 not only on the write side:
 
-  * WRITE - a tenant's delivery rows land in another store's file.
-  * READ  - one tenant's history request returns another store's contents.
+  * WRITE — a tenant's delivery rows land in another store's file.
+  * READ  — one tenant's history request returns another store's contents.
             A cross-tenant read leak, forbidden by CLAUDE.md section 5.
 
 The guard REFUSES (raises) rather than coercing. `auto_content._safe_id`
-rewrites offending characters instead
-that also stops the escape, but files
+rewrites offending characters instead; that also stops the escape, but files
 the rows under a silently different name. For a paying customer's delivery
 history, quiet misplacement is the failure mode we are trying to prevent.
 """

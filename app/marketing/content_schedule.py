@@ -1,11 +1,10 @@
-"""Content scheduler - schedule posts for specific future dates (Buffer/Hootsuite-style).
+"""Content scheduler — schedule posts for specific future dates (Buffer/Hootsuite-style).
 
-`auto_content` daily content deta hai
-yeh DATE-targeted scheduling deta hai - kisi khaas
+`auto_content` daily content deta hai; yeh DATE-targeted scheduling deta hai — kisi khaas
 din ke liye post queue karo (Diwali, anniversary, sale day). Roz ka sweep due items ko
-auto-PREPARE karta hai (content generate -> ready-to-post). Store: data/content_schedule.jsonl.
+auto-PREPARE karta hai (content generate → ready-to-post). Store: data/content_schedule.jsonl.
 
-Never raises. Auto-publish nahi (Meta API blocked) - ready content 1-click human post ke liye.
+Never raises. Auto-publish nahi (Meta API blocked) — ready content 1-click human post ke liye.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def _read() -> list[dict]:
 
 
 def _write_all(items: list[dict]) -> None:
-    # Lock + atomic - web (API add) + celery (run_due) dono likhte hain.
+    # Lock + atomic — web (API add) + celery (run_due) dono likhte hain.
     try:
         from app.utils.file_lock import locked_rewrite
 

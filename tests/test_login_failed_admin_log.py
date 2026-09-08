@@ -5,7 +5,7 @@ Delivery Command Center's Automation Runs panel surfaces credential-stuffing
 spikes early (job_type filter shows the RATE, not just a single failure).
 
 Security-critical: MUST NOT leak which factor failed (bad_email vs bad_pw) in
-the caller-facing message - user enumeration hole. Log meta records
+the caller-facing message — user enumeration hole. Log meta records
 `known_email` for admin triage but the 401 detail stays uniform.
 """
 
@@ -17,7 +17,7 @@ from tests._api_helpers import api_error_message
 
 
 def test_login_bad_email_emits_login_failed_row(client, monkeypatch):
-    """Unknown email -> 401 uniform message + one login_failed log row with
+    """Unknown email → 401 uniform message + one login_failed log row with
     known_email=False for admin triage."""
     import app.api.customer_auth as ca
     import app.platform.automation_log_service as als
@@ -50,7 +50,7 @@ def test_login_bad_email_emits_login_failed_row(client, monkeypatch):
 
 
 def test_login_bad_password_emits_login_failed_row(client, monkeypatch):
-    """Known email + wrong password -> same uniform 401 + log row with
+    """Known email + wrong password → same uniform 401 + log row with
     known_email=True so admin can spot credential stuffing on real accounts."""
     import app.api.customer_auth as ca
     import app.platform.automation_log_service as als

@@ -1,5 +1,5 @@
 """
-email_signature.py - signature marketing kit (har bheji email = free ad).
+email_signature.py — signature marketing kit (har bheji email = free ad).
 ==========================================================================
 
 Client ke roz ke emails ke neeche ek branded HTML signature: naam, business,
@@ -7,7 +7,7 @@ phone, WhatsApp link, mini-site link (UTM'd), brand colors (brand_kit reuse)
 + optional rotating campaign banner line. Plain-text fallback + Hinglish
 copy-paste instructions (Gmail/Outlook).
 
-Pure logic - koi flag nahi, koi network nahi, koi send nahi. Never raises.
+Pure logic — koi flag nahi, koi network nahi, koi send nahi. Never raises.
 
 Public API:
   - generate(client_id=None, slug=None, campaign_banner_text=None)
@@ -97,61 +97,40 @@ def generate(
             else (e(niche.title()) if niche else "")
         )
         rows.append(
-            f"<div style='font-weight:bold
-            font-size:15px
-            color:{e(primary)}
-            '>{name_line}</div>"
+            f"<div style='font-weight:bold;font-size:15px;color:{e(primary)};'>{name_line}</div>"
         )
         if sub_line:
-            rows.append(f"<div style='color:#444
-            font-size:13px
-            '>{sub_line}</div>")
+            rows.append(f"<div style='color:#444;font-size:13px;'>{sub_line}</div>")
         links: list[str] = []
         if phone:
             links.append(
-                f"<a href='tel:{e(phone)}' style='color:{e(accent)}
-                text-decoration:none
-                '>📞 {e(phone)}</a>"
+                f"<a href='tel:{e(phone)}' style='color:{e(accent)};text-decoration:none;'>📞 {e(phone)}</a>"
             )
         if wa:
             links.append(
-                f"<a href='{e(wa)}' style='color:#25D366
-                text-decoration:none
-                '>💬 WhatsApp</a>"
+                f"<a href='{e(wa)}' style='color:#25D366;text-decoration:none;'>💬 WhatsApp</a>"
             )
         if minisite:
             links.append(
-                f"<a href='{e(minisite)}' style='color:{e(accent)}
-                text-decoration:none
-                '>🌐 Book / Visit</a>"
+                f"<a href='{e(minisite)}' style='color:{e(accent)};text-decoration:none;'>🌐 Book / Visit</a>"
             )
         if links:
             rows.append(
                 "<div style='margin-top:4px;font-size:13px;'>"
-                + " &nbsp
-                |&nbsp
-                ".join(links)
+                + " &nbsp;|&nbsp; ".join(links)
                 + "</div>"
             )
         if banner:
             banner_link = minisite or (_SITE_URL + "?" + _UTM)
             rows.append(
-                f"<div style='margin-top:8px
-                background:{e(primary)}
-                color:#fff
-                padding:6px 12px
-                "
+                f"<div style='margin-top:8px;background:{e(primary)};color:#fff;padding:6px 12px;"
                 "border-radius:6px;font-size:13px;display:inline-block;'>"
-                f"<a href='{e(banner_link)}' style='color:#fff
-                text-decoration:none
-                '>🎉 {e(banner)}</a></div>"
+                f"<a href='{e(banner_link)}' style='color:#fff;text-decoration:none;'>🎉 {e(banner)}</a></div>"
             )
         html_sig = (
             "<table cellpadding='0' cellspacing='0' border='0' "
             "style='font-family:Arial,Helvetica,sans-serif;line-height:1.45;'>"
-            f"<tr><td style='border-left:3px solid {e(primary)}
-            padding-left:12px
-            '>"
+            f"<tr><td style='border-left:3px solid {e(primary)};padding-left:12px;'>"
             + "".join(rows)
             + "</td></tr></table>"
         )
@@ -171,16 +150,16 @@ def generate(
 
         instructions = (
             "📋 Signature lagane ka tareeka (1 baar, 2 minute):\n\n"
-            "GMAIL: Settings (⚙️) -> 'See all settings' -> General tab -> 'Signature' -> "
-            "'Create new' -> neeche wala HTML signature COPY karke PASTE karo (formatting "
-            "ke saath) -> Save Changes. Bas - ab har email ke neeche aapka branded "
+            "GMAIL: Settings (⚙️) → 'See all settings' → General tab → 'Signature' → "
+            "'Create new' → neeche wala HTML signature COPY karke PASTE karo (formatting "
+            "ke saath) → Save Changes. Bas — ab har email ke neeche aapka branded "
             "signature jayega.\n\n"
-            "OUTLOOK: Settings -> Mail -> Compose and reply -> Email signature box me "
-            "paste karo -> Save.\n\n"
-            "MOBILE (Gmail app): Settings -> apna account -> Mobile signature - wahan "
+            "OUTLOOK: Settings → Mail → Compose and reply → Email signature box me "
+            "paste karo → Save.\n\n"
+            "MOBILE (Gmail app): Settings → apna account → Mobile signature — wahan "
             "sirf plain-text wala version paste karo.\n\n"
             "Tip: banner line har campaign pe badalte raho (festival offer, naya "
-            "product) - har bheji email free advertisement ban jaati hai!"
+            "product) — har bheji email free advertisement ban jaati hai!"
         )
 
         return {

@@ -1,5 +1,5 @@
 """
-VoicePipeline - Dograh/Vapi-inspired real-time streaming voice loop.
+VoicePipeline — Dograh/Vapi-inspired real-time streaming voice loop.
 
 Implements the low-latency agent loop:
 
@@ -11,20 +11,19 @@ Implements the low-latency agent loop:
     TTS task is cancelled immediately (via an asyncio.Event `interrupt`), so the
     bot "shuts up" and listens. Call `interrupt_current()` to trigger it.
   * ENDPOINTING / VAD: `_detect_end_of_turn` decides when the user has finished
-    speaking - using audio energy + a silence timeout (and, in text mode, simple
+    speaking — using audio energy + a silence timeout (and, in text mode, simple
     punctuation / non-empty heuristics) so a turn can be processed.
 
 It pulls its STT / TTS / LLM from `providers.get_registry()` (BYOK, Mock-safe),
-and OPTIONALLY drives a `flow_engine` if one exists in the project - imported
-lazily so its absence is fine
-we fall back to free-form LLM turns.
+and OPTIONALLY drives a `flow_engine` if one exists in the project — imported
+lazily so its absence is fine; we fall back to free-form LLM turns.
 
 Everything is defensive: provider calls are wrapped in try/except and degrade to
 Mock-ish behavior rather than crashing. Per-turn latency is tracked in
 `TurnMetrics` (stt_ms / llm_ms / tts_ms).
 
-The pipeline runs in PURE TEXT MODE with zero external services - feed strings,
-get strings back - so it is testable without any audio stack.
+The pipeline runs in PURE TEXT MODE with zero external services — feed strings,
+get strings back — so it is testable without any audio stack.
 
 Usage example (pure text mode)::
 
@@ -75,7 +74,7 @@ AudioOrText = Union[bytes, str]
 
 
 def _default_silence_s() -> float:
-    """End-of-turn silence (seconds) - shares TURN_SILENCE_MS with the phone
+    """End-of-turn silence (seconds) — shares TURN_SILENCE_MS with the phone
     paths. Historical default 0.8 s if turn_detector is unimportable. Defensive:
     never raises (a missing module just yields the literal default)."""
     try:
@@ -235,7 +234,7 @@ class VoicePipeline:
             # Try the most likely simple entry points; tolerate any shape.
             # NOTE: the project's `FlowRunner.step(flow, state, user_input)`
             # requires a pre-built ConversationFlow graph which this generic
-            # pipeline does not own - so we deliberately do NOT auto-drive it
+            # pipeline does not own — so we deliberately do NOT auto-drive it
             # here and fall back to free-form LLM turns. A drop-in engine that
             # exposes one of the simple methods below WILL be driven.
             engine = None
@@ -348,8 +347,7 @@ class VoicePipeline:
 
     async def _do_llm(self, user_text: str) -> tuple[str, float]:
         """
-        Generate the assistant reply. Prefers the optional flow engine
-        falls
+        Generate the assistant reply. Prefers the optional flow engine; falls
         back to a free-form LLM completion. Returns (reply, elapsed_ms).
         """
         start = time.monotonic()
@@ -386,8 +384,7 @@ class VoicePipeline:
     async def _do_tts(self, text: str) -> tuple[bytes, float]:
         """
         Synthesize speech for `text` as a CANCELLABLE task so barge-in can stop
-        it mid-way. Returns (audio_bytes, elapsed_ms)
-        audio is b"" if cancelled.
+        it mid-way. Returns (audio_bytes, elapsed_ms); audio is b"" if cancelled.
         """
         start = time.monotonic()
         if not text:
@@ -436,7 +433,7 @@ class VoicePipeline:
 
         # 1.5) Live human-transfer intent (gated CALL_TRANSFER, default OFF).
         # Pure-keyword check (hot-path safe, no LLM); transfer khud fire-and-forget
-        # background task me hota hai - turn block NAHI karta.
+        # background task me hota hai — turn block NAHI karta.
         try:
             from app.telephony import call_transfer as _ct
 
@@ -456,7 +453,7 @@ class VoicePipeline:
                 }
                 _owner = str(self.state.flow_state.get("owner_phone") or "")
                 asyncio.get_running_loop().create_task(_ct.request_transfer(_ctx, _owner))
-                reply = "Ji bilkul - ek minute rukiye, main aapko owner se connect kar raha hoon."
+                reply = "Ji bilkul — ek minute rukiye, main aapko owner se connect kar raha hoon."
                 self.state.add_assistant(reply)
                 if not self.interrupt.is_set():
                     _audio, metrics.tts_ms = await self._do_tts(reply)

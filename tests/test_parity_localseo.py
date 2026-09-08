@@ -1,4 +1,4 @@
-"""Tests - local SEO batch (geo_visibility, grid_rank, listings_presence + router).
+"""Tests — local SEO batch (geo_visibility, grid_rank, listings_presence + router).
 
 Offline + isolated: koi network/DB nahi. Stores tmp_path pe monkeypatch,
 free_ai.chat + Places search mocked. Style: tests/test_parity_memory.py jaisa.
@@ -10,7 +10,7 @@ import os
 
 
 # --------------------------------------------------------------------------- #
-# geo_visibility - fuzzy mention, probes, score+cache, LLM-down fallback
+# geo_visibility — fuzzy mention, probes, score+cache, LLM-down fallback
 # --------------------------------------------------------------------------- #
 def _setup_geo(tmp_path, monkeypatch):
     from app.marketing import geo_visibility as gv
@@ -27,7 +27,7 @@ def test_mentions_fuzzy():
     assert _mentions("Aap Sharma Solar Solutions try karo, badhiya hai.", "Sharma Solar Solutions")
     # token overlap >= 60% (order/extra words tolerant)
     assert _mentions("Top picks: Solar Sharma (Pune) aur Patel Energy.", "Sharma Solar")
-    # negative - alag business
+    # negative — alag business
     assert not _mentions("Patel Energy aur GreenVolt best hain.", "Sharma Solar Solutions")
     # empty-safe
     assert not _mentions("", "Sharma Solar")
@@ -101,7 +101,7 @@ def test_geo_check_missing_inputs(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# grid_rank - geometry, key/cap gates, mocked grid run
+# grid_rank — geometry, key/cap gates, mocked grid run
 # --------------------------------------------------------------------------- #
 def _setup_grid(tmp_path, monkeypatch):
     from app.platform import grid_rank as gr
@@ -186,7 +186,7 @@ def test_grid_summarize_empty():
 
 
 # --------------------------------------------------------------------------- #
-# listings_presence - checklist (NO fetch), score, status round-trip
+# listings_presence — checklist (NO fetch), score, status round-trip
 # --------------------------------------------------------------------------- #
 def _setup_listings(tmp_path, monkeypatch):
     from app.marketing import listings_presence as lp
@@ -215,7 +215,7 @@ def test_listings_checklist_links(tmp_path, monkeypatch):
         "mapmyindia",
     } == keys
     jd = [d for d in dirs if d["key"] == "justdial"][0]
-    # quoted business name + city deep-link me (LINK only - koi fetch nahi)
+    # quoted business name + city deep-link me (LINK only — koi fetch nahi)
     assert "justdial.com" in jd["search_url"] and "Sharma+Solar" in jd["search_url"]
     assert all(d["why"] and d["listing_url"] for d in dirs)
     assert lp.checklist("")["ok"] is False
@@ -243,7 +243,7 @@ def test_listings_status_roundtrip(tmp_path, monkeypatch):
     r = lp.save_status("client-1", {"google_business": True, "justdial": True, "hacker_key": True})
     assert r["ok"] is True and r["saved"]["score"] == 42
     assert "hacker_key" not in r["saved"]["present"]  # unknown keys filtered
-    # update -> latest jeet-ta hai
+    # update → latest jeet-ta hai
     lp.save_status("client-1", {"google_business": True})
     got = lp.get_status("client-1")
     assert got["ok"] is True and got["score"] == 30
@@ -251,7 +251,7 @@ def test_listings_status_roundtrip(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# router - importable + exact paths (mount /api ke saath /api/localseo/*)
+# router — importable + exact paths (mount /api ke saath /api/localseo/*)
 # --------------------------------------------------------------------------- #
 def test_localseo_router_paths():
     from app.api.localseo import router

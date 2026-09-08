@@ -125,7 +125,7 @@ def test_queue_and_dlq_mapped_to_sre(monkeypatch):
     assert "queue_backlog" in by_type
     assert "dlq_dead" in by_type
     assert "dlq_retryable" in by_type
-    # all queue/DLQ issues attributed to the SRE persona (pranav) - a real id
+    # all queue/DLQ issues attributed to the SRE persona (pranav) — a real id
     assert by_type["queue_backlog"]["owner_agent"] == "pranav"
     assert by_type["dlq_dead"]["owner_agent"] == "pranav"
     assert "pranav" in agent_registry.build_registry()
@@ -166,7 +166,7 @@ def test_never_raises_when_health_source_fails(monkeypatch):
     monkeypatch.setattr(
         infra_handler, "_check_backups", lambda: (_ for _ in ()).throw(RuntimeError("backups boom"))
     )
-    # log_event also blows up - the scan must still not raise.
+    # log_event also blows up — the scan must still not raise.
     monkeypatch.setattr(
         team, "log_event", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db down"))
     )

@@ -2,9 +2,8 @@
 
 Reuses CoordinatorActionV1 via SupervisorDecisionV1. Dev route REUSES
 agent.delegate.dev (GREEN). Rohan route registers agent.delegate.rohan (AMBER,
-outreach - honest). staff_supervisor real graph is optional-dep gated. Enforcement
-OFF
-legacy LangGraph authoritative.
+outreach — honest). staff_supervisor real graph is optional-dep gated. Enforcement
+OFF; legacy LangGraph authoritative.
 """
 
 from __future__ import annotations
@@ -94,7 +93,7 @@ def test_decision_converts_to_coordinator_action():
 
 
 def test_no_duplicate_supervisor_schema():
-    # SupervisorDecisionV1 normalizes INTO CoordinatorActionV1 - not a fork.
+    # SupervisorDecisionV1 normalizes INTO CoordinatorActionV1 — not a fork.
     assert issubclass(cc.CoordinatorActionV1, __import__("pydantic").BaseModel)
     assert _dec().to_coordinator_action().schema_version == "1.0"
 
@@ -508,8 +507,7 @@ def test_real_leads_route_rohan_amber(monkeypatch, tmp_path):
 
 def test_real_harness_executes_zero(monkeypatch, tmp_path):
     sup, res, counter = _real_sup(monkeypatch, tmp_path, "data_agent")
-    assert counter["n"] == 1  # only the legacy node
-    harness ran nothing
+    assert counter["n"] == 1  # only the legacy node; harness ran nothing
     assert len(_rows(tmp_path, "dev")) == 1
 
 

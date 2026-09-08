@@ -1,34 +1,30 @@
-"""customer_webhooks.py - programmable event delivery to customer-owned URLs.
+"""customer_webhooks.py — programmable event delivery to customer-owned URLs.
 
-Customers (`/app/customer`) register a URL + a set of events
-the platform
+Customers (`/app/customer`) register a URL + a set of events; the platform
 HMAC-SHA256 signs and POSTs a JSON envelope on every match. This is a paid
-SaaS feature (the audit named it as "sellable feature, free + no creds") -
+SaaS feature (the audit named it as "sellable feature, free + no creds") —
 once a customer has a CRM/automation tool, they want THEIR webhook fired
 when their lead qualifies, not to poll.
 
 Design rules:
 - **Storage by jsonl** (data/customer_webhooks.jsonl + data/customer_webhook_deliveries.jsonl)
-  - matches project pattern (llm_metrics, consent_ledger, lead_usage). No
+  — matches project pattern (llm_metrics, consent_ledger, lead_usage). No
   extra DB table to migrate.
-- **Atomic rewrite** on register/remove via a temp file (single-writer
-the
-  customer's webhook count is tiny - a few per client).
+- **Atomic rewrite** on register/remove via a temp file (single-writer; the
+  customer's webhook count is tiny — a few per client).
 - **HMAC-SHA256** of the raw JSON body with the per-webhook secret, sent as
   `X-LeadGen-Signature: sha256=...` plus `X-LeadGen-Event` + `X-LeadGen-Delivery`.
-  Standard Stripe/GitHub pattern - customer-side verifiers are well-known.
-- **Retries**: 3 attempts with exponential backoff (5s -> 30s -> 5min). 2xx =
-  success
-  everything else = retry. Final failure logged in deliveries.jsonl.
+  Standard Stripe/GitHub pattern — customer-side verifiers are well-known.
+- **Retries**: 3 attempts with exponential backoff (5s → 30s → 5min). 2xx =
+  success; everything else = retry. Final failure logged in deliveries.jsonl.
 - **Bounded deliveries log**: tail-read last 500 lines for the recent-deliveries
-  view
-  full history rotates in place (operators can ship to S3 if they want).
-- **Master flag**: `CUSTOMER_WEBHOOKS=1` - OFF default. With it off, register
+  view; full history rotates in place (operators can ship to S3 if they want).
+- **Master flag**: `CUSTOMER_WEBHOOKS=1` — OFF default. With it off, register
   still works (drafts) but emit() is a no-op. Customer-side: feature absent
   until enabled at infra level.
 - **Allow-listed URL hosts** (`CUSTOMER_WEBHOOK_DENY_PRIVATE=1` default ON):
   reject localhost/private/link-local URLs at register-time so a customer
-  cannot make us SSRF into our own infra (revisiting the C4 SSRF lesson -
+  cannot make us SSRF into our own infra (revisiting the C4 SSRF lesson —
   same defensive pattern).
 - **Per-emit fire-and-forget**: emit() returns immediately after spawning
   the delivery task. Callers (Razorpay webhook, voice qualifier) are never
@@ -71,7 +67,7 @@ _DELIVERIES_TAIL = 500
 # (silent webhook-delivery loss). Discarded automatically on completion.
 _INFLIGHT_DELIVERIES: set = set()
 
-# Supported event types - keep this list small + stable so customers' verifiers
+# Supported event types — keep this list small + stable so customers' verifiers
 # don't break when we add features. New types append; never rename.
 SUPPORTED_EVENTS = (
     "lead.created",
@@ -97,7 +93,7 @@ def _deny_private() -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# URL validation - same SSRF defense as the /site-audit fix (C4 in code-review)
+# URL validation — same SSRF defense as the /site-audit fix (C4 in code-review)
 # --------------------------------------------------------------------------- #
 def _is_url_safe(url: str) -> tuple[bool, str]:
     """(ok, reason). False = reject (no register). Defends against customer-
@@ -223,7 +219,7 @@ def _read_deliveries(limit: int = _DELIVERIES_TAIL) -> list[dict[str, Any]]:
 # CRUD
 # --------------------------------------------------------------------------- #
 def _redact(row: dict[str, Any]) -> dict[str, Any]:
-    """Customer-safe shape - secret hidden after creation."""
+    """Customer-safe shape — secret hidden after creation."""
     r = dict(row)
     sec = r.pop("secret", None)
     r["secret_preview"] = (sec[:6] + "..." + sec[-4:]) if sec and len(sec) > 12 else "***"
@@ -362,11 +358,11 @@ async def _deliver_one(
     for attempt_idx, _backoff in enumerate(schedule):
         try:
             # Re-check host safety immediately before EACH connect attempt, not just
-            # at registration time - closes the DNS-rebinding TOCTOU (customer points
+            # at registration time — closes the DNS-rebinding TOCTOU (customer points
             # a hostname at a public IP to register, then repoints it to
             # 127.0.0.1/169.254.169.254/etc. before delivery or a later retry fires).
             # Same "re-check right before fetch" pattern as the /site-audit SSRF fix
-            # (app/marketing/website_auditor.py), not IP-pinning - accepted precedent
+            # (app/marketing/website_auditor.py), not IP-pinning — accepted precedent
             # in this codebase. Production audit 2026-07-01, security batch 2.
             ok, reason = _is_url_safe(row["url"])
             if not ok:
@@ -424,7 +420,7 @@ async def _deliver_one(
             "at": int(time.time()),
         }
     )
-    # L.3 dead-letter alert - best-effort; never blocks delivery completion.
+    # L.3 dead-letter alert — best-effort; never blocks delivery completion.
     try:
         from app.platform import ops_alerts as _oa
 
@@ -443,12 +439,12 @@ async def _deliver_one(
 async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Fire-and-forget event delivery to all matching webhooks of a client.
 
-    Returns {"emitted": n, "skipped": m} immediately - actual delivery runs
+    Returns {"emitted": n, "skipped": m} immediately — actual delivery runs
     in background. Callers (Razorpay webhook handler, qualifier flow) are
     never blocked.
     """
     # Phase-3 Flow Runner event trigger (additive, self-gated, never-raise).
-    # Runs regardless of CUSTOMER_WEBHOOKS - flow triggers must not depend on a
+    # Runs regardless of CUSTOMER_WEBHOOKS — flow triggers must not depend on a
     # customer having registered an HTTP webhook. fire_event self-gates on
     # FLOW_RUNNER + FLOW_AUTO_TRIGGERS, so it is inert until both flags are on.
     try:
@@ -480,7 +476,7 @@ async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict
             _t.add_done_callback(_INFLIGHT_DELIVERIES.discard)
             emitted += 1
         except RuntimeError:
-            # No running loop (sync call site) - last-resort sync deliver, no retries
+            # No running loop (sync call site) — last-resort sync deliver, no retries
             try:
                 asyncio.run(_deliver_one(row, event_type, payload, schedule=(_HTTP_TIMEOUT_S,)))
                 emitted += 1
@@ -504,7 +500,7 @@ async def fire_test(webhook_id: str, client_id: str) -> dict[str, Any]:
 
 def set_enabled(webhook_id: str, client_id: str, enabled: bool) -> dict[str, Any]:
     """L.1: pause/resume a webhook without losing subscriptions or delivery
-    history. emit() already respects the `enabled` flag - this is the toggle.
+    history. emit() already respects the `enabled` flag — this is the toggle.
     """
     cid = (client_id or "").strip()
     if not cid:
@@ -540,9 +536,8 @@ def consecutive_failure_count(webhook_id: str) -> int:
 
 def rotate_secret(webhook_id: str, client_id: str) -> dict[str, Any]:
     """K.3: replace a webhook's signing secret in-place. Subscriptions and the
-    webhook ID stay
-    only the secret changes. Returns the NEW plaintext secret
-    once (same pattern as create) - customer must update their verifier.
+    webhook ID stay; only the secret changes. Returns the NEW plaintext secret
+    once (same pattern as create) — customer must update their verifier.
 
     Use case: leaked secret recovery. Avoids the delete-then-recreate dance
     that loses delivery history and forces a new webhook ID.
@@ -592,7 +587,7 @@ async def retry_delivery(webhook_id: str, client_id: str, delivery_id: str) -> d
         str(original.get("event_type") or "webhook.test"),
         {"retry_of": delivery_id, "ts": int(time.time())},
         delivery_id="del_retry_" + uuid.uuid4().hex[:14],
-        schedule=(_HTTP_TIMEOUT_S,),  # single-shot - operator can re-retry
+        schedule=(_HTTP_TIMEOUT_S,),  # single-shot — operator can re-retry
     )
 
 

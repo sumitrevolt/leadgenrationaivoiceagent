@@ -1,8 +1,8 @@
-"""Daily video producer - gates, backpressure, engine choice, idempotency.
+"""Daily video producer — gates, backpressure, engine choice, idempotency.
 
 Every test drives a synthetic client id. Real ids (e.g. `jiya-makeover`) must
 never appear: `video_pipeline` writes `delivery_ledger` events, and that ledger
-is a TRACKED file - a test render against a real id commits fabricated delivery
+is a TRACKED file — a test render against a real id commits fabricated delivery
 events for a paying customer.
 """
 
@@ -23,7 +23,7 @@ _CID = "test-daily-video-client"
 def _isolated_state(tmp_path, monkeypatch):
     """Point the producer's state files at tmp so runs never touch real stores.
 
-    Both are RESOLVERS, not constants - the runtime-data ratchet rejects a store
+    Both are RESOLVERS, not constants — the runtime-data ratchet rejects a store
     frozen to `data/...` at import, so they go through runtime_data_authority.
     """
     monkeypatch.setattr(daily_video, "_STATE", lambda: str(tmp_path / "daily_video.json"))
@@ -69,7 +69,7 @@ def test_disabled_by_default_is_inert(monkeypatch):
 
 
 def test_empty_allowlist_refuses_every_client(monkeypatch):
-    """Unset allowlist must mean NO tenant - not a fleet-wide daily render storm."""
+    """Unset allowlist must mean NO tenant — not a fleet-wide daily render storm."""
     monkeypatch.setenv("DAILY_VIDEO_ENABLED", "1")
     _fake_clients(monkeypatch, [{"id": _CID, "business_name": "T"}])
     called = []
@@ -109,7 +109,7 @@ def test_enqueues_classic_once_per_day(monkeypatch):
     assert first["enqueued"] == 1
     assert len(calls) == 1
 
-    # Second run the SAME day must be a no-op - a re-fired beat cannot double-bill
+    # Second run the SAME day must be a no-op — a re-fired beat cannot double-bill
     # the customer's review inbox.
     second = asyncio.run(daily_video.run_daily())
     assert second["enqueued"] == 0
@@ -212,9 +212,8 @@ def test_auto_downgrades_after_consecutive_advanced_failures(monkeypatch):
 
 
 def test_explicit_advanced_refuses_rather_than_silently_using_classic(monkeypatch):
-    """`DAILY_VIDEO_ENGINE=advanced` is an operator assertion - honour it or
-    report the refusal
-    never quietly ship a lower-tier deliverable."""
+    """`DAILY_VIDEO_ENGINE=advanced` is an operator assertion — honour it or
+    report the refusal; never quietly ship a lower-tier deliverable."""
     monkeypatch.setenv("DAILY_VIDEO_ENGINE", "advanced")
     engine, why = daily_video.choose_engine(_CID)
     assert engine == ""
@@ -259,7 +258,7 @@ def _force_advanced(monkeypatch):
     monkeypatch.setenv("DAILY_VIDEO_ENABLED", "1")
     monkeypatch.setenv("DAILY_VIDEO_CLIENTS", "*")
     monkeypatch.setenv("DAILY_VIDEO_ENGINE", "auto")
-    # Advanced is genuinely reachable - the refusal comes from the BRIEF, not the
+    # Advanced is genuinely reachable — the refusal comes from the BRIEF, not the
     # gate, which is the case that used to loop invisibly.
     monkeypatch.setenv("CREATIVE_OS_ENABLED", "1")
     monkeypatch.setenv("CREATIVE_PROVIDER_HYPERFRAMES_ENABLED", "1")
@@ -273,7 +272,7 @@ def _force_advanced(monkeypatch):
 
 def test_needs_customer_input_parks_tenant_and_still_ships_a_video(monkeypatch):
     """A brief refusal never fixes itself, and enqueue_generate records the
-    attempt BEFORE dispatch - retrying daily would burn the tenant's Creative OS
+    attempt BEFORE dispatch — retrying daily would burn the tenant's Creative OS
     budget on records that never render, while the customer got nothing."""
     _force_advanced(monkeypatch)
     monkeypatch.setattr(
@@ -310,7 +309,7 @@ def test_needs_customer_input_parks_tenant_and_still_ships_a_video(monkeypatch):
 
 
 def test_transient_advanced_failures_do_not_park_the_tenant(monkeypatch):
-    """tenant_budget_exceeded / enqueue_failed DO clear on their own - parking
+    """tenant_budget_exceeded / enqueue_failed DO clear on their own — parking
     on those would strand a healthy tenant on the lower-tier engine."""
     _force_advanced(monkeypatch)
     for transient in (
@@ -324,7 +323,7 @@ def test_transient_advanced_failures_do_not_park_the_tenant(monkeypatch):
 
 
 def test_explicit_advanced_does_not_silently_ship_classic_on_block(monkeypatch):
-    """DAILY_VIDEO_ENGINE=advanced means advanced or nothing - record the block,
+    """DAILY_VIDEO_ENGINE=advanced means advanced or nothing — record the block,
     do not quietly downgrade the deliverable."""
     _force_advanced(monkeypatch)
     monkeypatch.setenv("DAILY_VIDEO_ENGINE", "advanced")
@@ -358,7 +357,7 @@ def test_block_expires_and_can_be_cleared(monkeypatch):
 
 # ---------------------- real open-review counting --------------------------- #
 def test_open_review_count_collapses_latest_line_wins(monkeypatch, tmp_path):
-    """The classic store is append-on-update JSONL - a record updated 5 times
+    """The classic store is append-on-update JSONL — a record updated 5 times
     must count ONCE, and only in its LATEST state."""
     from app.marketing import video_ad_cycle
 
@@ -451,7 +450,7 @@ def test_daily_video_task_routes_to_the_video_queue(monkeypatch):
 
 def test_run_cycle_defers_generation_for_daily_owned_clients(monkeypatch, tmp_path):
     """The 5-day loop must not double-generate for a client the daily producer
-    owns - that would put TWO videos and two approval asks in the same inbox."""
+    owns — that would put TWO videos and two approval asks in the same inbox."""
     from app.marketing import video_ad_cycle
 
     monkeypatch.setenv("VIDEO_AD_CYCLE", "1")

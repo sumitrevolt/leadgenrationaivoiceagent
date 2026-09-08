@@ -1,11 +1,11 @@
-"""SEO/Ops API - rank tracker + unified conversations + human dialer.
+"""SEO/Ops API — rank tracker + unified conversations + human dialer.
 
 Mount (main session): app.include_router(seoops.router, prefix="/api")
--> final paths /api/seoops/*
+→ final paths /api/seoops/*
 
 Pattern (growth.py jaisa): admin-only via require_admin, lazy imports in
 handlers, modules khud never-raise (error dicts). Koi auto-send/auto-call
-NAHI - drafts + tel:/wa.me links (ban-safe).
+NAHI — drafts + tel:/wa.me links (ban-safe).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/seoops", tags=["SEO-Ops"])
 
 
 # --------------------------------------------------------------------------- #
-# F1 - Local rank tracker (BrightLocal-style, ongoing)
+# F1 — Local rank tracker (BrightLocal-style, ongoing)
 # --------------------------------------------------------------------------- #
 class RankConfigIn(BaseModel):
     client_id: str
@@ -59,7 +59,7 @@ async def rank_configs(_user=Depends(require_admin)):
 
 @router.post("/rank/check")
 async def rank_check(body: RankCheckIn, _user=Depends(require_admin)):
-    """One-off rank check (history me save nahi hota) - quick demo/sales use."""
+    """One-off rank check (history me save nahi hota) — quick demo/sales use."""
     from app.platform import rank_tracker
 
     return await rank_tracker.check_rank(body.business_name, body.phone, body.keyword, body.city)
@@ -82,7 +82,7 @@ async def rank_history(client_id: str = "", limit: int = 100, _user=Depends(requ
 
 
 # --------------------------------------------------------------------------- #
-# F2 - Unified conversation inbox (drafts-only, ban-safe)
+# F2 — Unified conversation inbox (drafts-only, ban-safe)
 # --------------------------------------------------------------------------- #
 class ReplyIn(BaseModel):
     text: str
@@ -107,14 +107,14 @@ async def conversation_thread(key: str, _user=Depends(require_admin)):
 
 @router.post("/conversations/{key}/reply")
 async def conversation_reply(key: str, body: ReplyIn, _user=Depends(require_admin)):
-    """Reply DRAFT save karo - human khud bhejta hai (auto-send nahi, ban-safe)."""
+    """Reply DRAFT save karo — human khud bhejta hai (auto-send nahi, ban-safe)."""
     from app.platform import conversations
 
     return conversations.add_manual_reply_draft(key, body.text, body.channel)
 
 
 # --------------------------------------------------------------------------- #
-# F3 - Human dialer mode (telecaller productivity)
+# F3 — Human dialer mode (telecaller productivity)
 # --------------------------------------------------------------------------- #
 class DispositionIn(BaseModel):
     phone: str
@@ -132,7 +132,7 @@ async def dialer_disposition(body: DispositionIn, _user=Depends(require_admin)):
 
 @router.get("/dialer/stats")
 async def dialer_stats(_user=Depends(require_admin)):
-    """Aaj ke calls by disposition - telecaller scoreboard."""
+    """Aaj ke calls by disposition — telecaller scoreboard."""
     from app.platform import dialer_log
 
     return dialer_log.stats_today()

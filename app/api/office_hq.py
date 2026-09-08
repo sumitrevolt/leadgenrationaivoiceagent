@@ -1,11 +1,11 @@
-"""Operating HQ API - thin admin-gated router over app.platform.office_hq.
+"""Operating HQ API — thin admin-gated router over app.platform.office_hq.
 
 Mounted at /api/platform/office/*  (sibling of the existing /api/platform/team
 router). Snapshot/pipeline-drilldown are read-only. Approvals decide + agent
 manual-run reuse the EXISTING endpoints (/api/growth/approvals/drafts/*,
-/api/platform/team/run/*) - deliberately not duplicated here. The mutation
+/api/platform/team/run/*) — deliberately not duplicated here. The mutation
 endpoints below (pause/resume/assign/next-action/resolve-stuck/move) are REAL
-actions with a narrow, honestly-documented scope - see app.platform.agent_controls
+actions with a narrow, honestly-documented scope — see app.platform.agent_controls
 and app.platform.admin_pipeline_overrides docstrings for exactly what each one
 does and does not affect.
 """
@@ -24,14 +24,14 @@ router = APIRouter(prefix="/platform/office", tags=["Operating HQ"])
 
 @router.get("/snapshot")
 async def office_snapshot(current_user=Depends(require_admin)):
-    """Full HQ snapshot - rooms, agents, metrics, 12-stage pipeline, approvals,
+    """Full HQ snapshot — rooms, agents, metrics, 12-stage pipeline, approvals,
     system health, next-best-actions. Never raises (degrades to safe defaults
-    per-section - see app.platform.office_hq)."""
+    per-section — see app.platform.office_hq)."""
     from app.platform import office_hq
 
     try:
         return await office_hq.build_snapshot()
-    except Exception as e:  # pragma: no cover - belt-and-suspenders, builder never raises
+    except Exception as e:  # pragma: no cover — belt-and-suspenders, builder never raises
         from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
 
         return {
@@ -50,15 +50,15 @@ async def office_snapshot(current_user=Depends(require_admin)):
 
 @router.post("/boss-review")
 async def office_boss_review(current_user=Depends(require_admin)):
-    """Boss Finalizer (manager agent) - FREE-LLM verdict + reason per pending
+    """Boss Finalizer (manager agent) — FREE-LLM verdict + reason per pending
     approval item (cap 10, per-item timeout, never raises). RECOMMEND-ONLY:
-    stores nothing, approves nothing - the human still clicks Approve/Reject
+    stores nothing, approves nothing — the human still clicks Approve/Reject
     on the existing decide endpoints. Code patches stay never-auto-applied."""
     from app.platform import office_hq
 
     try:
         return await office_hq.boss_review()
-    except Exception as e:  # pragma: no cover - builder never raises
+    except Exception as e:  # pragma: no cover — builder never raises
         return {"ok": False, "error": str(e), "verdicts": [], "reviewed": 0}
 
 
@@ -74,7 +74,7 @@ async def office_pipeline_stage(stage_id: str, current_user=Depends(require_admi
 
 
 # --------------------------------------------------------------------------- #
-# Agent pause/resume - REAL, but narrowly scoped to the manual "Run now"
+# Agent pause/resume — REAL, but narrowly scoped to the manual "Run now"
 # button only (see app.platform.agent_controls docstring). Restricted to
 # RUNNABLE_MEMBERS at the router edge so a pause flag can never be set on an
 # agent it has zero effect on (that would be exactly the "lies to admin"
@@ -87,7 +87,7 @@ async def office_pause_agent(member: str, current_user=Depends(require_admin)):
     if member not in office_hq.RUNNABLE_MEMBERS:
         return {
             "ok": False,
-            "error": f"pause has no real effect on '{member}' (no manual-run wiring) - refused",
+            "error": f"pause has no real effect on '{member}' (no manual-run wiring) — refused",
         }
     result = agent_controls.pause(member, by=getattr(current_user, "email", "admin") or "admin")
     await office_hq.invalidate_snapshot_cache()
@@ -104,11 +104,11 @@ async def office_resume_agent(member: str, current_user=Depends(require_admin)):
 
 
 # --------------------------------------------------------------------------- #
-# F3 "Kaam Do" - map se ek Hinglish goal dispatch. scope="solo" (sirf yeh agent,
+# F3 "Kaam Do" — map se ek Hinglish goal dispatch. scope="solo" (sirf yeh agent,
 # coordinator.fan_out single-agent) ya "team" (coordinator.coordinate). BOTH
 # DRAFT-SAFE (execute=False) + BOUNDED (asyncio.wait_for inside office_hq) so a
 # 90s blocking call can never hang the HTTP worker; rate-limited exactly like
-# the POST /api/agents/council precedent (WEB_CONCURRENCY=2 - a double-click
+# the POST /api/agents/council precedent (WEB_CONCURRENCY=2 — a double-click
 # spam of a heavy LLM run would otherwise be an outage). Never raises.
 # --------------------------------------------------------------------------- #
 class AgentTaskIn(BaseModel):
@@ -117,7 +117,7 @@ class AgentTaskIn(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# HQ Ask - 🤖 copilot ka main entry: question -> grounded Boss answer; task ->
+# HQ Ask — 🤖 copilot ka main entry: question -> grounded Boss answer; task ->
 # auto-route to the right staff member via the SAME draft-safe Kaam-Do path.
 # Rate-limited like council/kaam-do (LLM-heavy). Never raises.
 # --------------------------------------------------------------------------- #
@@ -132,21 +132,20 @@ async def office_ask(body: AskIn, current_user=Depends(require_admin)):
 
     try:
         return await office_hq.hq_ask(body.q)
-    except Exception as e:  # pragma: no cover - helper never raises
+    except Exception as e:  # pragma: no cover — helper never raises
         return {"ok": False, "kind": "question", "text": "", "error": str(e)[:300]}
 
 
 @router.post("/agents/{member}/task", dependencies=[Depends(rate_limit("agents", 5, 60))])
 async def office_agent_task(member: str, body: AgentTaskIn, current_user=Depends(require_admin)):
     """Draft-safe bounded task dispatch to one agent (solo) or the coordinator
-    team. Returns {ok, summary, run_id?}
-    failures/timeouts degrade to an honest
+    team. Returns {ok, summary, run_id?}; failures/timeouts degrade to an honest
     {ok:False|status:"timeout"} (never raises)."""
     from app.platform import office_hq
 
     try:
         return await office_hq.run_agent_task(member, body.goal, body.scope)
-    except Exception as e:  # pragma: no cover - helper never raises
+    except Exception as e:  # pragma: no cover — helper never raises
         return {"ok": False, "error": str(e), "member": member, "scope": body.scope}
 
 
@@ -218,9 +217,9 @@ async def office_move_item(item_id: str, body: MoveItemIn, current_user=Depends(
 
 
 # --------------------------------------------------------------------------- #
-# F4 - "Subah ki Briefing": daily Hinglish HQ bulletin (text + Swara audio).
+# F4 — "Subah ki Briefing": daily Hinglish HQ bulletin (text + Swara audio).
 # JSON endpoint composes/caches (one LLM+TTS per IST-day; ?force=1 regens); the
-# audio endpoint serves ONLY the cached mp3 (never generates) - the frontend
+# audio endpoint serves ONLY the cached mp3 (never generates) — the frontend
 # calls /briefing first, then fetches /briefing/audio as a blob with hdrs()
 # because an <audio> tag cannot send the Authorization header. Both never-raise.
 # --------------------------------------------------------------------------- #
@@ -231,7 +230,7 @@ class ImprovementCouncilIn(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# F6 "Team Improvement Council" - snapshot-grounded AgentVerse discussion on
+# F6 "Team Improvement Council" — snapshot-grounded AgentVerse discussion on
 # what to improve next (dynamic expert recruit -> contribute -> synthesize ->
 # critic score). Always draft-only. Distinct rate bucket from /ask (heavier,
 # multi-round LLM run) so the two features don't share one IP budget.
@@ -246,27 +245,26 @@ async def office_improvement_council(
 
     try:
         return await office_hq.improvement_council(body.topic, body.team_size, body.max_rounds)
-    except Exception as e:  # pragma: no cover - helper never raises
+    except Exception as e:  # pragma: no cover — helper never raises
         return {"ok": False, "error": str(e)[:300], "topic": body.topic}
 
 
 @router.get("/briefing")
 async def office_briefing(force: int = 0, current_user=Depends(require_admin)):
     """Today's HQ radio-bulletin: {ok, date, text, has_audio}. Cached once per
-    IST-day
-    force=1 regenerates. Never raises (degrades to text-only / ok:False)."""
+    IST-day; force=1 regenerates. Never raises (degrades to text-only / ok:False)."""
     from app.platform import office_briefing as ob
 
     try:
         return await ob.build_briefing(force=bool(force))
-    except Exception as e:  # pragma: no cover - builder never raises
+    except Exception as e:  # pragma: no cover — builder never raises
         return {"ok": False, "error": str(e), "date": "", "text": "", "has_audio": False}
 
 
 @router.get("/briefing/audio")
 async def office_briefing_audio(current_user=Depends(require_admin)):
     """Serve today's cached bulletin mp3 (Swara's voice). 404-safe JSON when the
-    audio was never generated / TTS failed - never raises."""
+    audio was never generated / TTS failed — never raises."""
     from app.platform import office_briefing as ob
 
     try:
@@ -285,8 +283,7 @@ async def office_agent_os_status(current_user=Depends(require_admin)):
     """Read-only Agent OS + OmniRoute operator status (ADR-109).
 
     Never returns API keys, raw prompts, or customer PII. OmniRoute remains
-    INERT unless both flags + key are set
-    this endpoint only reports truth.
+    INERT unless both flags + key are set; this endpoint only reports truth.
     """
     import os
 
@@ -344,7 +341,7 @@ async def office_agent_os_status(current_user=Depends(require_admin)):
             "base_url": base,
             "task_routes": sorted(_TASK_ROUTES.keys()),
             "prod_note": (
-                "VPS pe gateway nahi hai - flags OFF rakho jab tak "
+                "VPS pe gateway nahi hai — flags OFF rakho jab tak "
                 "OMNIROUTE_BASE_URL + loopback/tunnel na ho."
             ),
         }

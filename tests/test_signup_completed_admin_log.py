@@ -108,7 +108,7 @@ def test_signup_success_trial_flagged_in_summary_and_meta(client, monkeypatch):
 
 def test_signup_completed_log_failure_does_not_break_signup(client, monkeypatch):
     """Defensive: if automation_log_service.log_event blows up on the happy
-    path, signup MUST still return 200 with a healthy `auto_login: True` - the
+    path, signup MUST still return 200 with a healthy `auto_login: True` — the
     admin visibility feature is non-blocking."""
     _stub_signup_side_effects(monkeypatch, cid="c_gtm_defensive")
 

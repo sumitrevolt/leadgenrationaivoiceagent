@@ -1,4 +1,4 @@
-"""Durable-memory write boundary - inventory conformance + bypass tests.
+"""Durable-memory write boundary — inventory conformance + bypass tests.
 
 Review P1: guarding the facade is not enough. Anything that can persist agent
 memory must enforce governance ITSELF, because callers can (and do) reach the
@@ -9,7 +9,7 @@ underlying writers directly. This suite:
      do-not-remember authority damaged, proving each one refuses on its own.
 
 If someone later adds a durable memory writer without a guard or an inventory
-entry, (1) fails - that is the point.
+entry, (1) fails — that is the point.
 """
 
 from __future__ import annotations

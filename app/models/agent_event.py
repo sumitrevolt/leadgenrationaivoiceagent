@@ -1,5 +1,5 @@
 """
-AgentEvent Model - AI staff team ka activity log.
+AgentEvent Model — AI staff team ka activity log.
 Har staff member (Swara/Arjun/Meera/...) ka har kaam yahan record hota hai;
 admin Team dashboard isi se "kaun kya kar raha hai" dikhata hai.
 """

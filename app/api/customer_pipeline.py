@@ -13,12 +13,11 @@ Design rules (project conventions):
   ``app.api.customer_dashboard_builders``). Those builders already apply this
   client's OWN status overrides (lead_overrides.read_overrides), so the
   ``status`` field on each LeadRow is the customer-edited Kanban column.
-- never-raise: every handler + helper wrapped defensively
-failure => empty board.
+- never-raise: every handler + helper wrapped defensively; failure => empty board.
 - All ``app.*`` imports are lazy (inside functions) so the module is import-safe.
 
 The drag-drop UI moves a card between columns by calling the EXISTING
-``PATCH /api/customer/leads/{id}`` endpoint - no new mutation here.
+``PATCH /api/customer/leads/{id}`` endpoint — no new mutation here.
 """
 
 from __future__ import annotations
@@ -43,8 +42,7 @@ def group_by_status(leads: list[Any]) -> dict[str, Any]:
 
     Each lead may be a dict OR an object (e.g. a LeadRow pydantic model). We read
     ``status`` and a small card-friendly subset of fields defensively. A lead
-    whose status is missing/unknown is bucketed by a best-effort match
-    if it
+    whose status is missing/unknown is bucketed by a best-effort match; if it
     still does not map to a known column it is dropped from the board (never
     raises). The function NEVER mutates the input leads.
 
@@ -72,7 +70,7 @@ def group_by_status(leads: list[Any]) -> dict[str, Any]:
             col = canon.get(raw_status.lower())
             if not col:
                 # Fall back to the AI tier (`score`: Hot/Warm/Cold) if status is
-                # blank/unknown - keeps real leads visible instead of dropping them.
+                # blank/unknown — keeps real leads visible instead of dropping them.
                 col = canon.get(_get(lead, "score").strip().lower())
             if not col:
                 continue  # genuinely unmappable -> skip (never raise)

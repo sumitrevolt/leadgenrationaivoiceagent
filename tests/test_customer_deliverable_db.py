@@ -73,7 +73,7 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         # 2. customer_delivery_status() is the CUSTOMER-FACING source of truth and is
         # jsonl-derived, NOT computed from the DB rows above (those are a best-effort
         # side-effect record whose taxonomy is deliberately not yet reconciled with the
-        # returned `deliverables` - see the comment in customer_delivery_status()).
+        # returned `deliverables` — see the comment in customer_delivery_status()).
         fake_client = {
             "id": client_id,
             "business_name": "Test Client",
@@ -95,9 +95,9 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         status_res = customer_delivery_status(client_id)
         assert status_res["ok"] is True
         assert "deliverables" in status_res
-        # Honest %: business details present but no generated content yet -> only the
+        # Honest %: business details present but no generated content yet → only the
         # business-profile deliverable is "done" (10%). Deliberately NOT inflated to
-        # count the DB-defaulted invoice row - showing a paid customer a higher
+        # count the DB-defaulted invoice row — showing a paid customer a higher
         # completion% than was actually delivered would break the no-fabricated-claims
         # invariant this project holds for the one real paying customer.
         pct = status_res["deliverable_completion_pct"]
@@ -105,7 +105,7 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         assert pct == 10
 
         # DEFERRED (not yet built): DB-row status sync from generated content
-        # (poster->DELIVERED etc.). customer_delivery_status() only *initializes* the
+        # (poster→DELIVERED etc.). customer_delivery_status() only *initializes* the
         # DB rows as a side effect; it does not update their status. Re-add a
         # DB-status-sync assertion here once the DB deliverable taxonomy is reconciled
         # with the semantic ids the frontend/admin key on.

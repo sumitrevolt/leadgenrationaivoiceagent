@@ -1,7 +1,7 @@
 """Governance tests for the console's single test call.
 
 Why this exists: ``start_stream_call`` (app/api/telephony_vobiz.py) is the
-canonical dial helper and it applies NO governance of its own - no daily cap,
+canonical dial helper and it applies NO governance of its own — no daily cap,
 no per-tenant cap, no kill switch, no circuit breaker, no lead eligibility.
 Its existing callers enforce those gates themselves. The console route is a
 tenant-facing button, so if the gates are not enforced (and proven enforced)
@@ -14,8 +14,7 @@ What is under test is therefore the GOVERNANCE, not the plumbing:
   * dry_run is reported as "nothing was dialled", not as a success
 
 No real call, no real Redis, no LLM. Redis and every governance predicate are
-monkeypatched
-``start_stream_call`` is always a spy.
+monkeypatched; ``start_stream_call`` is always a spy.
 """
 
 import asyncio
@@ -38,7 +37,7 @@ PHONE = "+919812345678"
 class FakeRedis:
     """Minimal async Redis with the surface voice_launch actually uses.
 
-    `fail=True` simulates an unavailable counter - the state in which every
+    `fail=True` simulates an unavailable counter — the state in which every
     reservation must FAIL CLOSED rather than fall through to the dialer.
     """
 
@@ -112,7 +111,7 @@ def _no_disk(monkeypatch):
     `_resolve_niche` falls through to `clients_store.get_client` and
     `_kb_evidence` to the real knowledge base whenever the tenant config has no
     business.niche / no indexed content. Both take file locks (data/*.lock),
-    which is exactly the safe-delete guard that hangs this repo's test runs -
+    which is exactly the safe-delete guard that hangs this repo's test runs —
     so they are stubbed. The real `_resolve_niche` precedence logic is covered
     on its own in test_resolve_niche_prefers_configured_niche.
     """
@@ -370,7 +369,7 @@ def test_every_gate_error_is_reported_not_raised(
     redis, no_gates, dial_spy, monkeypatch, gate, expected
 ):
     """A predicate that EXPLODES must still yield a structured result naming the
-    gate that failed - never an exception, never a 500, and never a dial."""
+    gate that failed — never an exception, never a 500, and never a dial."""
     redis()
 
     def _boom(*a, **k):
@@ -472,7 +471,7 @@ def test_blocked_launch_writes_nothing_and_explains_why(redis, no_gates, dial_sp
 def test_missing_knowledge_and_template_are_allowed_but_reported(
     redis, no_gates, dial_spy, _isolated_console_store
 ):
-    """A test call is how you discover the config is incomplete - blocking it
+    """A test call is how you discover the config is incomplete — blocking it
     would make the product untestable. But the response must never imply a
     quality the config does not support."""
     redis()

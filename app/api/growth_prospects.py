@@ -1,8 +1,7 @@
 """Apollo-style prospecting endpoints (search / saved-lists / import / email-finder).
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router()
-paths unchanged (/api/growth/prospects/*).
+Mounted via growth.router.include_router(); paths unchanged (/api/growth/prospects/*).
 """
 
 from __future__ import annotations
@@ -71,7 +70,7 @@ class ImportIn(BaseModel):
 
 @router.post("/prospects/import")
 async def prospects_import(body: ImportIn, _user=Depends(require_admin)):
-    """Apollo CSV/rows import -> dedupe -> prospector store + DB + scoring pipeline."""
+    """Apollo CSV/rows import → dedupe → prospector store + DB + scoring pipeline."""
     from app.platform import prospect_lists
 
     if body.csv_text:
@@ -86,7 +85,7 @@ class EmailFindIn(BaseModel):
 
 @router.post("/prospects/find-email")
 async def prospects_find_email(body: EmailFindIn, _user=Depends(require_admin)):
-    """Email-finder waterfall: site-extract -> pattern-guess -> MX verify (Apollo-free)."""
+    """Email-finder waterfall: site-extract → pattern-guess → MX verify (Apollo-free)."""
     from app.platform import email_finder
 
     return await email_finder.find(body.website, body.owner_name or "")

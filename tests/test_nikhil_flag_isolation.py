@@ -96,7 +96,7 @@ async def test_nikhil_flag_off_blocks_no_engine(monkeypatch):
     assert res.reason == "flag_disabled:DELIVERY_ASSURANCE_AGENT"
     assert ran["n"] == 0
     assert "leased" not in res.lifecycle
-    # blocked skip must not burn idem as success - second attempt still skipped same way
+    # blocked skip must not burn idem as success — second attempt still skipped same way
     res2 = await rt.submit(
         "nikhil",
         ACTION_DELIVERY_SCAN,

@@ -1,4 +1,4 @@
-"""Harness adapters - thin bridges that let existing loops feed the harness.
+"""Harness adapters — thin bridges that let existing loops feed the harness.
 
 Shadow adapters are RECORD-ONLY: they observe a legacy execution and never
 execute, block, approve, retry or cancel it. See shadow.py (staff.run_member)

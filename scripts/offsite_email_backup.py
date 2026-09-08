@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Offsite backup via EMAIL - nightly DB dump + data/ tarball ko Hostinger
+"""Offsite backup via EMAIL — nightly DB dump + data/ tarball ko Hostinger
 mailbox (NOTIFY_EMAIL) pe attach karke bhejta hai.
 
 KYU: saare backups abhi USI VPS ki disk pe the (VPS gaya = sab gaya). R2/B2
-creds abhi nahi hain - Hostinger mail ALAG infra hai, isliye yeh free+real
+creds abhi nahi hain — Hostinger mail ALAG infra hai, isliye yeh free+real
 offsite hai jab tak object-storage nahi aata. DB chhota hai (~75KB gz) to
-email attach bilkul theek
-18MB cap ke upar DB-only ya alert bhejta hai.
+email attach bilkul theek; 18MB cap ke upar DB-only ya alert bhejta hai.
 
 HOST pe chalao (stdlib-only, no deps):  python3 scripts/offsite_email_backup.py
-Cron (suggested):  0 23 * * *  -> 04:30 IST daily (pg_backup 02:30 ke baad).
+Cron (suggested):  0 23 * * *  → 04:30 IST daily (pg_backup 02:30 ke baad).
 Never-raise: har failure log-line ke saath exit 0 (cron spam nahi).
 """
 
@@ -30,7 +29,7 @@ BASE = os.environ.get("LEADGEN_BASE", "/opt/leadgen")
 ENV_FILE = os.path.join(BASE, ".env")
 BACKUP_GLOB = os.path.join(BASE, "backups", "*.gz")
 DATA_DIR = os.path.join(BASE, "data")
-# media/cache subdirs - backup me nahi chahiye (regenerable, size bloat)
+# media/cache subdirs — backup me nahi chahiye (regenerable, size bloat)
 EXCLUDE_DIRS = {
     "ai_images",
     "reels",
@@ -99,7 +98,7 @@ def main() -> int:
     pwd = env.get("SMTP_PASSWORD")
     to = env.get("NOTIFY_EMAIL") or user
     if not (user and pwd and to):
-        log("SMTP creds/NOTIFY_EMAIL missing - skip (offsite mail inert)")
+        log("SMTP creds/NOTIFY_EMAIL missing — skip (offsite mail inert)")
         return 0
 
     dump = newest_dump()
@@ -117,7 +116,7 @@ def main() -> int:
     msg["From"] = user
     msg["To"] = to
     msg["Subject"] = (
-        f"[leadsgenai OFFSITE BACKUP] {today} - db {len(dump_bytes) // 1024}KB + data {len(data_bytes) // 1024}KB"
+        f"[leadsgenai OFFSITE BACKUP] {today} — db {len(dump_bytes) // 1024}KB + data {len(data_bytes) // 1024}KB"
     )
     parts = []
     total = 0
@@ -131,9 +130,8 @@ def main() -> int:
         f"Nightly offsite backup (email-based, R2/B2 aane tak).\n"
         f"DB dump: {dump or 'NONE'} ({len(dump_bytes) // 1024}KB)\n"
         f"data/ tarball: {len(data_bytes) // 1024}KB (media-cache excluded)\n"
-        f"Attached: {[p[0] for p in parts] or 'NONE (size cap/missing) - CHECK BACKUPS!'}\n"
-        f"Restore: gunzip dump -> pg_restore
-        tar -xzf data tarball.\n"
+        f"Attached: {[p[0] for p in parts] or 'NONE (size cap/missing) — CHECK BACKUPS!'}\n"
+        f"Restore: gunzip dump → pg_restore; tar -xzf data tarball.\n"
     )
     msg.set_content(body)
     for name, blob in parts:
@@ -146,7 +144,7 @@ def main() -> int:
             ) as s:
                 s.login(user, pwd)
                 s.send_message(msg)
-            log(f"SENT to {to} - attachments={[p[0] for p in parts]} total={total // 1024}KB")
+            log(f"SENT to {to} — attachments={[p[0] for p in parts]} total={total // 1024}KB")
             return 0
         except Exception as e:
             log(f"send attempt {attempt} fail: {e}")

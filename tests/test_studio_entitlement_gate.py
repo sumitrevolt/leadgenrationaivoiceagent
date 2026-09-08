@@ -1,11 +1,10 @@
 """Studio entitlement gate + combo router gate (audit 2026-07-04 follow-on).
 
 - STUDIO_ENTITLEMENT_GATE (default OFF): expired trials and never-paid
-  paid-plan signups (7-day grace) get 402 from the studio
-  every lookup
+  paid-plan signups (7-day grace) get 402 from the studio; every lookup
   failure fails OPEN (a DB hiccup must never lock out a paying customer).
 - COMBO_PRODUCT (default OFF): the public /api/combo surface leaked the
-  hidden legacy `growth` plan + forbidden bundle-USP framing (ADR-009) -
+  hidden legacy `growth` plan + forbidden bundle-USP framing (ADR-009) —
   router must NOT be mounted unless explicitly enabled.
 """
 
@@ -69,8 +68,8 @@ def test_never_paid_signup_blocked_after_grace(monkeypatch):
 
     monkeypatch.setattr(usage, "_latest_subscription", lambda db, cid: None)
 
-    # Hermetic: gate DB-error pe FAIL-OPEN hai (design) - CI me DB na hone se
-    # get_db_session raise -> allow -> DID-NOT-RAISE. Working session-stub do taaki
+    # Hermetic: gate DB-error pe FAIL-OPEN hai (design) — CI me DB na hone se
+    # get_db_session raise → allow → DID-NOT-RAISE. Working session-stub do taaki
     # test gate-LOGIC test kare, DB-availability nahi.
     @contextmanager
     def _fake_db_session():

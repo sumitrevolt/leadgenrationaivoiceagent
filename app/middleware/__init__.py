@@ -24,9 +24,9 @@ logger = setup_logger(__name__)
 
 
 def _real_client_ip(request: Request) -> str:
-    """Real client IP - rightmost trusted proxy entry, then socket peer.
+    """Real client IP — rightmost trusted proxy entry, then socket peer.
 
-    SECURITY: use the RIGHTMOST X-Forwarded-For entry - that is the value the
+    SECURITY: use the RIGHTMOST X-Forwarded-For entry — that is the value the
     trusted proxy (Caddy/Nginx) appended = the real peer IP. The leftmost entry
     is fully client-controlled (an attacker can prepend any IP to bypass
     rate-limiting), so it MUST NEVER drive an auth/rate decision (CWE-20).
@@ -51,21 +51,21 @@ def _real_client_ip(request: Request) -> str:
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses"""
 
-    # Paths jo CLIENT websites pe iframe hote hain - in pe X-Frame-Options DENY
-    # nahi lagana (warna browser embed block kar deta - lead widget + reviews
+    # Paths jo CLIENT websites pe iframe hote hain — in pe X-Frame-Options DENY
+    # nahi lagana (warna browser embed block kar deta — lead widget + reviews
     # widget client sites pe kabhi render hi nahi hote).
     _EMBEDDABLE_PREFIXES = ("/api/engage/reviews-widget",)
 
     # Paths jo SIRF humaari apni admin UI ke andar <iframe> hote hain (kabhi
-    # kisi external site se nahi) - in pe blanket DENY nahi (warna apna hi
+    # kisi external site se nahi) — in pe blanket DENY nahi (warna apna hi
     # iframe load nahi hota), par blanket "frame-ancestors *" bhi nahi (koi
-    # external site embed na kar sake) - SAMEORIGIN + frame-ancestors 'self'.
-    # ADR-104 (2026-07-15): Control Center L2 Stack graph is exactly this -
+    # external site embed na kar sake) — SAMEORIGIN + frame-ancestors 'self'.
+    # ADR-104 (2026-07-15): Control Center L2 Stack graph is exactly this —
     # X-Frame-Options: DENY (the correct default for every OTHER admin page)
     # was silently blocking control_center.html's own same-origin
     # <iframe src="/app/control-center/graph">, rendering as a blank canvas
     # with no console error (the browser's frame-refusal isn't a JS
-    # exception, so nothing logged) - the page itself was never broken.
+    # exception, so nothing logged) — the page itself was never broken.
     _SAME_ORIGIN_EMBEDDABLE_PREFIXES = ("/app/control-center/graph",)
 
     @staticmethod
@@ -94,10 +94,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         if not embeddable:
             response.headers["X-Frame-Options"] = "SAMEORIGIN" if same_origin_embeddable else "DENY"
-        response.headers["X-XSS-Protection"] = "1
-        mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000
-        includeSubDomains"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr/cdnjs and
         # Google Fonts, use inline <script>/<style>, talk to the API over
         # fetch/WebSocket, and play mic-recorded audio from blobs.
@@ -106,19 +104,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # PostHog (product analytics, POSTHOG_API_KEY set in prod): loader script
         # serve hota hai https://us-assets.i.posthog.com se aur events beacon
         # https://*.i.posthog.com pe jaate hain (api host = us.i.posthog.com).
-        # Allowed hosts - sirf PostHog infra, koi generic wildcard nahi.
+        # Allowed hosts — sirf PostHog infra, koi generic wildcard nahi.
         # SIRF apni UI pages pe (non-embeddable): client-website me framed widget
-        # (/b/{slug}/embed, reviews-widget) apni CSP me PostHog nahi le sakta -
+        # (/b/{slug}/embed, reviews-widget) apni CSP me PostHog nahi le sakta —
         # embeddable pages ke liye _posthog_src empty rahta hai (no CSP widening).
         _posthog_src = (
             "" if embeddable else " https://*.i.posthog.com https://us-assets.i.posthog.com"
         )
         if embeddable:
-            _frame = "frame-ancestors *
-            "
+            _frame = "frame-ancestors *; "
         elif same_origin_embeddable:
-            _frame = "frame-ancestors 'self'
-            "
+            _frame = "frame-ancestors 'self'; "
         else:
             _frame = ""
         response.headers["Content-Security-Policy"] = (
@@ -126,8 +122,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             + _frame
             + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
             + _posthog_src
-            + "
-            "
+            + "; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
@@ -136,7 +131,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "media-src 'self' blob: data:"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        # Microphone stays available to same-origin pages - the browser
+        # Microphone stays available to same-origin pages — the browser
         # web-call demo (/app/test-call) records the caller's voice.
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
 
@@ -238,7 +233,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 # `/site`, `/design-system` and `/unity`, so one dashboard page load fires
 # dozens of CSS/JS/font/image requests from a single IP. Charging them to the
 # same per-IP budget as API traffic is what let one legitimate operator session
-# trip the flat limiter. Assets get their OWN bucket - a separate budget, not an
+# trip the flat limiter. Assets get their OWN bucket — a separate budget, not an
 # exemption: flooding a static path is still capped, and `RATE_LIMIT_ASSET_MULT=1`
 # collapses the asset ceiling back onto the API ceiling.
 _ASSET_PATH_PREFIXES = (
@@ -289,7 +284,7 @@ def _is_asset_path(path: str) -> bool:
     return path.rsplit("/", 1)[-1].lower().endswith(_ASSET_SUFFIXES)
 
 
-# Admin/Mission-Control fan-out may need a higher GET budget - NEVER a write
+# Admin/Mission-Control fan-out may need a higher GET budget — NEVER a write
 # bypass. Prefixes are read-ish dashboard surfaces; method gate is mandatory.
 _ADMIN_READ_RELIEF_PREFIXES = (
     "/api/growth/",
@@ -308,10 +303,10 @@ def _is_safe_idempotent_admin_read(request: Request) -> bool:
     return any(path.startswith(p) for p in _ADMIN_READ_RELIEF_PREFIXES)
 
 
-# Human HTML page navigation gets its own higher bucket - same philosophy as the
+# Human HTML page navigation gets its own higher bucket — same philosophy as the
 # asset bucket: a page-load burst (multi-tab dashboard browse) must not trip the
 # shared per-IP API budget, and API XHRs must not be starved by page loads.
-# NEVER a write bypass - method gate is mandatory, /api/* never qualifies.
+# NEVER a write bypass — method gate is mandatory, /api/* never qualifies.
 _HTML_BROWSE_PREFIXES = (
     "/app/",
     "/pricing",
@@ -339,7 +334,7 @@ def _fixed_window_retry_after(window_seconds: int = 60, now: float | None = None
     """Seconds until the CURRENT fixed window rolls over.
 
     ``app.cache.RateLimiter`` keys on ``int(time.time() // window_seconds)``, so
-    the counter resets at the next window boundary - not ``window_seconds`` from
+    the counter resets at the next window boundary — not ``window_seconds`` from
     the moment the caller was blocked. A hardcoded 60 told someone who tripped
     the limit at second 58 to wait a full minute for a 2-second reset, and every
     FE renders that number as a literal countdown.
@@ -355,7 +350,7 @@ def _fixed_window_retry_after(window_seconds: int = 60, now: float | None = None
 
 
 def _rate_limit_429(*, retry_after: int, scope: str, limit: int | None = None) -> JSONResponse:
-    """Uniform 429 body - same contract as ``app.api.ratelimit`` (Loop 6/16).
+    """Uniform 429 body — same contract as ``app.api.ratelimit`` (Loop 6/16).
 
     ``detail`` must be a dict: every FE 429 handler does
     ``typeof j.detail === "object" ? j.detail : {}`` (login.html, pricing.html,
@@ -386,24 +381,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Production-ready rate limiter using Redis
     Falls back to in-memory if Redis is unavailable
 
-    Policy (2026-07-30 - platform-blocker 429 lane
-    P1 harden):
+    Policy (2026-07-30 — platform-blocker 429 lane; P1 harden):
     - Flat anon/customer API budget stays (abuse shield).
     - Static assets use a SEPARATE higher bucket (not an exemption).
     - Human HTML page navigation (GET/HEAD on /app/*, /pricing, /start,
-      /voice-agent) uses its own higher bucket - multi-tab dashboard browsing
+      /voice-agent) uses its own higher bucket — multi-tab dashboard browsing
       bursts must not trip the shared API budget (2026-08-02 429 burst).
     - Valid admin/super_admin bearer gets a raised ceiling ONLY on explicit
-      safe idempotent dashboard GET/HEAD paths - writes stay on default rpm.
+      safe idempotent dashboard GET/HEAD paths — writes stay on default rpm.
     - Auth credential routes stay under this global limiter (no prefix bypass);
       route ``rate_limit`` deps remain defense-in-depth with the SAME trusted IP.
     - Only WebSocket upgrades + narrow realtime web-call WS/stream prefixes skip;
       telephony provider actions (test-call/stream-call) remain globally limited.
     """
 
-    # Exact health/probe paths - never burn operator budget on liveness.
+    # Exact health/probe paths — never burn operator budget on liveness.
     _SKIP_EXACT = frozenset({"/health", "/health/live", "/health/ready", "/metrics", "/status"})
-    # Narrow realtime allowlist only - NOT /api/telephony/* (outbound actions).
+    # Narrow realtime allowlist only — NOT /api/telephony/* (outbound actions).
     _SKIP_PREFIXES = (
         "/ws",
         "/api/web-call/ws",
@@ -438,12 +432,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return False
 
     def _admin_rpm_from_bearer(self, request: Request) -> int | None:
-        """Valid admin/super_admin JWT -> raised READ ceiling (still capped).
+        """Valid admin/super_admin JWT → raised READ ceiling (still capped).
 
         Only consulted for safe GET/HEAD dashboard paths via ``_bucket_for``.
-        Default 600 rpm (~10 req/s)
-        override via RATE_LIMIT_ADMIN_RPM.
-        Invalid/missing token -> None (anon/default budget).
+        Default 600 rpm (~10 req/s); override via RATE_LIMIT_ADMIN_RPM.
+        Invalid/missing token → None (anon/default budget).
         """
         auth = (request.headers.get("authorization") or "").strip()
         if not auth.lower().startswith("bearer "):
@@ -499,10 +492,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path or ""
         if _is_asset_path(path):
             return "asset", self._ceiling_for("asset")
-        # Human HTML navigation burst (multi-tab browse) - separate higher bucket.
+        # Human HTML navigation burst (multi-tab browse) — separate higher bucket.
         if _is_html_navigation(request):
             return "html", self._ceiling_for("html")
-        # Higher admin budget is GET/HEAD dashboard relief only - never writes.
+        # Higher admin budget is GET/HEAD dashboard relief only — never writes.
         if _is_safe_idempotent_admin_read(request):
             admin_rpm = self._admin_rpm_from_bearer(request)
             if admin_rpm is not None:
@@ -541,7 +534,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = _real_client_ip(request)
         bucket, ceiling = self._bucket_for(request)
 
-        # Try Redis rate limiter first. Only the limiter call is guarded - a
+        # Try Redis rate limiter first. Only the limiter call is guarded — a
         # downstream failure inside call_next used to be caught here too, which
         # dropped through to the in-memory fallback and ran the SAME request a
         # second time. On a POST that is a silent duplicate write.
@@ -616,7 +609,7 @@ async def verify_api_key(api_key: str | None = Depends(API_KEY_HEADER)) -> dict 
 
     import hmac
 
-    # Use a dedicated API key env var - NEVER compare against secret_key
+    # Use a dedicated API key env var — NEVER compare against secret_key
     # (session-signing key). Use hmac.compare_digest to prevent timing attacks.
     _admin_api_key = os.environ.get("ADMIN_API_KEY", "").strip()
     if _admin_api_key and hmac.compare_digest(api_key, _admin_api_key):
@@ -666,19 +659,18 @@ def add_gzip_middleware(app: FastAPI):
 
 
 # =============================================================================
-# REQUEST GUARD MIDDLEWARE - per-request timeout (504) + load-shed (503)
+# REQUEST GUARD MIDDLEWARE — per-request timeout (504) + load-shed (503)
 # =============================================================================
 
-# Per-worker in-flight counter (worker apne event-loop ko khud protect kare - yeh
+# Per-worker in-flight counter (worker apne event-loop ko khud protect kare — yeh
 # granularity sahi hai, distributed nahi chahiye).
 _INFLIGHT = 0
 
 
 class RequestGuardMiddleware(BaseHTTPMiddleware):
     """Inbound reliability guard (audit): per-request hard TIMEOUT (slow handler worker ko
-    indefinitely hold na kare -> 504, upstream-proxy 504 se pehle) + LOAD-SHED (per-worker
-    in-flight cap -> 503 + Retry-After
-    overload-collapse se bachao, mid-flight cut nahi).
+    indefinitely hold na kare → 504, upstream-proxy 504 se pehle) + LOAD-SHED (per-worker
+    in-flight cap → 503 + Retry-After; overload-collapse se bachao, mid-flight cut nahi).
 
     GATED `REQUEST_GUARD=1` (default OFF = zero change). Long/streaming/ws paths SKIP
     (warna voice/LLM/SSE cut ho jate). FAIL-OPEN: koi bhi guard-error pe normal process
@@ -713,7 +705,7 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
                 logger.warning("RequestGuard load-shed 503 (in-flight=%d) %s", _INFLIGHT, path)
                 return JSONResponse(
                     status_code=503,
-                    content={"detail": "Server busy - thodi der baad try karo."},
+                    content={"detail": "Server busy — thodi der baad try karo."},
                     headers={"Retry-After": "5"},
                 )
             _INFLIGHT += 1
@@ -723,21 +715,21 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
                 logger.warning("RequestGuard timeout 504 (%.0fs) %s", self.timeout_s, path)
                 return JSONResponse(
                     status_code=504,
-                    content={"detail": "Request timed out - phir se try karo."},
+                    content={"detail": "Request timed out — phir se try karo."},
                     headers={"Retry-After": "5"},
                 )
             finally:
                 _INFLIGHT -= 1
-        except Exception as e:  # fail-open - guard kabhi legit request na rok de
+        except Exception as e:  # fail-open — guard kabhi legit request na rok de
             logger.debug("RequestGuard fail-open: %s", e)
             return await call_next(request)
 
 
 # =============================================================================
-# PLAN-TIER AWARE RATE LIMITING  (genuinely additive - existing limiter is flat
+# PLAN-TIER AWARE RATE LIMITING  (genuinely additive — existing limiter is flat
 # per-IP only, not plan-aware. SaaS standard: Starter 60rpm < Growth 200rpm <
-# Advanced 500rpm. FAIL-OPEN: plan lookup fails -> generous fallback, no block.
-# GATED: PLAN_RATE_LIMIT=1 env var (default OFF - zero behaviour change).
+# Advanced 500rpm. FAIL-OPEN: plan lookup fails → generous fallback, no block.
+# GATED: PLAN_RATE_LIMIT=1 env var (default OFF — zero behaviour change).
 # =============================================================================
 
 _PLAN_LIMITS: dict[str, int] = {
@@ -758,7 +750,7 @@ _PLAN_LIMITS: dict[str, int] = {
     "internal": 9999,
 }
 _DEFAULT_RPM_AUTHED = 100
-_DEFAULT_RPM_ANON = 60  # was 20 - admin SPA logout ke baad login page block na ho
+_DEFAULT_RPM_ANON = 60  # was 20 — admin SPA logout ke baad login page block na ho
 
 
 def _plan_prefix(plan: str | None) -> str:
@@ -782,8 +774,8 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
     """Plan-aware rate limiter (per-plan RPM, not flat per-IP).
 
     Identity resolution:
-      1. request.state.tenant (TenantBrandingMiddleware) -> slug -> DB plan
-      2. X-Client-ID header -> plan lookup
+      1. request.state.tenant (TenantBrandingMiddleware) → slug → DB plan
+      2. X-Client-ID header → plan lookup
       3. IP fallback (anon limit)
 
     Completely FAIL-OPEN. GATED: PLAN_RATE_LIMIT=1 (default OFF).
@@ -799,7 +791,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         "/robots.txt",
         "/sitemap.xml",
     )
-    # No broad auth/telephony skip - provider actions + credential writes stay limited.
+    # No broad auth/telephony skip — provider actions + credential writes stay limited.
     _APP_HTML_PREFIX = "/app/"
 
     def _should_skip(self, path: str) -> bool:
@@ -811,7 +803,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         return False
 
     def _rpm_from_bearer(self, request: Request) -> int | None:
-        """Valid admin JWT -> elevated tier ONLY for safe GET/HEAD dashboard reads."""
+        """Valid admin JWT → elevated tier ONLY for safe GET/HEAD dashboard reads."""
         auth = (request.headers.get("authorization") or "").strip()
         if not auth.lower().startswith("bearer "):
             return None
@@ -829,7 +821,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
             role = str(payload.get("role") or "").lower()
             if role in ("admin", "super_admin"):
                 if not _is_safe_idempotent_admin_read(request):
-                    return None  # writes / non-allowlisted -> plan/default rpm
+                    return None  # writes / non-allowlisted → plan/default rpm
                 return _PLAN_LIMITS["admin"]
             if role == "customer":
                 return _DEFAULT_RPM_AUTHED
@@ -879,13 +871,13 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if os.environ.get("PLAN_RATE_LIMIT", "0") not in ("1", "true", "yes"):
             return await call_next(request)
-        # BaseHTTPMiddleware cannot handle WebSocket upgrades - skip all WS.
+        # BaseHTTPMiddleware cannot handle WebSocket upgrades — skip all WS.
         if request.headers.get("upgrade", "").lower() == "websocket":
             return await call_next(request)
         path = request.url.path
         if self._should_skip(path):
             return await call_next(request)
-        # Non-API assets (/, /audit, /blog, /b/, frontend static) - skip plan tier.
+        # Non-API assets (/, /audit, /blog, /b/, frontend static) — skip plan tier.
         if not path.startswith("/api/"):
             return await call_next(request)
         try:
@@ -905,7 +897,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         allowed, remaining = await self._redis_check(key, rpm)
         if not allowed:
             # Same fixed-minute window as the flat limiter, so the same real
-            # reset applies - and the same uniform detail dict every FE parses.
+            # reset applies — and the same uniform detail dict every FE parses.
             retry_after = _fixed_window_retry_after(60)
             return JSONResponse(
                 status_code=429,
@@ -944,12 +936,12 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
 
 
 # =============================================================================
-# ROUTE-HIT COUNTER MIDDLEWARE - "unused API" telemetry (Redis HINCRBY per path)
+# ROUTE-HIT COUNTER MIDDLEWARE — "unused API" telemetry (Redis HINCRBY per path)
 # =============================================================================
 
 
 # Retain fire-and-forget increment tasks so the event loop doesn't GC them mid-run
-# (an un-referenced create_task() can be collected before it executes -> low-traffic
+# (an un-referenced create_task() can be collected before it executes → low-traffic
 # routes would lose hits = the exact false "dead route" signal this feature avoids).
 _ROUTE_HIT_TASKS: set = set()
 _route_hit_sync_client = None
@@ -985,12 +977,12 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
     ROUTE TEMPLATE (e.g. `/api/b/{slug}` not `/api/b/acme`) so per-id/per-slug
     routes don't blow up cardinality. The route template only exists in
     `request.scope["route"]` AFTER routing, so we read it AFTER call_next and
-    fire-and-forget the increment - ZERO added latency, response unchanged.
+    fire-and-forget the increment — ZERO added latency, response unchanged.
 
     GATED `ROUTE_HIT_COUNTER=1` (default OFF): only registered in the stack at
     boot when the flag is on, so OFF = the middleware isn't even present (zero
-    overhead). FAIL-SILENT: any error (redis down, no route) -> skip, never raise.
-    BaseHTTPMiddleware doesn't dispatch WebSocket scopes -> voice/WS untouched.
+    overhead). FAIL-SILENT: any error (redis down, no route) → skip, never raise.
+    BaseHTTPMiddleware doesn't dispatch WebSocket scopes → voice/WS untouched.
     """
 
     @staticmethod
@@ -998,7 +990,7 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
         # Route template (path_format) is populated only AFTER routing. Fall back
         # to the raw path when no route matched (404s etc.). Never touch `.path`
         # on a FastAPI `_IncludedRouter` (AttributeError masks the real failure
-        # in Sentry - 2026-07-14).
+        # in Sentry — 2026-07-14).
         try:
             route = request.scope.get("route")
             if route is not None:
@@ -1060,7 +1052,7 @@ def setup_middleware(app: FastAPI, production: bool = False):
 
     # Tenant context REMOVED 2026-08-01 (enterprise-audit fix): TenantContextMiddleware
     # client-supplied `X-Tenant-ID` header ko request.state.tenant_id me daal raha tha
-    # bina kisi validation/consumption ke (write-only trust-by-header landmine) - future
+    # bina kisi validation/consumption ke (write-only trust-by-header landmine) — future
     # code isko scoping ke liye use karta to instant cross-tenant hole ban jata. Real
     # tenant scoping per-route JWT `client_id` + store-layer ownership checks hai.
     # Reseller white-label branding (fail-open: attaches request.state.tenant).
@@ -1091,7 +1083,7 @@ def setup_middleware(app: FastAPI, production: bool = False):
     # Security headers (applied first, so last in chain)
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # Request guard (per-request timeout + load-shed) - GATED `REQUEST_GUARD=1`, default OFF
+    # Request guard (per-request timeout + load-shed) — GATED `REQUEST_GUARD=1`, default OFF
     if os.environ.get("REQUEST_GUARD", "0").strip().lower() in ("1", "true", "yes"):
         app.add_middleware(RequestGuardMiddleware)
         logger.info(
@@ -1100,8 +1092,8 @@ def setup_middleware(app: FastAPI, production: bool = False):
             os.environ.get("REQUEST_MAX_INFLIGHT", "200"),
         )
 
-    # Route-hit counter ("unused API" telemetry) - GATED `ROUTE_HIT_COUNTER=1`,
-    # default OFF. Only added to the stack when on at boot -> zero overhead off.
+    # Route-hit counter ("unused API" telemetry) — GATED `ROUTE_HIT_COUNTER=1`,
+    # default OFF. Only added to the stack when on at boot → zero overhead off.
     if os.getenv("ROUTE_HIT_COUNTER", "").strip().lower() in ("1", "true", "yes", "on"):
         app.add_middleware(RouteHitMiddleware)
         logger.info("✅ RouteHitCounter enabled (route_hits: daily-key HINCRBY)")

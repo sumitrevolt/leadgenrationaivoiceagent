@@ -284,7 +284,7 @@ def anomalies():
     else:
         print("   ✅ None")
 
-    # 4. eval_gate regressions (replaces the dead 'confidence' check - lessons have no confidence)
+    # 4. eval_gate regressions (replaces the dead 'confidence' check — lessons have no confidence)
     print("\n4. eval_gate regressions (action shipped below baseline):")
     regr = [r for r in runs if r.get("regression")]
     if regr:
@@ -297,8 +297,7 @@ def anomalies():
     if not found:
         print("\n✅ No anomalies detected. Loop looks healthy.\n")
     else:
-        print("\n⚠️ Review above
-        consider pausing SELF_IMPROVE_LOOP if cost/failures spike.\n")
+        print("\n⚠️ Review above; consider pausing SELF_IMPROVE_LOOP if cost/failures spike.\n")
 
 
 def main():

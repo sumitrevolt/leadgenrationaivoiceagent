@@ -1,7 +1,7 @@
 """Access tokens must carry jti+iat so admin_sessions revocation can work.
 
 Deploy-after logout was a frontend wipe-on-first-401 bug, but the deeper gap
-was that create_access_token omitted jti/iat - so logout's revoke_jti +
+was that create_access_token omitted jti/iat — so logout's revoke_jti +
 user-epoch bump were no-ops for issued admin JWTs.
 """
 

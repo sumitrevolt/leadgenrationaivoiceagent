@@ -7,9 +7,9 @@ Gmail/Yahoo 2026 bulk-sender rules expect promotional mail to carry a
 header (RFC 8058) so the mail client can show a native one-click unsubscribe and
 POST to our endpoint. Missing this hurts inbox placement (and spam-complaint rate
 must stay < 0.3%). Our cold-outreach (Rohan) previously sent NO List-Unsubscribe
-header - this closes that gap.
+header — this closes that gap.
 
-Transactional mail (lead alerts, reports, confirmations) must NOT use these -
+Transactional mail (lead alerts, reports, confirmations) must NOT use these —
 one-click List-Unsubscribe is for marketing/promotional mail only.
 
 This module is fully self-contained and never-raise:
@@ -44,7 +44,7 @@ _SECRET = (
 
 
 def _store_path() -> Path:
-    """Unified suppression ledger - resolved per call, never captured at import.
+    """Unified suppression ledger — resolved per call, never captured at import.
 
     A module-level constant froze this path when the module was first imported,
     which is exactly what makes a store impossible to redirect from a fixture
@@ -62,12 +62,12 @@ def _store_path() -> Path:
 def _store_or_none() -> Path | None:
     """Active ledger path, or None if the authority cannot be resolved.
 
-    Missing file -> callers treat as not-suppressed (a legitimate answer).
-    Unresolvable authority -> callers fail CLOSED (an outage is not consent).
+    Missing file → callers treat as not-suppressed (a legitimate answer).
+    Unresolvable authority → callers fail CLOSED (an outage is not consent).
     """
     try:
         return _store_path()
-    except Exception as exc:  # noqa: BLE001 - any resolution failure is the same verdict
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
         logger.error("[email_unsub] compliance.email_suppression authority UNRESOLVABLE: %s", exc)
         return None
 
@@ -77,8 +77,7 @@ def __getattr__(name: str) -> Path:
 
     ``app/platform/reply_agent.py`` still reads ``_STORE.parent`` (outside this
     wave's allowed_paths). ``from email_unsub import _STORE`` freezes the Path
-    once
-    this shim cannot deliver operation-time resolution to that form.
+    once; this shim cannot deliver operation-time resolution to that form.
     Call ``_store_path()`` instead.
     """
     import warnings
@@ -96,14 +95,14 @@ def __getattr__(name: str) -> Path:
 
 # --- canonical suppression scopes -------------------------------------------
 #: Blocks the exact normalized email address only (hard bounce, invalid mailbox).
-#: Deliberately does NOT block a valid WhatsApp number for the same contact - a
+#: Deliberately does NOT block a valid WhatsApp number for the same contact — a
 #: dead mailbox says nothing about the phone.
 SCOPE_EMAIL_ADDRESS = "email_address"
 #: Blocks this contact on ONE channel.
 SCOPE_CHANNEL_CONTACT = "channel_contact"
 #: Blocks EVERY automated outreach channel for this contact. Explicit opt-out.
 SCOPE_ALL_OUTREACH = "all_outreach"
-#: An UNRESOLVED compliance quarantine - someone asked to stop, but we could not
+#: An UNRESOLVED compliance quarantine — someone asked to stop, but we could not
 #: tie the request to a tenant or prospect. It blocks sending exactly like a
 #: permanent record, but it is NOT a business-policy decision: it is a
 #: conservative hold awaiting admin reconciliation. Collapsing it into
@@ -126,7 +125,7 @@ STATE_QUARANTINE = "quarantine"
 # --- suppression write outcomes ---------------------------------------------
 #: Ledger written AND durable cancellation applied.
 RESULT_COMPLETE = "COMPLETE"
-#: An idempotent replay - the event was already recorded.
+#: An idempotent replay — the event was already recorded.
 RESULT_ALREADY_APPLIED = "ALREADY_APPLIED"
 #: Ledger written, but the durable prospect/follow-up transition did NOT land.
 #: Sending is already blocked (eligibility + pre-provider both read the ledger);
@@ -190,7 +189,7 @@ def _mask_phone(value: str) -> str:
 def _store_lock():
     """Best-effort cross-process lock colocated with the ACTIVE ledger.
 
-    Uses ``resolve_lock_path`` so the lock and the ledger share one root - a
+    Uses ``resolve_lock_path`` so the lock and the ledger share one root — a
     lock beside the legacy file while data lives externally coordinates
     nothing across five containers. When tests redirect ``_STORE``, the lock
     follows that redirected ledger instead.
@@ -244,7 +243,7 @@ def suppress_with_result(*args: object, **kwargs: object) -> str:
 def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
     """Repair contacts whose ledger row landed but whose cancellation did not.
 
-    Bounded, idempotent, and READ-ONLY with respect to outreach - it never sends.
+    Bounded, idempotent, and READ-ONLY with respect to outreach — it never sends.
     Safe to call immediately after a partial failure, from a scheduled job, or
     from an admin repair command.
 
@@ -291,7 +290,7 @@ def _append_row(rec: dict[str, object]) -> None:
     # Resolver called at each site, not bound to a local: `runtime_data_scan`
     # attributes a finding to the expression it sees, so `open(store, ...)`
     # reported the bare name `store` and the allowlist entry declaring this
-    # module's store stopped binding - the failure that turned main red.
+    # module's store stopped binding — the failure that turned main red.
     _store_path().parent.mkdir(parents=True, exist_ok=True)
     with _store_lock():
         with open(_store_path(), "a", encoding="utf-8") as f:
@@ -366,7 +365,7 @@ def headers_for(email: str) -> dict[str, str]:
 
 
 def footer_text(email: str) -> str:
-    return f"\n\n-\nIn emails se opt-out: {unsub_url(email)}"
+    return f"\n\n—\nIn emails se opt-out: {unsub_url(email)}"
 
 
 def footer_html(email: str) -> str:
@@ -380,7 +379,7 @@ def footer_html(email: str) -> str:
 def _iter_suppression_rows() -> list[dict[str, object]] | None:
     """Best-effort JSONL reader. None = authority unresolvable (fail closed).
 
-    An empty list means the file is missing or has no usable rows - that is a
+    An empty list means the file is missing or has no usable rows — that is a
     legitimate not-suppressed answer. None means we cannot trust any answer.
     """
     # Probe for an unresolvable authority (None => cannot trust any answer), then
@@ -421,7 +420,7 @@ def _iter_suppression_rows() -> list[dict[str, object]] | None:
                             "tenant": str(row.get("tenant") or ""),
                             "event_id": str(row.get("event_id") or ""),
                             # Quarantine lifecycle. Dropping these here would make
-                            # a released hold look active forever - the same
+                            # a released hold look active forever — the same
                             # fixed-key-set bug that silently discarded scope and
                             # phone before.
                             "resolution": str(row.get("resolution") or ""),
@@ -481,14 +480,14 @@ def suppress(
 
     This is the ONE suppression authority. Before scopes existed every row meant
     "block this email address", which is why a reply saying REMOVE could not be
-    represented at all - the stated opt-out mechanism ("reply REMOVE") wrote
+    represented at all — the stated opt-out mechanism ("reply REMOVE") wrote
     nothing, so only the one-click link actually suppressed anyone.
 
     ``scope`` decides what is blocked:
-      * ``SCOPE_EMAIL_ADDRESS``  - this exact address only. Hard bounce / invalid
+      * ``SCOPE_EMAIL_ADDRESS``  — this exact address only. Hard bounce / invalid
         mailbox. Must NOT block an unrelated valid WhatsApp number.
-      * ``SCOPE_CHANNEL_CONTACT`` - this contact on ``channel`` only.
-      * ``SCOPE_ALL_OUTREACH``   - every automated channel for this contact.
+      * ``SCOPE_CHANNEL_CONTACT`` — this contact on ``channel`` only.
+      * ``SCOPE_ALL_OUTREACH``   — every automated channel for this contact.
         Explicit opt-out (STOP/REMOVE/UNSUBSCRIBE) per the cross-channel
         suppression invariant.
 
@@ -534,7 +533,7 @@ def suppress(
             _mask_phone(p),
             reason,
         )
-        # SAFETY ORDER: the ledger write above is the load-bearing one - once it
+        # SAFETY ORDER: the ledger write above is the load-bearing one — once it
         # lands, eligibility and the pre-provider recheck both block the send.
         # Cancellation metadata is a second, separate write; if it fails the
         # contact is still protected, but the state is inconsistent and must be
@@ -544,7 +543,7 @@ def suppress(
         )
         _last_result["value"] = RESULT_COMPLETE if _cancelled else RESULT_NEEDS_RECONCILIATION
         # Deliverability gate: one-click opt-out = strongest recipient negative signal
-        # -> feed spam-complaint-rate tracker (auto-pauses outreach at 0.25% over 7d).
+        # → feed spam-complaint-rate tracker (auto-pauses outreach at 0.25% over 7d).
         try:
             from app.platform import email_warmup
 
@@ -552,7 +551,7 @@ def suppress(
         except Exception:
             pass
         return True
-    except Exception as ex:  # pragma: no cover - never-raise
+    except Exception as ex:  # pragma: no cover — never-raise
         logger.debug("[email_unsub] suppress failed: %s", ex)
         return False
 
@@ -568,15 +567,13 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> bo
     rather than relying solely on the pre-provider recheck.
 
     Scope-correct by construction:
-      * ALL_OUTREACH  -> terminal opted-out status
-      stops email AND WhatsApp.
-      * EMAIL_ADDRESS -> records the email block only
-      must NOT stop WhatsApp,
+      * ALL_OUTREACH  -> terminal opted-out status; stops email AND WhatsApp.
+      * EMAIL_ADDRESS -> records the email block only; must NOT stop WhatsApp,
         because a dead mailbox is not an opt-out.
     """
     if not prospect_id:
         # No prospect to transition. Nothing pending exists to cancel, so this
-        # is a complete outcome - not a partial one.
+        # is a complete outcome — not a partial one.
         return True
     try:
         from app.platform.sales_autopilot import store as _sa_store
@@ -590,7 +587,7 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> bo
                 suppression_scope=scope,
             )
         elif scope in (SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT):
-            # Durable marker without a status change - the contact may still be
+            # Durable marker without a status change — the contact may still be
             # reachable on another channel.
             _sa_store.mark_status(
                 prospect_id,
@@ -603,7 +600,7 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> bo
         return True
     except Exception as e:  # never break the suppression write
         logger.warning(
-            "[email_unsub] cancellation FAILED for prospect=%s (%s) - suppression "
+            "[email_unsub] cancellation FAILED for prospect=%s (%s) — suppression "
             "still holds; state needs reconciliation",
             prospect_id,
             e,
@@ -681,8 +678,8 @@ def _row_blocks_phone(row: dict[str, object], phone: str, prospect_id: str) -> b
 def is_suppressed(email: str) -> bool:
     """True if this email must not receive automated outreach. Never raises.
 
-    Missing ledger file -> not suppressed (a missing file is an answer).
-    Unresolvable authority -> suppressed (an outage is not consent).
+    Missing ledger file → not suppressed (a missing file is an answer).
+    Unresolvable authority → suppressed (an outage is not consent).
     """
     e = normalize_email(email)
     if not e:
@@ -701,10 +698,10 @@ def is_phone_suppressed(phone: str = "", prospect_id: str = "") -> bool:
 
     Matches on the normalized phone OR the prospect id, because an explicit
     opt-out arriving by email knows the address and prospect but often not the
-    number - without the prospect fallback a cross-channel opt-out would be
+    number — without the prospect fallback a cross-channel opt-out would be
     unenforceable on WhatsApp, which is exactly the invariant this exists for.
 
-    Unresolvable authority -> suppressed (fail closed).
+    Unresolvable authority → suppressed (fail closed).
     """
     p = normalize_phone(phone)
     pid = str(prospect_id or "")
@@ -729,7 +726,7 @@ def suppression_state(
     internally: a verified opt-out is a settled decision, while a quarantine is
     an open question that someone still has to answer.
 
-    Unresolvable authority -> STATE_PERMANENT (fail closed).
+    Unresolvable authority → STATE_PERMANENT (fail closed).
     """
     try:
         ch = (channel or "email").strip().lower()
@@ -753,7 +750,7 @@ def suppression_state(
                 matched.append(row)
         if not matched:
             return STATE_NONE
-        # A settled decision outranks an open question - a real opt-out must not
+        # A settled decision outranks an open question — a real opt-out must not
         # be downgraded to "quarantine" just because a stray hold also exists.
         if any(_row_scope(r) in _PERMANENT_SCOPES for r in matched):
             return STATE_PERMANENT
@@ -775,9 +772,8 @@ def resolve_quarantine(
     """Convert an unresolved quarantine into a settled outcome. Idempotent.
 
     ``resolution``:
-      * ``"suppress"``  - confirm it
-      writes the corresponding permanent record.
-      * ``"released"``  - verified false positive. REQUIRES explicit evidence,
+      * ``"suppress"``  — confirm it; writes the corresponding permanent record.
+      * ``"released"``  — verified false positive. REQUIRES explicit evidence,
         because releasing a hold that a real person asked for is the one
         irreversible mistake available here.
     """
@@ -862,7 +858,7 @@ def is_contact_suppressed(
 ) -> bool:
     """Single entry point for eligibility checks on either channel. Never raises.
 
-    Unresolvable authority -> suppressed (fail closed).
+    Unresolvable authority → suppressed (fail closed).
     """
     ch = (channel or "email").strip().lower()
     if ch == "whatsapp":

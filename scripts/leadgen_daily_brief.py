@@ -15,8 +15,7 @@ HOST = os.environ.get("LEADGEN_VPS_HOST", "root@72.61.245.204")
 REMOTE = r"""
 U=$(docker exec leadgen_db printenv POSTGRES_USER)
 D=$(docker exec leadgen_db printenv POSTGRES_DB)
-q(){ docker exec leadgen_db psql -U "$U" -d "$D" -tAc "$1"
-}
+q(){ docker exec leadgen_db psql -U "$U" -d "$D" -tAc "$1"; }
 echo "HEALTH $(docker exec leadgen_app curl -s -m 5 http://localhost:8080/health | head -c 300)"
 echo "QUEUE_CELERY $(docker exec leadgen_redis redis-cli llen celery)"
 echo "QUEUE_DLQ $(docker exec leadgen_redis redis-cli llen dlq:failed_tasks)"

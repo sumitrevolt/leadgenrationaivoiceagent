@@ -17,7 +17,7 @@ import pytest
 HTML_PATH = Path(__file__).resolve().parents[1] / "frontend" / "office_map.html"
 SRC = HTML_PATH.read_text(encoding="utf-8")
 
-# Every interactive/panel ID that existed BEFORE the upgrade - none may vanish.
+# Every interactive/panel ID that existed BEFORE the upgrade — none may vanish.
 PRE_EXISTING_IDS = [
     "banner",
     "bannerRetry",
@@ -129,8 +129,7 @@ PRE_EXISTING_IDS = [
 def _inline_js() -> str:
     blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
     assert blocks, "no inline <script> block found"
-    return "\n
-    \n".join(blocks)
+    return "\n;\n".join(blocks)
 
 
 def test_inline_js_syntax_ok(tmp_path):

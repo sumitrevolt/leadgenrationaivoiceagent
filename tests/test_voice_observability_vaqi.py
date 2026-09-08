@@ -1,5 +1,5 @@
 """Tests for the VAQI (Deepgram-style Voice Agent Quality Index) additions to
-app/voice_agent/observability.py's Tracer - record_interruption /
+app/voice_agent/observability.py's Tracer — record_interruption /
 record_missed_response / vaqi_summary."""
 
 from app.voice_agent.observability import Tracer

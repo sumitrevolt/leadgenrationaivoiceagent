@@ -1,5 +1,5 @@
 """
-Revenue Workflow Engine - Phase 4 Live Revenue Pilot
+Revenue Workflow Engine — Phase 4 Live Revenue Pilot
 ===================================================
 Canonical lead-to-revenue workflow migration on top of Automation-Max Orchestrator.
 

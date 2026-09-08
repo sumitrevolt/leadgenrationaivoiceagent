@@ -1,21 +1,19 @@
-"""Master Project Blueprint - canonical graph API (admin full + public sanitized).
+"""Master Project Blueprint — canonical graph API (admin full + public sanitized).
 
 Serves the versioned architecture graph defined in
 :mod:`app.platform.blueprint_graph` so the ``/app/explorer`` Master Blueprint
 mode consumes ONE canonical contract instead of hard-coding architecture truth.
 
 Security (PR #125 hardening):
-  * ``/graph`` ``/validate`` ``/trace`` -> **admin-only** (``require_admin``).
+  * ``/graph`` ``/validate`` ``/trace`` → **admin-only** (``require_admin``).
     These carry repo file paths, feature-flag inventory, runtime probe keys,
-    tech-refs and internal edges - internal architecture, not for the public.
-  * ``/public`` -> **sanitized** business-safe contract (labels + high-level
-    connections + coarse state only
-    no paths/flags/runtime/desc).
-  * ``/meta`` -> version + counts only (business-safe, no sensitive metadata).
+    tech-refs and internal edges — internal architecture, not for the public.
+  * ``/public`` → **sanitized** business-safe contract (labels + high-level
+    connections + coarse state only; no paths/flags/runtime/desc).
+  * ``/meta`` → version + counts only (business-safe, no sensitive metadata).
 
 Read-only, no secrets, never-raises. Live runtime status is joined client-side
-from already-approved endpoints
-nodes with no live binding stay honestly
+from already-approved endpoints; nodes with no live binding stay honestly
 ``Unknown`` (never fabricated ``Healthy``).
 """
 
@@ -37,14 +35,14 @@ router = APIRouter(prefix="/api/blueprint", tags=["Blueprint"])
 async def blueprint_graph(
     check_files: bool = False, _user=Depends(require_admin)
 ) -> dict[str, Any]:
-    """FULL canonical architecture graph - **admin-only** (repo paths, flags,
+    """FULL canonical architecture graph — **admin-only** (repo paths, flags,
     runtime keys, tech_refs). ``check_files=1`` adds per-node ``file_ok``.
-    Never raises - returns an empty-but-shaped payload if the module is missing."""
+    Never raises — returns an empty-but-shaped payload if the module is missing."""
     try:
         from app.platform import blueprint_graph as bg
 
         return bg.build_graph(check_files=check_files)
-    except Exception as e:  # pragma: no cover - defensive, never crash
+    except Exception as e:  # pragma: no cover — defensive, never crash
         logger.warning(f"blueprint graph unavailable: {type(e).__name__}: {e}")
         return {
             "schema_version": "unavailable",
@@ -89,7 +87,7 @@ async def blueprint_public() -> dict[str, Any]:
 async def blueprint_validate(
     strict_files: bool = True, _user=Depends(require_admin)
 ) -> dict[str, Any]:
-    """Schema-integrity pass/fail report - **admin-only** (surfaces internal
+    """Schema-integrity pass/fail report — **admin-only** (surfaces internal
     structure). Mirrors the test-suite gate. Never raises."""
     try:
         from app.platform import blueprint_graph as bg
@@ -114,7 +112,7 @@ async def blueprint_trace(
     depth: int = Query(3, ge=0, le=12),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
-    """Multi-hop traversal - **admin-only**. Upstream/downstream (bounded depth),
+    """Multi-hop traversal — **admin-only**. Upstream/downstream (bounded depth),
     shortest path (when ``tgt`` given), and downstream impact. Cycle-safe,
     deterministic. Never raises."""
     try:

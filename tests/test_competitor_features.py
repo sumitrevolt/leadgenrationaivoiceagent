@@ -1,4 +1,4 @@
-"""Tests - bulk competitor-parity batch (carousel, meme, deliverability,
+"""Tests — bulk competitor-parity batch (carousel, meme, deliverability,
 booking reminders, review monitor, outbound webhooks, website auditor, multilang).
 Sync + asyncio.run, tmp stores, no network (LLM calls fallback pe girte).
 """

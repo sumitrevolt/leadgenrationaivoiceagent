@@ -1,11 +1,11 @@
-"""OPS-013 - the WhatsApp AI auto-reply flag must never be enabled silently.
+"""OPS-013 — the WhatsApp AI auto-reply flag must never be enabled silently.
 
 Meta's WhatsApp Business API policy bars general-purpose AI chatbots. This agent
 is task-scoped by construction, but `WHATSAPP_AI_AUTOREPLY=1` widens the drafted
 intent set to include `other` (open-ended inbound -> open-ended LLM answer). That
 is the only drift vector, so it gets a loud, quotable, testable warning.
 
-These tests assert the WARNING exists - they do not change send behaviour.
+These tests assert the WARNING exists — they do not change send behaviour.
 """
 
 import pytest

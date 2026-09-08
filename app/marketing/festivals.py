@@ -1,11 +1,10 @@
 """
-festivals.py - Indian festival calendar (Jun 2026 -> Dec 2027) + festival posts.
+festivals.py — Indian festival calendar (Jun 2026 → Dec 2027) + festival posts.
 ===============================================================================
 
-Static curated list (approx dates - lunar festivals +/- 1-2 din ho sakte
+Static curated list (approx dates — lunar festivals +/- 1-2 din ho sakte
 hain, marketing ke liye kaafi). `upcoming(days)` aaj se aage ke festivals
-deta hai
-`festival_posts()` nearest 3 ke liye LLM captions (1 call) -
+deta hai; `festival_posts()` nearest 3 ke liye LLM captions (1 call) —
 template fallback ke saath. KABHI empty nahi, KABHI raise nahi.
 """
 
@@ -37,9 +36,9 @@ except Exception:  # pragma: no cover
 
 
 # ============================================================================ #
-# Festival calendar - {date, name, type, marketing_angle}
+# Festival calendar — {date, name, type, marketing_angle}
 # "type" values: national | hindu | muslim | sikh | christian | regional
-# (NOTE: comment "type:" se shuru nahi ho sakta - mypy use PEP-484 type-comment
+# (NOTE: comment "type:" se shuru nahi ho sakta — mypy use PEP-484 type-comment
 # samajh ke "Invalid syntax" deta hai.)
 # ============================================================================ #
 
@@ -48,13 +47,13 @@ FESTIVALS_2026_27: list[dict[str, str]] = [
         "date": "2026-07-16",
         "name": "Rath Yatra",
         "type": "hindu",
-        "marketing_angle": "Naye safar ki shuruaat - 'naya kadam' offer launch karne ka perfect din.",
+        "marketing_angle": "Naye safar ki shuruaat — 'naya kadam' offer launch karne ka perfect din.",
     },
     {
         "date": "2026-08-15",
         "name": "Independence Day",
         "type": "national",
-        "marketing_angle": "Freedom-theme sale (79th I-Day) - 'Aazadi offer' tricolor creatives ke saath.",
+        "marketing_angle": "Freedom-theme sale (79th I-Day) — 'Aazadi offer' tricolor creatives ke saath.",
     },
     {
         "date": "2026-08-26",
@@ -66,43 +65,43 @@ FESTIVALS_2026_27: list[dict[str, str]] = [
         "date": "2026-08-28",
         "name": "Raksha Bandhan",
         "type": "hindu",
-        "marketing_angle": "Bhai-behen gifting angle - 'Rakhi special' combo ya behen ke liye discount.",
+        "marketing_angle": "Bhai-behen gifting angle — 'Rakhi special' combo ya behen ke liye discount.",
     },
     {
         "date": "2026-09-04",
         "name": "Janmashtami",
         "type": "hindu",
-        "marketing_angle": "Matki-phod contest ya midnight flash-offer - engagement bahut high hota hai.",
+        "marketing_angle": "Matki-phod contest ya midnight flash-offer — engagement bahut high hota hai.",
     },
     {
         "date": "2026-09-14",
         "name": "Ganesh Chaturthi",
         "type": "hindu",
-        "marketing_angle": "'Shubh aarambh' angle - naye kaam/booking shuru karne ka sabse mangal din.",
+        "marketing_angle": "'Shubh aarambh' angle — naye kaam/booking shuru karne ka sabse mangal din.",
     },
     {
         "date": "2026-10-11",
         "name": "Navratri (Start)",
         "type": "hindu",
-        "marketing_angle": "9-din 9-offers series chalao - har din ek naya color/deal, daily posts ready.",
+        "marketing_angle": "9-din 9-offers series chalao — har din ek naya color/deal, daily posts ready.",
     },
     {
         "date": "2026-10-20",
         "name": "Dussehra",
         "type": "hindu",
-        "marketing_angle": "'Burai par jeet' - purani problems (mehengi bijli/purana ghar) par offer-attack.",
+        "marketing_angle": "'Burai par jeet' — purani problems (mehengi bijli/purana ghar) par offer-attack.",
     },
     {
         "date": "2026-10-29",
         "name": "Karwa Chauth",
         "type": "hindu",
-        "marketing_angle": "Couples gifting - 'patni ke liye special' offers, evening-slot bookings push karo.",
+        "marketing_angle": "Couples gifting — 'patni ke liye special' offers, evening-slot bookings push karo.",
     },
     {
         "date": "2026-11-06",
         "name": "Dhanteras",
         "type": "hindu",
-        "marketing_angle": "Saal ka SABSE bada buying-day - 'shubh kharidari' badi-ticket offers aaj hi.",
+        "marketing_angle": "Saal ka SABSE bada buying-day — 'shubh kharidari' badi-ticket offers aaj hi.",
     },
     {
         "date": "2026-11-08",
@@ -114,19 +113,19 @@ FESTIVALS_2026_27: list[dict[str, str]] = [
         "date": "2026-11-11",
         "name": "Bhai Dooj",
         "type": "hindu",
-        "marketing_angle": "Rakhi jaisa gifting angle round-2 - sibling combo offers.",
+        "marketing_angle": "Rakhi jaisa gifting angle round-2 — sibling combo offers.",
     },
     {
         "date": "2026-11-15",
         "name": "Chhath Puja",
         "type": "regional",
-        "marketing_angle": "Bihar/UP/Jharkhand audience se emotional connect - shraddha-bhari greeting post.",
+        "marketing_angle": "Bihar/UP/Jharkhand audience se emotional connect — shraddha-bhari greeting post.",
     },
     {
         "date": "2026-11-24",
         "name": "Guru Nanak Jayanti",
         "type": "sikh",
-        "marketing_angle": "Seva-bhaav greeting - community-respect post, hard-sell nahi.",
+        "marketing_angle": "Seva-bhaav greeting — community-respect post, hard-sell nahi.",
     },
     {
         "date": "2026-12-25",
@@ -138,19 +137,19 @@ FESTIVALS_2026_27: list[dict[str, str]] = [
         "date": "2027-01-01",
         "name": "New Year",
         "type": "national",
-        "marketing_angle": "'Naya saal, naya …' resolution-angle - saal ki pehli booking par offer.",
+        "marketing_angle": "'Naya saal, naya …' resolution-angle — saal ki pehli booking par offer.",
     },
     {
         "date": "2027-01-14",
         "name": "Makar Sankranti / Pongal",
         "type": "hindu",
-        "marketing_angle": "Patang/fasal theme - 'oonchi udaan' offers, south me Pongal greetings.",
+        "marketing_angle": "Patang/fasal theme — 'oonchi udaan' offers, south me Pongal greetings.",
     },
     {
         "date": "2027-01-26",
         "name": "Republic Day",
         "type": "national",
-        "marketing_angle": "78th R-Day - desh-bhakti theme sale, tricolor branding ek din pehle se.",
+        "marketing_angle": "78th R-Day — desh-bhakti theme sale, tricolor branding ek din pehle se.",
     },
     {
         "date": "2027-03-06",
@@ -168,55 +167,55 @@ FESTIVALS_2026_27: list[dict[str, str]] = [
         "date": "2027-03-22",
         "name": "Holi",
         "type": "hindu",
-        "marketing_angle": "Rang-barse colorful creatives - 'rangon wali deal' bundle offers.",
+        "marketing_angle": "Rang-barse colorful creatives — 'rangon wali deal' bundle offers.",
     },
     {
         "date": "2027-04-14",
         "name": "Baisakhi",
         "type": "sikh",
-        "marketing_angle": "Fasal/naye saal (Punjabi) ki khushi - harvest-bonus offers north audience ke liye.",
+        "marketing_angle": "Fasal/naye saal (Punjabi) ki khushi — harvest-bonus offers north audience ke liye.",
     },
     {
         "date": "2027-05-09",
         "name": "Akshaya Tritiya",
         "type": "hindu",
-        "marketing_angle": "'Akshaya' = kabhi na ghatne wala - investments/gold/property ke liye #1 din.",
+        "marketing_angle": "'Akshaya' = kabhi na ghatne wala — investments/gold/property ke liye #1 din.",
     },
     {
         "date": "2027-05-17",
         "name": "Eid-ul-Adha",
         "type": "muslim",
-        "marketing_angle": "Bakrid Mubarak greeting - community-connect post, qurbani/sharing theme.",
+        "marketing_angle": "Bakrid Mubarak greeting — community-connect post, qurbani/sharing theme.",
     },
     {
         "date": "2027-08-15",
         "name": "Independence Day",
         "type": "national",
-        "marketing_angle": "80th Independence Day - milestone-saal ki badi patriotic sale.",
+        "marketing_angle": "80th Independence Day — milestone-saal ki badi patriotic sale.",
     },
     {
         "date": "2027-08-17",
         "name": "Raksha Bandhan",
         "type": "hindu",
-        "marketing_angle": "Rakhi gifting combos - behen/bhai dono ke liye paired offers.",
+        "marketing_angle": "Rakhi gifting combos — behen/bhai dono ke liye paired offers.",
     },
     {
         "date": "2027-09-04",
         "name": "Ganesh Chaturthi",
         "type": "hindu",
-        "marketing_angle": "Shubh-aarambh bookings - Ganpati ke 10 din daily-post series.",
+        "marketing_angle": "Shubh-aarambh bookings — Ganpati ke 10 din daily-post series.",
     },
     {
         "date": "2027-10-29",
         "name": "Diwali",
         "type": "hindu",
-        "marketing_angle": "Diwali 2027 mega-sale - Dhanteras se Bhai-Dooj tak full festive week plan.",
+        "marketing_angle": "Diwali 2027 mega-sale — Dhanteras se Bhai-Dooj tak full festive week plan.",
     },
     {
         "date": "2027-12-25",
         "name": "Christmas",
         "type": "christian",
-        "marketing_angle": "Saal ki aakhri badi sale - year-end gratitude + clearance offers.",
+        "marketing_angle": "Saal ki aakhri badi sale — year-end gratitude + clearance offers.",
     },
 ]
 
@@ -250,7 +249,7 @@ def upcoming(days: int = 45) -> list[dict[str, str]]:
 
 
 def _next_n(n: int = 3) -> list[dict[str, str]]:
-    """Aaj ke baad ke nearest n festivals - window ki parwah kiye bina.
+    """Aaj ke baad ke nearest n festivals — window ki parwah kiye bina.
 
     Calendar khatam ho jaaye (sab past) to aakhri n entries (never empty).
     """
@@ -262,7 +261,7 @@ def _next_n(n: int = 3) -> list[dict[str, str]]:
             future.append((d, f))
     future.sort(key=lambda x: x[0])
     picked = [dict(f) for _, f in future[:n]]
-    if not picked:  # poora calendar past me - phir bhi kuch do
+    if not picked:  # poora calendar past me — phir bhi kuch do
         picked = [dict(f) for f in FESTIVALS_2026_27[-n:]]
     return picked
 
@@ -272,7 +271,7 @@ def _template_caption(festival: str, business_name: str, niche: str) -> str:
         f"✨ {festival} ki dher saari shubhkamnayein! 🪔\n"
         f"{business_name} parivar ki taraf se aapko aur aapke parivar ko "
         f"khushiyon bhara tyohar mubarak. {_niche_pitch(niche)}\n"
-        f"📞 Is shubh avsar par humse judiye - abhi contact karein!"
+        f"📞 Is shubh avsar par humse judiye — abhi contact karein!"
     )
 
 
@@ -308,21 +307,21 @@ def _parse_festival_captions(text: str, names: list[str]) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# FREE public-holidays enrichment - two keyed/keyless sources, defensive, cached.
+# FREE public-holidays enrichment — two keyed/keyless sources, defensive, cached.
 #
-# Source 1 - Calendarific (free tier, CALENDARIFIC_API_KEY env set):
+# Source 1 — Calendarific (free tier, CALENDARIFIC_API_KEY env set):
 #   https://calendarific.com/api/v2/holidays?api_key=KEY&country=IN&year=YEAR
-#   Free plan: 1,000 calls/mo (per-year cache -> 2 calls/year plenty).
+#   Free plan: 1,000 calls/mo (per-year cache → 2 calls/year plenty).
 #   Returns official + Hindu + Muslim + Sikh + Christian public holidays for India.
-#   PREFERRED when key available - best India coverage.
+#   PREFERRED when key available — best India coverage.
 #
-# Source 2 - Nager.Date (keyless fallback):
-#   ⚠️ LIVE-TESTED: India (IN) NOT in AvailableCountries -> HTTP 204 -> empty [].
+# Source 2 — Nager.Date (keyless fallback):
+#   ⚠️ LIVE-TESTED: India (IN) NOT in AvailableCountries → HTTP 204 → empty [].
 #   Effectively a no-op for India; kept for non-IN country future use.
 #
 # Both: gated FESTIVALS_LIVE_HOLIDAYS=1 (default OFF = zero change),
-#        per-year cached, NEVER raises (network/parse fail -> []).
-# CALENDARIFIC_API_KEY is env-only (not a boolean AUTOMATION_FLAG - it's a secret key).
+#        per-year cached, NEVER raises (network/parse fail → []).
+# CALENDARIFIC_API_KEY is env-only (not a boolean AUTOMATION_FLAG — it's a secret key).
 # --------------------------------------------------------------------------- #
 _HOLIDAY_CACHE: dict[int, list[dict[str, str]]] = {}
 _CALENDARIFIC_CACHE: dict[int, list[dict[str, str]]] = {}
@@ -371,7 +370,7 @@ async def _fetch_calendarific(year: int, api_key: str) -> list[dict[str, str]]:
                             }
                         )
             elif r.status_code == 401:
-                logger.warning("Calendarific: invalid API key - check CALENDARIFIC_API_KEY")
+                logger.warning("Calendarific: invalid API key — check CALENDARIFIC_API_KEY")
             else:
                 logger.debug("Calendarific: HTTP %s for year %s", r.status_code, year)
     except Exception as e:  # pragma: no cover - defensive
@@ -384,9 +383,8 @@ async def fetch_public_holidays(year: int, country: str = "IN") -> list[dict[str
     """Public holidays for `year`/`country`.
 
     Priority:
-      1. Calendarific (when CALENDARIFIC_API_KEY set) - best India coverage.
-      2. Nager.Date (keyless) - good for non-IN
-      India returns [] (unsupported).
+      1. Calendarific (when CALENDARIFIC_API_KEY set) — best India coverage.
+      2. Nager.Date (keyless) — good for non-IN; India returns [] (unsupported).
     Per-year cached, 5-8s timeout, NEVER raises (network/parse fail -> []).
     """
     if year in _HOLIDAY_CACHE:

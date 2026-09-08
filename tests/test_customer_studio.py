@@ -1,4 +1,4 @@
-"""Customer AI Marketing Studio API tests - routes mounted, auth-gated, never-empty.
+"""Customer AI Marketing Studio API tests — routes mounted, auth-gated, never-empty.
 
 free_ai.chat is stubbed by conftest (canned reply), so generators exercise the
 LLM-or-template path without real network. Every tool must return 200 + a
@@ -25,7 +25,7 @@ _POST_TOOLS = [
     ("/api/customer/studio/gbp-text", {"services": ["Repair", "Installation"]}),
     ("/api/customer/studio/ads", {"offer": "Free demo"}),
     ("/api/customer/studio/hashtags", {"count": 15}),
-    # batch 2 - MVP-12
+    # batch 2 — MVP-12
     ("/api/customer/studio/festival-post", {"days": 45}),
     ("/api/customer/studio/poster", {"offer": "20% off", "phone": "+919999999999"}),
     ("/api/customer/studio/review-request", {}),
@@ -34,7 +34,7 @@ _POST_TOOLS = [
     ("/api/customer/studio/reel-script", {"topic": "offer", "n": 2}),
     ("/api/customer/studio/win-back", {"offer": "10% wapas"}),
     ("/api/customer/studio/quote-draft", {"avg_deal_value": 20000}),
-    # batch 3 - toward 40
+    # batch 3 — toward 40
     ("/api/customer/studio/competitor", {"competitor_notes": "roz post karta hai"}),
     ("/api/customer/studio/faq-reply", {"question": "Aap kya service dete ho?"}),
     ("/api/customer/studio/carousel", {"topic": "tips", "slides": 3}),
@@ -47,11 +47,11 @@ _POST_TOOLS = [
     ("/api/customer/studio/budget-suggest", {"avg_deal_value": 20000, "target_leads": 10}),
     ("/api/customer/studio/customer-reminder", {"kind": "renewal"}),
     ("/api/customer/studio/appointment-assistant", {}),
-    # batch 4 - growth OS
+    # batch 4 — growth OS
     ("/api/customer/studio/month-planner", {"offer": "Sale"}),
     ("/api/customer/studio/templates", {}),
     ("/api/customer/studio/blog", {"topic": "tips"}),
-    # landing-audit omitted here - makes a real outbound HTTP fetch (covered by live E2E)
+    # landing-audit omitted here — makes a real outbound HTTP fetch (covered by live E2E)
     ("/api/customer/studio/testimonial", {"review_text": "Great service!", "rating": 5}),
     ("/api/customer/studio/repurpose", {"topic_or_url": "new offer"}),
     ("/api/customer/studio/referral", {"reward": "10% off"}),

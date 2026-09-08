@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Production readiness audit - run before launch or after .env changes.
+"""Production readiness audit — run before launch or after .env changes.
 
 Usage:
     python scripts/production_ready.py
     python scripts/production_ready.py --json
 
-Exit 0 = zero BLOCKERs (marketing launch green
-UPI armed = paid-customer ready).
+Exit 0 = zero BLOCKERs (marketing launch green; UPI armed = paid-customer ready).
 Exit 1 = one or more BLOCKERs remain.
 """
 
@@ -121,21 +120,21 @@ def main() -> int:
             for b in snap["blockers"]:
                 print(f"  • {b['label']} ({b['key']})")
                 if b["action"]:
-                    print(f"    -> {b['action']}")
+                    print(f"    → {b['action']}")
         if snap["warns"]:
             print("\nWARNINGS (recommended):")
             for w in snap["warns"][:6]:
                 print(f"  • {w['label']}")
                 if w["action"]:
-                    print(f"    -> {w['action']}")
+                    print(f"    → {w['action']}")
         ns = snap.get("next_step")
         if ns:
             print(f"\nNEXT STEP (Phase {ns['phase']['n']} · {ns['phase']['name']}):")
-            print(f"  {ns['label']} - {ns['status']}")
+            print(f"  {ns['label']} — {ns['status']}")
             if ns.get("action"):
-                print(f"  -> {ns['action']}")
+                print(f"  → {ns['action']}")
         elif launch:
-            print("\nPRODUCTION READY - marketing + ops launch green.")
+            print("\nPRODUCTION READY — marketing + ops launch green.")
         print("\nDetail: /app/dashboards or /api/activation/readiness (admin token)")
 
     if not prod_ok or not snap["ready_for_launch"]:

@@ -1,4 +1,4 @@
-"""Per-client blog (#29) - generate + store + render. Was a dormant gap: customer
+"""Per-client blog (#29) — generate + store + render. Was a dormant gap: customer
 got a template only, no live indexable per-client blog page. Now /b/{slug}/blog is real.
 """
 

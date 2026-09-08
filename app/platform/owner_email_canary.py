@@ -1,23 +1,20 @@
-"""Owner-inbox one-shot email canary - live send WITHOUT enabling bulk outreach.
+"""Owner-inbox one-shot email canary — live send WITHOUT enabling bulk outreach.
 
 Does NOT turn on ``AUTO_EMAIL_OUTREACH`` or Sales Autopilot schedulers. Uses a
-canary-specific ONE-SHOT transport (never ``EmailSender``'s Resend->Brevo->SMTP
-cascade). Super-admin API is the sole entry
-this module never accepts a
+canary-specific ONE-SHOT transport (never ``EmailSender``'s Resend→Brevo→SMTP
+cascade). Super-admin API is the sole entry; this module never accepts a
 prospect list.
 
 Safety:
   - one recipient only (bulk-shaped addresses refused)
   - suppression fail-closed via ONE strict validated snapshot (canary-local;
-    never a second fail-open ``email_unsub`` reader
-    does not change globals)
+    never a second fail-open ``email_unsub`` reader; does not change globals)
   - attempt ledger read/parse/structural/authority failures block BEFORE provider I/O
   - attempt claimed under file-lock BEFORE provider (lock released before I/O)
   - idempotency key ⇒ duplicate request does not re-send
   - hard daily provider-attempt cap of 1 (pending claims count)
   - missing SMTP/API ⇒ FAILED, provider_called=false (does not consume cap)
-  - exactly ONE transport/provider network attempt
-  timeout/error/ambiguous
+  - exactly ONE transport/provider network attempt; timeout/error/ambiguous
     ⇒ UNKNOWN_REQUIRES_REVIEW (never fallback, never blind-retry)
   - recipient never logged in cleartext (masked only)
   - CANONICAL runtime-data: RuntimeDataError surfaces (no checkout fallback)
@@ -47,7 +44,7 @@ DUPLICATE = "DUPLICATE"
 BLOCKED = "BLOCKED"
 UNKNOWN_REQUIRES_REVIEW = "UNKNOWN_REQUIRES_REVIEW"
 
-_CANARY_SUBJECT = "LeadGen AI - owner inbox canary (one-shot)"
+_CANARY_SUBJECT = "LeadGen AI — owner inbox canary (one-shot)"
 _TIMEOUT_S = float(os.getenv("OWNER_EMAIL_CANARY_TIMEOUT_S", "30") or "30")
 # Reputation safety: at most one provider attempt (or pending claim) per UTC day.
 _DAILY_PROVIDER_CAP = 1
@@ -56,7 +53,7 @@ TransportName = Literal["resend", "brevo", "smtp"]
 
 
 class AttemptLedgerError(Exception):
-    """Attempt ledger unreadable or corrupt - fail closed before provider I/O."""
+    """Attempt ledger unreadable or corrupt — fail closed before provider I/O."""
 
     def __init__(self, reason: str, *, detail: str = ""):
         self.reason = reason
@@ -73,10 +70,10 @@ class ProviderNotCalledError(Exception):
 
 
 def _attempts_path(*, create: bool = False) -> Path:
-    """Resolve attempts.jsonl. ``create`` only on write paths - never on GET/preflight."""
+    """Resolve attempts.jsonl. ``create`` only on write paths — never on GET/preflight."""
     from app.platform import runtime_data_authority as _auth
 
-    # RuntimeDataError must propagate in CANONICAL (and any misconfig) -
+    # RuntimeDataError must propagate in CANONICAL (and any misconfig) —
     # do NOT swallow into checkout fallback.
     path = Path(
         _auth.resolve_store_path(
@@ -107,8 +104,7 @@ def is_one_to_one(email: str) -> bool:
     s = str(email or "").strip()
     if not s or "@" not in s:
         return False
-    if any(sep in s for sep in (",", "
-    ", "\n", "\r", " ")):
+    if any(sep in s for sep in (",", ";", "\n", "\r", " ")):
         return False
     local, _, domain = s.partition("@")
     if not local or not domain or "." not in domain:
@@ -131,7 +127,7 @@ def _validate_attempt_row(row: dict[str, Any]) -> None:
     """Strict shape for every historical row used by idempotency / daily-cap truth.
 
     Syntactically valid but empty/partial objects (``{}``, ``{event:attempt}``)
-    must BLOCK - silently ignoring them would under-count the daily cap or miss
+    must BLOCK — silently ignoring them would under-count the daily cap or miss
     an in-flight claim.
     """
     event = row.get("event")
@@ -252,7 +248,7 @@ def _provider_slot_taken_today() -> bool:
     for k in pending:
         fin = finalized.get(k)
         if fin is None:
-            return True  # still in-flight - counts toward cap
+            return True  # still in-flight — counts toward cap
         if fin.get("provider_called"):
             return True
         # Definite no-provider finalization released the slot.
@@ -472,7 +468,7 @@ def _load_strict_suppression_snapshot() -> list[dict[str, Any]]:
 def _suppressed(email: str) -> bool:
     """Fail closed on any suppression-ledger uncertainty (canary-only).
 
-    Send/no-send comes from the SAME strict validated snapshot - never a second
+    Send/no-send comes from the SAME strict validated snapshot — never a second
     fail-open reader (TOCTOU with ``is_contact_suppressed`` eliminated).
     """
     try:
@@ -494,14 +490,14 @@ def _body_text() -> tuple[str, str]:
         "Agar yeh mail mil gaya, delivery path live hai.\n\n"
         "Unsubscribe / stop ke liye List-Unsubscribe header use karein "
         "(ya reply STOP).\n\n"
-        "- LeadGen AI Ops\n"
+        "— LeadGen AI Ops\n"
     )
     html = (
         "<p>Namaste,</p>"
         "<p>Yeh LeadGen AI ka <b>ONE-SHOT</b> owner-inbox canary hai.</p>"
         "<p>Agar yeh mail mil gaya, delivery path live hai.</p>"
         "<p>Unsubscribe / stop ke liye List-Unsubscribe header use karein.</p>"
-        "<p>- LeadGen AI Ops</p>"
+        "<p>— LeadGen AI Ops</p>"
     )
     return text, html
 
@@ -658,7 +654,7 @@ async def _send_smtp_once(
 
 
 async def _provider_send(to: str, timeout_s: float) -> dict[str, Any]:
-    """ONE transport network attempt total - no multi-provider cascade."""
+    """ONE transport network attempt total — no multi-provider cascade."""
     cfg = _smtp_or_api_configured()
     if not cfg["send_path_ready"]:
         return {"sent": False, "mode": "smtp_not_configured", "provider_called": False}
@@ -733,7 +729,7 @@ def _claim_under_lock(
 
             cfg = _smtp_or_api_configured()
             if not cfg["send_path_ready"]:
-                # Definite no-config - persist for audit, do NOT consume provider slot.
+                # Definite no-config — persist for audit, do NOT consume provider slot.
                 _append_attempt(
                     {
                         "event": "attempt",
@@ -869,7 +865,7 @@ async def send_canary(
             result["reason"] = "claim_failed"
             return result
 
-        # Lock released - provider I/O outside the lock.
+        # Lock released — provider I/O outside the lock.
         try:
             res = await _provider_send(to, _TIMEOUT_S)
         except ProviderNotCalledError as e:
@@ -918,7 +914,7 @@ async def send_canary(
         }
 
         if mode == "smtp_not_configured" or not called:
-            # Definite no-provider (race after claim) - release slot semantics via status.
+            # Definite no-provider (race after claim) — release slot semantics via status.
             _update_attempt(
                 idem, outcome=FAILED, reason="smtp_not_configured", provider_called=False
             )
@@ -933,7 +929,7 @@ async def send_canary(
             result["outcome"] = SENT
             return result
 
-        # Ambiguous provider refusal - never retry / never cascade.
+        # Ambiguous provider refusal — never retry / never cascade.
         _update_attempt(
             idem,
             outcome=UNKNOWN_REQUIRES_REVIEW,

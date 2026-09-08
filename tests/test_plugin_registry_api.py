@@ -1,4 +1,4 @@
-"""Tests for GET /api/admin/plugins - plugin registry admin API."""
+"""Tests for GET /api/admin/plugins — plugin registry admin API."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ class TestPluginRegistryAuth:
 
 
 class TestPluginRegistryList:
-    """GET /api/admin/plugins - list with filters."""
+    """GET /api/admin/plugins — list with filters."""
 
     def _admin_get(self, client, url, **params):
         """Helper: hit endpoint with admin header (simulated auth bypass in tests)."""
@@ -159,7 +159,7 @@ class TestPluginRegistryModels:
 
 
 class TestPluginRegistryIntegration:
-    """Integration: catalog -> registry -> API models."""
+    """Integration: catalog → registry → API models."""
 
     def test_all_plugins_convertible_to_summary(self):
         from app.api.plugin_registry import _summary_from_manifest

@@ -1,19 +1,16 @@
-"""Boss Autonomy service - canonical owner-free decision advancement.
+"""Boss Autonomy service — canonical owner-free decision advancement.
 
 Thin, flag-gated orchestration over "app.platform.boss_decision_governance"
 (imported as "bdg"). This module is the ONLY runtime owner of the "Boss runs
-without a human" decision loop
-it uses public bdg API exclusively.
+without a human" decision loop; it uses public bdg API exclusively.
 
 Hard rules (no monkey-patching, no private catalog access):
   * Canonical Boss identity is "manager" (workforce registry), never "hermes".
-  * Advisory (Second Brain / LLM Council) is advisory-only
-  its absence NEVER
-    defaults to execution - empty/low-confidence advice defers.
+  * Advisory (Second Brain / LLM Council) is advisory-only; its absence NEVER
+    defaults to execution — empty/low-confidence advice defers.
   * Unknown decision types fail closed (never default GREEN).
   * OWNER_ONLY (UPI/payment) + RED lanes are non-delegable (authority class C).
-  * Every decision is hash-bound
-  every execution is single-use (bdg CAS).
+  * Every decision is hash-bound; every execution is single-use (bdg CAS).
   * Every transition is audited by bdg.
 
 Flags (both must be ON for any governance write):
@@ -21,9 +18,9 @@ Flags (both must be ON for any governance write):
   BOSS_DECISION_GOVERNANCE=1  -> canonical governance ledger active (bdg)
 
 Authority classes (owner-mandate):
-  A - Boss autonomous (GREEN): advance to consume after advice + review.
-  B - owner-armed channel (AMBER): Boss reviews, parks at needs_owner.
-  C - non-delegable (OWNER_ONLY + RED + UNKNOWN): refuse / surface owner.
+  A — Boss autonomous (GREEN): advance to consume after advice + review.
+  B — owner-armed channel (AMBER): Boss reviews, parks at needs_owner.
+  C — non-delegable (OWNER_ONLY + RED + UNKNOWN): refuse / surface owner.
 """
 
 from __future__ import annotations
@@ -45,8 +42,7 @@ FLAG = "BOSS_FULL_AUTONOMY"
 AUTHORITY_KEY_ENV = "BOSS_GOV_AUTHORITY_KEY"
 CONFIDENCE_ENV = "BOSS_AUTONOMY_CONFIDENCE"
 DEFAULT_CONFIDENCE = 0.65
-BOSS_ID = "manager"  # canonical Boss (workforce registry)
-never "hermes"
+BOSS_ID = "manager"  # canonical Boss (workforce registry); never "hermes"
 _MAX_STEPS = 20
 
 
@@ -406,7 +402,7 @@ def advance_decision(
                 "outcome": "needs_owner",
                 "authority_class": aclass,
                 "steps": steps,
-                "note": "AMBER requires Owner OS decision id - Boss never self-approves these.",
+                "note": "AMBER requires Owner OS decision id — Boss never self-approves these.",
             }
         else:
             return {

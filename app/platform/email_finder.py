@@ -1,11 +1,11 @@
-"""Email Finder Waterfall (Apollo.io ka free equivalent) - website/domain se
+"""Email Finder Waterfall (Apollo.io ka free equivalent) — website/domain se
 deliverable email nikaalo.
 
 Waterfall: (1) website HTML se real emails (EXISTING web_extract.find_contacts),
 (2) common Indian-SMB patterns (info@/contact@/hello@/sales@/<name>@), (3) har
-candidate ka MX-verify (EXISTING email_verify - syntax+MX), sirf deliverable
-lautao. Apollo $49/mo me yahi karta - hum DNS se free karte. SMTP-handshake
-verify NAHI karte (port-25 reputation risk) - MX = bounce<2% ke liye kaafi
+candidate ka MX-verify (EXISTING email_verify — syntax+MX), sirf deliverable
+lautao. Apollo $49/mo me yahi karta — hum DNS se free karte. SMTP-handshake
+verify NAHI karte (port-25 reputation risk) — MX = bounce<2% ke liye kaafi
 (auto_outreach ka proven standard).
 
 Import-safe, kabhi raise nahi. Network: 1 HTTP GET (site) + DNS lookups.
@@ -33,7 +33,7 @@ def _domain_of(website_or_domain: str) -> str:
 
 
 def candidates(domain: str, owner_name: str = "") -> list[str]:
-    """Pattern-based guesses (pure fn - testable). Free-mail domains skip
+    """Pattern-based guesses (pure fn — testable). Free-mail domains skip
     (gmail pe pattern-guess bekaar)."""
     d = _domain_of(domain)
     if not d or any(
@@ -89,7 +89,7 @@ async def _site_emails(domain: str) -> list[str]:
 async def find(
     website_or_domain: str, owner_name: str = "", max_results: int = 3
 ) -> dict[str, Any]:
-    """Waterfall: site-extract -> patterns -> MX-verify. Returns
+    """Waterfall: site-extract → patterns → MX-verify. Returns
     {ok, emails: [{email, source, verified}], domain}. Kabhi raise nahi."""
     d = _domain_of(website_or_domain)
     if not d:
@@ -109,7 +109,7 @@ async def find(
                 found.append({"email": v["email"], "source": "website", "verified": True})
             if len(found) >= max_results:
                 return {"ok": True, "domain": d, "emails": found}
-        # 2) pattern guesses + MX (MX domain-level hota - ek hi lookup se sab
+        # 2) pattern guesses + MX (MX domain-level hota — ek hi lookup se sab
         #    candidates ka domain verify; pehla MX-pass pattern hi kaafi)
         for em in candidates(d, owner_name):
             if em in seen:

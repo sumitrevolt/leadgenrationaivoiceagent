@@ -1,25 +1,24 @@
 """
-video_clips.py - lambi video -> short vertical clips (Simplified/Predis parity).
+video_clips.py — lambi video → short vertical clips (Simplified/Predis parity).
 ================================================================================
 
 Client ki ek lambi video (shop tour, interview, event) se N evenly-spaced
-short clips (default 30s, 9:16 1080x1920 reels-ready) - ffmpeg se. HEAVY:
-event loop me KABHI inline nahi (prod-down lesson) - endpoint `start_clip_job`
+short clips (default 30s, 9:16 1080x1920 reels-ready) — ffmpeg se. HEAVY:
+event loop me KABHI inline nahi (prod-down lesson) — endpoint `start_clip_job`
 use karta hai jo BACKGROUND daemon thread me kaam karta hai aur status
-`data/clip_jobs.jsonl` me likhta hai (queued -> running -> done/error).
+`data/clip_jobs.jsonl` me likhta hai (queued → running → done/error).
 
 Public API (sab never-raise):
   - available()                          -> {"ffmpeg","ffprobe","ok"}
   - plan_segments(total_s, n, duration)  -> [(start, dur)] (first/last 5% skip)
   - make_clips(video_path, n=3, duration=30, vertical=True, job_id=None)
-        SYNC + HEAVY - sirf background thread/worker se call karo.
+        SYNC + HEAVY — sirf background thread/worker se call karo.
   - start_clip_job(video_path, ...)      -> {"ok", "job_id"} (non-blocking)
   - job_status(job_id)                   -> latest status + files
 
 Output: data/clips/<job_id>/clip_1.mp4 ... (serve: /api/contentplus/clip-file).
-NOTE: STT/auto-subtitles jaan-bujhke SKIP (Groq whisper optional - alag pass).
-Free stack: sirf ffmpeg/ffprobe binaries (VPS pe installed
-missing = graceful
+NOTE: STT/auto-subtitles jaan-bujhke SKIP (Groq whisper optional — alag pass).
+Free stack: sirf ffmpeg/ffprobe binaries (VPS pe installed; missing = graceful
 error dict, available() short-circuit).
 """
 
@@ -54,10 +53,10 @@ def available() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Planning (pure python - testable bina ffmpeg)
+# Planning (pure python — testable bina ffmpeg)
 # --------------------------------------------------------------------------- #
 def plan_segments(total_s: float, n: int = 3, duration: int = 30) -> list[tuple[float, float]]:
-    """Evenly-spaced clip windows - first/last 5% skip. Never raises.
+    """Evenly-spaced clip windows — first/last 5% skip. Never raises.
 
     Returns [(start_seconds, duration_seconds)], hamesha video bounds ke andar.
     """
@@ -71,7 +70,7 @@ def plan_segments(total_s: float, n: int = 3, duration: int = 30) -> list[tuple[
         hi = total * (1.0 - _EDGE_SKIP)
         usable = hi - lo
         if usable <= dur:
-            # chhoti video - jitna hai utna hi (ek clip)
+            # chhoti video — jitna hai utna hi (ek clip)
             return [(max(0.0, lo), max(1.0, min(dur, usable)))]
         out: list[tuple[float, float]] = []
         span = usable - dur  # last start ka headroom
@@ -108,7 +107,7 @@ def _probe_duration(path: str) -> float | None:
 
 
 # --------------------------------------------------------------------------- #
-# Heavy worker (SYNC - sirf background thread se)
+# Heavy worker (SYNC — sirf background thread se)
 # --------------------------------------------------------------------------- #
 def make_clips(
     video_path: str,
@@ -117,7 +116,7 @@ def make_clips(
     vertical: bool = True,
     job_id: str | None = None,
 ) -> dict[str, Any]:
-    """Video -> N short clips (9:16 reels-ready agar vertical). SYNC + HEAVY -
+    """Video → N short clips (9:16 reels-ready agar vertical). SYNC + HEAVY —
     event loop me kabhi inline mat chalao. Never raises (error dicts)."""
     try:
         avail = available()
@@ -126,7 +125,7 @@ def make_clips(
                 "ok": False,
                 "reason": "ffmpeg_missing",
                 "available": avail,
-                "hint": "VPS pe `apt install ffmpeg` - phir clips ban payenge.",
+                "hint": "VPS pe `apt install ffmpeg` — phir clips ban payenge.",
             }
         path = str(video_path or "").strip()
         if not path or not os.path.isfile(path):
@@ -207,7 +206,7 @@ def make_clips(
 
 
 # --------------------------------------------------------------------------- #
-# Background job runner (daemon thread + jsonl status - NO Celery edits)
+# Background job runner (daemon thread + jsonl status — NO Celery edits)
 # --------------------------------------------------------------------------- #
 def _append_job(job_id: str, status: str, extra: dict[str, Any] | None = None) -> None:
     try:

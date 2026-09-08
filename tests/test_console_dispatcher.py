@@ -1,4 +1,4 @@
-"""Tests for app.automation.console_dispatcher - the M2 contract.
+"""Tests for app.automation.console_dispatcher — the M2 contract.
 
 Covers:
   * Happy path emit + drain
@@ -197,13 +197,13 @@ def test_voice_kill_does_not_block_sms_only_events(store_root, monkeypatch):
         {"amount": 1999},
         store_root=store_root,
     )
-    # Today every slot has voice, so kill still fires - pin that contract.
+    # Today every slot has voice, so kill still fires — pin that contract.
     assert r["emitted"] is False
     assert r["reason"] == "voice_kill_active"
 
 
 # --------------------------------------------------------------------------- #
-# Storage isolation - failure cannot break the caller
+# Storage isolation — failure cannot break the caller
 # --------------------------------------------------------------------------- #
 def test_storage_failure_is_isolated(store_root):
     # Force open() to raise. The dispatcher must catch and return a
@@ -228,7 +228,7 @@ def test_storage_failure_does_not_corrupt_state(store_root):
             "lead_created", "tenant-z", {"x": 1}, store_root=store_root
         )
     assert r1["emitted"] is False
-    # Clear the dedupe ring manually - storage failure must not have polluted it.
+    # Clear the dedupe ring manually — storage failure must not have polluted it.
     cd._DEDUPE_RING.clear()
     r2 = cd.emit_console_event(
         "lead_created", "tenant-z", {"x": 1}, store_root=store_root
@@ -377,7 +377,7 @@ def test_tenant_id_with_path_separators_is_sanitized(store_root):
 
 
 # --------------------------------------------------------------------------- #
-# Existing tests must remain green - sanity-check that slots match EVENT_SLOTS
+# Existing tests must remain green — sanity-check that slots match EVENT_SLOTS
 # --------------------------------------------------------------------------- #
 def test_slots_match_product_consoles_event_slots():
     from app.api.product_consoles import EVENT_SLOTS

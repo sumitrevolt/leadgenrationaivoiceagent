@@ -1,11 +1,11 @@
 """An UNRESOLVED tenant must never inherit own-brand Postiz channels.
 
 `video_ad_cycle._publish_one` used to resolve the tenant as
-``clients_store.get_client(cid) or {}``. When that lookup missed - deleted
-record, canonicalisation drift, corrupt ledger line - the publish path got an
+``clients_store.get_client(cid) or {}``. When that lookup missed — deleted
+record, canonicalisation drift, corrupt ledger line — the publish path got an
 EMPTY dict, and `postiz_publish._is_own_brand` reads any falsy client as
 "own-brand / no client context" (postiz_publish.py:74). The customer's video
-therefore fanned out to the corporate `POSTIZ_INTEGRATIONS` channels - the
+therefore fanned out to the corporate `POSTIZ_INTEGRATIONS` channels — the
 exact 2026-07-17 contamination the docstring claims to prevent.
 
 The empty-dict sentinel is legitimate AT THE POSTIZ BOUNDARY (own-brand
@@ -72,7 +72,7 @@ async def test_publish_one_refuses_unresolved_tenant(monkeypatch):
     monkeypatch.setattr(pp, "publish_video", _spy_postiz, raising=False)
     monkeypatch.setattr(pp, "enabled", lambda: True, raising=False)
     monkeypatch.setattr(vac, "_telegram_send_video", _spy_tg, raising=False)
-    # Exercise the REAL resolution chain - the store misses, as in production.
+    # Exercise the REAL resolution chain — the store misses, as in production.
     monkeypatch.setattr("app.marketing.clients_store.resolve_client", lambda c: None)
     monkeypatch.setattr("app.marketing.clients_store.get_client", lambda c: None)
     monkeypatch.setattr(

@@ -14,7 +14,7 @@ from app.models.user import User
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-# Per-IP TIER-AWARE rate limit on ALL /api/ai/* (R1#1 - LLM cost/abuse guard,
+# Per-IP TIER-AWARE rate limit on ALL /api/ai/* (R1#1 — LLM cost/abuse guard,
 # higher client-tiers = more headroom; admin = 20x). FAIL-OPEN. base 30/60s.
 router = APIRouter(prefix="/ai", tags=["AI"], dependencies=[Depends(tier_rate_limit("ai", 30, 60))])
 
@@ -69,8 +69,8 @@ class AIResponse(BaseModel):
 
 
 def _call_vertex_ai_sync(prompt: str, system_instruction: str = "") -> str:
-    """SYNC Gemini/Vertex call - SIRF thread me chalao (sync SDK event loop
-    block karta hai - widget-chat prod-down lesson)."""
+    """SYNC Gemini/Vertex call — SIRF thread me chalao (sync SDK event loop
+    block karta hai — widget-chat prod-down lesson)."""
     try:
         # Try Vertex AI first (GCP)
         if settings.google_cloud_project_id:
@@ -120,7 +120,7 @@ def _call_vertex_ai_sync(prompt: str, system_instruction: str = "") -> str:
 
 
 async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
-    """Async wrapper - sync SDK ko thread me + 45s hard timeout (loop-safe)."""
+    """Async wrapper — sync SDK ko thread me + 45s hard timeout (loop-safe)."""
     import asyncio
 
     try:
@@ -130,7 +130,7 @@ async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
     except HTTPException:
         raise
     except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="AI generation timed out - dobara try karo.")
+        raise HTTPException(status_code=504, detail="AI generation timed out — dobara try karo.")
 
 
 # ============================================================================
@@ -261,9 +261,9 @@ async def ai_health_check():
 
 
 # ============================================================================
-# NL CRM COMMAND BAR ("talk to your CRM") - Expedify-style.
+# NL CRM COMMAND BAR ("talk to your CRM") — Expedify-style.
 # Hinglish NL -> free-LLM intent -> ALLOWLISTED safe actions over existing data.
-# READ/DRAFT only (koi auto-send/auto-write nahi - ban-safe + 1-click culture).
+# READ/DRAFT only (koi auto-send/auto-write nahi — ban-safe + 1-click culture).
 # Free-stack: app.voice_agent.free_ai chain (Cerebras/Groq/…). Kabhi raise nahi.
 # ============================================================================
 import json as _json  # noqa: E402
@@ -305,7 +305,7 @@ def _extract_json(text: str) -> dict:
 
 
 def _cmd_stats() -> dict:
-    """Lightweight CRM snapshot - clients + inquiries counts (pure, no DB session)."""
+    """Lightweight CRM snapshot — clients + inquiries counts (pure, no DB session)."""
     out = {"clients": 0, "active_clients": 0, "inquiries": 0}
     try:
         from app.marketing import clients_store
@@ -362,7 +362,7 @@ def _normalize_command_query(q: str) -> str:
 
 @router.post("/command", dependencies=[Depends(rate_limit("ai_cmd", 12, 60))])
 async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
-    """NL CRM command bar - Hinglish NL -> intent -> SAFE read/draft action.
+    """NL CRM command bar — Hinglish NL -> intent -> SAFE read/draft action.
 
     Auto-send/auto-write kabhi nahi (sirf data dikhata + draft deta). free-LLM
     se intent parse, allowlisted actions hi execute. Defensive: kuch bhi fail =>
@@ -372,7 +372,7 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
     if len(q) < 2:
         raise HTTPException(
             status_code=422,
-            detail="Kuch likho - e.g. 'stats dikhao' ya 'solar client ko follow-up draft karo'.",
+            detail="Kuch likho — e.g. 'stats dikhao' ya 'solar client ko follow-up draft karo'.",
         )
     from app.voice_agent import free_ai
 
@@ -464,7 +464,7 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
 
 
 # ============================================================================
-# POST-CALL AI QUALIFIER ("qualify leads 24/7") - Expedify-style voice boost.
+# POST-CALL AI QUALIFIER ("qualify leads 24/7") — Expedify-style voice boost.
 # Real-time path ke BAHAR: call transcript -> structured qualification + draft.
 # ============================================================================
 class QualifyCallIn(BaseModel):

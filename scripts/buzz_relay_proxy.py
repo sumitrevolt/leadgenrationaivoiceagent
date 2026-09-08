@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""buzz_relay_proxy.py - High-Performance Local TCP Bridge for Buzz Relay.
+"""buzz_relay_proxy.py — High-Performance Local TCP Bridge for Buzz Relay.
 Forwards loopback 127.0.0.1:3100 directly to live VPS Relay 72.61.245.204:3110.
 Supports all HTTP, WebSocket, and ACP telemetry streams transparently.
 """

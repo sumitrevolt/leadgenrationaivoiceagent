@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Post-deploy smoke - revenue+infra batch (2026-06-10)." "Run IN CONTAINER:  docker exec leadgen_app python scripts/smoke_revenue_infra.py" "Checks (no side-effects, no emails): module imports, flag states, warmup status," "invoice stats + FY numbering, usage-alert thresholds, packages annual fields." """"
+"""Post-deploy smoke — revenue+infra batch (2026-06-10).
+
+Run IN CONTAINER:  docker exec leadgen_app python scripts/smoke_revenue_infra.py
+Checks (no side-effects, no emails): module imports, flag states, warmup status,
+invoice stats + FY numbering, usage-alert thresholds, packages annual fields.
+"""
 
 from __future__ import annotations
 
@@ -46,7 +51,7 @@ def main() -> int:
 
         m = usage_alerts.build_message(80, "Smoke Biz", 400, 500)
         assert "80%" in m["subject"]
-        print("USAGE_ALERTS: build_message ok" "recent:", len(usage_alerts.recent(5)))
+        print("USAGE_ALERTS: build_message ok; recent:", len(usage_alerts.recent(5)))
     except Exception as e:
         ok = False
         print("USAGE_ALERTS FAIL:", e)

@@ -1,14 +1,14 @@
 """Day-1 value fix: onboarding MUST populate the customer-visible content queue.
 
 Before this fix `auto_onboard` only wrote an HTML pack (data/client_packs/*.html)
-which the customer portal never reads - `portal_content` reads ONLY from
+which the customer portal never reads — `portal_content` reads ONLY from
 `auto_content.list_queue` (data/content_queue/<cid>.jsonl). So a freshly-activated
 customer logged in to an EMPTY queue until the 07:00 daily sweep ran.
 
 These tests pin the contract:
 - `seed_client_content` generates + appends today's items (idempotent via date+type dedupe)
 - `auto_onboard` calls it so `list_queue` is non-empty right after onboarding
-Network/LLM are monkeypatched out - this tests the WIRING (the actual bug), not generation.
+Network/LLM are monkeypatched out — this tests the WIRING (the actual bug), not generation.
 """
 
 from __future__ import annotations
@@ -99,7 +99,7 @@ async def test_seed_client_content_appends_to_queue(
 async def test_seed_client_content_is_idempotent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """date+type dedupe -> re-run (or daily job) does NOT double the queue."""
+    """date+type dedupe → re-run (or daily job) does NOT double the queue."""
     from app.marketing import auto_content
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
@@ -115,7 +115,7 @@ async def test_seed_client_content_is_idempotent(
     first = await auto_content.seed_client_content(client)
     second = await auto_content.seed_client_content(client)
     assert first == 3
-    assert second == 0  # same date+type -> deduped, not re-added
+    assert second == 0  # same date+type → deduped, not re-added
     assert len(auto_content.list_queue("c1", limit=20)) == 3
 
 
@@ -134,7 +134,7 @@ async def test_auto_onboard_populates_content_queue(
     monkeypatch.setattr(clients_store, "get_client", lambda cid: fake_client)
     monkeypatch.setattr(clients_store, "update_client", lambda *a, **k: None)
 
-    # Heavy/network steps stubbed - we only assert the queue wiring.
+    # Heavy/network steps stubbed — we only assert the queue wiring.
     async def _no_kb(cid: str, website: str) -> dict:
         return {"kb_chunks": 0}
 

@@ -1,6 +1,6 @@
 """Daily social post registration + stale-sweep tests (2026-09-05).
 
-Regression guard: run_daily_social_post was previously a PLAIN function - the
+Regression guard: run_daily_social_post was previously a PLAIN function — the
 3x daily beat entries sent "app.tasks.daily_social_post.run_daily_social_post"
 to the worker, which rejected it as unregistered (silent daily job loss).
 These tests pin (a) task registration, (b) sweep idempotency, (c) INERT
@@ -47,9 +47,8 @@ def sweep_armed(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _gates_pass(monkeypatch):
-    """Local env has no prod creds - real check_gates() returns open gates.
-    Default: all gates pass
-    the gates-skip test overrides in its body."""
+    """Local env has no prod creds — real check_gates() returns open gates.
+    Default: all gates pass; the gates-skip test overrides in its body."""
     monkeypatch.setattr(dsp, "check_gates", lambda: {})
 
 
@@ -110,7 +109,7 @@ def test_sweep_outside_trai_window_skips(fake_redis, sweep_armed, monkeypatch):
             called.append((a, kw))
 
     monkeypatch.setattr(dsp, "run_daily_social_post", _Stub)
-    result = _sweep_at(20, 30)  # 8:30pm - outside 9am-7pm
+    result = _sweep_at(20, 30)  # 8:30pm — outside 9am-7pm
     assert result["status"] == "skipped"
     assert result["reason"] == "outside_trai_window"
     assert called == []

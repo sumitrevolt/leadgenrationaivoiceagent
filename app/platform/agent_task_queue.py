@@ -1,17 +1,17 @@
 """
-Agent Task Queue - Paperclip-inspired per-agent work queue with atomic checkout.
+Agent Task Queue — Paperclip-inspired per-agent work queue with atomic checkout.
 =================================================================================
 
 Usage:
     from app.platform import agent_task_queue as atq
 
-    # Assign task (human/manager -> agent)
+    # Assign task (human/manager → agent)
     task = await atq.assign("rohan", "Follow up 3 hot leads", client_id="abc")
 
-    # Delegate (agent -> agent)
+    # Delegate (agent → agent)
     sub = await atq.delegate("manager", "neha", "Rescore pipeline leads", parent_task_id=task["id"])
 
-    # Agent claims next task (atomic - no double-work)
+    # Agent claims next task (atomic — no double-work)
     claimed = await atq.claim_next("rohan")
 
     # Agent completes task
@@ -43,7 +43,7 @@ def _id() -> str:
 
 
 # Deterministic-id namespace for idempotent dispatch (memory-stack L6 and any
-# other producer that may retry). Fixed constant - changing it would make old
+# other producer that may retry). Fixed constant — changing it would make old
 # dispatch keys map to new task ids and reopen the duplicate window.
 _DISPATCH_NS = uuid.UUID("6f1c2f4e-6a1a-4d0f-9c9a-2f0b8a5c31d7")
 
@@ -60,12 +60,12 @@ async def assign_idempotent(
     dispatch_key: str,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """`assign()` that is safe to retry - at-most-ONE logical task per key.
+    """`assign()` that is safe to retry — at-most-ONE logical task per key.
 
     WHY (review P0): a producer that crashes after `assign()` but before it can
     record the result will retry, and a random uuid PK would happily create a
     SECOND task. Here the PK is derived from `dispatch_key`, so the retry either
-    finds the existing row or loses the insert race - never duplicates.
+    finds the existing row or loses the insert race — never duplicates.
 
     Returns the normal assign shape plus `duplicate: bool`. Never raises.
     """
@@ -128,7 +128,7 @@ async def assign(
 ) -> dict[str, Any]:
     """Create a new task for an agent. Returns the task dict.
 
-    `task_id` optional - callers that need retry-safety pass a deterministic id
+    `task_id` optional — callers that need retry-safety pass a deterministic id
     (see `assign_idempotent`). Default stays a random uuid (unchanged behaviour).
     """
     try:
@@ -179,7 +179,7 @@ async def delegate(
     campaign_id: str | None = None,
     goal_text: str = "",
 ) -> dict[str, Any]:
-    """Agent->Agent delegation. Creates a sub-task linked to parent."""
+    """Agent→Agent delegation. Creates a sub-task linked to parent."""
     result = await assign(
         to_agent,
         goal,
@@ -190,7 +190,7 @@ async def delegate(
         parent_task_id=parent_task_id,
     )
     if result.get("ok"):
-        _log_event(from_agent, "task_delegated", f"-> {to_agent}: {goal[:80]}")
+        _log_event(from_agent, "task_delegated", f"→ {to_agent}: {goal[:80]}")
     return result
 
 
@@ -213,7 +213,7 @@ async def claim_next(agent_id: str) -> dict[str, Any] | None:
             if not task:
                 return None
 
-            # Optimistic lock - if another worker claimed between read and update,
+            # Optimistic lock — if another worker claimed between read and update,
             # the version won't match and we retry (or return None).
             old_ver = task.checkout_version
             rows = (
@@ -264,7 +264,7 @@ async def begin(task_id: str) -> dict[str, Any]:
     For producers where the assigner IS the executor there is no queue hand-off,
     so ``claim_next()`` never runs and the row never reaches ``claimed``. Those
     producers were calling ``start()`` (which requires ``claimed``), so it
-    no-op'd, and the later ``complete()`` - which matches ``claimed|running`` -
+    no-op'd, and the later ``complete()`` — which matches ``claimed|running`` —
     no-op'd too. Both discard their ``{"ok": False}``, so the row silently
     leaked as ``pending`` forever.
 
@@ -477,7 +477,7 @@ def _rollup_cost_to_parent(
 
 
 async def task_cost_tree(task_id: str) -> dict[str, Any]:
-    """Get cost tree for a task - own cost + all children's cost (Paperclip billing-code view)."""
+    """Get cost tree for a task — own cost + all children's cost (Paperclip billing-code view)."""
     try:
         from app.models.agent_task import AgentTask
         from app.models.base import get_db_session
@@ -555,17 +555,17 @@ async def stale_tasks(threshold_minutes: int = 10) -> list[dict[str, Any]]:
 
 
 def lease_reap_enabled() -> bool:
-    """`AGENT_TASK_LEASE_REAP` gate - unset/0 = INERT (surface-only, default)."""
+    """`AGENT_TASK_LEASE_REAP` gate — unset/0 = INERT (surface-only, default)."""
     return os.environ.get("AGENT_TASK_LEASE_REAP", "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def routine_ledger_enabled() -> bool:
-    """`ROUTINE_TASK_LEDGER` gate - **default ON** (current behaviour preserved).
+    """`ROUTINE_TASK_LEDGER` gate — **default ON** (current behaviour preserved).
 
     The scheduler routine bridge writes one `agent_tasks` row per job
     invocation, unconditionally: ~700/day, and nothing in the codebase ever
     prunes this table (no `AGENT_TASK_RETENTION` / TTL exists). `begin()` stops
-    those rows leaking as `pending`, but they are still written - so the fix
+    those rows leaking as `pending`, but they are still written — so the fix
     converts an unbounded leak into unbounded *correct* growth, ~255k rows/year.
 
     The authoritative record of every one of these jobs already lives in
@@ -585,12 +585,12 @@ def routine_ledger_enabled() -> bool:
 
 
 def orphan_reap_enabled() -> bool:
-    """`AGENT_TASK_ORPHAN_REAP` gate - unset/0 = INERT (default).
+    """`AGENT_TASK_ORPHAN_REAP` gate — unset/0 = INERT (default).
 
     Separate switch from `AGENT_TASK_LEASE_REAP` on purpose: that one closes
     EXPIRED LEASES (work a worker may have half-done), this one closes rows that
     were never claimable at all. Different risk profile, different owner
-    decision - arming one must not silently arm the other.
+    decision — arming one must not silently arm the other.
     """
     return os.environ.get("AGENT_TASK_ORPHAN_REAP", "").strip().lower() in (
         "1",
@@ -605,11 +605,10 @@ def _write_orphan_backup(rows: list[dict[str, Any]]) -> str:
 
     Resolve and write are deliberately not split. CI's runtime-data debt ratchet
     classifies a write by the path expression at the `open()` site: when that
-    expression comes straight from `resolve_store_path`, it is CANONICAL
-    when
+    expression comes straight from `resolve_store_path`, it is CANONICAL; when
     it comes from a helper's return value it reads as an undeclared mutable
     path and fails the gate. Keeping both in one function is also the honest
-    shape - nothing else should be able to hand this function a path.
+    shape — nothing else should be able to hand this function a path.
 
     The store is `automation.job_runs`: this file records what a scheduled job
     (`task_lease_reap`) closed, which is exactly that store's purpose. Writing
@@ -643,23 +642,22 @@ async def reap_orphan_routines(
     """Terminally close rows that were created ``pending`` and never claimable.
 
     `reap_stale_leases()` cannot touch these. Its predicate is
-    ``status IN ('claimed','running') AND claimed_at < cutoff`` - these rows are
+    ``status IN ('claimed','running') AND claimed_at < cutoff`` — these rows are
     ``pending`` with ``claimed_at IS NULL``, so they fail BOTH clauses (and in
     SQL ``NULL < cutoff`` is NULL, not TRUE, so widening the status alone would
     still not match). The two predicates are disjoint, which is why the reaper
     ran hourly, reported ``scanned: 0``, recorded a green run, and the ledger
     grew to 12,631 rows at ~700/day (measured 2026-08-06).
 
-    Closed as **`cancelled`**, not `failed`: these routines did not fail - most
+    Closed as **`cancelled`**, not `failed`: these routines did not fail — most
     of them SUCCEEDED, and their real outcome is already recorded in
     `automation_logs`. Marking them `failed` would fabricate an incident history
     and corrupt any future failure-rate metric. `cancelled` says what actually
     happened: the ledger row was abandoned by a bookkeeping bug.
 
     NEVER requeues. These wrap real side-effecting jobs (`platform_dial`,
-    `email_outreach`, …)
-    re-running one to "resolve" it would place real calls
-    or send real email. The work is long since done - only the row is stale.
+    `email_outreach`, …); re-running one to "resolve" it would place real calls
+    or send real email. The work is long since done — only the row is stale.
 
     Safety: bounded `limit`, `dry_run=True` by default, idempotent (only ever
     matches ``pending``, so a second pass over the same rows is a no-op), and a
@@ -712,7 +710,7 @@ async def reap_orphan_routines(
                 out["sample"] = rows_meta[:5]
                 return out
 
-            # Backup BEFORE mutating - a terminal close is not reversible from
+            # Backup BEFORE mutating — a terminal close is not reversible from
             # the row itself once status/completed_at are overwritten.
             try:
                 out["backup"] = _write_orphan_backup(rows_meta)
@@ -758,25 +756,24 @@ async def reap_stale_leases(
 
     `stale_tasks()` deliberately only SURFACES stuck work ("Paperclip philosophy"), so a
     worker that dies between `claim_next()` and `complete()`/`fail()` leaves its task in
-    claimed/running FOREVER - it is never resolved and never re-assigned.
+    claimed/running FOREVER — it is never resolved and never re-assigned.
 
     DELIBERATELY NOT A REQUEUE. Requeueing to `pending` would be unsafe here: `complete()`
-    (:197) and `fail()` (:236) match on `id` + `status` only - NEITHER guards on
+    (:197) and `fail()` (:236) match on `id` + `status` only — NEITHER guards on
     `checkout_version`. So a slow-but-alive worker whose lease we requeued would keep
     running, a second agent would claim the same row, and the original's `complete()` would
     silently overwrite the second run. Bumping `checkout_version` on requeue does not help,
     precisely because those two writers ignore it. And these leases wrap real side-effecting
-    work (`agent_runtime._durable_open` covers every runtime action
-    `team_scheduler`:309
+    work (`agent_runtime._durable_open` covers every runtime action; `team_scheduler`:309
     covers every scheduled routine), so a double-run is customer-visible, not queue hygiene.
 
     Terminal-fail keeps the safety property provable: once reaped, the row is `failed`, and
     the original worker's late `complete()`/`fail()` no longer matches the claimed/running
-    filter, so it cannot resurrect or overwrite it. Re-assignment stays a human decision -
+    filter, so it cannot resurrect or overwrite it. Re-assignment stays a human decision —
     faithful to "surface, don't auto-fix". `checkout_version` is recorded in the reason for
     diagnostics only.
 
-    Default `dry_run=True` - reports what it WOULD do and mutates nothing. Never raises.
+    Default `dry_run=True` — reports what it WOULD do and mutates nothing. Never raises.
     """
     out: dict[str, Any] = {
         "scanned": 0,
@@ -808,7 +805,7 @@ async def reap_stale_leases(
                 if dry_run:
                     out["failed"] += 1
                     continue
-                # Same optimistic-lock guard as claim_next - a reap must never clobber a
+                # Same optimistic-lock guard as claim_next — a reap must never clobber a
                 # live worker that finished legitimately between our read and this update.
                 rows = (
                     db.query(AgentTask)
@@ -832,7 +829,7 @@ async def reap_stale_leases(
                     _log_event(
                         t.agent_id,
                         "lease_expired",
-                        f"⏱️ {(t.goal or '')[:80]} (attempt {attempts}) - needs re-assign",
+                        f"⏱️ {(t.goal or '')[:80]} (attempt {attempts}) — needs re-assign",
                     )
     except Exception as e:
         logger.warning(f"[atq] reap_stale_leases failed: {e}")
@@ -841,7 +838,7 @@ async def reap_stale_leases(
 
 
 def _log_event(member: str, action: str, detail: str) -> None:
-    """Safe team.log_event - never raises."""
+    """Safe team.log_event — never raises."""
     try:
         from app.platform import team
 
@@ -851,7 +848,7 @@ def _log_event(member: str, action: str, detail: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Staff Bus task bridge - publish events so the live SSE stream and OpenClaw
+# Staff Bus task bridge — publish events so the live SSE stream and OpenClaw
 # coordination plane see real work flowing.  Fail-open: bus errors never block
 # a task state transition.
 # --------------------------------------------------------------------------- #

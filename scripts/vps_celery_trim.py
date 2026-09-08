@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """One-shot celery queue trim (VPS safe). Run inside leadgen_app container.
 
-Covers every queue app/worker.py's task_routes can send work to - not just
+Covers every queue app/worker.py's task_routes can send work to — not just
 the default "celery" queue. 2026-07-02: leadgen_worker was fixed to actually
 consume the calling/scraping/reporting/sync/training queues (previously it
 only drained "celery", so those queues silently accumulated undelivered
 tasks with no consumer at all). Before that worker restart picks up a large
 pre-existing backlog in one burst, run this once with
 CELERY_TRIM_QUEUES=calling,scraping,reporting,sync,training,heavy (or just
-run it as-is - the default list already includes them) to trim any stale
+run it as-is — the default list already includes them) to trim any stale
 backlog first. Ongoing protection is also wired into the Saturday hygiene
 job (app/platform/scheduled_ops.py::run_saturday_hygiene).
 """

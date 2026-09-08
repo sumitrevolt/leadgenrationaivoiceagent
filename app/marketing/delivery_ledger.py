@@ -1,36 +1,34 @@
-"""Delivery Ledger - single source-of-truth per-customer VALUE timeline.
+"""Delivery Ledger — single source-of-truth per-customer VALUE timeline.
 
 WHY: paying customers (jiya makeover, ₹1,999) saw NO visible value because there
 was no persistent, customer-facing record of "AI ne aapke liye kya kiya". The one
-real event table (`agent_events`) is STAFF-scoped (cross-customer leak risk - do
+real event table (`agent_events`) is STAFF-scoped (cross-customer leak risk — do
 NOT reuse). This module is the **PULL-first** (dashboard-surfaced, no WhatsApp
 dependency) per-customer event log that powers:
-  - customer Home  -> "AI ne aapke liye kya kiya" timeline
-  - customer Reports -> weekly benefit summary
-  - admin Command Center -> paying / stuck / value-receiving rollups
-  - admin Customer 360 -> full technical + business timeline
-  - admin Delivery Queue -> who is blocked / what failed / retry
+  - customer Home  → "AI ne aapke liye kya kiya" timeline
+  - customer Reports → weekly benefit summary
+  - admin Command Center → paying / stuck / value-receiving rollups
+  - admin Customer 360 → full technical + business timeline
+  - admin Delivery Queue → who is blocked / what failed / retry
 
-Design (mirrors clients_store.py conventions - jsonl-first, never-raise):
+Design (mirrors clients_store.py conventions — jsonl-first, never-raise):
   - Append-only `data/delivery_ledger/<cid>.jsonl`. One line = one event.
   - Canonical EVENT_TYPES (mission Phase 4). Each event has a customer-facing
     Hinglish label + admin-facing technical label + icon (see LABELS).
-  - `log_event(cid, event, ...)` - never raises
-  optional `key` for idempotent
+  - `log_event(cid, event, ...)` — never raises; optional `key` for idempotent
     (dedupe) writes so re-runs / backfills don't double-count.
   - read helpers: `timeline` / `summary` / `customer_view` / `admin_view`.
-  - `backfill_from_sources(cid)` - one-time derive from existing stores
+  - `backfill_from_sources(cid)` — one-time derive from existing stores
     (content_queue, delivery_state, inquiries) so EXISTING customers aren't blank
     on day one. Idempotent (per-event `key` + a marker file).
 
-The ledger APPEND is always-on, additive - it RECORDS what happened,
+The ledger APPEND is always-on, additive — it RECORDS what happened,
 it does NOT send anything. WhatsApp/social PUSH stays gated in
 customer_delivery.py / social_engine (ban-safety). Visible value = this PULL log.
 
-Path resolvers (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are call-time functions -
+Path resolvers (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are call-time functions —
 test monkeypatch returns a tmp dir string. Unresolvable authority must REPORT
-FAILURE (writes return False
-reads raise), never silently look empty.
+FAILURE (writes return False; reads raise), never silently look empty.
 """
 
 from __future__ import annotations
@@ -47,7 +45,7 @@ logger = setup_logger(__name__)
 
 
 def _LEDGER_DIR() -> str:
-    """Per-tenant delivery ledger directory - resolved per call, never frozen at import."""
+    """Per-tenant delivery ledger directory — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -60,7 +58,7 @@ def _LEDGER_DIR() -> str:
 
 
 def _CONTENT_QUEUE_DIR() -> str:
-    """Content queue directory (backfill source) - same store id as auto_content/staff."""
+    """Content queue directory (backfill source) — same store id as auto_content/staff."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -84,7 +82,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "onboarding_started": ("⚙️", "AI ne aapka setup shuru kiya", "Onboarding started", True),
     "onboarding_completed": (
         "🎉",
-        "Setup poora - business site + content taiyaar",
+        "Setup poora — business site + content taiyaar",
         "Onboarding completed",
         True,
     ),
@@ -102,7 +100,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     ),
     "post_draft_created": (
         "📝",
-        "Naya post draft ready - approve karein",
+        "Naya post draft ready — approve karein",
         "Post draft created",
         True,
     ),
@@ -110,7 +108,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "post_published": ("📢", "Post publish ho gaya", "Post published", True),
     "post_failed": (
         "⚠️",
-        "Post publish nahi ho paaya - account connect karein",
+        "Post publish nahi ho paaya — account connect karein",
         "Post publish failed",
         True,
     ),
@@ -124,12 +122,12 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     ),
     "automation_failed": (
         "🚨",
-        "Ek background kaam ruk gaya - team dekh rahi hai",
+        "Ek background kaam ruk gaya — team dekh rahi hai",
         "Automation failed",
         False,
     ),
     "admin_manual_action": ("🛠️", "", "Admin manual action", False),
-    # Product 1 Customer Deliverability layer (2026-07-08) - Customer Health +
+    # Product 1 Customer Deliverability layer (2026-07-08) — Customer Health +
     # Approval Reminder + SLA Recovery agents log through these. Additive only;
     # existing 13 event types + their behaviour are unchanged.
     "approval_reminded": (
@@ -140,7 +138,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     ),
     "sla_breached": (
         "🔴",
-        "Delivery me deri ho rahi - team ko notify kar diya gaya",
+        "Delivery me deri ho rahi — team ko notify kar diya gaya",
         "Customer delivery SLA breached",
         False,
     ),
@@ -150,7 +148,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
         "Customer delivery SLA recovered",
         False,
     ),
-    # Integration Health Agent (2026-07-08) - a PLATFORM integration (SMTP/
+    # Integration Health Agent (2026-07-08) — a PLATFORM integration (SMTP/
     # WhatsApp/Vobiz/Pollinations/scheduler queue) failing enough to impact this
     # specific customer's delivery. Internal-only (customer sees the existing
     # generic "team is on it" note via customer_status_notes, never the raw
@@ -158,25 +156,25 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "integration_failed": (
         "🔌",
         "",
-        "Platform integration failing - impacts this customer's delivery",
+        "Platform integration failing — impacts this customer's delivery",
         False,
     ),
-    # Video Creative Pipeline (2026-07-10) - Phase 1, generic recipe only.
+    # Video Creative Pipeline (2026-07-10) — Phase 1, generic recipe only.
     "video_render_started": ("🎬", "Aapka video ban raha hai", "Video render started", True),
-    "video_qa_failed": ("⚠️", "", "Video QA check failed - not published", False),
+    "video_qa_failed": ("⚠️", "", "Video QA check failed — not published", False),
     "video_render_failed": ("⚠️", "", "Video render failed", False),
     "video_ready": (
         "🎥",
-        "Naya video taiyaar - approve karein",
+        "Naya video taiyaar — approve karein",
         "Video render succeeded, pending approval",
         True,
     ),
-    # Loop-social-6 (2026-07-11) - canonical social-delivery event enum (Phase 9).
+    # Loop-social-6 (2026-07-11) — canonical social-delivery event enum (Phase 9).
     # Additive only: `social_setup_completed` (existing, per-customer aggregate)
     # kept; `social_account_connected` is the finer-grained per-platform connect
     # event that Loop-social-1's `/social/accounts/connect` route emits. Publish-
     # lifecycle events cover the transitions the queue drain moves through
-    # (queued -> processing -> published/partial/retry/dead/cancelled). Token +
+    # (queued → processing → published/partial/retry/dead/cancelled). Token +
     # customer-action events surface states the admin cockpit + customer
     # timeline must act on. customer_visible=False for pure ops noise.
     "social_account_connected": (
@@ -193,14 +191,14 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     ),
     "social_account_connection_failed": (
         "🚫",
-        "Social account connect nahi hua - dobara try karein",
+        "Social account connect nahi hua — dobara try karein",
         "Social account connection failed",
         True,
     ),
     "token_refreshed": ("🔁", "", "Provider token refreshed", False),
     "token_expired": (
         "🕓",
-        "Ek social account ka access expire ho gaya - reconnect karein",
+        "Ek social account ka access expire ho gaya — reconnect karein",
         "Provider token expired",
         True,
     ),
@@ -208,7 +206,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "post_publish_started": ("🚀", "", "Post publish attempt started", False),
     "post_partially_published": (
         "🟡",
-        "Post kuch platforms pe gaya - kuch pending",
+        "Post kuch platforms pe gaya — kuch pending",
         "Post partially published across platforms",
         True,
     ),
@@ -221,7 +219,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
         True,
     ),
     # Evidence-hygiene loop (2026-07-11 P0). Non-publication audit marker for
-    # `content_approval.update_evidence_url` - records that an evidence URL
+    # `content_approval.update_evidence_url` — records that an evidence URL
     # was rewritten (typically retroactive PII cleanup) WITHOUT counting as a
     # fresh publication. customer_visible=False: this is admin/audit-only;
     # customer already saw the original `post_published` event.
@@ -231,11 +229,11 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
         "Evidence URL amended (audit-only, not a new publication)",
         False,
     ),
-    # Delivery gate (2026-07-12) - intentional hold, NOT a failure. Logged when
-    # AUTO_DELIVER_VALUE is OFF or phone missing - ops-only, doesn't count toward
+    # Delivery gate (2026-07-12) — intentional hold, NOT a failure. Logged when
+    # AUTO_DELIVER_VALUE is OFF or phone missing — ops-only, doesn't count toward
     # automation_failed or trigger RED health flags.
     "delivery_gated": ("⏸️", "", "Delivery gated (intentional hold, not a failure)", False),
-    # Identity alias link (2026-07-19) - marketing id ↔ billing/login id binding.
+    # Identity alias link (2026-07-19) — marketing id ↔ billing/login id binding.
     # Internal-only; customer portal already resolves via billing_client_ids.
     "identity_alias_linked": ("🔗", "", "Billing/login alias linked to marketing client", False),
 }
@@ -255,20 +253,19 @@ _FAILURE_EVENTS = {"post_failed", "automation_failed"}
 
 
 # --------------------------------------------------------------------------- #
-# Low-level file helpers (best-effort lock, never raise - mirror clients_store).
+# Low-level file helpers (best-effort lock, never raise — mirror clients_store).
 # --------------------------------------------------------------------------- #
 def _safe_stem(cid: str) -> str:
     """Refuse a tenant id that would place the file outside its own store.
 
     The ledger filename IS the tenant boundary: `data/delivery_ledger/<cid>.jsonl`.
     An id of `../email_suppression` resolved to a real compliance file, so this
-    guard covers reads as well as writes - a traversal read is a cross-tenant
+    guard covers reads as well as writes — a traversal read is a cross-tenant
     leak, not a harmless miss.
 
     Deliberately REFUSES rather than coercing. `auto_content._safe_id` rewrites
     offending characters, which stops the escape but silently files a tenant's
-    rows under a different name
-    for a customer's delivery history that
+    rows under a different name; for a customer's delivery history that
     misplacement is itself the bug.
     """
     from app.platform.runtime_data import _safe_segment
@@ -298,13 +295,13 @@ def _lock(path: str):
 def _read_events(cid: str) -> list[dict[str, Any]]:
     """All raw events for a client (parse-safe; corrupt lines skip).
 
-    Missing file -> []. Unresolvable authority -> raises (never looks like
+    Missing file → []. Unresolvable authority → raises (never looks like
     "customer has no history").
     """
     from app.platform import runtime_data as _rd
 
     try:
-        # Probe then re-resolve at each I/O site - no local bind.
+        # Probe then re-resolve at each I/O site — no local bind.
         _LEDGER_DIR()
     except Exception as exc:
         logger.error("delivery_ledger authority UNRESOLVABLE (%s): %s", cid, exc)
@@ -376,7 +373,7 @@ def log_event(
     if not cid or event not in EVENT_TYPES:
         return False
     try:
-        # Probe then re-resolve at each I/O site - no local bind.
+        # Probe then re-resolve at each I/O site — no local bind.
         _LEDGER_DIR()
         os.makedirs(_LEDGER_DIR(), exist_ok=True)
         if key and str(key) in _existing_keys(cid):
@@ -400,7 +397,7 @@ def log_event(
             with _lock(_ledger_path(cid)):
                 with open(_ledger_path(cid), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        except Exception:  # lock timeout etc. - fall back to unlocked append
+        except Exception:  # lock timeout etc. — fall back to unlocked append
             with open(_ledger_path(cid), "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         return True
@@ -496,15 +493,14 @@ def recent_counts(client_id: str, hours: int = 168) -> dict[str, Any]:
     """Time-WINDOWED event roll-up (additive to summary(), which is all-time).
 
     Drives the admin Command Center's delivery-health / at-risk detection:
-      - `events_in_window` / `counts` - events whose `at` falls in the last
+      - `events_in_window` / `counts` — events whose `at` falls in the last
         `hours` (default 168h = 7 days).
-      - `value_events_in_window` - True if any _VALUE_EVENTS landed in that
+      - `value_events_in_window` — True if any _VALUE_EVENTS landed in that
         window ("value delivered in last 7d").
-      - `failures_24h` - count of post_failed/automation_failed in the last 24h
-        (fixed 24h regardless of `hours` - this is the at-risk failure signal).
+      - `failures_24h` — count of post_failed/automation_failed in the last 24h
+        (fixed 24h regardless of `hours` — this is the at-risk failure signal).
 
-    Never raises - summary()'s existing fields are untouched
-    this is purely
+    Never raises — summary()'s existing fields are untouched; this is purely
     additive so callers can ask "recently" instead of "ever"."""
     cid = str(client_id or "").strip()
     now = datetime.now(timezone.utc)
@@ -538,7 +534,7 @@ def recent_counts(client_id: str, hours: int = 168) -> dict[str, Any]:
 
 
 def customer_view(client_id: str, limit: int = 30) -> dict[str, Any]:
-    """ "AI ne aapke liye kya kiya" - customer-safe timeline + summary. Never raises."""
+    """ "AI ne aapke liye kya kiya" — customer-safe timeline + summary. Never raises."""
     return {
         "timeline": timeline(client_id, limit=limit, customer_only=True),
         "summary": summary(client_id),
@@ -554,7 +550,7 @@ def admin_view(client_id: str, limit: int = 80) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# BACKFILL - derive events for EXISTING customers from already-real stores so the
+# BACKFILL — derive events for EXISTING customers from already-real stores so the
 # timeline isn't blank on day one. Idempotent (per-event `key` + marker file).
 # --------------------------------------------------------------------------- #
 def _backfill_content_queue(cid: str) -> int:
@@ -621,8 +617,7 @@ def _backfill_lifecycle(cid: str, client: dict[str, Any]) -> int:
         if client.get("setup_done"):
             if log_event(cid, "onboarding_completed", actor="backfill", key="lc:onboarded"):
                 n += 1
-        _ = created  # (kept for parity
-        timestamps use now - backfill order preserved by key)
+        _ = created  # (kept for parity; timestamps use now — backfill order preserved by key)
     except Exception as exc:  # pragma: no cover
         logger.warning("backfill lifecycle err (%s): %s", cid, exc)
     return n

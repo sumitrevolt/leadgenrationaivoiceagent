@@ -1,4 +1,4 @@
-"""Tri-state store authority - which path is REALLY in charge, right now.
+"""Tri-state store authority — which path is REALLY in charge, right now.
 
 WHY THIS EXISTS
 ---------------
@@ -14,9 +14,8 @@ how a migration becomes split-brain nobody notices for a week:
 
     MIGRATION_VALIDATION   root configured, but the cutover is not active. The
                            canonical target may be created, copied to and
-                           inspected by tooling
-                           live writers do NOT move. No
-                           automatic dual-write - two writers with no shared lock
+                           inspected by tooling; live writers do NOT move. No
+                           automatic dual-write — two writers with no shared lock
                            is a corruption engine, not a safety net.
 
     CANONICAL              root configured, cutover enabled, marker VALID and
@@ -37,9 +36,9 @@ OVERRIDE POLICY
 Per-store overrides (`VOICE_LAUNCH_KILL_FILE`, `PLATFORM_DIAL_CONFIG`, ...)
 already exist in production and must not break on the day this merges. So:
 
-  * LEGACY / MIGRATION_VALIDATION - an explicit override remains the authority,
+  * LEGACY / MIGRATION_VALIDATION — an explicit override remains the authority,
     exactly as today.
-  * CANONICAL - an override is accepted ONLY if it resolves to the canonical
+  * CANONICAL — an override is accepted ONLY if it resolves to the canonical
     target itself. Anything else fails closed with a non-secret reason, so a
     forgotten `VOICE_LAUNCH_KILL_FILE=data/...` cannot quietly route an
     emergency control back into the checkout after the cutover.
@@ -222,7 +221,7 @@ def resolve_store_authority(
 
 
 def resolve_store_path(**kwargs: object) -> Path:
-    """The active path only - for call sites that genuinely need nothing else."""
+    """The active path only — for call sites that genuinely need nothing else."""
     return resolve_store_authority(**kwargs).active_path  # type: ignore[arg-type]
 
 
@@ -230,7 +229,7 @@ def resolve_lock_path(**kwargs: object) -> Path:
     """Lock beside the ACTIVE target.
 
     A lock that lives next to the legacy file while the data lives externally
-    coordinates nothing - five containers would each take a private lock and
+    coordinates nothing — five containers would each take a private lock and
     all write at once.
     """
     active = resolve_store_authority(**kwargs).active_path  # type: ignore[arg-type]

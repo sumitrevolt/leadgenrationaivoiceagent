@@ -25,7 +25,7 @@ def voice_variants_on() -> bool:
 
 
 def format_opening(content: str, client_name: str) -> str:
-    """Proposal content -> single Swara-friendly opener line."""
+    """Proposal content → single Swara-friendly opener line."""
     text = (content or "").strip()
     if not text:
         return ""

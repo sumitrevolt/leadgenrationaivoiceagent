@@ -1,6 +1,6 @@
-"""Content / Approval Assurance - read-only content-publishing risk detection (GREEN lane).
+"""Content / Approval Assurance — read-only content-publishing risk detection (GREEN lane).
 
-WHY (2026-07-20, Agent-OS assurance slice - Isha/Zara content domain): the
+WHY (2026-07-20, Agent-OS assurance slice — Isha/Zara content domain): the
 content-publishing primitives all existed but were never composed into one
 admin-readable answer to *"which content is stuck, which paid customer's
 content pipeline has gone quiet, and which posts are silently failing to
@@ -23,15 +23,13 @@ SAFETY CONTRACT (enforced by tests):
     ``clients_store.canonical_client_id`` (resolves billing/login alias ->
     marketing id, e.g. d79d690f61b3 -> jiya-makeover) so a customer is never
     mis-attributed or double-counted.
-  - NEVER RAISES. Every category + every record is best-effort
-  one bad record
+  - NEVER RAISES. Every category + every record is best-effort; one bad record
     or one failing reader cannot sink the scan.
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
-  strictly
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
     marketing content-publishing domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``isha`` (content
-owner - she already owns the ``content_approval`` activity feed) so the run is
+owner — she already owns the ``content_approval`` activity feed) so the run is
 visible on the existing team feed with a real owner (no new persona invented).
 
 Lane: GREEN (read-only detection + report). Autonomy: L0/L1 (observe + recommend).
@@ -50,17 +48,17 @@ logger = setup_logger(__name__)
 
 # Observability owner for content-assurance runs. Content/approval ops = Isha's
 # lane (she already owns content_approval's team feed). Module constant so the
-# attribution is explicit + testable (NOT a new persona - one of the 31).
+# attribution is explicit + testable (NOT a new persona — one of the 31).
 _OWNER_MEMBER = "isha"
 
-# Approval statuses that are already resolved - never "stuck".
+# Approval statuses that are already resolved — never "stuck".
 _APPROVAL_TERMINAL = frozenset({"published", "cancelled", "rejected"})
 # Approval statuses that mean "waiting on the client to review".
 _AWAITING_CLIENT = frozenset({"pending", "ready_for_review", "changes_requested"})
 # Approval statuses that mean "past client-approval, publish step owes us a post".
 _PUBLISH_INFLIGHT = frozenset({"publishing", "partially_published"})
 
-# Defaults (env-overridable at call time - read-only, no state).
+# Defaults (env-overridable at call time — read-only, no state).
 _DEFAULT_APPROVAL_STALE_HOURS = 48  # pending/awaiting-client older than this = stuck
 _DEFAULT_PUBLISH_GRACE_HOURS = 24  # approved/publishing older than this = stuck
 _DEFAULT_QUEUE_STALE_DAYS = 7  # no fresh content in this many days = stale
@@ -272,7 +270,7 @@ def detect_stale_content_queues(clients: list[dict[str, Any]], limit: int) -> li
                 if ts and (latest is None or ts > latest):
                     latest = ts
             if latest is None:
-                # Can't date the queue - do NOT flag (avoid false positives).
+                # Can't date the queue — do NOT flag (avoid false positives).
                 continue
             days = (_now() - latest).days
             if days > stale_days:
@@ -318,7 +316,7 @@ def scan_content_assurance(limit: int = 200) -> dict[str, Any]:
     publish failures). AgentRunResult-shaped.
 
     No sends, no publishing, no state mutation. Emits one observability event
-    (isha). Never raises - returns a shaped record with status='error' + error
+    (isha). Never raises — returns a shaped record with status='error' + error
     string on unexpected failure.
     """
     run_id = str(uuid.uuid4())
@@ -403,7 +401,7 @@ def scan_content_assurance(limit: int = 200) -> dict[str, Any]:
     result["completed_at"] = _iso(completed)
     result["latency_ms"] = int((completed - started).total_seconds() * 1000)
 
-    # observability - one team event under the content owner (no new persona)
+    # observability — one team event under the content owner (no new persona)
     try:
         from app.platform import team
 

@@ -2,8 +2,7 @@
 
 Naya lead aate hi platform owner ke PHONE pe ntfy buzz (email complement) with a
 1-tap WhatsApp action. Gated LEAD_NTFY_ALERT (default ON) + ntfy.enabled()
-(NTFY_URL+NTFY_TOPIC). Alert flow ko KABHI nahi todta
-email/client-WA paths
+(NTFY_URL+NTFY_TOPIC). Alert flow ko KABHI nahi todta; email/client-WA paths
 unaffected. Mirrors tests/test_content_ordering_lead_alerts.py conventions.
 """
 
@@ -13,7 +12,7 @@ import asyncio
 
 
 def _isolate_email_wa(monkeypatch, lead_alerts):
-    """Email + client-WA channels off - ntfy path ko isolate karo."""
+    """Email + client-WA channels off — ntfy path ko isolate karo."""
     monkeypatch.setattr(lead_alerts, "_notify_email_to", lambda: "")
     monkeypatch.setattr(lead_alerts, "_lookup_client", lambda rec: {})
 
@@ -71,7 +70,7 @@ def test_owner_ntfy_flag_off_no_push(tmp_path, monkeypatch):
 
     res = asyncio.run(lead_alerts.notify_new_lead({"name": "A", "phone": "9812345678"}))
     assert res["push_sent"] is False
-    assert len(calls) == 0  # flag OFF -> push kabhi call nahi hua
+    assert len(calls) == 0  # flag OFF → push kabhi call nahi hua
 
 
 def test_owner_ntfy_inert_when_ntfy_disabled(tmp_path, monkeypatch):
@@ -94,7 +93,7 @@ def test_owner_ntfy_inert_when_ntfy_disabled(tmp_path, monkeypatch):
     res = asyncio.run(lead_alerts.notify_new_lead({"name": "B", "phone": "9800000000"}))
     assert res["ok"] is True
     assert res["push_sent"] is False
-    assert len(calls) == 0  # inert - push touch nahi hua
+    assert len(calls) == 0  # inert — push touch nahi hua
 
 
 def test_owner_ntfy_never_raises_on_push_error(tmp_path, monkeypatch):
@@ -134,7 +133,7 @@ def test_owner_ntfy_no_wa_action_when_phone_short(tmp_path, monkeypatch):
 
     monkeypatch.setattr(ntfy, "push", fake_push)
 
-    # phone digits < 10 -> WhatsApp action skip, par Dashboard action rahe
+    # phone digits < 10 → WhatsApp action skip, par Dashboard action rahe
     res = asyncio.run(lead_alerts.notify_new_lead({"name": "NoPhone", "phone": "123"}))
     assert res["push_sent"] is True
     labels = [a.get("label") for a in calls[0]["actions"]]

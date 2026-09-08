@@ -4,8 +4,8 @@ Per-turn latency metrics for the voice agent (P1 observability).
 
 "Jo measure nahi kar sakte, woh tune nahi kar sakte." Every voice path
 (vobiz_stream / phone_stream / pipeline web-call) can stamp a per-turn latency
-dict - ``stt_ms``, ``llm_first_ms``, ``tts_first_ms``, ``turn_ms`` (plus any
-other ``*_ms`` key) - and hand it here. We:
+dict — ``stt_ms``, ``llm_first_ms``, ``tts_first_ms``, ``turn_ms`` (plus any
+other ``*_ms`` key) — and hand it here. We:
 
   * append it as ONE JSON line to ``data/turn_metrics/YYYY-MM-DD.jsonl`` so the
     numbers survive the call and can be rolled up across calls;
@@ -14,9 +14,8 @@ other ``*_ms`` key) - and hand it here. We:
     (``turn_ms``) without coupling.
 
 Design (matches the rest of the project): import-safe, never raises, and pure
-log/measurement - it changes NO call behaviour. Gated by ``TURN_METRICS``
-(default ON
-set ``TURN_METRICS=0`` to silence the disk writes). Timing uses
+log/measurement — it changes NO call behaviour. Gated by ``TURN_METRICS``
+(default ON; set ``TURN_METRICS=0`` to silence the disk writes). Timing uses
 ``perf_counter`` (monotonic) so it is immune to wall-clock jumps.
 
 Usage (stream path):
@@ -71,7 +70,7 @@ KNOWN_MS_KEYS = (
 class TurnStampBuilder:
     """Structured per-turn stamps relative to speech_end (monotonic ms).
 
-    No secrets or transcript text - ids + numeric stamps only.
+    No secrets or transcript text — ids + numeric stamps only.
     """
 
     turn_id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
@@ -117,7 +116,7 @@ class TurnStampBuilder:
             if k == "speech_end":
                 continue
             rec[k] = v
-        # Derived gaps (ms) - rollup-friendly *_ms keys.
+        # Derived gaps (ms) — rollup-friendly *_ms keys.
         gap_map = {
             "stt_final_ms": ("speech_end", "stt_final"),
             "llm_start_ms": ("speech_end", "llm_request_started"),
@@ -236,7 +235,7 @@ def _clean_record(rec: dict) -> dict:
 def record_turn(rec: dict, *, base_dir: str | None = None) -> bool:
     """Append one per-turn metric line to ``{base_dir}/YYYY-MM-DD.jsonl``.
 
-    Gated by :func:`enabled` (TURN_METRICS). Best-effort / never raises - a
+    Gated by :func:`enabled` (TURN_METRICS). Best-effort / never raises — a
     persist failure must never break a live call. Returns True if written."""
     if not enabled():
         return False

@@ -1,4 +1,4 @@
-"""Approval/publishing REMEDIATION - safe execute/repair for stuck approvals.
+"""Approval/publishing REMEDIATION — safe execute/repair for stuck approvals.
 
 WHY (2026-07-20): investigation of the content-assurance finding showed ~364 stuck
 approvals but only ONE active client (Jiya). The bulk are DEAD drafts belonging to
@@ -6,21 +6,19 @@ inactive/legacy/synthetic clients, forever "awaiting client approval" that will 
 come. This module turns that detection into a SAFE remediation:
 
   - inactive-client stuck drafts -> EXPIRE  (content_approval.cancel -> 'cancelled':
-    an internal state transition only - NO customer contact, NO publish, NO send).
-  - active-client stuck drafts   -> ESCALATE to admin (human decides
-  NEVER auto-publish, §5).
+    an internal state transition only — NO customer contact, NO publish, NO send).
+  - active-client stuck drafts   -> ESCALATE to admin (human decides; NEVER auto-publish, §5).
   - publish failures             -> surfaced (own-brand fix is a separate human action).
 
 SAFETY CONTRACT (enforced by tests):
-  - Default DRY-RUN (`plan_remediation` is pure-read
-  `execute_remediation(dry_run=True)`
+  - Default DRY-RUN (`plan_remediation` is pure-read; `execute_remediation(dry_run=True)`
     changes nothing). Real execution requires BOTH `dry_run=False` AND the
     `APPROVAL_REMEDIATION` env flag, and writes a JSONL backup before any change.
   - NEVER cancels an ACTIVE client's draft (active = present in
     clients_store.list_clients(status='active'), tenant-safe via canonical_client_id).
   - NEVER publishes anything (§5 ban-safety). The only state change is cancel/expire.
   - Idempotent (already-terminal drafts are skipped by the state machine). Never raises.
-  - Reuses content_approval.cancel - this module does NOT edit content_approval.
+  - Reuses content_approval.cancel — this module does NOT edit content_approval.
   - Voice-free: strictly marketing-domain.
 
 Lane: AMBER (internal state change), started gated-off. Owner attribution: zara (social/publishing).
@@ -185,7 +183,7 @@ def execute_remediation(
     flag: str = "APPROVAL_REMEDIATION",
 ) -> dict[str, Any]:
     """Expire (cancel) stuck drafts belonging to INACTIVE clients only. Active-client
-    drafts are never touched - they are escalated for human decision.
+    drafts are never touched — they are escalated for human decision.
 
     Gated: real execution needs dry_run=False AND the flag set. Writes a backup first.
     Never publishes. Idempotent. Never raises.
@@ -208,11 +206,11 @@ def execute_remediation(
     # Safety gate: no state change unless explicitly executed AND flag-enabled.
     if dry_run or not _flag_on(flag):
         result["skipped"] = plan["expire_candidates"]
-        result["note"] = "dry_run or flag off - no state change"
+        result["note"] = "dry_run or flag off — no state change"
         _observe(result)
         return result
 
-    # Real execution - backup then cancel inactive-client stuck drafts.
+    # Real execution — backup then cancel inactive-client stuck drafts.
     result["backup_path"] = _backup_store()
     try:
         from app.marketing import content_approval

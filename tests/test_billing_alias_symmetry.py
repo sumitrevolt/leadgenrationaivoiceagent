@@ -5,7 +5,7 @@ customer (Jiya Makeover Studio) has her active Subscription + paid Invoice owned
 by a legacy billing id, while her portal session carries the canonical marketing
 slug ``jiya-makeover``. Because the canonical marketing record's
 ``billing_client_ids`` was never linked to that alias,
-``_billing_client_ids('jiya-makeover')`` returned only ``['jiya-makeover']`` - so
+``_billing_client_ids('jiya-makeover')`` returned only ``['jiya-makeover']`` — so
 ``GET /api/billing/subscription`` 404'd and her portal rendered "NO PLAN /
 Free / Trial" for a paying customer (and even invited her to pay again).
 
@@ -18,7 +18,7 @@ silently regress and re-orphan a paying customer's plan.
 
 from app.api.billing import _billing_client_ids
 
-# Legacy billing id (ADR-095 family) - a plain client identifier, not a credential.
+# Legacy billing id (ADR-095 family) — a plain client identifier, not a credential.
 _ALIAS = "d79d690f61b3"  # pragma: allowlist secret
 _CANON = "jiya-makeover"
 
@@ -34,7 +34,7 @@ def test_canonical_slug_includes_linked_billing_alias(monkeypatch):
     fam = set(_billing_client_ids(_CANON))
     assert _CANON in fam
     assert _ALIAS in fam, (
-        "canonical slug must resolve the linked billing alias - otherwise a "
+        "canonical slug must resolve the linked billing alias — otherwise a "
         "paying customer's subscription/invoice (owned by the alias) is invisible"
     )
 
@@ -56,7 +56,7 @@ def test_missing_record_falls_back_to_raw_id(monkeypatch):
     import app.marketing.clients_store as cs
 
     monkeypatch.setattr(cs, "resolve_client", lambda cid: None)
-    # never raises, never returns empty - always at least the raw id
+    # never raises, never returns empty — always at least the raw id
     assert _billing_client_ids("unknown-client") == ["unknown-client"]
 
 
@@ -67,5 +67,5 @@ def test_resolution_never_raises_on_bad_store(monkeypatch):
         raise RuntimeError("store unavailable")
 
     monkeypatch.setattr(cs, "resolve_client", _boom)
-    # helper is documented "never raises" - must degrade to the raw id
+    # helper is documented "never raises" — must degrade to the raw id
     assert _billing_client_ids(_CANON) == [_CANON]

@@ -1,4 +1,4 @@
-"""Tests for the REAL (durable, no-OAuth) calendar booking - council fast-follow D.
+"""Tests for the REAL (durable, no-OAuth) calendar booking — council fast-follow D.
 
 Hermetic: no network / no real calendar. Covers:
   1. Default provider = 'internal' (no creds) and a booking is DURABLE

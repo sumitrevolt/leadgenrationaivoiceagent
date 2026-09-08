@@ -1,4 +1,4 @@
-"""Stage 3B-close - the two P0 approval bypasses.
+"""Stage 3B-close — the two P0 approval bypasses.
 
 The read-only audit proved that Stage 3B closed the customer dashboard and the
 admin route, but left two paths that reach a finalized, publishable video
@@ -16,8 +16,7 @@ approval WITHOUT the saga or a principal:
 `on_approved` is the single choke point for P0-1: the caller table shows FOUR
 production entrypoints reaching it (public token route, decide_for_client from
 the customer portal and boss_council, decide_by_id from product_one_delivery).
-Containing on_approved covers all four
-patching only the public route would
+Containing on_approved covers all four; patching only the public route would
 not.
 
 Every test here counts DURABLE MUTATION, and the suite asserts the repository's
@@ -54,7 +53,7 @@ def _repo_data_fingerprint() -> dict[str, str]:
 def _no_repo_data_writes():
     """Fails the test if anything touched the repository's data/ directory.
 
-    Not a cleanup step - a proof. An isolation fixture that silently stops
+    Not a cleanup step — a proof. An isolation fixture that silently stops
     working would otherwise let these tests pass while writing real files.
     """
     before = _repo_data_fingerprint()
@@ -64,7 +63,7 @@ def _no_repo_data_writes():
     removed = sorted(set(before) - set(after))
     changed = sorted(k for k in set(before) & set(after) if before[k] != after[k])
     assert not (added or removed or changed), (
-        f"repo data/ mutated - added={added} removed={removed} changed={changed}"
+        f"repo data/ mutated — added={added} removed={removed} changed={changed}"
     )
 
 
@@ -241,7 +240,7 @@ def test_on_approved_refuses_uncoordinated_transaction(iso, monkeypatch):
 
 
 def test_non_video_content_approval_still_works(iso, monkeypatch):
-    """Containment must be scoped to video_ad - general content is unaffected."""
+    """Containment must be scoped to video_ad — general content is unaffected."""
     from app.marketing import content_approval
 
     sub = content_approval.submit(
@@ -303,7 +302,7 @@ def test_only_finalized_saga_state_is_publish_eligible(iso, monkeypatch, state):
 
 
 def test_finalized_without_snapshot_identity_refuses(iso, monkeypatch):
-    """A finalized flag alone is not enough - the snapshot identity must exist."""
+    """A finalized flag alone is not enough — the snapshot identity must exist."""
     from app.marketing.video_production import publish_gate
 
     monkeypatch.setenv("VIDEO_SOCIAL_PUBLISH_ENABLED", "1")
@@ -344,7 +343,7 @@ def test_publish_gate_refuses_before_any_provider_call(iso, monkeypatch):
 
 
 def test_one_canonical_eligibility_evaluator(iso):
-    """The real gate must delegate to the pure evaluator - no second state machine."""
+    """The real gate must delegate to the pure evaluator — no second state machine."""
     import inspect
 
     from app.marketing.video_production import publish_gate
@@ -401,8 +400,7 @@ def test_mark_version_approved_cannot_write_an_uncoordinated_approval(iso, monke
 
 def test_revocation_store_down_blocks_customer_approval(monkeypatch):
     """Phase C: require_customer's blacklist check fails OPEN ("allowing
-    request"). For a READ that is defensible
-    for an approval mutation it means
+    request"). For a READ that is defensible; for an approval mutation it means
     a logged-out session could still approve whenever Redis is unwell."""
     import asyncio
 

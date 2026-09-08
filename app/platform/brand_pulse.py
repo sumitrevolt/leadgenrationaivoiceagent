@@ -1,13 +1,13 @@
-"""brand_pulse.py - Brand24-lite brand/mention monitor (FREE sources only).
+"""brand_pulse.py — Brand24-lite brand/mention monitor (FREE sources only).
 
 Business naam ke mentions: Google News RSS + Reddit search JSON (dono free,
-no-key, polite UA + 10s timeout) -> per-mention rule-sentiment (sentiment.py ka
-_rule reuse - NO LLM in scan, prod-down lesson) -> Hinglish digest + har
-NEGATIVE mention ka deterministic reply-DRAFT (send KABHI nahi - ban-safe).
+no-key, polite UA + 10s timeout) → per-mention rule-sentiment (sentiment.py ka
+_rule reuse — NO LLM in scan, prod-down lesson) → Hinglish digest + har
+NEGATIVE mention ka deterministic reply-DRAFT (send KABHI nahi — ban-safe).
 
 6-hr cache: data/brand_pulse_cache.jsonl (repeat scans network-free).
 Weekly sweep `run_weekly_if_enabled()` GATED `BRAND_PULSE=1` (default OFF):
-active clients scan -> data/brand_pulse_runs.jsonl + team event. NEVER raises.
+active clients scan → data/brand_pulse_runs.jsonl + team event. NEVER raises.
 """
 
 from __future__ import annotations
@@ -26,9 +26,7 @@ logger = setup_logger(__name__)
 _CACHE_FILE = os.path.join("data", "brand_pulse_cache.jsonl")
 _RUNS_FILE = os.path.join("data", "brand_pulse_runs.jsonl")
 _CACHE_TTL = 6 * 3600  # 6 hours
-_UA = "Mozilla/5.0 (compatible
-LeadsGenAI-pulse/1.0
-+https://leadsgenai.in)"
+_UA = "Mozilla/5.0 (compatible; LeadsGenAI-pulse/1.0; +https://leadsgenai.in)"
 
 _NEWS_URL = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 _REDDIT_URL = "https://www.reddit.com/search.json?q={q}&limit=10&sort=new"
@@ -65,10 +63,10 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Source parsers (pure-python - tests inhe offline verify karte hain)
+# Source parsers (pure-python — tests inhe offline verify karte hain)
 # --------------------------------------------------------------------------- #
 def parse_news_rss(xml: str) -> list[dict[str, str]]:
-    """Google News RSS items -> [{source,title,url,snippet}] (regex, no xml dep)."""
+    """Google News RSS items → [{source,title,url,snippet}] (regex, no xml dep)."""
     out: list[dict[str, str]] = []
     try:
         for it in re.findall(r"<item>(.*?)</item>", xml or "", re.S)[:10]:
@@ -93,7 +91,7 @@ def parse_news_rss(xml: str) -> list[dict[str, str]]:
 
 
 def parse_reddit_json(payload: dict[str, Any]) -> list[dict[str, str]]:
-    """Reddit search JSON -> mentions list. Defensive on shape."""
+    """Reddit search JSON → mentions list. Defensive on shape."""
     out: list[dict[str, str]] = []
     try:
         children = ((payload or {}).get("data") or {}).get("children") or []
@@ -146,7 +144,7 @@ async def _fetch_reddit(query: str) -> list[dict[str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# Sentiment + drafts (rule-based - scan me LLM NAHI; public-path-safe)
+# Sentiment + drafts (rule-based — scan me LLM NAHI; public-path-safe)
 # --------------------------------------------------------------------------- #
 def _label(text: str) -> str:
     try:
@@ -159,29 +157,28 @@ def _label(text: str) -> str:
 
 def _reply_draft(business: str, mention: dict[str, str]) -> str:
     return (
-        f"Namaste! {business} ki team se - aapki baat humne dekhi "
-        f'("{mention.get("title", "")[:80]}"). Hum sach me sudharna chahte hain
-        '
+        f"Namaste! {business} ki team se — aapki baat humne dekhi "
+        f'("{mention.get("title", "")[:80]}"). Hum sach me sudharna chahte hain; '
         "kya aap details share kar sakte hain? Hum personally resolve karenge. "
-        "DM/call dono open hai - dhanyavaad ki aapne bataya. 🙏"
+        "DM/call dono open hai — dhanyavaad ki aapne bataya. 🙏"
     )
 
 
 def _summary(business: str, mentions: list[dict], breakdown: dict[str, int]) -> str:
     if not mentions:
-        return f"{business}: pichhle scan me koi naya public mention nahi mila - sab shaant hai. 👍"
+        return f"{business}: pichhle scan me koi naya public mention nahi mila — sab shaant hai. 👍"
     neg = breakdown.get("negative", 0)
     pos = breakdown.get("positive", 0)
     line = f"{business}: {len(mentions)} mentions mile (👍{pos} / 👎{neg})."
     if neg:
-        line += f" {neg} negative pe reply-draft taiyaar hai - 1-click review karke bhejo."
+        line += f" {neg} negative pe reply-draft taiyaar hai — 1-click review karke bhejo."
     else:
-        line += " Koi negative nahi - positive momentum ko post me convert karo!"
+        line += " Koi negative nahi — positive momentum ko post me convert karo!"
     return line
 
 
 # --------------------------------------------------------------------------- #
-# scan - main entry (cached 6hr)
+# scan — main entry (cached 6hr)
 # --------------------------------------------------------------------------- #
 def _cache_get(key: str) -> dict[str, Any] | None:
     try:
@@ -197,7 +194,7 @@ def _cache_get(key: str) -> dict[str, Any] | None:
 async def scan(
     business_name: str, city: str | None = None, niche: str | None = None
 ) -> dict[str, Any]:
-    """Brand mentions scan -> digest. Cached 6hr, never raises."""
+    """Brand mentions scan → digest. Cached 6hr, never raises."""
     business = (business_name or "").strip()[:120]
     if not business:
         return {"ok": False, "error": "business_name required", "mentions": []}
@@ -247,7 +244,7 @@ async def scan(
 
 
 # --------------------------------------------------------------------------- #
-# Weekly sweep - GATED BRAND_PULSE=1 (default OFF). Drafts only, NO send.
+# Weekly sweep — GATED BRAND_PULSE=1 (default OFF). Drafts only, NO send.
 # --------------------------------------------------------------------------- #
 def _flag_on() -> bool:
     return (os.getenv("BRAND_PULSE") or "").strip().lower() in ("1", "true", "yes", "on")

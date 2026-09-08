@@ -2,7 +2,7 @@
 
 Risk surface = flag gate (503 default) + key-safety (server-side inject, model
 enforce) + boot.js serving. Conftest already overrides require_admin (mock
-super-admin), test_control_center.py style - self-contained override bhi set.
+super-admin), test_control_center.py style — self-contained override bhi set.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def test_config_disabled_by_default(monkeypatch):
 
 
 def test_config_enabled_prefers_vendored_script(monkeypatch):
-    """Vendor file repo me hai -> self-hosted URL (ISP-block-proof), SRI unneeded."""
+    """Vendor file repo me hai → self-hosted URL (ISP-block-proof), SRI unneeded."""
     monkeypatch.setenv("PAGE_AGENT", "1")
     monkeypatch.delenv("PAGE_AGENT_SCRIPT_URL", raising=False)
     assert pa._VENDOR_FILE.exists()  # committed vendored bundle
@@ -122,7 +122,7 @@ def test_chat_413_on_oversize_body(monkeypatch):
 
 
 def test_model_enforced_server_side(monkeypatch):
-    """Client jo bhi model bheje - env PAGE_AGENT_MODEL / provider default hi jaata."""
+    """Client jo bhi model bheje — env PAGE_AGENT_MODEL / provider default hi jaata."""
     monkeypatch.delenv("PAGE_AGENT_MODEL", raising=False)
     assert pa._model_for("mistral-small-latest") == "mistral-small-latest"
     monkeypatch.setenv("PAGE_AGENT_MODEL", "mistral-large-latest")

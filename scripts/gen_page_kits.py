@@ -1,4 +1,4 @@
-"""Generate social page kits (markdown) - LeadsGenAI brand + sample client.
+"""Generate social page kits (markdown) — LeadsGenAI brand + sample client.
 
 Run (VPS): docker exec leadgen_app python scripts/gen_page_kits.py
 Output: data/page_kits/<slug>.md (paste-ready, Hinglish)
@@ -28,8 +28,8 @@ def _md(kit: dict) -> str:
         p["whatsapp_business"],
     )
     lines = [
-        f"# {kit['business_name']} - Social Page Setup Kit",
-        f"_Niche: {kit['niche_name']} · City: {kit.get('city') or '-'}_",
+        f"# {kit['business_name']} — Social Page Setup Kit",
+        f"_Niche: {kit['niche_name']} · City: {kit.get('city') or '—'}_",
         "",
         "## 📘 Facebook Page",
         f"- **Page name:** {fb.get('page_name')}",
@@ -62,7 +62,7 @@ def _md(kit: dict) -> str:
         f"- **Greeting:** {wa.get('greeting')}",
         "",
         "## 🎨 Branding",
-        f"- **Logo (AI):** {kit.get('logo_url') or '(POLLINATIONS_API_KEY set karke /app/marketing -> Logo tab)'}",
+        f"- **Logo (AI):** {kit.get('logo_url') or '(POLLINATIONS_API_KEY set karke /app/marketing → Logo tab)'}",
         f"- **Cover image prompt:** {kit.get('cover_image_prompt')}",
         "",
         f"## 📝 Pehle {len(kit['first_posts'])} posts",
@@ -70,7 +70,7 @@ def _md(kit: dict) -> str:
     for i, post in enumerate(kit["first_posts"], 1):
         tags = " ".join(post.get("hashtags") or [])
         lines += [
-            f"### Post {i} - {post['occasion']}",
+            f"### Post {i} — {post['occasion']}",
             str(post.get("caption") or ""),
             f"_{tags}_" if tags else "",
             (f"🖼️ image idea: {post.get('image_idea')}" if post.get("image_idea") else ""),

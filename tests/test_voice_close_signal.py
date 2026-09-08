@@ -1,4 +1,4 @@
-"""Voice close-signal side-effects - root-cause fix for "customer haan bolta hai
+"""Voice close-signal side-effects — root-cause fix for "customer haan bolta hai
 to onboard nahi hota": the deterministic close-intent trigger used to be pure
 dialogue (promised WhatsApp send + setup, did neither). Now it deterministically
 (1) writes a sales_pipeline deal and (2) fires a real WhatsApp send (gated
@@ -104,7 +104,7 @@ async def test_send_close_whatsapp_inert_when_flag_off(monkeypatch):
 @pytest.mark.asyncio
 async def test_send_close_whatsapp_inert_with_only_global_flag(monkeypatch):
     """WHATSAPP_AUTO_SEND=1 alone (already ON for unrelated campaign sends on
-    VPS) must NOT activate this feature - dedicated VOICE_CLOSE_WHATSAPP opt-in
+    VPS) must NOT activate this feature — dedicated VOICE_CLOSE_WHATSAPP opt-in
     required so an existing flag can't silently turn on new AI-judged outbound."""
     from app.integrations import whatsapp as wa
 
@@ -157,7 +157,7 @@ async def test_close_intent_reply_triggers_close_signal(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_bare_haan_does_not_trigger_close_signal(monkeypatch):
-    """A plain 'haan' (no proceed verb) must NOT fire the close side-effects -
+    """A plain 'haan' (no proceed verb) must NOT fire the close side-effects —
     guards against false-positive CRM writes / WhatsApp spam on every yes."""
     monkeypatch.setenv("CLOSE_DETECT", "1")
     brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
@@ -165,7 +165,7 @@ async def test_bare_haan_does_not_trigger_close_signal(monkeypatch):
     triggered = []
     monkeypatch.setattr(brain, "_on_close_signal", lambda: triggered.append(True))
     # Bare "haan" alone; reply() may still call the LLM downstream but that's
-    # unrelated to this assertion - we only check the close-signal did not fire.
+    # unrelated to this assertion — we only check the close-signal did not fire.
     from app.voice_agent.telecaller_brain import _is_close_intent
 
     assert _is_close_intent("haan") is False
@@ -174,7 +174,7 @@ async def test_bare_haan_does_not_trigger_close_signal(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_web_call_learns_phone_from_post_close_reply(monkeypatch):
-    """Web-test call (no dialed number, e.g. /app/test-call - the same page real
+    """Web-test call (no dialed number, e.g. /app/test-call — the same page real
     prospects get as a demo link): the close-signal turn alone must stay a
     no-op (no caller_phone yet), but once the caller SPEAKS a WhatsApp number
     on the very next turn, the brain must learn it and fire the same durable
@@ -249,8 +249,7 @@ def test_close_signal_fired_flag_stays_false_without_phone():
 async def test_close_signal_fired_resets_on_next_turn(monkeypatch):
     """close_signal_fired must reflect ONLY the just-completed reply() turn --
     web_call.py checks it once per turn to decide whether to emit a WS
-    close_signal event
-    a stale True would re-fire the overlay forever."""
+    close_signal event; a stale True would re-fire the overlay forever."""
     monkeypatch.setenv("CLOSE_DETECT", "1")
     brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     brain.set_caller_phone("9876543210")
@@ -327,7 +326,7 @@ async def test_thank_you_after_whatsapp_readback_no_audit(monkeypatch):
         {
             "role": "assistant",
             "content": (
-                "Perfect! Aapka WhatsApp number 9 8 7 6 5 4 3 2 1 0 - isi par abhi "
+                "Perfect! Aapka WhatsApp number 9 8 7 6 5 4 3 2 1 0 — isi par abhi "
                 "saari detail aur setup bhej rahi hoon."
             ),
         }
@@ -348,7 +347,7 @@ async def test_stream_thank_you_after_handoff_blocks_audit(monkeypatch):
             "role": "assistant",
             "content": (
                 "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
-                "hoon - wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+                "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
             ),
         }
     ]

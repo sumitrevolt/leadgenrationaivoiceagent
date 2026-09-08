@@ -1,7 +1,7 @@
-"""Own-domain short links + click tracking - attribution loop apne control me.
+"""Own-domain short links + click tracking — attribution loop apne control me.
 
 Pehle drafts is.gd (3rd-party, no analytics) use karte the (content_feedback.shorten).
-Ab apna `leadsgenai.in/r/{code}` - click count + channel attribution + (best-effort)
+Ab apna `leadsgenai.in/r/{code}` — click count + channel attribution + (best-effort)
 channel-bandit credit. is.gd ka complement/replacement: jahan attribution chahiye
 wahan `create()` use karo.
 
@@ -10,7 +10,7 @@ wahan `create()` use karo.
   stats(code="")                         -> clicks by code / channel / day
 
 Stores: data/short_links.jsonl (links) + data/link_clicks.jsonl (clicks).
-Pure stdlib + file IO (NO ML/network) - public redirect path light rahe.
+Pure stdlib + file IO (NO ML/network) — public redirect path light rahe.
 NEVER raises.
 """
 
@@ -30,11 +30,11 @@ logger = setup_logger(__name__)
 _LINKS_FILE = os.path.join("data", "short_links.jsonl")
 _CLICKS_FILE = os.path.join("data", "link_clicks.jsonl")
 
-# Ambiguous chars (0/O, 1/l/I) skip - print/bol ke share hota hai.
+# Ambiguous chars (0/O, 1/l/I) skip — print/bol ke share hota hai.
 _ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 _CODE_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 
-# Worker-local cache (miss par file reload - multi-worker safe enough).
+# Worker-local cache (miss par file reload — multi-worker safe enough).
 _cache: dict[str, dict[str, Any]] = {}
 _cache_loaded = False
 
@@ -90,7 +90,7 @@ def _load_cache(force: bool = False) -> dict[str, dict[str, Any]]:
 
 
 def short_url(code: str) -> str:
-    """Public short URL (site base reuse - embed_widget wala helper)."""
+    """Public short URL (site base reuse — embed_widget wala helper)."""
     try:
         from app.marketing.embed_widget import site_base
 
@@ -131,10 +131,10 @@ def create(url: str, label: str = "", channel: str = "", client_id: str = "") ->
 
 
 def _credit_channel(code: str, channel: str) -> None:
-    """Best-effort channel-bandit credit - max 1/code/day (clicks inflate na karein).
+    """Best-effort channel-bandit credit — max 1/code/day (clicks inflate na karein).
 
     channel_experiments.record_outcome PUBLIC fn hai aur khud unknown channel
-    reject karta (never raises) - isliye direct call SAFE.
+    reject karta (never raises) — isliye direct call SAFE.
     """
     try:
         if not channel:
@@ -151,7 +151,7 @@ def _credit_channel(code: str, channel: str) -> None:
 
 
 def resolve(code: str, ua: str = "", ref: str = "") -> str | None:
-    """Code -> long URL (+ click log + bandit credit). Unknown/invalid = None."""
+    """Code → long URL (+ click log + bandit credit). Unknown/invalid = None."""
     try:
         code = (code or "").strip()
         if not _CODE_RE.match(code):
@@ -179,7 +179,7 @@ def resolve(code: str, ua: str = "", ref: str = "") -> str | None:
 
 
 def stats(code: str = "") -> dict[str, Any]:
-    """Click stats - by code / channel / day (sab ya ek code). Never raises."""
+    """Click stats — by code / channel / day (sab ya ek code). Never raises."""
     try:
         clicks = _read_all(_CLICKS_FILE)
         if code:

@@ -1,15 +1,15 @@
 """
 Admin Docker Manager API routes.
 
-GET /admin/api/docker/containers - all containers
-GET /admin/api/docker/containers/{name} - container detail
+GET /admin/api/docker/containers — all containers
+GET /admin/api/docker/containers/{name} — container detail
 POST /admin/api/docker/containers/{name}/start
 POST /admin/api/docker/containers/{name}/stop
 POST /admin/api/docker/containers/{name}/restart
-GET /admin/api/docker/containers/{name}/logs - container logs
-GET /admin/api/docker/networks - all networks
-GET /admin/api/docker/volumes - all volumes
-GET /admin/api/docker/stats - resource stats
+GET /admin/api/docker/containers/{name}/logs — container logs
+GET /admin/api/docker/networks — all networks
+GET /admin/api/docker/volumes — all volumes
+GET /admin/api/docker/stats — resource stats
 """
 
 from __future__ import annotations

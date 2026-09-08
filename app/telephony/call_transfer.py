@@ -1,21 +1,20 @@
-"""Live human transfer w/ context - AI call ke beech customer "owner se baat karao"
+"""Live human transfer w/ context — AI call ke beech customer "owner se baat karao"
 bole to owner ko turant connect + poora context summary (Hinglish).
 
 NOTE: is path par pehle Cloud-Run-era DEAD demo code tha (CallTransferManager,
-hardcoded fake sales-reps, module-level WhatsAppIntegration init) - repo me
-kahin import nahi hota tha (grep-verified) -> lean gated module se REPLACED.
+hardcoded fake sales-reps, module-level WhatsAppIntegration init) — repo me
+kahin import nahi hota tha (grep-verified) → lean gated module se REPLACED.
 
-Kyun: Vodex/Smartlead-class voice agents ka killer feature = AI stuck/asked ->
+Kyun: Vodex/Smartlead-class voice agents ka killer feature = AI stuck/asked →
 HUMAN handoff with context (owner ko blind call nahi milti). Flow:
-  detect_transfer_intent(text)  -> voice pipeline me intent pakdo (wiring alag pass)
-  request_transfer(call_context, owner_phone) ->
+  detect_transfer_intent(text)  → voice pipeline me intent pakdo (wiring alag pass)
+  request_transfer(call_context, owner_phone) →
     (a) gate: CALL_TRANSFER=1 flag (default OFF = inert, {"ok": False, "reason": "disabled"})
-    (b) Hinglish context summary (free_ai, template fallback - LLM down pe bhi kaam)
+    (b) Hinglish context summary (free_ai, template fallback — LLM down pe bhi kaam)
     (c) Vobiz connect-leg owner↔caller (VobizClient.place_call reuse, lazy
-        import
-        creds nahi = draft-only, raise nahi)
+        import; creds nahi = draft-only, raise nahi)
     (d) owner ke liye WhatsApp 1-click summary link (wa.me, draft) + email DRAFT
-        (send NAHI - ban-safe)
+        (send NAHI — ban-safe)
     (e) log data/call_transfers.jsonl
 
 GATED `CALL_TRANSFER=1` (default OFF = zero behaviour change). Free-stack.
@@ -80,13 +79,13 @@ def _phone10(raw: Any) -> str:
 
 
 def enabled() -> bool:
-    """Flag gate - CALL_TRANSFER=1 hone par hi active (default OFF = inert)."""
+    """Flag gate — CALL_TRANSFER=1 hone par hi active (default OFF = inert)."""
     return os.getenv("CALL_TRANSFER", "0").strip().lower() in ("1", "true", "yes")
 
 
 def detect_transfer_intent(text: str) -> bool:
     """Customer ke utterance me human-transfer intent hai? Pure-python, fast
-    (voice hot-path safe - koi LLM nahi). Never raises."""
+    (voice hot-path safe — koi LLM nahi). Never raises."""
     try:
         t = (text or "").strip().lower()
         if not t:
@@ -128,7 +127,7 @@ def _template_summary(call_context: dict[str, Any]) -> str:
 
 
 async def _summarize(call_context: dict[str, Any]) -> tuple[str, str]:
-    """Hinglish context summary (free_ai -> template fallback). Returns (summary, provider)."""
+    """Hinglish context summary (free_ai → template fallback). Returns (summary, provider)."""
     fallback = _template_summary(call_context)
     conv = _conversation_text(call_context)
     if not conv:
@@ -142,7 +141,7 @@ async def _summarize(call_context: dict[str, Any]) -> tuple[str, str]:
             system=(
                 "Tu ek call-transfer assistant hai. AI agent ki customer se chal rahi call ka "
                 "context owner ko dena hai. 2-3 line Hinglish me: customer kaun, kya chahiye, "
-                "kya discuss hua, ab kya karna. Owner ko turant samajh aaye - concise."
+                "kya discuss hua, ab kya karna. Owner ko turant samajh aaye — concise."
             ),
             messages=[{"role": "user", "content": f"Customer: {who}\n\nConversation:\n{conv}"}],
             max_tokens=160,
@@ -167,7 +166,7 @@ def _log(rec: dict[str, Any]) -> None:
 
 async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
     """Vobiz connect-leg: owner ko call lagao. Lazy import, creds nahi = graceful
-    skip. Never raises. (Calls DLT/recharge-blocked abhi - structural wiring.)"""
+    skip. Never raises. (Calls DLT/recharge-blocked abhi — structural wiring.)"""
     try:
         import os
 
@@ -193,7 +192,7 @@ async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
 
 
 async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> dict[str, Any]:
-    """AI call -> live human (owner) transfer with Hinglish context. Never raises.
+    """AI call → live human (owner) transfer with Hinglish context. Never raises.
 
     Flag OFF / owner_phone invalid = inert. Flag ON: summary + Vobiz connect-leg
     (creds pe) + owner ke liye WA 1-click link + email DRAFT + jsonl log.
@@ -216,14 +215,14 @@ async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> di
 
         wa_link = f"https://wa.me/91{owner10}?text={urllib.parse.quote(summary[:320])}"
         email_draft = {
-            "subject": f"📞 Live call transfer - {ctx.get('name') or ctx.get('business_name') or 'Customer'}",
+            "subject": f"📞 Live call transfer — {ctx.get('name') or ctx.get('business_name') or 'Customer'}",
             "body": (
                 f"{summary}\n\n"
                 f"Customer phone: {_phone10(ctx.get('phone') or ctx.get('phone_number')) or 'unknown'}\n"
                 f"Call ID: {call_id}\n"
                 f"Transfer time: {_now()}"
             ),
-            "auto_sent": False,  # draft only - ban/spam-safe
+            "auto_sent": False,  # draft only — ban/spam-safe
         }
 
         rec = {
@@ -238,7 +237,7 @@ async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> di
         }
         _log(rec)
 
-        # AI staff feed (best-effort). Attributed to Raksha - transfer is HER
+        # AI staff feed (best-effort). Attributed to Raksha — transfer is HER
         # role (team.py roster); logging as swara left raksha with zero events
         # ever, indistinguishable from a broken agent (audit 2026-07-04).
         try:
@@ -247,7 +246,7 @@ async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> di
             team.log_event(
                 "raksha",
                 "call_transfer",
-                f"Live transfer -> owner {owner10} ({'connected' if leg.get('initiated') else 'draft'})",
+                f"Live transfer → owner {owner10} ({'connected' if leg.get('initiated') else 'draft'})",
             )
         except Exception:
             pass

@@ -4,9 +4,8 @@ Replaces coordinator ambiguity (raw LLM prose parsed by `_extract_list`) with ON
 strict, versioned structured language: CoordinatorPlanV1 / CoordinatorActionV1.
 Raw model prose is NEVER an executable contract. Legacy heuristic parsing stays
 available for compatibility and is explicitly marked heuristic (never
-"structured_native"). Nothing here executes - it validates, normalizes and
-compares
-the legacy coordinator executor stays authoritative.
+"structured_native"). Nothing here executes — it validates, normalizes and
+compares; the legacy coordinator executor stays authoritative.
 """
 
 from __future__ import annotations
@@ -166,7 +165,7 @@ def validate_delegation_target(target_agent: str) -> tuple[bool, str]:
 
 
 # --------------------------------------------------------------------------- #
-# Legacy parser adapter - normalize _extract_list output into the contract.
+# Legacy parser adapter — normalize _extract_list output into the contract.
 # NEVER pretends heuristic output is structured_native.
 # --------------------------------------------------------------------------- #
 def normalize_legacy_plan(
@@ -288,7 +287,7 @@ def compare_plans(
 
 
 # --------------------------------------------------------------------------- #
-# Supervisor decision envelope - REUSES CoordinatorActionV1 (no fork). A route
+# Supervisor decision envelope — REUSES CoordinatorActionV1 (no fork). A route
 # label / selected graph node / structured message identity normalizes into the
 # shared delegation contract. Raw assistant prose is not an action identity.
 # --------------------------------------------------------------------------- #

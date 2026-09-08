@@ -1,7 +1,7 @@
-"""Owner OS litmus gate - ADR-155 harvest from agent-swarm HITL litmus (native).
+"""Owner OS litmus gate — ADR-155 harvest from agent-swarm HITL litmus (native).
 
 Deterministic preflight for command plans / execute. No Bun swarm, no paid judge.
-Default ON via OWNER_OS_LITMUS - when OFF, report still attaches but execute is not blocked.
+Default ON via OWNER_OS_LITMUS — when OFF, report still attaches but execute is not blocked.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def evaluate_plan_litmus(plan: dict[str, Any]) -> dict[str, Any]:
         board = owner_os.kill_switch_board()
         kill_ok = isinstance(board, dict)
         kill_detail = f"keys={len(board)}" if kill_ok else "bad_shape"
-    except Exception as exc:  # noqa: BLE001 - litmus never raises
+    except Exception as exc:  # noqa: BLE001 — litmus never raises
         kill_detail = type(exc).__name__
     checks.append(
         {

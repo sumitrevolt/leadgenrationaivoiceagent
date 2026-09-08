@@ -1,20 +1,19 @@
-"""Customer value-delivery - value-first, delivery-guaranteed (2026-07-05).
+"""Customer value-delivery — value-first, delivery-guaranteed (2026-07-05).
 
-WHY: a paying customer (jiya makeover, ₹1,999) was GHOSTED - the system BUILT her
+WHY: a paying customer (jiya makeover, ₹1,999) was GHOSTED — the system BUILT her
 value (live mini-site, content pack, brand kit) but delivered NONE of it because
 onboarding asked her to "describe your business" first and her reply was never
 captured (silent single-thread failure). Council decision (docs/
-CUSTOMER_DELIVERY_AUTOMATION_2026_07_05.md): on `paid`, DELIVER value first - don't
-ask, don't wait - and never let a paid customer sit silently undelivered.
+CUSTOMER_DELIVERY_AUTOMATION_2026_07_05.md): on `paid`, DELIVER value first — don't
+ask, don't wait — and never let a paid customer sit silently undelivered.
 
 This module is the P0 delivery guarantee:
-  - `deliver_client_value(client)` - WhatsApp the live mini-site link + what they
+  - `deliver_client_value(client)` — WhatsApp the live mini-site link + what they
     got. GATED `AUTO_DELIVER_VALUE` (default OFF) so real customer sends are
-    reviewed before going live
-    `force=True` for an operator-triggered single send.
-  - `find_undelivered_paid_clients()` - read-only dead-man detector: paid+active
+    reviewed before going live; `force=True` for an operator-triggered single send.
+  - `find_undelivered_paid_clients()` — read-only dead-man detector: paid+active
     clients not yet delivered (powers the founder alert + operator surface).
-  - `run_delivery_sweep()` - the dead-man sweep (fail-LOUD: records stuck customers,
+  - `run_delivery_sweep()` — the dead-man sweep (fail-LOUD: records stuck customers,
     never a silent swallow).
 
 Delivery state lives on the client record: `delivery_state` in
@@ -42,7 +41,7 @@ def _flag_on(name: str, default: str = "0") -> bool:
 
 
 def _is_self_brand(client: dict[str, Any]) -> bool:
-    """LeadGen AI ka apna self-brand record (delivery target NAHI - ye company khud hai).
+    """LeadGen AI ka apna self-brand record (delivery target NAHI — ye company khud hai).
     Markers mirror auto_content._ensure_self_client."""
     if str(client.get("id") or "") == "leadgenai-self":
         return True
@@ -62,7 +61,7 @@ def _payment_evidence(client: dict[str, Any]) -> bool | None:
     alone is not payment proof (that is how synthetic "Test Biz" (plan=growth, zero
     invoices) paged the founder hourly as a PAID customer). But a hard fail-CLOSED
     here would silently STOP delivery for a real paying customer the moment the
-    ledger is unreadable - the exact ghosting incident this module exists to prevent.
+    ledger is unreadable — the exact ghosting incident this module exists to prevent.
     So: only judge "not paid" when we have a FUNCTIONING ledger with real content;
     otherwise return None and let the caller fall back to the plan check.
 
@@ -92,7 +91,7 @@ def _payment_evidence(client: dict[str, Any]) -> bool | None:
 
 def is_paid_client(client: dict[str, Any]) -> bool:
     """Active client on a real (non-free/trial) plan = delivery-ELIGIBLE. Self-brand
-    (LeadGen AI apna record) delivery target nahi - exclude.
+    (LeadGen AI apna record) delivery target nahi — exclude.
 
     NOTE: plan is chosen at signup BEFORE money moves, so this is eligibility, not
     payment proof. For "did they actually pay" use `has_paid_evidence()`.
@@ -113,7 +112,7 @@ def has_paid_evidence(client: dict[str, Any]) -> bool:
     tenant cannot masquerade as a paying customer.
 
     Fail-OPEN by design: if the ledger is unknown (None) we keep the client in the
-    alert set - a real paying customer must NEVER be silently dropped from the
+    alert set — a real paying customer must NEVER be silently dropped from the
     dead-man detector just because the ledger hiccuped.
     """
     if not is_paid_client(client):
@@ -150,7 +149,7 @@ def try_mark_acknowledged(from_number: str) -> bool:
     """Inbound message from a DELIVERED paid customer = acknowledgment (council:
     'delivered = acknowledged'). delivery_state delivered->acknowledged flip karo.
     READ-side (koi outbound nahi). True agar mark hua. Never raises. Message ko
-    CONSUME nahi karta - caller normal reply-handling jaari rakhe."""
+    CONSUME nahi karta — caller normal reply-handling jaari rakhe."""
     digits = "".join(ch for ch in str(from_number or "") if ch.isdigit())[-10:]
     if not digits:
         return False
@@ -176,27 +175,27 @@ def try_mark_acknowledged(from_number: str) -> bool:
 
 def build_delivery_message(client: dict[str, Any]) -> str:
     """The WhatsApp value-delivery text: live mini-site link + what they got + next
-    step. Pure (no side effects) so it is unit-testable. Value-first - no info-ask."""
+    step. Pure (no side effects) so it is unit-testable. Value-first — no info-ask."""
     biz = str((client or {}).get("business_name") or "aapka business").strip() or "aapka business"
     url = mini_site_url(client)
     lines = [
-        f"Namaste! 🎉 {biz} ke liye aapka LeadGen AI setup taiyaar hai -",
+        f"Namaste! 🎉 {biz} ke liye aapka LeadGen AI setup taiyaar hai —",
     ]
     if url:
         lines.append(f"👉 Aapki LIVE business site: {url}")
         lines.append(
-            "(Ye link customers ko WhatsApp/Instagram pe share karein - enquiry seedhe aapke phone pe.)"
+            "(Ye link customers ko WhatsApp/Instagram pe share karein — enquiry seedhe aapke phone pe.)"
         )
-    lines.append("📸 Aapke liye ready-to-post content bhi ban chuka hai - har hafte naya milega.")
+    lines.append("📸 Aapke liye ready-to-post content bhi ban chuka hai — har hafte naya milega.")
     lines.append(
-        "Koi badlaav chahiye (services/area/photos)? Bas isi message ka reply kar dijiye - main update kar dungi. 🙏"
+        "Koi badlaav chahiye (services/area/photos)? Bas isi message ka reply kar dijiye — main update kar dungi. 🙏"
     )
     return "\n".join(lines)
 
 
 def find_undelivered_paid_clients() -> list[dict[str, Any]]:
     """Read-only dead-man detector: paid+active clients NOT yet delivered.
-    Never raises - returns [] on any error."""
+    Never raises — returns [] on any error."""
     out: list[dict[str, Any]] = []
     try:
         from app.marketing import clients_store
@@ -212,10 +211,10 @@ def find_undelivered_paid_clients() -> list[dict[str, Any]]:
     return out
 
 
-# Reasons that mean "intentionally gated / data missing" - NOT a delivery failure.
+# Reasons that mean "intentionally gated / data missing" — NOT a delivery failure.
 # These get logged as `delivery_gated` instead of `automation_failed` so they
 # don't count toward the RED health-score flag (-35 per occurrence). The stuck
-# record + ops_alerts + log WARNING are still emitted - fail-LOUD stays loud.
+# record + ops_alerts + log WARNING are still emitted — fail-LOUD stays loud.
 _GATE_REASONS = frozenset({"auto_delivery_off", "sweep_auto_off", "no_phone"})
 
 
@@ -237,7 +236,7 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
     except Exception as exc:
         logger.warning("delivery _record_stuck err: %s", exc)
     logger.warning(
-        "🚨 PAID customer undelivered: %s (%s) - %s",
+        "🚨 PAID customer undelivered: %s (%s) — %s",
         client.get("business_name"),
         client.get("id"),
         reason,
@@ -245,15 +244,15 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
     try:
         from app.marketing import delivery_ledger
 
-        # Gate reasons -> delivery_gated (no health-score penalty);
-        # real failures -> automation_failed (RED flag, triggers SLA).
+        # Gate reasons → delivery_gated (no health-score penalty);
+        # real failures → automation_failed (RED flag, triggers SLA).
         event_type = "delivery_gated" if reason in _GATE_REASONS else "automation_failed"
         delivery_ledger.log_event(str(client.get("id") or ""), event_type, detail=reason)
     except Exception as le:  # pragma: no cover
         logger.debug("delivery _record_stuck ledger log skip: %s", le)
     # Fail-LOUD, for real: a jsonl line + a log WARNING is what let the original
     # jiya-makeover ghosting sit undiscovered for days. Page the founder's phone
-    # directly (OPS_ALERTS-gated + per-client cooldown'd inside the helper - never
+    # directly (OPS_ALERTS-gated + per-client cooldown'd inside the helper — never
     # raises, never blocks this function even if ntfy itself is unconfigured).
     try:
         from app.platform import ops_alerts
@@ -268,8 +267,7 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
 async def deliver_client_value(client: dict[str, Any], force: bool = False) -> dict[str, Any]:
     """Value-first delivery: WhatsApp the live mini-site link + content note to the
     paying customer, then mark delivery_state='delivered'. GATED AUTO_DELIVER_VALUE
-    (default OFF) unless force=True (operator single-send). Never raises
-    fail-LOUD."""
+    (default OFF) unless force=True (operator single-send). Never raises; fail-LOUD."""
     res: dict[str, Any] = {"delivered": False, "client_id": str((client or {}).get("id") or "")}
     if not is_paid_client(client):
         res["skipped"] = "not_paid"
@@ -357,7 +355,7 @@ async def _try_email_delivery(client: dict[str, Any]) -> tuple[bool, str]:
 
         sender = EmailSender()
         biz = str(client.get("business_name") or "aapka business").strip() or "aapka business"
-        subject = f"🎉 {biz} - aapka LeadGen AI setup ready hai"
+        subject = f"🎉 {biz} — aapka LeadGen AI setup ready hai"
         body = build_delivery_message(client)
         ok = bool(await sender.send_email([to_email], subject, body))
         return (True, "sent") if ok else (False, "email_send_failed")
@@ -367,7 +365,7 @@ async def _try_email_delivery(client: dict[str, Any]) -> tuple[bool, str]:
 
 
 async def run_delivery_sweep(limit: int = 20) -> dict[str, Any]:
-    """Dead-man sweep: find paid customers not yet delivered -> deliver (if
+    """Dead-man sweep: find paid customers not yet delivered → deliver (if
     AUTO_DELIVER_VALUE) else record-loud for founder review. Returns a summary.
     Never raises. Registered for the scheduler (staff 'onboard'/dedicated job)."""
     res: dict[str, Any] = {"undelivered": 0, "delivered": 0, "stuck": 0}
@@ -392,10 +390,10 @@ async def run_delivery_sweep(limit: int = 20) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# P1 #12 - Weekly "aapki marketing chal rahi hai" digest.
-# The delivery message promises "har hafte naya content milega" - this backs that
+# P1 #12 — Weekly "aapki marketing chal rahi hai" digest.
+# The delivery message promises "har hafte naya content milega" — this backs that
 # promise with a real weekly WhatsApp. HONEST metrics only (fable rule: no
-# fabricated numbers) - fresh-content count is sourced from the content queue;
+# fabricated numbers) — fresh-content count is sourced from the content queue;
 # mini-site views/leads are NOT tracked yet so they are omitted, never invented.
 # Idempotent: max one digest per customer per 6 days (state file). Gated on the
 # SAME AUTO_DELIVER_VALUE consent as delivery. Never raises; fail-loud on stuck.
@@ -427,7 +425,7 @@ def count_fresh_content(cid: str, days: int = 7) -> int:
                     if d.timestamp() >= cutoff:
                         n += 1
                 except Exception:
-                    # date-only "YYYY-MM-DD" without time - count if within window
+                    # date-only "YYYY-MM-DD" without time — count if within window
                     if ts[:10] >= datetime.fromtimestamp(cutoff, timezone.utc).strftime("%Y-%m-%d"):
                         n += 1
     except Exception as exc:
@@ -436,18 +434,18 @@ def count_fresh_content(cid: str, days: int = 7) -> int:
 
 
 def build_weekly_digest_message(client: dict[str, Any], fresh_count: int) -> str:
-    """Weekly value WhatsApp - fresh content + mini-site reminder + share nudge.
+    """Weekly value WhatsApp — fresh content + mini-site reminder + share nudge.
     Pure (testable). Honest: only the real fresh_count, no invented views/leads."""
     biz = str((client or {}).get("business_name") or "aapka business").strip() or "aapka business"
     url = mini_site_url(client)
-    lines = [f"Namaste! 📅 {biz} ki is hafte ki marketing update -"]
+    lines = [f"Namaste! 📅 {biz} ki is hafte ki marketing update —"]
     if fresh_count > 0:
         lines.append(f"📸 {fresh_count} naye ready-to-post content pieces taiyaar hain.")
     else:
-        lines.append("📸 Aapka content agent kaam kar raha hai - naye posts jald.")
+        lines.append("📸 Aapka content agent kaam kar raha hai — naye posts jald.")
     if url:
         lines.append(
-            f"👉 Aapki site: {url} - ise WhatsApp/Instagram status pe share karein, zyada enquiry milegi."
+            f"👉 Aapki site: {url} — ise WhatsApp/Instagram status pe share karein, zyada enquiry milegi."
         )
     lines.append("Koi badlaav ya nayi service add karni ho? Isi message ka reply kar dijiye. 🙏")
     return "\n".join(lines)
@@ -530,7 +528,7 @@ async def run_weekly_digest_sweep(limit: int = 50) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# P2 growth loop - mini-site view tracking (#20), monthly ROI receipt (#20),
+# P2 growth loop — mini-site view tracking (#20), monthly ROI receipt (#20),
 # case study generator (#18), testimonial ask (#17). All HONEST (real data only,
 # no fabricated metrics) + gated + config-driven (no unilateral financial offer).
 # --------------------------------------------------------------------------- #
@@ -586,32 +584,32 @@ def site_view_count(cid: str, days: int = 30) -> int:
 
 
 def build_monthly_receipt_message(client: dict[str, Any], views: int, content: int) -> str:
-    """Monthly ROI receipt - REAL numbers only (site views + content made). Pure.
+    """Monthly ROI receipt — REAL numbers only (site views + content made). Pure.
     Referral line sirf REFERRAL_REWARD env set ho tab (koi unilateral offer nahi)."""
     biz = str((client or {}).get("business_name") or "aapka business").strip() or "aapka business"
     url = mini_site_url(client)
-    lines = [f"Namaste! 📊 {biz} ki is mahine ki report -"]
+    lines = [f"Namaste! 📊 {biz} ki is mahine ki report —"]
     if views > 0:
         lines.append(f"👀 Aapki site {views} baar dekhi gayi.")
     if content > 0:
         lines.append(f"📸 {content} naye content pieces bane.")
     if views == 0 and content == 0:
         lines.append(
-            "Aapka marketing agent kaam kar raha hai - site share karte rahiye zyada reach ke liye."
+            "Aapka marketing agent kaam kar raha hai — site share karte rahiye zyada reach ke liye."
         )
     if url:
-        lines.append(f"👉 {url} - WhatsApp status/Instagram pe share = zyada enquiry.")
+        lines.append(f"👉 {url} — WhatsApp status/Instagram pe share = zyada enquiry.")
     reward = os.environ.get("REFERRAL_REWARD", "").strip()
     if reward:
         lines.append(
-            f"🎁 Kisi dost (shop owner) ko refer karein - {reward}. Bas unka number reply me bhejein."
+            f"🎁 Kisi dost (shop owner) ko refer karein — {reward}. Bas unka number reply me bhejein."
         )
     return "\n".join(lines)
 
 
 def build_case_study(client: dict[str, Any]) -> dict[str, Any]:
     """HONEST case study from REAL delivered assets (live site + what was built).
-    Founder tool (koi customer send nahi) - 338 warm leads pe attach karne ke liye.
+    Founder tool (koi customer send nahi) — 338 warm leads pe attach karne ke liye.
     Testimonial tabhi include hota hai jab client record me actually ho."""
     biz = str((client or {}).get("business_name") or "").strip()
     niche = str((client or {}).get("niche") or "").strip()
@@ -751,7 +749,7 @@ async def run_testimonial_sweep(limit: int = 20, min_days: int = 5) -> dict[str,
             biz = str(c.get("business_name") or "aapka business")
             msg = (
                 f"Namaste! 🙏 {biz} ke saath aapka experience kaisa raha? Ek chhoti si line "
-                "feedback dijiye - aur agar accha laga to hum aapki success doosron ko dikha sakein? "
+                "feedback dijiye — aur agar accha laga to hum aapki success doosron ko dikha sakein? "
                 "(Aapki permission ke bina naam public nahi karenge.)"
             )
             try:

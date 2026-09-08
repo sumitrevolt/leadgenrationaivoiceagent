@@ -1,26 +1,24 @@
-"""Workforce Memory Hub - per-STAFF-agent layered memory (TencentDB-inspired, native).
+"""Workforce Memory Hub — per-STAFF-agent layered memory (TencentDB-inspired, native).
 
 LEARNED (NOT vendored) from https://github.com/TencentCloud/TencentDB-Agent-Memory:
 
   1. Four reusable **assets**: chat · skill · wiki · code
-  2. Long-term **pyramid**: L0 conversation -> L1 atom -> L2 scenario -> L3 persona
-  3. **Progressive disclosure**: inject structure first
-  drill to evidence via node_id
-  4. **Context offload**: bulky tool/raw text -> refs/{node_id}.md, keep index in JSONL
+  2. Long-term **pyramid**: L0 conversation → L1 atom → L2 scenario → L3 persona
+  3. **Progressive disclosure**: inject structure first; drill to evidence via node_id
+  4. **Context offload**: bulky tool/raw text → refs/{node_id}.md, keep index in JSONL
   5. **Fixed binding + ACL**: each of the 31 STAFF agents may only use allowed assets
 
 WHY NOT vendor the whole repo:
   - Separate Node/OpenClaw plugin + MemoryPanel/Proxy deploy (not our FastAPI path)
-  - Optional Tencent Cloud Vector DB - conflicts with free-stack + existing Qdrant
+  - Optional Tencent Cloud Vector DB — conflicts with free-stack + existing Qdrant
   - We already have equivalent lanes (agent_memory, skill_library, memory_vault,
-    trajectory, Graphify) - need a HUB, not a second memory product
+    trajectory, Graphify) — need a HUB, not a second memory product
 
 Maps:
-  chat  -> this store + voice agent_memory (lead facts) + coordinator Reflexion
-  skill -> this store + skill_library lessons
-  wiki  -> this store + memory_vault markdown
-  code  -> this store + Graphify (dev-only
-  never customer data)
+  chat  → this store + voice agent_memory (lead facts) + coordinator Reflexion
+  skill → this store + skill_library lessons
+  wiki  → this store + memory_vault markdown
+  code  → this store + Graphify (dev-only; never customer data)
 
 INVARIANTS: flag-gated (`WORKFORCE_MEMORY`, OFF default) · never-raise ·
 tenant/agent scoped · no paid AI · no prompt auto-mutation · DPDP purge API.
@@ -57,7 +55,7 @@ LAYERS = frozenset({LAYER_L0, LAYER_L1, LAYER_L2, LAYER_L3})
 # Progressive recall prefers structure over raw logs.
 _LAYER_PRIORITY = (LAYER_L3, LAYER_L2, LAYER_L1, LAYER_L0)
 
-# Fixed bindings - which assets each STAFF agent may write/read by default.
+# Fixed bindings — which assets each STAFF agent may write/read by default.
 # Unknown agents get chat+skill only (fail-closed on wiki/code write).
 _DEFAULT_BINDINGS: dict[str, frozenset[str]] = {
     "manager": frozenset(ASSETS),
@@ -149,7 +147,7 @@ def _contained_under(root: str, target: str) -> bool:
     True only when the fully-resolved `target` sits STRICTLY below the resolved
     `root`. realpath() strips dot/dot-dot and follows existing symlinks, so this
     kills: `..` traversal, absolute-path escape, separator injection, prefix
-    collision (staff/agentX vs staff/agentX_evil can never be confused - the
+    collision (staff/agentX vs staff/agentX_evil can never be confused — the
     prefix test is on the exact root+sep boundary) and symlink-escape (a link
     inside root pointing outside resolves away from root -> rejected).
     """
@@ -198,7 +196,7 @@ def memory_namespace(agent_id: str, tenant_id: str = "") -> str:
 
 def _agent_dir(agent_id: str, tenant_id: str = "") -> str:
     # Canonical path-containment barrier (CodeQL #578). agent_id reaches
-    # os.path.join RAW here, so THIS helper - not the caller - must prove the
+    # os.path.join RAW here, so THIS helper — not the caller — must prove the
     # final path stays under _root(). On rejection we collapse to _root()
     # (never-raise, str return preserved): callers already re-validate via
     # _safe_agent / _safe_tenant, so a rejected id can never produce a real
@@ -250,7 +248,7 @@ def agent_bindings(agent_id: str) -> list[str]:
         return []
     bound = _DEFAULT_BINDINGS.get(aid)
     if bound is None:
-        # Unknown / other STAFF -> chat+skill only
+        # Unknown / other STAFF → chat+skill only
         bound = frozenset({ASSET_CHAT, ASSET_SKILL})
     return sorted(bound)
 
@@ -274,7 +272,7 @@ def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bo
         agent_dir = _agent_dir(aid, tenant_id)
         # Collapsed-to-root = containment barrier rejected the path (e.g.
         # symlink-escape or a caller bypassing _safe_agent). Never write at the
-        # root itself - refuse and keep the documented False default.
+        # root itself — refuse and keep the documented False default.
         if os.path.normpath(agent_dir) == os.path.normpath(_root()):
             return False
         os.makedirs(agent_dir, exist_ok=True)
@@ -286,7 +284,7 @@ def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bo
             return False
         with open(entries_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
-        # Soft trim - keep last N lines if file grows huge
+        # Soft trim — keep last N lines if file grows huge
         try:
             if os.path.getsize(entries_path) > 4_000_000:
                 rows = _read_entries(
@@ -462,7 +460,7 @@ def remember(
             return {"ok": False, "error": f"asset must be one of {sorted(ASSETS)}"}
         if vis not in _VISIBILITIES:
             return {"ok": False, "error": "visibility must be private|team"}
-        # Chat/L0 stay private - no team leak of conversational raw (Tencent default).
+        # Chat/L0 stay private — no team leak of conversational raw (Tencent default).
         if asst == ASSET_CHAT or ly == LAYER_L0:
             vis = _VIS_PRIVATE
         if vis == _VIS_TEAM and asst not in {ASSET_SKILL, ASSET_WIKI}:
@@ -491,7 +489,7 @@ def remember(
                 aid, str(offload), label=(topic or "offload")[:80], tenant_id=tenant_id
             )
 
-        # Auto-offload oversized content - keep short index in the entry.
+        # Auto-offload oversized content — keep short index in the entry.
         index_body = body[:_MAX_ENTRY_CHARS]
         if len(body) > _MAX_ENTRY_CHARS and not node_id:
             node_id = offload_ref(
@@ -651,7 +649,7 @@ def _maybe_update_persona(agent_id: str, content: str, topic: str, *, tenant_id:
         # Keep persona file bounded
         merged = (prev + block)[-12_000:]
         if not merged.startswith("#"):
-            merged = f"# Persona - {agent_id}\n" + merged
+            merged = f"# Persona — {agent_id}\n" + merged
         with open(persona_path, "w", encoding="utf-8") as f:
             f.write(merged)
     except Exception:
@@ -661,7 +659,7 @@ def _maybe_update_persona(agent_id: str, content: str, topic: str, *, tenant_id:
 def _score_overlap(query: str, hay: str) -> int:
     toks = {w for w in (query or "").lower().split() if len(w) > 2}
     if not toks:
-        return 1  # no query -> chronological ok
+        return 1  # no query → chronological ok
     h = (hay or "").lower()
     return sum(1 for w in toks if w in h)
 
@@ -803,7 +801,7 @@ def composite_brief(
         except Exception:
             pass
         try:
-            # memory_vault is entity-scoped (phone / client_id) - never pass free text as key
+            # memory_vault is entity-scoped (phone / client_id) — never pass free text as key
             q = (query or "").strip()
             digits = re.sub(r"\D", "", q)
             phone = digits if len(digits) >= 10 else None
@@ -884,7 +882,7 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         touched: list[str] = []
         for name in os.listdir(root):
             # Only _safe_agent-charset scopes are ours; anything else (stray
-            # dirs, symlinks, foreign names) is skipped - a name can never be
+            # dirs, symlinks, foreign names) is skipped — a name can never be
             # joined into a write path here.
             if name.startswith("_") or name == "equipments.json" or not _AGENT_RE.match(name):
                 continue
@@ -942,7 +940,7 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
 
 
 def canvas_mermaid(agent_id: str, *, limit: int = 10, tenant_id: str = "") -> str:
-    """Symbolic short-term canvas - recent L2 scenarios as Mermaid (token-light)."""
+    """Symbolic short-term canvas — recent L2 scenarios as Mermaid (token-light)."""
     if not is_enabled():
         return ""
     rows = recall(agent_id, layers=[LAYER_L2], limit=limit, tenant_id=tenant_id)
@@ -987,7 +985,7 @@ def purge_agent(agent_id: str, *, tenant_id: str = "") -> dict[str, Any]:
 
         agent_dir = _agent_dir(aid, tenant_id)
         # Collapsed-to-root = barrier rejected (symlink-escape etc.). NEVER let
-        # purge_agent wipe the whole memory root - refuse with bad_agent.
+        # purge_agent wipe the whole memory root — refuse with bad_agent.
         if os.path.normpath(agent_dir) == os.path.normpath(_root()):
             return {"ok": False, "error": "bad_agent", "purged": 0}
         if os.path.isdir(agent_dir):
@@ -1064,7 +1062,7 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
                 "layers": list(_LAYER_PRIORITY),
             },
             "counters": stats(),
-            "inspired_by": "TencentDB-Agent-Memory (patterns only - not vendored)",
+            "inspired_by": "TencentDB-Agent-Memory (patterns only — not vendored)",
         }
     except Exception as e:
         return {"enabled": True, "error": type(e).__name__, "counters": stats()}
@@ -1081,7 +1079,7 @@ def remember_lesson_bridge(
     agent: str = "",
     source: str = "skill_library",
 ) -> dict[str, Any]:
-    """Dual-write hook from skill_library -> L2 skill scenario."""
+    """Dual-write hook from skill_library → L2 skill scenario."""
     aid = _safe_agent(agent) or "guru"
     return remember(
         aid,
@@ -1100,7 +1098,7 @@ def remember_reflection_bridge(
     score: float | None = None,
     agent: str = "manager",
 ) -> dict[str, Any]:
-    """Dual-write hook from coordinator Reflexion -> L2 chat scenario."""
+    """Dual-write hook from coordinator Reflexion → L2 chat scenario."""
     return remember(
         agent or "manager",
         reflection,

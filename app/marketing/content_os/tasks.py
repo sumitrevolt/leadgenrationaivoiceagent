@@ -1,10 +1,10 @@
 """
-content_os.tasks - Celery task wrappers.
+content_os.tasks — Celery task wrappers.
 
 Two periodic tasks:
-  * content_os.daily_video_run  - every day 09:00 IST (idempotent within day)
-  * content_os.scan_inbox       - every 60s (picks up rendered drops)
-  * content_os.notify_owner     - every 15 min - flush pending-approval list
+  * content_os.daily_video_run  — every day 09:00 IST (idempotent within day)
+  * content_os.scan_inbox       — every 60s (picks up rendered drops)
+  * content_os.notify_owner     — every 15 min — flush pending-approval list
                                   to Telegram / ntfy so owner can act from phone.
 
 All tasks are idempotent and never raise.
@@ -25,7 +25,7 @@ def daily_video_run_task(self):
         return daily_video_run()
     except Exception as e:
         logger.exception("[content_os.daily_video_run] %s", e)
-        # Don't retry forever - log and move on.
+        # Don't retry forever — log and move on.
         return {"ok": False, "error": str(e)[:200]}
 
 
@@ -51,7 +51,7 @@ def notify_owner_task(self):
         # one-per-asset when there are <= 3 pending items.
         from app.integrations.ntfy import push
         msg = f"[content_os] {len(pending)} pending approvals.\n" + "\n".join(
-            "• {} - {}".format(p["title"][:40], p["id"]) for p in pending[:5]
+            "• {} — {}".format(p["title"][:40], p["id"]) for p in pending[:5]
         )
         push(topic="leadgen-owner", message=msg, priority="high")
         return {"ok": True, "pending": len(pending)}

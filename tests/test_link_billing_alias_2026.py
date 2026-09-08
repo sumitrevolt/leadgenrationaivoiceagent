@@ -1,7 +1,7 @@
 """Recurrence prevention: link_billing_alias binds marketing ↔ billing ids.
 
 Covers first link, idempotent re-link, same-id no-op, conflict refusal, and
-activate_plan wiring. Offline - tmp clients_store only.
+activate_plan wiring. Offline — tmp clients_store only.
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def test_link_conflict_direct_marketing_id(monkeypatch, tmp_path):
     )
     res = clients_store.link_billing_alias(MKT, OTHER, actor="test")
     assert res["ok"] is False
-    # Direct marketing id resolves via get_client first -> "conflict" (or
+    # Direct marketing id resolves via get_client first → "conflict" (or
     # conflict_direct if resolution order changes). Either refuses the steal.
     assert res["reason"] in ("conflict", "conflict_direct")
     assert res.get("owner") == OTHER

@@ -18,7 +18,7 @@ _SECRET_SHAPED = re.compile(
 
 
 def sanitize_review_dump(blob: str, *, limit: int = 8000) -> str:
-    """Bounded dump for evidence - redacts secret-shaped substrings."""
+    """Bounded dump for evidence — redacts secret-shaped substrings."""
     text = blob or ""
     if _SECRET_SHAPED.search(text):
         text = _SECRET_SHAPED.sub("[REDACTED]", text)
@@ -128,11 +128,11 @@ def recover_independent_review(
     cancelled: bool = False,
     truncated: bool = False,
 ) -> dict[str, Any]:
-    """Canonical review ingestion - transport integrity separate from verdict.
+    """Canonical review ingestion — transport integrity separate from verdict.
 
     Rules:
-    - exit 0 + valid manifest -> eligible (any verdict)
-    - nonzero / cancelled / timed-out + recovered CHANGES_REQUIRED|BLOCKED ->
+    - exit 0 + valid manifest → eligible (any verdict)
+    - nonzero / cancelled / timed-out + recovered CHANGES_REQUIRED|BLOCKED →
       may be preserved as a conservative verdict after validation
     - nonzero exit never yields PASS
     - truncated output never yields PASS
@@ -165,7 +165,7 @@ def recover_independent_review(
             "process_integrity_failed" if not transport["process_ok"] else f"parse_failed:{exc}"
         )
         return record
-    except Exception as exc:  # noqa: BLE001 - evidence boundary
+    except Exception as exc:  # noqa: BLE001 — evidence boundary
         record["parser"]["status"] = "parse_failed"
         record["parser"]["error"] = type(exc).__name__
         record["reason"] = f"parse_failed:{type(exc).__name__}"

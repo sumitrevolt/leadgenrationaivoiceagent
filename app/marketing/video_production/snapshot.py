@@ -1,4 +1,4 @@
-"""Stage 2 - immutable approved-artifact snapshot preparation.
+"""Stage 2 — immutable approved-artifact snapshot preparation.
 
 FILESYSTEM ONLY. This module never touches the approval ledger, the video
 record, a queue, a provider or the UI. Stage 3 wires it into the approval saga;
@@ -20,8 +20,7 @@ Sequence:
   -> under the cross-process lock: install with os.replace, fsync parent dir
   -> any handled failure removes the temp artifact and installs nothing
 
-Finalized snapshots are never deleted here
-cleanup is a separate, separately
+Finalized snapshots are never deleted here; cleanup is a separate, separately
 tested lifecycle slice.
 """
 
@@ -36,7 +35,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-# The limit authority is app/marketing/media_limits.py - a PUBLIC module both
+# The limit authority is app/marketing/media_limits.py — a PUBLIC module both
 # the upload and snapshot paths can consume. This module reaches into no other
 # module's private constants.
 from app.marketing.media_limits import MediaLimitConfigError as SnapshotConfigError
@@ -61,7 +60,7 @@ def _valid_identifier(value: Any) -> str | None:
 
 
 def snapshot_filename(record_id: str, revision: int, digest: str) -> str:
-    """Caller must have validated ``record_id`` - this does not sanitize."""
+    """Caller must have validated ``record_id`` — this does not sanitize."""
     return f"{record_id}.r{int(revision)}.{digest}.mp4"
 
 
@@ -158,7 +157,7 @@ def prepare_snapshot(
         size_ceiling = max_snapshot_bytes()
         free_floor_pct = min_free_percent()
     except SnapshotConfigError as exc:
-        logger.warning("[snapshot] refused - bad configuration: %s", exc)
+        logger.warning("[snapshot] refused — bad configuration: %s", exc)
         return {"ok": False, "error": "snapshot_config_invalid"}
 
     resolved = resolve_video_media_file(source_path)
@@ -170,7 +169,7 @@ def prepare_snapshot(
 
     # Idempotent reuse: an existing snapshot is trusted only after re-verifying
     # its bytes. A same-name file whose digest disagrees is REFUSED, never
-    # overwritten - that filename is a content claim.
+    # overwritten — that filename is a content claim.
     if final_path.exists():
         try:
             have, size = _digest_file(final_path)

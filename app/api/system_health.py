@@ -3,8 +3,7 @@
 HOT-PATH RULE: O(1) reads only - psutil resource probes (same lib /health
 uses), one guarded redis ping, and the automation_health snapshot (a
 heartbeat-file read + one queue-depth read). NO live DB query, no KB/ML/
-network-heavy work. Never raises
-missing data degrades to -1 / "unknown".
+network-heavy work. Never raises; missing data degrades to -1 / "unknown".
 """
 
 from __future__ import annotations
@@ -76,7 +75,7 @@ def _redis_ping_ms() -> int:
 def _band(value: float, warn: float, bad: float, display: str, hints: dict) -> dict:
     """value vs warn/bad thresholds (higher = worse). Negative value = data nahi mila."""
     if value is None or value < 0:
-        return {"value": "-", "status": "unknown", "hint": "Data nahi mila"}
+        return {"value": "—", "status": "unknown", "hint": "Data nahi mila"}
     if value >= bad:
         return {"value": display, "status": "bad", "hint": hints["bad"]}
     if value >= warn:
@@ -101,7 +100,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
                 90,
                 f"{cpu}%",
                 {
-                    "bad": "CPU bahut busy - server slow ho sakta",
+                    "bad": "CPU bahut busy — server slow ho sakta",
                     "warn": "CPU thoda high",
                     "ok": "Theek hai",
                 },
@@ -118,7 +117,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
                 92,
                 f"{mem}%",
                 {
-                    "bad": "Memory lagbhag full - crash/OOM risk",
+                    "bad": "Memory lagbhag full — crash/OOM risk",
                     "warn": "Memory thodi high",
                     "ok": "Theek hai",
                 },
@@ -135,7 +134,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
                 90,
                 f"{disk}%",
                 {
-                    "bad": "Disk bhar raha - space khaali karo (logs/backups)",
+                    "bad": "Disk bhar raha — space khaali karo (logs/backups)",
                     "warn": "Disk thodi bhar rahi",
                     "ok": "Theek hai",
                 },
@@ -151,7 +150,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
                 "label": "Redis",
                 "value": "down",
                 "status": "bad",
-                "hint": "Redis se connection nahi - queue/cache atak sakte",
+                "hint": "Redis se connection nahi — queue/cache atak sakte",
             }
         )
     else:
@@ -173,7 +172,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
             }
         )
 
-    # Celery queue depth: CLAUDE.md rule - >500 backlog = del celery.
+    # Celery queue depth: CLAUDE.md rule — >500 backlog = del celery.
     rows.append(
         {
             "key": "queue",
@@ -184,7 +183,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
                 500,
                 str(qd),
                 {
-                    "bad": "Queue me bahut kaam atka - worker restart ya DLQ clear",
+                    "bad": "Queue me bahut kaam atka — worker restart ya DLQ clear",
                     "warn": "Queue thoda bhara hai",
                     "ok": "Theek hai",
                 },
@@ -195,8 +194,8 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
     # Worker liveness (string status from automation_health, not numeric).
     _wmap = {
         "ok": ("ok", "Chal raha hai"),
-        "overdue": ("warn", "Time par nahi chala - worker container check"),
-        "last_failed": ("bad", "Pichhla run fail - Events tab me error dekho"),
+        "overdue": ("warn", "Time par nahi chala — worker container check"),
+        "last_failed": ("bad", "Pichhla run fail — Events tab me error dekho"),
         "never_ran": ("warn", "Abhi tak nahi chala (naya deploy ke baad normal)"),
     }
     wst, whint = _wmap.get(worker, ("unknown", "Status pata nahi"))
@@ -205,7 +204,7 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
     order = {"bad": 3, "warn": 2, "ok": 1, "unknown": 0}
     overall = max((r["status"] for r in rows), key=lambda s: order.get(s, 0)) if rows else "unknown"
     if overall == "bad":
-        summary = "❌ Server me dikkat hai - neeche laal cheez fix karo"
+        summary = "❌ Server me dikkat hai — neeche laal cheez fix karo"
     elif overall == "warn":
         summary = "⚠️ Chal raha hai par kuch cheezein dhyan maangti hain"
     elif overall == "ok":
@@ -221,7 +220,7 @@ async def system_health_detail(_user=Depends(require_admin)) -> dict:
 
     Cheap by design: this does NOT call /health/ready (that probe runs a live
     DB query + extra redis connect, which would turn this admin poll into a
-    hot-path DB load - the project's #1 prod-down pattern). health_ready is
+    hot-path DB load — the project's #1 prod-down pattern). health_ready is
     derived from the O(1) signals already gathered.
     """
     if os.getenv("SYS_HEALTH_DETAIL", "0").strip().lower() not in ("1", "true", "yes"):

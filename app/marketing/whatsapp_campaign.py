@@ -1,10 +1,10 @@
-"""WhatsApp campaign sender - OFFICIAL Cloud API only, opt-in, ban-safe.
+"""WhatsApp campaign sender — OFFICIAL Cloud API only, opt-in, ban-safe.
 
 DEFAULT = ban-safe 1-click human-send links (current platform behaviour). ONLY when
 ``WHATSAPP_AUTO_SEND=1`` AND official Cloud API creds are configured
 (``whatsapp_business_token`` + ``whatsapp_phone_number_id``) do we auto-send via the
 **official WhatsApp Cloud API** (graph.facebook.com via `app/integrations/whatsapp.py`).
-We NEVER use an unofficial gateway (baileys/web) - that gets the number banned.
+We NEVER use an unofficial gateway (baileys/web) — that gets the number banned.
 
 ⚠️ Even on the official API: respect the 24-hour session window + approved templates +
 recipient opt-in. Bulk cold-blasting can still flag a number, so this sender:
@@ -139,7 +139,7 @@ async def send_one(phone: str, message: str) -> dict:
 
     NOTE: a free-text message only delivers inside a 24h customer-service window. For
     business-initiated (cold/drip/reactivation) outreach, prefer :func:`send_template`
-    with a Meta-approved template - that is what stays compliant + un-banned.
+    with a Meta-approved template — that is what stays compliant + un-banned.
     """
     out = {"phone": phone, "sent": False, "mode": "link", "link": wa_link(phone, message)}
     if not auto_send_enabled():
@@ -167,8 +167,7 @@ async def send_one(phone: str, message: str) -> dict:
                 phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
             )
     except Exception as e:
-        logger.warning(f"whatsapp auto-send failed ({e})
-        falling back to 1-click link.")
+        logger.warning(f"whatsapp auto-send failed ({e}); falling back to 1-click link.")
         out["mode"] = "link_error"
         _record_failure(phone, str(e))
     return out
@@ -183,8 +182,7 @@ async def send_template(
 ) -> dict:
     """Send a Meta-APPROVED TEMPLATE message (the compliant way to initiate a chat).
 
-    Auto-sends only when enabled+configured AND the number isn't suppressed
-    otherwise
+    Auto-sends only when enabled+configured AND the number isn't suppressed; otherwise
     returns a ban-safe 1-click link (using ``fallback_text``). Never raises.
     """
     params = [str(p) for p in (params or [])]
@@ -227,8 +225,7 @@ async def send_template(
                 phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
             )
     except Exception as e:
-        logger.warning(f"whatsapp template send failed ({e})
-        falling back to 1-click link.")
+        logger.warning(f"whatsapp template send failed ({e}); falling back to 1-click link.")
         out["mode"] = "link_error"
         _record_failure(phone, str(e))
     return out
@@ -245,7 +242,7 @@ def _record_failure(phone: str, reason: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Campaign loop (text) - spaced + daily-cap + suppression aware
+# Campaign loop (text) — spaced + daily-cap + suppression aware
 # --------------------------------------------------------------------------- #
 async def send_campaign(items: list[dict], delay_s: float | None = None) -> dict:
     """items = [{"phone","message"}]. Auto-sends (spaced, capped) ONLY if enabled+configured,

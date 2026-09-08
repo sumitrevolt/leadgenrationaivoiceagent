@@ -1,4 +1,4 @@
-"""ADR-009 product split - /api/customer/team is product-aware.
+"""ADR-009 product split — /api/customer/team is product-aware.
 
 A voice-only customer must see the VOICE roster (Swara/Ananya/Meera + Boss) with
 call-based activity, NEVER the marketing roster (Isha/Rohan/Dev). Marketing and
@@ -18,7 +18,7 @@ def test_voice_team_response_roster_and_metrics():
         niche="salon",
     )
     keys = [a.key for a in resp.agents]
-    # voice roster only - NO marketing agents leak in
+    # voice roster only — NO marketing agents leak in
     assert {"swara", "ananya", "meera", "manager"}.issubset(set(keys))
     assert not ({"isha", "rohan", "dev"} & set(keys))
     # Swara is actively calling when there are hot leads
@@ -45,7 +45,7 @@ def test_voice_team_response_empty_state_is_never_blank():
 
 
 def test_get_customer_team_branches_on_product(monkeypatch):
-    # isolate from real data files - counts are irrelevant; roster is what we assert
+    # isolate from real data files — counts are irrelevant; roster is what we assert
     monkeypatch.setattr(CD, "_inquiries_for_client", lambda cid, rec: [])
 
     # voice client -> voice roster

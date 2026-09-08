@@ -1,4 +1,4 @@
-"""Eval + deliverability hub - admin cockpit helpers (never-raise)."""
+"""Eval + deliverability hub — admin cockpit helpers (never-raise)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 async def deliverability_summary() -> dict[str, Any]:
-    """DNS (SPF/DKIM/DMARC) + email warmup/complaint gate - ek payload."""
+    """DNS (SPF/DKIM/DMARC) + email warmup/complaint gate — ek payload."""
     out: dict[str, Any] = {"ok": True, "problems": [], "healthy": True}
     try:
         from app.platform import deliverability_monitor
@@ -41,8 +41,8 @@ async def deliverability_summary() -> dict[str, Any]:
         elif rate >= thr and int(w.get("sent_7d") or 0) >= 400:
             out["problems"].append(
                 {
-                    "kya": f"Complaint rate {rate}% (7d) - Gmail/Yahoo gate",
-                    "fix": "Outreach pause ho sakta hai - list quality + unsub link check karo",
+                    "kya": f"Complaint rate {rate}% (7d) — Gmail/Yahoo gate",
+                    "fix": "Outreach pause ho sakta hai — list quality + unsub link check karo",
                 }
             )
     except Exception as e:
@@ -67,10 +67,9 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
             report = compute_deltas(fns)
             winner = report.get("winner")
             rec = (
-                f"Gate PASS - '{winner}' proven. Flip USE_RERANKER/USE_HYBRID_SEARCH per winner."
+                f"Gate PASS — '{winner}' proven. Flip USE_RERANKER/USE_HYBRID_SEARCH per winner."
                 if report.get("passed")
-                else "Gate FAIL - retrieval flags OFF rakho
-                ColBERT/crossencoder mat bake karo abhi."
+                else "Gate FAIL — retrieval flags OFF rakho; ColBERT/crossencoder mat bake karo abhi."
             )
             return {
                 "ok": True,
@@ -91,7 +90,7 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
     # Deep Memory: PASS hone pe winning (query, answer) pair KB me boost
     if result.get("passed") and result.get("winner"):
         await record_positive_eval(
-            query="RAG retrieval gate - best strategy kya hai?",
+            query="RAG retrieval gate — best strategy kya hai?",
             answer=result.get("recommendation", result["winner"]),
             namespace="skills",
         )
@@ -99,10 +98,10 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
 
 
 async def record_positive_eval(query: str, answer: str, namespace: str = "default") -> bool:
-    """Deep Memory pattern: positive RAG eval -> KB upsert for retrieval reinforcement.
+    """Deep Memory pattern: positive RAG eval → KB upsert for retrieval reinforcement.
 
     Har baar jab ek query ka answer accepted ho (user-feedback ya eval-gate PASS),
-    woh (Q, A) pair KB me store ho - agla similar query directly yahi hit karega.
+    woh (Q, A) pair KB me store ho — agla similar query directly yahi hit karega.
     Gated by EVAL_KB_BOOST=1. Never raises.
     """
     import os

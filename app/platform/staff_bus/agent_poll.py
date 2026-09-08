@@ -1,13 +1,12 @@
-"""Agent poll - lightweight polling loop for agents to discover + claim bus tasks.
+"""Agent poll — lightweight polling loop for agents to discover + claim bus tasks.
 
 Completes the coordination loop:
-    scheduler assigns (ATQ) -> bus publishes (task_bridge) -> agent polls (here) -> agent claims (ATQ) -> agent completes (ATQ)
+    scheduler assigns (ATQ) → bus publishes (task_bridge) → agent polls (here) → agent claims (ATQ) → agent completes (ATQ)
 
 Design:
     - **Two-source discovery**: bus JSONL for event visibility + PostgreSQL ATQ for
-      authoritative state.  Bus events are the "discovery feed"
-      ATQ is the "claim gate".
-    - **Fail-open**: bus read errors are logged and skipped - agent still tries claim_next().
+      authoritative state.  Bus events are the "discovery feed"; ATQ is the "claim gate".
+    - **Fail-open**: bus read errors are logged and skipped — agent still tries claim_next().
     - **Idempotent**: tracks seen event_ids to avoid double-processing.
     - **Minimal**: ~100 lines, no new infrastructure, reuses existing ATQ + bus.
 
@@ -72,7 +71,7 @@ def _load_events_for_agent(
         return []
 
     results: list[dict[str, Any]] = []
-    # Read last N lines (most recent first) - bounded scan
+    # Read last N lines (most recent first) — bounded scan
     for line in reversed(lines[-500:]):
         line = line.strip()
         if not line:
@@ -112,7 +111,7 @@ class AgentPoller:
                 _LOCAL_SEEN[self.agent_id] = set()
 
     # ------------------------------------------------------------------ #
-    # Discovery - read bus JSONL for events targeting this agent
+    # Discovery — read bus JSONL for events targeting this agent
     # ------------------------------------------------------------------ #
 
     def poll(
@@ -143,14 +142,14 @@ class AgentPoller:
         return fresh
 
     # ------------------------------------------------------------------ #
-    # Claim - atomically claim next pending task from ATQ
+    # Claim — atomically claim next pending task from ATQ
     # ------------------------------------------------------------------ #
 
     async def claim(self) -> dict[str, Any] | None:
         """Claim the next pending task for this agent from the ATQ.
 
         Returns task dict or None if queue empty.
-        This is the authoritative claim - bus events are discovery only.
+        This is the authoritative claim — bus events are discovery only.
         """
         try:
             from app.platform.agent_task_queue import claim_next
@@ -161,7 +160,7 @@ class AgentPoller:
             return None
 
     # ------------------------------------------------------------------ #
-    # Poll + Claim - convenience combo
+    # Poll + Claim — convenience combo
     # ------------------------------------------------------------------ #
 
     async def poll_and_claim(self) -> dict[str, Any] | None:
@@ -171,13 +170,13 @@ class AgentPoller:
         The poll() step is for visibility (what did the bus see?);
         the claim() step is for action (what did ATQ give me?).
         """
-        # Always try claim - even if no new bus events, ATQ may have pending tasks
+        # Always try claim — even if no new bus events, ATQ may have pending tasks
         # from earlier assignments that haven't been claimed yet.
         _fresh = self.poll()  # side effect: update seen-set
         return await self.claim()
 
     # ------------------------------------------------------------------ #
-    # Complete / Fail - mark task terminal
+    # Complete / Fail — mark task terminal
     # ------------------------------------------------------------------ #
 
     async def complete(

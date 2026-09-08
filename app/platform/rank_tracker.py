@@ -1,24 +1,23 @@
-"""Local Rank Tracker (BrightLocal-style) - ONGOING Google-local rank tracking.
+"""Local Rank Tracker (BrightLocal-style) — ONGOING Google-local rank tracking.
 
-Kyun: GBP-audit / website_auditor one-shot reports hain
-clients ko RETENTION
-hook chahiye - "aapka business 'solar installer pune' pe Google me #4 hai,
+Kyun: GBP-audit / website_auditor one-shot reports hain; clients ko RETENTION
+hook chahiye — "aapka business 'solar installer pune' pe Google me #4 hai,
 pichhle hafte #7 tha". Yeh module configured keywords ko regularly check karke
 position history banata hai.
 
 Design (project patterns):
-- Places API (New) `places:searchText` - legacy textsearch hamari key pe
+- Places API (New) `places:searchText` — legacy textsearch hamari key pe
   DENIED hai (google_maps.py jaisa hi call style, X-Goog-FieldMask).
-- NEVER raises - har failure pe error-dict / empty list.
+- NEVER raises — har failure pe error-dict / empty list.
 - Lazy imports (httpx/settings handler ke andar).
-- Quota care: per-run lookup cap (default 20, env `RANK_MAX_LOOKUPS`) -
+- Quota care: per-run lookup cap (default 20, env `RANK_MAX_LOOKUPS`) —
   PROSPECT_MAX_LOOKUPS jaisa pattern.
 - Scheduler gating: `run_if_enabled()` sirf `RANK_TRACKER=1` pe chalta
   (default OFF = zero behaviour change).
 
 Stores (append-only jsonl, inquiries.jsonl pattern):
-- data/rank_tracking.jsonl  - per-client config (client_id + keywords + city)
-- data/rank_history.jsonl   - har check ka result (position over time)
+- data/rank_tracking.jsonl  — per-client config (client_id + keywords + city)
+- data/rank_history.jsonl   — har check ka result (position over time)
 """
 
 from __future__ import annotations
@@ -101,7 +100,7 @@ def _write_jsonl(path: str, rows: list[dict[str, Any]]) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Matching (pure functions - unit-testable, no network)
+# Matching (pure functions — unit-testable, no network)
 # --------------------------------------------------------------------------- #
 def _phone_digits(raw: str | None) -> str:
     """Last-10 digits (Indian mobile/landline compare ke liye)."""
@@ -114,7 +113,7 @@ def _norm_name(name: str | None) -> str:
 
 
 def _name_match(a: str, b: str) -> bool:
-    """Fuzzy business-name match - substring ya token overlap >= 60%."""
+    """Fuzzy business-name match — substring ya token overlap >= 60%."""
     na, nb = _norm_name(a), _norm_name(b)
     if not na or not nb:
         return False
@@ -133,7 +132,7 @@ def match_position(
     """1-based position of the business in `results` (name fuzzy / phone exact).
 
     results = [{"name":..., "phone":...}, ...]. None = top-N me nahi mila.
-    Pure function - tests isi pe chalte hain.
+    Pure function — tests isi pe chalte hain.
     """
     try:
         want_phone = _phone_digits(phone)
@@ -148,7 +147,7 @@ def match_position(
 
 
 # --------------------------------------------------------------------------- #
-# Places API (New) search - google_maps.py ka exact call style (REUSE pattern)
+# Places API (New) search — google_maps.py ka exact call style (REUSE pattern)
 # --------------------------------------------------------------------------- #
 async def _places_search(keyword: str, city: str, max_results: int = 20) -> list[dict[str, Any]]:
     """Top-N local results for "keyword city". [] on any failure (never raises)."""
@@ -159,7 +158,7 @@ async def _places_search(keyword: str, city: str, max_results: int = 20) -> list
             "GOOGLE_MAPS_API_KEY", ""
         )
         if not api_key:
-            logger.debug("[rank] GOOGLE_MAPS key missing - search skipped")
+            logger.debug("[rank] GOOGLE_MAPS key missing — search skipped")
             return []
 
         import httpx
@@ -207,7 +206,7 @@ async def check_rank(
 ) -> dict[str, Any]:
     """Ek keyword pe client ki local-rank check (1-20 ya null). Never raises.
 
-    Returns {keyword, city, position, top3, total_results, checked_at} -
+    Returns {keyword, city, position, top3, total_results, checked_at} —
     ya {"error": ...} jab key/input missing ho.
     """
     keyword = (keyword or "").strip()
@@ -297,7 +296,7 @@ def history(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
 async def run_tracking(max_lookups: int | None = None) -> dict[str, Any]:
     """Saare configured client×keyword check karo (lookup cap ke saath).
 
-    Har check = 1 Places lookup - quota care, default cap 20/run
+    Har check = 1 Places lookup — quota care, default cap 20/run
     (env RANK_MAX_LOOKUPS). Results data/rank_history.jsonl me. Never raises.
     """
     cap = max_lookups if isinstance(max_lookups, int) and max_lookups > 0 else _max_lookups()
@@ -305,7 +304,7 @@ async def run_tracking(max_lookups: int | None = None) -> dict[str, Any]:
     try:
         configs = list_configs()
         if not configs:
-            summary["note"] = "koi rank config nahi - POST /api/seoops/rank/config se add karo"
+            summary["note"] = "koi rank config nahi — POST /api/seoops/rank/config se add karo"
             return summary
         used = 0
         for cfg in configs:
@@ -334,7 +333,7 @@ async def run_tracking(max_lookups: int | None = None) -> dict[str, Any]:
 
 
 async def run_if_enabled() -> dict[str, Any]:
-    """Scheduler hook - sirf RANK_TRACKER=1 pe chalta (default OFF). Never raises."""
+    """Scheduler hook — sirf RANK_TRACKER=1 pe chalta (default OFF). Never raises."""
     if not _flag("RANK_TRACKER"):
         return {"ok": False, "skipped": "RANK_TRACKER flag off"}
     try:

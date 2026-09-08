@@ -1,5 +1,5 @@
 """
-review_to_post.py - 4-5★ review -> branded thank-you poster + caption.
+review_to_post.py — 4-5★ review → branded thank-you poster + caption.
 ======================================================================
 
 Khush customer ka review = sabse sasta marketing asset. Yeh module 4-5 star
@@ -9,7 +9,7 @@ caption me badal deta hai (free-LLM caption, deterministic fallback).
   from_review(review_text, author, rating, slug) ->
       {"ok", "svg", "caption", "rating", "author"}
 
-<4 star = politely reject (negative review ko poster mat banao - review_engine
+<4 star = politely reject (negative review ko poster mat banao — review_engine
 ka private-feedback path use karo). Sab text XML-escaped. Kabhi raise nahi.
 """
 
@@ -90,7 +90,7 @@ def _poster_svg(review: str, author: str, rating: int, brand: dict[str, Any]) ->
         f'<text x="540" y="{review_block_y}" font-family="{_FONT}" font-size="36" '
         f'fill="#ffffff" text-anchor="middle" font-style="italic">{tspans}</text>'
         f'<text x="540" y="720" font-family="{_FONT}" font-size="30" fill="{accent}" '
-        f'text-anchor="middle">- {author_e}</text>'
+        f'text-anchor="middle">— {author_e}</text>'
         f'<rect x="240" y="790" width="600" height="4" fill="{accent}" opacity="0.6"/>'
         f'<text x="540" y="880" font-family="{_FONT}" font-size="46" font-weight="bold" '
         f'fill="#ffffff" text-anchor="middle">{name}</text>'
@@ -106,18 +106,18 @@ def _fallback_caption(review: str, author: str, business: str) -> str:
     if len(short) > 120:
         short = short[:117].rstrip() + "…"
     return (
-        f'⭐ Khush customer! "{short}" - {author or "ek pyara customer"}.\n'
+        f'⭐ Khush customer! "{short}" — {author or "ek pyara customer"}.\n'
         f"Shukriya {business}! Aise reviews hi hamari asli kamai hain. \U0001f64f\n"
-        f"Aap bhi service ka anubhav lijiye - abhi sampark karein!"
+        f"Aap bhi service ka anubhav lijiye — abhi sampark karein!"
     )
 
 
 async def from_review(
     review_text: str, author: str = "", rating: int = 5, slug: str = ""
 ) -> dict[str, Any]:
-    """4-5★ review -> branded thank-you poster SVG + Hinglish caption.
+    """4-5★ review → branded thank-you poster SVG + Hinglish caption.
 
-    rating < 4 -> {"ok": False, ...} (negative review public poster NAHI banana).
+    rating < 4 → {"ok": False, ...} (negative review public poster NAHI banana).
     Kabhi raise nahi, caption kabhi empty nahi.
     """
     try:
@@ -128,7 +128,7 @@ async def from_review(
         if r < 4:
             return {
                 "ok": False,
-                "error": "Sirf 4-5 star reviews se poster banta hai - kam rating ko "
+                "error": "Sirf 4-5 star reviews se poster banta hai — kam rating ko "
                 "private feedback me lo (review_engine).",
             }
         text = str(review_text or "").strip()[:600] or "Bahut badhiya service, highly recommended!"
@@ -172,7 +172,7 @@ async def from_review(
             "rating": r,
             "author": author_c or "Khush Customer",
             "business_name": business,
-            "note": "Poster download karke caption ke saath post karo - social proof gold hai.",
+            "note": "Poster download karke caption ke saath post karo — social proof gold hai.",
         }
     except Exception as e:
         logger.warning(f"[review_to_post] from_review failed: {e}")

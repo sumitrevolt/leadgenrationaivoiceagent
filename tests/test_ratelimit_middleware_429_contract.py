@@ -10,7 +10,7 @@ Root causes locked here:
 4. Limiter failure must never double-invoke ``call_next`` (no write replay).
 
 P1 safety (cloud review @ 662c2b3):
-5. No broad auth/telephony prefix bypass - logout/reset/test-call stay limited.
+5. No broad auth/telephony prefix bypass — logout/reset/test-call stay limited.
 6. Canonical trusted IP = rightmost XFF (middleware + ``app.api.ratelimit``).
 7. Admin raised ceiling only for explicit safe GET/HEAD dashboard reads;
    admin POST stays on the default API budget.
@@ -109,7 +109,7 @@ def test_retry_after_is_never_zero_or_over_the_window():
 
 
 # --------------------------------------------------------------------------- #
-# 2. Uniform 429 body - identical contract to app/api/ratelimit.py.
+# 2. Uniform 429 body — identical contract to app/api/ratelimit.py.
 # --------------------------------------------------------------------------- #
 
 
@@ -406,7 +406,7 @@ async def test_websocket_upgrade_is_not_flat_limited():
 
 
 # --------------------------------------------------------------------------- #
-# 4. Skip list must stay narrow - auth writes + telephony actions stay limited.
+# 4. Skip list must stay narrow — auth writes + telephony actions stay limited.
 # --------------------------------------------------------------------------- #
 
 
@@ -501,7 +501,7 @@ def test_credential_routes_keep_their_own_rate_limit(module_path: str, route_pat
 
 
 # --------------------------------------------------------------------------- #
-# 4b. Multi-value XFF cannot evade - rightmost is canonical for both layers.
+# 4b. Multi-value XFF cannot evade — rightmost is canonical for both layers.
 # --------------------------------------------------------------------------- #
 
 
@@ -526,7 +526,7 @@ async def test_spoofed_leftmost_xff_cannot_evade_flat_limiter():
     blocked = await mw.dispatch(_request("/api/burn2", ip=real_ip, xff=real_ip), _ok)
     assert blocked.status_code == 429
 
-    # Attacker prepends a fresh leftmost IP - rightmost (trusted) still burned.
+    # Attacker prepends a fresh leftmost IP — rightmost (trusted) still burned.
     evade = await mw.dispatch(
         _request("/api/burn3", ip=real_ip, xff=f"198.51.100.1, {real_ip}"),
         _ok,

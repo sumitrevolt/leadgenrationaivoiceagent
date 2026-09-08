@@ -1,4 +1,4 @@
-"""DAG-engine shadow adapter - record-only observation of one real DAG node.
+"""DAG-engine shadow adapter — record-only observation of one real DAG node.
 
 Wraps the typed executor boundary in app/agents/dag_engine.py:advance
 (`process_library.execute_step` + `check_gate`). Each node/attempt that the DAG
@@ -7,7 +7,7 @@ mode. This adapter NEVER executes the node, invokes the tool, alters the
 journal, schedules a node, consumes the real idempotency key, or raises into the
 DAG engine.
 
-Eligibility (per-loop): shadow_loop_eligible(agent_id, "dag_engine") - requires
+Eligibility (per-loop): shadow_loop_eligible(agent_id, "dag_engine") — requires
 AGENT_HARNESS + AGENT_HARNESS_SHADOW on, ENFORCE off, agent in canary agents AND
 "dag_engine" in AGENT_HARNESS_CANARY_LOOPS. Empty loop allowlist => no-op.
 """
@@ -33,7 +33,7 @@ _SOURCE_LOOP = "dag_engine"
 
 # Explicit, deterministic step-type -> canonical (tool, version) mapping.
 # The DAG node ID and arbitrary model-provided step labels are NOT trusted tool
-# identities - only a stable process-library action listed here maps to a
+# identities — only a stable process-library action listed here maps to a
 # canonical tool. Unknown step types stay UNREGISTERED_TOOL (fail-open observe,
 # never falsely "registered"). No dynamic construction, no callable scanning.
 DAG_TOOL_MAP: dict[str, tuple[str, str]] = {
@@ -48,8 +48,7 @@ def resolve_dag_tool(step_action: str) -> tuple[str, str] | None:
 
 def _valid_envelope(dag_run_id: str, node_id: str, attempt: int) -> str | None:
     """Strict DAG action-envelope guard (spec DagActionPayload). Returns an error
-    string when malformed, else None. Bounds node_id/run_id
-    attempt >= 0."""
+    string when malformed, else None. Bounds node_id/run_id; attempt >= 0."""
     if not (dag_run_id or "").strip():
         return "missing dag_run_id"
     nid = (node_id or "").strip()
@@ -98,7 +97,7 @@ def observe_dag_action(
     None (ineligible / internal failure). NEVER raises into the DAG engine."""
     if not shadow_loop_eligible(agent_id, _SOURCE_LOOP):
         return None
-    # Strict DAG action-envelope guard - malformed metadata is a diagnostic, never
+    # Strict DAG action-envelope guard — malformed metadata is a diagnostic, never
     # an executed-action observation (and NEVER a false legacy failure).
     _env_err = _valid_envelope(dag_run_id, node_id, attempt)
     if _env_err:

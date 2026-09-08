@@ -1,4 +1,4 @@
-"""Owner OS V1.1 - Isha execution controls (precedence, drain, routes, workflows)."""
+"""Owner OS V1.1 — Isha execution controls (precedence, drain, routes, workflows)."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def test_resume_allows_future_no_catchup_flag(monkeypatch, tmp_path):
     oae.resume("isha", by="t", reason="done")
     assert owner_os.scheduler_dispatch_allowed(job="content")[0] is True
     assert oae.claim_allowed(job="content")[0] is True
-    # Resume does not invent catch-up - no missed-interval replay API called.
+    # Resume does not invent catch-up — no missed-interval replay API called.
     assert oae.get_control("isha")["drain"] is False
 
 
@@ -163,7 +163,7 @@ def test_request_cancel_running_cooperative_not_claimed_stopped(monkeypatch, tmp
 
     monkeypatch.setattr(redis.Redis, "from_url", classmethod(lambda cls, *a, **k: fake))
     out = oae.request_cancel_running("isha", "task-xyz-1", by="t", reason="unit")
-    # May fail if redis import path differs - accept requested or unsupported honesty.
+    # May fail if redis import path differs — accept requested or unsupported honesty.
     if out.get("ok"):
         assert out.get("stopped") is False
         assert out.get("acknowledged") is False

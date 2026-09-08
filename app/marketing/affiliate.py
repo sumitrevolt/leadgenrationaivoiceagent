@@ -1,6 +1,6 @@
-"""Affiliate / referral program - viral loop (telephony-free).
+"""Affiliate / referral program — viral loop (telephony-free).
 
-Koi bhi (client, partner, friend) ek unique referral-link se naye customer laaye ->
+Koi bhi (client, partner, friend) ek unique referral-link se naye customer laaye →
 commission. Higher LTV (referred customers 89% retain vs 58%). Track + payout.
 
 Store: data/affiliates.jsonl (registered) + data/affiliate_referrals.jsonl (conversions).
@@ -60,7 +60,7 @@ def _code(name: str) -> str:
 
 
 def register_affiliate(name: str, email: str = "", phone: str = "") -> dict[str, Any]:
-    """Naya affiliate register karo -> unique code + referral link. Dedupe by email/phone."""
+    """Naya affiliate register karo → unique code + referral link. Dedupe by email/phone."""
     name = (name or "Affiliate").strip()
     email = (email or "").strip().lower()
     phone = "".join(c for c in str(phone or "") if c.isdigit())[-10:]
@@ -112,14 +112,13 @@ def mark_referral_paid_by_contact(
     phone: str = "",
     amount: float = 0,
 ) -> int:
-    """Referral rows ko 'lead' -> 'paid' flip karo jab customer PAY kar de.
+    """Referral rows ko 'lead' → 'paid' flip karo jab customer PAY kar de.
 
     Revenue-sprint fix (2026-08-23): pehle referral kabhi 'paid' nahi hota tha
-    (koi caller hi nahi) - commission_earned hamesha ₹0 dikhta tha aur payout
+    (koi caller hi nahi) — commission_earned hamesha ₹0 dikhta tha aur payout
     loop dead tha. Match normalized contact se (email lowercase ya phone ke
     last 10 digits). Idempotent: already-paid rows skip. Locked atomic rewrite
-    (offers.py convention). Returns flipped count
-    never raises.
+    (offers.py convention). Returns flipped count; never raises.
     """
     try:
         em = (email or contact or "").strip().lower()
@@ -208,7 +207,7 @@ def affiliate_detail() -> list[dict[str, Any]]:
 
 
 def referral_kit(name: str, email: str = "", phone: str = "") -> dict[str, Any]:
-    """Affiliate ka shareable kit - link + WhatsApp-ready text (owner 1-tap send).
+    """Affiliate ka shareable kit — link + WhatsApp-ready text (owner 1-tap send).
 
     Reward framing Hinglish + honest: referral code se jo naya customer pays
     usse affiliate ko first-month ka 20% commission milta hai.
@@ -216,13 +215,13 @@ def referral_kit(name: str, email: str = "", phone: str = "") -> dict[str, Any]:
     reg = register_affiliate(name, email, phone)
     link = reg["link"]
     text = (
-        f"Namaste! 🙏 Maine LeadGen AI use karke results dekh liye - ab aapke liye "
+        f"Namaste! 🙏 Maine LeadGen AI use karke results dekh liye — ab aapke liye "
         f"bhi ek special referral link hai.\n\n"
         f"LeadGen AI aapki business ke liye AI se marketing, leads aur follow-ups "
-        f"automate karta hai - bina jhol ke. Mera referral code use karke signup "
+        f"automate karta hai — bina jhol ke. Mera referral code use karke signup "
         f"karo: {link}\n\n"
         f"Jab aap subscribe karo ge, mujhe first month ka 20% referral reward "
-        f"milta hai - aur aapko market-best AI marketing automation ₹1999/month me. "
+        f"milta hai — aur aapko market-best AI marketing automation ₹1999/month me. "
         f"Try karo, free audit pehle: https://leadsgenai.in/audit"
     )
     return {

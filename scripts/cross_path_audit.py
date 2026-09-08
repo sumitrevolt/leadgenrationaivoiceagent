@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Cross-path wiring audit - telephony lifecycle parity + automation glue.
+"""Cross-path wiring audit — telephony lifecycle parity + automation glue.
 
 Detects wireable gaps that prod_check/wiring_audit miss:
   1. LIVE Vobiz stream cleanup must meter calls (minute billing + call.completed).
   2. Vobiz auto-qualify must fan out qualified-lead downstream hooks.
   3. Qualified-lead meter must be idempotent on ref (duplicate qualify guard).
-  4. automation_wiring_audit (flags/jobs/beat) - reused, not duplicated.
+  4. automation_wiring_audit (flags/jobs/beat) — reused, not duplicated.
 
 Exit 0 = no gaps. Exit 1 = fix before ship.
 """
@@ -53,7 +53,7 @@ def audit_vobiz_stream_lifecycle() -> None:
     if "_teardown_done" not in cleanup_body and "_cleanup_done" not in cleanup_body:
         PROBLEMS.append(
             "TELEPHONY: vobiz_stream._cleanup missing idempotent teardown guard "
-            "(double disconnect -> duplicate qualify/meter risk)"
+            "(double disconnect → duplicate qualify/meter risk)"
         )
     qual_m = re.search(
         r"async def _auto_qualify\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S
@@ -75,7 +75,7 @@ def audit_qualified_lead_idempotency() -> None:
     if "_ref_already_recorded" not in body and "seen_before" not in body:
         PROBLEMS.append(
             "BILLING: record_qualified_lead missing ref idempotency "
-            "(same call qualified 2x -> double meter/webhook)"
+            "(same call qualified 2x → double meter/webhook)"
         )
 
 
@@ -86,7 +86,7 @@ def _fn_body(text: str, name: str) -> str:
 
 def audit_brain_guard_parity() -> None:
     """2da6239 lesson (2026-07-03): EVERY guard in reply() must be mirrored in
-    reply_stream_sentences() - close-signals silently never fired on live calls
+    reply_stream_sentences() — close-signals silently never fired on live calls
     because the stream fn lacked reply()'s guards. Encode it so a regression
     fails CI instead of shipping."""
     text = _read("app/voice_agent/telecaller_brain.py")
@@ -105,13 +105,13 @@ def audit_brain_guard_parity() -> None:
         if marker in reply_body and marker not in stream_body:
             PROBLEMS.append(
                 f"VOICE: guard '{marker}' ({why}) in reply() but MISSING in "
-                "reply_stream_sentences() - stream-path parity regression (2da6239 lesson)"
+                "reply_stream_sentences() — stream-path parity regression (2da6239 lesson)"
             )
 
 
 def audit_stream_opt_out() -> None:
     """TCCCPR (audit 2026-07-04): LIVE stream calls must persist press-9 +
-    verbal opt-out to the consent ledger - the legacy answer_url handler alone
+    verbal opt-out to the consent ledger — the legacy answer_url handler alone
     doesn't cover <Stream> calls."""
     text = _read("app/telephony/vobiz_stream.py")
     if not text:

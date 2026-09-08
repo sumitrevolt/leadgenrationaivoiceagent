@@ -1,4 +1,4 @@
-"""Integration expiry/health honesty - classifier + admin/customer API tests.
+"""Integration expiry/health honesty — classifier + admin/customer API tests.
 
 Scenarios 1-12: pure classifier (healthy / expiring_soon / expired / revoked /
 unauthorized / transient_failure / unreachable / never_configured / unknown +
@@ -94,7 +94,7 @@ def test_12_valid_future_token_is_healthy():
 
 
 # ---------------------------------------------------------------------------
-# API - admin + customer
+# API — admin + customer
 # ---------------------------------------------------------------------------
 def _mint(client_id: str, role: str = "customer") -> str:
     from jose import jwt

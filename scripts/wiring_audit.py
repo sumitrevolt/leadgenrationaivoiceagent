@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Functional wiring audit - onclick handlers + fetch URLs vs FastAPI routes."""
+"""Functional wiring audit — onclick handlers + fetch URLs vs FastAPI routes."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def load_routes() -> set[str]:
 def extract_onclick_handlers(html: str) -> list[str]:
     handlers: list[str] = []
     for m in re.finditer(r'onclick="([^"]+)"', html):
-
+        for stmt in m.group(1).split(";"):
             stmt = stmt.strip()
             mm = re.match(r"([A-Za-z_$][\w$]*)\s*\(", stmt)
             if mm and mm.group(1) not in SKIP_HANDLERS:
@@ -162,7 +162,7 @@ def main() -> int:
 
         print()
 
-    # Explicit high-value checks - all must be registered (via iter_effective_routes).
+    # Explicit high-value checks — all must be registered (via iter_effective_routes).
     checks = [
         "/api/admin/customers/onboard",
         "/api/admin/system/summary",

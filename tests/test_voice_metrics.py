@@ -1,4 +1,4 @@
-"""Tests for app/voice_agent/voice_metrics.py - objective voice-eval metrics."""
+"""Tests for app/voice_agent/voice_metrics.py — objective voice-eval metrics."""
 
 from app.voice_agent import voice_metrics as vm
 
@@ -22,9 +22,9 @@ def test_wer_empty_reference():
 
 
 def test_wer_deletion_and_insertion():
-    # ref 3 words, hyp drops 1 -> 1 deletion / 3 = 0.333
+    # ref 3 words, hyp drops 1 → 1 deletion / 3 = 0.333
     assert round(vm.wer("book a demo", "book demo"), 3) == 0.333
-    # ref 2 words, hyp adds 1 -> 1 insertion / 2 = 0.5
+    # ref 2 words, hyp adds 1 → 1 insertion / 2 = 0.5
     assert vm.wer("book demo", "book a demo") == 0.5
 
 
@@ -70,7 +70,7 @@ def test_roundtrip_wer_with_fakes():
 
 def test_roundtrip_wer_flags_bad_intelligibility():
     texts = ["book a demo today please"]
-    # garbled transcription -> high WER -> flagged
+    # garbled transcription → high WER → flagged
     out = vm.roundtrip_wer(texts, synth_fn=lambda t: t, transcribe_fn=lambda a: "xxxx")
     assert out["flagged"] == texts
 

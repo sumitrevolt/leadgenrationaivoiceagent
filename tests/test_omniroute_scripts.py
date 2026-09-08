@@ -32,7 +32,7 @@ def test_healthguard_uses_a_bounded_time_window_for_livews_churn():
         "Contract expects WSL-era (Ubuntu-24.04) liveness checker; restored "
         "omniroute-check.ps1 (577a6fe8) is the Docker-era bring-up and actually "
         "works on the current dev box. Owner decision pending: migrate to WSL "
-        "distro bring-up, then unmark. Not a security property - worktree-guard "
+        "distro bring-up, then unmark. Not a security property — worktree-guard "
         "contracts are covered by passing tests (worktrees/tmux)."
     ),
 )
@@ -74,7 +74,7 @@ def test_sync_script_uses_live_catalog_before_sqlite_seed():
 
 
 def test_agent_smoke_script_is_synthetic_only_and_never_prints_secrets():
-    """ADR-108 local smoke - permanent script, public prompt, bool-only key check."""
+    """ADR-108 local smoke — permanent script, public prompt, bool-only key check."""
     text = (ROOT / "scripts" / "omniroute_agent_smoke.py").read_text(encoding="utf-8")
     assert "AGENT_OS_SMOKE_OK" in text
     assert "try_agent_chat" in text

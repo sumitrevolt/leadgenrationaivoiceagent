@@ -13,7 +13,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_rate_limit_dep_returns_structured_detail():
-    """Directly exercise the dep - assert the HTTPException detail shape."""
+    """Directly exercise the dep — assert the HTTPException detail shape."""
     from fastapi import HTTPException
 
     from app.api.ratelimit import rate_limit

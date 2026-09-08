@@ -1,15 +1,14 @@
 """WhatsApp onboarding-interview: clients without a website get a business-info
-request via WhatsApp right after onboarding
-the reply becomes the KB source
+request via WhatsApp right after onboarding; the reply becomes the KB source
 instead of a website scrape.
 
 Pins the contract:
 - `auto_onboard` sets `awaiting_kb_interview=True` only when the website-KB-seed
-  step found nothing (kb_chunks == 0) - clients WITH a seeded website are not
+  step found nothing (kb_chunks == 0) — clients WITH a seeded website are not
   bothered with the question.
 - `try_capture_onboarding_reply` matches the inbound WhatsApp sender to the
   awaiting client by phone (last-10-digit match, formatting-agnostic), feeds the
-  reply into that client's KB namespace, and clears the flag - idempotent (a
+  reply into that client's KB namespace, and clears the flag — idempotent (a
   second reply / unrelated sender is not mis-attributed).
 """
 
@@ -112,7 +111,7 @@ async def test_try_capture_onboarding_reply_matches_by_phone_and_clears_flag(
 
     monkeypatch.setattr("app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB())
 
-    # WhatsApp sender formats numbers with a country code / spaces - must still match.
+    # WhatsApp sender formats numbers with a country code / spaces — must still match.
     handled = await onboarding.try_capture_onboarding_reply(
         "+91 98123 45680", "Hum salon services dete hain, Nagpur me, USP: best price"
     )
@@ -141,7 +140,7 @@ async def test_try_capture_onboarding_reply_ignores_unknown_sender(
     )
     assert handled is False
 
-    # Flag untouched - a stray message from a different number must not clear it.
+    # Flag untouched — a stray message from a different number must not clear it.
     after = clients_store.get_client(client["id"])
     assert after.get("awaiting_kb_interview") is True
 

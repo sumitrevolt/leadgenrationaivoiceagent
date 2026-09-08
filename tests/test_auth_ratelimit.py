@@ -3,7 +3,7 @@
 Before this guard, /customer/auth/login (and signup + magic-link) had NO rate
 limit, so an attacker could brute-force passwords / email-bomb magic links /
 spam-create accounts. The rate_limit dep sits IN FRONT of the handler, so even
-failed logins (401) count toward the budget - the Nth rapid attempt gets 429.
+failed logins (401) count toward the budget — the Nth rapid attempt gets 429.
 """
 
 from starlette.testclient import TestClient

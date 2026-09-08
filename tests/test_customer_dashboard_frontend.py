@@ -37,7 +37,7 @@ PRE_EXISTING_IDS = [
 ]
 # Product-gating class names that must never vanish (stable substrings).
 GATING_TOKENS = ["prod-marketing", "prod-voice", "marketing-only", "voice-only"]
-# Hero DOM blocks - checked via regex so later tasks may add classes (e.g. v-on)
+# Hero DOM blocks — checked via regex so later tasks may add classes (e.g. v-on)
 # without tripping the guard.
 HERO_CLASS_TOKENS = ["owner-hero", "status-strip", "hero-leads"]
 
@@ -45,8 +45,7 @@ HERO_CLASS_TOKENS = ["owner-hero", "status-strip", "hero-leads"]
 def _inline_js() -> str:
     blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
     assert blocks, "no inline <script> block found"
-    return "\n
-    \n".join(blocks)
+    return "\n;\n".join(blocks)
 
 
 def test_inline_js_syntax_ok(tmp_path):
@@ -92,7 +91,7 @@ def test_view_engine_present():
 
 def test_showview_resizes_charts():
     # charts render at 0x0 while their view is hidden; showView must resize them
-    # (delegated to the shared resizeCharts() helper - see Task 6 test).
+    # (delegated to the shared resizeCharts() helper — see Task 6 test).
     m = re.search(r"function showView\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
     assert m and "resizeCharts()" in m.group(1), "showView must resize now-visible charts"
 
@@ -125,7 +124,7 @@ def test_all_blocks_tagged():
         assert f'data-view="{v}"' in SRC, f"no block tagged {v}"
     # every content-level block (incl. sec-title headers) must be tagged or it
     # leaks into all views; there are ~29 such blocks.
-    assert SRC.count('data-view="') >= 27, "too few tagged blocks - some will leak"
+    assert SRC.count('data-view="') >= 27, "too few tagged blocks — some will leak"
 
 
 def test_key_cards_in_expected_view():
@@ -188,7 +187,7 @@ def test_charts_resized_on_show_and_details():
 def test_command_center_score_is_honest_count_not_fabricated_percent():
     assert "Math.max(42, Math.min(98" not in SRC
     assert "meta.score || 76" not in SRC
-    assert 'id="aiScore">-</strong>' in SRC or 'id="aiScore">-' in SRC
+    assert 'id="aiScore">—</strong>' in SRC or 'id="aiScore">—' in SRC
     assert "Login ke baad" in SRC
     assert 'id="voiceMinsHint"' in SRC
     assert "Minutes bache:" in SRC

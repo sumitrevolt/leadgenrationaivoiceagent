@@ -1,7 +1,7 @@
-"""Marketing SEO/SEM helpers via **advertools** - optional, defensive.
+"""Marketing SEO/SEM helpers via **advertools** — optional, defensive.
 
 advertools is the standard open-source online-marketing toolkit. We use it to
-programmatically build SEM keyword lists and split copy into ad-sized slots - handy
+programmatically build SEM keyword lists and split copy into ad-sized slots — handy
 for the ads_copy / seo_blog / gbp_text modules. Free, CPU, pandas-based (already a dep).
 
 No env flag: if advertools isn't installed, each function returns a safe fallback

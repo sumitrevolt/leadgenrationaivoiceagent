@@ -1,10 +1,9 @@
 """
-Plugin Manifest - machine-readable contract for every governed plugin.
+Plugin Manifest — machine-readable contract for every governed plugin.
 
 Every plugin in the LeadGen AI control plane registers a ``PluginManifest``
 that declares its identity, scope, risks, budgets, and evidence status.
-The manifest is the single source of truth for what a plugin IS
-the
+The manifest is the single source of truth for what a plugin IS; the
 ``AUTOMATION_FLAGS`` registry remains the single source for whether it is ON.
 
 Design principles:
@@ -238,7 +237,7 @@ class PluginRegistry:
     """
     In-memory registry of all plugin manifests.
 
-    Not a second flag platform - this catalogues WHAT each plugin is.
+    Not a second flag platform — this catalogues WHAT each plugin is.
     ``AUTOMATION_FLAGS`` still controls WHETHER it is ON.
     """
 

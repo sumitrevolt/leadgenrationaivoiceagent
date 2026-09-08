@@ -1,4 +1,4 @@
-"""eval_gate admin API - close-the-loop visibility for /app/automation.
+"""eval_gate admin API — close-the-loop visibility for /app/automation.
 
 Surfaces what `app/agents/eval_gate.py` records: per-suite/metric baseline
 medians, latest score, latest decision (accept/reject/no_baseline), and
@@ -29,7 +29,7 @@ async def eval_gate_recent(
     n: int = 50,
     _user=Depends(require_admin),
 ) -> dict:
-    """Per-(suite, metric) recent score series - for sparkline / trend plot."""
+    """Per-(suite, metric) recent score series — for sparkline / trend plot."""
     n = max(1, min(n, 500))
     samples = eval_gate.recent_scores(suite, metric, n=n)
     base = eval_gate.baseline(suite, metric)
@@ -51,7 +51,7 @@ class ResetIn(BaseModel):
 
 @router.post("/reset")
 async def reset(body: ResetIn, _user=Depends(require_super_admin)) -> dict:
-    """L.4: clear baseline history for one (suite, metric). Super-admin only -
+    """L.4: clear baseline history for one (suite, metric). Super-admin only —
     a wrong reset wipes the regression-detection signal for that metric until
     fresh scores accumulate. Returns removed/remaining counts."""
     out = eval_gate.reset_baseline(body.suite, body.metric)

@@ -16,7 +16,7 @@ The proof is TWO-LAYERED:
     LAYER 1 (static route audit):
       Every customer route in `app/api/customer_dashboard.py` binds
       `client_id` via `Depends(require_customer)` (JWT-only source).
-      NO customer route accepts `client_id` via `Query(...)` - so
+      NO customer route accepts `client_id` via `Query(...)` — so
       FastAPI-level query-string attack vectors are IMPOSSIBLE BY
       CONSTRUCTION. This is proven by an AST scan (test_static_...).
 
@@ -39,7 +39,7 @@ Non-negotiable assertions:
   * Invalid/expired/wrong-role tokens raise HTTPException with no
     tenant data.
   * No customer route in customer_dashboard.py has a `Query()`-bound
-    `client_id` parameter (static AST audit - regression-proof).
+    `client_id` parameter (static AST audit — regression-proof).
 """
 
 from __future__ import annotations
@@ -58,14 +58,14 @@ TENANT_B_PRIVATE_MARKER = "TENANT_B_PRIVATE_MARKER_9C42"
 
 
 # --------------------------------------------------------------------------- #
-# Helpers - real JWTs via the actual production token pipeline
+# Helpers — real JWTs via the actual production token pipeline
 # --------------------------------------------------------------------------- #
 
 
 def _mint_customer_jwt(client_id: str, *, role: str = "customer", ttl_s: int = 3600) -> str:
     """Encode a JWT using the SAME code path production uses (jose.jwt +
     settings.jwt_secret_key + settings.jwt_algorithm). No mocking of the
-    signing key - this is production-faithful."""
+    signing key — this is production-faithful."""
     from jose import jwt as _jwt
 
     from app.config import settings
@@ -91,7 +91,7 @@ def _creds(token: str):
 
 
 # --------------------------------------------------------------------------- #
-# LAYER 1 - Static route audit (regression-proof AST scan)
+# LAYER 1 — Static route audit (regression-proof AST scan)
 # --------------------------------------------------------------------------- #
 
 
@@ -163,12 +163,12 @@ def test_static_every_customer_handler_uses_require_customer_dep():
 
 
 # --------------------------------------------------------------------------- #
-# LAYER 2 - Runtime dependency proof (real JWTs, real decode path)
+# LAYER 2 — Runtime dependency proof (real JWTs, real decode path)
 # --------------------------------------------------------------------------- #
 
 
 async def test_require_customer_returns_jwt_sub_only():
-    """The primitive is authoritative on its own - no request state can
+    """The primitive is authoritative on its own — no request state can
     override it. Tenant-a's JWT ALWAYS resolves to tenant-a.
 
     `require_customer` is an async FastAPI dependency (it awaits a Redis
@@ -182,9 +182,8 @@ async def test_require_customer_returns_jwt_sub_only():
 
 
 async def test_tenant_b_jwt_never_resolves_to_tenant_a():
-    """Symmetric - tenant-b's JWT resolves to tenant-b. There is no request
-    state passed to `require_customer` other than the token itself
-    the
+    """Symmetric — tenant-b's JWT resolves to tenant-b. There is no request
+    state passed to `require_customer` other than the token itself; the
     function's signature FORBIDS any tenant hint from query/body/path."""
     from app.api.customer_auth import require_customer
 
@@ -195,7 +194,7 @@ async def test_tenant_b_jwt_never_resolves_to_tenant_a():
 
 
 async def test_expired_token_rejected_no_tenant_data():
-    """Expired token -> HTTPException, no tenant hint leaks into the error."""
+    """Expired token → HTTPException, no tenant hint leaks into the error."""
     from fastapi import HTTPException
 
     from app.api.customer_auth import require_customer
@@ -204,7 +203,7 @@ async def test_expired_token_rejected_no_tenant_data():
     with pytest.raises(HTTPException) as exc:
         await require_customer(creds=_creds(token))
     assert exc.value.status_code in (401, 403)
-    # sanitized detail - no tenant identifier
+    # sanitized detail — no tenant identifier
     assert TENANT_A not in str(exc.value.detail)
 
 
@@ -250,7 +249,7 @@ async def test_token_without_sub_rejected():
 
 
 # --------------------------------------------------------------------------- #
-# LAYER 2b - Cross-tenant attack matrix (parametric)
+# LAYER 2b — Cross-tenant attack matrix (parametric)
 # The FastAPI dependency signature guarantees these can't happen via HTTP
 # because there's no Query/Body/Header binding for client_id in customer_
 # dashboard routes. This test proves the primitive independently: no matter
@@ -276,13 +275,13 @@ async def test_token_without_sub_rejected():
 )
 async def test_no_request_attribute_can_override_authenticated_tenant(attack_variant):
     """Every attack variant. The `require_customer` signature accepts ONLY
-    `HTTPAuthorizationCredentials` - there's no way for a request query,
+    `HTTPAuthorizationCredentials` — there's no way for a request query,
     body, path, or header to become an argument. This test documents the
     attack matrix and proves the primitive's ONLY input surface is the JWT
     credential itself.
 
     (FastAPI dependency injection resolves other dependency params from
-    request state - but our `require_customer` signature has NONE of them.
+    request state — but our `require_customer` signature has NONE of them.
     See `test_static_no_customer_route_binds_client_id_via_query` for the
     handler-level guarantee.)"""
     import inspect
@@ -291,10 +290,10 @@ async def test_no_request_attribute_can_override_authenticated_tenant(attack_var
 
     sig = inspect.signature(require_customer)
     param_names = set(sig.parameters.keys())
-    # Only accepts `creds` - no `client_id`, no `request`, no `body`, nothing
+    # Only accepts `creds` — no `client_id`, no `request`, no `body`, nothing
     # that could carry a request-controlled tenant hint.
     assert param_names == {"creds"}, (
-        f"require_customer signature widened - attack surface added: {param_names}"
+        f"require_customer signature widened — attack surface added: {param_names}"
     )
     # And regardless of `attack_variant`, calling with tenant-b's token
     # returns tenant-b. The variant text is documentation of what WOULD be
@@ -310,13 +309,12 @@ async def test_no_request_attribute_can_override_authenticated_tenant(attack_var
 
 def test_route_coverage_summary_recorded():
     """Records the total customer route count so a silent drop/add is
-    caught. NOT an isolation assertion - a shape lock."""
+    caught. NOT an isolation assertion — a shape lock."""
     import re
-
     from app.api import customer_dashboard
 
     src = open(customer_dashboard.__file__, encoding="utf-8").read()
-    # Approximate - count route decorators
+    # Approximate — count route decorators
     routes = re.findall(r"@router\.(get|post|put|patch|delete)\(", src)
     assert len(routes) >= 25, (
         f"customer_dashboard route count dropped: {len(routes)} < 25. "

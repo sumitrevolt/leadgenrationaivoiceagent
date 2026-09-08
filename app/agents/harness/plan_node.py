@@ -7,20 +7,17 @@ cycle over a typed output schema:
 
     compile  -> caller builds strict system/user prompts (kept in coordinator)
     fill     -> first LLM call
-    review   -> validate against the pydantic schema
-    on failure build a review
+    review   -> validate against the pydantic schema; on failure build a review
                 prompt carrying the concrete validation error + bad output
     revise   -> bounded regeneration with the review feedback
-    adopt    -> valid plan wins
-    else return None so the caller falls back to
+    adopt    -> valid plan wins; else return None so the caller falls back to
                 legacy `_extract_list` + its hardcoded chain
 
 INERT by default: this module never runs unless a caller arms it. The single
-canary caller is `coordinator.plan()` under the COORD_PLAN_NODE flag
-the legacy
+canary caller is `coordinator.plan()` under the COORD_PLAN_NODE flag; the legacy
 parse path stays authoritative as the fallback.
 
-No app.* imports at module top and no default LLM surface - `llm_fn` is injected
+No app.* imports at module top and no default LLM surface — `llm_fn` is injected
 so this module stays importable in isolation (same invariant as contracts.py) and
 can never create a second un-capped LLM path. The injected function MUST honour
 the coordinator `_llm` signature:
@@ -48,7 +45,7 @@ _FENCE_MARKERS = ("```json", "```", "JSON:", "json:")
 
 
 class PlanItem(BaseModel):
-    """One delegation step - the minimal typed schema the fill step must match."""
+    """One delegation step — the minimal typed schema the fill step must match."""
 
     model_config = {"extra": "forbid"}
 
@@ -100,7 +97,7 @@ def parse_plan(
     """Validate raw LLM output into ``[{agent, task}]`` steps.
 
     Returns ``(steps, "")`` on success or ``(None, reason)`` on failure. Strict on
-    purpose - a single invalid item triggers the review/revise round instead of
+    purpose — a single invalid item triggers the review/revise round instead of
     being silently salvaged.
     """
     allowed = set(allowed_agents or [])
@@ -138,7 +135,7 @@ def _snippet(raw: str, limit: int = 400) -> str:
 async def _safe_llm(
     llm_fn: LLMFn, system: str, user: str, max_tokens: int, temperature: float
 ) -> tuple[str, str]:
-    """Defensive wrapper - a provider exception must never escape."""
+    """Defensive wrapper — a provider exception must never escape."""
     try:
         out, prov = await llm_fn(system, user, max_tokens=max_tokens, temperature=temperature)
         return (out or "").strip(), prov
@@ -153,7 +150,7 @@ def _review_system(allowed: set[str]) -> str:
         'ya object: {"plan":[... isi shape ka array ...]}. '
         f"agent ALLOWED keys (sirf yeh): {', '.join(sorted(allowed))}. "
         "Har item me agent + task DONO chahiye. "
-        "Errors fix karke SIRF poora corrected JSON array lautao - kuch aur mat likho."
+        "Errors fix karke SIRF poora corrected JSON array lautao — kuch aur mat likho."
     )
 
 
@@ -178,13 +175,13 @@ async def structured_plan(
     allowed = set(allowed_agents or [])
     rounds = max(0, int(max_review_rounds or 0))
 
-    # FILL - first attempt (same budget/temperature as the legacy plan call).
+    # FILL — first attempt (same budget/temperature as the legacy plan call).
     raw, _ = await _safe_llm(llm_fn, system, user, max_tokens=300, temperature=0.2)
     steps, err = parse_plan(raw, allowed)
     if steps is not None:
         return {"steps": steps[:max_steps], "source": _SOURCE_STRUCTURED, "reviews": 0}
 
-    # REVIEW + REVISE - bounded self-correction against the schema.
+    # REVIEW + REVISE — bounded self-correction against the schema.
     review_sys = _review_system(allowed)
     reviews = 0
     for _ in range(rounds):

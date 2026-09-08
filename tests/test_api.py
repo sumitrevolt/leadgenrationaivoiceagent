@@ -1,8 +1,8 @@
 """Tests for the Leads API (app/api/leads.py).
 
-CRUD (create/list/get/update/delete a single lead) was removed 2026-07-01 - it
+CRUD (create/list/get/update/delete a single lead) was removed 2026-07-01 — it
 only ever touched an in-memory dict with zero real callers (see the module
-docstring in app/api/leads.py). These tests cover what remains - /stats/summary
+docstring in app/api/leads.py). These tests cover what remains — /stats/summary
 (backed by the REAL `Lead` table) and the removed-CRUD guards.
 
 They also prove the P0-2 fix: scraped leads are persisted into the `Lead` table
@@ -110,11 +110,11 @@ class TestLeadsAPI:
     def test_crud_routes_removed(self, client):
         """POST / GET / PUT / DELETE on /api/leads(/{id}) were dead in-memory
         endpoints with zero callers (empty frontend + API grep, no other module
-        referenced them) - removed 2026-07-01. This guards against them
+        referenced them) — removed 2026-07-01. This guards against them
         silently reappearing. No route matches these paths anymore: GET falls
         through to the app's static-file catch-all (404 not found on disk),
         while POST/PUT/DELETE hit that same catch-all's method restriction
-        (405 - matches this app's existing behavior for ANY undefined
+        (405 — matches this app's existing behavior for ANY undefined
         POST/PUT/DELETE path, not something specific to leads)."""
         sample_lead = {
             "company_name": "Test Co",

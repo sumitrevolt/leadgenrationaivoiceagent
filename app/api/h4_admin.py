@@ -1,7 +1,7 @@
-"""H.4 admin API - warm-DR health + LiteLLM cost rollup.
+"""H.4 admin API — warm-DR health + LiteLLM cost rollup.
 
 Mounted under /api/h4 (single namespace for both since they're operationally
-related - "platform survival + margin discipline").
+related — "platform survival + margin discipline").
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ async def dr_status(_user=Depends(require_admin)) -> dict:
 
 @router.get("/litellm-health")
 async def litellm_health(_user=Depends(require_admin)) -> dict:
-    """LiteLLM gateway reachability - no auth required to the gateway probe."""
+    """LiteLLM gateway reachability — no auth required to the gateway probe."""
     return await litellm_costs.gateway_health()
 
 
@@ -37,8 +37,7 @@ async def litellm_spend(hours: int = 24, _user=Depends(require_admin)) -> dict:
 @router.get("/margin-alerts")
 async def margin_alerts(_user=Depends(require_admin)) -> dict:
     """Flag clients whose LLM cost > revenue. Today returns the structural
-    payload
-    the revenue dict will be wired from billing in a follow-up."""
+    payload; the revenue dict will be wired from billing in a follow-up."""
     return await litellm_costs.margin_alerts()
 
 

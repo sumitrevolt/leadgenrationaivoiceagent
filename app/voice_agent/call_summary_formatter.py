@@ -1,11 +1,11 @@
-"""Post-call AI summary formatter - WhatsApp-ready call reports.
+"""Post-call AI summary formatter — WhatsApp-ready call reports.
 
 Call khatam hone ke baad qualifier output (interest_score, summary, next_action)
 ko rich formatted WhatsApp message me convert karta hai with action items,
 key details, aur emoji-rich formatting for instant readability.
 
 Design:
-  - Pure formatter - no I/O, no network calls. Easy to test.
+  - Pure formatter — no I/O, no network calls. Easy to test.
   - Output stays within WhatsApp's 4096 char limit (truncates gracefully).
   - Hinglish-friendly labels for Indian SMB audience.
   - Feature-gated: POST_CALL_SUMMARY env flag (default OFF).
@@ -21,10 +21,10 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Interest level -> emoji + label
+# Interest level → emoji + label
 # --------------------------------------------------------------------------- #
 _INTEREST_MAP: dict[int, tuple[str, str]] = {
-    # score range -> (emoji, label)
+    # score range → (emoji, label)
 }
 
 
@@ -70,10 +70,10 @@ def format_summary_message(
     call_duration_s: float = 0.0,
     call_id: str = "",
 ) -> str:
-    """Qualifier output -> rich WhatsApp summary message.
+    """Qualifier output → rich WhatsApp summary message.
 
     Args:
-        qualifier: Output from ``call_qualifier.qualify_transcript()`` -
+        qualifier: Output from ``call_qualifier.qualify_transcript()`` —
                    keys: interest_score, qualified, appointment_requested,
                    budget_signal, summary, next_action, followup_draft.
         client_name: Business/brand name for personalization.
@@ -101,7 +101,7 @@ def format_summary_message(
     parts: list[str] = []
 
     # Header
-    parts.append("📞 *Call Summary - AI Report*")
+    parts.append("📞 *Call Summary — AI Report*")
     parts.append("")
 
     # Badge + Interest
@@ -144,7 +144,7 @@ def format_summary_message(
         parts.append("")
 
     # Footer
-    parts.append("-")
+    parts.append("—")
     parts.append("🤖 AI-generated summary | LeadGenAI")
 
     message = "\n".join(parts)
@@ -171,7 +171,7 @@ def format_owner_notification(
 ) -> str:
     """Compact one-liner for admin/owner ntfy push.
 
-    Short enough for phone notification - key info only.
+    Short enough for phone notification — key info only.
     """
     score = int(qualifier.get("interest_score") or 0)
     qualified = bool(qualifier.get("qualified"))
@@ -260,7 +260,7 @@ async def send_post_call_summary(
 
 
 def _enabled() -> bool:
-    """POST_CALL_SUMMARY flag - default OFF for safe rollout."""
+    """POST_CALL_SUMMARY flag — default OFF for safe rollout."""
     return os.environ.get("POST_CALL_SUMMARY", "0").strip().lower() in (
         "1",
         "true",

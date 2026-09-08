@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""desktop_mouse_visualizer.py - Visual Mouse Controller & Screen Glow Frame for Computer Use.
+"""desktop_mouse_visualizer.py — Visual Mouse Controller & Screen Glow Frame for Computer Use.
 
 Provides:
 1. move_mouse(x, y, smooth=True): Smoothly animates and moves the physical cursor on screen.

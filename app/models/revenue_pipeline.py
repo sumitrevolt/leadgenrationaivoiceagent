@@ -1,5 +1,5 @@
 """
-Revenue Pipeline SQLAlchemy Models - Phase 4 Production Authority & DB Immutability
+Revenue Pipeline SQLAlchemy Models — Phase 4 Production Authority & DB Immutability
 ====================================================================================
 Declarative database models for revenue pipeline lead records and immutable audit logs.
 Includes DB-level event listeners blocking UPDATE/DELETE operations on audit records.

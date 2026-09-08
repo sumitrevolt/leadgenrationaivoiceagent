@@ -1,4 +1,4 @@
-"""P3c (2026-06-28): per-call self-improve gate - classify failures, propose a better
+"""P3c (2026-06-28): per-call self-improve gate — classify failures, propose a better
 candidate, and the promotion-gate that only promotes if quality improves. Proposals are
 never auto-applied."""
 
@@ -23,7 +23,7 @@ def test_classify_failures_clean_is_empty():
         {"role": "user", "content": "haan boliye"},
         {
             "role": "assistant",
-            "content": "Char features hain sir - posts, ads, ranking, follow-up.",
+            "content": "Char features hain sir — posts, ads, ranking, follow-up.",
         },
     ]
     assert vsi.classify_failures(msgs, score=1.0, flags={}) == []
@@ -33,7 +33,7 @@ def test_promotion_gate_passes_real_improvement():
     p = {
         "user_question": "kitne features hain?",
         "bad_reply": "ji zara dobara boliye?",
-        "candidate": "Char features hain sir - posts, ads, Google ranking aur follow-up.",
+        "candidate": "Char features hain sir — posts, ads, Google ranking aur follow-up.",
     }
     g = vsi.promotion_gate(p)
     assert g["pass"] is True and g["reason"] == "ok"
@@ -57,7 +57,7 @@ def test_propose_and_status_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(vsi, "_STORE", str(tmp_path / "voice_proposals.jsonl"))
 
     async def _fake_candidate(niche, q, bad):
-        return "Char features hain sir - posts, ads, Google ranking aur follow-up."
+        return "Char features hain sir — posts, ads, Google ranking aur follow-up."
 
     monkeypatch.setattr(vsi, "_candidate_reply", _fake_candidate)
     session = {"niche": "ai_marketing", "session_id": "sess123abc"}
@@ -82,7 +82,7 @@ def test_propose_skips_clean_call(tmp_path, monkeypatch):
         {"role": "user", "content": "haan boliye"},
         {
             "role": "assistant",
-            "content": "Char features hain sir - posts, ads, ranking, follow-up.",
+            "content": "Char features hain sir — posts, ads, ranking, follow-up.",
         },
     ]
     assert asyncio.run(vsi.propose_from_session(session, msgs, score=1.0, flags={})) is None

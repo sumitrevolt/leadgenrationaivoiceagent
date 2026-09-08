@@ -1,16 +1,15 @@
-"""Usage-threshold upsell alerts - 80%/100% voice-minute triggers (expansion revenue).
+"""Usage-threshold upsell alerts — 80%/100% voice-minute triggers (expansion revenue).
 
 Research (June 2026): usage-threshold-triggered upsell prompts 20-40% convert vs
 5-15% cold email. Humara metering (`app/billing/usage.py`) cap enforce karta tha
-par client ko KABHI batata nahi tha - 100% pe calls chupchaap block ho jaati
+par client ko KABHI batata nahi tha — 100% pe calls chupchaap block ho jaati
 (bad surprise = churn risk) aur 80% pe upgrade nudge ka mauka miss hota tha.
 
 Design:
   - run_check(): saare metered-plan (Advanced) clients -> pct used -> 80% / 100%
     threshold cross pe Hinglish email (client) + NOTIFY_EMAIL copy.
-  - Dedupe: per client+threshold+period (data/usage_alerts.jsonl) - period key =
-    YYYY-MM (renewal watermark usage.py me already handle hota
-    month-key kaafi).
+  - Dedupe: per client+threshold+period (data/usage_alerts.jsonl) — period key =
+    YYYY-MM (renewal watermark usage.py me already handle hota; month-key kaafi).
   - GATED `USAGE_ALERTS=1` (default OFF => sirf record, koi email nahi).
   - Wired: team_scheduler digest job (daily). Kabhi raise nahi karta.
 """
@@ -79,41 +78,40 @@ def _already_alerted(client_id: str, threshold: int, period: str) -> bool:
         and r.get("period") == period
         and (
             bool(r.get("sent")) or not enabled
-        )  # only a DELIVERED alert dedups when enabled - otherwise presence in log is enough to avoid log spam
+        )  # only a DELIVERED alert dedups when enabled — otherwise presence in log is enough to avoid log spam
         for r in _read()
     )
 
 
 def build_message(threshold: int, business_name: str, used: int, cap: int) -> dict[str, str]:
-    """Hinglish alert/upsell message. Pure function - testable."""
+    """Hinglish alert/upsell message. Pure function — testable."""
     biz = (business_name or "Aapka business").strip()
     if threshold >= 100:
         return {
-            "subject": f"⛔ {biz} - AI calling minutes khatam (is mahine ke)",
+            "subject": f"⛔ {biz} — AI calling minutes khatam (is mahine ke)",
             "body": (
                 f"Namaste!\n\n{biz} ke is period ke AI voice minutes poore use ho gaye "
-                f"({used}/{cap} min) - nayi outbound AI calls ab agle renewal tak pause hain.\n\n"
+                f"({used}/{cap} min) — nayi outbound AI calls ab agle renewal tak pause hain.\n\n"
                 f"Turant chalu rakhna hai? Plan renew/upgrade karo: {PRICING_URL}\n"
-                f"Ya humein likho: {SUPPORT_EMAIL} - top-up arrange kar denge.\n\n- Team LeadsGenAI"
+                f"Ya humein likho: {SUPPORT_EMAIL} — top-up arrange kar denge.\n\n— Team LeadsGenAI"
             ),
         }
     return {
-        "subject": f"📞 {biz} - AI calling minutes {threshold}% use ho gaye",
+        "subject": f"📞 {biz} — AI calling minutes {threshold}% use ho gaye",
         "body": (
-            f"Namaste!\n\nGood news pehle: {biz} ka AI agent khoob kaam kar raha hai - "
+            f"Namaste!\n\nGood news pehle: {biz} ka AI agent khoob kaam kar raha hai — "
             f"{used}/{cap} min ({threshold}%+) is period me use ho chuke.\n\n"
             f"Minutes khatam hone par calls pause ho jaati hain. Bina ruke chalana hai to "
-            f"abhi upgrade/renew dekh lo: {PRICING_URL}\n\n- Team LeadsGenAI"
+            f"abhi upgrade/renew dekh lo: {PRICING_URL}\n\n— Team LeadsGenAI"
         ),
     }
 
 
 async def _topup_link(client_id: str, business_name: str) -> str:
-    """Razorpay payment-links removed 2026-06-18 - always "".
+    """Razorpay payment-links removed 2026-06-18 — always "".
 
     Usage-alert email body already carries PRICING_URL (manual UPI path).
-    Kept as a named helper so callers stay readable
-    never raises.
+    Kept as a named helper so callers stay readable; never raises.
     """
     _ = (client_id, business_name)
     return ""
@@ -160,7 +158,7 @@ def _readf(path: str) -> list[dict[str, Any]]:
 
 
 async def run_check() -> dict[str, Any]:
-    """Daily sweep - metered clients ke thresholds check karo. Never raises."""
+    """Daily sweep — metered clients ke thresholds check karo. Never raises."""
     out: dict[str, Any] = {"checked": 0, "alerts": 0, "sent": 0, "enabled": _enabled()}
     try:
         from app.billing import usage
@@ -208,7 +206,7 @@ async def run_check() -> dict[str, Any]:
                             await _send(
                                 notify,
                                 f"[usage] {cl.get('business_name')} @ {th}% ({used}/{cap} min)",
-                                f"Upsell window: {msg['subject']}\nClient email: {email or '-'} (sent={ok})",
+                                f"Upsell window: {msg['subject']}\nClient email: {email or '—'} (sent={ok})",
                             )
                         if ok:
                             out["sent"] += 1

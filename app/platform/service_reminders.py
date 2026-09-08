@@ -1,10 +1,10 @@
 """
-service_reminders.py - repeat-service reminders (NiceJob parity).
+service_reminders.py — repeat-service reminders (NiceJob parity).
 ==================================================================
 
 Client (local business) ke END-CUSTOMERS ke service cycles track karo
 (AC service har 6 mahine, RO filter har 3 mahine, car service har saal...)
-aur due hote hi Hinglish WhatsApp reminder DRAFT ready karo - 1-click
+aur due hote hi Hinglish WhatsApp reminder DRAFT ready karo — 1-click
 wa.me link, KABHI auto-send nahi (WA bulk auto = number ban).
 
 Store: data/service_reminders.jsonl (append-only event log):
@@ -19,10 +19,10 @@ Public API (sab never-raise, pure stdlib):
   - draft(reminder)              -> Hinglish WA reminder draft + wa.me link
   - run_due(days_ahead=3)        -> drafts list + reminded markers (dedupe)
   - run_due_if_enabled()         -> scheduler hook, GATED `SERVICE_REMINDERS=1`
-  - mark_serviced(cycle_id)      -> service ho gayi -> agla cycle shuru
+  - mark_serviced(cycle_id)      -> service ho gayi → agla cycle shuru
   - list_cycles(client_id=None)  -> saved cycles
 
-Scheduler wiring is module ki NAHI hai - suggestion: team_scheduler `content`
+Scheduler wiring is module ki NAHI hai — suggestion: team_scheduler `content`
 job me `service_reminders.run_due_if_enabled()` (flag OFF = graceful skip).
 """
 
@@ -57,7 +57,7 @@ def _append(rec: dict[str, Any]) -> None:
 
 
 def _load_state() -> tuple[dict[str, dict[str, Any]], set[tuple[str, str]]]:
-    """(cycles by id - latest wins, reminded {(id, next_due)} set)."""
+    """(cycles by id — latest wins, reminded {(id, next_due)} set)."""
     cycles: dict[str, dict[str, Any]] = {}
     reminded: set[tuple[str, str]] = set()
     try:
@@ -201,7 +201,7 @@ def _client_name(client_id: str) -> str:
 
 
 def draft(reminder: dict[str, Any] | None) -> dict[str, Any]:
-    """Ek due cycle -> Hinglish WA reminder DRAFT (1-click wa.me, NO auto-send).
+    """Ek due cycle → Hinglish WA reminder DRAFT (1-click wa.me, NO auto-send).
     Never raises."""
     try:
         r = reminder if isinstance(reminder, dict) else {}
@@ -211,9 +211,9 @@ def draft(reminder: dict[str, Any] | None) -> dict[str, Any]:
         service = str(r.get("service") or "service").strip()
         interval_h = _interval_hinglish(int(r.get("interval_days") or 0))
         biz = _client_name(str(r.get("client_id") or ""))
-        sign = f"\n- {biz}" if biz else ""
+        sign = f"\n— {biz}" if biz else ""
         message = (
-            f"Namaste {name} ji! 🙏 Aapki {service} ko {interval_h} ho gaye hain - "
+            f"Namaste {name} ji! 🙏 Aapki {service} ko {interval_h} ho gaye hain — "
             f"time par service se machine lambi chalti hai aur kharcha bachta hai. "
             f"Is week ka slot book kar lein? Abhi book karne par 10% off! 😊{sign}"
         )
@@ -229,7 +229,7 @@ def draft(reminder: dict[str, Any] | None) -> dict[str, Any]:
             "next_due": r.get("next_due"),
             "message": message,
             "wa_link": wa_link,
-            "status": "draft",  # NEVER auto-sent - human 1-click only
+            "status": "draft",  # NEVER auto-sent — human 1-click only
         }
     except Exception as e:
         logger.warning(f"[service_reminders] draft failed: {e}")
@@ -259,7 +259,7 @@ def run_due(days_ahead: int = 3) -> dict[str, Any]:
                 log_event(
                     "kavya",
                     "service_reminder",
-                    f"{d['customer']['name']} - {d['service']} due ({d.get('next_due')})",
+                    f"{d['customer']['name']} — {d['service']} due ({d.get('next_due')})",
                 )
             except Exception:
                 pass
@@ -267,7 +267,7 @@ def run_due(days_ahead: int = 3) -> dict[str, Any]:
             "ok": True,
             "drafts": drafts,
             "count": len(drafts),
-            "note": "Auto-send NAHI hota - wa_link se 1-click bhejo (ban-safe).",
+            "note": "Auto-send NAHI hota — wa_link se 1-click bhejo (ban-safe).",
         }
     except Exception as e:
         logger.warning(f"[service_reminders] run_due failed: {e}")
@@ -275,7 +275,7 @@ def run_due(days_ahead: int = 3) -> dict[str, Any]:
 
 
 async def run_due_if_enabled() -> dict[str, Any]:
-    """Scheduler hook - sirf `SERVICE_REMINDERS=1` pe chalta (default OFF)."""
+    """Scheduler hook — sirf `SERVICE_REMINDERS=1` pe chalta (default OFF)."""
     flag = (os.getenv(_FLAG) or "").strip().lower()
     if flag not in ("1", "true", "yes", "on"):
         return {"ok": True, "skipped": True, "reason": f"{_FLAG} flag OFF"}
@@ -283,7 +283,7 @@ async def run_due_if_enabled() -> dict[str, Any]:
 
 
 def mark_serviced(cycle_id: str, service_date: str = "") -> dict[str, Any]:
-    """Service complete - naya cycle shuru (next_due = date + interval). Never raises."""
+    """Service complete — naya cycle shuru (next_due = date + interval). Never raises."""
     try:
         cycles, _ = _load_state()
         r = cycles.get(str(cycle_id or "").strip())

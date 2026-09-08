@@ -1,13 +1,13 @@
-"""team._latest_events_per_member - the N+1 fix (Sentry PYTHON-S).
+"""team._latest_events_per_member — the N+1 fix (Sentry PYTHON-S).
 
 `team_status()` used to resolve "last activity" for every STAFF member with no
 event today via `query(...).filter(member == m).first()` INSIDE A LOOP. STAFF has
 31 members, so a quiet roster meant up to 31 round trips per
 `GET /api/admin/agents` (1428ms transaction in prod). It degraded as the system
-got QUIETER - the opposite of where anyone looks for a slow query.
+got QUIETER — the opposite of where anyone looks for a slow query.
 
 These tests use a REAL in-memory SQLite session and COUNT the SQL statements
-actually executed, because a fake DB cannot prove "one query instead of N" - the
+actually executed, because a fake DB cannot prove "one query instead of N" — the
 query count IS the regression being pinned.
 """
 
@@ -43,7 +43,7 @@ def db():
 
 
 def _seed(db, member: str, n: int, base: datetime) -> None:
-    """n events for `member`, oldest->newest, so .desc() has a clear winner."""
+    """n events for `member`, oldest→newest, so .desc() has a clear winner."""
     for i in range(n):
         db.add(
             AgentEvent(
@@ -110,7 +110,7 @@ def test_the_old_loop_really_did_cost_n_queries(db, monkeypatch):
 
     assert len(rows) == 10, "fallback must still be correct"
     assert db.info["sql_count"] == 10, (
-        "the old per-member loop should issue one SELECT per member - if this is "
+        "the old per-member loop should issue one SELECT per member — if this is "
         "not 10, the sql counter is not measuring what the fix claims to improve"
     )
 
@@ -131,7 +131,7 @@ def test_members_with_no_events_are_simply_absent(db):
 
 
 def test_falls_back_to_per_member_loop_when_window_path_breaks(db, monkeypatch):
-    """Behaviour must be identical if the window query raises - the caller's
+    """Behaviour must be identical if the window query raises — the caller's
     best-effort contract predates this fix and must survive it."""
     base = datetime(2026, 7, 1, 10, 0, 0)
     _seed(db, "swara", 3, base)

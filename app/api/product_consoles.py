@@ -1,7 +1,7 @@
-"""app/api/product_consoles.py - Archify-styled customer consoles (P1 voice + P2 marketing).
+"""app/api/product_consoles.py — Archify-styled customer consoles (P1 voice + P2 marketing).
 
 Two enterprise consoles, ONE shared design system (frontend/archify_console.css,
-derived from tt-a1i/archify DESIGN.md - "The Evidence Console"):
+derived from tt-a1i/archify DESIGN.md — "The Evidence Console"):
 
   GET /app/voice-console      -> Product 1: Customer Configuration & Knowledge Panel
   GET /app/marketing-console  -> Product 2: Marketing Product Launch Panel
@@ -12,15 +12,11 @@ Design contract (matches Archify + project conventions):
   - **Truth before spectacle.** Every count, node state and "connected" claim is
     derived from a real source (clients_store, KB stats, social token vault).
     Nothing is invented. Missing data returns honest zeros, never placeholders.
-  - **Never 500.** Every handler is guarded
-  failures degrade to a partial payload
+  - **Never 500.** Every handler is guarded; failures degrade to a partial payload
     with `ok:true` and a `degraded` note, or an explicit 4xx for bad input.
-  - **Reuse, don't rebuild.** Social OAuth -> app.api.social_oauth
-  credential
-    store -> app.social_engine.vault (Fernet at-rest)
-    knowledge -> app.voice_agent
-    .knowledge_base (namespaced `client:<id>`)
-    client record -> clients_store.
+  - **Reuse, don't rebuild.** Social OAuth -> app.api.social_oauth; credential
+    store -> app.social_engine.vault (Fernet at-rest); knowledge -> app.voice_agent
+    .knowledge_base (namespaced `client:<id>`); client record -> clients_store.
 
 Mounted from app/main.py inside a guarded try (see CHECK-MOUNT comment at EOF).
 """
@@ -116,7 +112,7 @@ def _read_config(client_id: str) -> dict[str, Any]:
 
 def _write_config(client_id: str, patch: dict[str, Any]) -> dict[str, Any]:
     """Merge `patch` into the client's record and append. Returns new record.
-    Append-only (jsonl-first) so history is preserved - same contract as
+    Append-only (jsonl-first) so history is preserved — same contract as
     clients_store / social vault. Never raises (returns best-effort record)."""
     cid = (client_id or "").strip()
     current = _read_config(cid)
@@ -155,7 +151,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
         "channels": ["inbound"],
         "steps": [
             "Greet with business name and offer help",
-            "Answer from knowledge base only - no invented facts",
+            "Answer from knowledge base only — no invented facts",
             "Capture name + requirement + preferred callback time",
             "Offer appointment booking if the caller is qualified",
             "Close with summary and next step",
@@ -179,7 +175,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
                 {"id": "close", "type": "end", "text": "Dhanyavaad. Humari team aapse jaldi sampark karegi."},
             ],
         },
-        "dlt_note": "Inbound - no DLT template required. Consent recorded on first call.",
+        "dlt_note": "Inbound — no DLT template required. Consent recorded on first call.",
     },
     {
         "id": "lead_qualify",
@@ -247,7 +243,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
                 {"id": "end", "type": "end"},
             ],
         },
-        "dlt_note": "Service call - permitted with prior consent on record.",
+        "dlt_note": "Service call — permitted with prior consent on record.",
     },
     {
         "id": "payment_followup",
@@ -275,7 +271,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
                 {"id": "end", "type": "end"},
             ],
         },
-        "dlt_note": "Transactional - permitted against an existing obligation.",
+        "dlt_note": "Transactional — permitted against an existing obligation.",
     },
     {
         "id": "reactivation",
@@ -293,7 +289,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
             "label": "Reactivation",
             "entry": "warm",
             "nodes": [
-                {"id": "warm", "type": "speak", "text": "Kaafi time ho gaya - aapko yaad kar rahe the."},
+                {"id": "warm", "type": "speak", "text": "Kaafi time ho gaya — aapko yaad kar rahe the."},
                 {"id": "offer", "type": "speak", "text": "Aaj ke liye hamare paas ek special offer hai."},
                 {"id": "objection", "type": "kb_answer", "kb": True},
                 {"id": "accept", "type": "branch", "on": "accepted", "yes": "book", "no": "end"},
@@ -301,7 +297,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
                 {"id": "end", "type": "end"},
             ],
         },
-        "dlt_note": "Cold outbound - DLT template + consent required.",
+        "dlt_note": "Cold outbound — DLT template + consent required.",
     },
     {
         "id": "survey_nps",
@@ -333,7 +329,7 @@ CALL_TEMPLATES: list[dict[str, Any]] = [
                 {"id": "thanks", "type": "end", "text": "Dhanyavaad aapke feedback ke liye."},
             ],
         },
-        "dlt_note": "Service/survey call - permitted with prior consent.",
+        "dlt_note": "Service/survey call — permitted with prior consent.",
     },
 ]
 
@@ -342,7 +338,7 @@ _TEMPLATES_BY_ID = {t["id"]: t for t in CALL_TEMPLATES}
 
 # =========================================================================== #
 # Call-automation EVENT SLOTS
-# Pattern source: Tata Tele Business Services (TTBS) Smartflo - configuration is
+# Pattern source: Tata Tele Business Services (TTBS) Smartflo — configuration is
 # expressed as `event -> asset` rows (incoming-missed-to-agent, answered-to-caller,
 # ...) with regulatory status shown inline, NOT as one opaque settings blob.
 # Each slot binds a call template to a lifecycle event.
@@ -418,7 +414,7 @@ _EVENT_SLOT_KEYS = {s["key"] for s in EVENT_SLOTS}
 
 
 def _default_bindings() -> list[dict[str, Any]]:
-    """Every slot starts unbound. The console shows that honestly - an unbound
+    """Every slot starts unbound. The console shows that honestly — an unbound
     event is inert, it does not silently fall back to a guessed script."""
     return [{"event": s["key"], "template_id": "", "channel": (s["channels"] or ["voice"])[0],
              "enabled": False} for s in EVENT_SLOTS]
@@ -448,7 +444,7 @@ def _normalize_bindings(raw: Any) -> list[dict[str, Any]]:
 
 
 # =========================================================================== #
-# Readiness - derived from real evidence only                                 #
+# Readiness — derived from real evidence only                                 #
 # =========================================================================== #
 def _readiness(client: dict[str, Any], cfg: dict[str, Any], kb: dict[str, Any],
                conns: dict[str, Any], product: str) -> dict[str, Any]:
@@ -656,7 +652,7 @@ async def console_js():
 
 @router.get("/app/voice-console", include_in_schema=False)
 async def voice_console_page():
-    """Product 1 - Customer Configuration & Knowledge Panel."""
+    """Product 1 — Customer Configuration & Knowledge Panel."""
     if not _VOICE_HTML.exists():
         raise HTTPException(status_code=404, detail="voice console not found")
     return FileResponse(str(_VOICE_HTML), media_type="text/html")
@@ -664,7 +660,7 @@ async def voice_console_page():
 
 @router.get("/app/marketing-console", include_in_schema=False)
 async def marketing_console_page():
-    """Product 2 - Marketing Product Launch Panel."""
+    """Product 2 — Marketing Product Launch Panel."""
     if not _MARKETING_HTML.exists():
         raise HTTPException(status_code=404, detail="marketing console not found")
     return FileResponse(str(_MARKETING_HTML), media_type="text/html")
@@ -680,7 +676,7 @@ async def archify_home_page():
 
 @router.get("/app/archify/marketing", include_in_schema=False)
 async def archify_marketing_page():
-    """Archify Dashboard 2 - Marketing Product Launch Panel."""
+    """Archify Dashboard 2 — Marketing Product Launch Panel."""
     if not _ARCHIFY_MKT_HTML.exists():
         raise HTTPException(status_code=404, detail="archify marketing not found")
     return FileResponse(str(_ARCHIFY_MKT_HTML), media_type="text/html")
@@ -688,7 +684,7 @@ async def archify_marketing_page():
 
 @router.get("/app/archify/customer", include_in_schema=False)
 async def archify_customer_page():
-    """Archify Dashboard 1 - Customer Configuration & Knowledge Panel."""
+    """Archify Dashboard 1 — Customer Configuration & Knowledge Panel."""
     if not _ARCHIFY_CUST_HTML.exists():
         raise HTTPException(status_code=404, detail="archify customer not found")
     return FileResponse(str(_ARCHIFY_CUST_HTML), media_type="text/html")
@@ -730,7 +726,7 @@ async def archify_seed_marketing_js():
 
 
 # =========================================================================== #
-# Bootstrap - one call fills the console                                      #
+# Bootstrap — one call fills the console                                      #
 # =========================================================================== #
 @router.get("/api/consoles/bootstrap", operation_id="consoles_bootstrap")
 async def bootstrap(
@@ -967,7 +963,7 @@ async def kb_probe(
     client_id: str = Depends(require_customer),
 ) -> dict[str, Any]:
     """Ask the tenant's KB a question. Returns the grounded answer plus the exact
-    evidence it came from - the console never shows an answer without its receipts."""
+    evidence it came from — the console never shows an answer without its receipts."""
     ns = _kb_namespace(client_id)
     try:
         from app.voice_agent.knowledge_base import get_knowledge_base
@@ -1049,7 +1045,7 @@ async def template_detail(
     template_id: str,
     client_id: str = Depends(require_customer),
 ) -> dict[str, Any]:
-    """Full template including the flow spec - preview before apply."""
+    """Full template including the flow spec — preview before apply."""
     t = _TEMPLATES_BY_ID.get((template_id or "").strip())
     if not t:
         raise HTTPException(status_code=404, detail="Unknown template")
@@ -1072,7 +1068,7 @@ async def save_automation(
     """Persist call-automation setup.
 
     Honest contract: this records the configuration and evaluates the real
-    readiness gates. It does not fabricate a running campaign - activation is
+    readiness gates. It does not fabricate a running campaign — activation is
     only reported as `live` once knowledge, channel and template gates pass.
     """
     tid = (body.template_id or "").strip()
@@ -1123,7 +1119,7 @@ async def save_automation(
 
 
 def _resolve_niche(client_id: str, cfg: dict[str, Any]) -> str:
-    """Tenant niche for the voice agent - same precedence the bootstrap uses:
+    """Tenant niche for the voice agent — same precedence the bootstrap uses:
     console-saved business.niche, then the real client record, then "general".
     Never raises, never returns empty (an empty niche degrades the greeting)."""
     try:
@@ -1143,7 +1139,7 @@ def _resolve_niche(client_id: str, cfg: dict[str, Any]) -> str:
 
 # Persona that speaks each template. `receptionist` is documented inbound-only,
 # so it is mapped only to the one template whose own channel is inbound.
-# NOTE: read from this map, never from the template `spec` - no template declares
+# NOTE: read from this map, never from the template `spec` — no template declares
 # a role there, so a spec-based lookup silently yields None and leaves the
 # voice_role rail (threaded all the way to vobiz_stream) permanently empty.
 _TEMPLATE_VOICE_ROLE: dict[str, str] = {
@@ -1159,7 +1155,7 @@ _TEMPLATE_VOICE_ROLE: dict[str, str] = {
 class TestCallIn(BaseModel):
     # `to` is the documented field name; `phone` is kept as an alias because the
     # shipped voice-console UI posts `phone`. Neither is required at the model
-    # level - the gate below produces one clear 400 for both.
+    # level — the gate below produces one clear 400 for both.
     to: str = Field("", max_length=32)
     phone: str = Field("", max_length=32)
     template_id: str = Field("", max_length=60)
@@ -1176,13 +1172,12 @@ async def automation_test_call(
     `start_stream_call` is the shared dial helper used by the campaign loop and
     several internal callers. Those callers enforce the launch gates themselves;
     this route is where a tenant presses the button, so the gates are enforced
-    HERE - otherwise the console would be a path around every one of them
+    HERE — otherwise the console would be a path around every one of them
     (no daily cap, no per-tenant cap, no kill switch, no circuit breaker, no
     lead eligibility). Every gate below is the project's existing one, reused
-    via app.telephony.voice_launch
-    none is re-implemented or weakened.
+    via app.telephony.voice_launch; none is re-implemented or weakened.
 
-    Chain runs in order and STOPS AT THE FIRST FAILURE - a later gate must never
+    Chain runs in order and STOPS AT THE FIRST FAILURE — a later gate must never
     be reached (and never consume a counter slot) once an earlier one has
     refused.
 
@@ -1200,11 +1195,11 @@ async def automation_test_call(
         auto = cfg.get("automation") or {}
 
         # --- template resolution -------------------------------------------
-        # An explicitly requested id is FINAL - we never silently substitute a
+        # An explicitly requested id is FINAL — we never silently substitute a
         # different script than the tenant asked for. An unknown id is a client
         # error and is refused. Having NO template is NOT an error: this is the
         # tenant's own test call, so it runs the generic agent and says so in
-        # `warnings` - a test call you cannot place until the config is perfect
+        # `warnings` — a test call you cannot place until the config is perfect
         # is a test call nobody can use.
         req = (body.template_id or "").strip()
         if req:
@@ -1228,7 +1223,7 @@ async def automation_test_call(
         warnings: list[str] = []
         if not tid:
             warnings.append(
-                "No call template is bound - this call runs the generic "
+                "No call template is bound — this call runs the generic "
                 "telecaller, not a scripted flow."
             )
         try:
@@ -1238,7 +1233,7 @@ async def automation_test_call(
             kb_chunks = 0
         if kb_chunks <= 0:
             warnings.append(
-                "Your knowledge base is empty - the agent will hand off or "
+                "Your knowledge base is empty — the agent will hand off or "
                 "answer generically instead of answering from your own content."
             )
 
@@ -1252,13 +1247,13 @@ async def automation_test_call(
                 "voice_role": voice_role, "niche": niche,
                 "knowledge_chunks": kb_chunks, "warnings": warnings,
                 "governed": True, "dial_result": {},
-                "note": f"Blocked at '{step}' - no call was placed. {detail or reason}",
+                "note": f"Blocked at '{step}' — no call was placed. {detail or reason}",
             }
 
         def _pass(step: str, detail: str = "") -> None:
             steps.append({"step": step, "ok": True, "detail": detail})
 
-        # 1) phone sanity - the ONE deliberate HTTPException. A malformed
+        # 1) phone sanity — the ONE deliberate HTTPException. A malformed
         # request is a 400, not a silent no-op and not a 500.
         phone = "".join(ch for ch in str(body.to or body.phone or "") if ch.isdigit())
         if not (10 <= len(phone) <= 15):
@@ -1268,13 +1263,13 @@ async def automation_test_call(
             )
         _pass("phone", f"{len(phone)} digits")
 
-        # 2) admin kill switch - fail-closed if the gate itself cannot be read
+        # 2) admin kill switch — fail-closed if the gate itself cannot be read
         try:
             if voice_launch.admin_kill_engaged():
                 return _fail("admin_kill", "admin_kill", "Platform kill switch is engaged")
         except Exception as e:
             return _fail("admin_kill", "admin_kill_unavailable",
-                         f"Could not read the kill switch - failing closed: {e}")
+                         f"Could not read the kill switch — failing closed: {e}")
         _pass("admin_kill", "clear")
 
         # 3) circuit breaker
@@ -1283,7 +1278,7 @@ async def automation_test_call(
                 return _fail("circuit", "circuit_open", "Circuit breaker is open")
         except Exception as e:
             return _fail("circuit", "circuit_unavailable",
-                         f"Could not read the circuit breaker - failing closed: {e}")
+                         f"Could not read the circuit breaker — failing closed: {e}")
         _pass("circuit", "closed")
 
         # 4) per-tenant daily cap. tenant_cap clamps the stored value: the
@@ -1298,10 +1293,10 @@ async def automation_test_call(
             )
         except Exception as e:
             return _fail("tenant_cap", "tenant_cap_unavailable",
-                         f"Could not reserve a slot - failing closed: {e}")
+                         f"Could not reserve a slot — failing closed: {e}")
         if not res.ok:
             return _fail("tenant_cap", res.reason or "tenant_cap",
-                         f"{max(0, int(res.count or 0))}/{res.cap} - your daily limit is reached")
+                         f"{max(0, int(res.count or 0))}/{res.cap} — your daily limit is reached")
         _pass("tenant_cap", f"{res.count}/{res.cap}")
 
         # 5) per-lead eligibility (DND / window / consent / opt-out)
@@ -1311,7 +1306,7 @@ async def automation_test_call(
             elig_reason = str(getattr(elig, "reason", "") or "")
         except Exception as e:
             return _fail("eligibility", "eligibility_error",
-                         f"Compliance check failed - failing closed: {e}")
+                         f"Compliance check failed — failing closed: {e}")
         if not eligible:
             return _fail("eligibility", elig_reason or "ineligible",
                          f"This number cannot be called right now "
@@ -1322,7 +1317,7 @@ async def automation_test_call(
         # call_type="transactional" on purpose: a test call goes to a number the
         # tenant typed by hand, which has no verified consent on file. Routing it
         # as "promotional" would fail-closed on DND/DLT and make the demo
-        # permanently unreachable - while being no safer, since the same
+        # permanently unreachable — while being no safer, since the same
         # eligibility gate has already run above.
         from app.api.telephony_vobiz import start_stream_call
 
@@ -1344,30 +1339,30 @@ async def automation_test_call(
 
         if not dialed:
             # The slot was reserved so the cap is always exercised, but nothing
-            # was dialed - give it back instead of billing the tenant's quota
+            # was dialed — give it back instead of billing the tenant's quota
             # for a dry run or a provider rejection.
             try:
                 await voice_launch.release_tenant_slot(client_id)
-            except Exception as e:  # pragma: no cover - release never raises
+            except Exception as e:  # pragma: no cover — release never raises
                 logger.warning(f"[consoles] tenant slot release failed for {client_id}: {e}")
 
         if dry:
             note = (
-                "DRY RUN - NO CALL WAS PLACED. The governed chain completed and the "
+                "DRY RUN — NO CALL WAS PLACED. The governed chain completed and the "
                 "answer_url was built, but Vobiz was never contacted. Set "
                 "dry_run=false to place a real call."
             )
         elif placed:
             note = "Call placed."
         else:
-            note = "Vobiz did not accept the call - see dial_result for the provider response."
+            note = "Vobiz did not accept the call — see dial_result for the provider response."
 
         return {
             "ok": True, "placed": placed, "dialed": dialed, "dry_run": dry,
             # A dry run that failed to BUILD is still a failure. `dry` alone must
             # not blank the reason: with Vobiz unconfigured, start_stream_call
             # returns placed=False and the payload would otherwise report a clean
-            # run alongside a cheerful DRY RUN note - the exact "green light that
+            # run alongside a cheerful DRY RUN note — the exact "green light that
             # means nothing" this console refuses to show.
             "reason": "" if (dialed or (dry and placed)) else (dial_result.get("error") or "not_placed"),
             "steps": steps, "template_id": tid, "voice_role": voice_role,
@@ -1383,7 +1378,7 @@ async def automation_test_call(
             "reason": "internal_error", "steps": steps, "template_id": tid,
             "voice_role": None, "knowledge_chunks": 0, "warnings": [],
             "governed": True, "dial_result": {},
-            "note": "Internal error - no call was placed.",
+            "note": "Internal error — no call was placed.",
         }
 
 
@@ -1410,9 +1405,8 @@ def _publishing_armed() -> dict[str, Any]:
 
     Two independent master gates must be on. Without SOCIAL_PREFS_HONOR the
     content engine never reads cadence/approval_mode at all
-    (auto_content._social_prefs returns {})
-    without SOCIAL_ENGINE nothing
-    drains the publish queue. Reported to the tenant rather than hidden -
+    (auto_content._social_prefs returns {}); without SOCIAL_ENGINE nothing
+    drains the publish queue. Reported to the tenant rather than hidden —
     a "launched" state that cannot publish is worse than an honest one.
     """
     try:
@@ -1426,9 +1420,9 @@ def _publishing_armed() -> dict[str, Any]:
     armed = bool(engine_on and prefs_on)
     blockers: list[str] = []
     if not engine_on:
-        blockers.append("SOCIAL_ENGINE is off - publish queue is not drained (owner action).")
+        blockers.append("SOCIAL_ENGINE is off — publish queue is not drained (owner action).")
     if not prefs_on:
-        blockers.append("SOCIAL_PREFS_HONOR is off - cadence and channels are not read (owner action).")
+        blockers.append("SOCIAL_PREFS_HONOR is off — cadence and channels are not read (owner action).")
     return {"armed": armed, "engine_enabled": engine_on, "prefs_honored": prefs_on, "blockers": blockers}
 
 
@@ -1441,14 +1435,14 @@ async def marketing_launch(
 
     Writes two stores, and the distinction is the whole point:
 
-      * ``console_configs.jsonl`` - what this console renders. UI state only.
-      * ``social_engine.client_config`` - what the content engine actually reads.
+      * ``console_configs.jsonl`` — what this console renders. UI state only.
+      * ``social_engine.client_config`` — what the content engine actually reads.
 
     The second write is what makes launch real. Cadence and approval_mode there
     are the engine's genuine on/off switch (``auto_content._cadence_due``), and
     ``approval_mode="auto"`` is its documented hands-free publish path. Before
     this, activation persisted only to the console store, which nothing
-    downstream consumes - a launched tenant generated nothing at all.
+    downstream consumes — a launched tenant generated nothing at all.
 
     Honest contract: activation requires at least one genuinely healthy channel,
     and the response states whether publishing is armed platform-wide rather
@@ -1478,7 +1472,7 @@ async def marketing_launch(
     wanted = [c.strip().lower() for c in (body.channels or [])][:20]
     chosen = [c for c in wanted if c in _CONTENT_CHANNELS and c in healthy]
     if body.active and not chosen:
-        # Caller named nothing usable - fall back to every healthy content
+        # Caller named nothing usable — fall back to every healthy content
         # target rather than launching a config that targets zero channels.
         chosen = [c for c in _CONTENT_CHANNELS if c in healthy]
     dropped = sorted({c for c in wanted if c not in chosen})

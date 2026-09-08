@@ -1,11 +1,11 @@
-"""Any file / URL -> clean LLM-ready Markdown via **Microsoft MarkItDown** (MIT).
+"""Any file / URL → clean LLM-ready Markdown via **Microsoft MarkItDown** (MIT).
 
 MarkItDown converts PDF / DOCX / PPTX / XLSX / HTML / CSV / images into clean
-Markdown in one call - perfect for feeding client brochures, menus, price lists and
+Markdown in one call — perfect for feeding client brochures, menus, price lists and
 web pages into the LLM / RAG (LightRAG) pipeline, and it cuts token usage ~30-50%
 vs raw text. Lightweight, CPU, no GPU.
 
-Defensive: if markitdown isn't installed, returns "" - never raises.
+Defensive: if markitdown isn't installed, returns "" — never raises.
 
 Use:
   from app.lead_scraper.to_markdown import to_markdown

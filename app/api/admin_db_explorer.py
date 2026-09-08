@@ -3,24 +3,21 @@ Admin DB Explorer API  (Supabase-Studio-style admin backend, on OUR Postgres)
 ============================================================================
 Council decision 2026-06-25: Supabase ko second source-of-truth NAHI banaya
 (auto-pause/500MB/free-tier + data fragmentation). Iske badle existing VPS
-Postgres ke upar ek READ-ONLY admin data explorer - Studio jaisa "browse any
+Postgres ke upar ek READ-ONLY admin data explorer — Studio jaisa "browse any
 table" power, bina naya DB, bina naye dependency, single source-of-truth intact.
 
-  GET /api/admin/db/tables                 -> saari tables + column-count
-  GET /api/admin/db/table/{name}           -> paginated rows (read-only, redacted)
-  GET /api/admin/db/table/{name}/export.csv -> CSV export (read-only, capped)
+  GET /api/admin/db/tables                 → saari tables + column-count
+  GET /api/admin/db/table/{name}           → paginated rows (read-only, redacted)
+  GET /api/admin/db/table/{name}/export.csv → CSV export (read-only, capped)
 
 Safety:
   * Flag-gated: ``ADMIN_DB_EXPLORER=1`` warna 503 (INERT default).
   * Super-admin only (raw DB = highest privilege).
-  * READ-ONLY - koi INSERT/UPDATE/DELETE endpoint nahi.
+  * READ-ONLY — koi INSERT/UPDATE/DELETE endpoint nahi.
   * SQL-injection-safe: table/column identifiers DB-introspection list ke against
-    validate + dialect quote
-    LIMIT/OFFSET integer-clamped
-    params bind.
+    validate + dialect quote; LIMIT/OFFSET integer-clamped; params bind.
   * Sensitive columns (password/hash/secret/token/key…) auto-redact.
-  * Never raises raw - clean errors
-  blocking DB work ``asyncio.to_thread`` me.
+  * Never raises raw — clean errors; blocking DB work ``asyncio.to_thread`` me.
 """
 
 from __future__ import annotations
@@ -76,7 +73,7 @@ def _guard() -> None:
     if not _enabled():
         raise HTTPException(
             status_code=503,
-            detail="ADMIN_DB_EXPLORER disabled - .env me ADMIN_DB_EXPLORER=1 set karo",
+            detail="ADMIN_DB_EXPLORER disabled — .env me ADMIN_DB_EXPLORER=1 set karo",
         )
 
 
@@ -86,7 +83,7 @@ def _is_sensitive(col: str) -> bool:
 
 
 def _jsonable(v: object) -> object:
-    """DB value -> JSON-safe scalar (never raises)."""
+    """DB value → JSON-safe scalar (never raises)."""
     if v is None or isinstance(v, (str, int, float, bool)):
         return v
     if isinstance(v, (bytes, bytearray, memoryview)):
@@ -284,6 +281,5 @@ async def export_table(
     return Response(
         content=res.get("csv", ""),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment
-        filename="{safe_name}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
     )

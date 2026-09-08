@@ -10,7 +10,7 @@ This test locks the stronger gate that already lives on main:
 - no DEPLOY_ENABLED skip that silences image-scan on PRs
 - no blanket ``.trivyignore`` / severity suppression introduced as the gate
 
-Does not run Trivy itself - workflow text is the contract under review.
+Does not run Trivy itself — workflow text is the contract under review.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def test_repo_scan_fails_on_fixable_critical(workflow_text: str):
 
 
 def test_image_scan_is_fail_closed_high_critical(workflow_text: str):
-    assert "Trivy image scan (HIGH/CRITICAL - FAIL CLOSED" in workflow_text or (
+    assert "Trivy image scan (HIGH/CRITICAL — FAIL CLOSED" in workflow_text or (
         "FAIL CLOSED" in workflow_text and "trivy image" in workflow_text.lower()
     )
     assert "trivy image --severity HIGH,CRITICAL --ignore-unfixed" in workflow_text
@@ -64,7 +64,7 @@ def test_image_scan_builds_or_uses_exact_ref_never_latest_force(workflow_text: s
 
 def test_no_blanket_trivyignore_gate_bypass(workflow_text: str):
     """A checked-in ignore file is allowed for time-limited HIGH debt only when
-    explicitly reviewed - the CRITICAL enforce step must not point at one."""
+    explicitly reviewed — the CRITICAL enforce step must not point at one."""
     # CRITICAL enforce step should not pass --ignorefile / .trivyignore.
     crit = workflow_text.split("Fail on fixable CRITICAL")[-1].split("TODO(owner)")[0]
     assert "--ignorefile" not in crit

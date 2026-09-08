@@ -3,7 +3,7 @@
 Evidence: POSTHOG_API_KEY is set in prod, but SecurityHeadersMiddleware's CSP
 blocked the PostHog loader script + events beacon on admin/customer/voice/
 automation pages, so product analytics was dead. Fix: allow PostHog infra hosts
-in script-src + connect-src only - no generic wildcards, nothing else weakened.
+in script-src + connect-src only — no generic wildcards, nothing else weakened.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def test_admin_page_csp_allows_posthog_script_and_connect(client):
     # connect-src directive must allow the PostHog beacon host.
     connect_src = _directive(csp, "connect-src")
     assert "https://*.i.posthog.com" in connect_src
-    # Other directives unchanged - no PostHog in default/style/font/img.
+    # Other directives unchanged — no PostHog in default/style/font/img.
     for directive in ("default-src", "style-src", "font-src", "img-src"):
         assert not any(h in _directive(csp, directive) for h in POSTHOG_ALLOWED)
 
@@ -51,10 +51,10 @@ def test_customer_page_csp_allows_posthog_too(client):
 
 
 def test_posthog_does_not_leak_into_public_widget_csp(client):
-    """The public client-widget tier keeps its tight CSP - PostHog is internal-only.
+    """The public client-widget tier keeps its tight CSP — PostHog is internal-only.
 
     NOTE: an unknown slug 302-redirects to "/", so check the embed response
-    itself (follow_redirects=False) - that is the header the client's iframe
+    itself (follow_redirects=False) — that is the header the client's iframe
     actually receives.
     """
     r = client.get("/b/some-slug/embed", follow_redirects=False)
@@ -66,7 +66,7 @@ def test_posthog_does_not_leak_into_public_widget_csp(client):
 
 
 def _directive(csp: str, name: str) -> str:
-    for part in csp.split("\n    "):
+    for part in csp.split(";"):
         part = part.strip()
         if part.startswith(name):
             return part

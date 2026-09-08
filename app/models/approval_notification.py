@@ -2,7 +2,7 @@
 
 One row per (client, approval, approval-version, channel) notification attempt.
 `idempotency_key` is UNIQUE, so a duplicate send is prevented across task retries,
-worker restarts and repeated scheduler runs (DB-backed - survives a Redis flush).
+worker restarts and repeated scheduler runs (DB-backed — survives a Redis flush).
 Additive table, created by Base.metadata.create_all (DB_CREATE_ALL). ADR: Phase-1
 customer-delivery notifications (2026-07-12).
 """
@@ -21,7 +21,7 @@ class ApprovalNotification(Base):
     id = Column(String(36), primary_key=True, default=lambda: uuid4().hex)
     client_id = Column(String(64), nullable=True, index=True)
     approval_id = Column(String(64), nullable=False, index=True)
-    # Version token derived from the approval's mutable state - a changed approval
+    # Version token derived from the approval's mutable state — a changed approval
     # yields a new version, so a new notification is allowed for it.
     approval_version = Column(String(64), nullable=True)
     channel = Column(String(20), nullable=False, default="email")

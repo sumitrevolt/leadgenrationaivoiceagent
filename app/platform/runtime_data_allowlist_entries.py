@@ -383,7 +383,7 @@ ENTRIES: list[dict[str, Any]] = [
         "path_pattern": "equipments.json",
         "store_id": "platform.workforce_memory",
         "access_modes": ["REWRITE", "READ", "CREATE"],
-        "reason": "Admin equip/loadout map (agent_id -> shared entry ids).",
+        "reason": "Admin equip/loadout map (agent_id → shared entry ids).",
         "migration_tier": 2,
         "target_change_set": "runtime-data-cutover-wave-2",
         "owner": "platform",
@@ -623,7 +623,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "ops",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Claim only - never auto-send prospect contact; losing the marker "
+            "Claim only — never auto-send prospect contact; losing the marker "
             "may re-push the same-day /app/inbox reminder and nothing else."
         ),
     },
@@ -666,7 +666,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "ops",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Same as the CSV entry - must stay owner-local; only the "
+            "Same as the CSV entry — must stay owner-local; only the "
             "top-15 subset is exposed to reduce PII surface if shared."
         ),
     },
@@ -876,7 +876,7 @@ ENTRIES: list[dict[str, Any]] = [
         "target_change_set": "runtime-data-cutover-wave-1",
         "owner": "owner-os",
         "production_relevance": "CANARY",
-        "review_condition": "Fingerprints only - never store raw nonces or secrets.",
+        "review_condition": "Fingerprints only — never store raw nonces or secrets.",
     },
     {
         "allowlist_id": "owner_os.coordination_hub.auth_root",
@@ -917,7 +917,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "billing.upi_payments",
         "access_modes": ["CREATE", "READ"],
         "reason": (
-            "Immutable versioned Campaign Offer Policy (#240) - binds a live outbound "
+            "Immutable versioned Campaign Offer Policy (#240) — binds a live outbound "
             "campaign/variant to the packages it may quote. Append-only: editing writes a "
             "NEW version so a message already in flight is never re-priced. `path = _store()` "
             "inside _write_all; CREATE is the os.makedirs before the atomic replace."
@@ -927,7 +927,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "billing",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Policy versions are immutable - a revision must APPEND, never rewrite a prior "
+            "Policy versions are immutable — a revision must APPEND, never rewrite a prior "
             "version. Prices are never stored here; packages.py stays the single source. Any "
             "change allowing package inference (niche/LLM/intent) needs owner sign-off."
         ),
@@ -958,7 +958,7 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "path",
         "path_pattern": "data/offers.jsonl",
         # Same authority as upi_payments (commercial quoting feeding payment
-        # reconciliation), so NOT a separate logical family - mirrors how
+        # reconciliation), so NOT a separate logical family — mirrors how
         # billing.upi_config.store also files under billing.upi_payments.
         "store_id": "billing.upi_payments",
         "access_modes": ["CREATE", "READ"],
@@ -973,7 +973,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "billing",
         "production_relevance": "LIVE",
         "review_condition": (
-            "An issued offer's package_code/quoted_amount/currency are immutable - a revision "
+            "An issued offer's package_code/quoted_amount/currency are immutable — a revision "
             "must append a new order with supersedes_order_ref, never rewrite the original. "
             "Any change that lets a catalogue price mutate an issued quote needs owner sign-off."
         ),
@@ -982,7 +982,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "billing.offers.store_tmp",
         "file": "app/marketing/offers.py",
         "line_or_symbol": "tmp",
-        # Dynamic (pid-suffixed) temp - the declaration must name the expression
+        # Dynamic (pid-suffixed) temp — the declaration must name the expression
         # the scanner actually detects, not a glob.
         "path_pattern": 'f"{path}.tmp.{os.getpid()}"',
         "store_id": "billing.upi_payments",
@@ -1032,7 +1032,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "platform.memory_governance",
         "access_modes": ["APPEND", "READ", "CREATE", "REWRITE"],
         "reason": (
-            "Local `path = _rules_path()` call sites - resolver walks to the "
+            "Local `path = _rules_path()` call sites — resolver walks to the "
             "env-or-default expression, so path_pattern must match that form."
         ),
         "migration_tier": 2,
@@ -1058,7 +1058,7 @@ ENTRIES: list[dict[str, Any]] = [
         "target_change_set": "memory-stack-adr-161",
         "owner": "platform",
         "production_relevance": "LIVE",
-        "review_condition": "Append-only; never store raw matched text - hash only.",
+        "review_condition": "Append-only; never store raw matched text — hash only.",
     },
     # --- Search Console rank snapshot (ADR-177, GSC pSEO observability) ------
     # INERT until GSC_ENABLED=1 + creds (staff-gsc-rank-daily beat, 00:30 IST).
@@ -1097,7 +1097,7 @@ ENTRIES: list[dict[str, Any]] = [
         "target_change_set": "runtime-data-cutover-wave-3",
         "owner": "marketing",
         "production_relevance": "LIVE",
-        "review_condition": "Must move with marketing.gsc_rankings.state_tmp - the atomic rewrite pair is one family.",
+        "review_condition": "Must move with marketing.gsc_rankings.state_tmp — the atomic rewrite pair is one family.",
     },
     {
         "allowlist_id": "marketing.gsc_rankings.state_tmp",
@@ -1116,7 +1116,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Temp and target must stay on ONE filesystem.",
     },
-    # 2026-08-12 - platform.staff_bus (31 STAFF Buzz bus; STAFF_BUS_ENABLED OFF)
+    # 2026-08-12 — platform.staff_bus (31 STAFF Buzz bus; STAFF_BUS_ENABLED OFF)
     {
         "allowlist_id": "platform.staff_bus.root",
         "file": "app/platform/staff_bus/runtime.py",
@@ -1141,7 +1141,7 @@ ENTRIES: list[dict[str, Any]] = [
         "path_pattern": "data/staff_bus/events.jsonl",
         "store_id": "platform.staff_bus",
         "access_modes": ["APPEND", "CREATE", "READ"],
-        "reason": "Append-only staff_bus event ledger (Boss->team envelopes).",
+        "reason": "Append-only staff_bus event ledger (Boss→team envelopes).",
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
         "owner": "platform",
@@ -1217,7 +1217,7 @@ ENTRIES: list[dict[str, Any]] = [
         "reason": (
             "AgentPoller reads bus events.jsonl to discover task.assigned events "
             "targeting a specific agent. Same store as platform.staff_bus.events; "
-            "read-only - never writes or mutates the event ledger."
+            "read-only — never writes or mutates the event ledger."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
@@ -1473,7 +1473,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "No fabricated ratings/testimonials; daily cap must stay.",
     },
-    # 2026-08-23 - billing.promo_codes (platform promo/launch-code engine)
+    # 2026-08-23 — billing.promo_codes (platform promo/launch-code engine)
     {
         "allowlist_id": "billing.promo_codes.store",
         "file": "app/billing/promo_codes.py",
@@ -1492,14 +1492,14 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "billing",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Writes go through the atomic tmp+replace pair only - never a bare append on this path."
+            "Writes go through the atomic tmp+replace pair only — never a bare append on this path."
         ),
     },
     {
         "allowlist_id": "billing.promo_codes.tmp",
         "file": "app/billing/promo_codes.py",
         "line_or_symbol": "tmp",
-        # Dynamic (pid-suffixed) temp - declaration names the expression the
+        # Dynamic (pid-suffixed) temp — declaration names the expression the
         # scanner actually detects, not a glob (offers.py precedent).
         "path_pattern": 'f"{_STORE}.tmp.{os.getpid()}"',
         "store_id": "billing.promo_codes",
@@ -1514,7 +1514,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Temp and target must stay on ONE filesystem.",
     },
-    # 2026-08-23 - marketing.affiliates referral paid-flip (revenue sprint)
+    # 2026-08-23 — marketing.affiliates referral paid-flip (revenue sprint)
     {
         "allowlist_id": "marketing.affiliates.referrals",
         "file": "app/marketing/affiliate.py",
@@ -1523,7 +1523,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "marketing.affiliates",
         "access_modes": ["CREATE", "APPEND", "READ"],
         "reason": (
-            "Referral conversion ledger (lead->paid flip on payment activation, "
+            "Referral conversion ledger (lead→paid flip on payment activation, "
             "revenue sprint 2026-08-23). Legacy append-only family; the new "
             "paid-flip adds a locked atomic rewrite via its own tmp row."
         ),
@@ -1531,7 +1531,7 @@ ENTRIES: list[dict[str, Any]] = [
         "target_change_set": "runtime-data-cutover-wave-3",
         "owner": "growth",
         "production_relevance": "LIVE",
-        "review_condition": ("Flip only moves status lead->paid; never fabricates conversions."),
+        "review_condition": ("Flip only moves status lead→paid; never fabricates conversions."),
     },
     {
         "allowlist_id": "marketing.affiliates.referrals_tmp",
@@ -1549,7 +1549,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Temp and target must stay on ONE filesystem.",
     },
-    # 2026-08-23 - sales.prospects TASK_LI-001 enrichment batch (Board-run, offline)
+    # 2026-08-23 — sales.prospects TASK_LI-001 enrichment batch (Board-run, offline)
     {
         "allowlist_id": "sales.prospects.enrich.source",
         "file": "scripts/batch_enrich.py",
@@ -1576,7 +1576,7 @@ ENTRIES: list[dict[str, Any]] = [
         "access_modes": ["CREATE", "APPEND"],
         "reason": (
             "Enrichment output sidecar (append-only jsonl). Rebuildable from "
-            "source CSV + deterministic mapping - REBUILDABLE_CACHE class data."
+            "source CSV + deterministic mapping — REBUILDABLE_CACHE class data."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
@@ -1659,7 +1659,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "sales.prospects",
         "access_modes": ["CREATE", "REWRITE"],
         "reason": (
-            "Enriched output jsonl - deterministic rebuild from the CSV source. "
+            "Enriched output jsonl — deterministic rebuild from the CSV source. "
             "os.makedirs on DST_DIR is the CREATE."
         ),
         "migration_tier": 3,
@@ -1676,7 +1676,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "sales.prospects",
         "access_modes": ["CREATE"],
         "reason": (
-            "Output directory (os.makedirs exist_ok) for the enriched sidecar - "
+            "Output directory (os.makedirs exist_ok) for the enriched sidecar — "
             "rebuildable from the source CSV; same offline tooling family."
         ),
         "migration_tier": 3,
@@ -1728,7 +1728,7 @@ ENTRIES: list[dict[str, Any]] = [
         # The helper's return body is `store_root / f\"{safe}.jsonl\"`. The f-string
         # has no ast.Name references to module-level symbols, so the scanner's
         # helper-pattern inference cannot resolve it through the symbol table.
-        # Naming the helper itself is the honest match - same precedent as
+        # Naming the helper itself is the honest match — same precedent as
         # marketing.brand_kits.path -> \"_BRAND_DIR\".
         "path_pattern": "_tenant_path",
         "store_id": "automation.console_events",
@@ -1737,7 +1737,7 @@ ENTRIES: list[dict[str, Any]] = [
             "Per-tenant JSONL file data/console_events/<tenant>.jsonl. "
             "emit_console_event opens with mode='a'; _trim_to_cap writes back "
             "the tail; drain_console_events clears after read. The dispatcher "
-            "is fail-closed - every storage op is wrapped and a write error is "
+            "is fail-closed — every storage op is wrapped and a write error is "
             "logged, never raised into the caller's hot path."
         ),
         "migration_tier": 3,

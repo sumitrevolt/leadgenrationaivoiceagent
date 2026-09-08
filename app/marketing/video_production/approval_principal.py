@@ -1,4 +1,4 @@
-"""Stage 3B - trusted approval principals.
+"""Stage 3B — trusted approval principals.
 
 Before this module the saga accepted an ``actor_subject`` STRING chosen by the
 caller. The read-only identity map showed what that produced in practice:
@@ -15,11 +15,10 @@ authenticated object and never accepted from a request.
 What this module deliberately does NOT do:
 
 * It does not filter ``@`` or ``/`` and call the result verified. Character
-  shape is not provenance - a string with no ``@`` can still be untrusted or
+  shape is not provenance — a string with no ``@`` can still be untrusted or
   PII. Trust comes from WHICH resolver built the principal.
 * It does not hash an email or phone to manufacture a "non-PII" id. A hash of
-  PII is still PII
-  it is a pseudonym, not an internal identity.
+  PII is still PII; it is a pseudonym, not an internal identity.
 * It does not invent individual-human attribution where the auth system has
   none. Customer sessions carry only a tenant, so they yield an explicitly
   tenant-scoped principal.
@@ -40,7 +39,7 @@ logger = setup_logger(__name__)
 
 
 class PrincipalType(str, Enum):
-    """WHAT was authenticated - not merely which endpoint was used."""
+    """WHAT was authenticated — not merely which endpoint was used."""
 
     #: A tenant account proved possession of a customer session. No individual
     #: human is identified, because the credential store has no per-user id.
@@ -48,7 +47,7 @@ class PrincipalType(str, Enum):
     #: A specific admin User row (stable DB id).
     ADMIN_ACCOUNT = "admin_account"
     #: A flag-gated server automation acting ONLY on its own brand. No human,
-    #: no session - the authority comes from the flag + own-brand allowlist.
+    #: no session — the authority comes from the flag + own-brand allowlist.
     SYSTEM_AUTOMATION = "system_automation"
 
 
@@ -91,7 +90,7 @@ _PHONE_SHAPED = re.compile(r"^\+?\d[\d\s-]{8,}$")
 @dataclass(frozen=True)
 class ApprovalPrincipal:
     """Immutable, server-created. There is no public constructor path that
-    takes request input - every field is derived by a resolver below."""
+    takes request input — every field is derived by a resolver below."""
 
     subject_id: str
     tenant_id: str
@@ -153,7 +152,7 @@ def from_customer_session(
     The customer credential row (email / client_id / password_hash) has no
     per-user primary key, so two humans on one account are indistinguishable to
     the auth system. Claiming individual attribution here would be a lie in the
-    audit trail - the principal is therefore explicitly TENANT-scoped.
+    audit trail — the principal is therefore explicitly TENANT-scoped.
 
     Two facts the session dependency does NOT establish must be supplied by the
     caller, and both default to False so an un-updated caller fails closed:
@@ -165,8 +164,7 @@ def from_customer_session(
     ``revocation_verified``
         ``require_customer``'s logout-blacklist check fails OPEN when Redis is
         unavailable (it logs "allowing request"). Fail-open is defensible for a
-        read
-        it is not defensible for an approval mutation, so approval
+        read; it is not defensible for an approval mutation, so approval
         requires a POSITIVE revocation check.
     """
     cid = str(client_id or "").strip()
@@ -194,10 +192,9 @@ CAP_APPROVE_ON_BEHALF = "approve_customer_video_on_behalf"
 def _has_on_behalf_capability(user: Any) -> bool:
     """Server-side capability check. Never a request field, never an identity.
 
-    ``require_admin`` proves the caller may use the admin surface - that is
+    ``require_admin`` proves the caller may use the admin surface — that is
     AUTHENTICATION plus surface access, not authority over a specific tenant's
-    content. Today only ``super_admin`` carries the capability
-    an ordinary
+    content. Today only ``super_admin`` carries the capability; an ordinary
     ``admin`` refuses until a permission model grants it explicitly.
 
     Deliberately role-based, never person-based: no email, display name or
@@ -226,7 +223,7 @@ def from_admin_user(user: Any, *, tenant_id: str) -> ApprovalPrincipal:
 
     A stable subject is necessary but NOT sufficient. The read-only audit
     falsified the earlier reading of this resolver: it took ``tenant_id`` from
-    the target record and ASSIGNED it, which authorizes nothing - every platform
+    the target record and ASSIGNED it, which authorizes nothing — every platform
     admin could approve every tenant's video. Cross-tenant approval now requires
     an explicit capability.
     """
@@ -251,14 +248,13 @@ def from_admin_user(user: Any, *, tenant_id: str) -> ApprovalPrincipal:
 
 
 def from_system_automation(client_id: str) -> ApprovalPrincipal:
-    """Own-brand auto-approve canary - flag-gated, tenant-scoped, no human.
+    """Own-brand auto-approve canary — flag-gated, tenant-scoped, no human.
 
     The actor is a SYSTEM automation acting on its OWN brand only
     (leadgenai-self / leadgen-ai), never on a customer's behalf. The caller
     must already have verified (a) the own-brand flag is ON and (b) the client
-    id is in the own-brand allowlist - this resolver only turns a trusted server
-    decision into a principal
-    it does not itself perform that check.
+    id is in the own-brand allowlist — this resolver only turns a trusted server
+    decision into a principal; it does not itself perform that check.
     """
     cid = str(client_id or "").strip()
     if not cid:
@@ -288,17 +284,16 @@ REQUIRED_TOKEN_BINDINGS = (
 def from_approval_token(record: dict[str, Any], *, observed_sha256: str) -> ApprovalPrincipal:
     """The bearer token is CREDENTIAL EVIDENCE, never identity.
 
-    The actor is the tenant the token authorizes
-    the token's non-secret record
+    The actor is the tenant the token authorizes; the token's non-secret record
     id is retained as evidence. Legacy tokens carry none of the required
-    bindings and are refused for regeneration - they are not backfilled, because
+    bindings and are refused for regeneration — they are not backfilled, because
     inventing a binding after the fact would assert a content identity nobody
     ever previewed.
     """
     from app.marketing import content_approval
 
     rec = record or {}
-    # `or ""` would treat revision 0 - a legitimate first version - as missing,
+    # `or ""` would treat revision 0 — a legitimate first version — as missing,
     # so absence is tested explicitly rather than by truthiness.
     missing = [
         f

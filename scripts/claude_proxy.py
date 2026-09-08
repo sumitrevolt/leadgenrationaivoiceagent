@@ -6,7 +6,7 @@ Sitting at http://127.0.0.1:22000
 Advertises 14 Claude-prefixed OmniRoute combos (claude-omni-*) for Claude-format API
 clients configured at :22000 (Claude Code via start-claude-omniroute.ps1, WorkBuddy custom
 provider, Hermes/OpenClaw/Verdant custom providers). Note: Claude Desktop does NOT consume
-this proxy - it has no custom-endpoint support and stays on the Claude subscription.
+this proxy — it has no custom-endpoint support and stays on the Claude subscription.
 Proxies all chat, completions, and messages requests to OmniRoute (http://127.0.0.1:20128/v1).
 """
 

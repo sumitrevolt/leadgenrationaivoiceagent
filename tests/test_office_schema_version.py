@@ -1,5 +1,5 @@
 """Contract: admin + customer office payloads advertise ONE canonical schema
-version, from a single source of truth. Additive field - Unity ignores unknowns.
+version, from a single source of truth. Additive field — Unity ignores unknowns.
 """
 
 from __future__ import annotations

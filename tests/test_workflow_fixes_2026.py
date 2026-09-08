@@ -1,4 +1,4 @@
-"""Workflow parity fixes - inquiry hooks, boot-grace, process revive, speed-to-lead."""
+"""Workflow parity fixes — inquiry hooks, boot-grace, process revive, speed-to-lead."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def test_inquiry_hooks_runs_cadence_when_enabled(monkeypatch):
             "at": "2026-06-19T10:00:00Z",
         }
         await run_after_inquiry(rec)
-        # Await application-owned registry (determinism) - ownership lives in app.
+        # Await application-owned registry (determinism) — ownership lives in app.
         from app.platform.inquiry_hooks import await_inquiry_bg_tasks
 
         await await_inquiry_bg_tasks(timeout=5.0)
@@ -118,7 +118,7 @@ def test_dag_ensure_alive_skips_engine_mismatch(monkeypatch):
     )
     monkeypatch.setattr(
         "app.agents.flow_dispatch.engine_for",
-        lambda _rid: process_engine,  # mismatch -> skip revive
+        lambda _rid: process_engine,  # mismatch → skip revive
     )
     delayed: list[str] = []
     with patch("app.tasks.staff_jobs.process_tick") as mock_tick:

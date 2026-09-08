@@ -1,4 +1,4 @@
-"""social_engine.providers - platform adapters (SocialProvider subclasses).
+"""social_engine.providers — platform adapters (SocialProvider subclasses).
 
 LIVE now (no approval): Telegram (free), Postiz (agar configured).
 Gated (creds + platform approval chahiye, tab tak INERT): Meta (FB Page + Instagram),
@@ -32,7 +32,7 @@ async def _http():
 
 
 # --------------------------------------------------------------------------- #
-# Telegram - LIVE (free, BotFather token). Approval: none.
+# Telegram — LIVE (free, BotFather token). Approval: none.
 # --------------------------------------------------------------------------- #
 class TelegramProvider(SocialProvider):
     name = "telegram"
@@ -87,7 +87,7 @@ class TelegramProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# Meta - Facebook Page + Instagram (one adapter, `target`). GATED.
+# Meta — Facebook Page + Instagram (one adapter, `target`). GATED.
 # Approval: Meta app-review + business verification. Perms: pages_manage_posts,
 # pages_read_engagement (FB); instagram_content_publish, instagram_basic (IG).
 # Token: per-client Page access token (vault). IG video = PUBLIC url chahiye.
@@ -170,9 +170,9 @@ class MetaProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# Google Business Profile - localPosts. GATED.
+# Google Business Profile — localPosts. GATED.
 # Approval: GBP API access request + per-location OAuth. NOTE: Google ne kuch GBP
-# post-features restrict kiye - activation pe current API + access status verify karo.
+# post-features restrict kiye — activation pe current API + access status verify karo.
 # --------------------------------------------------------------------------- #
 class GBPProvider(SocialProvider):
     name = "gbp"
@@ -215,7 +215,7 @@ class GBPProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# LinkedIn - Posts API. GATED (partner approval sabse mushkil).
+# LinkedIn — Posts API. GATED (partner approval sabse mushkil).
 # Approval: LinkedIn Marketing/Community Mgmt API partner access. Scope: w_organization_social
 # / w_member_social. Author urn = person/organization. Video = registerUpload pehle.
 # --------------------------------------------------------------------------- #
@@ -238,7 +238,7 @@ class LinkedInProvider(SocialProvider):
                 error="token/author-urn unset (LinkedIn partner access pending)",
             )
         try:
-            # Text/article post (image/video = registerUpload flow, separate - activation pe wire).
+            # Text/article post (image/video = registerUpload flow, separate — activation pe wire).
             body = {
                 "author": author,
                 "commentary": req.caption or "",
@@ -267,7 +267,7 @@ class LinkedInProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# X (Twitter) - v2 tweets. GATED (OAuth + paid API tier for media).
+# X (Twitter) — v2 tweets. GATED (OAuth + paid API tier for media).
 # --------------------------------------------------------------------------- #
 class XProvider(SocialProvider):
     name = "x"
@@ -301,7 +301,7 @@ class XProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# YouTube - Shorts upload. GATED (OAuth + resumable upload, heavy).
+# YouTube — Shorts upload. GATED (OAuth + resumable upload, heavy).
 # --------------------------------------------------------------------------- #
 class YouTubeProvider(SocialProvider):
     name = "youtube"
@@ -315,22 +315,22 @@ class YouTubeProvider(SocialProvider):
             return PublishResult(
                 ok=False, platform=self.name, error="token unset (YouTube OAuth pending)"
             )
-        # Resumable upload (videos.insert) heavy - activation pe wire (worker me, public_url ya file).
+        # Resumable upload (videos.insert) heavy — activation pe wire (worker me, public_url ya file).
         return PublishResult(
             ok=False, platform=self.name, error="youtube upload activation pe wire hoga"
         )
 
 
 # --------------------------------------------------------------------------- #
-# WhatsApp - 1-to-1 delivery of approved posts to the CLIENT's OWN number. LIVE
+# WhatsApp — 1-to-1 delivery of approved posts to the CLIENT's OWN number. LIVE
 # (self-host WAHA ya Meta Cloud, jo bhi active). Approval: none (self-host stack).
 #
 # ⚠️ BAN-SAFE INVARIANT: yeh provider SIRF business-owner ke ek number pe warm 1-to-1
-# message bhejta (approved content ready-to-forward). Kabhi bulk/broadcast NAHI - ek
+# message bhejta (approved content ready-to-forward). Kabhi bulk/broadcast NAHI — ek
 # recipient (client ka apna phone). account_ref = recipient phone (engine client-record
 # se resolve karta). Sender = get_whatsapp_sender() (self-host active to WAHA, warna Cloud).
 # Image/video ka public URL caption me append hota (self-host me native media-send method
-# nahi) - client apne WhatsApp pe post dekh ke aage forward kar sakti.
+# nahi) — client apne WhatsApp pe post dekh ke aage forward kar sakti.
 # --------------------------------------------------------------------------- #
 class WhatsAppProvider(SocialProvider):
     name = "whatsapp"
@@ -356,13 +356,12 @@ class WhatsAppProvider(SocialProvider):
     @staticmethod
     def _recipient(req_ref: str, account: dict[str, Any] | None) -> str:
         """Single recipient phone. account_ref (engine ne client-phone se bhara) priority,
-        warna account meta. Digits-only, ek hi number - kabhi list nahi (bulk impossible)."""
+        warna account meta. Digits-only, ek hi number — kabhi list nahi (bulk impossible)."""
         cand = (req_ref or (account or {}).get("account_ref") or "").strip()
         if not cand:
             return ""
         # Ek hi recipient enforce: agar galti se comma/space-separated aa gaya to PEHLA hi lo.
-        cand = cand.replace("
-        ", ",").split(",")[0].strip()
+        cand = cand.replace(";", ",").split(",")[0].strip()
         return cand
 
     def configured(self, account: dict[str, Any] | None = None) -> bool:
@@ -405,7 +404,7 @@ class WhatsAppProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
-# Postiz - existing integration wrap (agar POSTIZ_API_KEY set). Multi-channel fallback.
+# Postiz — existing integration wrap (agar POSTIZ_API_KEY set). Multi-channel fallback.
 # --------------------------------------------------------------------------- #
 class PostizProvider(SocialProvider):
     name = "postiz"
@@ -426,7 +425,7 @@ class PostizProvider(SocialProvider):
             client = dict(clients_store.get_client(req.client_id) or {})
             if not client.get("id"):
                 client["id"] = str(req.client_id or "")
-            # Wizard stores postiz_integrations in social_config - merge so publish
+            # Wizard stores postiz_integrations in social_config — merge so publish
             # does not silently fall through to (now blocked) global env IDs.
             if not client.get("postiz_integrations"):
                 try:

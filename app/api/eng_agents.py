@@ -1,15 +1,13 @@
-"""Engineering-agent extension endpoints - code-review · self-recall · checkpoints.
+"""Engineering-agent extension endpoints — code-review · self-recall · checkpoints.
 
 3 naye engineering capabilities (Kilo-Code "Review agent" + Hermes self-recall +
 Hermes/Kilo checkpoints) ko admin-gated API surface deta. Modules khud read-only,
-never-raise, flag-gated
-yeh router unko expose karta verify + ad-hoc use ke liye.
+never-raise, flag-gated; yeh router unko expose karta verify + ad-hoc use ke liye.
 
 Mount (main session wires it): app.include_router(eng_agents.router, prefix="/api/agents-ext")
-Routes (sab require_admin
-rollback = require_super_admin RBAC design):
-  - POST /code-review            -> code_reviewer.review
-  - POST /recall   GET /recall   -> agent_recall.record / .recall
+Routes (sab require_admin; rollback = require_super_admin RBAC design):
+  - POST /code-review            → code_reviewer.review
+  - POST /recall   GET /recall   → agent_recall.record / .recall
   - POST /checkpoint  GET /checkpoints  POST /rollback/{ckpt_id}
 """
 
@@ -32,8 +30,7 @@ class CodeReviewIn(BaseModel):
 @router.post("/code-review")
 async def code_review(body: CodeReviewIn, _user=Depends(require_admin)):
     """Dedicated review-agent: code/diff ka multi-dimension structured review
-    (correctness/security/performance/style/tests). LLM-grounded
-    fail -> static
+    (correctness/security/performance/style/tests). LLM-grounded; fail → static
     minimal result. Read-only, never-raise, flag-independent (admin-gated)."""
     from app.agents import code_reviewer
 
@@ -58,7 +55,7 @@ async def recall_record(body: RecallRecordIn, _user=Depends(require_admin)):
 
 @router.get("/recall")
 async def recall_search(q: str, k: int = 6, _user=Depends(require_admin)):
-    """Agent ke apne past runs/decisions search karo - semantic-if-available,
+    """Agent ke apne past runs/decisions search karo — semantic-if-available,
     deterministic keyword fallback. Read-only, never-raise."""
     from app.agents import agent_recall
 
@@ -97,7 +94,7 @@ async def checkpoints_list(limit: int = 50, _user=Depends(require_admin)):
 
 @router.post("/rollback/{ckpt_id}")
 async def checkpoint_rollback(ckpt_id: str, _user=Depends(require_super_admin)):
-    """Checkpoint ke files wapas restore karo - SUPER_ADMIN only (mutating + RBAC
+    """Checkpoint ke files wapas restore karo — SUPER_ADMIN only (mutating + RBAC
     design, code_upgrader patch-status jaisa gate)."""
     from app.agents import agent_checkpoints
 

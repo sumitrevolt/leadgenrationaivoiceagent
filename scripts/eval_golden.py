@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Golden-dataset CI gate (Tier-1 / Salesforce-style) - deterministic + optional LLM judge.
+"""Golden-dataset CI gate (Tier-1 / Salesforce-style) — deterministic + optional LLM judge.
 
-Reuses existing judges - does NOT invent a second vocabulary:
+Reuses existing judges — does NOT invent a second vocabulary:
   * app.agents.eval_metrics.voice_turn_score  (empty / echo / consecutive-repeat / too-long)
   * scripts.agent_tester.BANNED               (forbidden phrases)
   * app.voice_agent.qa_checks                 (pushy / permission / AI disclosure)
@@ -12,12 +12,10 @@ Layers:
      judge key unless EVAL_GOLDEN_REQUIRE_JUDGE=1.
 
 Exit codes:
-  0 - all deterministic asserts pass
-  judge layer pass-or-skipped
-  1 - golden regression (deterministic fail, or judge fail when required/available)
+  0 — all deterministic asserts pass; judge layer pass-or-skipped
+  1 — golden regression (deterministic fail, or judge fail when required/available)
 
-CI: wire non-blocking first (continue-on-error) in deploy-vps.yml
-flip to
+CI: wire non-blocking first (continue-on-error) in deploy-vps.yml; flip to
 blocking only after the suite is stable.
 
 Run:  .venv\\Scripts\\python.exe scripts\\eval_golden.py
@@ -82,7 +80,7 @@ def _user(text: str) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# Layer 1 - deterministic golden fixtures (~10)
+# Layer 1 — deterministic golden fixtures (~10)
 # --------------------------------------------------------------------------- #
 def _assert_flags(messages: list[dict], **expect_flags: int) -> str | None:
     r = eval_metrics.voice_turn_score(messages)
@@ -105,7 +103,7 @@ def _assert_banned_absent(text: str) -> str | None:
 def run_deterministic() -> list[CaseResult]:
     cases: list[tuple[str, Callable[[], str | None]]] = []
 
-    # 1 clean conversation -> perfect score
+    # 1 clean conversation → perfect score
     def c1() -> str | None:
         msgs = [
             _bot("Main LeadGen AI se ek AI assistant hoon. Do minute hain?"),
@@ -138,7 +136,7 @@ def run_deterministic() -> list[CaseResult]:
         hit = _assert_banned_absent(bad)
         if hit is None:
             return "expected BANNED detection for 'maine pehle'"
-        # positive control - clean text must pass
+        # positive control — clean text must pass
         return _assert_banned_absent("Main LeadGen AI se bol rahi hoon. Do minute?")
 
     # 6 no-response marker banned
@@ -222,7 +220,7 @@ def run_deterministic() -> list[CaseResult]:
 
 
 # --------------------------------------------------------------------------- #
-# Layer 2 - semantic LLM-judge (~5). Free-stack; skip without key.
+# Layer 2 — semantic LLM-judge (~5). Free-stack; skip without key.
 # --------------------------------------------------------------------------- #
 _SEMANTIC_CASES: list[dict[str, Any]] = [
     {
@@ -234,7 +232,7 @@ _SEMANTIC_CASES: list[dict[str, Any]] = [
         "transcript": [
             _user("Bahut mehnga hai."),
             _bot(
-                "Samajh sakti hoon. Pehle free audit se exact gap dikhaati hoon - "
+                "Samajh sakti hoon. Pehle free audit se exact gap dikhaati hoon — "
                 "uske baad aap decide kar lena, koi pressure nahi."
             ),
         ],
@@ -250,7 +248,7 @@ _SEMANTIC_CASES: list[dict[str, Any]] = [
             _user("Haan boliye."),
             _bot("Hamara plan sirf ₹1999 per month hai. Aaj hi le lo."),
         ],
-        "expect": "YES",  # bad behaviour - judge should spot pricing-before-value
+        "expect": "YES",  # bad behaviour — judge should spot pricing-before-value
     },
     {
         "name": "value_before_pricing_good",
@@ -261,7 +259,7 @@ _SEMANTIC_CASES: list[dict[str, Any]] = [
         "transcript": [
             _user("Marketing weak hai."),
             _bot(
-                "Pehle aapka Google Business Profile free audit karte hain - "
+                "Pehle aapka Google Business Profile free audit karte hain — "
                 "rating, photos, reviews dikhenge. Useful lage to plan batati hoon."
             ),
         ],
@@ -288,7 +286,7 @@ _SEMANTIC_CASES: list[dict[str, Any]] = [
         "transcript": [
             _user("Results guarantee hai kya?"),
             _bot(
-                "Guarantee nahi de sakti - har business alag hota hai. "
+                "Guarantee nahi de sakti — har business alag hota hai. "
                 "Jo dikha sakti hoon wo free audit se clear gaps hain."
             ),
         ],
@@ -388,7 +386,7 @@ def run_semantic() -> list[CaseResult]:
                 )
             )
         except Exception as exc:
-            # Network/quota failure - skip unless hard-required (CI stays green).
+            # Network/quota failure — skip unless hard-required (CI stays green).
             out.append(
                 CaseResult(
                     name=name,
@@ -426,7 +424,7 @@ def main(argv: list[str] | None = None) -> int:
         f"semantic_skipped={sum(1 for r in sem if r.skipped)}"
     )
     if report.failed:
-        print("FAIL - golden regression detected.")
+        print("FAIL — golden regression detected.")
         # machine-readable for CI artifacts
         try:
             out = ROOT / "evals" / "eval_golden_summary.json"
@@ -446,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
         return 1
-    print("PASS - golden suite clean.")
+    print("PASS — golden suite clean.")
     return 0
 
 

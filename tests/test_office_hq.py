@@ -1,11 +1,11 @@
-"""office_hq - 8-room mapping, pipeline grouper, metrics/approvals composer,
+"""office_hq — 8-room mapping, pipeline grouper, metrics/approvals composer,
 offline_reason classification.
 
 Bars:
 - Every STAFF key maps to a valid room (no orphan / no unknown room id).
 - build_rooms_and_agents() never raises and rooms sum to all agents.
 - build_pipeline() always returns exactly the 12 stages, each with a source tag.
-- next_best_actions() is a pure function - no IO, deterministic on a fixed snapshot.
+- next_best_actions() is a pure function — no IO, deterministic on a fixed snapshot.
 - build_snapshot() end-to-end never raises even with no DB/engines configured.
 - pipeline_stage_detail() degrades gracefully for an unknown stage id.
 - classify_offline_reason() never raises and only surfaces for offline agents.
@@ -314,7 +314,7 @@ def test_enterprise_features_contract_has_20_clickable_features():
 
 
 def test_needs_approval_matches_pending_draft_title_substring():
-    titles = ["sharma electricals - outreach draft", "plan: weekly seo batch"]
+    titles = ["sharma electricals — outreach draft", "plan: weekly seo batch"]
     assert office_hq._needs_approval("Sharma Electricals", titles) is True
     assert office_hq._needs_approval("Totally Unrelated Co", titles) is False
     assert office_hq._needs_approval("", titles) is False
@@ -397,7 +397,7 @@ def test_pipeline_item_mutation_helpers_roundtrip(monkeypatch, tmp_path):
 
 async def test_safe_collect_live_stats_degrades_on_timeout(monkeypatch):
     """Regression: _collect_live_stats() is SYNC and took 45s+ against real
-    prod data (2026-07-01 incident) - confirmed via a live VPS timing probe.
+    prod data (2026-07-01 incident) — confirmed via a live VPS timing probe.
     A slow/hanging call must degrade to {} within the timeout budget, never
     hang the whole snapshot again."""
     import time as _time
@@ -440,7 +440,7 @@ async def test_build_approvals_keeps_legacy_shape_and_adds_queue():
     assert "drafts" in out and "counts" in out
     # Additive unified queue for the actionable Approvals panel.
     assert isinstance(out.get("queue"), list)
-    # 2026-07-03: audit-trail strip - always present (possibly empty), never raises.
+    # 2026-07-03: audit-trail strip — always present (possibly empty), never raises.
     assert isinstance(out.get("recent_decisions"), list)
 
 
@@ -504,7 +504,7 @@ async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(mo
     out = await office_hq.build_metrics(live_stats={"real_calls_today": 9, "estimated_mrr": 500})
     assert out["calls_completed_today"] == 9
     assert out["mrr"] == 500
-    assert calls["n"] == 0  # never called _safe_collect_live_stats - used the pre-fetched dict
+    assert calls["n"] == 0  # never called _safe_collect_live_stats — used the pre-fetched dict
 
 
 # NOTE: the 2026-07-01 version of this guard (test_snapshot_cache_ttl_exceeds_
@@ -538,7 +538,7 @@ class _FakeCache:
 
 
 async def test_build_snapshot_second_call_is_cached(monkeypatch):
-    """Regression: 8s felt slow on every refresh - a repeat call within the
+    """Regression: 8s felt slow on every refresh — a repeat call within the
     TTL window must return the SAME data without recomputing."""
     import app.cache as cache_mod
 
@@ -560,7 +560,7 @@ async def test_build_snapshot_second_call_is_cached(monkeypatch):
 
     second = await office_hq.build_snapshot()
     assert second["cached"] is True
-    assert calls["n"] == 1  # NOT recomputed - served from cache
+    assert calls["n"] == 1  # NOT recomputed — served from cache
 
 
 async def test_invalidate_snapshot_cache_forces_recompute(monkeypatch):
@@ -579,7 +579,7 @@ async def test_invalidate_snapshot_cache_forces_recompute(monkeypatch):
 
 
 async def test_build_snapshot_works_when_cache_backend_is_broken(monkeypatch):
-    """Cache is a pure perf optimization - a broken Redis must never break the page."""
+    """Cache is a pure perf optimization — a broken Redis must never break the page."""
     import app.cache as cache_mod
 
     class _BrokenCache:
@@ -600,7 +600,7 @@ async def test_build_snapshot_works_when_cache_backend_is_broken(monkeypatch):
 
 async def test_build_snapshot_calls_collect_live_stats_only_once(monkeypatch):
     # Hermetic: pichle tests ka snapshot 18s-TTL cache me warm ho sakta (test-order/
-    # timing dependent - CI me `-m "not network"` selection se badalta) ->
+    # timing dependent — CI me `-m "not network"` selection se badalta) →
     # build_snapshot cache-hit = 0 collect calls. Pehle cache saaf karo.
     await office_hq.invalidate_snapshot_cache()
     calls = {"n": 0}
@@ -617,7 +617,7 @@ async def test_build_snapshot_calls_collect_live_stats_only_once(monkeypatch):
 
 def test_enum_value_unwraps_enum_member_not_str_repr():
     """Regression: str(SomeEnum.MEMBER) is 'ClassName.MEMBER' in Python, not the
-    value - a real footgun for status/source comparisons. This locks the fix in."""
+    value — a real footgun for status/source comparisons. This locks the fix in."""
     from app.models.lead import LeadSource, LeadStatus
 
     class FakeLead:
@@ -660,7 +660,7 @@ def test_offline_reason_unknown_member():
 
 
 def test_offline_reason_never_raises(monkeypatch):
-    # Simulate a broken env read - must still return a string, never raise.
+    # Simulate a broken env read — must still return a string, never raise.
     import os
 
     original_environ = os.environ
@@ -685,7 +685,7 @@ def test_build_rooms_and_agents_includes_offline_reason_only_when_offline():
 def test_priya_downstream_hook_exists():
     """Regression guard: apply_qualified_downstream (which pushes to CRM as
     'priya') must still be called from the live Vobiz call-completion path.
-    Confirmed present 2026-07-02 (app/telephony/vobiz_stream.py:2691) - this
+    Confirmed present 2026-07-02 (app/telephony/vobiz_stream.py:2691) — this
     test fails loudly if that call site is ever removed/renamed, since a
     prior incident (2026-06-18) had exactly this class of cross-path-parity
     regression (AUTO_QUALIFY wired in call_manager but not vobiz_stream)."""
@@ -724,8 +724,7 @@ def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
     view: poll interval 25s->15s (frontend/office_map.html setInterval) and
     cache TTL 35s->18s (this file). TTL must stay ABOVE the poll interval --
     same invariant as the 2026-07-01 incident fix (TTL 15s vs poll 25s meant
-    the cache expired before every single poll, defeating it entirely
-    fixed
+    the cache expired before every single poll, defeating it entirely; fixed
     by raising TTL comfortably above the poll interval). This test pins that
     invariant so a future retune can't silently invert it again by relying on
     build_snapshot()'s compute time as coincidental slack instead of a real
@@ -741,8 +740,7 @@ def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
 def test_schedule_defs_contract():
     """Every entry is display-complete: job key, Hinglish-friendly label, and a
     valid type-specific shape (daily/weekly = 4-int IST window with start<end;
-    weekly also a 0-6 weekday
-    recurring = human cadence string)."""
+    weekly also a 0-6 weekday; recurring = human cadence string)."""
     jobs = [d["job"] for d in office_hq.SCHEDULE_DEFS]
     assert len(jobs) == len(set(jobs)), "duplicate job key in SCHEDULE_DEFS"
     for d in office_hq.SCHEDULE_DEFS:
@@ -761,10 +759,9 @@ def test_schedule_defs_contract():
 
 def test_schedule_defs_windows_match_team_scheduler_source():
     """Drift-lock: SCHEDULE_DEFS is a static DISPLAY mirror of the real windows
-    in team_scheduler.py - if a window there changes without updating the
+    in team_scheduler.py — if a window there changes without updating the
     mirror (or vice versa), this fails loudly. Window tuples are asserted
-    verbatim against the scheduler source
-    recurring jobs assert their
+    verbatim against the scheduler source; recurring jobs assert their
     _last_ran wiring still exists."""
     import inspect
 
@@ -781,7 +778,7 @@ def test_schedule_defs_windows_match_team_scheduler_source():
             window_str = f"({w[0]}, {w[1]}) <= hm < ({w[2]}, {w[3]})"
             assert window_str in src, (
                 f"{job}: window {window_str} not found verbatim in team_scheduler.py "
-                "- scheduler window changed? Update SCHEDULE_DEFS to match."
+                "— scheduler window changed? Update SCHEDULE_DEFS to match."
             )
         if d["type"] == "weekly":
             assert f"now.weekday() == {d['weekday']}" in src, (

@@ -1,7 +1,7 @@
-"""Code exec - guarded Python tool-script executor (Hermes execute_code parity).
+"""Code exec — guarded Python tool-script executor (Hermes execute_code parity).
 
-⚠️  SECURITY-CRITICAL - SUPER-ADMIN + FLAG GATED, DEFAULT OFF (INERT). ⚠️
-    Bina `CODE_EXEC=1` ke `execute()` KUCH BHI run NAHI karta - seedha
+⚠️  SECURITY-CRITICAL — SUPER-ADMIN + FLAG GATED, DEFAULT OFF (INERT). ⚠️
+    Bina `CODE_EXEC=1` ke `execute()` KUCH BHI run NAHI karta — seedha
     {"ok":False,"error":"disabled"} return karta hai (zero subprocess spawn).
 
 YEH EK TRUE SANDBOX NAHI HAI. Sirf ek GUARDED subprocess hai:
@@ -9,7 +9,7 @@ YEH EK TRUE SANDBOX NAHI HAI. Sirf ek GUARDED subprocess hai:
     `-c <script>` ke saath, shell=True KABHI nahi (no shell-injection surface).
   - Hard wall-clock timeout (timeout pe process kill).
   - stdout/stderr capture + truncate (4000 chars).
-  - Koi network whitelisting / filesystem jail / seccomp PROMISE nahi - agar
+  - Koi network whitelisting / filesystem jail / seccomp PROMISE nahi — agar
     `CODE_EXEC=1` ON hai to script wahi access kar sakta jo container/process ke
     paas hai. Isliye super-admin + flag dono mandatory, aur default OFF rakha gaya.
     Prod pe ON karne se pehle blast-radius samjho (container-isolation pe rely).
@@ -33,7 +33,7 @@ _MAX_TIMEOUT_S = 120  # absolute ceiling (caller timeout_s isse upar nahi ja sak
 
 # The ONLY identity that may run code WITHOUT an explicit permission grant: the
 # require_super_admin /exec HTTP endpoint (a human) passes "super_admin". EVERY other
-# caller - including any internal/automation identity - must hold an explicit
+# caller — including any internal/automation identity — must hold an explicit
 # execute_code grant in the agent_permissions matrix (HIGH_RISK, unset = deny). No
 # broad "system" sentinel (audit hardening: a derived/forwarded agent name must never
 # coast into RCE).
@@ -41,7 +41,7 @@ _TRUSTED = {"super_admin"}
 
 
 def enabled() -> bool:
-    """HARD GATE - default OFF. Bina iske execute() inert (kuch run nahi hota)."""
+    """HARD GATE — default OFF. Bina iske execute() inert (kuch run nahi hota)."""
     return (os.getenv("CODE_EXEC") or "").strip().lower() in ("1", "true", "yes")
 
 
@@ -57,7 +57,7 @@ def _permitted(agent: str) -> bool:
 
         return bool(agent_permissions.can(a, "execute_code"))
     except Exception:
-        return False  # RCE gate -> unknown = deny
+        return False  # RCE gate → unknown = deny
 
 
 def _trunc(b: bytes | None) -> str:
@@ -72,12 +72,11 @@ async def execute(script: str, timeout_s: int = 20, agent: str = "super_admin") 
     """Python `script` ko ek isolated guarded subprocess me chalao.
 
     GATED (2 layers, dono pass hone par hi run hota):
-      1. enabled() False -> {"ok":False,"error":"disabled"} (no spawn).
-      2. _permitted(agent) False -> {"ok":False,"error":"permission_denied"} (no spawn) -
-         defense-in-depth so koi automation-agent RCE self-trigger na kare
-         sirf trusted
+      1. enabled() False → {"ok":False,"error":"disabled"} (no spawn).
+      2. _permitted(agent) False → {"ok":False,"error":"permission_denied"} (no spawn) —
+         defense-in-depth so koi automation-agent RCE self-trigger na kare; sirf trusted
          human (super_admin) ya explicitly-granted agent. AGENT_PERMISSIONS se enforce.
-    Yeh true sandbox nahi - guarded subprocess only. Returns {ok, stdout, stderr, ...}.
+    Yeh true sandbox nahi — guarded subprocess only. Returns {ok, stdout, stderr, ...}.
     """
     if not enabled():
         return {"ok": False, "error": "disabled", "hint": "set CODE_EXEC=1"}
@@ -130,7 +129,7 @@ async def execute(script: str, timeout_s: int = 20, agent: str = "super_admin") 
             "returncode": rc,
             "timed_out": False,
         }
-    except Exception as e:  # never-raise - guarded executor kabhi caller ko nahi todta
+    except Exception as e:  # never-raise — guarded executor kabhi caller ko nahi todta
         logger.debug(f"code_exec.execute failed: {e}")
         try:
             if proc is not None:

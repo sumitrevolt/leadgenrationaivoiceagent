@@ -1,4 +1,4 @@
-"""WhatsApp campaign push engine - templates, suppression, drip + reactivation runner.
+"""WhatsApp campaign push engine — templates, suppression, drip + reactivation runner.
 
 This is the background "send engine" behind the official Cloud API sender
 (:mod:`app.marketing.whatsapp_campaign`). It is the WhatsApp analogue of the
@@ -6,16 +6,14 @@ content scheduler's ``run_due()`` pattern.
 
 Pieces
 ------
-1. **Template store** (``data/wa_templates.jsonl``) - register / list / update-status of
-   Meta message templates. Meta approves templates server-side
-   we only track
+1. **Template store** (``data/wa_templates.jsonl``) — register / list / update-status of
+   Meta message templates. Meta approves templates server-side; we only track
    name / language / category / body / status so the panel + runner know which
    approved templates exist. Only ``status="approved"`` templates are auto-sent.
-2. **Suppression list** (``data/wa_suppression.jsonl``) - opt-out / blocked / repeatedly
-   failing numbers. ``is_suppressed`` short-circuits every send
-   ``record_failure``
+2. **Suppression list** (``data/wa_suppression.jsonl``) — opt-out / blocked / repeatedly
+   failing numbers. ``is_suppressed`` short-circuits every send; ``record_failure``
    auto-suppresses a number after N failures (bounce/block protection).
-3. **Campaign queue** (``data/wa_campaigns.jsonl``) - drip + reactivation jobs scheduled
+3. **Campaign queue** (``data/wa_campaigns.jsonl``) — drip + reactivation jobs scheduled
    for a date, prepared/sent by :func:`run_due` (scheduler calls it hourly).
 
 SAFETY (obey exactly): default behaviour is ban-safe 1-click links. Auto TEMPLATE
@@ -40,7 +38,7 @@ _CAMPAIGN_FILE = os.path.join("data", "wa_campaigns.jsonl")
 
 
 def _suppression_path() -> str:
-    """WhatsApp suppression ledger - resolved per call, never at import.
+    """WhatsApp suppression ledger — resolved per call, never at import.
 
     A module-level constant freezes the path when this module is first imported,
     which is exactly what makes a store impossible to move (and impossible to
@@ -138,7 +136,7 @@ def register_template(
 ) -> dict[str, Any]:
     """Register / upsert a Meta template record (by name+language). Returns the record.
 
-    NOTE: this does NOT create the template on Meta - templates are submitted &
+    NOTE: this does NOT create the template on Meta — templates are submitted &
     approved in WhatsApp Manager / via the Business Management API. This is a local
     mirror so the panel + runner know which approved templates exist.
     """
@@ -225,17 +223,16 @@ def is_suppressed(phone: str) -> bool:
     """True if this number must not be messaged.
 
     Returns True when the suppression store cannot be RESOLVED. The caller is
-    about to decide whether to send
-    without a trustworthy opt-out list the only
+    about to decide whether to send; without a trustworthy opt-out list the only
     safe answer is "do not". A missing or empty file still reads as
-    not-suppressed - that is an answer, not an outage.
+    not-suppressed — that is an answer, not an outage.
     """
     d = _digits(phone)
     if not d:
         return False
     try:
         _suppression_path()
-    except Exception as exc:  # noqa: BLE001 - any resolution failure is the same verdict
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
         logger.error("compliance.wa_suppression authority UNRESOLVABLE: %s", exc)
         return True
     for it in _read(_suppression_path()):
@@ -249,7 +246,7 @@ def suppress(phone: str, reason: str = "opt_out") -> dict[str, Any]:
     d = _digits(phone)
     if not d:
         return {"error": "bad_phone"}
-    # Guard first, then resolve at the call site - see consent_ledger.record_opt_out
+    # Guard first, then resolve at the call site — see consent_ledger.record_opt_out
     # for why the resolver expression is kept visible to the path scanner.
     try:
         _suppression_path()
@@ -299,12 +296,12 @@ def record_failure(phone: str, reason: str = "send_failed") -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Recipient resolution - opted-in numbers only
+# Recipient resolution — opted-in numbers only
 # --------------------------------------------------------------------------- #
 def _opted_in(phone: str) -> bool:
     """A number is sendable only if it has digits and is NOT suppressed.
 
-    (Opt-in itself is captured upstream - inquiry forms, customers who messaged us,
+    (Opt-in itself is captured upstream — inquiry forms, customers who messaged us,
     explicit consent. Suppression encodes opt-out/block. We never cold-blast.)
     """
     return bool(_digits(phone)) and not is_suppressed(phone)
@@ -329,7 +326,7 @@ def _client_customers(client_id: str, max_n: int = 500) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# Campaign queue (drip / reactivation) - scheduled jobs
+# Campaign queue (drip / reactivation) — scheduled jobs
 # --------------------------------------------------------------------------- #
 _CAMPAIGN_KINDS = {"drip", "reactivation", "broadcast"}
 
@@ -347,8 +344,7 @@ def schedule_campaign(
 ) -> dict[str, Any]:
     """Queue a WhatsApp campaign for a date. Sent by :func:`run_due` when due.
 
-    recipients = [{"phone","name"?}]
-    if empty + client_id given, the client's
+    recipients = [{"phone","name"?}]; if empty + client_id given, the client's
     opted-in customers are resolved at run time.
     """
     k = (kind or "").strip().lower()
@@ -449,7 +445,7 @@ async def _send_campaign_item(item: dict) -> dict[str, Any]:
         if res.get("sent"):
             summary["sent"] += 1
             sent_today += 1
-            wac._bump_sent_today()  # persist GLOBAL daily counter - else template sends bypass the ban-safety cap across campaigns/runs
+            wac._bump_sent_today()  # persist GLOBAL daily counter — else template sends bypass the ban-safety cap across campaigns/runs
         elif res.get("mode") == "suppressed":
             summary["skipped"] += 1
         else:

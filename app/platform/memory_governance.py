@@ -1,22 +1,22 @@
-"""Memory governance - TWO redaction policies, do-not-remember, staleness/conflict.
+"""Memory governance — TWO redaction policies, do-not-remember, staleness/conflict.
 
 Review P0/P1: the v2 hot-path fix replaced a strong redactor with a weaker regex
 everywhere, which traded privacy for latency. That was wrong. The correct split
 is by DESTINATION, not by speed:
 
-  POLICY A - `scrub_secrets(text)`  (prompt-bound, microseconds)
+  POLICY A — `scrub_secrets(text)`  (prompt-bound, microseconds)
       Destination: an AUTHORIZED, tenant-scoped agent prompt.
       Removes: secret-shaped tokens (API keys, JWTs, KEY/TOKEN/SECRET=... env
-      lines). Keeps: the lead's phone/name/email - that IS the memory payload,
+      lines). Keeps: the lead's phone/name/email — that IS the memory payload,
       and the prompt is already tenant-scoped and authorized.
 
-  POLICY B - `mask_for_observability(text)`  (everything else)
+  POLICY B — `mask_for_observability(text)`  (everything else)
       Destination: logs, exceptions, audit rows, admin API responses, UI
       diagnostics, metrics, error strings.
       Removes: secrets AND PII (phone, email, long digit runs), via the
       canonical `redact_packet_text` first (guardrails PII + secrets) and then
       an explicit phone/email mask so the result never depends on guardrails
-      being importable. ~80ms - fine here, never on the assembly path.
+      being importable. ~80ms — fine here, never on the assembly path.
 
   DO-NOT-REMEMBER
       Tenant-scoped suppression rules (`session`, `subject`, `pattern`).
@@ -25,14 +25,13 @@ is by DESTINATION, not by speed:
       HASH of the matched text, never the text.
 
   STALENESS / CONFLICT
-      `resolve_conflicts()` - for `key: value` lines carrying an
+      `resolve_conflicts()` — for `key: value` lines carrying an
       `(observed: <iso>)` marker, newest authoritative value wins deterministically
       and older contradicting values are dropped from the assembled context. The
       dropped pairs are returned so a caller can audit them.
 
 Stores: `data/memory_suppression.jsonl` (rules) + `data/memory_governance_audit.jsonl`
-(hashes only). Stdlib-only at import time
-never raises.
+(hashes only). Stdlib-only at import time; never raises.
 """
 
 from __future__ import annotations
@@ -90,7 +89,7 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 
 def scrub_secrets(text: str) -> str:
-    """POLICY A - prompt-bound. Secrets out, authorized lead data in. Never raises."""
+    """POLICY A — prompt-bound. Secrets out, authorized lead data in. Never raises."""
     out = text or ""
     try:
         for repl, pat in SECRET_PATTERNS:
@@ -110,7 +109,7 @@ _PII_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 
 def mask_for_observability(text: str) -> str:
-    """POLICY B - logs/audit/admin/UI/metrics/errors. Secrets AND PII removed."""
+    """POLICY B — logs/audit/admin/UI/metrics/errors. Secrets AND PII removed."""
     out = text or ""
     try:
         from app.dev_control.context_packets import redact_packet_text
@@ -119,7 +118,7 @@ def mask_for_observability(text: str) -> str:
     except Exception:
         pass  # guardrails unavailable -> the layers below still run
     # ALWAYS run our own secret set too: the canonical redactor does not cover
-    # every shape (caught by test 2026-08-05 - a Google AIza key survived it).
+    # every shape (caught by test 2026-08-05 — a Google AIza key survived it).
     out = scrub_secrets(out)
     try:
         for repl, pat in _PII_PATTERNS:
@@ -169,7 +168,7 @@ def _read_rules() -> list[dict[str, Any]]:
 
 
 def _append(path: str, rec: dict[str, Any]) -> bool:
-    """Append one JSONL row. Match keys only - never credentials.
+    """Append one JSONL row. Match keys only — never credentials.
 
     Callers must refuse secret-shaped values before building `rec`. This helper
     does NOT run secret scrubbers on the payload: those functions are modeled as
@@ -188,7 +187,7 @@ def _append(path: str, rec: dict[str, Any]) -> bool:
 
 
 def audit(tenant_id: str, action: str, *, matched_text: str = "", meta: dict | None = None) -> None:
-    """Audit WITHOUT the raw content - only a hash of what was suppressed."""
+    """Audit WITHOUT the raw content — only a hash of what was suppressed."""
     _append(
         _audit_path(),
         {
@@ -221,11 +220,10 @@ def suppress(
         return {"ok": False, "error": "value required"}
     # Never persist secret-shaped tokens as match keys (API keys / JWTs / env secrets).
     if scrub_secrets(val) != val:
-        return {"ok": False, "error": "value looks like a secret - refuse to store cleartext"}
+        return {"ok": False, "error": "value looks like a secret — refuse to store cleartext"}
     reason_raw = str(reason or "")[:200]
     if scrub_secrets(reason_raw) != reason_raw:
-        reason_raw = ""  # drop secret-shaped free text
-        do not store redactor output
+        reason_raw = ""  # drop secret-shaped free text; do not store redactor output
     if k == RULE_PATTERN:
         try:
             re.compile(val)
@@ -296,7 +294,7 @@ DEFER_CODE = "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE"
 def governance_health() -> dict[str, Any]:
     """Is the do-not-remember authority TRUSTWORTHY right now?
 
-    `ok=False` means we cannot prove a write is allowed - unreadable file,
+    `ok=False` means we cannot prove a write is allowed — unreadable file,
     unparsable lines, or an unexpected error. Unknown is treated as unhealthy.
     """
     h = rules_health()
@@ -349,7 +347,7 @@ def is_suppressed(
 ) -> bool:
     """Convenience helper: True ONLY when a real rule matched.
 
-    An evaluation error returns False here - it is NOT "not suppressed", it is
+    An evaluation error returns False here — it is NOT "not suppressed", it is
     "unknown", and callers that persist anything must use `check_write()` (which
     turns unknown into DEFERRED). This helper must never be used at a durable
     write, audit or deletion boundary.
@@ -372,7 +370,7 @@ def check_write(
 
     Returns {decision, code, reason} where decision is allow | suppressed |
     deferred. `deferred` means the DNR authority could not be trusted, so the
-    caller must NOT persist - not in the record, not in retry state, not in
+    caller must NOT persist — not in the record, not in retry state, not in
     `last_error`, not in an audit payload. The foreground agent may still answer;
     it just answers WITHOUT remembering.
     """
@@ -395,7 +393,7 @@ def check_write(
     verdict = _evaluate_rules(tid, session_id=session_id, subject_id=subject_id, text=text)
     if verdict == EVAL_ERROR:
         # an outage is NOT a suppression: no rule-match audit, no matched_hash,
-        # no deletion - only a deferral with a masked reason.
+        # no deletion — only a deferral with a masked reason.
         return {
             "decision": DECISION_DEFERRED,
             "code": DEFER_CODE,
@@ -419,7 +417,7 @@ def durable_writes_allowed(*, only_when_stack_enabled: bool = True) -> dict[str,
     """Health-only gate for lanes that have no tenant handle (episodic/semantic).
 
     Those modules are keyed by lead/agent, not tenant, so per-tenant RULES cannot
-    be evaluated there - but the HEALTH contract still applies: if the DNR
+    be evaluated there — but the HEALTH contract still applies: if the DNR
     authority is unreadable/unknown, a durable write must not happen.
     """
     if only_when_stack_enabled and (
@@ -448,7 +446,7 @@ def guard_durable_write(
     """Guard for lanes OUTSIDE this package (episodic/semantic/shared).
 
     `only_when_stack_enabled` keeps existing lanes byte-identical while the
-    memory-stack master flag is OFF - the fail-closed contract applies to the
+    memory-stack master flag is OFF — the fail-closed contract applies to the
     system being released, not retroactively to untouched code paths.
     """
     if only_when_stack_enabled and (
@@ -470,7 +468,7 @@ def forget(
 ) -> dict[str, Any]:
     """Delete what already matched: prospective rows + this process's hot cache.
 
-    REFUSED during a governance outage - a destructive deletion must never be
+    REFUSED during a governance outage — a destructive deletion must never be
     driven by an authority we cannot read (review P0). Deletion resumes once the
     rules store is healthy again.
     """
@@ -528,7 +526,7 @@ def rules_health() -> dict[str, Any]:
 
 # ------------------------------------------------- STALENESS / CONFLICT (L3)
 
-# "- key: value (observed: 2026-08-05T10:00:00Z)"  - provenance marker is optional
+# "- key: value (observed: 2026-08-05T10:00:00Z)"  — provenance marker is optional
 _FACT_RE = re.compile(
     r"^\s*[-•*]?\s*(?P<key>[A-Za-z][A-Za-z0-9 _/\-]{1,40})\s*:\s*(?P<val>.+?)\s*$"
 )
@@ -594,11 +592,10 @@ def resolve_facts(
       1. Newer valid `(observed: <iso>)` wins.
       2. At equal (or absent) time, higher configured SOURCE AUTHORITY wins.
       3. Equal time AND equal/undefined authority AND different values =>
-         **CONFLICTED**: neither value is injected into the agent context
-         the
+         **CONFLICTED**: neither value is injected into the agent context; the
          pair is preserved (masked) for review.
       4. Identical values are deduplicated, never conflicted.
-      5. A malformed timestamp is treated as absent - it can never outrank a
+      5. A malformed timestamp is treated as absent — it can never outrank a
          valid one.
     Returns (items_out, report[]). Report values are masked for observability.
     """

@@ -59,7 +59,7 @@ def _env_int(name: str, default: int, lo: int, hi: int) -> int:
 
 
 def target_min_engaged_turns() -> int:
-    """Soft floor for healthy engaged calls - never blocks early rejection/opt-out."""
+    """Soft floor for healthy engaged calls — never blocks early rejection/opt-out."""
     return _env_int("VOICE_TARGET_MIN_ENGAGED_TURNS", 10, 1, 30)
 
 

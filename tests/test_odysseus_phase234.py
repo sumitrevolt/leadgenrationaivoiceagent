@@ -1,4 +1,4 @@
-"""Tests - Odysseus Phase 2-4: Model Cookbook + Deep Research + Docs AI-Edit.
+"""Tests — Odysseus Phase 2-4: Model Cookbook + Deep Research + Docs AI-Edit.
 
 All routers are INERT-default (503 without their env flag). Tests monkeypatch
 the flag and stub out external calls (free_ai.chat, searxng.search).
@@ -51,7 +51,7 @@ def test_mc_recommend_for_salon(monkeypatch):
         out = await m.recommend(m.RecommendIn(niche="salon"), _user=object())
         assert out["niche"] == "salon"
         assert out["top_pick"] in [r["provider"] for r in m._CATALOG]
-        # salon tasks include voice_reply / hinglish -> mistral or gemini should be near top
+        # salon tasks include voice_reply / hinglish → mistral or gemini should be near top
         assert out["recommended_full_chain"], "chain empty"
         assert set(out["matched_tasks"]) & {"voice_reply", "hinglish"}
 
@@ -79,7 +79,7 @@ def test_mc_recommend_no_live_falls_back_to_full(monkeypatch):
 
     async def _run():
         out = await m.recommend(m.RecommendIn(niche="salon"), _user=object())
-        # live empty -> falls back to full chain
+        # live empty → falls back to full chain
         assert out["recommended_live_chain"] == out["recommended_full_chain"]
 
     asyncio.run(_run())
@@ -159,7 +159,7 @@ def test_dr_planner_fallback_on_empty_llm(monkeypatch):
 
     async def _run():
         qs = await m._plan_queries("fallback topic", 4)
-        # empty LLM -> topic-only fallback
+        # empty LLM → topic-only fallback
         assert qs == ["fallback topic"]
 
     asyncio.run(_run())
@@ -212,7 +212,7 @@ def test_dx_improve_action(monkeypatch):
     m = _dx(monkeypatch)
 
     async def fake_chat(*, system, messages, **kwargs):
-        # basic sanity - system prompt should mention 'rewrite' or 'clarity' for improve
+        # basic sanity — system prompt should mention 'rewrite' or 'clarity' for improve
         assert "rewrite" in system.lower() or "clarity" in system.lower()
         return "Improved: " + messages[-1]["content"], "test-provider"
 

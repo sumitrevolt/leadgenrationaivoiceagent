@@ -3,11 +3,11 @@ Telephony Webhooks
 FastAPI routes for handling telephony provider callbacks.
 
 Vobiz answer/status callbacks are public, minimal handlers (no signed payload
-from Vobiz). (Exotel removed 2026-06-18, Twilio removed 2026-07-07 - provider
+from Vobiz). (Exotel removed 2026-06-18, Twilio removed 2026-07-07 — provider
 is now Vobiz-only.)
 
 Handlers + the shared CallManager are lazy-initialised so importing this module (to
-mount the router) can never crash app startup - CallManager() raises on an unknown
+mount the router) can never crash app startup — CallManager() raises on an unknown
 provider, so it must not run at import time.
 """
 
@@ -33,7 +33,7 @@ def _get_call_manager():
             from app.telephony.call_manager import CallManager
 
             _call_manager = CallManager()
-        except Exception as e:  # unknown provider / config - don't crash the webhook
+        except Exception as e:  # unknown provider / config — don't crash the webhook
             logger.error(f"CallManager init failed: {e}")
             return None
     return _call_manager
@@ -47,17 +47,15 @@ def _get_call_manager():
 # --------------------------------------------------------------------------- #
 @router.post("/vobiz/status")
 async def vobiz_status_webhook(request: Request):
-    """Vobiz status callback - marks a completed call done (minute-metering +
+    """Vobiz status callback — marks a completed call done (minute-metering +
     qualified-lead billing run via CallManager.handle_call_completed). Idempotent
-    on call_id. Best-effort
-    never raises a 500.
+    on call_id. Best-effort; never raises a 500.
 
     Security note: Vobiz does not sign this callback, and the status-callback URL
     is configured account-wide (not per-call), so it cannot carry a per-call HMAC
     token the way /vobiz/answer does. The real defenses are: (1) call_id is a
     random UUID (128-bit, unguessable) and handle_call_completed() no-ops if it
-    isn't a call WE placed and is still tracked in active_calls
-    (2) the duration
+    isn't a call WE placed and is still tracked in active_calls; (2) the duration
     clamp below bounds how much a forged/replayed POST can inflate billed minutes
     even if an attacker did learn a live call_id.
     """
@@ -88,16 +86,16 @@ async def vobiz_status_webhook(request: Request):
 
     # ENTERPRISE FIX (2026-07-10): pre-fix, CallbackData was NEVER sent to Vobiz
     # (call_manager.py:358), so this field was always empty and webhook resolved
-    # to CallSid (Vobiz's own opaque ID) - handle_call_completed() NEVER found
+    # to CallSid (Vobiz's own opaque ID) — handle_call_completed() NEVER found
     # a matching active_calls entry. Voice billing ran 0 times for ALL real calls.
-    # Now: (1) CallbackData is sent with push, (2) sid->call_id Redis fallback.
+    # Now: (1) CallbackData is sent with push, (2) sid→call_id Redis fallback.
     if not call_id or call_id == call_sid:
         try:
             from app.telephony.call_state import get_call_store
 
             mapped = await get_call_store()._sid_map_get(call_sid or "")
             if mapped:
-                logger.info(f"Vobiz status: resolved CallSid {call_sid} -> internal {mapped}")
+                logger.info(f"Vobiz status: resolved CallSid {call_sid} → internal {mapped}")
                 call_id = mapped
         except Exception:
             pass
@@ -108,7 +106,7 @@ async def vobiz_status_webhook(request: Request):
 
     # Controlled-launch disposition tally (NUP/busy/failed/answered…) for admin
     # visibility + daily analytics. Best-effort, never blocks the webhook.
-    # Prefer HangupCause when CallStatus is generic "completed" - otherwise
+    # Prefer HangupCause when CallStatus is generic "completed" — otherwise
     # every hangup looks like ANSWERED and NUP/no_answer vanish from metrics.
     try:
         from app.telephony import voice_launch as _vl
@@ -118,7 +116,7 @@ async def vobiz_status_webhook(request: Request):
             await _vl.record_disposition(disp_token, "campaign")
             # Session-scoped disposition tally (used/remaining ke saath visibility).
             # Best-effort; attribute current session (async completion late aaye to
-            # current session pe count ho sakta hai - visibility, billing nahi).
+            # current session pe count ho sakta hai — visibility, billing nahi).
             await _vl.record_session_disposition(None, disp_token)
     except Exception:
         pass
@@ -136,7 +134,7 @@ async def vobiz_status_webhook(request: Request):
                 pass
 
             # Clamp an implausible/forged duration to the configured call-length
-            # ceiling - bounds billing-inflation blast-radius from a guessed call_id.
+            # ceiling — bounds billing-inflation blast-radius from a guessed call_id.
             try:
                 from app.config import settings
 
@@ -145,7 +143,7 @@ async def vobiz_status_webhook(request: Request):
                 if duration > cap:
                     logger.warning(
                         f"Vobiz status duration {duration}s exceeds cap {cap}s for "
-                        f"call {call_id} - clamping."
+                        f"call {call_id} — clamping."
                     )
                     duration = cap
             except Exception:
@@ -162,8 +160,8 @@ async def vobiz_status_webhook(request: Request):
             if result:
                 logger.info(f"Vobiz call completed - Outcome: {result.outcome}")
 
-            # Clean up the sid->call_id reverse mapping (TTL: ~4h on the Redis key
-            # would be better, but for now explicit delete is safe - once the call
+            # Clean up the sid→call_id reverse mapping (TTL: ~4h on the Redis key
+            # would be better, but for now explicit delete is safe — once the call
             # is done we don't need to reverse-lookup again).
             try:
                 from app.telephony.call_state import get_call_store
@@ -181,7 +179,7 @@ async def vobiz_status_webhook(request: Request):
 
 @router.post("/vobiz/answer")
 async def vobiz_answer_webhook(request: Request):
-    """Vobiz answer_url - returns VobizXML when a call connects.
+    """Vobiz answer_url — returns VobizXML when a call connects.
 
     Default best-effort: AI-disclosure greeting then hang up (the full
     conversational loop runs over the Vobiz stream WS, not this answer_url).
@@ -215,7 +213,7 @@ async def vobiz_answer_webhook(request: Request):
                 logger.error(f"press-9 opt-out persist failed: {_oe}")
         else:
             logger.warning(
-                "press-9 opt-out IGNORED - unsigned/forged answer callback (no valid token)"
+                "press-9 opt-out IGNORED — unsigned/forged answer callback (no valid token)"
             )
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>'
@@ -236,19 +234,17 @@ async def vobiz_answer_webhook(request: Request):
 
 @router.post("/vobiz/inbound")
 async def vobiz_inbound_webhook(request: Request):
-    """Inbound / no-answer / missed Vobiz call -> lead capture (+ gated AI callback).
+    """Inbound / no-answer / missed Vobiz call → lead capture (+ gated AI callback).
 
     Wire this as the Vobiz inbound-DID webhook (and/or the no-answer/hangup
     callback on an unanswered inbound call). It captures the caller as a lead
-    ALWAYS, and - when MISSED_CALL_CALLBACK=1 + a Vobiz DID is configured -
+    ALWAYS, and — when MISSED_CALL_CALLBACK=1 + a Vobiz DID is configured —
     triggers a transactional AI callback (caller rang us first, so ban-safe).
 
-    Lead capture works NOW (no DID needed)
-    the callback leg is flag-gated and
-    inert without a DID. Best-effort
-    never raises a 500. Public (Vobiz does not
+    Lead capture works NOW (no DID needed); the callback leg is flag-gated and
+    inert without a DID. Best-effort; never raises a 500. Public (Vobiz does not
     sign callbacks). Mirrors the existing admin test route
-    POST /api/growth/missed-call -> missed_call.handle_missed_call.
+    POST /api/growth/missed-call → missed_call.handle_missed_call.
     """
     try:
         form_data = await request.form()

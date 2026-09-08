@@ -5,10 +5,10 @@ Contract:
   `PublishResult(ok=True, post_id="dry-<platform>-<jid>", raw={"dry_run":True})`
   WITHOUT calling the real provider.publish() method.
 - Inert providers (configured() = False) STILL short-circuit to `__inert__`
-  before dry-run - dry-run is not a way to spoof unconfigured accounts.
+  before dry-run — dry-run is not a way to spoof unconfigured accounts.
 - With dry_run on + engine on, `process_queue` publishes to the ledger + admin
   cockpit as if the post went out.
-- Dry-run is independent of the master `SOCIAL_ENGINE` gate - if the engine is
+- Dry-run is independent of the master `SOCIAL_ENGINE` gate — if the engine is
   OFF, `process_queue` still returns `{"ran": False, "reason": "SOCIAL_ENGINE off"}`
   and dry-run never fires. This preserves the operator's ability to test the
   ledger UI without accidentally starting the drain.
@@ -115,7 +115,7 @@ def test_dry_run_bypasses_real_provider_publish(dry, monkeypatch):
 
 
 def test_dry_run_still_honors_inert_providers(dry, monkeypatch):
-    """Inert providers (no creds) MUST still be skipped - dry-run is not a
+    """Inert providers (no creds) MUST still be skipped — dry-run is not a
     creds-spoof. Prevents ops accidentally believing an unconfigured provider
     was working just because dry-run was on."""
     monkeypatch.setenv("SOCIAL_ENGINE", "1")
@@ -127,7 +127,7 @@ def test_dry_run_still_honors_inert_providers(dry, monkeypatch):
 
 
 def test_dry_run_ineffective_when_engine_off(dry, monkeypatch):
-    """Dry-run cannot secretly turn on drain when the master engine is off -
+    """Dry-run cannot secretly turn on drain when the master engine is off —
     process_queue must still return the SOCIAL_ENGINE off short-circuit."""
     monkeypatch.setenv("SOCIAL_ENGINE", "0")
     monkeypatch.setenv("SOCIAL_DRY_RUN", "1")

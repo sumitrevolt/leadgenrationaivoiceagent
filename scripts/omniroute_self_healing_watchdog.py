@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""omniroute_self_healing_watchdog.py - Autonomous Self-Healing Watchdog for OmniRoute & 5 Desktop Apps.
+"""omniroute_self_healing_watchdog.py — Autonomous Self-Healing Watchdog for OmniRoute & 5 Desktop Apps.
 
 Monitors:
 1. OmniRoute Gateway (:20128) and Claude Proxy (:22000).
@@ -151,8 +151,7 @@ def check_container_memory(container: str = "leadgen_omniroute") -> bool:
         ratio = used_bytes / limit_bytes
         log(f"Memory guard: {container} {used_bytes / 1024**2:.1f} MiB / {limit_bytes / 1024**2:.1f} MiB ({ratio:.1%})")
         if ratio >= 0.90:
-            log(f"WARNING: {container} memory is at or above 90%
-            no automatic restart performed")
+            log(f"WARNING: {container} memory is at or above 90%; no automatic restart performed")
             return False
         return True
     except (OSError, ValueError, subprocess.SubprocessError) as exc:

@@ -1,4 +1,4 @@
-"""Full WhatsApp Automation - ENABLED (user decision, high risk acknowledged).
+"""Full WhatsApp Automation — ENABLED (user decision, high risk acknowledged).
 
 This module provides fully automated WhatsApp messaging via Meta Cloud API.
 ⚠️ WARNING: Cold/bulk auto-send = NUMBER BAN RISK (3 business days).
@@ -229,7 +229,7 @@ def _redis_client():
 
         return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
     except Exception as e:  # noqa: BLE001 - infra probe, must not raise
-        logger.warning(f"WA automation: Redis unavailable ({e}) - daily cap cannot be enforced")
+        logger.warning(f"WA automation: Redis unavailable ({e}) — daily cap cannot be enforced")
         return None
 
 
@@ -246,7 +246,7 @@ def _budget_state(day: str) -> tuple:
             done.add(member.decode() if isinstance(member, bytes) else str(member))
         return sent, done
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"WA automation: budget read failed ({e}) - fail-closed")
+        logger.warning(f"WA automation: budget read failed ({e}) — fail-closed")
         return None, None
 
 
@@ -302,7 +302,7 @@ def _fetch_candidates(limit: int) -> list:
                         "niche": getattr(lead, "niche", "") or "",
                         # run_whatsapp_batch discriminates on the literal string
                         # "interested" for the niche-aware post-call template, but
-                        # LeadStatus has no "interested" member - so map the
+                        # LeadStatus has no "interested" member — so map the
                         # engaged states onto it. (Latent mismatch, not fixed here
                         # to keep blast radius small.)
                         "status": "interested" if sval in ("contacted", "qualified") else "new",
@@ -329,7 +329,7 @@ async def _scrub_dnd(candidates: list) -> tuple:
 
         checker = DNDChecker()
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"WA automation: DND checker unavailable ({e}) - FAIL CLOSED")
+        logger.warning(f"WA automation: DND checker unavailable ({e}) — FAIL CLOSED")
         return [], len(candidates)
 
     kept: list = []
@@ -368,7 +368,7 @@ def _run_async(coro):
 
 
 # ── Scheduler Entry Point ──────────────────────────────────────────
-# 2026-09-06 (wiring): registered as a Celery task - beat entry
+# 2026-09-06 (wiring): registered as a Celery task — beat entry
 # "staff-whatsapp-automation-hourly" pointed at this name but the function was
 # plain, so the worker rejected it as unregistered and the hourly queue-drain
 # silently never ran (same dormant-wiring class as the daily-social incident
@@ -379,11 +379,11 @@ def _run_async(coro):
 def run_whatsapp_automation():
     """Celery beat entry: run WhatsApp automation batch.
 
-    Compliance spine - EVERY gate below fails CLOSED (§5):
+    Compliance spine — EVERY gate below fails CLOSED (§5):
       1. WHATSAPP_AUTO_SEND gate + HARD_OFF emergency kill switch.
       2. Genuine DAILY cap (Redis counter), not a per-run clamp.
-      3. Per-day idempotency set - a phone is messaged at most once a day.
-      4. Fail-closed DND/TRAI scrub - unverified lookup == blocked.
+      3. Per-day idempotency set — a phone is messaged at most once a day.
+      4. Fail-closed DND/TRAI scrub — unverified lookup == blocked.
     Any infra failure (Redis / DB / DND checker) aborts the run instead of
     sending blind. Always returns a dict containing "status".
     """
@@ -396,7 +396,7 @@ def run_whatsapp_automation():
     if sent_today is None or done_today is None:
         return {
             "status": "aborted",
-            "reason": "daily-cap counter unavailable - cannot enforce cap (fail-closed)",
+            "reason": "daily-cap counter unavailable — cannot enforce cap (fail-closed)",
         }
 
     cap = daily_cap()

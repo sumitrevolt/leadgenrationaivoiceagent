@@ -1,9 +1,9 @@
 """
-evergreen.py - content recycling so the queue NEVER dries up.
+evergreen.py — content recycling so the queue NEVER dries up.
 =============================================================
 
 Best-performing purane posts ko thoda "freshen" karke dobara queue me daal dete
-hain - taaki client ka content-calendar kabhi khali na rahe (GHL "evergreen
+hain — taaki client ka content-calendar kabhi khali na rahe (GHL "evergreen
 recycling" / Buffer re-queue jaisa, 100% free stack).
 
   recyclable_items(client_id, older_than_days, limit) -> list
@@ -16,9 +16,8 @@ recycling" / Buffer re-queue jaisa, 100% free stack).
     layak nahi to no-op (empty list).
 
 run_daily_content() me wire hota hai: kisi client ke aaj 0 naye items bane
-(dedupe ne sab block kiya) to recycle_for_client fallback - queue hamesha
-non-empty. Guarded optional-import
-KABHI raise nahi karta.
+(dedupe ne sab block kiya) to recycle_for_client fallback — queue hamesha
+non-empty. Guarded optional-import; KABHI raise nahi karta.
 """
 
 from __future__ import annotations
@@ -31,13 +30,13 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# auto_content se queue helpers (import-safe - na mile to module no-op).
+# auto_content se queue helpers (import-safe — na mile to module no-op).
 try:
     from app.marketing import auto_content  # type: ignore
 except Exception:  # pragma: no cover
     auto_content = None  # type: ignore
 
-# free_ai optional - caption variation ke liye; na ho to template tweak.
+# free_ai optional — caption variation ke liye; na ho to template tweak.
 try:
     from app.voice_agent import free_ai  # type: ignore
 except Exception:  # pragma: no cover
@@ -89,7 +88,7 @@ def recyclable_items(
             if str(it.get("status") or "").lower() not in _RECYCLE_STATUSES:
                 continue
             if str(it.get("type") or "") == "recycle":
-                continue  # already a recycle - don't re-recycle
+                continue  # already a recycle — don't re-recycle
             # caption-based items hi recycle layak (poster/svg re-share generic nahi).
             if not str(it.get("caption") or "").strip():
                 continue
@@ -106,14 +105,14 @@ def recyclable_items(
 async def _freshen_caption(old_caption: str, business_name: str, niche: str) -> str:
     """Purane caption ka halka variation. free_ai-first, template tweak fallback.
 
-    KABHI empty/raise nahi - fallback hamesha kuch deta hai."""
+    KABHI empty/raise nahi — fallback hamesha kuch deta hai."""
     base = (old_caption or "").strip()
-    # Template tweak (never-empty fallback) - re-share framing.
+    # Template tweak (never-empty fallback) — re-share framing.
     tweak = (
         "\U0001f501 Phir se yaad dila rahe hain:\n" + base
         if base
         else (
-            f"\U0001f501 {business_name or 'Hum'} aapke liye phir hazir - aaj hi judiye! \U0001f4de"
+            f"\U0001f501 {business_name or 'Hum'} aapke liye phir hazir — aaj hi judiye! \U0001f4de"
         )
     )
 
@@ -123,7 +122,7 @@ async def _freshen_caption(old_caption: str, business_name: str, niche: str) -> 
     try:
         system = (
             "Tu ek Indian local-business social-media assistant hai. Niche ek "
-            "purana post-caption diya jayega - usi message ko FRESH, thoda alag "
+            "purana post-caption diya jayega — usi message ko FRESH, thoda alag "
             "shabdon me Hinglish (Roman script) me dobara likh, same offer/idea, "
             "2-3 chhoti lines + 1-2 emoji. Sirf naya caption de, koi commentary nahi."
         )
@@ -188,7 +187,7 @@ async def recycle_for_client(
                 }
             )
 
-        # append (date+type dedupe - ek din ek hi recycle item).
+        # append (date+type dedupe — ek din ek hi recycle item).
         try:
             added = auto_content._append_items(cid, new_items)  # type: ignore[attr-defined]
         except Exception as e:  # pragma: no cover

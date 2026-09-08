@@ -1,18 +1,17 @@
-"""A2 ratchet - the compliance suppression/consent stores must stay migrated.
+"""A2 ratchet — the compliance suppression/consent stores must stay migrated.
 
 A1 proved the shared authority on the telephony kill switches. A2 applies it to
 the three stores that decide whether a human may be contacted at all: the
 WhatsApp suppression list, the TRAI/DPDP consent ledger, and the voice
 suppression list. Getting a path wrong here does not lose a config file, it
-answers an opt-out question with data that is no longer authoritative - which
+answers an opt-out question with data that is no longer authoritative — which
 is a TCCCPR/DPDP problem, not a tidiness problem.
 
 Two properties are asserted that the repo-wide debt ratchet cannot give:
 
   * the A2 writer modules carry ZERO uncontrolled in-checkout runtime paths
     (repo-wide the rule is only "no growth", because 1000+ findings predate
-    this workstream
-    for a store that has just been migrated the honest target
+    this workstream; for a store that has just been migrated the honest target
     is zero and it must stay zero);
   * nothing in the repository still imports the deleted module CONSTANTS. The
     deprecation shim in `consent_ledger` can only fire once per importing
@@ -75,21 +74,21 @@ SCANNED_ROOTS = ("app", "scripts", "tests", "alembic")
 OUT_OF_SCOPE: dict[str, dict[str, str]] = {
     "app/marketing/wa_campaign_runner.py": {
         "data/wa_templates.jsonl": (
-            "marketing template library - rebuildable content, not a compliance "
+            "marketing template library — rebuildable content, not a compliance "
             "authority, and not classified into a wave yet."
         ),
         "data/wa_campaigns.jsonl": (
-            "campaign run log - operational history owned by a later wave; "
+            "campaign run log — operational history owned by a later wave; "
             "folding it in here would migrate a store nobody has classified."
         ),
         "data/wa_failures.jsonl": (
-            "UNCLASSIFIED - found by this ratchet on 2026-07-28 and NOT present in "
+            "UNCLASSIFIED — found by this ratchet on 2026-07-28 and NOT present in "
             "runtime_data_manifest.py at all. It is compliance-adjacent: three "
             "recorded failures auto-suppress a number, so losing the file silently "
             "resets a suppression counter and the next campaign sends three more "
             "messages to that number. It is excluded here because inventing a "
             "manifest row inside a migration commit would move the reconciled "
-            "denominator without evidence - it needs its own classification with "
+            "denominator without evidence — it needs its own classification with "
             "production stat/size evidence first. Tracked in memory/backlog.md."
         ),
     },
@@ -108,7 +107,7 @@ def test_a2_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -119,7 +118,7 @@ def test_a2_modules_resolve_at_call_time_not_import_time(module_path):
     `data/...` path for a migrated store.
 
     A path bound at import is unreachable by any fixture, container env or
-    cutover that runs later - that specific bug is why this workstream exists.
+    cutover that runs later — that specific bug is why this workstream exists.
     """
     tree = ast.parse((REPO / module_path).read_text(encoding="utf-8"))
 
@@ -127,7 +126,7 @@ def test_a2_modules_resolve_at_call_time_not_import_time(module_path):
     for resolver in A2_RESOLVERS[module_path]:
         assert resolver in functions, f"{module_path} must expose {resolver}() as a function"
 
-    # Module level includes the bodies of top-level `try:` / `if:` blocks - a
+    # Module level includes the bodies of top-level `try:` / `if:` blocks — a
     # constant reintroduced under `if TYPE_CHECKING:` or a try/except import
     # fallback is bound at import just the same, and walking only `tree.body`
     # would step straight over it.
@@ -149,7 +148,7 @@ def test_a2_modules_resolve_at_call_time_not_import_time(module_path):
             targets = [node.target.id]
         for name in targets:
             assert name not in RETIRED_CONSTANTS, (
-                f"{module_path} reintroduced module-level {name} - a path frozen at "
+                f"{module_path} reintroduced module-level {name} — a path frozen at "
                 "import cannot follow a cutover"
             )
 
@@ -195,7 +194,7 @@ def test_no_repository_code_imports_the_retired_constants():
 
     Receiver names are deliberately NOT allowlisted. An earlier version accepted
     only `cl` / `consent_ledger` / `runner`, which missed 8 of the 28 real
-    import aliases in this repository - an allowlist of variable names is a
+    import aliases in this repository — an allowlist of variable names is a
     guess about how the next author will spell things.
 
     The text pre-filter is not an optimisation for its own sake: an identifier
@@ -228,7 +227,7 @@ def test_no_repository_code_imports_the_retired_constants():
                 continue
             parsed += 1
             offenders.extend(_retired_constant_offenders(rel, text))
-    assert scanned > 200, f"the scan walked only {scanned} files - it is not looking at the repo"
+    assert scanned > 200, f"the scan walked only {scanned} files — it is not looking at the repo"
     assert parsed <= 25, (
         f"the text pre-filter stopped working: {parsed} of {scanned} files reached ast.parse. "
         "That is the shape that segfaulted CI; if the constants really are named in that many "
@@ -241,7 +240,7 @@ def test_the_retired_constant_scanner_would_catch_a_regression():
     """Anti-vacuity: a scanner that finds nothing anywhere proves nothing.
 
     Every shape it claims to catch is exercised on purpose, together with the
-    two shapes it must NOT flag - a docstring mentioning the name, and a
+    two shapes it must NOT flag — a docstring mentioning the name, and a
     same-named attribute belonging to some unrelated object is deliberately
     still flagged, because a false positive there costs a rename and a false
     negative costs a frozen compliance path.
@@ -270,7 +269,7 @@ def test_the_a2_rows_are_still_dual_read():
     """A2's own rows, asserted by A2's own file.
 
     This was `moved == A1 | A2` while A2 was the newest wave. It is a subset
-    assertion now that later waves have landed - NOT a relaxation: the exact
+    assertion now that later waves have landed — NOT a relaxation: the exact
     global set is asserted once in ``test_runtime_data_waves.py``.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
@@ -282,10 +281,9 @@ def test_manifest_still_validates():
 
 
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """Six migrated stores, and the count is still 21 - that is the honest answer.
+    """Six migrated stores, and the count is still 21 — that is the honest answer.
 
-    Their writers can now follow a cutover
-    their authoritative bytes are still
+    Their writers can now follow a cutover; their authoritative bytes are still
     inside the checkout. Until those bytes are copied, verified and activated, a
     destructive deployment still destroys them. A count that fell to 18 here
     would be a false green: resolver-ready is not data-safe.

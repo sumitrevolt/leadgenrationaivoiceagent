@@ -1,23 +1,23 @@
-"""Customer Delivery OS - Loop 7 (final sub-project): narrow, additive IA cleanup.
+"""Customer Delivery OS — Loop 7 (final sub-project): narrow, additive IA cleanup.
 
 Discovery (background research agent) found a much larger admin-nav sprawl than
 the mission brief assumed (13 fully-orphaned admin pages, 5 overlapping ops
-cockpits, 3 overlapping staff-roster views, 3 overlapping inbox views) - all of
+cockpits, 3 overlapping staff-roster views, 3 overlapping inbox views) — all of
 that is PRE-EXISTING and admin-side, out of scope for a customer-value-delivery
 mission (parked in memory/backlog.md with the evidence). Only 3 narrow, additive
 items were actually in scope:
 
   1. The two "Command Center" pages shared an identical <title> and on-page
-     badge text ("Command Center") - disambiguated the OLDER ops/infra page to
+     badge text ("Command Center") — disambiguated the OLDER ops/infra page to
      "Ops Command Center" (the NEW business-outcome page keeps the plain name,
-     since it's the one linked from nav). No merge - discovery found the old
+     since it's the one linked from nav). No merge — discovery found the old
      page already has zero nav links (de-facto hidden already), so there was
      nothing to reconcile beyond the naming collision.
   2. /app/clients (this mission's own Loop-2 "Deliver Now" deliverable) had NO
-     direct sidebar nav link - reachable only via a link buried inside the new
+     direct sidebar nav link — reachable only via a link buried inside the new
      Command Center page. Added a direct link.
   3. /app/agent-tools exposes raw code-review/diagnostics/code-exec/browser-
-     fetch tools - confirmed dev-only, not a normal business feature a local
+     fetch tools — confirmed dev-only, not a normal business feature a local
      shop-owner admin would use day to day (matches memory/backlog.md's
      hide-from-default-nav candidate note). Regrouped (not deleted) under a new
      "Advanced" nav section with an explicit "(Dev)" label, reversible.
@@ -67,10 +67,10 @@ def test_command_center_route_redirects_to_control_center():
 
 def test_delivery_command_center_title_unchanged():
     """The NEW business-outcome page is the one linked from nav under the
-    plain "Command Center" label - its title should NOT have been touched by
+    plain "Command Center" label — its title should NOT have been touched by
     this loop's disambiguation fix."""
     html = _delivery_cc_html()
-    assert "<title>LeadGen AI - Command Center</title>" in html
+    assert "<title>LeadGen AI — Command Center</title>" in html
 
 
 # ---------------------------------------------------------------------------

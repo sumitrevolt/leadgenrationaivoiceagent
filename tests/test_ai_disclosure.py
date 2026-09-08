@@ -1,4 +1,4 @@
-"""TRAI up-front AI-disclosure gate - niche_scripts.ensure_ai_disclosure.
+"""TRAI up-front AI-disclosure gate — niche_scripts.ensure_ai_disclosure.
 
 Legal gate (TCCCPR): AI promotional calls MUST disclose up-front that the caller
 is an AI. This guards the shared helper used by BOTH live opener paths
@@ -8,7 +8,7 @@ Note on wording (2026-06-30): opener now uses "AI agent" / "ek AI agent" natural
 (see commit 11a757d "bidirectional AI-agent disclosure" + commit 2802645 buy-signal).
 The helper's `_AI_DISCLOSURE_TOKENS` tuple still includes BOTH "ai assistant" AND
 "ai agent" so the gate stays satisfied across either wording. Tests assert that
-SOME valid disclosure appears (string-level check), not a specific word - keeps
+SOME valid disclosure appears (string-level check), not a specific word — keeps
 wording flexibility without losing the legal gate.
 """
 

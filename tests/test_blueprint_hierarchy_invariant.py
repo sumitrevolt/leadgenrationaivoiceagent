@@ -1,4 +1,4 @@
-"""Master Blueprint hierarchy invariant - how detail nodes are ROOTED.
+"""Master Blueprint hierarchy invariant — how detail nodes are ROOTED.
 
 WHY THIS EXISTS (2026-08-03): an agent audit reported the nine ``detail_*`` nodes
 as "orphans needing wiring" because they carry no graph EDGE. That reading was
@@ -15,7 +15,7 @@ The hierarchy is not expressed by edges. It is expressed by two fields:
   (today: ``detail_agentic_rag`` -> ``detail_kb_rag``).
 
 So "no parent" on an L1 node is the RULE, not a defect. This test pins that rule
-so the next reader - human or agent - cannot quietly "fix" it by fabricating
+so the next reader — human or agent — cannot quietly "fix" it by fabricating
 parents, and so a genuine violation (an L2 with no parent, or a parent in the
 wrong domain) fails loudly instead.
 """

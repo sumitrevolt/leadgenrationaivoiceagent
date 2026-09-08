@@ -1,6 +1,6 @@
 """Offline tests for the self-hosted WhatsApp stack (WAHA Core) provider.
 
-NO live HTTP - httpx is faked. Asserts the integration contract:
+NO live HTTP — httpx is faked. Asserts the integration contract:
   - inert without WAHA_BASE_URL (never raises, returns error dict),
   - provider selection flips to "waha" only when selected + configured,
   - cloud_creds_present() stays truthful (not lied to by the self-host path),
@@ -20,7 +20,7 @@ from app.integrations import whatsapp_selfhost as wahost
 from app.marketing import wa_campaign_runner as _runner_mod
 from app.marketing import whatsapp_campaign as wac
 
-# Captured BEFORE the autouse fixture pins it - the one test that genuinely exercises
+# Captured BEFORE the autouse fixture pins it — the one test that genuinely exercises
 # suppression restores this real implementation.
 _REAL_IS_SUPPRESSED = _runner_mod.is_suppressed
 
@@ -84,7 +84,7 @@ def _clear_env(monkeypatch):
 
     monkeypatch.setattr(_cl, "is_suppressed", lambda _p: False, raising=False)
     monkeypatch.setattr(_wcr, "is_suppressed", lambda _p: False, raising=False)
-    # settings may carry values from a real .env - neutralise for deterministic tests
+    # settings may carry values from a real .env — neutralise for deterministic tests
     from app.config import settings
 
     monkeypatch.setattr(settings, "waha_base_url", "", raising=False)
@@ -175,7 +175,7 @@ def test_unregistered_recipient_is_blocked_before_send(monkeypatch):
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
     monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
     # Canary allowlist is a SECOND gate; these tests cover wire format, so graduate it.
-    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate - see happy-path note
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate — see happy-path note
     res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("9876543210", "hello"))
     assert res["error"] == "recipient_not_on_whatsapp"
     assert res["status"] == "blocked"
@@ -217,10 +217,10 @@ def test_suppressed_number_skipped_on_selfhost(monkeypatch, tmp_path):
     os.makedirs("data", exist_ok=True)
     from app.marketing import wa_campaign_runner as runner
 
-    # Resolver function, not a constant - the constant is gone so that the path
+    # Resolver function, not a constant — the constant is gone so that the path
     # can follow a cutover instead of being frozen at import time.
     monkeypatch.setattr(runner, "_suppression_path", lambda: os.path.join("data", "supp.jsonl"))
-    # This is THE test that exercises suppression for real - undo the fixture's pin.
+    # This is THE test that exercises suppression for real — undo the fixture's pin.
     monkeypatch.setattr(runner, "is_suppressed", _REAL_IS_SUPPRESSED)
     runner.suppress("9876543210", "opt_out")
     monkeypatch.setattr(wahost.httpx, "AsyncClient", _FakeClient)
@@ -243,7 +243,7 @@ def test_selfhost_inherits_notification_helpers(monkeypatch):
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
     monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
     # Canary allowlist is a SECOND gate; these tests cover wire format, so graduate it.
-    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate - see happy-path note
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate — see happy-path note
     sh = wahost.SelfHostWhatsApp()
     assert hasattr(sh, "send_lead_alert") and hasattr(sh, "send_daily_report")
     res = asyncio.run(sh.send_lead_alert("919999999999", {"company_name": "Acme"}))
@@ -333,7 +333,7 @@ def test_start_session_noop_when_already_scan_qr_code(monkeypatch):
     assert out["ok"] is True
     assert out["status"] == "SCAN_QR_CODE"
     assert out["already_running"] is True
-    # only the status-check GET happened - no POST at all
+    # only the status-check GET happened — no POST at all
     assert all(m == "get" for m, _ in client.calls)
 
 
@@ -369,7 +369,7 @@ def test_start_session_starts_directly_when_stopped(monkeypatch):
     out = asyncio.run(wahost.start_session())
     assert out["ok"] is True
     methods = [m for m, _ in client.calls]
-    assert methods == ["get", "post"]  # status check, start (no create - already exists)
+    assert methods == ["get", "post"]  # status check, start (no create — already exists)
     assert client.calls[1][1].endswith("/start")
 
 
@@ -400,7 +400,7 @@ def test_default_config_includes_webhook_token(monkeypatch):
 
 def test_recipient_not_on_whatsapp_is_not_an_integration_failure(monkeypatch):
     """A recipient with no WhatsApp account is a RECIPIENT outcome, not an
-    integration fault - WAHA answered correctly.
+    integration fault — WAHA answered correctly.
 
     Regression: counting it as an integration failure let synthetic/test numbers
     drive whatsapp to fail_rate 0.973 and write a DAILY false
@@ -414,7 +414,7 @@ def test_recipient_not_on_whatsapp_is_not_an_integration_failure(monkeypatch):
     monkeypatch.setenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "0")
     monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
     # Canary allowlist is a SECOND gate; these tests cover wire format, so graduate it.
-    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate - see happy-path note
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")  # §5 boundary gate — see happy-path note
 
     async def _fake_check(_self, _to):
         return {"known": True, "exists": False, "reason": "recipient_not_on_whatsapp"}

@@ -1,8 +1,8 @@
-"""Operator-facing Second Brain - admin search/browse over the Obsidian vault.
+"""Operator-facing Second Brain — admin search/browse over the Obsidian vault.
 
 The agents accumulate notes (Decisions/Leads/Sessions/Agents/System…) in
 `data/obsidian_staging/` and read them back via `obsidian_sync.recall()`, but the
-OPERATOR had no in-app surface - so the brain felt "unused". This router exposes
+OPERATOR had no in-app surface — so the brain felt "unused". This router exposes
 it: search (recall), recent, and stats. Read-only, admin-gated, never raises.
 Self-gating: when OBSIDIAN_SYNC is unset, `recall()` returns [] (brain disabled).
 """

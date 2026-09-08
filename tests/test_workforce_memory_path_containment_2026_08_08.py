@@ -175,7 +175,7 @@ def test_recall_adversarial_never_raises(wfm_env):
 
 def test_prefix_collision_isolated(wfm_env):
     wm = wfm_env
-    # "swara_evil" is a VALID agent id but must map to its own dir - never the
+    # "swara_evil" is a VALID agent id but must map to its own dir — never the
     # same dir as "swara", and never a containment violation.
     assert wm._agent_dir("swara") != wm._agent_dir("swara_evil")
     assert wm._append_entry("swara", _entry()) is True

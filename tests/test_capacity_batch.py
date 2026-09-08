@@ -1,5 +1,5 @@
 """Tests for capacity trio: cred_pool (multi-key rotation) + risk_approve (auto-approve policy).
-Pure-python, no network. LLM cache (#2) already existed in free_ai - not re-tested here.
+Pure-python, no network. LLM cache (#2) already existed in free_ai — not re-tested here.
 """
 
 from app.agents import cred_pool, risk_approve
@@ -33,7 +33,7 @@ def test_rotate_skips_cooled_key(monkeypatch):
     for n in (3, 4, 5):
         monkeypatch.delenv(f"MISTRAL_API_KEY_{n}", raising=False)
     cred_pool.mark_fail("MISTRAL_API_KEY", "m1", cooldown_s=60)
-    # m1 cooled -> next picks should avoid it while cooled
+    # m1 cooled → next picks should avoid it while cooled
     picks = {cred_pool.rotate("MISTRAL_API_KEY", "m1") for _ in range(4)}
     assert "m2" in picks
 
@@ -58,7 +58,7 @@ def test_risk_enabled_env(monkeypatch):
 
 def test_risk_low_action_auto_approves(monkeypatch):
     monkeypatch.setenv("RISK_AUTO_APPROVE_MAX_COST", "5")
-    # a cheap, benign action -> low score -> auto-approve
+    # a cheap, benign action → low score → auto-approve
     assert (
         risk_approve.should_auto_approve("reflection", cost_estimate=0.5, reason="self review")
         is True
@@ -72,7 +72,7 @@ def test_risk_high_cost_blocks(monkeypatch):
 
 def test_risk_sideeffect_word_blocks(monkeypatch):
     monkeypatch.setenv("RISK_AUTO_APPROVE_MAX_COST", "100")
-    # reason mentions an outward send -> score bumped -> not auto-approved
+    # reason mentions an outward send → score bumped → not auto-approved
     assert (
         risk_approve.should_auto_approve(
             "social_drafts", cost_estimate=1, reason="send whatsapp blast"

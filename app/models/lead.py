@@ -16,7 +16,7 @@ from app.models.base import Base
 
 def _enum_values(enum_cls):
     """values_callable for SQLAlchemy Enum columns so the DB stores the enum's
-    .value (e.g. "qualified") not its .name (e.g. "QUALIFIED") - VARCHAR-backed,
+    .value (e.g. "qualified") not its .name (e.g. "QUALIFIED") — VARCHAR-backed,
     not a Postgres native-ENUM type (native_enum=False). Matches app/models/
     payment.py's pattern (production audit 2026-07-01, F-DB4: retrofitted after
     confirming via alembic/versions/010_enum_columns_to_varchar.py that existing
@@ -54,7 +54,7 @@ class LeadSource(enum.Enum):
 
 
 class LeadStatusHistory(Base):
-    """Audit trail of Lead.status transitions - who/what changed a lead and when.
+    """Audit trail of Lead.status transitions — who/what changed a lead and when.
 
     Forward-only (no backfill of pre-existing rows): populated by
     Lead._record_transition(), called from every status-mutating method below.
@@ -99,7 +99,7 @@ class Lead(Base):
     # Uniqueness NOT declared here (unique=True would apply on every fresh
     # create_all()-based test DB, and many tests share a placeholder phone
     # across unrelated Lead rows in the same DB). DB-level enforcement lives
-    # in alembic/versions/009_leads_phone_unique_if_clean.py instead - applies
+    # in alembic/versions/009_leads_phone_unique_if_clean.py instead — applies
     # only in migration-managed envs (staging/prod), and only once existing
     # data has no duplicates. App-level dedup-by-phone (the actual guarantee
     # today) is in app/api/public_site.py, app/platform/prospector.py, and
@@ -127,7 +127,7 @@ class Lead(Base):
     # Qualification data (JSON)
     qualification_data = Column(Text)
 
-    # Pipeline batch provenance (2026-07-08) - WHY this score, persisted not
+    # Pipeline batch provenance (2026-07-08) — WHY this score, persisted not
     # just computed on demand; which prospector.py batch produced this lead.
     score_reason = Column(Text)
     source_batch_id = Column(
@@ -288,9 +288,8 @@ class Lead(Base):
         """Update lead score and hot lead flag. `reason` (optional, e.g. from
         lead_scoring.score_components()) is persisted so admin/reporting can
         see WHY a lead is hot, not just the number. Threshold centralized in
-        settings.lead_hot_threshold (2026-07-08 - previously hardcoded 70 here
-        while lead_scoring.py's own env default was 60
-        both now read the
+        settings.lead_hot_threshold (2026-07-08 — previously hardcoded 70 here
+        while lead_scoring.py's own env default was 60; both now read the
         same setting, see docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md).
         """
         from app.config import settings
@@ -342,7 +341,7 @@ class Lead(Base):
         return min(100, score)
 
     def _record_transition(self, old_status: "LeadStatus | None", changed_by: str) -> None:
-        """Best-effort audit row for a status change. Never raises - a session-less
+        """Best-effort audit row for a status change. Never raises — a session-less
         or detached Lead (e.g. in a unit test) just skips the write."""
         try:
             from sqlalchemy.orm import object_session
@@ -456,10 +455,10 @@ def phone_format_variants(phone: str) -> list[str]:
     before comparing, but none accounts for the DB already holding the SAME
     number in a DIFFERENT raw format from another path (prospector.py stores
     digits-only "919967993679", the CRM/sheet import path stores "+919967993679")
-    - so the exact-match silently misses it and the same business gets
+    — so the exact-match silently misses it and the same business gets
     inserted twice. Returns every format variant worth matching against;
     callers do ``Lead.phone.in_(phone_format_variants(candidate))``.
-    Never raises - unparseable input just yields an empty list (no match).
+    Never raises — unparseable input just yields an empty list (no match).
     """
     import re
 
@@ -472,10 +471,9 @@ def phone_format_variants(phone: str) -> list[str]:
 
 def lead_exists_for_phone(db, phone: str) -> bool:
     """True if a Lead with this phone (any known raw-format variant) already
-    exists. Sync-session helper - use directly with ``db.query(...)`` sessions
+    exists. Sync-session helper — use directly with ``db.query(...)`` sessions
     (scraping.py/sync.py/prospector.py all use the sync ``get_db_session``).
-    Never raises
-    unparseable phone -> False (caller's own len-check already
+    Never raises; unparseable phone -> False (caller's own len-check already
     guards this in practice, kept defensive here too)."""
     variants = phone_format_variants(phone)
     if not variants:

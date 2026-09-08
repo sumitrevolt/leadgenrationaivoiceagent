@@ -1,14 +1,12 @@
 """Agent Runtime (Phase-B) contract-enforcement tests.
 
 Prompt-mandated 15 cases: GREEN success · flag skip · kill block · prohibited
-reject · timeout · retry->DLQ · idempotent dedupe · concurrency · budget ·
+reject · timeout · retry→DLQ · idempotent dedupe · concurrency · budget ·
 tenant isolation · AMBER approval · RED hard-off · heartbeat vs useful-work ·
 event-only healthy-idle · registry stays green.
 
-Isolated: state/usage/DLQ files -> tmp_path
-kill/idempotency/approval seams
-monkeypatched
-no Redis/DB/network required (durable bridge is best-effort).
+Isolated: state/usage/DLQ files → tmp_path; kill/idempotency/approval seams
+monkeypatched; no Redis/DB/network required (durable bridge is best-effort).
 """
 
 from __future__ import annotations
@@ -181,7 +179,7 @@ async def test_idempotent_duplicate_suppressed():
 
 
 async def test_failed_run_retains_key_blocks_same_key_retry():
-    """Terminal failure is durable - same key must not re-execute (need new key)."""
+    """Terminal failure is durable — same key must not re-execute (need new key)."""
 
     async def boom(ctx):
         raise ValueError("x")
@@ -269,7 +267,7 @@ async def test_amber_customer_action_requires_approval(monkeypatch):
 # 12. RED action remains hard-off (no env flip can enable)
 # ---------------------------------------------------------------------- #
 async def test_red_lane_remains_hard_off(monkeypatch):
-    monkeypatch.setenv("PLATFORM_DIAL_DAILY", "1")  # env flip attempt - must NOT matter
+    monkeypatch.setenv("PLATFORM_DIAL_DAILY", "1")  # env flip attempt — must NOT matter
     _register("swara", "place_call", _ok_cap)
     for agent in ("swara", "ananya"):
         res = await rt.submit(agent, "place_call")
@@ -329,7 +327,7 @@ def test_registry_still_green_and_pilots_canonical():
     assert len(reg) == 31
     for pilot in rt.PILOT_AGENTS:
         assert pilot in reg
-    # pilot lane sanity - Phase-B risk envelope
+    # pilot lane sanity — Phase-B risk envelope
     assert reg["kavya"].lane == "GREEN"
     assert reg["isha"].lane == "GREEN" and reg["isha"].reasoning is True
     assert reg["zara"].lane == "AMBER" and reg["zara"].default_mode != "live"

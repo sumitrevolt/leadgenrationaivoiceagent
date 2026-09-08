@@ -2,29 +2,28 @@
 
 Mounted at ``/api`` -> all paths here live under ``/api/wa/*``.
 
-  GET  /api/wa/status                 - auto-send readiness (flag + creds + allowlist) [admin]
-  GET  /api/wa/templates              - list local template records                [admin]
-  POST /api/wa/templates              - register/upsert a template record          [admin]
-  POST /api/wa/templates/status       - track Meta approval status                 [admin]
-  GET  /api/wa/suppression            - suppression list (opt-out/blocked)         [admin]
-  POST /api/wa/suppression            - add/remove a suppressed number             [admin]
-  GET  /api/wa/campaigns              - queued drip/reactivation campaigns          [admin]
-  POST /api/wa/campaign/schedule      - queue a campaign for a date                 [admin]
-  POST /api/wa/campaign/run           - run due campaigns now (manual trigger)      [admin]
-  GET  /api/wa/drafts                 - pending would-send drafts (human queue)     [admin]
-  POST /api/wa/drafts/{id}/sent       - mark a draft as sent by hand (idempotent)   [admin]
-  POST /api/wa/drafts/{id}/dismiss    - drop a draft from the queue                 [admin]
-  GET  /api/wa/webhook                - Meta verify challenge (hub.challenge)       [PUBLIC]
-  POST /api/wa/webhook                - Meta inbound messages/statuses              [PUBLIC, signed]
+  GET  /api/wa/status                 — auto-send readiness (flag + creds + allowlist) [admin]
+  GET  /api/wa/templates              — list local template records                [admin]
+  POST /api/wa/templates              — register/upsert a template record          [admin]
+  POST /api/wa/templates/status       — track Meta approval status                 [admin]
+  GET  /api/wa/suppression            — suppression list (opt-out/blocked)         [admin]
+  POST /api/wa/suppression            — add/remove a suppressed number             [admin]
+  GET  /api/wa/campaigns              — queued drip/reactivation campaigns          [admin]
+  POST /api/wa/campaign/schedule      — queue a campaign for a date                 [admin]
+  POST /api/wa/campaign/run           — run due campaigns now (manual trigger)      [admin]
+  GET  /api/wa/drafts                 — pending would-send drafts (human queue)     [admin]
+  POST /api/wa/drafts/{id}/sent       — mark a draft as sent by hand (idempotent)   [admin]
+  POST /api/wa/drafts/{id}/dismiss    — drop a draft from the queue                 [admin]
+  GET  /api/wa/webhook                — Meta verify challenge (hub.challenge)       [PUBLIC]
+  POST /api/wa/webhook                — Meta inbound messages/statuses              [PUBLIC, signed]
 
 SAFETY: ban-safety is enforced at the SENDER BOUNDARY
-(``app/integrations/whatsapp.py::send_permitted``), not by the callers in this module -
+(``app/integrations/whatsapp.py::send_permitted``), not by the callers in this module —
 that is deliberate, because the per-caller version of this rule is what let the hourly
 onboarding job send ungated. A send needs WHATSAPP_AUTO_SEND=1 AND the recipient on
 WHATSAPP_SEND_ALLOWLIST AND not opted-out/suppressed, all fail-CLOSED, plus official
 creds and (for business-initiated Cloud sends) an approved template.
-NOTE: this module's routes REPORT gate state
-they do not enforce it.
+NOTE: this module's routes REPORT gate state; they do not enforce it.
 Admin routes require an admin JWT. Webhook routes are public (Meta calls them) but the
 POST is App-Secret signature-verified. Handlers never raise unhandled errors.
 """
@@ -62,31 +61,31 @@ async def wa_status(current_user: User = Depends(require_admin)) -> dict[str, An
     # deciding is exactly the failure that let the ungated onboarding send hide.
     allow = wa_int.send_allowlist()
     graduated = allow == ["*"]
-    # Count/graduation only - never echo the numbers back out of the .env.
+    # Count/graduation only — never echo the numbers back out of the .env.
     allow_count = 0 if graduated else len(allow)
     sends_possible = wac.auto_ready() and bool(allow)
 
     if sends_possible and graduated:
-        note = f"Auto-send LIVE to ALL recipients via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')} - allowlist graduated to '*'."
+        note = f"Auto-send LIVE to ALL recipients via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')} — allowlist graduated to '*'."
     elif sends_possible:
         note = f"Auto-send LIVE but CANARY-LIMITED to {allow_count} allowlisted number(s) via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')}."
     elif wac.auto_ready():
-        note = "WHATSAPP_AUTO_SEND is on and a backend is ready, but WHATSAPP_SEND_ALLOWLIST is EMPTY - every automated send is blocked (fail-closed canary). Add canary numbers, or '*' to graduate."
+        note = "WHATSAPP_AUTO_SEND is on and a backend is ready, but WHATSAPP_SEND_ALLOWLIST is EMPTY — every automated send is blocked (fail-closed canary). Add canary numbers, or '*' to graduate."
     elif prov == "waha":
-        note = "Self-host (WAHA) selected - link the number (scan QR) + set WHATSAPP_AUTO_SEND=1 AND WHATSAPP_SEND_ALLOWLIST to auto-send."
+        note = "Self-host (WAHA) selected — link the number (scan QR) + set WHATSAPP_AUTO_SEND=1 AND WHATSAPP_SEND_ALLOWLIST to auto-send."
     else:
-        note = "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + WHATSAPP_SEND_ALLOWLIST + a backend - Cloud API creds OR self-host WAHA - to auto-send)."
+        note = "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + WHATSAPP_SEND_ALLOWLIST + a backend — Cloud API creds OR self-host WAHA — to auto-send)."
     return {
-        "provider": prov,  # "cloud" | "waha" - which backend is actually live
+        "provider": prov,  # "cloud" | "waha" — which backend is actually live
         "auto_send_flag": wac.auto_send_enabled(),
         "creds_present": wac.creds_present(),  # any usable backend
         "cloud_creds_present": wac.cloud_creds_present(),  # Meta Cloud API specifically
         "selfhost_active": wac.selfhost_present(),  # WAHA selected + reachable-configured
-        "auto_ready": wac.auto_ready(),  # flag + creds only - NOT the whole gate
+        "auto_ready": wac.auto_ready(),  # flag + creds only — NOT the whole gate
         "allowlist_count": allow_count,  # numbers themselves stay in .env
         "allowlist_graduated": graduated,  # True only when the list is exactly '*'
         "sends_possible": sends_possible,  # the honest "can anything actually go out"
-        "blocked_by_reason": wa_int.block_stats(),  # no PII - reason codes only
+        "blocked_by_reason": wa_int.block_stats(),  # no PII — reason codes only
         "pending_drafts": wa_int.pending_drafts_count(),  # human-send backlog size
         "daily_cap": wac.daily_cap(),
         "sent_today": wac.sent_today_count(),
@@ -232,14 +231,14 @@ async def run_campaigns(current_user: User = Depends(require_admin)) -> dict[str
 
 
 # --------------------------------------------------------------------------- #
-# Pending drafts - the human-send queue
+# Pending drafts — the human-send queue
 # --------------------------------------------------------------------------- #
 # Every gate-denied send already builds a ban-safe wa.me link; that would-send is now
 # persisted instead of discarded, so there is a queue to work rather than only a
 # counter. These routes are the inbox for it.
 #
 # They TRANSMIT NOTHING. A human taps the wa.me link in their own WhatsApp, which
-# carries no ban risk - flipping WHATSAPP_AUTO_SEND is what carries the risk, and
+# carries no ban risk — flipping WHATSAPP_AUTO_SEND is what carries the risk, and
 # nothing in this module can do that.
 @router.get("/drafts")
 async def list_drafts(
@@ -248,7 +247,7 @@ async def list_drafts(
     """Pending would-send drafts, newest first.
 
     Each draft carries the gate ``reason`` that blocked it. That field is not
-    decorative - a draft blocked as ``opted_out``/``suppressed`` is a number that
+    decorative — a draft blocked as ``opted_out``/``suppressed`` is a number that
     asked us not to message it, and must not be sent by hand either.
     """
     from app.integrations import whatsapp as wa_int
@@ -269,10 +268,9 @@ async def list_drafts(
 async def mark_draft_sent(
     draft_id: str, current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Mark a draft as sent by hand. Idempotent - a repeat call is a 200 no-op.
+    """Mark a draft as sent by hand. Idempotent — a repeat call is a 200 no-op.
 
-    Records only that the human sent it
-    nothing is transmitted from here.
+    Records only that the human sent it; nothing is transmitted from here.
     """
     from app.integrations import whatsapp as wa_int
 
@@ -286,7 +284,7 @@ async def mark_draft_sent(
 async def dismiss_draft(
     draft_id: str, current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Drop a draft from the queue - the human judged it not worth sending.
+    """Drop a draft from the queue — the human judged it not worth sending.
 
     A repeat call 404s, because the row is genuinely gone by then.
     """
@@ -298,7 +296,7 @@ async def dismiss_draft(
 
 
 # --------------------------------------------------------------------------- #
-# Meta webhook (PUBLIC - Meta servers call these)
+# Meta webhook (PUBLIC — Meta servers call these)
 # --------------------------------------------------------------------------- #
 def _verify_token() -> str:
     return (os.getenv("WHATSAPP_VERIFY_TOKEN", "") or "").strip()
@@ -375,7 +373,7 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
                         runner.suppress(frm, reason="opt_out_inbound")
                         # TCCCPR: revocation applies to ALL commercial comms, so it
                         # must land in the canonical cross-channel suppression
-                        # ledger too - otherwise a WA STOP stays invisible to voice.
+                        # ledger too — otherwise a WA STOP stays invisible to voice.
                         try:
                             from app.telephony.consent_ledger import record_opt_out
 
@@ -408,12 +406,12 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Self-hosted stack (WAHA Core) - "apna khud ka" provider
-#   GET  /api/wa/selfhost/status   - linked-session state (WORKING/SCAN_QR_CODE/…) [admin]
-#   POST /api/wa/selfhost/start    - start/relink the session (then scan QR)       [admin]
-#   GET  /api/wa/selfhost/qr       - QR image to scan on the business phone        [admin]
-#   POST /api/wa/selfhost/webhook  - WAHA inbound messages (token-gated)           [PUBLIC]
-# A number is EITHER on Cloud API OR on this Web session - never both at once.
+# Self-hosted stack (WAHA Core) — "apna khud ka" provider
+#   GET  /api/wa/selfhost/status   — linked-session state (WORKING/SCAN_QR_CODE/…) [admin]
+#   POST /api/wa/selfhost/start    — start/relink the session (then scan QR)       [admin]
+#   GET  /api/wa/selfhost/qr       — QR image to scan on the business phone        [admin]
+#   POST /api/wa/selfhost/webhook  — WAHA inbound messages (token-gated)           [PUBLIC]
+# A number is EITHER on Cloud API OR on this Web session — never both at once.
 # --------------------------------------------------------------------------- #
 @router.get("/selfhost/status")
 async def selfhost_status(current_user: User = Depends(require_admin)) -> dict[str, Any]:
@@ -528,7 +526,7 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
         event = str(payload.get("event", "")).lower()
         body = payload.get("payload", {}) or {}
         if not event.startswith("message") or body.get("fromMe"):
-            return res  # delivery acks / outbound echoes - ignore
+            return res  # delivery acks / outbound echoes — ignore
         mid = str(body.get("id", "")).strip()
         if _seen_message(mid):
             res["dup"] += 1
@@ -566,7 +564,7 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
             except Exception as _e:
                 logger.debug("wa selfhost onboarding-interview check err: %s", _e)
             if not handled:
-                # Video Production Cell - customer review replies (flag-gated).
+                # Video Production Cell — customer review replies (flag-gated).
                 try:
                     from app.marketing.video_production import review_whatsapp
 

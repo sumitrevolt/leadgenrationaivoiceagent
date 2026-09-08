@@ -33,7 +33,7 @@ class ComplianceAuditLog(Base):
     TRAI/DPDP Compliance Audit Log
 
     Required by TRAI for 90-day proof of DND checks, calling window compliance,
-    and consent verification. This is a PERMANENT audit trail - never delete entries
+    and consent verification. This is a PERMANENT audit trail — never delete entries
     within the 90-day retention window.
 
     CRITICAL: This table is accessed for compliance defense. Queries must be fast.

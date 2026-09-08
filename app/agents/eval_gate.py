@@ -1,16 +1,16 @@
-"""eval_gate.py - close the self-improve loop with DeepEval as reward signal.
+"""eval_gate.py — close the self-improve loop with DeepEval as reward signal.
 
 The 2026-06-16 billionaire-scale audit named this as the #1 advanced-automation
 gap (§G.1): `self_improve` and `code_upgrader` mutate behaviour every cycle,
 but nothing automatically scores whether the change *helped*. DeepEval is wired
-(evals/test_rag_quality.py) but it's advisory CI - open-loop. This module is
+(evals/test_rag_quality.py) but it's advisory CI — open-loop. This module is
 the missing feedback edge.
 
 Two concrete additions:
 
 1. **Baseline-relative regression detection.** The static 0.6 threshold in the
    existing DeepEval suite catches catastrophic breaks. What it misses is slow
-   quality drift - a series of changes each barely passing 0.6 while the
+   quality drift — a series of changes each barely passing 0.6 while the
    underlying score creeps from 0.85 -> 0.62. This module records every score
    into `data/eval_history.jsonl`, computes a rolling baseline (median of last
    N runs excluding the current), and surfaces `gate_decision()` =
@@ -20,17 +20,15 @@ Two concrete additions:
    `code_upgrader` produces an artifact, the agent calls `score_and_gate()`
    with the metric value from a fresh eval run. The decision is logged into
    the agent's outcome record so the next iteration can prefer (or roll back)
-   accordingly. Activated by `EVAL_GATE=1`
-   hardened to actually BLOCK
+   accordingly. Activated by `EVAL_GATE=1`; hardened to actually BLOCK
    regression actions by `EVAL_GATE_HARD=1` (both OFF default = pure logging).
 
 Storage: a single jsonl file `data/eval_history.jsonl`. One line per
-(suite, metric, score, decision, agent, ts) - same project-wide pattern as
+(suite, metric, score, decision, agent, ts) — same project-wide pattern as
 llm_metrics, consent_ledger, lead_usage. No DB dependency, no Redis required,
 survives container restart.
 
-Project ethos: INERT when EVAL_GATE unset (zero behaviour change)
-never
+Project ethos: INERT when EVAL_GATE unset (zero behaviour change); never
 raises on storage error (writes are best-effort).
 """
 
@@ -72,7 +70,7 @@ def enabled() -> bool:
 def hard_mode() -> bool:
     """When true, `gate_decision()` returning 'reject' should cause callers to
     actually block (e.g. raise / roll back). When false, decision is logged
-    only - observability without enforcement (recommended starting state)."""
+    only — observability without enforcement (recommended starting state)."""
     return os.environ.get(_HARD_FLAG, "0").strip().lower() in ("1", "true", "yes")
 
 
@@ -97,7 +95,7 @@ def record_score(
 ) -> None:
     """Append a single (suite, metric, score) sample. Best-effort, never raises.
 
-    `agent`: who produced this - "ci" for CI eval runs, "self_improve",
+    `agent`: who produced this — "ci" for CI eval runs, "self_improve",
         "code_upgrader", or any custom name from a closed-loop call site.
     `artifact`: optional opaque ID linking back to the artifact whose change
         produced this score (e.g. a self-improve task ID or patch hash).
@@ -137,7 +135,7 @@ def _read_history(limit: int = 2000) -> list[dict[str, Any]]:
     except Exception:
         return []
     out: list[dict[str, Any]] = []
-    # tail to `limit` - eval history files stay small (10s/day) so simple slice
+    # tail to `limit` — eval history files stay small (10s/day) so simple slice
     for line in lines[-limit:]:
         line = line.strip()
         if not line:
@@ -205,14 +203,14 @@ def gate_decision(
     """Compare `current_score` to historical baseline; return decision.
 
     Outcomes:
-      `no_baseline` - not enough history yet (cold start). Caller should
+      `no_baseline` — not enough history yet (cold start). Caller should
           treat as accept (you can't gate without a baseline).
-      `accept`      - current >= baseline * tolerance. Change is non-regressive.
-      `reject`      - current <  baseline * tolerance. Regression beyond
-          tolerance - caller should roll back / not apply (in hard mode) or
+      `accept`      — current >= baseline * tolerance. Change is non-regressive.
+      `reject`      — current <  baseline * tolerance. Regression beyond
+          tolerance — caller should roll back / not apply (in hard mode) or
           log + flag (in observability mode).
 
-    The current run is NOT yet in history when this is called - pass
+    The current run is NOT yet in history when this is called — pass
     `exclude_last=0` so the baseline reflects only prior runs.
     """
     base = baseline(suite, metric, window=window, exclude_last=0)
@@ -276,7 +274,7 @@ def score_and_gate(
         artifact=artifact,
         extra={"decision": verdict["decision"], "ratio": verdict["ratio"]},
     )
-    # G.1: burst-of-rejects alert (best-effort - INERT when OPS_ALERTS unset).
+    # G.1: burst-of-rejects alert (best-effort — INERT when OPS_ALERTS unset).
     try:
         from app.platform import ops_alerts
 

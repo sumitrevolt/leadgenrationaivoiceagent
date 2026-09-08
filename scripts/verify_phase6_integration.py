@@ -219,7 +219,7 @@ def main():
 
     for name, result in results:
         status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status} - {name}")
+        print(f"{status} — {name}")
 
     all_passed = all(r for _, r in results)
 
@@ -228,7 +228,7 @@ def main():
         print("✅ PHASE 6 INTEGRATION COMPLETE")
         print("=" * 70)
         print("\nAll components verified successfully!")
-        print("Ready for: VPS deployment -> docker build -> up -d -> manual UI test")
+        print("Ready for: VPS deployment → docker build → up -d → manual UI test")
         return 0
     else:
         print("\n" + "=" * 70)

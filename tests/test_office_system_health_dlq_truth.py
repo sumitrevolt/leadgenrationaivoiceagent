@@ -61,8 +61,7 @@ def test_health_dot_is_red_when_dead_nonzero_even_if_dlq_zero():
     dot_expr_idx = body.index("hasDeadOrFailed ?")
     has_dead_or_failed_def_idx = body.index("var hasDeadOrFailed")
     assert has_dead_or_failed_def_idx < dot_expr_idx
-    definition_line = body[has_dead_or_failed_def_idx : body.index("
-    ", has_dead_or_failed_def_idx)]
+    definition_line = body[has_dead_or_failed_def_idx : body.index(";", has_dead_or_failed_def_idx)]
     assert "retryFailedCount > 0" in definition_line
     assert "deadCount > 0" in definition_line
 
@@ -86,8 +85,7 @@ def test_dead_nonzero_row_is_clickable_to_reliability_console():
 
 def test_queue_line_labels_are_unambiguous():
     """Old label was just "dlq=" (ambiguous vs the separate dead concept
-    elsewhere on the same page)
-    must now say retry-failed vs dead explicitly."""
+    elsewhere on the same page); must now say retry-failed vs dead explicitly."""
     body = _render_system_health_body()
     assert "retry-failed=" in body
     assert "· dead=" in body

@@ -1,4 +1,4 @@
-"""Dedicated executor profile roots - minimize HOME/USERPROFILE exposure."""
+"""Dedicated executor profile roots — minimize HOME/USERPROFILE exposure."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from app.dev_control.external_agents.runner.process_safe import ProcessSafetyErr
 
 ExecutorKind = Literal["cursor", "claude", "helper"]
 
-# Auth material we intentionally expose into the runner profile (paths only - never logged).
+# Auth material we intentionally expose into the runner profile (paths only — never logged).
 _CLAUDE_HOME_FILES = (
     ".credentials.json",
     "settings.json",
@@ -49,7 +49,7 @@ def _safe_link_or_copy(src: Path, dst: Path) -> str:
     except Exception:
         pass
     try:
-        # Symlink may require privilege on Windows - best-effort.
+        # Symlink may require privilege on Windows — best-effort.
         os.symlink(src, dst)
         return "symlink"
     except Exception:
@@ -64,12 +64,11 @@ def _safe_link_or_copy(src: Path, dst: Path) -> str:
 def prepare_executor_profile(kind: ExecutorKind) -> dict[str, Any]:
     """Build redirected HOME/USERPROFILE/APPDATA/LOCALAPPDATA for a child.
 
-    Cursor: absolute agent.cmd already resolved
-    LOCALAPPDATA only needs a
+    Cursor: absolute agent.cmd already resolved; LOCALAPPDATA only needs a
     writable compile-cache dir (not the full user LocalAppData tree).
 
     Claude: only ``.credentials.json`` (+ optional ``settings.json``) are linked
-    into the dedicated home ``.claude/`` - projects/history/shell dumps stay out.
+    into the dedicated home ``.claude/`` — projects/history/shell dumps stay out.
     """
     root = profile_root() / kind
     home = root / "home"
@@ -114,17 +113,17 @@ def prepare_executor_profile(kind: ExecutorKind) -> dict[str, Any]:
         ]
 
     if kind == "cursor":
-        # Writable compile cache only - do not mirror full user LocalAppData.
+        # Writable compile cache only — do not mirror full user LocalAppData.
         (local / "cursor-compile-cache").mkdir(parents=True, exist_ok=True)
         cursor_home = home / ".cursor"
         cursor_home.mkdir(parents=True, exist_ok=True)
-        # Minimal Agent CLI auth/state - not chats/extensions/projects.
+        # Minimal Agent CLI auth/state — not chats/extensions/projects.
         src_cursor = Path.home() / ".cursor"
         for name in ("agent-cli-state.json", "cli-config.json", "argv.json"):
             src = src_cursor / name
             how = _safe_link_or_copy(src, cursor_home / name) if src.exists() else "absent"
             evidence["material"][f".cursor/{name}"] = how
-        # Desktop Cursor auth.json (Roaming) - exact file only.
+        # Desktop Cursor auth.json (Roaming) — exact file only.
         src_auth = (
             Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
             / "Cursor"
@@ -151,7 +150,7 @@ def prepare_executor_profile(kind: ExecutorKind) -> dict[str, Any]:
         evidence["trust_rationale"] = (
             "KEEP --trust: Cursor Agent non-interactive print mode requires it; "
             "containment is dedicated worktree + redirected profile env + deny-by-default "
-            "secrets + post-run path scope - not the --trust flag itself."
+            "secrets + post-run path scope — not the --trust flag itself."
         )
 
     env = {

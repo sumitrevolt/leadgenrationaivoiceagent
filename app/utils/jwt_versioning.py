@@ -175,15 +175,14 @@ class JWTKeyManager:
         self.primary_key = self.secondary_keys.pop(key_id).copy()
         self.primary_key["active"] = True
 
-        logger.warning(f"🔄 JWT key rotated: {old_primary_id} -> {key_id}")
+        logger.warning(f"🔄 JWT key rotated: {old_primary_id} → {key_id}")
 
     def revoke_key(self, key_id: str) -> None:
         """
         Revoke a secondary key (e.g., after compromise).
         """
         if key_id == self.primary_key["id"]:
-            raise ValueError("Cannot revoke the primary key
-            rotate first")
+            raise ValueError("Cannot revoke the primary key; rotate first")
 
         if key_id in self.secondary_keys:
             del self.secondary_keys[key_id]

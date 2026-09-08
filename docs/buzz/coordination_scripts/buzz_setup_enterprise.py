@@ -69,7 +69,7 @@ def step(label, args, stdin_text=None):
     return rc, parsed
 
 
-BUILD_CANVAS = """# #build - Coding Agent Bridge
+BUILD_CANVAS = """# #build — Coding Agent Bridge
 
 **Plane:** developer tooling. NOT runtime STAFF, NOT prod control.
 
@@ -90,11 +90,11 @@ The repo tree is chronically dirty and multiple tools edit it at once.
 Truncation and lost edits have already happened. So:
 
 1. **CLAIM** before touching files:
-   `[CLAUDE] CLAIM app/api/growth_revenue.py, tests/test_billing_truth_2026.py - reason: ADR-159 canary`
+   `[CLAUDE] CLAIM app/api/growth_revenue.py, tests/test_billing_truth_2026.py — reason: ADR-159 canary`
 2. **RELEASE** when done:
-   `[CLAUDE] RELEASE app/api/growth_revenue.py - 3 tests green, exit 0`
+   `[CLAUDE] RELEASE app/api/growth_revenue.py — 3 tests green, exit 0`
 3. If a file is already claimed, **do not edit it**. Post `[TOOL] BLOCKED ON <file> (held by <tool>)` and pick different work.
-4. Claims older than 4 hours are stale - anyone may post `STALE-BREAK <file>` and take it.
+4. Claims older than 4 hours are stale — anyone may post `STALE-BREAK <file>` and take it.
 
 Machine-readable mirror: `docs/coordination/LOCKS.json` in the repo.
 
@@ -118,10 +118,9 @@ Touched:   <file list>
 - Swara / voice path = FROZEN.
 """
 
-PULSE_CANVAS = """# #staff-pulse - 31/31 Runtime STAFF Mirror
+PULSE_CANVAS = """# #staff-pulse — 31/31 Runtime STAFF Mirror
 
-**Read-only.** This channel observes
-it does not command.
+**Read-only.** This channel observes; it does not command.
 
 ## Chain of control
 
@@ -132,7 +131,7 @@ Buzz (#admin)  ->  Boss  ->  Owner OS / OpenClaw  ->  31 runtime STAFF  ->  Cele
 Commands go to **Boss only**. There are no direct staff mutation hooks from Buzz.
 Buzz never becomes a second control plane.
 
-## Roster (canonical = app/platform/team.py - code wins)
+## Roster (canonical = app/platform/team.py — code wins)
 
 **Coordination (1):** Boss
 
@@ -153,12 +152,11 @@ Format: `[PULSE] <division> | <agent> | <last_run> | <ok|warn|fail> | <note>`
 
 ## Decision tiers
 
-- **GREEN** - agent executes itself, reports after.
-- **AMBER** - Boss decides
-Council consulted where relevant.
-- **RED** - refused by the system. DND, TRAI window, consent, DPDP,
+- **GREEN** — agent executes itself, reports after.
+- **AMBER** — Boss decides; Council consulted where relevant.
+- **RED** — refused by the system. DND, TRAI window, consent, DPDP,
   secret exposure, destructive ops. Boss cannot bypass these either.
-- **Human gate** - exactly one: real UPI bank-credit confirmation and
+- **Human gate** — exactly one: real UPI bank-credit confirmation and
   paid-ledger marking. `UPI_AUTO_ACTIVATE` stays fail-closed.
 
 Full policy: `~/.buzz/GUIDES/AUTONOMY_POLICY.md`

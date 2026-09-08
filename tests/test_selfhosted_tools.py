@@ -1,4 +1,4 @@
-"""Self-hosted tools stack (SearXNG + ntfy) - gated/inert-without-env contract tests."""
+"""Self-hosted tools stack (SearXNG + ntfy) — gated/inert-without-env contract tests."""
 
 import asyncio
 import os

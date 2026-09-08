@@ -1,4 +1,4 @@
-"""Hub is a thin Owner OS projection - inert when OFF; no second registry."""
+"""Hub is a thin Owner OS projection — inert when OFF; no second registry."""
 
 from __future__ import annotations
 

@@ -1,23 +1,19 @@
-"""Tier-1 governance - Idempotency-Key protection for mutating admin commands.
+"""Tier-1 governance — Idempotency-Key protection for mutating admin commands.
 
 Cross-worker (Redis) dedup so the same *actor + endpoint scope + normalized payload +
-Idempotency-Key* executes at most once. A duplicate replays the stored result
-a
-concurrent duplicate is rejected while the first is in-flight
-reusing a key with a
-different payload fails safely
-keys expire on a bounded TTL.
+Idempotency-Key* executes at most once. A duplicate replays the stored result; a
+concurrent duplicate is rejected while the first is in-flight; reusing a key with a
+different payload fails safely; keys expire on a bounded TTL.
 
 REDIS-FAILURE POLICY (explicit, per Tier-1 spec):
-  Default is **FAIL-OPEN-BUT-LOUD** - if Redis is unreachable we log a warning and let
+  Default is **FAIL-OPEN-BUT-LOUD** — if Redis is unreachable we log a warning and let
   the action proceed WITHOUT dedup, because refusing a legitimate destructive admin
   action on a transient cache outage harms operability more than a rare duplicate, and
   the Slice-A audit trail records every attempt so duplicates remain detectable. Set
   ``ADMIN_IDEMPOTENCY_FAIL_CLOSED=1`` to flip to fail-closed (HTTP 503) for stricter
   environments. Both behaviours are regression-tested.
 
-Server-side only. The Idempotency-Key itself is never persisted as a secret
-only the
+Server-side only. The Idempotency-Key itself is never persisted as a secret; only the
 payload *hash* is stored, never the raw payload.
 """
 
@@ -41,7 +37,7 @@ _DONE_TTL = int(os.getenv("ADMIN_IDEM_DONE_TTL", "86400"))
 
 
 class Replay:
-    """Sentinel: a stored result exists -> caller should return it without re-executing."""
+    """Sentinel: a stored result exists → caller should return it without re-executing."""
 
     __slots__ = ("response",)
 
@@ -50,7 +46,7 @@ class Replay:
 
 
 class _Owner:
-    """Sentinel: caller won the execution slot -> run the action then call store()."""
+    """Sentinel: caller won the execution slot → run the action then call store()."""
 
     __slots__ = ("rkey", "phash")
 
@@ -97,11 +93,9 @@ def begin(*, request: Any, actor_id: Any, scope: str, payload: Any):
     """Start an idempotent operation.
 
     Returns:
-      - ``None``   -> no Idempotency-Key sent (or Redis down + fail-open): execute normally.
-      - ``_Owner`` -> caller owns execution
-      run the action then ``store(token, response)``.
-      - ``Replay`` -> a stored result exists
-      caller must return ``.response`` unchanged.
+      - ``None``   → no Idempotency-Key sent (or Redis down + fail-open): execute normally.
+      - ``_Owner`` → caller owns execution; run the action then ``store(token, response)``.
+      - ``Replay`` → a stored result exists; caller must return ``.response`` unchanged.
     Raises ``HTTPException`` 409 (payload mismatch / concurrent in-progress) or 503
     (Redis down + fail-closed).
     """
@@ -140,7 +134,7 @@ def begin(*, request: Any, actor_id: Any, scope: str, payload: Any):
         )
     if existing.get("state") == "done":
         return Replay(existing.get("response"))
-    # still in_progress -> concurrent duplicate; do not execute a second time
+    # still in_progress → concurrent duplicate; do not execute a second time
     raise HTTPException(status_code=409, detail="duplicate request already in progress")
 
 
@@ -159,5 +153,5 @@ def store(token: Any, response: Any) -> None:
         )
     except Exception as e:
         # Best-effort: a lost store just means the in_progress lock expires and a later
-        # retry re-executes (acceptable - never blocks, never double-counts within lock TTL).
+        # retry re-executes (acceptable — never blocks, never double-counts within lock TTL).
         logger.warning("idem: store failed key=%s err=%s", getattr(token, "rkey", "?"), e)

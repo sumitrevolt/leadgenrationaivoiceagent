@@ -1,8 +1,8 @@
 """
-auto_content.py - automated per-client daily social-media content engine.
+auto_content.py — automated per-client daily social-media content engine.
 =========================================================================
 
-Har active marketing client ke liye ROZ ka content auto-generate hota hai -
+Har active marketing client ke liye ROZ ka content auto-generate hota hai —
 ek simple weekly plan (weekday) + nearby festival ke hisab se:
 
   Mon  -> tip post           (gyaan / educational)
@@ -13,7 +13,7 @@ ek simple weekly plan (weekday) + nearby festival ke hisab se:
   Sat  -> product spotlight  (catalog/product highlight post)
   Sun  -> engagement question
 
-Agar 2 din ke andar koi festival ho (festivals.upcoming) -> us din EXTRA ek
+Agar 2 din ke andar koi festival ho (festivals.upcoming) → us din EXTRA ek
 festival post + festival poster bhi add hota hai.
 
   generate_for_client(client, day=None) -> list[dict]   (aaj ke items)
@@ -23,10 +23,10 @@ festival post + festival poster bhi add hota hai.
 
 Captions: post_generator.generate_post (LLM-first, template fallback).
 Posters:  posters.generate_poster (brand colors client se).
-Persistence: data/content_queue/<client_id>.jsonl (DEDUPE by date+type - same
-din re-run pe duplicate nahi banta). Sab try/except - KABHI raise nahi, never
+Persistence: data/content_queue/<client_id>.jsonl (DEDUPE by date+type — same
+din re-run pe duplicate nahi banta). Sab try/except — KABHI raise nahi, never
 empty (har piece ka fallback hai). Test-monkeypatch: `_QUEUE_DIR` (call-time
-resolver - return a tmp dir string).
+resolver — return a tmp dir string).
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ logger = setup_logger(__name__)
 
 
 def _QUEUE_DIR() -> str:
-    """Per-tenant content queue directory - resolved per call, never frozen at import."""
+    """Per-tenant content queue directory — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -124,7 +124,7 @@ def _cadence_due(cadence: str, d: date) -> bool:
     return True
 
 
-# Weekday -> (type, theme-label, occasion-for-LLM)
+# Weekday → (type, theme-label, occasion-for-LLM)
 _WEEKLY_PLAN = {
     0: ("post", "Tip / Gyaan", ""),  # Monday
     1: ("post", "Offer / Deal", ""),  # Tuesday
@@ -135,7 +135,7 @@ _WEEKLY_PLAN = {
     6: ("post", "Engagement Question", ""),  # Sunday
 }
 
-# Per-type offer hint (caption ko thoda direct karta hai - sirf flavor).
+# Per-type offer hint (caption ko thoda direct karta hai — sirf flavor).
 _TYPE_OFFER_HINT = {
     "Offer / Deal": "Is hafte ka special offer",
     "Product Spotlight": "Sabse popular service/product",
@@ -154,7 +154,7 @@ def _brand_colors(client: dict[str, Any]) -> dict[str, str]:
 async def _make_post_item(
     client: dict[str, Any], today_s: str, item_type: str, theme: str, occasion: str = ""
 ) -> dict[str, Any]:
-    """Caption-based item (post/reel/festival) banao - LLM-first, template fallback."""
+    """Caption-based item (post/reel/festival) banao — LLM-first, template fallback."""
     name = str(client.get("business_name") or "Aapka Business")
     niche = str(client.get("niche") or "general")
     offer = _TYPE_OFFER_HINT.get(theme, "")
@@ -191,8 +191,8 @@ async def _make_post_item(
         # Never-empty deterministic fallback.
         (occasion or theme or "aaj").strip()
         caption = (
-            f"✨ {name} - {theme}!\n"
-            f"{('🎊 ' + occasion) if occasion else 'Quality service, sahi daam'} - "
+            f"✨ {name} — {theme}!\n"
+            f"{('🎊 ' + occasion) if occasion else 'Quality service, sahi daam'} — "
             "aaj hi humse judiye. 📞 Call ya WhatsApp karein!"
         )
         if not hashtags:
@@ -230,7 +230,7 @@ def _make_poster_item(
                 template_id=template_id,
                 business_name=name,
                 tagline=bc.get("tagline", ""),
-                offer=offer or "Special Offer - aaj hi poochhein!",
+                offer=offer or "Special Offer — aaj hi poochhein!",
                 phone=phone,
                 festival=festival,
                 brand_primary=bc.get("primary", ""),
@@ -254,7 +254,7 @@ def _make_poster_item(
 
 _PLACEHOLDER_PHONE_TAILS = frozenset(
     {
-        "9876543210",  # common demo/fixture - never print on customer creatives
+        "9876543210",  # common demo/fixture — never print on customer creatives
         "1234567890",
         "0000000000",
         "1111111111",
@@ -263,9 +263,9 @@ _PLACEHOLDER_PHONE_TAILS = frozenset(
 
 
 def _safe_client_phone(client: dict[str, Any]) -> str:
-    """Real customer phone only - refuse known placeholder/fixture numbers.
+    """Real customer phone only — refuse known placeholder/fixture numbers.
 
-    Empty string -> posters.py falls back to 'Call / WhatsApp karein' (not a fake number).
+    Empty string → posters.py falls back to 'Call / WhatsApp karein' (not a fake number).
     """
     raw = str(client.get("phone") or client.get("whatsapp_phone") or "").strip()
     digits = "".join(ch for ch in raw if ch.isdigit())
@@ -327,7 +327,7 @@ async def generate_for_client(
         except Exception as e:  # pragma: no cover
             logger.debug(f"[auto_content] main item skip: {e}")
 
-        # --- festival bonus (within 2 days) -> festival post + festival poster --- #
+        # --- festival bonus (within 2 days) → festival post + festival poster --- #
         if near_fest:
             fest_name = str(near_fest.get("name") or "Festival")
             try:
@@ -377,7 +377,7 @@ async def generate_for_client(
 
 
 def _existing_keys(client_id: str) -> set:
-    """Pehle se queue me jo (date|type) hain - same-din re-run dedupe ke liye."""
+    """Pehle se queue me jo (date|type) hain — same-din re-run dedupe ke liye."""
     keys = set()
     try:
         for it in list_queue(client_id, limit=500):
@@ -392,13 +392,13 @@ _CAPTION_MAX_LEN = 2200  # Instagram caption hard limit
 
 
 def _caption_ok(item: dict[str, Any]) -> tuple[bool, str]:
-    """W2.1: content draft-queue me jaane se pehle caption validate - banned-phrase
+    """W2.1: content draft-queue me jaane se pehle caption validate — banned-phrase
     (staff.BANNED reuse) ya bad-length wale items queue me na aayein. Poster/SVG items
-    (no caption) always ok. Fail-open (validate error = allow) - content flow never break."""
+    (no caption) always ok. Fail-open (validate error = allow) — content flow never break."""
     try:
         cap = str(item.get("caption") or "").strip()
         if not cap:
-            return True, ""  # poster/svg - koi caption nahi, validate karne ko kuch nahi
+            return True, ""  # poster/svg — koi caption nahi, validate karne ko kuch nahi
         n = len(cap)
         if n < _CAPTION_MIN_LEN:
             return False, f"caption too short ({n} chars)"
@@ -406,7 +406,7 @@ def _caption_ok(item: dict[str, Any]) -> tuple[bool, str]:
             return False, f"caption too long ({n} chars)"
         low = cap.lower()
         try:
-            from app.agents.staff import BANNED  # lazy - circular import avoid
+            from app.agents.staff import BANNED  # lazy — circular import avoid
         except Exception:
             BANNED = []
         for b in BANNED:
@@ -428,7 +428,7 @@ def _append_items_detailed(
 ) -> tuple[int, list[dict[str, Any]]]:
     """Like `_append_items` but also returns the rows that were actually written.
 
-    Approval auto-submit must use this list - submitting the full generate()
+    Approval auto-submit must use this list — submitting the full generate()
     output re-enqueues already-queued seed items (Jiya: 12 queue / 24 pending).
     """
     if not items:
@@ -436,7 +436,7 @@ def _append_items_detailed(
     seen = _existing_keys(client_id)
     added_rows: list[dict[str, Any]] = []
     try:
-        # Probe then re-resolve at each I/O site - never bind the resolver
+        # Probe then re-resolve at each I/O site — never bind the resolver
         # result to a local name (scanner allowlist binds on the expression).
         _QUEUE_DIR()
         os.makedirs(os.path.dirname(_queue_path(client_id)) or ".", exist_ok=True)
@@ -465,7 +465,7 @@ def _append_items_detailed(
 async def _recycle_fallback(client: dict[str, Any]) -> int:
     """Aaj naye items 0 bane to evergreen recycling se queue bharo (best-effort).
 
-    Optional import - evergreen module na ho to 0 (no-op). KABHI raise nahi."""
+    Optional import — evergreen module na ho to 0 (no-op). KABHI raise nahi."""
     try:
         from app.marketing import evergreen  # local import (optional dep)
 
@@ -476,7 +476,7 @@ async def _recycle_fallback(client: dict[str, Any]) -> int:
         return 0
 
 
-# Built-in "self" client - LeadGen AI apni hi social media bhi roz banata hai
+# Built-in "self" client — LeadGen AI apni hi social media bhi roz banata hai
 # (Sumit 1-click post karke brand grow karta hai). Fixed id = idempotent seed.
 _SELF_CLIENT_ID = "leadgenai-self"
 # run_daily_content me LeadGen AI ka apna brand auto-seed ho (own marketing).
@@ -497,7 +497,7 @@ def _content_priority_rank(client: dict[str, Any]) -> int:
         # Self-brand (LeadGen AI) = hamesha last.
         if cid == _SELF_CLIENT_ID or niche == "ai_marketing" or name == "leadgen ai":
             return 1
-        # Koi bhi real plan (starter/growth/advanced/combo/voice_* etc.) = paying -> pehle.
+        # Koi bhi real plan (starter/growth/advanced/combo/voice_* etc.) = paying → pehle.
         plan = str(client.get("plan") or "").strip().lower()
         if plan and plan not in ("", "free", "none", "trial"):
             return 0
@@ -511,7 +511,7 @@ def _ensure_self_client() -> str | None:
     """LeadGen AI ka apna marketing-client record ensure karo (idempotent by id).
 
     Agar clients_store me koi ai_marketing / "LeadGen AI" client nahi hai to
-    fixed-id "leadgenai-self" wala seed karo - taaki hamara OWN brand bhi daily
+    fixed-id "leadgenai-self" wala seed karo — taaki hamara OWN brand bhi daily
     content queue me aaye. Returns self client id (ya None on failure). KABHI
     raise nahi karta."""
     try:
@@ -560,7 +560,7 @@ def _ensure_self_client() -> str | None:
                 return str((created or {}).get("id") or "") or None
             except Exception:
                 return None
-        # brand_kit me bhi mirror (poster auto-brand) - best-effort.
+        # brand_kit me bhi mirror (poster auto-brand) — best-effort.
         try:
             from app.marketing import brand_kit
 
@@ -611,7 +611,7 @@ async def run_daily_content() -> dict[str, Any]:
 
                 if _oae.agent_abort_requested("isha"):
                     logger.info(
-                        "[auto_content] cooperative agent abort - stopping between clients "
+                        "[auto_content] cooperative agent abort — stopping between clients "
                         "(clients_done=%s items=%s)",
                         n_clients,
                         total_items,
@@ -635,7 +635,7 @@ async def run_daily_content() -> dict[str, Any]:
                 items = await generate_for_client(client)
                 added, added_items = _append_items_detailed(cid, items)
                 # Own-brand OR customer explicit approval_mode=auto (prefs honored):
-                # skip human backlog - mark approved + enqueue when engine on.
+                # skip human backlog — mark approved + enqueue when engine on.
                 mode = str(prefs.get("approval_mode") or "").strip().lower()
                 hands_free = bool(
                     added and added_items and (cid == _SELF_CLIENT_ID or mode == "auto")
@@ -659,7 +659,7 @@ async def run_daily_content() -> dict[str, Any]:
                     except Exception as e:
                         logger.debug(f"[auto_content] hands-free publish bridge skip: {e}")
                 elif added and added_items and mode not in ("draft", "auto"):
-                    # review (prefs) OR CONTENT_APPROVAL_AUTO - never draft/auto here.
+                    # review (prefs) OR CONTENT_APPROVAL_AUTO — never draft/auto here.
                     should_submit = (
                         os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower()
                         in ("1", "true", "yes")
@@ -674,7 +674,7 @@ async def run_daily_content() -> dict[str, Any]:
                         except Exception as e:
                             logger.debug(f"[auto_content] approval auto-submit skip: {e}")
                 if not added:
-                    # Aaj ke sab items dedupe ne block kiye (queue dry-ish) -
+                    # Aaj ke sab items dedupe ne block kiye (queue dry-ish) —
                     # evergreen recycling se purana top content re-share karo.
                     added = await _recycle_fallback(client)
                     added_items = []
@@ -716,7 +716,7 @@ async def run_daily_content() -> dict[str, Any]:
                     pass
 
         _log_isha("auto_content", f"{n_clients} clients, {total_items} items generated")
-        # P1 #12 (2026-07-05): weekly value digest to delivered paid customers -
+        # P1 #12 (2026-07-05): weekly value digest to delivered paid customers —
         # backs the "har hafte naya content milega" promise. Self-throttling
         # (once/6days per customer) + gated AUTO_DELIVER_VALUE, so daily call is safe.
         try:
@@ -724,7 +724,7 @@ async def run_daily_content() -> dict[str, Any]:
 
             await customer_delivery.run_weekly_digest_sweep()
             # P2 (2026-07-05): monthly ROI receipt (28-day) + testimonial ask (gated
-            # AUTO_TESTIMONIAL) - dono self-throttling, daily call safe.
+            # AUTO_TESTIMONIAL) — dono self-throttling, daily call safe.
             await customer_delivery.run_monthly_receipt_sweep()
             await customer_delivery.run_testimonial_sweep()
         except Exception as e:
@@ -740,7 +740,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
     (AAJ ka content + 1 WhatsApp promo + 1 local campaign suggestion),
     aur naye items ko content_approval queue me submit karta hai.
 
-    Forward calendar days daily `run_daily_content` bharegi - 7-din pre-fill
+    Forward calendar days daily `run_daily_content` bharegi — 7-din pre-fill
     date|type dedupe se roz-job ko block karti thi (audit 2026-07-17 / Jiya).
     KABHI raise nahi karta."""
     try:
@@ -812,7 +812,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
                     f"Niche: {client.get('niche')}\n"
                     f"City: {client.get('city')}\n"
                     f"Services: {client.get('services') or 'services'}\n"
-                    f"IMPORTANT: Campaign MUST be for city '{client.get('city') or 'local area'}' only - "
+                    f"IMPORTANT: Campaign MUST be for city '{client.get('city') or 'local area'}' only — "
                     f"kisi aur sheher (Mumbai/Delhi/etc.) ka zikr mat karo."
                 )
                 text, _ = await free_ai.chat(
@@ -900,7 +900,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
         # suggestions + review-reply drafts. Self-guarding (skip if already
         # present this cycle). Without these two, the gbp_suggestions /
         # review_replies deliverables never flipped to "done" (audit 2026-07-19,
-        # Jiya stuck at 60% - plan promises both).
+        # Jiya stuck at 60% — plan promises both).
         try:
             added += await generate_gbp_pack(client)
         except Exception as ge:  # pragma: no cover
@@ -921,7 +921,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
 
 
 def _gbp_suggestions_caption(client: dict[str, Any]) -> str:
-    """Ek rich GBP-suggestions draft (top prioritised profile fixes) - heuristic
+    """Ek rich GBP-suggestions draft (top prioritised profile fixes) — heuristic
     audit se, curated deterministic fallback ke saath. KABHI empty nahi."""
     biz = str((client or {}).get("business_name") or "Aapka Business").strip()
     lines: list[str] = []
@@ -947,19 +947,19 @@ def _gbp_suggestions_caption(client: dict[str, Any]) -> str:
         lines = []
     if not lines:
         lines = [
-            "• Har Somvaar ek GBP post daalo (offer/update + photo) - freshness signal.",
+            "• Har Somvaar ek GBP post daalo (offer/update + photo) — freshness signal.",
             "• Is hafte 5 naye photos add karo (kaam, team, before/after).",
             "• Har khush customer se turant Google review maango (counter par QR).",
             "• Sab reviews ka 24-ghante me reply karo (negative pehle).",
         ]
-    head = f"Google Business Profile - is mahine ke top sudhaar ({biz}):"
+    head = f"Google Business Profile — is mahine ke top sudhaar ({biz}):"
     return (head + "\n" + "\n".join(lines))[:2100]
 
 
 async def generate_gbp_pack(client: dict[str, Any]) -> int:
     """GBP suggestions deliverable ko REAL banata hai: ek `gbp` content item
     (prioritised profile fixes) queue me + approval submit + ledger + deliverable
-    sync. Self-guarding - client ke queue me pehle se koi gbp item ho to skip
+    sync. Self-guarding — client ke queue me pehle se koi gbp item ho to skip
     (monthly deliverable, roz regenerate nahi). KABHI raise nahi karta."""
     try:
         if not isinstance(client, dict):
@@ -981,7 +981,7 @@ async def generate_gbp_pack(client: dict[str, Any]) -> int:
             "client_id": cid,
             "date": date.today().strftime("%Y-%m-%d"),
             "type": "gbp",
-            "title": "Google Business Profile - Suggestions",
+            "title": "Google Business Profile — Suggestions",
             "caption": _gbp_suggestions_caption(client),
             "hashtags": [],
             "status": "draft",
@@ -1021,7 +1021,7 @@ async def generate_gbp_pack(client: dict[str, Any]) -> int:
 
 
 async def _review_reply_caption(client: dict[str, Any]) -> str:
-    """3 review-reply drafts (5-star / mixed / negative) - free-AI first,
+    """3 review-reply drafts (5-star / mixed / negative) — free-AI first,
     deterministic Hinglish fallback. KABHI empty nahi."""
     biz = str((client or {}).get("business_name") or "Aapka Business").strip()
     niche = str((client or {}).get("niche") or "business").strip()
@@ -1061,11 +1061,11 @@ async def _review_reply_caption(client: dict[str, Any]) -> str:
     if not out:
         out = [
             f"[5-star khush review]\nBahut bahut shukriya! 🙏 {biz} par aapko accha laga jaan kar "
-            "dil khush ho gaya. Aise hi pyaar banaye rakhein - jald phir milte hain!",
+            "dil khush ho gaya. Aise hi pyaar banaye rakhein — jald phir milte hain!",
             f"[Mixed / minor complaint]\nAapke feedback ke liye dhanyavaad. {biz} me hum har baar "
-            "behtar karne ki koshish karte hain - aapki baat note kar li, agli visit aur acchi hogi. 🙏",
+            "behtar karne ki koshish karte hain — aapki baat note kar li, agli visit aur acchi hogi. 🙏",
             f"[Naaraz customer]\nHumein khed hai ki experience accha nahi raha. {biz} ki taraf se "
-            "maafi - please humein call/DM karein taaki hum turant sahi kar sakein. Aapki santushti zaroori hai.",
+            "maafi — please humein call/DM karein taaki hum turant sahi kar sakein. Aapki santushti zaroori hai.",
         ]
     return ("Review reply drafts (copy-paste ready):\n\n" + "\n\n".join(out))[:2100]
 
@@ -1160,10 +1160,10 @@ async def generate_poster_pack(client: dict[str, Any], target: int = 4) -> int:
         # Varied real templates + niche-aware Hinglish offers (generate_poster
         # unknown id => clean-pro fallback, kabhi empty nahi).
         combos = [
-            ("offer-burst", "Is hafte ka special offer - abhi book karein!"),
-            ("generic-sale", "Seasonal glow package - limited slots!"),
-            ("clean-pro", "Naya look, naya confidence - aaj hi aayein."),
-            ("offer-burst", "Bridal & party makeup - advance booking khuli hai!"),
+            ("offer-burst", "Is hafte ka special offer — abhi book karein!"),
+            ("generic-sale", "Seasonal glow package — limited slots!"),
+            ("clean-pro", "Naya look, naya confidence — aaj hi aayein."),
+            ("offer-burst", "Bridal & party makeup — advance booking khuli hai!"),
         ]
         used_dates = {str(it.get("date")) for it in existing}
         items: list[dict[str, Any]] = []
@@ -1180,7 +1180,7 @@ async def generate_poster_pack(client: dict[str, Any], target: int = 4) -> int:
                 client, d, template_id=tpl, title="Branded Poster", offer=offer
             )
             if not str(item.get("svg") or "").strip():
-                continue  # real SVG only - no empty/fake poster
+                continue  # real SVG only — no empty/fake poster
             items.append(item)
             used_dates.add(d)
             made += 1
@@ -1222,7 +1222,7 @@ async def generate_poster_pack(client: dict[str, Any], target: int = 4) -> int:
 
 def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
     """Client ka content queue (newest first, optional status filter). Kabhi
-    raise nahi karta. Unresolvable authority -> empty + ERROR (degrade, never silent)."""
+    raise nahi karta. Unresolvable authority → empty + ERROR (degrade, never silent)."""
     rows: list[dict[str, Any]] = []
     try:
         _QUEUE_DIR()
@@ -1260,7 +1260,7 @@ def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> li
 
 
 def upcoming_item_count(client_id: str) -> int:
-    """Aaj ya aage ki date ke kitne non-skipped items queue me hain - customer ke
+    """Aaj ya aage ki date ke kitne non-skipped items queue me hain — customer ke
     "pehla 7-din plan banao" trigger ka idempotency guard (upcoming plan hote hue
     seed dubara chalana = content_approval me duplicate submissions, isliye guard
     yahan single-source hai: endpoint + worker task dono isi se poochhte).
@@ -1280,7 +1280,7 @@ _VALID_STATUS = {"draft", "approved", "posted", "skipped"}
 
 
 def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str = "") -> bool:
-    """Client ne approve kiya content -> queue me status=approved (publish-ready)."""
+    """Client ne approve kiya content → queue me status=approved (publish-ready)."""
     try:
         client_id = str(client_id or "").strip()
         if not client_id or not isinstance(content, dict):
@@ -1300,8 +1300,8 @@ def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str =
             "approval_id": approval_id or "",
         }
         added = _append_items(client_id, [item]) > 0
-        # H5: approved content -> social_engine publish queue (GATED SOCIAL_ENGINE).
-        # Use engine.enabled() (env OR data/social_engine.json) - env-only guard used to
+        # H5: approved content → social_engine publish queue (GATED SOCIAL_ENGINE).
+        # Use engine.enabled() (env OR data/social_engine.json) — env-only guard used to
         # block admin JSON-file activation (audit 2026-07-17 F3).
         if added:
             try:
@@ -1324,7 +1324,7 @@ def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str =
 
 
 def mark_item(client_id: str, item_id: str, status: str) -> bool:
-    """Queue item ka status badlo (draft->approved->posted, ya skipped). True
+    """Queue item ka status badlo (draft→approved→posted, ya skipped). True
     agar update hua. Kabhi raise nahi karta."""
     st = (status or "").strip().lower()
     if st not in _VALID_STATUS:
@@ -1349,7 +1349,7 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
                     rec["status"] = st
                     rec["updated_at"] = _now()
                     # Publish-outcome item pe hi land ho (CDOS spec: published_at)
-                    # - pehle yeh sirf delivery_ledger event me tha, item record
+                    # — pehle yeh sirf delivery_ledger event me tha, item record
                     # khud kabhi nahi batata tha ki post kab gaya.
                     if st == "posted" and not rec.get("published_at"):
                         rec["published_at"] = rec["updated_at"]
@@ -1363,7 +1363,7 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         os.replace(tmp, _queue_path(client_id))
-        # Delivery ledger - post_approved/post_published for Command Center +
+        # Delivery ledger — post_approved/post_published for Command Center +
         # customer "what AI did for you" timeline (draft/skip intentionally
         # not logged as separate events; drafts already fire post_draft_created).
         if st in ("approved", "posted"):

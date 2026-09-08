@@ -1,4 +1,4 @@
-"""Workflow connection gaps - cadence enroll + journey defaults."""
+"""Workflow connection gaps — cadence enroll + journey defaults."""
 
 from __future__ import annotations
 

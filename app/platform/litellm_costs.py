@@ -1,9 +1,9 @@
-"""litellm_costs.py - fetch per-key spend from a running LiteLLM gateway.
+"""litellm_costs.py — fetch per-key spend from a running LiteLLM gateway.
 
 The 2026-06-16 billionaire-scale audit (F.5) named "per-tenant unit economics"
 as a genuine gap: the custom usage meter tracks usage, but there's no
 cost-per-customer view to defend gross margin on outcome-based pricing.
-LiteLLM gives every customer a virtual key + tracks spend per key - once
+LiteLLM gives every customer a virtual key + tracks spend per key — once
 activated, this module is what turns that data into a board-room number.
 
 LiteLLM is already on the VPS via deploy/compose/docker-compose.edge.yml (--profile gateway).
@@ -95,7 +95,7 @@ def _read_keymap() -> dict[str, dict[str, Any]]:
 # Gateway probes
 # --------------------------------------------------------------------------- #
 async def gateway_health() -> dict[str, Any]:
-    """Quick reachability probe - no auth, no PII. Used by dashboards."""
+    """Quick reachability probe — no auth, no PII. Used by dashboards."""
     url = _gateway_url()
     if not url:
         return {"available": False, "reason": "LITELLM_GATEWAY_URL unset"}
@@ -135,7 +135,7 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {_master_key()}"}
         # LiteLLM exposes /spend/keys (list spend per key over a window).
         # If the endpoint shape changes upstream, this fails closed with
-        # a structured error - dashboards stay alive.
+        # a structured error — dashboards stay alive.
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_S) as client:
             r = await client.get(
                 f"{url}/spend/keys",
@@ -151,7 +151,7 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
     keymap = _read_keymap()
     rows: list[dict[str, Any]] = []
     total = 0.0
-    # LiteLLM returns either {"data": [...]} or just a list - handle both.
+    # LiteLLM returns either {"data": [...]} or just a list — handle both.
     items = data.get("data", data) if isinstance(data, dict) else data
     for it in items or []:
         if not isinstance(it, dict):
@@ -182,8 +182,7 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
 def per_key_spend_sync(hours: int = 24) -> dict[str, Any]:
     """Sync mirror of per_key_spend() for sync call sites (engineer agents).
 
-    Engineer agents are sync functions on the scheduler
-    this lets them probe
+    Engineer agents are sync functions on the scheduler; this lets them probe
     LiteLLM without spawning an event loop. Shape identical to per_key_spend.
     """
     if not enabled():
@@ -241,8 +240,7 @@ async def margin_alerts(revenue_per_client_usd: dict[str, float] | None = None) 
     """Flag clients whose LLM cost > stated revenue (margin-negative).
 
     `revenue_per_client_usd` should be an op-supplied dict (or built from
-    billing tables). For now this is a passive computation
-    the caller
+    billing tables). For now this is a passive computation; the caller
     decides how to act (ntfy / email).
     """
     spend = await per_key_spend(hours=24 * 30)

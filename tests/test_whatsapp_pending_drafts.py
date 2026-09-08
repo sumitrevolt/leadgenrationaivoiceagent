@@ -2,9 +2,8 @@
 
 Why this exists: `_record_block` counted every gate-denied send but threw the
 would-send away. 1829 real customer intents produced a counter and nothing clickable
-- no queue, and the count was lost on restart. `auto_send_blocked` now persists the
-draft
-these tests pin that contract.
+— no queue, and the count was lost on restart. `auto_send_blocked` now persists the
+draft; these tests pin that contract.
 
 The most important property here is #6: persistence sits on a hot outbound path, so a
 storage failure must leave `auto_send_blocked`'s return value byte-for-byte identical.
@@ -12,7 +11,7 @@ An operator with auto-send off must never see a different payload because a disk
 failed.
 
 Also pinned: the caller contract. `auto_send_blocked` carries an `error` key ON PURPOSE
-- every caller detects success with `bool(res) and not res.get("error")`, so persisting
+— every caller detects success with `bool(res) and not res.get("error")`, so persisting
 must not disturb that shape.
 
 No network, no provider. The store path is redirected to tmp so `data/` is never
@@ -66,7 +65,7 @@ def _block(i: int = 0, msg: str | None = None, reason: str = "auto_send_disabled
 def test_blocked_send_persists_a_draft_and_keeps_the_caller_contract(draft_store):
     res = wa.auto_send_blocked(TO, "Hello Jiya")
 
-    # The caller contract is untouched - callers branch on `not res.get("error")`.
+    # The caller contract is untouched — callers branch on `not res.get("error")`.
     assert res["error"] == "auto_send_disabled"
     assert res["status"] == "blocked"
     assert res["mode"] == "link"
@@ -95,7 +94,7 @@ def test_long_message_is_truncated_to_2000(draft_store):
 
 
 # --------------------------------------------------------------------------- #
-# 2. Dedupe - repeats must not bury the operator
+# 2. Dedupe — repeats must not bury the operator
 # --------------------------------------------------------------------------- #
 def test_duplicate_number_and_message_does_not_create_a_second_pending_row(draft_store):
     _block(0, "same message")
@@ -123,7 +122,7 @@ def test_same_message_to_a_different_number_is_a_separate_draft(draft_store):
 
 def test_a_repeat_refreshes_the_latest_gate_reason(draft_store):
     """Safety property, not bookkeeping: if a number later blocks as `opted_out`,
-    the row must not keep advertising the older `auto_send_disabled` reason - a
+    the row must not keep advertising the older `auto_send_disabled` reason — a
     human reading the queue would otherwise message someone who opted out."""
     _block(0, "ping", reason="auto_send_disabled")
     _block(0, "ping", reason="opted_out")
@@ -159,7 +158,7 @@ def test_cap_defaults_to_500_when_unset_or_garbage(draft_store, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 4. Mark sent - idempotent, leaves the pending list
+# 4. Mark sent — idempotent, leaves the pending list
 # --------------------------------------------------------------------------- #
 def test_mark_sent_is_idempotent_and_the_draft_leaves_pending(draft_store):
     _block(0, "ping")
@@ -206,7 +205,7 @@ def test_dismiss_leaves_other_drafts_alone(draft_store):
 
 
 # --------------------------------------------------------------------------- #
-# 6. THE IMPORTANT ONE - storage failure must not break the send path
+# 6. THE IMPORTANT ONE — storage failure must not break the send path
 # --------------------------------------------------------------------------- #
 def test_storage_failure_does_not_break_auto_send_blocked(draft_store, monkeypatch):
     def boom(*_a, **_k):
@@ -324,7 +323,7 @@ def test_mark_sent_route_is_idempotent_and_404s_on_unknown_id(client, draft_stor
     assert first.json() == {"ok": True, "id": did, "sent": True, "already": False}
 
     again = client.post(f"/api/wa/drafts/{did}/sent")
-    assert again.status_code == 200, "idempotent - the operator may double-click"
+    assert again.status_code == 200, "idempotent — the operator may double-click"
     assert again.json()["already"] is True
 
     assert client.post("/api/wa/drafts/nope/sent").status_code == 404

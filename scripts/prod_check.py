@@ -1,5 +1,5 @@
 """
-Production readiness check - run before every deploy.
+Production readiness check — run before every deploy.
 
 Usage:
     python scripts/prod_check.py
@@ -10,7 +10,7 @@ Checks:
   3. App imports cleanly
   4. All expected routers are registered
   5. Critical env/config sanity for production
-  6. Frontend wiring - every onclick handler defined + every fetch path routed
+  6. Frontend wiring — every onclick handler defined + every fetch path routed
 Exit code 0 = ready, 1 = problems found.
 """
 
@@ -22,7 +22,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROBLEMS: list[str] = []
-# Non-fatal signals. Printed prominently, but do NOT affect the exit code -
+# Non-fatal signals. Printed prominently, but do NOT affect the exit code —
 # these are "a human should look at this", not "do not deploy".
 WARNINGS: list[str] = []
 
@@ -54,9 +54,8 @@ def check_stale_pycache() -> None:
     Remove .pyc files whose embedded source-mtime doesn't match the actual
     source file. Python normally recompiles these automatically, but clock
     skew (network mounts, VMs) can make a stale .pyc look "valid" and serve
-    OLD bytecode for NEW source - a phantom-bug generator. Deleting is the
-    only safe option
-    they cost nothing to rebuild.
+    OLD bytecode for NEW source — a phantom-bug generator. Deleting is the
+    only safe option; they cost nothing to rebuild.
     """
     import importlib.util
     import struct
@@ -92,8 +91,8 @@ def check_stale_pycache() -> None:
                 pyc_mtime = struct.unpack("<I", header[8:12])[0]
                 pyc_size = struct.unpack("<I", header[12:16])[0]
                 st = src.stat()
-                # mtime mismatch -> Python recompiles anyway; delete = hygiene.
-                # SIZE mismatch with MATCHING mtime -> the dangerous case:
+                # mtime mismatch → Python recompiles anyway; delete = hygiene.
+                # SIZE mismatch with MATCHING mtime → the dangerous case:
                 # source changed but clock skew kept mtime identical, Python
                 # would happily run the old bytecode.
                 if (
@@ -106,7 +105,7 @@ def check_stale_pycache() -> None:
                 PROBLEMS.append(f"PYCACHE: could not inspect/remove {pyc.relative_to(ROOT)}")
 
     # A single orphan is noise (renamed file). Several in one directory means the
-    # directory's source is GONE - report the cluster, not each file.
+    # directory's source is GONE — report the cluster, not each file.
     for pkg_dir, names in sorted(orphans.items()):
         if len(names) < 2:
             continue
@@ -150,7 +149,7 @@ def check_routes() -> None:
         "/health",
         "/api/leads",
         "/api/data/niches",
-        # Revenue-critical API surfaces - a silently-guarded router import failure
+        # Revenue-critical API surfaces — a silently-guarded router import failure
         # (main.py logs only logger.warning) would drop these with no other signal
         # and still pass every gate (API-001). These are guarded mounts.
         "/api/billing/plans",
@@ -178,7 +177,7 @@ def check_routes() -> None:
         if not any(p == exp or p.startswith(exp + "/") or p.startswith(exp) for p in paths):
             PROBLEMS.append(f"ROUTE MISSING: {exp}")
 
-    # Duplicate (method, path) collisions - FastAPI first-route-wins silently
+    # Duplicate (method, path) collisions — FastAPI first-route-wins silently
     # shadows the later registration; nothing else catches it (API-002).
     seen_mp: dict = {}
     for r in effective_routes:
@@ -195,7 +194,7 @@ def check_routes() -> None:
 def check_frontend_wiring() -> None:
     """Every onclick handler must be defined + every fetch path must route.
 
-    Reuses scripts/deep_wiring_audit (deterministic - loads real FastAPI routes).
+    Reuses scripts/deep_wiring_audit (deterministic — loads real FastAPI routes).
     Defensive: if the auditor can't run, skip rather than block the deploy.
     """
     try:
@@ -221,8 +220,7 @@ def check_frontend_wiring() -> None:
         for g in auto_gaps:
             PROBLEMS.append(f"AUTOMATION {g}")
         print(
-            f"[6/6] wiring checked ({len(PAGES)} pages {total} gaps
-            "
+            f"[6/6] wiring checked ({len(PAGES)} pages {total} gaps; "
             f"automation {len(auto_gaps)} gaps)"
         )
     except Exception as e:
@@ -230,7 +228,7 @@ def check_frontend_wiring() -> None:
 
 
 def _automation_wiring_gaps() -> list[str]:
-    """Reuse scripts/automation_wiring_audit + cross_path_audit - flags/jobs + telephony parity."""
+    """Reuse scripts/automation_wiring_audit + cross_path_audit — flags/jobs + telephony parity."""
     import contextlib
     import io
 
@@ -288,17 +286,16 @@ def check_voice_launch_kill_env() -> dict[str, str]:
 
     Preflight is STRICTER than runtime, and deliberately so:
 
-      * TRUE_TOKEN  - kill explicitly engaged. The only shippable state.
-      * UNSET       - deployment cannot prove explicit calling refusal.
-      * FALSE_TOKEN - runtime treats this as ENV_DISENGAGED, which means the
+      * TRUE_TOKEN  — kill explicitly engaged. The only shippable state.
+      * UNSET       — deployment cannot prove explicit calling refusal.
+      * FALSE_TOKEN — runtime treats this as ENV_DISENGAGED, which means the
                       file-based emergency toggle is INERT: an operator could
                       write {"kill": true} and nothing would happen. Shipping
                       that silently is the hazard, so it blocks rather than warns.
-      * INVALID_TOKEN - the reader fails closed on it, but malformed config
+      * INVALID_TOKEN — the reader fails closed on it, but malformed config
                       must not reach production.
 
-    Classifies the ENV layer only
-    it never reads, writes or creates the kill file.
+    Classifies the ENV layer only; it never reads, writes or creates the kill file.
     """
     classification = classify_voice_launch_kill_env(os.environ.get("VOICE_LAUNCH_KILL"))
     reason = {
@@ -331,19 +328,19 @@ def check_production_config() -> None:
         "DATABASE_URL"
     ):
         PROBLEMS.append(
-            "CONFIG: CONSENT_DB=1 but DATABASE_URL unset - compliance risk (opt-outs won't persist)"
+            "CONFIG: CONSENT_DB=1 but DATABASE_URL unset — compliance risk (opt-outs won't persist)"
         )
     # TRAI DND gate must stay fail-CLOSED. DND_FAIL_OPEN turns it fail-OPEN
-    # (promotional calls to DND-unverified numbers go through) - never legitimate
+    # (promotional calls to DND-unverified numbers go through) — never legitimate
     # in prod (TC-002). Flag it wherever it is set.
     if _os.environ.get("DND_FAIL_OPEN") in ("1", "true", "True", "yes"):
-        PROBLEMS.append("COMPLIANCE: DND_FAIL_OPEN is set - TRAI DND gate is fail-OPEN. Unset it.")
+        PROBLEMS.append("COMPLIANCE: DND_FAIL_OPEN is set — TRAI DND gate is fail-OPEN. Unset it.")
     if settings.app_env == "production":
         if settings.debug:
             PROBLEMS.append("CONFIG: debug=True in production")
         # These two literals are the PLACEHOLDER values prod_check looks for in
         # order to catch an unset default in production. They are detection
-        # patterns, not credentials - hence the allowlist pragmas.
+        # patterns, not credentials — hence the allowlist pragmas.
         if settings.secret_key == "change-this-in-production":  # pragma: allowlist secret
             PROBLEMS.append("CONFIG: default secret_key in production")
         if (
@@ -358,7 +355,7 @@ def check_production_config() -> None:
 
 def check_explorer_drift() -> None:
     """INFO only (never fails): how much of the architecture the /app/explorer
-    graph still reflects. Curated graph can't be 100% - this just surfaces drift
+    graph still reflects. Curated graph can't be 100% — this just surfaces drift
     so it's visible every deploy. Detail + paste-ready stubs: explorer_sync.py."""
     try:
         from scripts import explorer_sync as es
@@ -389,7 +386,7 @@ def check_api_docs_drift() -> None:
         block = sad.build_index()
         current = sad.API_MD.read_text(encoding="utf-8") if sad.API_MD.exists() else ""
         if current.strip() != sad._splice(current, block).strip():
-            print("[i] API.md endpoint index OUT OF DATE - run scripts/sync_api_docs.py")
+            print("[i] API.md endpoint index OUT OF DATE — run scripts/sync_api_docs.py")
         else:
             n = len(_re.findall(r"^- `(GET|POST|PUT|PATCH|DELETE)", current, _re.M))
             print(f"[i] API.md endpoint index in sync ({n} ops)")
@@ -416,8 +413,7 @@ def main(argv: list[str] | None = None) -> int:
     # no gate because it reads as green.
     parser = argparse.ArgumentParser(
         prog="prod_check.py",
-        description="Repository readiness check
-        --deployment adds the pre-deploy gates.",
+        description="Repository readiness check; --deployment adds the pre-deploy gates.",
     )
     parser.add_argument(
         "--deployment",
@@ -427,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     print("=" * 56)
-    print("PRODUCTION READINESS CHECK" + (" - DEPLOYMENT MODE" if args.deployment else ""))
+    print("PRODUCTION READINESS CHECK" + (" — DEPLOYMENT MODE" if args.deployment else ""))
     print("=" * 56)
     check_sources_parse()
     check_stale_pycache()
@@ -444,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
         _vk = check_voice_launch_kill_env()
         print(f"[+] voice_launch_kill_env: {_vk['classification']} ({_vk['status']})")
     print("-" * 56)
-    # Warnings print BEFORE the verdict so they are visible on a passing run too -
+    # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.
     if WARNINGS:
         print(f"[WARN] {len(WARNINGS)} non-blocking signal(s):")

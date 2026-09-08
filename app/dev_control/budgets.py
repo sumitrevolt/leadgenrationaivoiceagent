@@ -28,8 +28,7 @@ DEFAULT_STAGE_BUDGETS: dict[str, int] = {
 }
 
 CHECKPOINT_AT = 0.70  # generate a checkpoint summary
-WRAP_UP_AT = 0.85  # stop expanding scope
-finish tests + evidence
+WRAP_UP_AT = 0.85  # stop expanding scope; finish tests + evidence
 MAX_ATTEMPTS_PER_MODEL = 2
 
 
@@ -44,8 +43,7 @@ def budget_state(used_tokens: int, budget_tokens: int) -> dict[str, Any]:
     if ratio >= 1.0:
         phase, action = "exhausted", "terminate cleanly and write the handoff packet"
     elif ratio >= WRAP_UP_AT:
-        phase, action = "wrap_up", "stop expanding scope
-        complete tests and evidence only"
+        phase, action = "wrap_up", "stop expanding scope; complete tests and evidence only"
     elif ratio >= CHECKPOINT_AT:
         phase, action = "checkpoint", "generate a checkpoint summary before continuing"
     else:

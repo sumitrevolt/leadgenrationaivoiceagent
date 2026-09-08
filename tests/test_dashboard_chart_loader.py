@@ -28,8 +28,7 @@ def test_every_chart_page_has_local_first_loader_and_remote_fallbacks():
         assert "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js" in html, (
             name
         )
-        assert "script.onerror=function(){ load(index+1)
-        }" in html, name
+        assert "script.onerror=function(){ load(index+1); }" in html, name
         # A parser-blocking direct CDN/vendor tag is the race this contract fixes.
         assert '<script src="/design-system/vendor/chart.umd.js"></script>' not in html
 

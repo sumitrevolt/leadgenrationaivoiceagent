@@ -1,6 +1,6 @@
 """Tests for AI-agent discovery files (/llms.txt + /pricing.md builders).
 
-Builders are pure + offline (no network/LLM) -> safe in the targeted suite.
+Builders are pure + offline (no network/LLM) → safe in the targeted suite.
 Key guard: pricing.md must reflect the LIVE billing source of truth (packages.py
 + voice_packages.py) so it can never drift from real prices.
 """
@@ -33,7 +33,7 @@ def test_pricing_md_reflects_marketing_source_of_truth():
     from app.marketing.packages import get_public_packages
 
     md = build_pricing_md("https://example.com")
-    assert md.startswith("# Pricing - LeadsGenAI")
+    assert md.startswith("# Pricing — LeadsGenAI")
     # every PUBLIC marketing plan's monthly price must appear (drift guard)
     for p in get_public_packages():
         price = p.get("price_inr_month")

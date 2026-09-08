@@ -1,17 +1,15 @@
-"""Tests for the eng-agents batch - code_reviewer · agent_recall · agent_checkpoints.
+"""Tests for the eng-agents batch — code_reviewer · agent_recall · agent_checkpoints.
 
 Pure-python: NO network / DB / real-LLM. free_ai.chat ko monkeypatch se fake karte
-hain
-vector store path ko fail karwa ke keyword-fallback verify karte
-checkpoints
+hain; vector store path ko fail karwa ke keyword-fallback verify karte; checkpoints
 ko tmp data/ subtree pe chalate (path-guard + roundtrip).
 
 Covers per module:
-  code_reviewer  - JSON parse, prose-wrapped JSON, garbage->static, LLM-error->static,
+  code_reviewer  — JSON parse, prose-wrapped JSON, garbage→static, LLM-error→static,
                    empty input, dimensions default/normalize, enabled() flag.
-  agent_recall   - record append, keyword recall (substring + token-overlap), empty
-                   query, semantic-failure->keyword fallback, never-raise.
-  agent_checkpoints - snapshot+rollback roundtrip, path-guard (traversal/absolute
+  agent_recall   — record append, keyword recall (substring + token-overlap), empty
+                   query, semantic-failure→keyword fallback, never-raise.
+  agent_checkpoints — snapshot+rollback roundtrip, path-guard (traversal/absolute
                    refuse), list newest-first, missing ckpt, enabled() flag.
 """
 

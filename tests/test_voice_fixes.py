@@ -1,13 +1,13 @@
 """Pure-python tests for SP7 voice product code-gap closures.
 
 Covers (no telephony / no network / no real LLM):
-  1. app/tasks/calling.py - the Celery call tasks now use the REAL CallManager
+  1. app/tasks/calling.py — the Celery call tasks now use the REAL CallManager
      API (queue_call / start_call_processor), NOT the non-existent
      initiate_call / process_queue (latent AttributeError under legacy beat).
-  2. app/voice_agent/amd.py - answering-machine detection used by the new gated
+  2. app/voice_agent/amd.py — answering-machine detection used by the new gated
      AMD_DETECT path in vobiz_stream (transcript heuristics).
   3. The AMD_DETECT gating contract (flag default OFF = no-op).
-  4. app/telephony/missed_call.py - inbound/missed-call lead capture (the new
+  4. app/telephony/missed_call.py — inbound/missed-call lead capture (the new
      /api/webhooks/vobiz/inbound route delegates here).
 
 All side-effects (jsonl/db) are monkeypatched away so the suite is hermetic.
@@ -26,7 +26,7 @@ import pytest
 # 1) calling.py uses the correct CallManager API (no dead method names)
 # --------------------------------------------------------------------------- #
 def test_calling_tasks_use_real_callmanager_api():
-    """make_call_task -> queue_call; process_queue -> start_call_processor.
+    """make_call_task → queue_call; process_queue → start_call_processor.
 
     Guards against the latent AttributeError: CallManager has NO initiate_call /
     process_queue methods, so the old source would crash if legacy beat fired.
@@ -131,7 +131,7 @@ def _make_session():
 
 
 def test_amd_check_noop_when_flag_off(monkeypatch):
-    """AMD_DETECT unset/OFF -> _amd_check returns False (default flow unchanged)."""
+    """AMD_DETECT unset/OFF → _amd_check returns False (default flow unchanged)."""
     monkeypatch.delenv("AMD_DETECT", raising=False)
     sess = _make_session()
     out = asyncio.run(sess._amd_check("Please leave a message after the beep."))
@@ -141,7 +141,7 @@ def test_amd_check_noop_when_flag_off(monkeypatch):
 
 
 def test_amd_check_aborts_on_machine_when_flag_on(monkeypatch):
-    """AMD_DETECT=1 + voicemail greeting -> _amd_check aborts (True) and closes WS."""
+    """AMD_DETECT=1 + voicemail greeting → _amd_check aborts (True) and closes WS."""
     monkeypatch.setenv("AMD_DETECT", "1")
     sess = _make_session()
     out = asyncio.run(
@@ -153,7 +153,7 @@ def test_amd_check_aborts_on_machine_when_flag_on(monkeypatch):
 
 
 def test_amd_check_human_continues_when_flag_on(monkeypatch):
-    """AMD_DETECT=1 + human greeting -> _amd_check returns False (continue normally)."""
+    """AMD_DETECT=1 + human greeting → _amd_check returns False (continue normally)."""
     monkeypatch.setenv("AMD_DETECT", "1")
     sess = _make_session()
     out = asyncio.run(sess._amd_check("Haan ji boliye"))
@@ -182,7 +182,7 @@ def test_missed_call_lead_capture_no_callback(monkeypatch):
 
     res = asyncio.run(missed_call.handle_missed_call("+919812345678", "solar", "Acme"))
     assert res["ok"] is True
-    assert res["callback"] is False  # gated off -> lead captured, no callback
+    assert res["callback"] is False  # gated off → lead captured, no callback
 
 
 def test_missed_call_rejects_empty_number():
@@ -200,7 +200,7 @@ def test_missed_call_dedupe(monkeypatch):
     monkeypatch.setattr(ps, "_save_lead_db", lambda r: None, raising=False)
     monkeypatch.delenv("MISSED_CALL_CALLBACK", raising=False)
     missed_call._RECENT.clear()
-    # mark as recently called -> dedupe path
+    # mark as recently called → dedupe path
     import time as _t
 
     missed_call._RECENT["+919800000000"] = _t.time()

@@ -1,9 +1,9 @@
-"""Security tests - Injection.
+"""Security tests — Injection.
 
 Verifies that SQL injection, XSS, and command injection vectors are blocked
 or mitigated across the API surface.
 
-Playbook ref: Security Playbook - Injection tests.
+Playbook ref: Security Playbook — Injection tests.
 """
 
 from __future__ import annotations
@@ -35,13 +35,13 @@ XSS_PAYLOADS = [
 
 
 # ---------------------------------------------------------------------------
-# SQL Injection - public search/audit endpoints
+# SQL Injection — public search/audit endpoints
 # ---------------------------------------------------------------------------
 def test_public_search_rejects_sqli():
     """Public search endpoints must sanitize or reject SQL injection payloads."""
     for payload in SQLI_PAYLOADS:
         resp = client.get(f"/api/public/search?q={payload}", follow_redirects=False)
-        # We expect 200 (if sanitized) or 400/422 (if rejected) - NOT 500.
+        # We expect 200 (if sanitized) or 400/422 (if rejected) — NOT 500.
         assert resp.status_code != 500, f"SQLi payload caused 500: {payload[:50]}..."
 
 
@@ -53,7 +53,7 @@ def test_audit_endpoint_rejects_sqli():
 
 
 # ---------------------------------------------------------------------------
-# SQL Injection - customer mutation endpoints
+# SQL Injection — customer mutation endpoints
 # ---------------------------------------------------------------------------
 def test_customer_profile_rejects_sqli():
     """Customer profile fields must reject SQL injection."""
@@ -67,7 +67,7 @@ def test_customer_profile_rejects_sqli():
 
 
 # ---------------------------------------------------------------------------
-# XSS - output encoding
+# XSS — output encoding
 # ---------------------------------------------------------------------------
 def test_public_endpoints_encode_xss():
     """If an endpoint echoes user input, it must be HTML-escaped."""
@@ -79,7 +79,7 @@ def test_public_endpoints_encode_xss():
 
 
 # ---------------------------------------------------------------------------
-# Command injection - voice/telephony params (if any shell exec)
+# Command injection — voice/telephony params (if any shell exec)
 # ---------------------------------------------------------------------------
 CMDI_PAYLOADS = [
     "; cat /etc/passwd",
@@ -107,7 +107,7 @@ def test_telephony_params_reject_cmdi():
 
 
 # ---------------------------------------------------------------------------
-# Path traversal - file upload / static paths
+# Path traversal — file upload / static paths
 # ---------------------------------------------------------------------------
 PATH_TRAVERSAL_PAYLOADS = [
     "../../../etc/passwd",
@@ -124,7 +124,7 @@ def test_file_paths_reject_traversal():
 
 
 # ---------------------------------------------------------------------------
-# Indirect Prompt Injection (IPI) - voice/web-call utterance sanitization
+# Indirect Prompt Injection (IPI) — voice/web-call utterance sanitization
 # ---------------------------------------------------------------------------
 # These tests verify that _sanitize_utterance() strips injection directives
 # before they reach the LLM context window via _build_prompt.  The guard
@@ -152,7 +152,7 @@ def test_sanitize_utterance_strips_injection_markers():
         cleaned = _sanitize_utterance(payload)
         payload_lower = payload.lower()
         cleaned_lower = cleaned.lower()
-        # At least one injection marker must have been replaced - the cleaned
+        # At least one injection marker must have been replaced — the cleaned
         # string must differ from the original (case-folded) or contain '[...]'
         assert cleaned_lower != payload_lower or "[...]" in cleaned_lower, (
             f"IPI payload not sanitized: {payload[:80]!r}"
@@ -196,7 +196,7 @@ def test_sanitize_utterance_case_insensitive():
 def test_web_call_endpoint_rejects_ipi_payloads():
     """The web-call chat endpoint must not expose injection markers in its
     response, confirming the sanitize guard is active on the public path."""
-    for payload in IPI_PAYLOADS[:3]:  # sample - full set covered by unit tests
+    for payload in IPI_PAYLOADS[:3]:  # sample — full set covered by unit tests
         resp = client.post(
             "/api/voice/web-call/chat",
             json={"message": payload, "session_id": "test-sec-ipi"},

@@ -1,4 +1,4 @@
-"""Client snapshots (GHL-style) - ek client ka poora setup capture -> naye pe apply.
+"""Client snapshots (GHL-style) — ek client ka poora setup capture → naye pe apply.
 
 Agency scale ka core trick: ek baar perfect setup banao (mini-site config, widget
 form, journey rules, content-schedule pattern), snapshot lo, aur har naye client
@@ -6,11 +6,11 @@ pe 1-click apply karo (sub-account cloning, GoHighLevel "snapshots" jaisa).
 
   capture(client_id, name)            -> data/snapshots/<id>.json + index entry
   apply(snapshot_id, target_client_id) -> per-section best-effort apply
-                                          (NAYE records append - source kabhi
+                                          (NAYE records append — source kabhi
                                           mutate nahi hota)
   list_snapshots() / get_snapshot(id)
 
-Har section apna try/except - jo store khali/missing ho wo skip (best-effort).
+Har section apna try/except — jo store khali/missing ho wo skip (best-effort).
 Pure stdlib + file IO + existing stores (NO LLM, NO network). NEVER raises.
 """
 
@@ -83,7 +83,7 @@ def _get_client(client_id: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Capture - har section best-effort
+# Capture — har section best-effort
 # --------------------------------------------------------------------------- #
 def capture(client_id: str, name: str = "") -> dict[str, Any]:
     """Client ka reusable setup snapshot. Never raises."""
@@ -130,7 +130,7 @@ def capture(client_id: str, name: str = "") -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[snapshots] widget section skip: {e}")
 
-        # 4) journey rules - is client se linked (condition/params me client_id)
+        # 4) journey rules — is client se linked (condition/params me client_id)
         try:
             from app.marketing import journeys
 
@@ -152,7 +152,7 @@ def capture(client_id: str, name: str = "") -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[snapshots] journeys section skip: {e}")
 
-        # 5) cadence template (global DEFAULT_CADENCE copy - reference ke liye)
+        # 5) cadence template (global DEFAULT_CADENCE copy — reference ke liye)
         try:
             from app.marketing.cadence import DEFAULT_CADENCE
 
@@ -233,7 +233,7 @@ def list_snapshots(limit: int = 100) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Apply - har section best-effort; NAYE records append, source untouched
+# Apply — har section best-effort; NAYE records append, source untouched
 # --------------------------------------------------------------------------- #
 def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
     """Snapshot sections target client pe lagao. Never raises."""
@@ -249,7 +249,7 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
         sections: dict[str, Any] = snap.get("sections") or {}
         results: dict[str, Any] = {}
 
-        # mini-site config -> target slug pe naya append (set_config = append store)
+        # mini-site config → target slug pe naya append (set_config = append store)
         try:
             cfg = sections.get("mini_site")
             if cfg and target_slug:
@@ -259,7 +259,7 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
                     target_slug,
                     palette=cfg.get("palette"),
                     layout=cfg.get("layout"),
-                    logo_url=None,  # logo source-client ka hai - copy NAHI karte
+                    logo_url=None,  # logo source-client ka hai — copy NAHI karte
                     primary=cfg.get("primary"),
                     accent=cfg.get("accent"),
                 )
@@ -269,7 +269,7 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
         except Exception as e:
             results["mini_site"] = f"error: {str(e)[:80]}"
 
-        # widget form fields -> target slug
+        # widget form fields → target slug
         try:
             fields = sections.get("widget_form")
             if fields and target_slug:
@@ -282,7 +282,7 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
         except Exception as e:
             results["widget_form"] = f"error: {str(e)[:80]}"
 
-        # journeys -> NAYE rules (new ids, disabled - review karke on karo)
+        # journeys → NAYE rules (new ids, disabled — review karke on karo)
         try:
             rules = sections.get("journeys") or []
             if rules:
@@ -327,11 +327,11 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
                     )
                     if created.get("id"):
                         added += 1
-                results["journeys"] = f"applied ({added} rules, disabled - review karke on karo)"
+                results["journeys"] = f"applied ({added} rules, disabled — review karke on karo)"
         except Exception as e:
             results["journeys"] = f"error: {str(e)[:80]}"
 
-        # content-schedule pattern -> sirf FUTURE dates re-schedule
+        # content-schedule pattern → sirf FUTURE dates re-schedule
         try:
             items = sections.get("content_schedule") or []
             if items:
@@ -358,11 +358,11 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
         except Exception as e:
             results["content_schedule"] = f"error: {str(e)[:80]}"
 
-        # cadence_template = global DEFAULT_CADENCE - apply ki zaroorat nahi
+        # cadence_template = global DEFAULT_CADENCE — apply ki zaroorat nahi
         if "cadence_template" in sections:
             results["cadence_template"] = "info-only (global template, apply not needed)"
         if "client" in sections:
-            results["client"] = "info-only (client fields reference - manual merge)"
+            results["client"] = "info-only (client fields reference — manual merge)"
 
         return {
             "ok": True,
@@ -376,7 +376,7 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Niche templates - GHL-style 1-click niche clone (no golden client required)
+# Niche templates — GHL-style 1-click niche clone (no golden client required)
 # --------------------------------------------------------------------------- #
 _NICHE_PALETTE: dict[str, str] = {
     "solar": "sunset",
@@ -391,10 +391,10 @@ _NICHE_PALETTE: dict[str, str] = {
 
 
 def _default_journey_templates() -> list[dict[str, Any]]:
-    """Generic journey rules (no client_id) - apply pe target pe swap hota hai."""
+    """Generic journey rules (no client_id) — apply pe target pe swap hota hai."""
     return [
         {
-            "name": "Inquiry -> WhatsApp + email follow-up draft",
+            "name": "Inquiry → WhatsApp + email follow-up draft",
             "trigger": "inquiry_received",
             "condition": {},
             "actions": [
@@ -403,7 +403,7 @@ def _default_journey_templates() -> list[dict[str, Any]]:
             ],
         },
         {
-            "name": "Signup -> welcome WhatsApp draft",
+            "name": "Signup → welcome WhatsApp draft",
             "trigger": "signup",
             "condition": {},
             "actions": [
@@ -549,7 +549,7 @@ def find_niche_snapshot(niche_key: str) -> str | None:
                 continue
             sid = str(row.get("id") or "") or None
             # Index/file drift guard (2026-08-17): file missing ho to stale id
-            # mat do - capture_from_niche fresh banayega (warna "snapshot nahi
+            # mat do — capture_from_niche fresh banayega (warna "snapshot nahi
             # mila" pe apply fail hota).
             if sid and get_snapshot(sid) is not None:
                 return sid

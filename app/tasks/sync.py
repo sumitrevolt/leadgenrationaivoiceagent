@@ -75,7 +75,7 @@ def sync_to_crm():
                             sync_to_hubspot.delay(lead_data)
                             synced_count += 1
                         except Exception as e:
-                            idempotency.forget_sync(idem_key)  # release -> retry next run
+                            idempotency.forget_sync(idem_key)  # release → retry next run
                             errors.append(f"HubSpot sync failed for {lead.id}: {e}")
 
                 # Sync to Google Sheets if configured (same idempotency guard).
@@ -86,7 +86,7 @@ def sync_to_crm():
                             sync_to_sheets.delay(lead_data, campaign.spreadsheet_id)
                             synced_count += 1
                         except Exception as e:
-                            idempotency.forget_sync(idem_key)  # release -> retry next run
+                            idempotency.forget_sync(idem_key)  # release → retry next run
                             errors.append(f"Sheets sync failed for {lead.id}: {e}")
 
     except Exception as e:
@@ -199,7 +199,7 @@ def import_from_crm(source: str, config: dict):
                     from app.models.lead import lead_exists_for_phone
 
                     for contact in contacts:
-                        # Check if lead already exists (format-variant-aware -
+                        # Check if lead already exists (format-variant-aware —
                         # audit 2026-07-04: exact-string match missed
                         # cross-source duplicates).
                         existing = contact.get("phone") and lead_exists_for_phone(

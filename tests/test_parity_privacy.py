@@ -10,7 +10,7 @@ import os
 
 
 # --------------------------------------------------------------------------- #
-# helpers - har test apne tmp stores pe chalta hai
+# helpers — har test apne tmp stores pe chalta hai
 # --------------------------------------------------------------------------- #
 def _patch_stores(tmp_path, monkeypatch):
     from app.platform import dpdp
@@ -86,7 +86,7 @@ def test_scan_and_export(tmp_path, monkeypatch):
     assert res["ok"] is True
     assert res["stores"] == {"inquiries": 1, "widget_chats": 1, "crm/client1.jsonl": 1}
     assert res["total_records"] == 3
-    # preview masked - full number kahin nahi
+    # preview masked — full number kahin nahi
     assert "9876543210" not in json.dumps(res["preview"])
 
     exp = asyncio.run(dpdp.export_subject(phone="9876543210", include_db=False))
@@ -102,7 +102,7 @@ def test_scan_and_export(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# erasure - dry-run default, atomic + .bak, corrupt-line preserve
+# erasure — dry-run default, atomic + .bak, corrupt-line preserve
 # --------------------------------------------------------------------------- #
 def test_erase_dry_run_then_real(tmp_path, monkeypatch):
     dpdp, stores = _patch_stores(tmp_path, monkeypatch)
@@ -114,7 +114,7 @@ def test_erase_dry_run_then_real(tmp_path, monkeypatch):
     _write_jsonl(stores["inquiries"], rows)
     before = (tmp_path / "inquiries.jsonl").read_text(encoding="utf-8")
 
-    # dry run (default) - file untouched, no backup
+    # dry run (default) — file untouched, no backup
     dry = asyncio.run(dpdp.erase_subject(phone="9876543210", include_db=False))
     assert dry["ok"] is True and dry["dry_run"] is True
     assert dry["stores"]["inquiries"]["removed"] == 1
@@ -122,7 +122,7 @@ def test_erase_dry_run_then_real(tmp_path, monkeypatch):
     assert (tmp_path / "inquiries.jsonl").read_text(encoding="utf-8") == before
     assert not list(tmp_path.glob("*.bak_dpdp_*"))
 
-    # real run - matching gone, garbage + other preserved, .bak created
+    # real run — matching gone, garbage + other preserved, .bak created
     real = asyncio.run(dpdp.erase_subject(phone="9876543210", dry_run=False, include_db=False))
     assert real["ok"] is True and real["total_removed"] == 1
     assert real["stores"]["inquiries"]["removed"] == 1
@@ -140,7 +140,7 @@ def test_erase_dry_run_then_real(tmp_path, monkeypatch):
 
 def test_erase_skips_unreadable_store(tmp_path, monkeypatch):
     dpdp, stores = _patch_stores(tmp_path, monkeypatch)
-    # ek store path = DIRECTORY -> open() fail -> skip+report, koi crash nahi
+    # ek store path = DIRECTORY → open() fail → skip+report, koi crash nahi
     os.makedirs(stores["prospects"], exist_ok=True)
     _write_jsonl(stores["inquiries"], [{"phone": "9876543210"}])
     res = asyncio.run(dpdp.erase_subject(phone="9876543210", dry_run=False, include_db=False))
@@ -158,7 +158,7 @@ def test_request_intake_and_done(tmp_path, monkeypatch):
     assert bad["ok"] is False
 
     r1 = dpdp.record_request(phone="9876543210", req_type="erasure", note="delete karo")
-    r2 = dpdp.record_request(email="ravi@x.com", req_type="weird-type")  # -> access fallback
+    r2 = dpdp.record_request(email="ravi@x.com", req_type="weird-type")  # → access fallback
     assert r1["ok"] and r2["ok"] and r2["type"] == "access"
 
     pending = dpdp.list_requests(status="pending")

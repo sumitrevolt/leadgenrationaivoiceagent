@@ -1,14 +1,14 @@
 """
-Web Call - Browser TEST MODE (Dograh-inspired)
+Web Call — Browser TEST MODE (Dograh-inspired)
 ==============================================
 
 Lets you TALK/CHAT with the voice bot directly in the browser with NO telephony
 (no real phone ring, no per-minute cost). This is a TEST MODE for trying flows
-and prompts before going live on real calls - mirroring Dograh's "Web Call".
+and prompts before going live on real calls — mirroring Dograh's "Web Call".
 
 Endpoints (router mounted by main.py separately):
-    WS  /api/web-call/ws      - bidirectional chat with the bot.
-    GET /api/web-call/config  - whether the pipeline/providers are available.
+    WS  /api/web-call/ws      — bidirectional chat with the bot.
+    GET /api/web-call/config  — whether the pipeline/providers are available.
 
 WebSocket protocol
 ------------------
@@ -29,7 +29,7 @@ Server -> Client (JSON):
         # frontend/web_call.html).
     {"type": "pong"}
 
-Import-safe: degrades gracefully if the VoicePipeline or providers are missing -
+Import-safe: degrades gracefully if the VoicePipeline or providers are missing —
 falls back to a simple LLM responder, and if even that is unavailable, an echo.
 """
 
@@ -57,7 +57,7 @@ logger = setup_logger(__name__)
 
 
 def _CALL_RECORDINGS_DIR() -> str:
-    """Web/phone call recordings root - resolved per call, never frozen at import."""
+    """Web/phone call recordings root — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_recordings_dir
 
     return str(call_recordings_dir())
@@ -66,7 +66,7 @@ def _CALL_RECORDINGS_DIR() -> str:
 router = APIRouter(prefix="/web-call", tags=["Web Call (Test Mode)"])
 
 
-# Per-IP abuse guard for the PUBLIC web-call WS - anyone can open this socket and
+# Per-IP abuse guard for the PUBLIC web-call WS — anyone can open this socket and
 # burn free LLM/STT/TTS. Cap new sessions per IP. FAIL-OPEN: limiter error/unset
 # never blocks legit traffic. (HTTP rate_limit() dep can't wrap a WebSocket, so we
 # check inline at connect.)
@@ -107,7 +107,7 @@ def _normalize_lead_key(raw: str | None) -> str | None:
 
 
 def _apply_memory_subject(tcb: Any, session: dict[str, Any]) -> None:
-    """Cross-session recall - stable browser lead_key (web:{key}), phone parity."""
+    """Cross-session recall — stable browser lead_key (web:{key}), phone parity."""
     lead = _normalize_lead_key(session.get("lead_key"))
     if not lead or tcb is None:
         return
@@ -184,7 +184,7 @@ def _turn_meta(timing: dict[str, Any], t_recv: float, heard: str) -> dict[str, A
 
 
 def _is_booking_intent(text: str) -> bool:
-    """Booking/appointment ACTION-intent - sirf TAB agentic tool-path (real
+    """Booking/appointment ACTION-intent — sirf TAB agentic tool-path (real
     calendar_booking) engage karo. Normal turns instrumented + streamed P1 reply
     pe rahein (no regression). Roman + Devanagari dono."""
     t = (text or "").lower()
@@ -219,7 +219,7 @@ def _is_booking_intent(text: str) -> bool:
 def _history_from_session(
     session: dict[str, Any], *, exclude_last_user: str | None = None
 ) -> list[dict[str, str]]:
-    """Turn log = source of truth - WS handler history desync se wrong jawab na aaye."""
+    """Turn log = source of truth — WS handler history desync se wrong jawab na aaye."""
     out: list[dict[str, str]] = []
     for t in session.get("turns") or []:
         if not isinstance(t, dict):
@@ -239,7 +239,7 @@ def _history_from_session(
 
 
 def _pitch_discovery_handoff(session: dict[str, Any], tcbrain: Any | None, pst: Any) -> None:
-    """Interest gate khatam - ab TelecallerBrain customer ke hisaab se chale."""
+    """Interest gate khatam — ab TelecallerBrain customer ke hisaab se chale."""
     if pst is None or getattr(pst, "phase", "") != "discovery":
         return
     if tcbrain is not None and hasattr(tcbrain, "confirm_interest"):
@@ -293,7 +293,7 @@ def _persist_session(session: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------- #
 def _get_pipeline() -> Any | None:
     """Lazily build app.voice_agent.pipeline.VoicePipeline (owned by another
-    agent - may not exist). Returns None on any failure."""
+    agent — may not exist). Returns None on any failure."""
     try:
         from app.voice_agent.pipeline import VoicePipeline  # type: ignore
 
@@ -318,7 +318,7 @@ def _get_registry_describe() -> dict[str, Any] | None:
 
 
 def _get_llm_brain() -> Any | None:
-    """Fallback responder - the LLM brain - if no full pipeline is present."""
+    """Fallback responder — the LLM brain — if no full pipeline is present."""
     try:
         from app.voice_agent.llm_brain import LLMBrain  # type: ignore
 
@@ -332,7 +332,7 @@ async def _run_blocking(fn, *args, timeout: float = 15.0, default=None):
     """
     Run a potentially heavy SYNC callable off the event loop with a hard
     timeout. Dialog/brain builders KB/fastembed load trigger kar sakte hain
-    (missing model cache = HuggingFace runtime download = minutes ka hang) -
+    (missing model cache = HuggingFace runtime download = minutes ka hang) —
     yeh KABHI event loop par nahi chalna chahiye (2026-06-12 prod-down lesson:
     dono uvicorn workers isi se freeze hue the). Timeout/error par `default`
     return hota hai (caller gracefully degrade karta hai). Never raises.
@@ -348,10 +348,10 @@ async def _run_blocking(fn, *args, timeout: float = 15.0, default=None):
 
 def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Any | None:
     """
-    Build the NaturalDialogManager - the human-like "listen -> understand ->
+    Build the NaturalDialogManager — the human-like "listen -> understand ->
     answer" brain. THIS is what makes the bot reply like a person: short,
     Hinglish, acknowledges what the customer said, answers their QUESTION first,
-    asks ONE thing at a time - instead of monologuing a sales script and never
+    asks ONE thing at a time — instead of monologuing a sales script and never
     listening. It internally uses the LLM brain (Gemini) when a key is present,
     else clean rule-based replies. Returns None on any failure (caller degrades).
     """
@@ -373,14 +373,14 @@ import re as _re
 
 # Thinking fillers (played only on mic/audio turns while the LLM thinks).
 # "Ji..." dropped (2026-07-17 owner feedback: habit-address fillers confuse the
-# caller); only short neutral bridges kept - phone _FILLER_TEXTS parity.
+# caller); only short neutral bridges kept — phone _FILLER_TEXTS parity.
 _FILLER_LINES = ["Hmm...", "Achha...", "Ek second..."]
 _filler_idx = 0
 
 
 async def _filler_b64() -> str | None:
     """
-    Short Hinglish filler phrase (mp3 b64) - sent INSTANTLY while LLM thinks so
+    Short Hinglish filler phrase (mp3 b64) — sent INSTANTLY while LLM thinks so
     user doesn't hear dead silence. Rotates through _FILLER_LINES. Never raises.
     """
     global _filler_idx
@@ -390,7 +390,7 @@ async def _filler_b64() -> str | None:
 
 
 def _web_call_edge_enabled() -> bool:
-    """FREE EdgeTTS Swara voice on test-call - default ON; WEB_CALL_EDGE_TTS=0 se band."""
+    """FREE EdgeTTS Swara voice on test-call — default ON; WEB_CALL_EDGE_TTS=0 se band."""
     import os
 
     v = os.environ.get("WEB_CALL_EDGE_TTS", "1").strip().lower()
@@ -399,7 +399,7 @@ def _web_call_edge_enabled() -> bool:
 
 def _webcall_inline_signup_enabled() -> bool:
     """Browser-native trial-signup overlay on a voice close-signal (landing-page
-    onboarding). Default OFF - new funnel-critical behavior, verify manually
+    onboarding). Default OFF — new funnel-critical behavior, verify manually
     before enabling in prod. WEBCALL_INLINE_SIGNUP=1 to turn on."""
     import os
 
@@ -424,7 +424,7 @@ def _close_signal_payload(tcbrain: Any) -> dict[str, Any] | None:
 
 
 async def _bot_audio_b64(text: str) -> str | None:
-    """EdgeTTS mp3 b64 with deadline - fail = browser TTS fallback."""
+    """EdgeTTS mp3 b64 with deadline — fail = browser TTS fallback."""
     if not _web_call_edge_enabled() or not (text or "").strip():
         return None
     import asyncio
@@ -436,7 +436,7 @@ async def _bot_audio_b64(text: str) -> str | None:
 
 
 async def _send_bot_message(websocket: WebSocket, text: str, **extra: Any) -> None:
-    """Unified bot turn - text + optional Swara mp3 (phone-parity, free)."""
+    """Unified bot turn — text + optional Swara mp3 (phone-parity, free)."""
     t = (text or "").strip()
     if not t:
         return
@@ -481,14 +481,13 @@ async def _send_tcbrain_sentence_chunks(
     llm_stream: bool = False,
     timing: dict[str, Any] | None = None,
 ) -> None:
-    """EdgeTTS Swara + WS JSON - mp3 attached when synth succeeds (default ON).
+    """EdgeTTS Swara + WS JSON — mp3 attached when synth succeeds (default ON).
 
     LATENCY FIX (2026-06-28): har sentence ka synth PARALLEL me chalta hai par
-    chunk 0 uska audio ready hote hi SEEDHA bhej deta - pehle `gather()` SAARE
+    chunk 0 uska audio ready hote hi SEEDHA bhej deta — pehle `gather()` SAARE
     sentences ka wait karta tha to first-word SABSE SLOW sentence ke synth pe atak
     jaata (5-6s "noob" gap ka ek bada root). Ab chunk 0 = sirf apne synth (~1.5s)
-    ka wait
-    baaki sentences background me synth hote rehte (client unhe sequence
+    ka wait; baaki sentences background me synth hote rehte (client unhe sequence
     me bajata, koi drop nahi). Per-synth `wait_for` cap intact (bounded await).
     """
     total = len(sentences)
@@ -542,9 +541,9 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
     """
     Synthesize `text` to the SAME natural Hindi voice as the phone agent
     (EdgeTTS hi-IN-SwaraNeural, slightly brisk) and return a base64-encoded mp3
-    string - or None on any failure / missing edge-tts. When None, the browser
+    string — or None on any failure / missing edge-tts. When None, the browser
     falls back to its own speechSynthesis (existing behavior). Time-capped (<6s)
-    so a slow/blocked TTS never stalls the chat turn. Import-safe - never raises.
+    so a slow/blocked TTS never stalls the chat turn. Import-safe — never raises.
     """
     import asyncio
     import base64
@@ -554,9 +553,9 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
         return None
 
     # PRO voice = Sarvam Bulbul v3 (India-native, Hinglish prosody + Indian name
-    # pronunciation, sub-250ms streaming) - the professional India-market TTS. Tried
+    # pronunciation, sub-250ms streaming) — the professional India-market TTS. Tried
     # FIRST when TTS_PROVIDER=sarvam + SARVAM_API_KEY set. Returns WAV b64 (frontend
-    # auto-detects). INERT without key (paid ~Rs2/min) -> falls through to free floor.
+    # auto-detects). INERT without key (paid ~Rs2/min) → falls through to free floor.
     if (
         os.environ.get("TTS_PROVIDER", "").strip().lower() == "sarvam"
         and os.environ.get("SARVAM_API_KEY", "").strip()
@@ -572,9 +571,9 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
         except Exception:
             pass
 
-    # SELF-HOSTED voice (AI4Bharat IndicF5 on your own GPU) - FREE, no per-min cost.
+    # SELF-HOSTED voice (AI4Bharat IndicF5 on your own GPU) — FREE, no per-min cost.
     # Tried when TTS_PROVIDER=ai4bharat + AI4BHARAT_ENDPOINT (your voice_stack server).
-    # INERT without the endpoint -> free EdgeTTS floor. (voice_stack/README.md)
+    # INERT without the endpoint → free EdgeTTS floor. (voice_stack/README.md)
     if (
         os.environ.get("TTS_PROVIDER", "").strip().lower() == "ai4bharat"
         and os.environ.get("AI4BHARAT_ENDPOINT", "").strip()
@@ -622,7 +621,7 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
                     _wkw["pitch"] = _wpitch
                 comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", **_wkw)
             except TypeError:
-                # edge-tts build without the prosody kwargs - synth at defaults.
+                # edge-tts build without the prosody kwargs — synth at defaults.
                 comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural")
             audio = bytearray()
             async for chunk in comm.stream():
@@ -645,7 +644,7 @@ def _script_opening(niche: str, client_name: str = "Demo Co") -> str:
     """
     Professional niche-script opening (get_script(niche)["opening"]) with the
     [Company]/[Name]/[Project] placeholders filled so nothing leaks into speech.
-    Falls back to a generic Hinglish greeting. Import-safe - never raises.
+    Falls back to a generic Hinglish greeting. Import-safe — never raises.
     """
     opening = ""
     try:
@@ -678,7 +677,7 @@ def _pipeline_text_method(pipeline: Any) -> Any | None:
     """
     Return the pipeline's text-responder method, or None.
     VoicePipeline is built for live audio streaming and may expose NO text
-    method at all - in that case the web-call demo must use the LLM brain,
+    method at all — in that case the web-call demo must use the LLM brain,
     not claim "pipeline" and then silently fall through to echo.
     """
     if pipeline is None:
@@ -697,7 +696,7 @@ def _pipeline_text_method(pipeline: Any) -> Any | None:
 async def web_call_config() -> dict[str, Any]:
     """
     Report whether the pipeline / providers are available + active provider
-    names. Always returns 200 - degrades gracefully.
+    names. Always returns 200 — degrades gracefully.
     """
     pipeline = _get_pipeline()
     pipeline_can_text = _pipeline_text_method(pipeline) is not None
@@ -705,7 +704,7 @@ async def web_call_config() -> dict[str, Any]:
     brain_available = _get_llm_brain() is not None
     natural_available = _get_natural_dialog("general", "Demo Co", "") is not None
 
-    # Telephony providers (for the dashboard's awareness) - best-effort.
+    # Telephony providers (for the dashboard's awareness) — best-effort.
     telephony: dict[str, Any] = {}
     try:
         from app.telephony.telephony_service import get_telephony_service
@@ -724,7 +723,7 @@ async def web_call_config() -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"web-call: TelecallerBrain unavailable ({e}).")
 
-    # Natural Swara voice (EdgeTTS) availability - when True the bot returns mp3
+    # Natural Swara voice (EdgeTTS) availability — when True the bot returns mp3
     # audio_b64; else the browser uses its own speechSynthesis.
     try:
         import edge_tts  # type: ignore  # noqa: F401
@@ -748,7 +747,7 @@ async def web_call_config() -> dict[str, Any]:
     except Exception:
         pass
 
-    # Premium voice (Gemini native TTS) active? - True jab GEMINI_API_KEY set +
+    # Premium voice (Gemini native TTS) active? — True jab GEMINI_API_KEY set +
     # GEMINI_TTS!=0. Inert = EdgeTTS floor.
     premium_voice = False
     try:
@@ -760,7 +759,7 @@ async def web_call_config() -> dict[str, Any]:
 
     return {
         "test_mode": True,
-        "note": "Web Call is TEST MODE - talk to the bot in the browser, no real phone call is placed.",
+        "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
         "llm_stream_tts": llm_stream_tts,
         "telecaller_available": telecaller_available,
         "memory_enabled": memory_enabled,
@@ -847,7 +846,7 @@ async def web_call_session_detail(
         return {"ok": False, "session": None}
 
 
-# Audio-recording upload guard (PUBLIC endpoint - same abuse surface as the WS).
+# Audio-recording upload guard (PUBLIC endpoint — same abuse surface as the WS).
 try:
     from app.cache import RateLimiter as _RecRateLimiter
 
@@ -855,8 +854,7 @@ try:
 except Exception:  # pragma: no cover
     _REC_LIMITER = None
 
-_REC_MAX_BYTES = 12_000_000  # ~12MB - test calls are short
-bigger = reject
+_REC_MAX_BYTES = 12_000_000  # ~12MB — test calls are short; bigger = reject
 
 
 def _rec_ext(blob: bytes) -> str:
@@ -872,9 +870,8 @@ def _rec_ext(blob: bytes) -> str:
 
 
 def _write_recording_sync(rec_dir: str, out_path: str, blob: bytes) -> None:
-    """Blocking mkdir+write - MUST run via asyncio.to_thread (12MB write on the
-    Docker overlay-fs can block a worker
-    project's #1 prod-down class)."""
+    """Blocking mkdir+write — MUST run via asyncio.to_thread (12MB write on the
+    Docker overlay-fs can block a worker; project's #1 prod-down class)."""
     os.makedirs(rec_dir, exist_ok=True)
     with open(out_path, "wb") as f:
         f.write(blob)
@@ -889,10 +886,10 @@ async def web_call_recording_upload(
 ) -> dict[str, Any]:
     """
     Browser ne poori test-call ka mixed audio (user mic + Swara TTS) record karke
-    yahan upload kiya. data/call_recordings/YYYY-MM-DD/webcall_{sid}.<ext> me save -
+    yahan upload kiya. data/call_recordings/YYYY-MM-DD/webcall_{sid}.<ext> me save —
     phone WAVs ki SAME jagah, taaki admin "Call Recordings" + Web Test Calls dono
     me dikhe. Strict-validated + size-capped + per-IP rate-limited (public surface).
-    Never raises - failure pe {ok:false} (transcript abhi bhi safe hai).
+    Never raises — failure pe {ok:false} (transcript abhi bhi safe hai).
     """
     # Per-IP abuse guard (FAIL-OPEN).
     if _REC_LIMITER is not None:
@@ -923,7 +920,7 @@ async def web_call_recording_upload(
 
     # Date dir = session's started_at (admin viewer isi se URL banata). PUBLIC
     # surface hardening: recording sirf ek REAL persisted session ke liye save hoti
-    # (WS 'end' pe persist hota, upload uske baad) - random sid = disk-fill abuse block.
+    # (WS 'end' pe persist hota, upload uske baad) — random sid = disk-fill abuse block.
     day = _now_iso()[:10]
     try:
         from app.voice_agent.web_call_store import get_session_any
@@ -958,17 +955,16 @@ def _normalize_session_id_safe(session_id: str | None) -> str | None:
 
 
 # ---------------------------------------------------------------------------- #
-# WebSocket - browser chat with the bot
+# WebSocket — browser chat with the bot
 # ---------------------------------------------------------------------------- #
 @router.websocket("/ws")
 async def web_call_ws(websocket: WebSocket) -> None:
     """
-    Browser test session. The browser sends user text (or audio chunks)
-    the
+    Browser test session. The browser sends user text (or audio chunks); the
     server runs the VoicePipeline (or LLM/echo fallback) and streams back bot
-    replies. Clearly flagged as TEST MODE - no real phone call.
+    replies. Clearly flagged as TEST MODE — no real phone call.
     """
-    # Per-IP abuse guard (free LLM/STT cost) - reject over-cap before accept.
+    # Per-IP abuse guard (free LLM/STT cost) — reject over-cap before accept.
     if _WS_LIMITER is not None:
         try:
             _allowed, _ = await _WS_LIMITER.is_allowed(_ws_client_ip(websocket))
@@ -997,7 +993,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
     }
 
     # PRIMARY responder: the human-like NaturalDialogManager. It LISTENS,
-    # understands, answers the customer's question, and keeps replies short -
+    # understands, answers the customer's question, and keeps replies short —
     # the whole point of this fix. Built lazily once we know the niche; rebuilt
     # (with a fresh conversation) if the niche changes mid-session.
     dialog: Any = None
@@ -1029,9 +1025,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
     def _get_tcbrain(niche: str) -> Any | None:
         """
-        Lazy, per-session TelecallerBrain - niche + voice_role (flow) aware.
-        Cached so each (niche, role) builds once
-        failed build cached as None.
+        Lazy, per-session TelecallerBrain — niche + voice_role (flow) aware.
+        Cached so each (niche, role) builds once; failed build cached as None.
         """
         niche = niche or "general"
         flow = session.get("flow", "qualify")
@@ -1084,7 +1079,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 "voice_role": session.get("flow", "qualify"),
                 "pipeline": pipeline is not None,
                 "providers": _get_registry_describe() or {},
-                "note": "TEST MODE - no real call. Say hello to talk to the bot.",
+                "note": "TEST MODE — no real call. Say hello to talk to the bot.",
                 **_memory_meta(session),
             }
         )
@@ -1117,7 +1112,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             pass
 
     # Abuse cap (audit 2026-07-04): the per-IP limiter only throttles NEW
-    # connections - one open socket could pump unlimited turns through the
+    # connections — one open socket could pump unlimited turns through the
     # free LLM/STT chain. One message ≈ one turn (audio arrives as a single
     # base64 blob per utterance), so 300 is generous for any real demo.
     try:
@@ -1134,7 +1129,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 logger.info("web-call: client disconnected.")
                 break
             except Exception as e:
-                # Non-JSON or transport hiccup - inform and continue.
+                # Non-JSON or transport hiccup — inform and continue.
                 logger.debug(f"web-call: bad inbound message ({e}).")
                 try:
                     await websocket.send_json(
@@ -1153,14 +1148,14 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 _msg_count += 1
                 if _msg_count > _max_msgs:
                     logger.warning(
-                        "web-call: session message cap (%d) reached - closing.", _max_msgs
+                        "web-call: session message cap (%d) reached — closing.", _max_msgs
                     )
                     _persist_session(session)
                     try:
                         await websocket.send_json(
                             {
                                 "type": "error",
-                                "text": "Test session limit ho gayi - nayi session shuru karein.",
+                                "text": "Test session limit ho gayi — nayi session shuru karein.",
                             }
                         )
                     except Exception:
@@ -1174,7 +1169,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 session["flow"] = str(data["flow"])
             if data.get("voice_role"):
                 session["flow"] = str(data["voice_role"])
-            # Business identity - agent ISI naam se baat karta hai (default
+            # Business identity — agent ISI naam se baat karta hai (default
             # "Demo Co" tha jo demo-jaisa lagta tha). Change par cached brains
             # invalid: fresh build naye client_name ke saath hota hai.
             if data.get("client_name") and str(data["client_name"]).strip():
@@ -1242,7 +1237,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 session.pop("pitch_state", None)
 
                 niche = session.get("niche", "general")
-                # Platform pitch (ai_marketing): 3-segment opener - phone parity.
+                # Platform pitch (ai_marketing): 3-segment opener — phone parity.
                 try:
                     from app.voice_agent.platform_pitch import (
                         initial_state,
@@ -1280,7 +1275,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                                     "type": "session",
                                     **_memory_meta(session),
                                     "recall_note": (
-                                        "Isi browser pe pehli calls yaad rahengi - "
+                                        "Isi browser pe pehli calls yaad rahengi — "
                                         "AGENT_MEMORY ON ho to Swara recall karegi."
                                     ),
                                 }
@@ -1303,7 +1298,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         opening = _script_opening(niche, session.get("client_name", "Demo Co"))
                     if opening:
                         # D-14/D-9 web-call parity: even the browser demo opener must
-                        # disclose it is an AI (TRAI good-practice) + ask permission -
+                        # disclose it is an AI (TRAI good-practice) + ask permission —
                         # phone wraps these; web-call did not. Idempotent + never-raise.
                         try:
                             from app.voice_agent.niche_scripts import (
@@ -1345,19 +1340,19 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 await websocket.send_json(
                     {
                         "type": "info",
-                        "text": f"TEST MODE started - niche='{session['niche']}', flow='{session['flow']}'.",
+                        "text": f"TEST MODE started — niche='{session['niche']}', flow='{session['flow']}'.",
                     }
                 )
                 continue
 
-            # Per-turn latency clock - message-arrival se bot-bolna-shuru tak ka
+            # Per-turn latency clock — message-arrival se bot-bolna-shuru tak ka
             # PERCEIVED gap. Stages alag-alag bhi measure hote (stt/llm/tts) taaki
             # admin viewer me dikhe "kahan time gaya" + loop ko objective target mile.
             _t_recv = time.monotonic()
             _turn_timing: dict[str, Any] = {}
 
             # Extract user text. Audio (jab client ne bheja ho) PEHLE server
-            # STT se transcribe hota hai - Groq whisper-large-v3 Hinglish me
+            # STT se transcribe hota hai — Groq whisper-large-v3 Hinglish me
             # browser Web Speech API se kahin behtar sunta hai (phone-parity).
             # STT fail/empty par browser ka text fallback hai (zero regression).
             browser_text = (data.get("text") or "").strip()
@@ -1369,8 +1364,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     pipeline, brain, data.get("audio_b64"), niche=session.get("niche", "")
                 )
                 _turn_timing["stt_ms"] = int((time.monotonic() - _t_stt) * 1000)
-                # STT-source diagnostic (next-iteration decision: kya browser-text -
-                # 0ms, free - Groq jitna accurate hai? Sirf divergence pe log = low noise).
+                # STT-source diagnostic (next-iteration decision: kya browser-text —
+                # 0ms, free — Groq jitna accurate hai? Sirf divergence pe log = low noise).
                 if (
                     browser_text
                     and stt_text
@@ -1381,7 +1376,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         f"stt_ms={_turn_timing.get('stt_ms')}"
                     )
             user_text = stt_text or browser_text
-            # Post-STT Hinglish correction (smart-fix Component 1b) - fix high-confidence
+            # Post-STT Hinglish correction (smart-fix Component 1b) — fix high-confidence
             # mis-hears on the FINAL user text (server-STT or browser fallback) before it
             # reaches the NLU gates + the LLM. Gated STT_CORRECT (default ON); fail-open.
             if user_text:
@@ -1394,19 +1389,19 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
             if not user_text:
                 await websocket.send_json(
-                    {"type": "error", "text": "Empty message - nothing to process."}
+                    {"type": "error", "text": "Empty message — nothing to process."}
                 )
                 continue
 
             _log_turn(session, "user", user_text)
             history = _history_from_session(session, exclude_last_user=user_text)
 
-            # POLITE-NO 2-strike de-escalation (orchestration guard - fires BEFORE
+            # POLITE-NO 2-strike de-escalation (orchestration guard — fires BEFORE
             # the pitch_state gate AND the brain). India-critical trust rule: a 2nd
             # soft refusal => stop pitching, graceful async-exit. telecaller_brain.reply()
             # already enforces this, but the pitch_state interest-gate below can answer
             # the turn first (a discovery question = "pushy after soft-no") and bypass
-            # the brain entirely - so enforce the rule here, where every path converges.
+            # the brain entirely — so enforce the rule here, where every path converges.
             # Gated SOFTNO_DEESCALATE (default ON, checked inside should_deescalate);
             # deterministic (no LLM); fail-open (any error => normal flow continues).
             try:
@@ -1464,12 +1459,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
             history = _history_from_session(session, exclude_last_user=user_text)
 
             # PRIMARY: professional TelecallerBrain (the SAME brain as the phone
-            # agent - researched niche scripts + free_ai/Gemini, KB-grounded),
+            # agent — researched niche scripts + free_ai/Gemini, KB-grounded),
             # spoken in the natural Swara voice (EdgeTTS mp3 b64). On empty/fail
             # we drop through to the existing natural-dialog/_respond chain.
             tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
             if tcbrain is not None:
-                # VOICE_TOOLS (agentic in-call actions) - PARITY with the phone path.
+                # VOICE_TOOLS (agentic in-call actions) — PARITY with the phone path.
                 # Gated VOICE_TOOLS=1 (default OFF = skip entirely). When on, the brain
                 # may take an action (book/capture/transfer/end) instead of just
                 # talking; we speak the confirmation and end the turn. Uses the SAME
@@ -1481,7 +1476,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         voice_tools_enabled,
                     )
 
-                    # Sirf BOOKING-intent turns tool-path pe (real slot/persist) - baaki
+                    # Sirf BOOKING-intent turns tool-path pe (real slot/persist) — baaki
                     # sab normal instrumented + streamed reply pe (P1 answer-first intact).
                     if voice_tools_enabled() and _is_booking_intent(user_text):
                         _reg = build_registry_for(
@@ -1509,8 +1504,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 except Exception as e:
                     logger.debug(f"web-call: voice-tools path skip ({e}).")
 
-                # FILLER - sirf mic/audio turns pe; text test-call pe EdgeTTS filler
-                # 6s block karta hai -> WS tester timeout / dead air.
+                # FILLER — sirf mic/audio turns pe; text test-call pe EdgeTTS filler
+                # 6s block karta hai → WS tester timeout / dead air.
                 if data.get("audio_b64"):
                     try:
                         filler_audio = await _filler_b64()
@@ -1626,9 +1621,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     )
                     continue
 
-                # Never hang - customer ko hamesha kuch sunai de. (No "ji/sir"
-                # habit-address filler - 2026-07-17 owner live-call feedback.)
-                tc_reply = "Sun rahi hoon - thoda detail me bataye?"
+                # Never hang — customer ko hamesha kuch sunai de. (No "ji/sir"
+                # habit-address filler — 2026-07-17 owner live-call feedback.)
+                tc_reply = "Sun rahi hoon — thoda detail me bataye?"
                 _log_turn(
                     session,
                     "assistant",
@@ -1667,7 +1662,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 {
                     "type": "bot",
                     "text": bot_text,
-                    "audio_b64": audio_b64,  # may be None - browser will use its own TTS/none
+                    "audio_b64": audio_b64,  # may be None — browser will use its own TTS/none
                     "heard": user_text,
                     "test_mode": True,
                 }
@@ -1675,7 +1670,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error(f"web-call ws fatal (handled): {e}")
         try:
-            await websocket.send_json({"type": "error", "text": "Server error - session ended."})
+            await websocket.send_json({"type": "error", "text": "Server error — session ended."})
         except Exception:
             pass
     finally:
@@ -1693,7 +1688,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
 # Responder helpers
 # ---------------------------------------------------------------------------- #
 def _sniff_audio_format(audio: bytes) -> tuple[str, str]:
-    """Magic-bytes se (filename, mime) - MediaRecorder webm/opus default hai;
+    """Magic-bytes se (filename, mime) — MediaRecorder webm/opus default hai;
     Groq whisper extension/mime se format pehchanta hai."""
     if audio[:4] == b"\x1aE\xdf\xa3":
         return "audio.webm", "audio/webm"
@@ -1710,11 +1705,11 @@ def _sniff_audio_format(audio: bytes) -> tuple[str, str]:
 
 async def _local_whisper_transcribe(audio: bytes) -> str:
     """
-    FREE self-host local STT fallback (Sarvam-Saaras ka alternative) - gated by
+    FREE self-host local STT fallback (Sarvam-Saaras ka alternative) — gated by
     HINGLISH_STT=1. Jab cloud STT (Groq/Gemini) down/quota'd ho, browser-text pe
     girne se pehle local Hinglish-finetuned Whisper (ya whisper-base) try karta
-    hai -> web-call kabhi deaf nahi. Phone path ka WAHI cached model reuse karta
-    (vobiz_stream._get_stt) - koi extra memory nahi. Browser ka compressed audio
+    hai → web-call kabhi deaf nahi. Phone path ka WAHI cached model reuse karta
+    (vobiz_stream._get_stt) — koi extra memory nahi. Browser ka compressed audio
     (webm/ogg/wav) faster-whisper khud PyAV se decode+resample karta hai.
 
     Bounded + defensive: timeout / koi bhi error pe '' (caller fall-through).
@@ -1767,12 +1762,12 @@ async def _transcribe_audio(
 ) -> str:
     """
     Server-side STT. PRIMARY: free_ai Groq whisper-large-v3 (wahi chain jo
-    phone agent use karta hai - Hinglish-strong). Fallback: local Hinglish
+    phone agent use karta hai — Hinglish-strong). Fallback: local Hinglish
     whisper (HINGLISH_STT=1), phir pipeline transcribe method. '' return =
     caller browser-provided text use karega. Never raises.
 
     WEBCALL_STT_LOCAL_FIRST=1 (+ HINGLISH_STT=1) = local Hinglish model ko
-    PRIMARY banao (cloud skip jab tak local '' na de) - zero-cloud / verify mode.
+    PRIMARY banao (cloud skip jab tak local '' na de) — zero-cloud / verify mode.
     """
     import base64
 
@@ -1784,9 +1779,9 @@ async def _transcribe_audio(
         return ""
 
     # PRO STT = Sarvam Saaras v3 (India-native, Hinglish code-switching, 25k hrs Indian
-    # audio) - tried FIRST when STT_PROVIDER=sarvam + SARVAM_API_KEY. Real-call Hinglish
+    # audio) — tried FIRST when STT_PROVIDER=sarvam + SARVAM_API_KEY. Real-call Hinglish
     # accuracy >> Groq/Whisper (no Devanagari-garble, no CPU-whisper slowness). INERT
-    # without key (paid ~Rs2/min) -> falls through to the free Groq path below.
+    # without key (paid ~Rs2/min) → falls through to the free Groq path below.
     if (
         os.environ.get("STT_PROVIDER", "").strip().lower() == "sarvam"
         and os.environ.get("SARVAM_API_KEY", "").strip()
@@ -1803,9 +1798,9 @@ async def _transcribe_audio(
         except Exception as e:
             logger.debug(f"web-call: Sarvam STT skip ({e}).")
 
-    # SELF-HOSTED STT (AI4Bharat IndicConformer on your own GPU) - FREE, no per-min.
+    # SELF-HOSTED STT (AI4Bharat IndicConformer on your own GPU) — FREE, no per-min.
     # Tried when STT_PROVIDER=ai4bharat + AI4BHARAT_ENDPOINT (your voice_stack server).
-    # INERT without the endpoint -> free Groq path below. (voice_stack/README.md)
+    # INERT without the endpoint → free Groq path below. (voice_stack/README.md)
     if (
         os.environ.get("STT_PROVIDER", "").strip().lower() == "ai4bharat"
         and os.environ.get("AI4BHARAT_ENDPOINT", "").strip()
@@ -1825,7 +1820,7 @@ async def _transcribe_audio(
             logger.debug(f"web-call: AI4Bharat STT skip ({e}).")
 
     # 0) FORCE local Hinglish whisper FIRST (WEBCALL_STT_LOCAL_FIRST=1 + HINGLISH_STT=1)
-    # - zero-cloud / verification mode: har web-call baked Hinglish model use kare
+    # — zero-cloud / verification mode: har web-call baked Hinglish model use kare
     # (roman output + latency judge karne ke liye). Khali return = cloud pe gir jao.
     # Default OFF = cloud-primary (latency-safe) behaviour unchanged.
     if (os.environ.get("WEBCALL_STT_LOCAL_FIRST", "0") or "0").strip().lower() in (
@@ -1843,7 +1838,7 @@ async def _transcribe_audio(
         from app.voice_agent import free_ai  # type: ignore
 
         filename, mime = _sniff_audio_format(audio)
-        # STT bias (D-11) - phone path passes this; web path was missing it, so
+        # STT bias (D-11) — phone path passes this; web path was missing it, so
         # proper nouns + Hinglish register weren't biased. Parity fix.
         try:
             from app.voice_agent.niche_scripts import stt_keyterms
@@ -1862,7 +1857,7 @@ async def _transcribe_audio(
     except Exception as e:
         logger.debug(f"web-call: free_ai STT failed ({e}).")
 
-    # 1b) FREE self-host local Hinglish whisper (HINGLISH_STT=1) - cloud STT
+    # 1b) FREE self-host local Hinglish whisper (HINGLISH_STT=1) — cloud STT
     # down/quota'd hone par bhi web-call deaf na ho. Phone path ka same model.
     text = await _local_whisper_transcribe(audio)
     if text:
@@ -1877,7 +1872,7 @@ async def _transcribe_audio(
                     return (await _maybe_await(fn(audio))) or ""
                 except Exception:
                     pass
-    # No server-side STT available - caller falls back to the browser text.
+    # No server-side STT available — caller falls back to the browser text.
     return ""
 
 
@@ -1912,7 +1907,7 @@ async def _respond(pipeline, brain, history, session, user_text):
                 )
                 if text:
                     # COMPLIANCE PARITY (2026-07-05): LLMBrain fallback ko bhi
-                    # post-output safety+PII-redact se guzaaro (web↔vobiz parity -
+                    # post-output safety+PII-redact se guzaaro (web↔vobiz parity —
                     # pipeline/TelecallerBrain path already guarded). Never-raise.
                     safe = str(text)
                     try:
@@ -1923,16 +1918,16 @@ async def _respond(pipeline, brain, history, session, user_text):
                     except Exception:
                         pass
                     return safe, None
-                logger.warning("web-call llm responder returned empty text - falling back to echo.")
+                logger.warning("web-call llm responder returned empty text — falling back to echo.")
             except Exception as e:
                 logger.warning(
-                    f"web-call llm responder failed - falling back to echo: {type(e).__name__}: {e}"
+                    f"web-call llm responder failed — falling back to echo: {type(e).__name__}: {e}"
                 )
 
     # 3) Echo fallback (always works).
     return (
         f'[echo / test-mode] You said: "{user_text}". '
-        f"(No live LLM configured - this is a placeholder reply.)",
+        f"(No live LLM configured — this is a placeholder reply.)",
         None,
     )
 

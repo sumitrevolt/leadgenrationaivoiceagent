@@ -1,4 +1,4 @@
-"""Meme generator (Predis-style) - niche/topic -> desi business meme (SVG + caption).
+"""Meme generator (Predis-style) — niche/topic → desi business meme (SVG + caption).
 
 Memes = sabse shareable format, zero cost. Top-text/bottom-text classic format,
 free-LLM se relatable Hinglish meme text, template fallback. SVG self-contained.

@@ -1,6 +1,6 @@
 """Tests for scripts/workforce_staleness_watchdog.py alert/recovery logic.
 
-Hermetic: file mtimes are synthetic and ntfy is stubbed - no real daemon, no
+Hermetic: file mtimes are synthetic and ntfy is stubbed — no real daemon, no
 network, no real state. These tests pin the state machine: fresh status never
 alerts, stale status alerts exactly once (then keeps exit 1 without re-alert),
 recovery clears state and sends a recovery ping, and a missing status file is
@@ -45,7 +45,7 @@ class TestStalenessStateMachine:
         _touch(status, age_s=1200)
         assert wd.run_once([status], state, max_age_s=900, alert_sink=sink, now=NOW) == 1
         assert len(alerts) == 1 and "STALE" in alerts[0][0]
-        # Pass 2: still stale - exit stays 1, but NO second alert.
+        # Pass 2: still stale — exit stays 1, but NO second alert.
         assert wd.run_once([status], state, max_age_s=900, alert_sink=sink, now=NOW) == 1
         assert len(alerts) == 1
 
@@ -54,7 +54,7 @@ class TestStalenessStateMachine:
         _touch(status, age_s=1200)
         wd.run_once([status], state, max_age_s=900, alert_sink=sink, now=NOW)
         assert len(alerts) == 1
-        # Orchestrator resumed writing - fresh file now.
+        # Orchestrator resumed writing — fresh file now.
         _touch(status, age_s=20)
         assert wd.run_once([status], state, max_age_s=900, alert_sink=sink, now=NOW) == 0
         assert len(alerts) == 2 and alerts[1][0].startswith("✅")
@@ -71,7 +71,7 @@ class TestStalenessStateMachine:
         old = status
         new = status.parent / "data" / "workforce_live_status.json"
         _touch(old, age_s=5000)  # would be stale alone
-        _touch(new, age_s=30)  # fresh copy - newest wins
+        _touch(new, age_s=30)  # fresh copy — newest wins
         assert wd.run_once([old, new], state, max_age_s=900, alert_sink=sink, now=NOW) == 0
         assert alerts == []
 

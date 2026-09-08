@@ -1,5 +1,5 @@
 """
-Tool registry - the real one (VA-01 / VA-02 / PM-01).
+Tool registry — the real one (VA-01 / VA-02 / PM-01).
 
 The audit found that `dev_control/registry.py` is a *model/provider* catalog,
 not a *tool* catalog, and that `agent_permissions.can()` checks only the tool
@@ -107,8 +107,7 @@ class ToolRegistry:
 
     def permit(self, agent: str, profile: str, call: ToolCall) -> ToolSpec:
         """PM-01, fail-closed. Delegates to app.agents.agent_permissions when
-        importable
-        otherwise denies unknown tools and defers to profile list."""
+        importable; otherwise denies unknown tools and defers to profile list."""
         spec = self._tools.get(call.name)
         if spec is None:
             raise PermissionError_(f"deny: unknown tool {call.name!r}")

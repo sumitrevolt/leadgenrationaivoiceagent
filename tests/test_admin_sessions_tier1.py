@@ -1,9 +1,8 @@
-"""Tier-1 Slice C - regression tests for admin JWT session revocation.
+"""Tier-1 Slice C — regression tests for admin JWT session revocation.
 
 Covers single-token (jti) revocation, revoke-all-for-user via the iat<epoch epoch bump,
 the fail-closed (admin-tier) vs fail-open (lower-tier) Redis-failure policy, and iat
-normalization. Uses an in-memory fake async Redis
-no live Redis needed.
+normalization. Uses an in-memory fake async Redis; no live Redis needed.
 """
 
 import asyncio
@@ -97,7 +96,7 @@ def test_revoke_all_kills_old_tokens_but_not_new_logins(monkeypatch):
 def test_redis_down_fail_open_returns_false(monkeypatch):
     _down(monkeypatch)
     payload = {"jti": "j", "sub": "u", "iat": int(time.time())}
-    # lower-tier / default -> fail-open (availability): not treated as revoked
+    # lower-tier / default → fail-open (availability): not treated as revoked
     assert asyncio.run(sess.is_revoked(payload, fail_closed=False)) is False
 
 

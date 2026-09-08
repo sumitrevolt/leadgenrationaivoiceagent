@@ -1,9 +1,9 @@
 """Dependency-free Prometheus HTTP metrics (OBS-001 council fix 2026-06-26).
 
 The /metrics endpoint historically emitted only custom ``leadgen_*`` gauges, so
-the two most important SLO alerts in monitoring/alert_rules.yml -
+the two most important SLO alerts in monitoring/alert_rules.yml —
 ``HighHttp5xxRate`` (needs ``http_requests_total{status=~"5.."}``) and
-``HighRequestLatencyP95`` (needs ``http_request_duration_seconds_bucket{le}``) -
+``HighRequestLatencyP95`` (needs ``http_request_duration_seconds_bucket{le}``) —
 referenced metrics that were never produced and could therefore never fire.
 
 This module records those two series in-process with ZERO new dependencies
@@ -12,13 +12,13 @@ exposition in app/api/health.py. The exposition is read by
 ``render_http_metrics()`` and appended to the /metrics response.
 
 Design constraints honoured for this project:
-- Pure-ASGI middleware (not BaseHTTPMiddleware) -> WebSocket/streaming voice paths
+- Pure-ASGI middleware (not BaseHTTPMiddleware) → WebSocket/streaming voice paths
   pass straight through, never wrapped.
-- asyncio is single-threaded per worker -> plain dict increments are safe (no lock,
+- asyncio is single-threaded per worker → plain dict increments are safe (no lock,
   no ``await`` between read-modify-write).
 - Fail-open everywhere: a recording error never affects the response.
 - Flag-gated: active when ``PROMETHEUS_HTTP_METRICS`` is truthy, OR by default in
-  production (SLO alerts need these series - 2026-08-01 enterprise audit fix).
+  production (SLO alerts need these series — 2026-08-01 enterprise audit fix).
   Explicit ``PROMETHEUS_HTTP_METRICS=0|false|off`` still turns it off anywhere.
 - Bounded cardinality: labels are ``method`` + ``status`` only (no raw path), and
   the latency histogram is global (``le`` only). ~tens of series, never unbounded.
@@ -68,7 +68,7 @@ def enabled() -> bool:
         return True
     if raw in ("0", "false", "off", "no"):
         return False
-    # Unset -> default-on in production so SLO alerts (HighHttp5xxRate /
+    # Unset → default-on in production so SLO alerts (HighHttp5xxRate /
     # HighRequestLatencyP95) can actually fire; additive elsewhere (dev keeps
     # the metric surface unchanged unless explicitly enabled).
     return _is_prod()

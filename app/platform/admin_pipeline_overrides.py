@@ -1,17 +1,17 @@
-"""admin_pipeline_overrides.py - real, persisted admin annotations on a pipeline
+"""admin_pipeline_overrides.py — real, persisted admin annotations on a pipeline
 item (owner/next-action/stuck-resolved/status) WITHOUT a schema/migration
 change.
 
 Same sidecar pattern as approvals_bridge.py / app.platform.lead_overrides
 (append-only jsonl, collapse-to-latest, field-level merge so a later partial
-update never erases an earlier one). Admin-scoped (no client_id - this is the
+update never erases an earlier one). Admin-scoped (no client_id — this is the
 internal admin cockpit, not the customer-facing Kanban in
 app.platform.lead_overrides, which stays untouched).
 
 For a DEAL-type item, "move to next stage" is delegated to the REAL existing
-`app.marketing.sales_pipeline.set_stage()` - never duplicated here. This
+`app.marketing.sales_pipeline.set_stage()` — never duplicated here. This
 module only covers the 3 things that have no other backing store: owner
-assignment, a next-action note, and stuck-resolved acknowledgement - plus a
+assignment, a next-action note, and stuck-resolved acknowledgement — plus a
 lead's status override (LeadStatus-bounded), since no admin Lead-mutation
 endpoint exists in this codebase (verified) and adding one would mean writing
 to the same `leads` table the live telephony/voice pipeline writes to.
@@ -63,7 +63,7 @@ def _append(rec: dict[str, Any]) -> None:
 
 def read_all_overrides() -> dict[str, dict[str, Any]]:
     """item_id -> merged override (later non-None fields win over earlier ones).
-    One file read - office_hq calls this ONCE per snapshot, not per item."""
+    One file read — office_hq calls this ONCE per snapshot, not per item."""
     out: dict[str, dict[str, Any]] = {}
     for r in _read_jsonl(_STORE):
         iid = str(r.get("item_id") or "")
@@ -117,7 +117,7 @@ def mark_stuck_resolved(item_id: str, by: str = "admin") -> dict[str, Any]:
 
 
 # LeadStatus values (kept as a plain tuple, not an import of the ORM enum, so
-# this module has zero DB coupling - office_hq validates against the real
+# this module has zero DB coupling — office_hq validates against the real
 # enum before calling into the DB layer; this list is just for admin API
 # input validation at the router edge).
 LEAD_STATUS_VALUES = (

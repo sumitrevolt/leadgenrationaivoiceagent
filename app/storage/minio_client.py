@@ -1,11 +1,11 @@
-"""minio_client.py - S3-compatible object storage via MinIO (deploy/compose/docker-compose.addons.yml).
+"""minio_client.py — S3-compatible object storage via MinIO (deploy/compose/docker-compose.addons.yml).
 
 Gap filled: app/marketing/ai_image.py currently saves AI-generated images to
 `data/ai_images/` bind-mount (flat files, no S3 API, no presigned URLs, no CDN
 pipeline, no lifecycle cleanup). This module provides a drop-in storage layer
 with automatic fallback to local disk when MinIO is not configured.
 
-ENV (all optional - unset = local disk fallback):
+ENV (all optional — unset = local disk fallback):
   MINIO_URL=http://minio:9000          (in-network from deploy/compose/docker-compose.addons.yml)
   MINIO_ROOT_USER=minioadmin
   MINIO_ROOT_PASSWORD=changeme_minio_secret
@@ -18,8 +18,8 @@ Migration for ai_image.py:
   Use:        await get_storage().put("ai_images/" + filename, data, content_type="image/png")
               url = get_storage().public_url("ai_images/" + filename)
 
-FAIL-OPEN: any MinIO error -> falls back to local disk. Never raises.
-Import-safe: boto3/aioboto3 missing -> local-only mode (no container change needed).
+FAIL-OPEN: any MinIO error → falls back to local disk. Never raises.
+Import-safe: boto3/aioboto3 missing → local-only mode (no container change needed).
 """
 
 from __future__ import annotations

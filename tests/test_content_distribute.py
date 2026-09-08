@@ -1,4 +1,4 @@
-"""Tests - content_distribute (IndexNow SEO ping wrappers).
+"""Tests — content_distribute (IndexNow SEO ping wrappers).
 Project convention: sync + asyncio.run, monkeypatch deps, NO DB/network/LLM.
 indexnow.submit_urls is monkeypatched (pure-python).
 """

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""buzz_mcp.py - stdio MCP server: Buzz workspace access for opencode (and any MCP client).
+"""buzz_mcp.py — stdio MCP server: Buzz workspace access for opencode (and any MCP client).
 
 Exposes a small, read-mostly surface on the Buzz coordination plane (owner
-policy 2026-08-10: Buzz = interface, never a control plane
-production commands
+policy 2026-08-10: Buzz = interface, never a control plane; production commands
 route through Owner OS/OpenClaw -> 31 runtime STAFF only):
 
     buzz_channels   : list known channels (name -> id) from ~/.buzz/GUIDES/CHANNEL_IDS.json
@@ -14,7 +13,7 @@ No VPS SSH, no deploy, no DB writes. Tools fail with a clear message instead of
 crashing when buzz.exe / owner credential / channel map are missing (dev boxes
 without the Buzz toolchain keep working).
 
-Stdlib only - no new dependency (supply-chain discipline). Protocol: MCP over
+Stdlib only — no new dependency (supply-chain discipline). Protocol: MCP over
 stdio (JSON-RPC 2.0, line-delimited).
 """
 
@@ -96,17 +95,17 @@ def tool_channels(args: dict) -> dict:
 
 def tool_lock_status(args: dict) -> dict:
     if not LOCKS.exists():
-        return {"text": "no LOCKS.json - the tree is free"}
+        return {"text": "no LOCKS.json — the tree is free"}
     try:
         data = json.loads(LOCKS.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         return {"text": f"LOCKS.json unreadable: {exc}"}
     locks = data.get("locks") or []
     if not locks:
-        return {"text": "no active claims - the tree is free"}
+        return {"text": "no active claims — the tree is free"}
     return {
         "text": "\n".join(
-            f"  [{lk.get('tool')}] {lk.get('path')} - {lk.get('reason') or 'no reason'}"
+            f"  [{lk.get('tool')}] {lk.get('path')} — {lk.get('reason') or 'no reason'}"
             for lk in locks
         )
     }
@@ -115,7 +114,7 @@ def tool_lock_status(args: dict) -> dict:
 def tool_send(args: dict) -> dict:
     exe = _buzz_exe()
     if not exe:
-        return {"text": "buzz.exe missing (LOCALAPPDATA\\Buzz\\buzz.exe) - install Buzz Desktop"}
+        return {"text": "buzz.exe missing (LOCALAPPDATA\\Buzz\\buzz.exe) — install Buzz Desktop"}
     nsec = _owner_nsec()
     if not nsec:
         return {
@@ -132,8 +131,7 @@ def tool_send(args: dict) -> dict:
     if channel not in cmap and not (
         len(channel) >= 8 and all(c in "0123456789abcdef" for c in channel.lower())
     ):
-        return {"text": f"unknown channel {channel!r} "
-        f"known: {', '.join(sorted(cmap))}"}
+        return {"text": f"unknown channel {channel!r}; known: {', '.join(sorted(cmap))}"}
     if len(content) > 4000:
         content = content[:4000] + " ...[truncated]"
     try:

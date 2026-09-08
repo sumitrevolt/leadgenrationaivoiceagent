@@ -2,7 +2,7 @@
 
 CI intermittently SIGSEGVs during cyclic GC (exit 139, ~7% of full-suite
 runs, 2026-07-28 measured baseline). The crash is *not* a logic failure of
-the scanner - it is a CPython + native-extension interaction that has hit
+the scanner — it is a CPython + native-extension interaction that has hit
 ``scan_repo``, ``markitdown``, and ``team.log_event`` frames interchangeably.
 
 Wrapping the walk in ``gc.freeze()`` cut exposure around the fixture but

@@ -1,19 +1,19 @@
-"""Agent consensus - Ruflo N-voter quorum decision (free-stack).
+"""Agent consensus — Ruflo N-voter quorum decision (free-stack).
 
 LLM Council ke existing pro/con debate se ALAG: yahan `voters` independent free-LLM
 "voter" calls chalte hain, har ek ko ek persona + alag temperature diya jata hai
 (taaki opinions sach me diverge karein), har voter EK option pick karta, votes tally
-hote hain -> winner + confidence + quorum check.
+hote hain → winner + confidence + quorum check.
 
 Quorum rule: winner ke paas > voters/2 votes hone chahiye, warna no_quorum (koi
-clear majority nahi). Ek voter ka LLM fail ho jaye -> woh voter ABSTAIN (kabhi crash
+clear majority nahi). Ek voter ka LLM fail ho jaye → woh voter ABSTAIN (kabhi crash
 nahi).
 
 Design (project patterns):
-  - `enabled()` sirf is feature ka auto-use gate karta - `vote()` khud hamesha
+  - `enabled()` sirf is feature ka auto-use gate karta — `vote()` khud hamesha
     safe-callable (admin endpoint + tests ke liye).
   - free_ai lazy import + per-call asyncio.wait_for timeout 40s.
-  - Kabhi raise nahi karta - har failure path graceful dict/abstain.
+  - Kabhi raise nahi karta — har failure path graceful dict/abstain.
 
 Flag: AGENT_CONSENSUS=1
 """
@@ -31,7 +31,7 @@ logger = setup_logger(__name__)
 _VOTER_TIMEOUT_S = 40.0
 _MAX_VOTERS = 9
 
-# Per-voter persona + temperature - diversity ke liye index pe rotate hota.
+# Per-voter persona + temperature — diversity ke liye index pe rotate hota.
 _VOTER_PERSONAS: list[tuple[str, float]] = [
     ("Tum ek cautious, risk-averse analyst ho.", 0.2),
     ("Tum ek bold, growth-first operator ho.", 0.8),
@@ -79,7 +79,7 @@ def _map_to_option(raw: str, options: list[str]) -> str | None:
 
 
 async def _one_vote(question: str, options: list[str], index: int) -> dict[str, Any]:
-    """Ek voter ka call - persona + temperature index pe. Fail = abstain (no crash)."""
+    """Ek voter ka call — persona + temperature index pe. Fail = abstain (no crash)."""
     persona, temp = _VOTER_PERSONAS[index % len(_VOTER_PERSONAS)]
     opts_block = "\n".join(f"- {o}" for o in options)
     system = persona + " Tumhe ek decision lena hai. SIRF di gayi options me se EXACTLY EK chuno."
@@ -127,7 +127,7 @@ async def vote(question: str, options: list[str], voters: int = 3) -> dict:
     Returns:
       {winner, tally:{option:count}, confidence, rationale_samples:[...]}  ya
       {winner:None, reason:"no_quorum", tally}  jab clear majority na ho.
-      options < 2 -> {ok:False, error:...}.
+      options < 2 → {ok:False, error:...}.
     """
     q = (question or "").strip()
     opts = [str(o).strip() for o in (options or []) if str(o).strip()]

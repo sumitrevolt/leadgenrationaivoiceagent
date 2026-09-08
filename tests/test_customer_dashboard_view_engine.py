@@ -2,12 +2,12 @@
 
 2026-07-07 regression: nav links + CSS were migrated to the
 home/setup/calendar/leads/reports/billing view taxonomy, par showView()/
-viewForHash() purane [home,leads,content,account] whitelist pe reh gaye -
+viewForHash() purane [home,leads,content,account] whitelist pe reh gaye —
 Setup/Calendar/Reports/Billing nav clicks 'home' pe collapse ho jaate the aur
 un views ke cards CSS se permanently hidden rehte the (paid customer Billing
 tak nahi pahunch sakta tha). Yeh tests EK hi template ki teeno layers (nav
 data-nav, CSS [data-active-view] rules, JS whitelists) ko aapas me consistent
-assert karte hain, taaki future taxonomy-drift CI me faile - silently ship na ho.
+assert karte hain, taaki future taxonomy-drift CI me faile — silently ship na ho.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def _viewforhash_map(html: str) -> dict[str, str]:
 
 
 def test_every_card_view_is_reachable_via_showview():
-    """Har data-view card ka view showView() whitelist me hona chahiye -
+    """Har data-view card ka view showView() whitelist me hona chahiye —
     warna woh view select hi nahi ho sakta aur uske cards hamesha hidden."""
     html = _html()
     whitelist = _showview_whitelist(html)
@@ -52,7 +52,7 @@ def test_every_card_view_is_reachable_via_showview():
     missing = card_views - whitelist
     assert not missing, (
         f"data-view views {sorted(missing)} showView() whitelist {sorted(whitelist)} "
-        "me nahi - in views ke cards kabhi visible nahi honge (2026-07-07 bug class)"
+        "me nahi — in views ke cards kabhi visible nahi honge (2026-07-07 bug class)"
     )
 
 
@@ -62,13 +62,13 @@ def test_every_nav_link_view_is_reachable():
     nav_views = set(re.findall(r'data-nav="([a-z]+)"', html))
     missing = nav_views - whitelist
     assert not missing, (
-        f"nav data-nav views {sorted(missing)} showView() whitelist me nahi - "
+        f"nav data-nav views {sorted(missing)} showView() whitelist me nahi — "
         "in nav links ka click 'home' pe collapse ho jayega"
     )
 
 
 def test_css_view_engine_matches_js_whitelist_exactly():
-    """CSS [data-active-view=X] hide-rules aur JS whitelist EXACT same set ho -
+    """CSS [data-active-view=X] hide-rules aur JS whitelist EXACT same set ho —
     JS me extra view (bina CSS rule) = us view pe SAB cards ek saath dikhte;
     CSS me extra view (JS me nahi) = woh view kabhi activate nahi hota."""
     html = _html()
@@ -98,7 +98,7 @@ def test_viewforhash_map_targets_valid_views_and_real_ids():
 
 
 def test_mapped_card_view_matches_cards_actual_data_view():
-    """viewForHash map jo view bolta hai, card ka data-view wahi ho - warna
+    """viewForHash map jo view bolta hai, card ka data-view wahi ho — warna
     scrollToId sahi view khol ke galat card dhoondega (hidden card pe scroll)."""
     html = _html()
     mapping = _viewforhash_map(html)
@@ -111,9 +111,9 @@ def test_mapped_card_view_matches_cards_actual_data_view():
         )
         if not m:
             # kuch ids (jaise nested cards) ke wrapper pe data-view parent div me hota
-            # hai - unke liye sirf id-existence kaafi hai (upar wale test me covered)
+            # hai — unke liye sirf id-existence kaafi hai (upar wale test me covered)
             continue
         assert m.group(1) == view, (
             f"card '{key}' ka data-view='{m.group(1)}' hai par viewForHash use "
-            f"'{view}' view me bhejta hai - click par card hidden reh jayega"
+            f"'{view}' view me bhejta hai — click par card hidden reh jayega"
         )

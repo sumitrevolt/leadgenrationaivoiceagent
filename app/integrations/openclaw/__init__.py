@@ -1,7 +1,7 @@
-"""OpenClaw Owner Copilot - optional edge layer over Owner OS.
+"""OpenClaw Owner Copilot — optional edge layer over Owner OS.
 
 Hierarchy (non-negotiable):
-  Admin -> OpenClaw Copilot -> Owner OS -> Boss/Manager -> 31 agents -> Celery
+  Admin → OpenClaw Copilot → Owner OS → Boss/Manager → 31 agents → Celery
 
 This package must NEVER:
 - bypass Owner OS authorization

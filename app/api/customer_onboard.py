@@ -1,4 +1,4 @@
-"""customer_onboard.py - single-call admin onboarding (profile + login).
+"""customer_onboard.py — single-call admin onboarding (profile + login).
 
 Until now, adding a new paying customer required the operator to:
   1. POST /api/clients                   to create the marketing profile
@@ -6,11 +6,10 @@ Until now, adding a new paying customer required the operator to:
   3. (optional) Manually enroll a plan / subscription
   4. (optional) Email the customer their login details
 
-That's friction at the moment that matters most - the first paying customer.
+That's friction at the moment that matters most — the first paying customer.
 This module is the single admin endpoint that does the first three steps
 atomically and returns a ready-to-share dashboard URL + plaintext password
-(shown ONCE
-same pattern as MCP-key / webhook-secret issuance).
+(shown ONCE; same pattern as MCP-key / webhook-secret issuance).
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ class OnboardIn(BaseModel):
     city: str = Field("", max_length=80)
     phone: str = Field(..., min_length=8, max_length=20)
     email: EmailStr | None = None
-    # Resolved plan id - product ke hisab se (marketing: trial/starter/growth/advanced,
+    # Resolved plan id — product ke hisab se (marketing: trial/starter/growth/advanced,
     # voice: voice_pilot/voice_a_monthly..., combo: combo_pilot/combo_growth_monthly...).
     plan: str = Field("", max_length=40)
     # If unset, server generates a random 14-char password and returns it ONCE.
@@ -52,7 +51,7 @@ class OnboardIn(BaseModel):
 
 
 def _gen_password() -> str:
-    """14-char password from secrets - strong default + human-typable."""
+    """14-char password from secrets — strong default + human-typable."""
     rng = secrets.SystemRandom()
     return "".join(rng.choice(_ALPHABET) for _ in range(14))
 
@@ -66,7 +65,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
         "client_id":            "...",     # The customer's stable ID
         "business_name":        "...",
         "login_email":          "...",
-        "password":             "...",     # PLAINTEXT - shown only on this call
+        "password":             "...",     # PLAINTEXT — shown only on this call
         "password_generated":   bool,      # True if server generated it
         "customer_dashboard":   "/app/customer?client_id=...",
         "magic_link_hint":      "...",     # short note if magic-link is on
@@ -147,13 +146,13 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
             login_email = str(body.email).strip().lower()
             customer_auth.register_login(login_email, password, client_id)
         except Exception as e:
-            # Profile already saved - log the partial state and surface in response
+            # Profile already saved — log the partial state and surface in response
             raise HTTPException(
                 status_code=500,
                 detail=f"profile created but login wire failed: {e}",
             )
 
-    # 2.5) DAY-1 VALUE - enqueue the done-for-you auto-onboard (website->KB seed +
+    # 2.5) DAY-1 VALUE — enqueue the done-for-you auto-onboard (website→KB seed +
     #      first content pack + customer-visible content QUEUE + niche snapshot) to
     #      the WORKER so the customer's portal has real content from minute one,
     #      not an empty shell until the next-day sweep. send_welcome=True (this admin
@@ -188,7 +187,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
 
     customer_dashboard = f"/app/customer?client_id={client_id}"
     magic_link_hint = (
-        "MAGIC_LINK=1 set - customer can ALSO use /app/login passwordless"
+        "MAGIC_LINK=1 set — customer can ALSO use /app/login passwordless"
         if (__import__("os").environ.get("MAGIC_LINK", "0").strip().lower() in ("1", "true", "yes"))
         else ""
     )
@@ -197,7 +196,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
         "client_id": client_id,
         "business_name": body.business_name.strip(),
         "login_email": login_email,
-        "password": password,  # plaintext - shown only this once
+        "password": password,  # plaintext — shown only this once
         "password_generated": password_generated,
         "product": product,
         "plan": plan,

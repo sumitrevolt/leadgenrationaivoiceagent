@@ -1,4 +1,4 @@
-"""Contract tests - Goal Hierarchy (Paperclip ADOPT #1).
+"""Contract tests — Goal Hierarchy (Paperclip ADOPT #1).
 
 Covers: module CRUD + status lifecycle + parent linkage + task linking +
 reverse lookup, and the /api/goals admin-gated router surface.
@@ -6,7 +6,7 @@ reverse lookup, and the /api/goals admin-gated router surface.
 DB pattern (repo standard): tmp sqlite engine + monkeypatched
 ``app.models.base.get_db_session`` (same as tests/test_memory_dispatch_idempotency.py).
 Sync tests run async module fns via ``asyncio.run`` (tests/test_2026_features.py
-convention) - no pytest-asyncio dependency.
+convention) — no pytest-asyncio dependency.
 """
 
 import asyncio
@@ -59,7 +59,7 @@ def test_create_goal_roundtrip(wired):
         goals_mod.create_goal(
             "Onboard 2 naye paid customers",
             level="company",
-            description="GTM 0->1 - jiya makeover ke baad 2 aur",
+            description="GTM 0→1 — jiya makeover ke baad 2 aur",
             target_metric="2 customers/quarter",
         )
     )
@@ -187,7 +187,7 @@ def test_model_to_dict_linked_json(wired):
 
 def test_router_mounted_admin_gated(wired):
     """/api/goals CRUD surface works via TestClient (conftest globally mocks
-    require_admin -> authenticated admin)."""
+    require_admin → authenticated admin)."""
     from fastapi.testclient import TestClient
 
     from app.main import app
@@ -211,7 +211,7 @@ def test_router_mounted_admin_gated(wired):
         r = c.patch(f"/api/goals/{gid}", json={"status": "active"})
         assert r.status_code == 200 and r.json()["status"] == "active"
 
-        # invalid status -> 400
+        # invalid status → 400
         r = c.patch(f"/api/goals/{gid}", json={"status": "warp"})
         assert r.status_code == 400
 
@@ -220,7 +220,7 @@ def test_router_mounted_admin_gated(wired):
         assert r.status_code == 200
         assert r.json()["ok"] is True
 
-        # unknown goal -> 404
+        # unknown goal → 404
         r = c.get("/api/goals/nope")
         assert r.status_code == 404
 

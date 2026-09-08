@@ -1,21 +1,21 @@
 """
-Swara Voice Configuration - SINGLE SOURCE OF TRUTH for all voice identity.
+Swara Voice Configuration — SINGLE SOURCE OF TRUTH for all voice identity.
 
-Rule 1: One Swara Voice, Everywhere - exactly ONE canonical production identity.
-Rule 20: Single voice configuration pattern - no duplicate hidden config scattered across services.
+Rule 1: One Swara Voice, Everywhere — exactly ONE canonical production identity.
+Rule 20: Single voice configuration pattern — no duplicate hidden config scattered across services.
 
 Environment variables (all optional, with safe defaults):
-    SWARA_VOICE_PROVIDER      - "openai" | "gemini" | "edge" (default: "openai")
-    SWARA_VOICE_ID            - Canonical voice ID (default: "alloy" for OpenAI, "Leda" for Gemini, "hi-IN-SwaraNeural" for EdgeTTS)
-    OPENCLAW_OWNER_VOICE_ID   - Owner-facing voice (defaults to SWARA_VOICE_ID)
-    SWARA_CUSTOMER_VOICE_ID   - Customer-facing voice (defaults to SWARA_VOICE_ID)
-    SWARA_VOICE_MODEL         - TTS model (provider-specific)
-    VOICE_LEARNING_ENABLED    - Enable voice learning pipeline (default: "1")
-    VOICE_LEARNING_AUTO_COLLECT - Auto-collect learning events (default: "1")
-    VOICE_LEARNING_AUTO_PROMOTE - Auto-promote candidates (default: "0" - MUST be 0 per Rule 9)
-    VOICE_EVAL_ENABLED        - Enable evaluation framework (default: "1")
-    PRONUNCIATION_MEMORY_ENABLED - Enable pronunciation dictionary (default: "1")
-    HINGLISH_ADAPTATION_ENABLED - Enable Hinglish adaptation (default: "1")
+    SWARA_VOICE_PROVIDER      — "openai" | "gemini" | "edge" (default: "openai")
+    SWARA_VOICE_ID            — Canonical voice ID (default: "alloy" for OpenAI, "Leda" for Gemini, "hi-IN-SwaraNeural" for EdgeTTS)
+    OPENCLAW_OWNER_VOICE_ID   — Owner-facing voice (defaults to SWARA_VOICE_ID)
+    SWARA_CUSTOMER_VOICE_ID   — Customer-facing voice (defaults to SWARA_VOICE_ID)
+    SWARA_VOICE_MODEL         — TTS model (provider-specific)
+    VOICE_LEARNING_ENABLED    — Enable voice learning pipeline (default: "1")
+    VOICE_LEARNING_AUTO_COLLECT — Auto-collect learning events (default: "1")
+    VOICE_LEARNING_AUTO_PROMOTE — Auto-promote candidates (default: "0" — MUST be 0 per Rule 9)
+    VOICE_EVAL_ENABLED        — Enable evaluation framework (default: "1")
+    PRONUNCIATION_MEMORY_ENABLED — Enable pronunciation dictionary (default: "1")
+    HINGLISH_ADAPTATION_ENABLED — Enable Hinglish adaptation (default: "1")
 
 Version: swara_voice_profile_v1
 """
@@ -36,7 +36,7 @@ VoiceProvider = Literal["openai", "gemini", "edge"]
 
 @dataclass(frozen=True)
 class SwaraVoiceProfile:
-    """Immutable canonical Swara voice profile - single source of truth."""
+    """Immutable canonical Swara voice profile — single source of truth."""
     provider: VoiceProvider
     voice_id: str
     model: str | None = None
@@ -180,7 +180,7 @@ def voice_learning_auto_collect() -> bool:
 
 
 def voice_learning_auto_promote() -> bool:
-    """Rule 9: Auto-promote to production (FORBIDDEN - default 0, must stay 0)."""
+    """Rule 9: Auto-promote to production (FORBIDDEN — default 0, must stay 0)."""
     return (os.getenv("VOICE_LEARNING_AUTO_PROMOTE", "0") or "0").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -195,7 +195,7 @@ def pronunciation_memory_enabled() -> bool:
 
 
 def hinglish_adaptation_enabled() -> bool:
-    """Rule 5: English -> Hinglish adaptation enabled."""
+    """Rule 5: English → Hinglish adaptation enabled."""
     return (os.getenv("HINGLISH_ADAPTATION_ENABLED", "1") or "1").strip().lower() not in ("0", "false", "no", "off")
 
 

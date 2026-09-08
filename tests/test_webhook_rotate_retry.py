@@ -1,7 +1,6 @@
-"""K.2 + K.3 - webhook rotate_secret + retry_delivery.
+"""K.2 + K.3 — webhook rotate_secret + retry_delivery.
 
-Operationally critical: rotation must NOT lose subscriptions
-retry must NOT
+Operationally critical: rotation must NOT lose subscriptions; retry must NOT
 succeed if the underlying delivery already succeeded (idempotency).
 """
 
@@ -46,7 +45,7 @@ def test_rotate_secret_preserves_subscription_id_and_events() -> None:
 
 
 def test_rotate_secret_refuses_other_client() -> None:
-    """Cross-tenant IDOR check - rotating another customer's secret MUST fail."""
+    """Cross-tenant IDOR check — rotating another customer's secret MUST fail."""
     reg = cw.register("client_a", "https://example.com/h", ["lead.qualified"])
     out = cw.rotate_secret(reg["id"], "client_b")
     assert out["ok"] is False
@@ -157,7 +156,7 @@ async def test_retry_cross_tenant_rejected() -> None:
 # --------------------------------------------------------------------------- #
 async def test_delivery_blocked_when_url_becomes_unsafe(monkeypatch: pytest.MonkeyPatch) -> None:
     """Even with a delivery row already queued, a URL that now resolves to a
-    private/internal address must be refused - httpx must never be called."""
+    private/internal address must be refused — httpx must never be called."""
     monkeypatch.setenv("CUSTOMER_WEBHOOK_DENY_PRIVATE", "1")  # override the fixture's "0"
 
     called = {"post": False}

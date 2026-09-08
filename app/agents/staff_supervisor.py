@@ -2,14 +2,13 @@
 
 Builds one hierarchical supervisor over the whole company STAFF roster
 (``app/platform/team.py``) so the platform can coordinate MANY agents through a
-single graph - the LangChain-official *supervisor* pattern (production-proven at
+single graph — the LangChain-official *supervisor* pattern (production-proven at
 Uber/Klarna/LinkedIn). It reads ``STAFF`` dynamically, so adding a new staff
-member automatically adds an agent - no rewiring.
+member automatically adds an agent — no rewiring.
 
 Why additive + opt-in: the existing rule-based ``app/agents/supervisor.py`` and the
 scheduled ``team_scheduler`` keep running unchanged. This module is NOT imported by
-the app at startup
-nothing happens until you enable it. Every path is defensive -
+the app at startup; nothing happens until you enable it. Every path is defensive —
 missing package / LLM key / any error returns a graceful dict, never raises.
 
 Enable:
@@ -91,8 +90,7 @@ class StaffSupervisor:
                 prompt = (
                     f"You are {name}, the {role} at LeadGen AI (AI marketing + AI voice agent "
                     f"for Indian small businesses). Your duties: {duties}. Only handle tasks that "
-                    f"fit your role
-                    otherwise say so briefly. Reply concisely in Hinglish (Roman script)."
+                    f"fit your role; otherwise say so briefly. Reply concisely in Hinglish (Roman script)."
                 )
                 agents.append(create_react_agent(model=model, tools=[], name=key, prompt=prompt))
 
@@ -121,7 +119,7 @@ class StaffSupervisor:
             return {
                 "ok": False,
                 "task": task,
-                "reason": "supervisor unavailable - pip install langgraph-supervisor langchain-openai, "
+                "reason": "supervisor unavailable — pip install langgraph-supervisor langchain-openai, "
                 "set USE_LANGGRAPH_SUPERVISOR=1 and a provider key (CEREBRAS_API_KEY/GROQ_API_KEY)",
             }
         try:
@@ -135,7 +133,7 @@ class StaffSupervisor:
                     final = last.get("content", "")
             # Harness supervisor-family shadow (record-only; INERT unless flags +
             # the routed agent is in canary agents + supervisor loop allowlisted).
-            # delegated agent is derived from the graph's own message metadata -
+            # delegated agent is derived from the graph's own message metadata —
             # never guessed from prose. NEVER re-runs the graph; never raises.
             try:
                 from app.agents.harness.adapters import observe_supervisor_action

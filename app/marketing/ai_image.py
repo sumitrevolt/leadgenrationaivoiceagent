@@ -1,16 +1,14 @@
-"""AI image/video generation - Pollinations NEW API (gen.pollinations.ai).
+"""AI image/video generation — Pollinations NEW API (gen.pollinations.ai).
 
-API migrate (2026-06): old image.pollinations.ai -> `https://gen.pollinations.ai/image/{prompt}`.
-Key enter.pollinations.ai se (env `POLLINATIONS_API_KEY`
-legacy `POLLINATIONS_TOKEN` fallback).
+API migrate (2026-06): old image.pollinations.ai → `https://gen.pollinations.ai/image/{prompt}`.
+Key enter.pollinations.ai se (env `POLLINATIONS_API_KEY`; legacy `POLLINATIONS_TOKEN` fallback).
 
 KEY SAFETY (important):
-- `pk_` (publishable) = client-safe by design -> direct URL me `?key=` embed OK.
-- `sk_` (secret) = KABHI client URL me nahi -> marketing_image() proxy URL deta hai
+- `pk_` (publishable) = client-safe by design → direct URL me `?key=` embed OK.
+- `sk_` (secret) = KABHI client URL me nahi → marketing_image() proxy URL deta hai
   (`/api/marketing/ai-image-proxy`), server Authorization header se fetch + disk-cache
-  (data/ai_images/) karta - repeat loads pollen nahi jalate.
-- Koi key nahi -> direct URL (upstream 402 dega
-frontend __imgErr graceful msg pehle se).
+  (data/ai_images/) karta — repeat loads pollen nahi jalate.
+- Koi key nahi → direct URL (upstream 402 dega; frontend __imgErr graceful msg pehle se).
 
 Use:
   from app.marketing.ai_image import image_url, marketing_image, video_url
@@ -62,7 +60,7 @@ def image_url(
 
 
 def video_url(prompt: str, model: str = "wan-fast", duration: int = 4) -> str:
-    """Direct AI-video (MP4) URL - naya capability. Same key-safety rule. Never raises."""
+    """Direct AI-video (MP4) URL — naya capability. Same key-safety rule. Never raises."""
     try:
         p = urllib.parse.quote((prompt or "product showcase").strip()[:400], safe="")
         q = f"model={model}&duration={max(2, min(int(duration), 10))}"
@@ -107,13 +105,13 @@ async def fetch_image_bytes(
     if not key:
         return None
     # Circuit breaker (gated CIRCUIT_BREAKER=1, default OFF = pass-through): Pollinations
-    # down ho to har call 45s timeout wait na kare - OPEN pe turant None (caller SVG
+    # down ho to har call 45s timeout wait na kare — OPEN pe turant None (caller SVG
     # fallback leta). docs/GAP_ANALYSIS_SaaS_Infra_Upgrade_2026.md §3.3. Never-raise.
     from app.infrastructure.circuit_breaker import get_breaker
 
     _br = get_breaker("pollinations_image", fail_threshold=4, reset_after_s=60.0)
     if not _br.allow():
-        logger.info("pollinations breaker OPEN - fast fallback (skipping fetch)")
+        logger.info("pollinations breaker OPEN — fast fallback (skipping fetch)")
         return None
     try:
         import httpx
@@ -150,7 +148,7 @@ async def fetch_image_bytes(
 
 
 def _record_ih_failure(note: str) -> None:
-    """Mirror breaker failures onto the integrations dashboard - "pollinations"
+    """Mirror breaker failures onto the integrations dashboard — "pollinations"
     was in integration_health.KNOWN but never instrumented (audit 2026-07-04).
     Never raises."""
     try:
@@ -162,7 +160,7 @@ def _record_ih_failure(note: str) -> None:
 
 
 async def upload_media(data: bytes, filename: str = "photo.jpg") -> str | None:
-    """media.pollinations.ai pe upload -> public content-addressed URL (key required)."""
+    """media.pollinations.ai pe upload → public content-addressed URL (key required)."""
     key = _api_key()
     if not key or not data:
         return None
@@ -189,7 +187,7 @@ async def upload_media(data: bytes, filename: str = "photo.jpg") -> str | None:
 async def edit_image_bytes(
     prompt: str, photo: bytes, model: str = "kontext", width: int = 1024, height: int = 1024
 ) -> tuple[bytes | None, str]:
-    """Photo->poster (image-to-image): user photo upload -> AI edit. Returns (bytes|None, cache_name)."""
+    """Photo→poster (image-to-image): user photo upload → AI edit. Returns (bytes|None, cache_name)."""
     img_url = await upload_media(photo)
     if not img_url:
         return None, ""
@@ -223,7 +221,7 @@ async def edit_image_bytes(
 
 
 def cache_file_path(name: str) -> str | None:
-    """Safe cache filename -> full path (serve route ke liye). Traversal-proof."""
+    """Safe cache filename → full path (serve route ke liye). Traversal-proof."""
     import re
 
     if not re.fullmatch(r"[a-f0-9]{24}\.jpg", name or ""):
@@ -279,7 +277,7 @@ async def marketing_image(
     width: int = 1024,
     height: int = 1024,
 ) -> dict:
-    """Craft prompt + ready image URL. sk_ key -> proxy URL (key-safe). Never raises."""
+    """Craft prompt + ready image URL. sk_ key → proxy URL (key-safe). Never raises."""
     business_name = (business_name or "Aapka Business").strip()
     niche = (niche or "general").strip()
     prompt = await _craft_prompt(
@@ -296,7 +294,7 @@ async def marketing_image(
 
 
 def logo_url(business_name: str, niche: str = "general", style: str = "modern minimalist") -> str:
-    """AI logo URL. sk_ key -> proxy path. Never raises."""
+    """AI logo URL. sk_ key → proxy path. Never raises."""
     prompt = (
         f"{style} vector logo for '{(business_name or 'Business').strip()}', a "
         f"{(niche or 'general').replace('_', ' ')} business, clean flat iconic memorable brand mark, "

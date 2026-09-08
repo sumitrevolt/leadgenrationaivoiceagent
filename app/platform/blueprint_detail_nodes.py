@@ -1,4 +1,4 @@
-"""blueprint_detail_nodes.py - verified L1/L2 detail nodes.
+"""blueprint_detail_nodes.py — verified L1/L2 detail nodes.
 
 A SPLIT SOURCE FILE, NOT A SECOND GRAPH. ``blueprint_graph`` imports
 ``DETAIL_NODES`` and appends it to the one canonical ``NODES`` registry, so IDs,
@@ -12,7 +12,7 @@ graph ``84b4d2f7``:
   scheduler membership / agent registry / feature-flag gate), and
 * for critical domains, at least two non-AST signals in total.
 
-Everything that did not clear the bar stayed ``REVIEW_REQUIRED`` - it is NOT
+Everything that did not clear the bar stayed ``REVIEW_REQUIRED`` — it is NOT
 imported here. Status is ``CODE-PRESENT``: the source exists and is reachable,
 which is all the evidence proves. Nothing is marked live, and harness controls
 stay ``None`` unless independently proven.
@@ -108,7 +108,7 @@ DETAIL_NODE_SPECS: list[tuple] = [
         "Speech-to-text and text-to-speech providers behind the voice agent.",
         {
             # Domain-rooted L1. It was briefly modelled as L2 under
-            # `voice_agent`, but `voice_agent` is an L0 curated aggregate -
+            # `voice_agent`, but `voice_agent` is an L0 curated aggregate —
             # parenting L2 directly onto L0 skips the L1 domain/flow layer and
             # makes progressive disclosure inconsistent. No independently
             # verified L1 voice-runtime group exists yet, and inventing one
@@ -183,7 +183,7 @@ DETAIL_NODE_SPECS: list[tuple] = [
             "app/marketing/creative_os/brief.py",
             "app/marketing/creative_os/licence.py",
         ],
-        "ADR-143 Creative OS - extends video_ad_cycle/Postiz; CREATIVE_OS_ENABLED "
+        "ADR-143 Creative OS — extends video_ad_cycle/Postiz; CREATIVE_OS_ENABLED "
         "defaults OFF; providers return provider_unavailable until provisioned.",
         {
             "depth_level": 1,

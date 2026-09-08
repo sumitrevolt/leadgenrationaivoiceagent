@@ -1,8 +1,8 @@
-"""First-party site analytics beacon (Plausible-lite, free-stack) - client website
+"""First-party site analytics beacon (Plausible-lite, free-stack) — client website
 pe ~1KB JS: pageview (path/ref/utm_source) + WhatsApp/tel/[data-lg-track] clicks
 navigator.sendBeacon se HAMARE collect endpoint pe (text/plain = no CORS preflight).
 
-Privacy-first (DPDP): NO cookies, NO fingerprinting - IP last-octet-masked
+Privacy-first (DPDP): NO cookies, NO fingerprinting — IP last-octet-masked
 (proposal_tracking._coarse_ip jaisa) + short UA hash, sirf coarse day-level
 visitor approx. Store data/beacon_events.jsonl (auto-trim 20k lines).
 
@@ -48,18 +48,18 @@ def _site_base() -> str:
 
 
 def _coarse_ip(ip: str) -> str:
-    """Privacy-coarse IP - last octet mask (proposal_tracking pattern)."""
+    """Privacy-coarse IP — last octet mask (proposal_tracking pattern)."""
     try:
         parts = str(ip or "").strip().split(".")
         if len(parts) == 4:
             return ".".join(parts[:3]) + ".x"
-        return str(ip or "")[:24]  # ipv6/other - truncate
+        return str(ip or "")[:24]  # ipv6/other — truncate
     except Exception:
         return ""
 
 
 def _ua_key(ua: str) -> str:
-    """Short non-reversible UA hash (no fingerprint - sirf same-day dedupe)."""
+    """Short non-reversible UA hash (no fingerprint — sirf same-day dedupe)."""
     try:
         return hashlib.sha256((ua or "").encode("utf-8", "ignore")).hexdigest()[:10]
     except Exception:
@@ -120,7 +120,7 @@ def record_event(data: dict[str, Any] | None, ip: str = "", ua: str = "") -> dic
 
 
 def _ref_source(ref: str) -> str:
-    """Referrer host se readable source (instagram.com -> Instagram)."""
+    """Referrer host se readable source (instagram.com → Instagram)."""
     try:
         host = ref.split("//", 1)[-1].split("/", 1)[0].lower()
         host = host.removeprefix("www.").removeprefix("l.").removeprefix("m.")
@@ -132,7 +132,7 @@ def _ref_source(ref: str) -> str:
 
 
 def stats(slug: str, days: int = 7) -> dict[str, Any]:
-    """Coarse analytics - visitors approx (ip+ua+day unique), top paths/sources,
+    """Coarse analytics — visitors approx (ip+ua+day unique), top paths/sources,
     wa/tel clicks + Hinglish summary. Never raises."""
     key = _slug_key(slug)
     days = days if days in (7, 30) else (30 if days and int(days or 0) > 7 else 7)
@@ -183,7 +183,7 @@ def stats(slug: str, days: int = 7) -> dict[str, Any]:
     top_source = sources.most_common(1)[0][0] if sources else "direct"
     summary = (
         f"{n_visitors} visitors ({days} din), {pageviews} pageviews, "
-        f"{wa_clicks} WhatsApp + {tel_clicks} call clicks - top source {top_source}."
+        f"{wa_clicks} WhatsApp + {tel_clicks} call clicks — top source {top_source}."
     )
     return {
         "slug": key,
@@ -200,7 +200,7 @@ def stats(slug: str, days: int = 7) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Beacon JS (~1KB) - sendBeacon text/plain = cross-origin OK bina preflight
+# Beacon JS (~1KB) — sendBeacon text/plain = cross-origin OK bina preflight
 # --------------------------------------------------------------------------- #
 _JS_TEMPLATE = r"""/* LeadsGenAI beacon */
 (function(){
@@ -210,18 +210,12 @@ _JS_TEMPLATE = r"""/* LeadsGenAI beacon */
   d.slug=S;
   try{
    var s=JSON.stringify(d);
-   if(navigator.sendBeacon){navigator.sendBeacon(EP,s)
-   }
-   else{var x=new XMLHttpRequest()
-   x.open("POST",EP,true)
-   x.setRequestHeader("Content-Type","text/plain")
-   x.send(s)
-   }
+   if(navigator.sendBeacon){navigator.sendBeacon(EP,s);}
+   else{var x=new XMLHttpRequest();x.open("POST",EP,true);x.setRequestHeader("Content-Type","text/plain");x.send(s);}
   }catch(e){}
  }
  var u="";
- try{u=(new URLSearchParams(location.search)).get("utm_source")||""
- }catch(e){}
+ try{u=(new URLSearchParams(location.search)).get("utm_source")||"";}catch(e){}
  send({type:"pageview",path:location.pathname,ref:document.referrer||"",source:u});
  document.addEventListener("click",function(ev){
   try{
@@ -237,8 +231,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI beacon */
    send({type:"click",kind:k,name:n,path:location.pathname});
   }catch(e){}
  },true);
-})()
-"""
+})();"""
 
 
 def beacon_js(slug: str) -> str:

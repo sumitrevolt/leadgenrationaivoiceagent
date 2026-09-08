@@ -1,16 +1,16 @@
-"""Control Center - enterprise ops cockpit L1 (Executive) read-side aggregator.
+"""Control Center — enterprise ops cockpit L1 (Executive) read-side aggregator.
 
 ONE call powers the whole "Control Center" dashboard L1 view so the frontend
 doesn't fan out to 6 separate admin endpoints (each its own round-trip + auth).
 
 This is a THIN read-only aggregator: it fans IN over existing modules
 (today_overview + automation_health + llm_metrics + activation + eval_gate +
-flow_dispatch), each in its OWN try/except - partial data is fine, NEVER raises.
+flow_dispatch), each in its OWN try/except — partial data is fine, NEVER raises.
 Every import is lazy (inside the function) so a broken downstream module can
 never break app import. On total failure the top-level guard still returns a
 minimal `{ok: true, ...defaults}` shell.
 
-API: GET /api/control-center/overview (admin) -> /app/control-center page.
+API: GET /api/control-center/overview (admin) → /app/control-center page.
 Mounted via app.include_router(..., prefix="/api") in app/main.py.
 """
 
@@ -44,11 +44,11 @@ def _control_center_enabled() -> bool:
 
 
 def _defaults() -> dict[str, Any]:
-    """Safe baseline - every block degrades to this without changing the shape."""
+    """Safe baseline — every block degrades to this without changing the shape."""
     return {
         "ok": True,
         "at": _now_iso(),
-        # nav-surface gate (CONTROL_CENTER flag) - frontend hides the page entry
+        # nav-surface gate (CONTROL_CENTER flag) — frontend hides the page entry
         # when False. INERT default: the cockpit is opt-in until the flag is set.
         "nav_enabled": False,
         "headline": "",
@@ -69,7 +69,7 @@ def _defaults() -> dict[str, Any]:
         # Provider chain order if cheaply available, else the live free-stack order.
         "providers": ["mistral", "groq", "cerebras", "gemini"],
         # Token/usage telemetry lives in budget_guard when LLM_BUDGET_GUARD=1.
-        # Never fabricate ₹/$ - only tokens/calls. Filled in overview handler.
+        # Never fabricate ₹/$ — only tokens/calls. Filled in overview handler.
         "cost": {
             "available": False,
             "note": "set LLM_BUDGET_GUARD=1 to capture per-day token usage",
@@ -115,7 +115,7 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
         total = len(hjobs)
         ok = sum(1 for j in hjobs if j.get("status") == "ok")
         # issues = overdue + last_failed + never_ran-but-due. health() only emits
-        # never_ran once a job is actually due (not-yet-due -> scheduled_off), so a
+        # never_ran once a job is actually due (not-yet-due → scheduled_off), so a
         # plain status-set membership count is correct (no extra due-filter needed).
         issues = sum(1 for j in hjobs if j.get("status") in ("overdue", "last_failed", "never_ran"))
         out["metrics"]["jobs"] = {"total": total, "ok": ok, "issues": issues}
@@ -138,10 +138,10 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
             "dead": _q("dead"),
             "available": bool(queue_available),
         }
-        # wiring gaps: flags ON but backend/creds missing - surfaced so Mission
+        # wiring gaps: flags ON but backend/creds missing — surfaced so Mission
         # Control can show "armed but unwired" instead of a false-green.
         out["wiring_gaps"] = h.get("wiring_gaps") or []
-        # heartbeat: health() has no heartbeat object -> derive. up = jobs that are
+        # heartbeat: health() has no heartbeat object → derive. up = jobs that are
         # neither overdue nor never_ran (i.e. have a live recent beat).
         overdue = len(h.get("overdue") or [])
         never_ran = len(h.get("never_ran") or [])
@@ -219,7 +219,7 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
     except Exception:
         pass
 
-    # ---- 7) cost honesty - same source as /cost-rollup (no ₹/$ ever) ----
+    # ---- 7) cost honesty — same source as /cost-rollup (no ₹/$ ever) ----
     try:
         from app.llm import budget_guard
 
@@ -235,7 +235,7 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
                 out["cost"]["available"] = True
                 out["cost"]["note"] = ""
             else:
-                out["cost"]["note"] = "LLM_BUDGET_GUARD on - aaj abhi 0 tokens captured"
+                out["cost"]["note"] = "LLM_BUDGET_GUARD on — aaj abhi 0 tokens captured"
         else:
             out["cost"]["note"] = "set LLM_BUDGET_GUARD=1 to capture per-day token usage"
     except Exception:
@@ -245,7 +245,7 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
 
 
 # --------------------------------------------------------------------------- #
-# L4 - Agent Explorer: per-agent rollup (team_status + agent_events lifetime).
+# L4 — Agent Explorer: per-agent rollup (team_status + agent_events lifetime).
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/agents/metrics")
 async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[str, Any]:
@@ -253,10 +253,9 @@ async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[st
 
     Source: team.team_status() members (state/today_actions/last_activity) +
     a single lifetime group_by(member) count over the agent_events table for
-    `events_total`. `avg_ms` is ALWAYS null - AgentEvent has no duration column,
+    `events_total`. `avg_ms` is ALWAYS null — AgentEvent has no duration column,
     so we never fabricate it. `ok_rate` is lifetime non-error / total (null if
-    no lifetime data). All DB work is in its own try/except
-    on any failure we
+    no lifetime data). All DB work is in its own try/except; on any failure we
     fall back to whatever team_status() already exposes per member.
     """
     out: dict[str, Any] = {"ok": True, "at": _now_iso(), "agents": []}
@@ -299,8 +298,8 @@ async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[st
     except Exception:
         pass
 
-    # 2) team_status() members -> per-agent shape (lazy module-attr call so tests
-    #    can monkeypatch team.team_status to raise -> still 200/ok).
+    # 2) team_status() members → per-agent shape (lazy module-attr call so tests
+    #    can monkeypatch team.team_status to raise → still 200/ok).
     try:
         from app.platform import team as _team
 
@@ -321,14 +320,14 @@ async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[st
                     "key": key,
                     "name": str(m.get("name") or key.title()),
                     "emoji": str(m.get("emoji") or "🤖"),
-                    # STAFF has no `role` field - its `title` IS the role.
+                    # STAFF has no `role` field — its `title` IS the role.
                     "role": str(m.get("title") or ""),
                     "product": str(m.get("product") or "platform"),
                     "state": str(m.get("state") or "offline"),
                     "runs_today": today_actions,
                     "events_total": ev_total,
                     "ok_rate": ok_rate,
-                    # AgentEvent has no ms/duration column -> never fabricate.
+                    # AgentEvent has no ms/duration column → never fabricate.
                     "avg_ms": None,
                     "last_action": str((le or {}).get("action") or ""),
                     "last_event_ts": (le or {}).get("at"),
@@ -341,15 +340,14 @@ async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[st
 
 
 # --------------------------------------------------------------------------- #
-# L3 - Node-stats: cross-run slowest-node / timing rollup for the graph view.
+# L3 — Node-stats: cross-run slowest-node / timing rollup for the graph view.
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/node-stats")
 async def control_center_node_stats(_user=Depends(require_admin)) -> dict[str, Any]:
-    """Fold per-node ms over the last N flow runs -> slowest nodes (p50/p95).
+    """Fold per-node ms over the last N flow runs → slowest nodes (p50/p95).
 
     dag_engine records `ms` directly on each `node_completed` event, so we read
-    that first
-    if absent we derive it from node_started.at ↔ node_completed.at
+    that first; if absent we derive it from node_started.at ↔ node_completed.at
     deltas. flow_dispatch.journal() keys the per-run file by run_id only (both
     engines share the same path) so it reads dag + linear runs alike. If no run
     timings exist yet we return empty lists + an honest note. Never raises.
@@ -425,7 +423,7 @@ async def control_center_node_stats(_user=Depends(require_admin)) -> dict[str, A
 
 
 # --------------------------------------------------------------------------- #
-# RCA - plain-Hinglish system-level root-cause findings.
+# RCA — plain-Hinglish system-level root-cause findings.
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/rca")
 async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
@@ -472,7 +470,7 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
                 }
             )
         # ADR-104 Phase F (2026-07-15): dlq:dead (retry-exhausted, dlq_retry.py)
-        # was never checked here, so "Koi problem nahi - sab theek" could show
+        # was never checked here, so "Koi problem nahi — sab theek" could show
         # on this exact page while dead tasks sat unaddressed. Reuse the
         # Phase B authoritative dead_tasks_present flag rather than
         # re-deriving another ad hoc dead>0 check.
@@ -482,7 +480,7 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
                 {
                     "symptom": f"{dead} task(s) dead/exhausted (dlq:dead)",
                     "cause": "retry budget exhausted (dlq_retry.py auto-retry sweep gave up)",
-                    "fix": "Reliability Console (/app/office#reliability) me inspect karo - manual retry ya root-cause fix chahiye",
+                    "fix": "Reliability Console (/app/office#reliability) me inspect karo — manual retry ya root-cause fix chahiye",
                     "severity": "high" if dead >= 5 else "med",
                 }
             )
@@ -500,7 +498,7 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
             findings.append(
                 {
                     "symptom": f"LLM fallback/fail-rate {int(rate * 100)}% (last {total} calls)",
-                    "cause": "free providers quota/TPD khatam (Groq/Gemini) - chain deep tak gir raha",
+                    "cause": "free providers quota/TPD khatam (Groq/Gemini) — chain deep tak gir raha",
                     "fix": "1 headroom LLM key add karo (Groq Dev tier) ya provider keys rotate",
                     "severity": "high" if rate >= 0.6 else "med",
                 }
@@ -532,29 +530,28 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Cost-rollup - surfaces ALREADY-captured token/usage data (never fabricates).
+# Cost-rollup — surfaces ALREADY-captured token/usage data (never fabricates).
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/cost-rollup")
 async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, Any]:
     """Honest token/usage view from EXISTING capture (no instrumentation added).
 
-    Token data is captured by budget_guard.record() in free_ai - but ONLY when
-    `LLM_BUDGET_GUARD=1` (off default -> no counters). We READ those daily GLOBAL
-    counters via budget_guard.redis_stats()
-    `available` is True only when the
+    Token data is captured by budget_guard.record() in free_ai — but ONLY when
+    `LLM_BUDGET_GUARD=1` (off default → no counters). We READ those daily GLOBAL
+    counters via budget_guard.redis_stats(); `available` is True only when the
     guard is enabled AND today's token total > 0. Per-provider CALL counts come
-    from llm_metrics (calls ONLY - these are free providers, NEVER a $/₹ figure).
+    from llm_metrics (calls ONLY — these are free providers, NEVER a $/₹ figure).
     All keys are initialised before the try blocks so a downstream raise still
     returns the full shape (never-raise). require_admin-gated."""
     out: dict[str, Any] = {
         "ok": True,
         "at": _now_iso(),
         "available": False,
-        "note": ("instrument pending - set LLM_BUDGET_GUARD=1 to capture per-day token usage"),
+        "note": ("instrument pending — set LLM_BUDGET_GUARD=1 to capture per-day token usage"),
         "tokens_today": None,
         "calls_today": None,
         "budget_guard_enabled": False,
-        # Per-provider CALL counts only - free providers, NEVER a money figure.
+        # Per-provider CALL counts only — free providers, NEVER a money figure.
         "by_provider": [],
     }
 
@@ -577,7 +574,7 @@ async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, 
     except Exception:
         pass
 
-    # 2) llm_metrics per-provider call counts (calls ONLY - no money figure).
+    # 2) llm_metrics per-provider call counts (calls ONLY — no money figure).
     try:
         from app.platform import llm_metrics
 
@@ -597,7 +594,7 @@ async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, 
 
 
 # --------------------------------------------------------------------------- #
-# Route-hits - "unused API / dead route" view (reads RouteHitMiddleware data).
+# Route-hits — "unused API / dead route" view (reads RouteHitMiddleware data).
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/route-hits")
 async def control_center_route_hits(_user=Depends(require_admin)) -> dict[str, Any]:
@@ -625,7 +622,7 @@ async def control_center_route_hits(_user=Depends(require_admin)) -> dict[str, A
         from app.cache import get_redis_client
 
         r = await get_redis_client()
-        # UTC day key - MUST match RouteHitMiddleware._record (time.gmtime()).
+        # UTC day key — MUST match RouteHitMiddleware._record (time.gmtime()).
         day = datetime.now(timezone.utc).strftime("%Y%m%d")
         raw = await r.hgetall(f"route_hits:{day}") or {}
         rows = []

@@ -4,7 +4,7 @@ Per-account brute-force lockout: 5 failed attempts -> 15min lock (Redis-backed),
 mirroring admin.py's 5-fail -> 30min lock. Per-IP rate limit (10/60) is a
 separate control. Fail-open on Redis error (metering-class, not compliance).
 
-Hermetic: `get_redis_client` monkeypatch'd to a fake redis - no real Redis.
+Hermetic: `get_redis_client` monkeypatch'd to a fake redis — no real Redis.
 """
 
 import asyncio

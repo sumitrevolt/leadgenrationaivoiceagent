@@ -1,4 +1,4 @@
-"""Booking API - Calendly-lite slots + booking over the existing calendar_booking engine.
+"""Booking API — Calendly-lite slots + booking over the existing calendar_booking engine.
 
 Thin, defensive REST surface over `app/integrations/calendar_booking.py` (Google Calendar
 when configured, else in-memory business-hours simulation). Public-friendly: a client's
@@ -22,10 +22,9 @@ router = APIRouter(prefix="/booking", tags=["Booking"])
 
 
 def _resolve_client_id(slug: str) -> str:
-    """Mini-site slug -> owning client_id so slot availability/booking is scoped PER
+    """Mini-site slug → owning client_id so slot availability/booking is scoped PER
     business (jiya's booked slot must NOT block another studio's same slot). Cheap
-    sync lookup
-    slug fallback still isolates mini-sites if the client isn't found
+    sync lookup; slug fallback still isolates mini-sites if the client isn't found
     (that fallback alone fixes the shared-singleton bug). Never raises."""
     slug = (slug or "").strip()
     if not slug:
@@ -63,7 +62,7 @@ async def get_slots(
 ):
     """Free appointment slots for a date (YYYY-MM-DD; empty = next working day).
 
-    `slug` scopes availability to the mini-site's owning business - a slot taken by
+    `slug` scopes availability to the mini-site's owning business — a slot taken by
     ANOTHER client (or the global/legacy pool) does not hide it here."""
     try:
         from app.integrations.calendar_booking import get_calendar
@@ -75,7 +74,7 @@ async def get_slots(
         return {"date": date, "slots": [_ser(s) for s in (slots or [])]}
     except Exception as e:
         logger.error(f"booking slots failed: {e}")
-        raise HTTPException(status_code=503, detail="Slots abhi available nahi - baad me try karo.")
+        raise HTTPException(status_code=503, detail="Slots abhi available nahi — baad me try karo.")
 
 
 class BookIn(BaseModel):
@@ -83,16 +82,15 @@ class BookIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     phone: str = Field(..., min_length=6, max_length=20)
     notes: str = Field("", max_length=400)
-    slug: str = Field("", max_length=80)  # mini-site slug -> scope booking per business
+    slug: str = Field("", max_length=80)  # mini-site slug → scope booking per business
 
 
 @router.post("/book", dependencies=[Depends(rate_limit("booking_book", 10, 60))])
 async def book_slot(req: BookIn):
     """Book a slot returned by /slots. Returns the booking confirmation.
 
-    `slug` scopes the double-book guard PER business - two different clients can hold
-    the same wall-clock slot
-    the same client can't double-book it."""
+    `slug` scopes the double-book guard PER business — two different clients can hold
+    the same wall-clock slot; the same client can't double-book it."""
     try:
         from app.integrations.calendar_booking import get_calendar
 
@@ -101,7 +99,7 @@ async def book_slot(req: BookIn):
         res = await cal.book_slot(
             req.slot, name=req.name, phone=req.phone, notes=req.notes, client_id=client_id
         )
-        # Persistent record + reminder pipeline (best-effort - booking kabhi na ruke)
+        # Persistent record + reminder pipeline (best-effort — booking kabhi na ruke)
         try:
             from app.platform import booking_reminders
 
@@ -137,13 +135,13 @@ async def book_slot(req: BookIn):
     except Exception as e:
         logger.error(f"booking book failed: {e}")
         raise HTTPException(
-            status_code=503, detail="Booking abhi possible nahi - baad me try karo."
+            status_code=503, detail="Booking abhi possible nahi — baad me try karo."
         )
 
 
 class CancelIn(BaseModel):
     booking_id: str = Field(..., min_length=1, max_length=80)
-    # Possession factor - must match the phone the booking was made with. Stops a
+    # Possession factor — must match the phone the booking was made with. Stops a
     # leaked/guessed booking_id alone from cancelling someone else's appointment.
     phone: str = Field(..., min_length=6, max_length=20)
 
@@ -154,7 +152,7 @@ async def cancel_booking(req: CancelIn):
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
-        # Mismatch => cancel() returns False (same shape as not-found - no oracle
+        # Mismatch => cancel() returns False (same shape as not-found — no oracle
         # revealing whether the booking_id exists).
         ok = await cal.cancel(req.booking_id, phone=req.phone)
         return {"ok": bool(ok), "booking_id": req.booking_id}
@@ -162,4 +160,4 @@ async def cancel_booking(req: CancelIn):
         raise
     except Exception as e:
         logger.error(f"booking cancel failed: {e}")
-        raise HTTPException(status_code=503, detail="Cancel abhi possible nahi - baad me try karo.")
+        raise HTTPException(status_code=503, detail="Cancel abhi possible nahi — baad me try karo.")

@@ -1,12 +1,11 @@
 """
 Admin Ops API
 =============
-POST /api/admin/campaign/launch  -> outbound call campaign (durable Celery task,
-                                    app.tasks.calling.run_campaign_task
-                                    falls back
+POST /api/admin/campaign/launch  → outbound call campaign (durable Celery task,
+                                    app.tasks.calling.run_campaign_task; falls back
                                     to asyncio-subprocess fire_calls.py if broker down)
-GET  /api/admin/campaign/status  -> last run status (Redis)
-GET  /api/admin/system/summary   -> activation readiness + system snapshot
+GET  /api/admin/campaign/status  → last run status (Redis)
+GET  /api/admin/system/summary   → activation readiness + system snapshot
 
 Auth: require_admin (Bearer JWT from /app/admin-login).
 """
@@ -35,7 +34,7 @@ router = APIRouter(prefix="/api/admin", tags=["Admin Ops"])
 
 
 def _call_transcripts_root() -> str:
-    """Call transcripts dir - resolved per call, never frozen at import."""
+    """Call transcripts dir — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -143,13 +142,13 @@ def _upi_info() -> dict:
         vpa = (os.environ.get("UPI_VPA") or "").strip()
         wa = (os.environ.get("UPI_VERIFY_WA") or "918459012607").strip().lstrip("+")
         wa_link = f"https://wa.me/{wa}?text=" + __import__("urllib.parse").quote(
-            "Payment screenshot - plan activate karo please"
+            "Payment screenshot — plan activate karo please"
         )
         return {"enabled": bool(vpa), "vpa": vpa, "wa_phone": wa, "wa_link": wa_link}
 
 
 def _pending_upi_queue(limit: int = 20) -> list[dict]:
-    """Real pending UPI submissions only - not every trial/free client.
+    """Real pending UPI submissions only — not every trial/free client.
 
     ADR-114: listing all trial clients as 'payment pending' was fake revenue
     urgency. Authoritative source = upi_payments.list_payments('pending');
@@ -204,10 +203,10 @@ def _trust_summary() -> dict:
 
 # ── Pre-flight: leads ready to call ─────────────────────────────────────────
 def _leads_ready() -> dict:
-    """Uncontacted-with-phone leads - EXACTLY what fire_calls.py would dial.
+    """Uncontacted-with-phone leads — EXACTLY what fire_calls.py would dial.
 
     Same WHERE clause as scripts/fire_calls.get_prospects so the count matches
-    what a campaign will actually call. Defensive: any failure -> available=False.
+    what a campaign will actually call. Defensive: any failure → available=False.
     """
     try:
         import urllib.parse as up
@@ -324,16 +323,15 @@ async def call_detail(call_id: str, _user=Depends(require_admin)):
 @router.post("/campaign/launch", summary="Launch outbound call campaign")
 async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     """
-    Prefers a durable Celery task (app.tasks.calling.run_campaign_task) - survives
+    Prefers a durable Celery task (app.tasks.calling.run_campaign_task) — survives
     web-process restarts and doesn't hold one of the 2 web workers for the full
     campaign duration (the old asyncio-subprocess path could hold one for up to
     320s per launch). Falls back to the asyncio-subprocess path only if the Celery
-    broker is unreachable. Same compliance gates either way - single source of
+    broker is unreachable. Same compliance gates either way — single source of
     truth in app/telephony/campaign_compliance.py, shared with scripts/fire_calls.py.
     Single-flight: a Redis lock refuses a second launch while one is already running
-    (idempotency - prevents double-dialing the same lead batch from concurrent
-    admin clicks). Returns immediately
-    poll /api/admin/campaign/status for result.
+    (idempotency — prevents double-dialing the same lead batch from concurrent
+    admin clicks). Returns immediately; poll /api/admin/campaign/status for result.
     """
     if not 1 <= req.limit <= 200:
         raise HTTPException(status_code=400, detail="limit must be 1–200")
@@ -343,18 +341,18 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     if campaign_lock_held():
         raise HTTPException(
             status_code=409,
-            detail="Campaign already running - check /api/admin/campaign/status",
+            detail="Campaign already running — check /api/admin/campaign/status",
         )
     # TTL scaled to worst-case runtime (~6s/call incl. the dial loop's
-    # asyncio.sleep(4) pace-limiter) + buffer - a fixed 400s lock expires
+    # asyncio.sleep(4) pace-limiter) + buffer — a fixed 400s lock expires
     # mid-run for limit>~55, letting a second launch start concurrently and
     # re-dial leads the first run hasn't reached yet.
     if not acquire_campaign_lock(ttl_s=max(400, req.limit * 8 + 120)):
         raise HTTPException(status_code=409, detail="Campaign already running")
 
     # ── Session lifecycle (2026-08-02): operator Fire = canonical
-    # create_voice_session -> fresh VOICE_CALLS_PER_SESSION counter. Isi single
-    # explicit lifecycle se session count reset hota hai - worker/scheduler
+    # create_voice_session → fresh VOICE_CALLS_PER_SESSION counter. Isi single
+    # explicit lifecycle se session count reset hota hai — worker/scheduler
     # restart kabhi nahi. Daily cap (VOICE_DAILY_CALL_CAP) session-cycling ka
     # aggregate backstop rehta hai. Dry-run se koi session/reset nahi.
     session_id = None
@@ -386,7 +384,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
             },
         )
         # Lock release is the Celery task's own responsibility (its `finally`) once
-        # it actually runs - NOT released here, so a second launch is refused for
+        # it actually runs — NOT released here, so a second launch is refused for
         # the duration of this campaign even before the worker picks the task up.
         return {
             "queued": True,
@@ -400,7 +398,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
         }
     except Exception as exc:
         logger.warning(f"Celery campaign enqueue failed, falling back to subprocess: {exc}")
-        # Lock stays held - the subprocess path below releases it (its own finally).
+        # Lock stays held — the subprocess path below releases it (its own finally).
 
     # ---- Fallback: web-process subprocess (unchanged behaviour, only reached
     # when the Celery broker itself is unreachable) ----
@@ -505,10 +503,10 @@ async def campaign_status(_user=Depends(require_admin)):
 
 @router.post("/campaign/stop", summary="Stop the currently running campaign")
 async def campaign_stop(_user=Depends(require_admin)):
-    """Stop the currently-running campaign - either path (stops placing NEW calls;
+    """Stop the currently-running campaign — either path (stops placing NEW calls;
     an in-flight call already on the carrier completes, no new numbers dialed).
 
-    Celery path: revokes the tracked task_id (best-effort - terminates the worker's
+    Celery path: revokes the tracked task_id (best-effort — terminates the worker's
     current task run). Subprocess-fallback path: terminates the child process.
     """
     st = _redis_get(_CAMPAIGN_KEY) or {}
@@ -551,7 +549,7 @@ async def campaign_stop(_user=Depends(require_admin)):
 # ── System summary ────────────────────────────────────────────────────────────
 @router.get("/system/summary", summary="System snapshot for God Mode panel")
 async def system_summary(_user=Depends(require_admin)):
-    """Vobiz calling + UPI payment readiness - God Mode panel."""
+    """Vobiz calling + UPI payment readiness — God Mode panel."""
     import datetime
 
     readiness: dict = {}
@@ -608,7 +606,7 @@ async def system_summary(_user=Depends(require_admin)):
 
     caller_id = os.environ.get("VOBIZ_CALLER_ID", "unset")
 
-    # Pre-flight calling data (blocking DB -> thread; never breaks the panel).
+    # Pre-flight calling data (blocking DB → thread; never breaks the panel).
     try:
         leads_ready = await asyncio.wait_for(asyncio.to_thread(_leads_ready), timeout=6)
     except Exception:
@@ -639,7 +637,7 @@ async def system_summary(_user=Depends(require_admin)):
         "voice_launch": voice_launch_snapshot,
         "approval_notify": approval_notify_health,
         "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
-        # Razorpay removed 2026-06-18 - manual UPI only; stub for JS compat.
+        # Razorpay removed 2026-06-18 — manual UPI only; stub for JS compat.
         "razorpay": {"key_set": False, "live_key": False, "key_prefix": "removed"},
         "telephony_score": telephony.get("score", 0),
         "telephony_missing": telephony.get("missing", []),
@@ -673,8 +671,7 @@ class _VoiceKillReq(BaseModel):
 @router.post("/voice-launch/kill", summary="Engage/release the voice-calling kill switch")
 async def voice_launch_kill(req: _VoiceKillReq, _user=Depends(require_admin)):
     """Global admin kill switch (data-file). kill=true => ALL outbound campaign calls
-    become ineligible (fail-safe)
-    env VOICE_LAUNCH_KILL, if set, overrides this."""
+    become ineligible (fail-safe); env VOICE_LAUNCH_KILL, if set, overrides this."""
     from app.telephony import voice_launch as _vl
 
     ok = _vl.set_kill(bool(req.kill))
@@ -702,9 +699,8 @@ async def voice_launch_session_status(_user=Depends(require_admin)):
 
 @router.post("/voice-launch/session", summary="Start a NEW voice-launch session (canonical reset)")
 async def voice_launch_session_create(req: _SessionCreateReq, _user=Depends(require_admin)):
-    """CANONICAL session lifecycle - naya session (attempt counter 0). Isi single
-    explicit lifecycle se session count reset hota hai
-    worker/scheduler restart
+    """CANONICAL session lifecycle — naya session (attempt counter 0). Isi single
+    explicit lifecycle se session count reset hota hai; worker/scheduler restart
     se KABHI nahi."""
     from app.telephony import voice_launch as _vl
 
@@ -719,7 +715,7 @@ async def voice_launch_session_create(req: _SessionCreateReq, _user=Depends(requ
     "/voice-launch/session/stop", summary="Emergency-stop the current voice-launch session"
 )
 async def voice_launch_session_stop(_user=Depends(require_admin)):
-    """Session-level emergency stop - naye provider calls block (jo call abhi
+    """Session-level emergency stop — naye provider calls block (jo call abhi
     in-flight hai wo complete hoti hai). used/remaining visible in status."""
     from app.telephony import voice_launch as _vl
 
@@ -733,7 +729,7 @@ async def voice_launch_session_stop(_user=Depends(require_admin)):
     summary="Swara free-AI sticky routing + STT gate + training loop status",
 )
 async def swara_enterprise_status(_user=Depends(require_admin)):
-    """Admin surface: route health, STT gate, training proposals - NO secrets."""
+    """Admin surface: route health, STT gate, training proposals — NO secrets."""
     out: dict = {"ok": True}
     try:
         from app.voice_agent.voice_sticky_route import health_snapshot, logical_routes
@@ -787,10 +783,10 @@ async def swara_enterprise_status(_user=Depends(require_admin)):
 
 
 def _admin_office() -> dict:
-    """🏢 Admin Office - "Sumit ke kaam": 4 scattered pending-action queues (self-
+    """🏢 Admin Office — "Sumit ke kaam": 4 scattered pending-action queues (self-
     improve / content / code-patch / UPI approvals) ONE jagah, plain Hinglish +
     automation/revenue impact. Complements the existing 'Aaj ka business' overview
-    (today_overview) - yeh sirf the manual-action gap bharta hai. Never raises."""
+    (today_overview) — yeh sirf the manual-action gap bharta hai. Never raises."""
     tasks: list[dict] = []
 
     def _safe(fn) -> int:
@@ -799,7 +795,7 @@ def _admin_office() -> dict:
         except Exception:
             return 0
 
-    # 0) Hot Queue - GTM 0->1 bottleneck (owner 15-min sprint). Auto-send nahi.
+    # 0) Hot Queue — GTM 0→1 bottleneck (owner 15-min sprint). Auto-send nahi.
     def _hq() -> int:
         from app.platform import reply_agent
 
@@ -814,7 +810,7 @@ def _admin_office() -> dict:
                 "severity": "high",
                 "count": n,
                 "title": f"{n} Hot Queue replies aaj follow-up maangte hain",
-                "why": "Interested/question replies - 15 min sprint: Call/WA draft, phir Done. Auto-send nahi.",
+                "why": "Interested/question replies — 15 min sprint: Call/WA draft, phir Done. Auto-send nahi.",
                 "impact": "speed-to-lead = next paying Marketing customer",
                 "cta_label": "Hot Queue kholo",
                 "cta_target": "adminStartHere",
@@ -823,7 +819,7 @@ def _admin_office() -> dict:
             }
         )
 
-    # 1) Self-improve approvals - agents waiting for the go-ahead
+    # 1) Self-improve approvals — agents waiting for the go-ahead
     def _si() -> int:
         from app.agents import self_improve
 
@@ -838,14 +834,14 @@ def _admin_office() -> dict:
                 "severity": "medium",
                 "count": n,
                 "title": f"{n} self-improve task approve karo",
-                "why": "Agents aapki OK ka wait kar rahe - tab tak loop ruka",
+                "why": "Agents aapki OK ka wait kar rahe — tab tak loop ruka",
                 "cta_label": "Approvals kholo",
                 "cta_target": "sec-automation",
                 "cta_action": "open_approvals",
             }
         )
 
-    # 2) Content approvals - posts waiting for sign-off
+    # 2) Content approvals — posts waiting for sign-off
     def _ca() -> tuple[int, dict[str, int]]:
         from app.marketing import content_approval
 
@@ -864,7 +860,7 @@ def _admin_office() -> dict:
         top_clients = sorted(by_client.items(), key=lambda kv: (-kv[1], kv[0]))[:4]
 
         def _client_label(cid: str) -> str:
-            """Show business name when known - raw hex ids confuse non-tech admins."""
+            """Show business name when known — raw hex ids confuse non-tech admins."""
             key = str(cid or "").strip()
             if not key or key == "unknown":
                 return "Unknown client"
@@ -879,7 +875,7 @@ def _admin_office() -> dict:
                 pass
             return key if len(key) <= 18 else (key[:10] + "…")
 
-        client_hint = ", ".join(f"{_client_label(cid)} ({cnt})" for cid, cnt in top_clients) or "-"
+        client_hint = ", ".join(f"{_client_label(cid)} ({cnt})" for cid, cnt in top_clients) or "—"
         n_clients = len(by_client)
         tasks.append(
             {
@@ -889,7 +885,7 @@ def _admin_office() -> dict:
                 "count": n,
                 "clients_affected": n_clients,
                 "title": f"{n} content posts · {n_clients} clients pe pending",
-                "why": f"Pehle paid clients check karo (top: {client_hint}). Bulk approve yahan risky - Mission Control / Client Actions use karo.",
+                "why": f"Pehle paid clients check karo (top: {client_hint}). Bulk approve yahan risky — Mission Control / Client Actions use karo.",
                 "impact": "approve ke baad publish path open ho sakta hai",
                 # Honest CTA: Mission Control is the real approvals surface (not scroll-only)
                 "cta_label": "Mission Control",
@@ -899,7 +895,7 @@ def _admin_office() -> dict:
             }
         )
 
-    # 3) Code-upgrader patches - Vikram's proposals need review
+    # 3) Code-upgrader patches — Vikram's proposals need review
     def _cp() -> int:
         from app.agents import code_upgrader
 
@@ -914,14 +910,14 @@ def _admin_office() -> dict:
                 "severity": "medium",
                 "count": n,
                 "title": f"{n} code patch review karo",
-                "why": "Vikram ne fixes propose kiye - core code kabhi auto-apply nahi hota",
+                "why": "Vikram ne fixes propose kiye — core code kabhi auto-apply nahi hota",
                 "cta_label": "Review kholo",
                 "cta_target": "sec-automation",
                 "cta_action": "open_approvals",
             }
         )
 
-    # 4) UPI activations - customer paid, manual plan-activate pending (revenue!)
+    # 4) UPI activations — customer paid, manual plan-activate pending (revenue!)
     try:
         upi_q = _pending_upi_queue(50) or []
     except Exception:
@@ -935,7 +931,7 @@ def _admin_office() -> dict:
                 "severity": "high",
                 "count": n,
                 "title": f"{n} UPI payment activate karo",
-                "why": "Customer ne pay kiya - manually plan activate karo (revenue ruka)",
+                "why": "Customer ne pay kiya — manually plan activate karo (revenue ruka)",
                 "impact": "activate karte hi customer ka product chalu",
                 "cta_label": "UPI queue kholo",
                 "cta_target": "sec-upi-selfserve",
@@ -947,7 +943,7 @@ def _admin_office() -> dict:
     total = sum(int(t.get("count") or 0) for t in tasks)
     high = sum(1 for t in tasks if t.get("severity") == "high")
     if not tasks:
-        headline = "✅ Koi pending approval nahi - sab clear"
+        headline = "✅ Koi pending approval nahi — sab clear"
     else:
         headline = f"⚠️ {total} cheez aapki action maangti hai" + (
             f" ({high} urgent)" if high else ""
@@ -961,11 +957,10 @@ def _admin_office() -> dict:
     }
 
 
-@router.get("/office", summary="Admin Office - consolidated 'Sumit ke kaam' pending actions")
+@router.get("/office", summary="Admin Office — consolidated 'Sumit ke kaam' pending actions")
 async def admin_office(_user=Depends(require_admin)):
     """Admin-side virtual-office: the 4 pending approval/action queues in ONE place.
-    Read-only, never-500, gated ADMIN_OFFICE (default ON
-    '0' => disabled)."""
+    Read-only, never-500, gated ADMIN_OFFICE (default ON; '0' => disabled)."""
     import os
 
     if os.getenv("ADMIN_OFFICE", "1").strip().lower() in ("0", "false", "no", "off"):
@@ -973,9 +968,9 @@ async def admin_office(_user=Depends(require_admin)):
     return _admin_office()
 
 
-@router.post("/upi/configure", summary="Set platform UPI VPA (data file - no container restart)")
+@router.post("/upi/configure", summary="Set platform UPI VPA (data file — no container restart)")
 async def upi_configure(body: UpiConfigureReq, _user=Depends(require_admin)):
-    """Admin dashboard se UPI VPA save - ``data/platform_upi.json``. Env ``UPI_VPA`` still wins if set."""
+    """Admin dashboard se UPI VPA save — ``data/platform_upi.json``. Env ``UPI_VPA`` still wins if set."""
     from app.platform import upi_config
 
     result = upi_config.set_vpa(body.vpa, set_by="admin_dashboard")
@@ -1025,8 +1020,8 @@ async def voice_gemini_keys_status(_user=Depends(require_admin)):
 
 @router.post("/voice/gemini-keys", summary="Validate + save voice Gemini keys (no restart)")
 async def voice_gemini_keys_set(body: VoiceGeminiKeysReq, _user=Depends(require_admin)):
-    """Admin "Voice Keys" page se keys aati hain -> HAR key test (live Gemini call) ->
-    sirf usable (200/429) keys pool me save (data/voice_gemini_keys.json) + reload ->
+    """Admin "Voice Keys" page se keys aati hain → HAR key test (live Gemini call) →
+    sirf usable (200/429) keys pool me save (data/voice_gemini_keys.json) + reload →
     voice brain Gemini-first. No .env, no restart. Keys masked in response."""
     import httpx
 
@@ -1098,16 +1093,15 @@ async def voice_self_test(
     llm: bool = False,
     niche: str = "solar",
 ):
-    """On-demand voice self-test - ek scorecard, abhi chala ke dekho.
+    """On-demand voice self-test — ek scorecard, abhi chala ke dekho.
 
-    * ``personas`` - rule-based persona suite (FREE, no network, deterministic).
-    * ``stack``    - live TTS/STT probes (LLM ping bhi jab ``llm=1`` -> free-tier
+    * ``personas`` — rule-based persona suite (FREE, no network, deterministic).
+    * ``stack``    — live TTS/STT probes (LLM ping bhi jab ``llm=1`` → free-tier
       ka ek token jalega, isliye default OFF).
-    * ``live``     - pichhli real calls ki quality (local transcripts).
+    * ``live``     — pichhli real calls ki quality (local transcripts).
 
-    Network-probes off-loop + bounded
-    poora call ek hard deadline me wrapped hai
-    taaki ek dead provider bhi admin-request ko hang na kare. Read-only - koi
+    Network-probes off-loop + bounded; poora call ek hard deadline me wrapped hai
+    taaki ek dead provider bhi admin-request ko hang na kare. Read-only — koi
     side-effect nahi (sirf ek best-effort team-event log hota hai)."""
     try:
         from app.voice_agent.self_test import run_voice_self_test
@@ -1147,7 +1141,7 @@ async def upi_activate(
     _user=Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Admin ne WA screenshot dekha -> plan activate."""
+    """Admin ne WA screenshot dekha → plan activate."""
     cid = (body.client_id or "").strip()
     plan = (body.plan or "starter").strip().lower()
     if not cid:
@@ -1160,9 +1154,9 @@ async def upi_activate(
         if not mrec:
             raise HTTPException(status_code=404, detail="client not found")
         mcid = str(mrec.get("id") or cid).strip()
-        # Manual UPI payment verified by admin - ensure the Subscription row too
+        # Manual UPI payment verified by admin — ensure the Subscription row too
         # (portal /billing/subscription 404s without one; audit 2026-07-04).
-        # ENTERPRISE FIX (2026-07-10): reset_usage_period ALSO call karo -
+        # ENTERPRISE FIX (2026-07-10): reset_usage_period ALSO call karo —
         # activate_plan sirf plan set karta tha, watermark reset nahi ho raha tha,
         # jisse minutes_used_this_period() pehle-wale-period ka lekar naya
         # customer ka quota turant khatam kar deta tha.
@@ -1186,7 +1180,7 @@ async def upi_activate(
                     link_res.get("reason"),
                 )
         # DELIVERY GUARANTEE (2026-07-05, council): paisa aate hi value-FIRST delivery
-        # trigger karo (mini-site link + content) - customer ko "kuch nahi mila" na ho
+        # trigger karo (mini-site link + content) — customer ko "kuch nahi mila" na ho
         # (jiya makeover incident fix). Gated AUTO_DELIVER_VALUE: OFF = sirf detect+record
         # (dead-man sweep pakdega), ON = auto-send. Best-effort, never blocks activation.
         try:
@@ -1216,14 +1210,14 @@ async def upi_activate(
             log_event(
                 "kavya",
                 "upi_plan_activated",
-                f"UPI manual activate: {cid} -> {plan}",
+                f"UPI manual activate: {cid} → {plan}",
                 meta={"client_id": cid, "plan": plan, "via": "upi_screenshot"},
             )
         except Exception:
             pass
-        # AUDIT - approving a payment is a money-path admin action; the team-log
+        # AUDIT — approving a payment is a money-path admin action; the team-log
         # above is informal/ephemeral, this is the formal tamper-record
-        # /api/admin/audit-logs reads (best-effort - audit failure never blocks
+        # /api/admin/audit-logs reads (best-effort — audit failure never blocks
         # the actual activation, mirrors impersonation.py's pattern).
         try:
             await log_audit(
@@ -1253,7 +1247,7 @@ async def upi_activate(
     "/clients/{client_id}/deliver-now", summary="Human-clicked single-customer delivery unstick"
 )
 async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
-    """Admin clicks this for one stuck paid customer - calls the existing
+    """Admin clicks this for one stuck paid customer — calls the existing
     deliver_client_value(force=True) bypass. Never touches AUTO_DELIVER_VALUE;
     always logs admin_manual_action either way so the reason is visible even
     on failure (no phone / send error / already delivered)."""
@@ -1351,7 +1345,7 @@ async def client_onboard_scrape(
 
 @router.get("/upi/clients", summary="Search clients for manual UPI activate")
 async def upi_clients_search(q: str = "", limit: int = 20, _user=Depends(require_admin)):
-    """God Mode - client id / naam / phone se dhoondo."""
+    """God Mode — client id / naam / phone se dhoondo."""
     try:
         from app.marketing import clients_store
 
@@ -1445,11 +1439,11 @@ async def trust_configure_posthog(body: TrustPosthogReq, _user=Depends(require_a
     "/flow/seed-templates", summary="Apply all Flow Runner starter templates (FLOW_RUNNER=1)"
 )
 async def flow_seed_templates(_user=Depends(require_admin)):
-    """Council ship-now - 3 starter flows ek click me (draft-safe)."""
+    """Council ship-now — 3 starter flows ek click me (draft-safe)."""
     if os.getenv("FLOW_RUNNER", "0") not in ("1", "true", "True"):
         raise HTTPException(
             status_code=503,
-            detail="FLOW_RUNNER disabled - docker-compose / .env me FLOW_RUNNER=1 set karo",
+            detail="FLOW_RUNNER disabled — docker-compose / .env me FLOW_RUNNER=1 set karo",
         )
     from app.automation import flow_compiler, flow_store, flow_templates
 
@@ -1476,16 +1470,15 @@ async def flow_seed_templates(_user=Depends(require_admin)):
 
 
 @router.get(
-    "/voice/latency", summary="Voice agent per-turn latency rollup (P50/P95) - proves call speed"
+    "/voice/latency", summary="Voice agent per-turn latency rollup (P50/P95) — proves call speed"
 )
 async def voice_latency(date: str = "", recent: int = 20, _user=Depends(require_admin)):
     """Per-turn voice latency (stt_ms / llm_first_ms / tts_first_ms / turn_ms)
-    rolled up to P50/P95/avg/max from ``data/turn_metrics/`` - the numbers that
+    rolled up to P50/P95/avg/max from ``data/turn_metrics/`` — the numbers that
     prove (and let us tune) call speed vs the sub-700ms SOTA bar.
 
     ``TURN_METRICS`` (default ON) writes one line per real turn on every live
-    Vobiz/phone/web call. ``date`` = 'YYYY-MM-DD' (UTC
-    default today). ``recent``
+    Vobiz/phone/web call. ``date`` = 'YYYY-MM-DD' (UTC; default today). ``recent``
     = how many latest turns to return for drill-down (max 200). Never raises."""
     from app.voice_agent import turn_metrics
 
@@ -1506,7 +1499,7 @@ async def voice_latency(date: str = "", recent: int = 20, _user=Depends(require_
 @router.get("/voice/bookings", summary="Appointments the AI voice agent booked (durable ledger)")
 async def voice_bookings(date: str = "", limit: int = 50, _user=Depends(require_admin)):
     """Recent appointments booked on AI calls, from the durable ledger
-    (``data/bookings/``). This is the proof that "AI books the meeting" is real -
+    (``data/bookings/``). This is the proof that "AI books the meeting" is real —
     each booking persists across restarts and the owner is notified on booking.
     ``date`` = 'YYYY-MM-DD' (default today). Never raises."""
     from app.integrations.calendar_booking import get_calendar

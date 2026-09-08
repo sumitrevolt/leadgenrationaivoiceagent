@@ -1,7 +1,7 @@
 """Tests for the post-call CallLog persistence hook (roadmap P1 analytics DB).
 
 Covers the pure mapping (`build_call_log`) and the never-raise / idempotent
-insert (`persist_call_log`) without needing a live database - `persist_call_log`
+insert (`persist_call_log`) without needing a live database — `persist_call_log`
 runs its sync insert through a fake session injected via monkeypatch.
 """
 
@@ -13,14 +13,14 @@ from app.telephony import post_call_hooks as pch
 
 
 # --------------------------------------------------------------------------- #
-# build_call_log - pure mapping
+# build_call_log — pure mapping
 # --------------------------------------------------------------------------- #
 def test_build_call_log_qualified_mapping(monkeypatch):
     monkeypatch.setenv("CALL_LOG_DB", "1")
     from app.models.call_log import CallOutcome
 
     q = {
-        "interest_score": 4,  # 1-5 -> 0-100 (×20) = 80
+        "interest_score": 4,  # 1-5 → 0-100 (×20) = 80
         "qualified": True,
         "appointment_requested": False,
         "summary": "Customer interested in growth plan",
@@ -45,7 +45,7 @@ def test_build_call_log_qualified_mapping(monkeypatch):
     assert row.outcome == CallOutcome.INTERESTED
     assert row.duration_seconds == 42
     assert "Customer interested" in (row.summary or "")
-    # raw id is stashed inside qualification_data (FK-safe - column left NULL here)
+    # raw id is stashed inside qualification_data (FK-safe — column left NULL here)
     assert "raw_client_id" in (row.qualification_data or "")
 
 
@@ -73,7 +73,7 @@ def test_build_call_log_none_q_no_answer(monkeypatch):
     monkeypatch.setenv("CALL_LOG_DB", "1")
     from app.models.call_log import CallOutcome
 
-    # No qualification, zero user turns -> NO_ANSWER, empty phone -> NOT-NULL fallback.
+    # No qualification, zero user turns → NO_ANSWER, empty phone → NOT-NULL fallback.
     row = pch.build_call_log(
         call_id="sid-3",
         provider="vobiz",
@@ -105,7 +105,7 @@ def test_build_call_log_flag_off_returns_none(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# persist_call_log - never-raise + idempotent (fake session)
+# persist_call_log — never-raise + idempotent (fake session)
 # --------------------------------------------------------------------------- #
 class _FakeQuery:
     def __init__(self, result):
@@ -129,7 +129,7 @@ class _FakeSession:
         return _FakeQuery(self._existing_first)
 
     def get(self, *a, **k):
-        return None  # FK existence check -> not found -> client_id stays NULL
+        return None  # FK existence check → not found → client_id stays NULL
 
     def add(self, row):
         self.added.append(row)
@@ -185,7 +185,7 @@ async def test_persist_call_log_never_raises_on_db_error(monkeypatch):
         raise RuntimeError("db unavailable")
 
     monkeypatch.setattr("app.models.base.get_db_session", _boom)
-    # Must swallow the error - call teardown must never break on analytics.
+    # Must swallow the error — call teardown must never break on analytics.
     await pch.persist_call_log(
         call_id="err-1",
         provider="vobiz",
@@ -210,4 +210,4 @@ async def test_persist_call_log_flag_off_noop(monkeypatch):
         outcome="completed",
         q=None,
     )
-    assert fake.added == []  # flag off -> build returns None -> no DB touch
+    assert fake.added == []  # flag off → build returns None → no DB touch

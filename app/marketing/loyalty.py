@@ -1,7 +1,7 @@
-"""End-customer loyalty/coupons - SMB ke APNE customers ke liye (Dhanda-style edge).
+"""End-customer loyalty/coupons — SMB ke APNE customers ke liye (Dhanda-style edge).
 
-Client (dukaan) coupon campaign banata: "SOLAR20-XXXX" type codes -> customer ko WA/print
-se do -> redeem pe record. Referral: redeem record me referrer_phone - repeat referrer
+Client (dukaan) coupon campaign banata: "SOLAR20-XXXX" type codes → customer ko WA/print
+se do → redeem pe record. Referral: redeem record me referrer_phone — repeat referrer
 dikhe to client ko pata chale. Free-stack, jsonl stores, NEVER raises.
 
 Stores: data/loyalty_campaigns.jsonl · data/loyalty_redemptions.jsonl

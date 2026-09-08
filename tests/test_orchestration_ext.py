@@ -1,6 +1,6 @@
 """Pure-python tests for orchestration-ext (trajectory + agent_consensus).
 
-NO network / DB / LLM - free_ai.chat fully monkeypatched. Trajectory store +
+NO network / DB / LLM — free_ai.chat fully monkeypatched. Trajectory store +
 export ko tmp_path pe redirect karte hain (real data/ ko nahi chhuta)."""
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def test_trajectory_enabled_flag(monkeypatch):
 
 # ----------------------------- agent_consensus ------------------------------ #
 def _patch_voter(monkeypatch, replies):
-    """free_ai.chat ko deterministic banao - call index ke hisaab se reply.
+    """free_ai.chat ko deterministic banao — call index ke hisaab se reply.
 
     replies = list[str] (index pe) ya callable(messages)->str.
     """
@@ -120,7 +120,7 @@ def _patch_voter(monkeypatch, replies):
 
 
 def test_vote_clear_winner_quorum(monkeypatch):
-    # 3 voters, 2 pick "Yes", 1 picks "No" -> quorum (2 > 3/2)
+    # 3 voters, 2 pick "Yes", 1 picks "No" → quorum (2 > 3/2)
     _patch_voter(
         monkeypatch,
         ["reason\nCHOICE: Yes", "reason\nCHOICE: Yes", "reason\nCHOICE: No"],
@@ -133,7 +133,7 @@ def test_vote_clear_winner_quorum(monkeypatch):
 
 
 def test_vote_no_quorum_tie(monkeypatch):
-    # 2 voters split 1-1 -> no clear majority (1 is not > 2/2)
+    # 2 voters split 1-1 → no clear majority (1 is not > 2/2)
     _patch_voter(monkeypatch, ["CHOICE: Yes", "CHOICE: No"])
     res = asyncio.run(agent_consensus.vote("Ship?", ["Yes", "No"], voters=2))
     assert res["winner"] is None
@@ -162,14 +162,14 @@ def test_vote_voter_fail_abstains(monkeypatch):
 
     monkeypatch.setattr(free_ai, "chat", flaky_chat)
     res = asyncio.run(agent_consensus.vote("Pick", ["Alpha", "Beta"], voters=3))
-    # voter 1 abstained -> 2 valid votes both Alpha -> quorum still holds (2 > 3/2)
+    # voter 1 abstained → 2 valid votes both Alpha → quorum still holds (2 > 3/2)
     assert res["winner"] == "Alpha"
     assert res["tally"]["Alpha"] == 2
     assert res.get("valid_votes") == 2
 
 
 def test_vote_unparseable_maps_or_abstains(monkeypatch):
-    # garbage reply that contains no option -> abstain -> no votes
+    # garbage reply that contains no option → abstain → no votes
     _patch_voter(monkeypatch, ["I have no idea honestly"])
     res = asyncio.run(agent_consensus.vote("Pick", ["Alpha", "Beta"], voters=1))
     assert res["winner"] is None

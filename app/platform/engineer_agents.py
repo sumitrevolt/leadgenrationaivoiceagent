@@ -1,7 +1,7 @@
-"""F.5 - Three engineer agents (Pranav SRE / Vidya FinOps / Arnav Security).
+"""F.5 — Three engineer agents (Pranav SRE / Vidya FinOps / Arnav Security).
 
 The 2026-06-16 billionaire-scale audit (Section H) named these three roles as
-the only additions to the AI-staff roster that pass the leverage test -
+the only additions to the AI-staff roster that pass the leverage test —
 "measurable operational leverage your current roster does not have." Every
 other proposed role is folded into existing agents or deferred.
 
@@ -12,19 +12,17 @@ the operator (not auto-executed).
 
 Project ethos applied:
 - INERT when the per-role flag is unset: returns a NEUTRAL "disabled" payload.
-- FAIL-OPEN on missing dependencies / signals - a missing data source becomes
+- FAIL-OPEN on missing dependencies / signals — a missing data source becomes
   "unknown" in the KPIs and contributes a neutral 50 to the score rather than
   zeroing it out (an absent signal is not the same as a failing one).
-- Pure-Python
-no new dependency. Uses psutil only if already importable
+- Pure-Python; no new dependency. Uses psutil only if already importable
   (it's in the project requirements but the probe degrades gracefully).
 - log_event() into the existing agent_events table so /app/team picks it up
   without any extra wiring.
 
 Hooks for callers:
     from app.platform import engineer_agents as ea
-    ea.run("sre")        # -> dict
-    also logs event
+    ea.run("sre")        # -> dict; also logs event
     ea.run("finops")
     ea.run("security")
     ea.run_all()         # -> {"sre": ..., "finops": ..., "vidya": ...}
@@ -49,9 +47,9 @@ _SRE_FLAG = "SRE_AGENT"
 _FINOPS_FLAG = "FINOPS_AGENT"
 _SECURITY_FLAG = "SECURITY_AGENT"
 # 2026-06-25 council-added engineer agents (genuinely-uncovered loops, not duplicates):
-_DBRE_FLAG = "DBRE_AGENT"  # Kabir - Postgres reliability (slow-queries/indices/connections)
-_DEPS_FLAG = "DEPS_AGENT"  # Aryan - dependency/supply-chain CVE audit (proposal-only)
-_DATA_INTEGRITY_FLAG = "DATA_INTEGRITY_AGENT"  # Diya - lead/CRM data integrity (report-only)
+_DBRE_FLAG = "DBRE_AGENT"  # Kabir — Postgres reliability (slow-queries/indices/connections)
+_DEPS_FLAG = "DEPS_AGENT"  # Aryan — dependency/supply-chain CVE audit (proposal-only)
+_DATA_INTEGRITY_FLAG = "DATA_INTEGRITY_AGENT"  # Diya — lead/CRM data integrity (report-only)
 
 
 # --------------------------------------------------------------------------- #
@@ -79,7 +77,7 @@ def _file_size_bytes(path: Path) -> int:
 
 
 def _try_log(role: str, event: str, detail: str) -> None:
-    """Best-effort event log - never raises, never blocks the agent run."""
+    """Best-effort event log — never raises, never blocks the agent run."""
     try:
         from app.platform.team import log_event
 
@@ -119,7 +117,7 @@ def _clamp(x: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 
 # --------------------------------------------------------------------------- #
-# Pranav - SRE / Reliability
+# Pranav — SRE / Reliability
 #   KPI: backup_age_hours, dead_mans_alive, capacity_headroom_pct
 #   Score = blend of three sub-scores; missing signal -> 50 (neutral).
 # --------------------------------------------------------------------------- #
@@ -131,41 +129,41 @@ def run_sre() -> dict[str, Any]:
     actions: list[str] = []
     sub_scores: list[float] = []
 
-    # 1) Backup freshness - pg_backup.log mtime <= 30h is healthy.
+    # 1) Backup freshness — pg_backup.log mtime <= 30h is healthy.
     backup_log = _DATA_DIR / "pg_backup.log"
     age = _file_age_hours(backup_log)
     if age is None:
         kpis["backup_age_hours"] = None
         sub_scores.append(50.0)
-        actions.append("No backup log found - verify nightly pg_backup.sh is running")
+        actions.append("No backup log found — verify nightly pg_backup.sh is running")
     else:
         kpis["backup_age_hours"] = round(age, 1)
         if age <= 30:
             sub_scores.append(100.0)
         elif age <= 48:
             sub_scores.append(60.0)
-            actions.append(f"Backup is {age:.1f}h old - investigate scheduler")
+            actions.append(f"Backup is {age:.1f}h old — investigate scheduler")
         else:
             sub_scores.append(0.0)
-            actions.append(f"BACKUP STALE: {age:.1f}h old - run scripts/pg_backup.sh now")
+            actions.append(f"BACKUP STALE: {age:.1f}h old — run scripts/pg_backup.sh now")
 
-    # 2) Dead-man trio alive - heartbeat file recent (<25 min covers 20-min revive)
+    # 2) Dead-man trio alive — heartbeat file recent (<25 min covers 20-min revive)
     hb = _DATA_DIR / "job_heartbeats.json"
     hb_age_min = (_file_age_hours(hb) or 99) * 60.0 if hb.exists() else None
     kpis["heartbeat_age_minutes"] = round(hb_age_min, 1) if hb_age_min is not None else None
     if hb_age_min is None:
         sub_scores.append(50.0)
-        actions.append("No heartbeat file - confirm self_improve loop is running")
+        actions.append("No heartbeat file — confirm self_improve loop is running")
     elif hb_age_min <= 25:
         sub_scores.append(100.0)
     elif hb_age_min <= 60:
         sub_scores.append(50.0)
-        actions.append(f"Heartbeat {hb_age_min:.0f}m old - check revive-beat")
+        actions.append(f"Heartbeat {hb_age_min:.0f}m old — check revive-beat")
     else:
         sub_scores.append(0.0)
         actions.append(f"DEAD-MAN STALE: heartbeat {hb_age_min:.0f}m old")
 
-    # 3) Capacity headroom - psutil if available; neutral otherwise.
+    # 3) Capacity headroom — psutil if available; neutral otherwise.
     try:
         import psutil  # type: ignore
 
@@ -195,7 +193,7 @@ def run_sre() -> dict[str, Any]:
         "status": "ok",
         "summary": (
             (
-                f"Reliability score {score:.0f}/100 - "
+                f"Reliability score {score:.0f}/100 — "
                 + ("all green" if score and score >= 80 else "needs attention")
             )
             if score is not None
@@ -211,7 +209,7 @@ def run_sre() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Vidya - FinOps / Cost
+# Vidya — FinOps / Cost
 #   KPI: today_llm_tokens, est_cost_inr, customers_active, cost_per_customer
 #   Free-stack reality: LLM tokens are free today, so cost is near 0. The
 #   number Vidya watches is therefore "token efficiency" + "active customers"
@@ -247,7 +245,7 @@ def run_finops() -> dict[str, Any]:
     kpis["today_llm_calls"] = calls_today
     kpis["today_llm_tokens"] = tokens_today
 
-    # Free providers -> estimated cost is ~0. Use a paid-tier reference for trend.
+    # Free providers → estimated cost is ~0. Use a paid-tier reference for trend.
     # Reference: ~$2 / million input tokens (Anthropic 4.5 Haiku-ish baseline).
     est_cost_inr = (tokens_today / 1_000_000.0) * 2.0 * 83.0  # USD->INR ~83
     kpis["est_paid_baseline_cost_inr"] = round(est_cost_inr, 2)
@@ -264,14 +262,14 @@ def run_finops() -> dict[str, Any]:
             pass
     kpis["customers_active"] = customers_active
 
-    # 3) Cost per customer (BLOCKED on LiteLLM virtual-keys for true per-tenant -
+    # 3) Cost per customer (BLOCKED on LiteLLM virtual-keys for true per-tenant —
     # until then it's an aggregate floor).
     if customers_active > 0:
         cost_per_customer = est_cost_inr / customers_active
         kpis["est_cost_per_customer_inr"] = round(cost_per_customer, 2)
     else:
         kpis["est_cost_per_customer_inr"] = None
-        actions.append("No active customers yet - pricing/quota tuning premature")
+        actions.append("No active customers yet — pricing/quota tuning premature")
 
     # Margin score:
     # - free-stack: cost ≈ ₹0, so margin is bounded by token efficiency
@@ -283,7 +281,7 @@ def run_finops() -> dict[str, Any]:
     else:
         sub_scores.append(20.0)
         actions.append(
-            f"High token throughput ({tokens_today:,}/day) - risks Groq/Cerebras TPD exhaustion"
+            f"High token throughput ({tokens_today:,}/day) — risks Groq/Cerebras TPD exhaustion"
         )
 
     # LiteLLM activation gate
@@ -336,22 +334,22 @@ def run_finops() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Arnav - Security / Compliance
+# Arnav — Security / Compliance
 #   KPI: consent_ledger_healthy, secrets_age_days, dpdp_grievance_set,
 #        webhook_secrets_armed
 #   Composite "posture score" 0-100.
 #
 #   Scheduler path: run_security() gated by SECURITY_AGENT (legacy).
 #   Agent Runtime path: compute_security_posture() after SECURITY_POSTURE_AGENT
-#   adapter gate - never OR the two flags for eligibility.
+#   adapter gate — never OR the two flags for eligibility.
 # --------------------------------------------------------------------------- #
 def compute_security_posture() -> dict[str, Any]:
-    """Read-only posture score. No flag check - callers gate independently."""
+    """Read-only posture score. No flag check — callers gate independently."""
     kpis: dict[str, Any] = {}
     actions: list[str] = []
     sub_scores: list[float] = []
 
-    # 1) Consent ledger healthy (TRAI / DPDP) - file exists + recently written
+    # 1) Consent ledger healthy (TRAI / DPDP) — file exists + recently written
     ledger = _DATA_DIR / "consent_ledger.jsonl"
     if ledger.exists():
         kpis["consent_ledger_kb"] = round(_file_size_bytes(ledger) / 1024.0, 1)
@@ -359,10 +357,10 @@ def compute_security_posture() -> dict[str, Any]:
     else:
         kpis["consent_ledger_kb"] = 0
         sub_scores.append(40.0)
-        actions.append("Consent ledger missing - verify telephony opt-out path")
+        actions.append("Consent ledger missing — verify telephony opt-out path")
 
     # 2) Webhook signing secrets armed (fail-CLOSED only protects when set).
-    # Vobiz doesn't sign callbacks (no per-provider secret to arm) - WhatsApp is
+    # Vobiz doesn't sign callbacks (no per-provider secret to arm) — WhatsApp is
     # the only externally-signed webhook since Twilio was removed 2026-07-07.
     whatsapp = bool(os.environ.get("WHATSAPP_APP_SECRET", "").strip())
     kpis["webhook_secrets_armed"] = {"whatsapp": whatsapp}
@@ -373,7 +371,7 @@ def compute_security_posture() -> dict[str, Any]:
     kpis["turnstile_armed"] = turnstile
     sub_scores.append(100.0 if turnstile else 60.0)
     if not turnstile:
-        actions.append("Turnstile secret unset - public forms unguarded vs bot spam")
+        actions.append("Turnstile secret unset — public forms unguarded vs bot spam")
 
     # 4) DPDP Grievance Officer + privacy/terms visible
     gri = bool(os.environ.get("GRIEVANCE_OFFICER_EMAIL", "").strip())
@@ -404,14 +402,14 @@ def compute_security_posture() -> dict[str, Any]:
 
 
 def run_security() -> dict[str, Any]:
-    """Scheduler / staff entry - gated by SECURITY_AGENT only."""
+    """Scheduler / staff entry — gated by SECURITY_AGENT only."""
     if not _flag_on(_SECURITY_FLAG):
         return _disabled_result("security", _SECURITY_FLAG)
     return compute_security_posture()
 
 
 # --------------------------------------------------------------------------- #
-# Kabir - DB Reliability Engineer (council 2026-06-25)
+# Kabir — DB Reliability Engineer (council 2026-06-25)
 #   Fills Pranav's blind spot: Pranav watches backup/heartbeat/capacity, NOT
 #   Postgres query-health. As lead/call data scales, slow queries + unused/
 #   bloating indices are the silent killer. STRICTLY read-only (pg catalog
@@ -438,13 +436,13 @@ def run_dbre() -> dict[str, Any]:
             kpis["db_dialect"] = dialect or "unknown"
 
             if dialect != "postgresql":
-                # SQLite rollback-backup mode (or unknown) - pg health N/A, not a failure.
+                # SQLite rollback-backup mode (or unknown) — pg health N/A, not a failure.
                 return {
                     "role": "dbre",
                     "agent": "kabir",
                     "score": None,
                     "status": "ok",
-                    "summary": f"DB is '{dialect or 'unknown'}' not Postgres - pg health checks skipped",
+                    "summary": f"DB is '{dialect or 'unknown'}' not Postgres — pg health checks skipped",
                     "kpis": kpis,
                     "actions": ["pg reliability checks apply only to the Postgres prod DB"],
                     "ts": int(time.time()),
@@ -458,14 +456,14 @@ def run_dbre() -> dict[str, Any]:
                     sub_scores.append(100.0)
                 elif conns < 150:
                     sub_scores.append(60.0)
-                    actions.append(f"{conns} DB connections - watch PgBouncer pool sizing")
+                    actions.append(f"{conns} DB connections — watch PgBouncer pool sizing")
                 else:
                     sub_scores.append(20.0)
-                    actions.append(f"HIGH connection count ({conns}) - risk of pool exhaustion")
+                    actions.append(f"HIGH connection count ({conns}) — risk of pool exhaustion")
             except Exception:
                 sub_scores.append(50.0)
 
-            # 2) Unused indices (idx_scan=0) - write-amplification + bloat as data grows.
+            # 2) Unused indices (idx_scan=0) — write-amplification + bloat as data grows.
             try:
                 unused = int(
                     db.execute(
@@ -478,16 +476,16 @@ def run_dbre() -> dict[str, Any]:
                     sub_scores.append(100.0)
                 elif unused <= 20:
                     sub_scores.append(70.0)
-                    actions.append(f"{unused} never-scanned indexes - review for DROP")
+                    actions.append(f"{unused} never-scanned indexes — review for DROP")
                 else:
                     sub_scores.append(40.0)
                     actions.append(
-                        f"{unused} unused indexes bloating writes - audit + DROP candidates"
+                        f"{unused} unused indexes bloating writes — audit + DROP candidates"
                     )
             except Exception:
                 sub_scores.append(50.0)
 
-            # 3) Slow queries via pg_stat_statements (extension may be absent -> neutral).
+            # 3) Slow queries via pg_stat_statements (extension may be absent → neutral).
             try:
                 slow = int(
                     db.execute(
@@ -500,16 +498,16 @@ def run_dbre() -> dict[str, Any]:
                     sub_scores.append(100.0)
                 elif slow <= 5:
                     sub_scores.append(60.0)
-                    actions.append(f"{slow} query patterns avg >1s - add indexes / optimize")
+                    actions.append(f"{slow} query patterns avg >1s — add indexes / optimize")
                 else:
                     sub_scores.append(20.0)
                     actions.append(
-                        f"{slow} slow query patterns (>1s avg) - investigate top offenders"
+                        f"{slow} slow query patterns (>1s avg) — investigate top offenders"
                     )
             except Exception:
                 kpis["slow_queries_gt_1s"] = None
                 actions.append(
-                    "pg_stat_statements not enabled - CREATE EXTENSION for slow-query visibility"
+                    "pg_stat_statements not enabled — CREATE EXTENSION for slow-query visibility"
                 )
 
             # 4) DB size (informational trend).
@@ -521,7 +519,7 @@ def run_dbre() -> dict[str, Any]:
             except Exception:
                 pass
     except Exception:
-        # DB unconfigured / unreachable - fail-open neutral (absent != failing).
+        # DB unconfigured / unreachable — fail-open neutral (absent != failing).
         return {
             "role": "dbre",
             "agent": "kabir",
@@ -557,7 +555,7 @@ def run_dbre() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Aryan - Dependency / Supply-chain Engineer (council 2026-06-25)
+# Aryan — Dependency / Supply-chain Engineer (council 2026-06-25)
 #   Distinct from Arnav (secrets/compliance posture): Aryan owns PACKAGE
 #   vulnerabilities. Runs pip-audit READ-ONLY (audits installed pkgs, never
 #   installs/upgrades). Proposal-only output. pip-audit absent -> neutral +
@@ -579,11 +577,10 @@ def run_deps() -> dict[str, Any]:
     if age is None:
         kpis["lock_age_days"] = None
         sub_scores.append(50.0)
-        actions.append("No requirements lock/txt found - pin dependencies for reproducible builds")
+        actions.append("No requirements lock/txt found — pin dependencies for reproducible builds")
     else:
         kpis["lock_age_days"] = round(age / 24.0, 1)
-        sub_scores.append(100.0)  # presence is good
-        staleness alone is not a failure
+        sub_scores.append(100.0)  # presence is good; staleness alone is not a failure
 
     # 2) Known CVEs via pip-audit (read-only subprocess; bounded; fail-open).
     try:
@@ -597,7 +594,7 @@ def run_deps() -> dict[str, Any]:
             timeout=90,
         )
         out = (proc.stdout or "").strip()
-        data = json.loads(out)  # raises if pip-audit absent / no JSON -> caught below
+        data = json.loads(out)  # raises if pip-audit absent / no JSON → caught below
         deps = data.get("dependencies", data) if isinstance(data, dict) else data
         vulns = sum(len(d.get("vulns") or []) for d in (deps or []) if isinstance(d, dict))
         kpis["known_vulnerabilities"] = vulns
@@ -606,14 +603,14 @@ def run_deps() -> dict[str, Any]:
         elif vulns <= 3:
             sub_scores.append(60.0)
             actions.append(
-                f"{vulns} dependency CVEs - review pip-audit, plan upgrades (never auto)"
+                f"{vulns} dependency CVEs — review pip-audit, plan upgrades (never auto)"
             )
         else:
             sub_scores.append(20.0)
-            actions.append(f"{vulns} dependency CVEs - prioritize upgrades (proposal-only)")
+            actions.append(f"{vulns} dependency CVEs — prioritize upgrades (proposal-only)")
     except Exception:
         kpis["known_vulnerabilities"] = None
-        actions.append("pip-audit unavailable - add 'pip-audit' to image for CVE scanning")
+        actions.append("pip-audit unavailable — add 'pip-audit' to image for CVE scanning")
 
     score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
     result = {
@@ -640,7 +637,7 @@ def run_deps() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Diya - Data-Integrity Engineer (council 2026-06-25)
+# Diya — Data-Integrity Engineer (council 2026-06-25)
 #   Revenue-adjacent: dupe/incomplete leads = wasted outreach + bad CRM = churn.
 #   Scans the prospect store READ-ONLY and REPORTS (never deletes; dedupe stays
 #   a human-approved admin action). Empty store -> neutral.
@@ -699,7 +696,7 @@ def run_dataquality() -> dict[str, Any]:
             "agent": "diya",
             "score": None,
             "status": "ok",
-            "summary": "No prospects yet - data-integrity scan idle",
+            "summary": "No prospects yet — data-integrity scan idle",
             "kpis": kpis,
             "actions": [],
             "ts": int(time.time()),
@@ -714,23 +711,23 @@ def run_dataquality() -> dict[str, Any]:
     elif dup_ratio < 0.10:
         sub_scores.append(70.0)
         actions.append(
-            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) - review dedupe (report-only)"
+            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) — review dedupe (report-only)"
         )
     else:
         sub_scores.append(30.0)
         actions.append(
-            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) - high dup rate, dedupe recommended"
+            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) — high dup rate, dedupe recommended"
         )
 
     if miss_ratio < 0.05:
         sub_scores.append(100.0)
     elif miss_ratio < 0.20:
         sub_scores.append(70.0)
-        actions.append(f"{missing} leads missing phone+email - enrich before outreach")
+        actions.append(f"{missing} leads missing phone+email — enrich before outreach")
     else:
         sub_scores.append(40.0)
         actions.append(
-            f"{missing} leads ({miss_ratio * 100:.0f}%) have no contact - enrichment needed"
+            f"{missing} leads ({miss_ratio * 100:.0f}%) have no contact — enrichment needed"
         )
 
     score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
@@ -781,7 +778,7 @@ def run(role: str) -> dict[str, Any]:
 
 
 def run_all() -> dict[str, dict[str, Any]]:
-    """Run all engineer agents - dashboard rollup."""
+    """Run all engineer agents — dashboard rollup."""
     return {role: fn() for role, fn in _AGENTS.items()}
 
 
@@ -797,7 +794,7 @@ AGENT_NAMES = {
 
 
 def roles() -> list[str]:
-    """All engineer-agent role keys - drift-proof source for the admin API/UI."""
+    """All engineer-agent role keys — drift-proof source for the admin API/UI."""
     return list(_AGENTS)
 
 

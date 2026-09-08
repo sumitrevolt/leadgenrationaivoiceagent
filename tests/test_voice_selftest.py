@@ -1,5 +1,5 @@
 """
-Tests for app.voice_agent.voice_selftest - the pure scoring brain of the
+Tests for app.voice_agent.voice_selftest — the pure scoring brain of the
 built-in voice self-test. Proves severity classification, goal scoring,
 aggregation and the gate decision (incl. the SKIP / strict semantics) without
 needing a live WebSocket.
@@ -57,7 +57,7 @@ def test_score_scenario_all_pass():
     good = [
         {
             "role": "assistant",
-            "content": "Namaste, main ek AI assistant - do minute baat kar sakti hoon?",
+            "content": "Namaste, main ek AI assistant — do minute baat kar sakti hoon?",
         },
         {"role": "user", "content": "haan"},
         {"role": "assistant", "content": "aapko zyada leads chahiye kya?"},
@@ -81,7 +81,7 @@ def test_score_scenario_partial_fail_produces_advisory_findings():
     assert 0.0 < sc["score"] < 1.0
     kinds = {f["kind"] for f in sc["goal_findings"]}
     assert "GOAL_AI_DISCLOSURE" in kinds and "GOAL_PERMISSION" in kinds
-    # goal findings are advisory - they must NOT gate by default
+    # goal findings are advisory — they must NOT gate by default
     assert all(f["severity"] == "advisory" for f in sc["goal_findings"])
 
 
@@ -109,8 +109,7 @@ def test_aggregate_quality_is_mean_pass_rate():
     s2 = {"name": "b", "kind": "happy", "goals_total": 2, "goals_passed": 1, "score": 0.5}
     s3 = {"name": "c", "kind": "guardrail", "goals_total": 0, "goals_passed": 0, "score": None}
     agg = vs.aggregate([s1, s2, s3])
-    assert agg["quality_score"] == 0.75  # mean of 1.0 and 0.5
-    None scenario excluded
+    assert agg["quality_score"] == 0.75  # mean of 1.0 and 0.5; None scenario excluded
     assert agg["scenarios_scored"] == 2
     assert agg["goals_passed"] == 3 and agg["goals_total"] == 4
     assert "happy" in agg["by_kind"]
@@ -122,7 +121,7 @@ def test_aggregate_empty():
 
 
 # --------------------------------------------------------------------------- #
-# Gate decision - the CI exit-code semantics
+# Gate decision — the CI exit-code semantics
 # --------------------------------------------------------------------------- #
 def test_gate_skip_is_exit_zero():
     g = vs.gate([{"kind": "NO_REPLY", "severity": "critical"}], skipped=True)

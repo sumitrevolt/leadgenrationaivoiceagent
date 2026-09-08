@@ -1,10 +1,10 @@
-"""1-click background removal (AdBanao-parity) - rembg lazy-optional.
+"""1-click background removal (AdBanao-parity) — rembg lazy-optional.
 
-Photo bytes -> transparent PNG cutout (product/owner photo poster pe layer karne
-ke liye). rembg HEAVY dep (onnxruntime ~200MB) - pip install USER ka decision
+Photo bytes → transparent PNG cutout (product/owner photo poster pe layer karne
+ke liye). rembg HEAVY dep (onnxruntime ~200MB) — pip install USER ka decision
 (VPS OOM lesson), isliye yahan SIRF lazy import + graceful error dict.
 
-Cache: data/bg_removed/<sha1>.png - same photo dobara = free (CPU bachao).
+Cache: data/bg_removed/<sha1>.png — same photo dobara = free (CPU bachao).
 Import-safe, NEVER raises.
 """
 
@@ -37,12 +37,12 @@ def _cache_name(image_bytes: bytes) -> str:
 
 
 def remove_bg(image_bytes: bytes) -> bytes | dict[str, Any]:
-    """Image bytes -> transparent PNG cutout bytes, ya {ok: False, error} dict.
+    """Image bytes → transparent PNG cutout bytes, ya {ok: False, error} dict.
     Kabhi raise nahi karta."""
     if not image_bytes:
-        return {"ok": False, "error": "image bytes missing - pehle photo do."}
+        return {"ok": False, "error": "image bytes missing — pehle photo do."}
     if len(image_bytes) > _MAX_BYTES:
-        return {"ok": False, "error": "photo 8MB se badi hai - chhoti photo use karo."}
+        return {"ok": False, "error": "photo 8MB se badi hai — chhoti photo use karo."}
 
     # cache hit = free
     try:
@@ -55,18 +55,18 @@ def remove_bg(image_bytes: bytes) -> bytes | dict[str, Any]:
         name, cached = "", ""
 
     try:
-        from rembg import remove  # lazy - heavy dep
+        from rembg import remove  # lazy — heavy dep
     except Exception:
         return {
             "ok": False,
-            "error": "rembg installed nahi - background removal abhi unavailable. "
-            "(Install user decision: `pip install rembg` - heavy ~200MB.)",
+            "error": "rembg installed nahi — background removal abhi unavailable. "
+            "(Install user decision: `pip install rembg` — heavy ~200MB.)",
         }
 
     try:
         out = remove(image_bytes)
         if not out or len(out) < 100:
-            return {"ok": False, "error": "cutout empty aaya - alag photo try karo."}
+            return {"ok": False, "error": "cutout empty aaya — alag photo try karo."}
         if cached:
             try:
                 os.makedirs(_CACHE_DIR, exist_ok=True)

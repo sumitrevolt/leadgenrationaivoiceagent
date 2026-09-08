@@ -1,4 +1,4 @@
-"""Lineage-aware deploy image retention - regression contracts."""
+"""Lineage-aware deploy image retention — regression contracts."""
 
 from __future__ import annotations
 
@@ -351,27 +351,24 @@ def test_deploy_vps_wires_lineage_retention_planner():
     joined = "\n".join(command_lines)
     assert "docker rmi -f" not in joined
 
-    health_ok = t.index('if [ "$LIVE_VER" != "$VER" ]
-    then')
+    health_ok = t.index('if [ "$LIVE_VER" != "$VER" ]; then')
     write_idx = t.index("--write-lineage")
     up_idx = t.index("_compose_up > /tmp/deploy_up.log")
     assert up_idx < health_ok < write_idx
 
 
 def test_deploy_vps_refusal_gates_all_destructive_cleanup():
-    """Planner refuse / malformed -> no rmi, no image prune, no builder prune."""
+    """Planner refuse / malformed → no rmi, no image prune, no builder prune."""
     t = SCRIPT.read_text(encoding="utf-8")
     retention = t[t.index("=== RETENTION (lineage-aware") : t.index("=== DEPLOYED $VER OK ===")]
     assert "_CLEANUP_OK=1" in retention
     assert "docker image prune -f" in retention
     assert "BUILD CACHE skipped" in retention
-    assert 'if [ "$_CLEANUP_OK" -eq 1 ]
-    then' in retention
+    assert 'if [ "$_CLEANUP_OK" -eq 1 ]; then' in retention
     assert "docker builder prune -f --filter" in retention
     assert "zero destructive cleanup executed" in retention
     prune_idx = retention.index("docker image prune -f")
-    gate_idx = retention.index('if [ "$_CLEANUP_OK" -eq 1 ]
-    then')
+    gate_idx = retention.index('if [ "$_CLEANUP_OK" -eq 1 ]; then')
     assert prune_idx < gate_idx
     builder_idx = retention.index("docker builder prune -f --filter")
     assert gate_idx < builder_idx

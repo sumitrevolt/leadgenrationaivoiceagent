@@ -4,20 +4,18 @@ JSON documents under ``EXTERNAL_MISSION_DIR`` (default ``data/external_missions`
 are the payload store. Production VPS containers share ``./data:/app/data``, so
 the directory is visible to app/worker/scheduler. Lease claim, idempotency
 registration and document mutation are serialised by ``cas.get_backend()``
-(Redis when reachable, else portalocker file locks) - never by a process-local
+(Redis when reachable, else portalocker file locks) — never by a process-local
 mutex alone.
 
 Topology facts (verified against ``docker-compose.vps.yml``):
   * ``./data`` is bind-mounted into app, worker, scheduler, worker-heavy,
-    worker-video - so FileLock CAS on ``data/external_missions/.locks/`` is
+    worker-video — so FileLock CAS on ``data/external_missions/.locks/`` is
     shared across those containers on one VPS host.
   * Redis (``REDIS_URL``) is the preferred multi-container CAS backend when
-    reachable
-    same pattern as ``dev_control.locks.RedisOwnershipLock``.
+    reachable; same pattern as ``dev_control.locks.RedisOwnershipLock``.
   * A Windows Cursor session and a Claude Code session only share state when
     they point at the same ``EXTERNAL_MISSION_DIR`` (or the same Redis).
-  * Redeploy preserves ``./data``
-  container replacement does not wipe the
+  * Redeploy preserves ``./data``; container replacement does not wipe the
     mission store. JSON alone without the CAS backend is NOT distributed-safe.
 """
 
@@ -35,12 +33,12 @@ from app.dev_control.external_agents import cas as cas_mod
 from app.dev_control.external_agents.policy import redact
 from app.dev_control.external_agents.schema import TERMINAL_STATES, Mission, MissionState
 
-# Local optimisation only - held INSIDE an already-acquired CAS lock.
+# Local optimisation only — held INSIDE an already-acquired CAS lock.
 _LOCAL = threading.RLock()
 
 
 def _root() -> Path:
-    """Mission store root - EXTERNAL_MISSION_DIR override, else shared authority."""
+    """Mission store root — EXTERNAL_MISSION_DIR override, else shared authority."""
     from app.platform import runtime_data_authority as _auth
 
     return _auth.resolve_store_path(
@@ -104,7 +102,7 @@ def save(mission: Mission) -> Mission:
             if hasattr(mission, "cas_version"):
                 mission.cas_version = payload["cas_version"]  # type: ignore[attr-defined]
             else:
-                # Missions created before the field existed - stamp via dict roundtrip.
+                # Missions created before the field existed — stamp via dict roundtrip.
                 mission.__dict__["cas_version"] = payload["cas_version"]
             _atomic_write(
                 _mission_path(mission.mission_id),
@@ -170,13 +168,13 @@ def _utc_epoch(dt: datetime) -> float:
     `dt.timestamp()` on a naive datetime asks the OS to interpret it as LOCAL
     time. Everything in this module produces naive UTC (`datetime.utcnow()`), so
     calling `.timestamp()` on that value shifts every lease window by the host's
-    UTC offset - five and a half hours on the IST hosts this project runs on,
+    UTC offset — five and a half hours on the IST hosts this project runs on,
     which put `lease_expiry` in the PAST the moment a lease was taken.
 
     Why it survived: the CAS backend compares `cur.until > now` with both sides
     coming from the same shifted call, so the layer that would have caught the
     error shared it. What broke was `Mission.lease_active()`, which compares the
-    rendered `lease_expiry` against a correct `utcnow()` - and therefore reported
+    rendered `lease_expiry` against a correct `utcnow()` — and therefore reported
     every live lease as expired, inviting a second runner to claim a mission that
     was still executing.
     """
@@ -300,7 +298,7 @@ def apply_cas(
     """Load + mutate + save under the mission doc lock.
 
     This is the production correctness boundary for orchestrator lifecycle
-    mutations. ``cas_version`` is an audit counter bumped under the same lock -
+    mutations. ``cas_version`` is an audit counter bumped under the same lock —
     the lock (not optimistic versioning) prevents lost updates. Stale writers
     that pass an ``expected_status`` are rejected with ``stale_transition``.
     """
@@ -387,8 +385,7 @@ def recover_stale(*, now: datetime | None = None) -> list[dict[str, Any]]:
             m.clear_lease()
             m.transition(MissionState.FAILED_RETRYABLE)
             m.blocker = f"stale_lease_recovered_from:{prev}"
-            m.add_evidence("recovery", {"from": prev}, note="lease expired
-            worker presumed dead")
+            m.add_evidence("recovery", {"from": prev}, note="lease expired; worker presumed dead")
             with _LOCAL:
                 _atomic_write(
                     _mission_path(m.mission_id),
@@ -411,7 +408,7 @@ def persistence_report() -> dict[str, Any]:
         **status,
         "mission_dir": str(root.resolve()) if root.exists() else str(root),
         "exists": root.exists(),
-        "vps_bind_mount": "./data:/app/data (docker-compose.vps.yml) - shared by app/worker/scheduler",
+        "vps_bind_mount": "./data:/app/data (docker-compose.vps.yml) — shared by app/worker/scheduler",
         "survives_redeploy": True,
         "windows_cursor_claude_share": (
             "only if both processes set EXTERNAL_MISSION_DIR to the same path "

@@ -1,7 +1,7 @@
-"""GSC rank-tracking integration - contract tests (A1: SEO observability).
+"""GSC rank-tracking integration — contract tests (A1: SEO observability).
 
 The module must stay INERT (flag+creds ke bina no-op), never raise, and keep
-all data local (data/gsc_*.jsonl). No outbound calls in tests - API service
+all data local (data/gsc_*.jsonl). No outbound calls in tests — API service
 is mocked. Mirrors test_activation_readiness.py pure-function style.
 """
 
@@ -32,7 +32,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# INERT matrix - no flag, no creds = zero behaviour change
+# INERT matrix — no flag, no creds = zero behaviour change
 # --------------------------------------------------------------------------- #
 def test_enabled_false_when_flag_unset() -> None:
     assert gsc.enabled() is False
@@ -63,7 +63,7 @@ def test_default_site_url() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# run_daily - never raises, no-op when disabled
+# run_daily — never raises, no-op when disabled
 # --------------------------------------------------------------------------- #
 def test_run_daily_disabled_noop() -> None:
     r = gsc.run_daily()
@@ -72,8 +72,7 @@ def test_run_daily_disabled_noop() -> None:
 
 def test_run_daily_never_raises(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     creds = tmp_path / "sa.json"
-    creds.write_text("{}")  # exists -> enabled True
-    invalid creds -> service build fails
+    creds.write_text("{}")  # exists → enabled True; invalid creds → service build fails
     monkeypatch.setenv("GSC_ENABLED", "1")
     monkeypatch.setenv("GSC_SERVICE_ACCOUNT_JSON", str(creds))
     r = gsc.run_daily()
@@ -82,7 +81,7 @@ def test_run_daily_never_raises(monkeypatch: pytest.MonkeyPatch, tmp_path) -> No
 
 
 # --------------------------------------------------------------------------- #
-# Fetch + persistence - mocked service, tmp data paths
+# Fetch + persistence — mocked service, tmp data paths
 # --------------------------------------------------------------------------- #
 def _mock_service() -> SimpleNamespace:
     rows = [

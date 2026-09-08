@@ -1,9 +1,8 @@
-"""Stage 2 - immutable snapshot primitive.
+"""Stage 2 — immutable snapshot primitive.
 
 Filesystem only: no approval ledger, video record, queue, provider or UI is
 touched. A hardlink would share the source inode, so the snapshot must be a NEW
-inode
-every failure path must leave nothing installed and no temp behind.
+inode; every failure path must leave nothing installed and no temp behind.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ def env(tmp_path, monkeypatch):
     # HERMETIC PRECONDITION (do not remove): every test here that does a REAL copy
     # writes to the host filesystem, and prepare_snapshot refuses when the destination
     # would fall below VIDEO_SNAPSHOT_MIN_FREE_PCT. Left unpinned, the whole file goes
-    # red on any machine whose disk is under the default floor - a host-capacity fact,
+    # red on any machine whose disk is under the default floor — a host-capacity fact,
     # not a snapshot defect. Pinned low here; the tests that are ABOUT the floor set
     # their own value (or stub _disk_free_total) and therefore still prove it.
     monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "1")
@@ -179,7 +178,7 @@ def test_override_may_tighten_but_never_raise_the_ceiling(monkeypatch):
 
 
 def test_artifact_over_canonical_upload_cap_cannot_be_accepted(env, monkeypatch):
-    """201 MB artifact vs a 200 MB canonical cap - refused even if someone
+    """201 MB artifact vs a 200 MB canonical cap — refused even if someone
     tries to widen VIDEO_SNAPSHOT_MAX_MB."""
     big = env["source"].parent / "big.mp4"
     with open(big, "wb") as fh:  # sparse: st_size is 201 MB, disk cost ~0
@@ -227,8 +226,7 @@ def test_projected_free_crossing_threshold_refuses(env, monkeypatch):
     monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "10")
     size = env["source"].stat().st_size
     total = size * 100
-    free = int(total * 0.105)  # 10.5% now
-    the copy costs 1% -> 9.5% after
+    free = int(total * 0.105)  # 10.5% now; the copy costs 1% -> 9.5% after
     monkeypatch.setattr(S, "_disk_free_total", lambda p: (free, total))
     assert free / total * 100.0 > S.min_free_percent()  # admissible right now
     out = _prepare(env)

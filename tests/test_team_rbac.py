@@ -1,4 +1,4 @@
-"""Tests - RBAC module grants (rbac.py) + require_admin module enforcement.
+"""Tests — RBAC module grants (rbac.py) + require_admin module enforcement.
 Hermetic: fake user objects, no DB/network.
 """
 

@@ -1,4 +1,4 @@
-"""Chaos tests - resiliency under failure (Playbook mandate).
+"""Chaos tests — resiliency under failure (Playbook mandate).
 
 Scenarios: Redis down, DB slow, worker crash, duplicate webhook, poison message.
 All tests are hermetic (mocked failures), fast, and never-raise.
@@ -15,7 +15,7 @@ import pytest
 # 1. Redis down: Celery fallback to in-process scheduler
 # ---------------------------------------------------------------------------
 def test_redis_down_celery_fallback(monkeypatch):
-    """Redis connection fail -> Celery should fallback or fail gracefully."""
+    """Redis connection fail → Celery should fallback or fail gracefully."""
     from app.worker import celery_app
 
     # Simulate Redis failure by overriding broker URL to invalid
@@ -33,7 +33,7 @@ def test_redis_down_celery_fallback(monkeypatch):
 # 2. DB slow: timeout + circuit breaker
 # ---------------------------------------------------------------------------
 def test_db_slow_timeout_circuit_breaker(monkeypatch):
-    """DB query > timeout -> circuit breaker opens, fast-fail."""
+    """DB query > timeout → circuit breaker opens, fast-fail."""
     monkeypatch.setenv("CIRCUIT_BREAKER", "1")
     from app.infrastructure import circuit_breaker
 
@@ -54,7 +54,7 @@ def test_db_slow_timeout_circuit_breaker(monkeypatch):
 # 3. Worker crash: DLQ + retry
 # ---------------------------------------------------------------------------
 def test_worker_crash_dlq_retry(monkeypatch):
-    """Task fails -> goes to DLQ -> retry on revive."""
+    """Task fails → goes to DLQ → retry on revive."""
     import asyncio
     import json
 
@@ -88,7 +88,7 @@ def test_worker_crash_dlq_retry(monkeypatch):
 # 4. Duplicate webhook: idempotency
 # ---------------------------------------------------------------------------
 def test_duplicate_webhook_idempotency(monkeypatch):
-    """Same webhook received twice -> idempotent, only one action."""
+    """Same webhook received twice → idempotent, only one action."""
     from app.billing import idempotency
 
     def _redis_down():
@@ -114,7 +114,7 @@ def test_duplicate_webhook_idempotency(monkeypatch):
 # 5. Queue poison message: isolation + alert
 # ---------------------------------------------------------------------------
 def test_poison_message_isolation(monkeypatch):
-    """Poison message kills worker -> task isolated, alert fired."""
+    """Poison message kills worker → task isolated, alert fired."""
     import asyncio
     import json
 
@@ -150,7 +150,7 @@ def test_poison_message_isolation(monkeypatch):
 # 6. LLM provider all fail: fallback chain
 # ---------------------------------------------------------------------------
 def test_llm_provider_chain_fallback(monkeypatch):
-    """All LLM providers fail -> graceful fallback to cached response or sorry message."""
+    """All LLM providers fail → graceful fallback to cached response or sorry message."""
     from app.voice_agent import free_ai
 
     # Simulate all providers failing

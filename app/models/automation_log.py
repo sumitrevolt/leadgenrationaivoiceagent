@@ -1,4 +1,4 @@
-"""Automation Log model - centralized event log for all automation/agent/scheduler jobs.
+"""Automation Log model — centralized event log for all automation/agent/scheduler jobs.
 
 ADR-064, 2026-07-09.
 """

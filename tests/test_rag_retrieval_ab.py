@@ -24,7 +24,7 @@ _SPEC.loader.exec_module(ab)  # type: ignore
 
 
 # --------------------------------------------------------------------------- #
-# Fake retrievers - return labeled docs (by id) as {"text": ...} hits in order.
+# Fake retrievers — return labeled docs (by id) as {"text": ...} hits in order.
 # --------------------------------------------------------------------------- #
 def _hits(*doc_ids: str) -> list[dict]:
     return [{"text": ab.LABELED_DOCS[d], "score": 1.0, "source": "fake"} for d in doc_ids]
@@ -132,7 +132,7 @@ def test_k_cutoff_truncates():
     labeled = [{"query": "q", "relevant": {"warranty_25y"}}]
 
     def fn(query, k):
-        # relevant doc is at position 2 - beyond k=1 cutoff
+        # relevant doc is at position 2 — beyond k=1 cutoff
         return _hits("marketing_noise", "warranty_25y")
 
     sc = ab.score_config(fn, labeled_set=labeled, k=1)

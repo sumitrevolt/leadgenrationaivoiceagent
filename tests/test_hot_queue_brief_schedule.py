@@ -30,7 +30,7 @@ def test_scheduled_brief_is_inert_when_flag_is_off(monkeypatch):
 
 
 def test_scheduled_brief_skips_safely_when_automation_is_unhealthy(monkeypatch):
-    """Fail-closed (no LLM) but do NOT report job failure -> avoids DLQ death spiral."""
+    """Fail-closed (no LLM) but do NOT report job failure → avoids DLQ death spiral."""
     monkeypatch.setenv("HOT_QUEUE_BRIEF_DAILY", "1")
     monkeypatch.setattr(
         ob,

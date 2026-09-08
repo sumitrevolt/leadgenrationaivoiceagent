@@ -1,4 +1,4 @@
-"""Agent Runtime canary preflight - read-only eligibility census + isolation guard.
+"""Agent Runtime canary preflight — read-only eligibility census + isolation guard.
 
 WHY (2026-07-22): Nikhil canary correctly stopped because ``primary_flag=""`` plus
 peer flags already ON in prod meant ``AGENT_RUNTIME=1`` would arm many pilots.
@@ -33,9 +33,9 @@ def agent_flag_census(*, assume_runtime_on: bool | None = None) -> dict[str, Any
     """Complete 31-agent flag census. Read-only. Never raises a hard error.
 
     ``assume_runtime_on``:
-      None  -> use current AGENT_RUNTIME env
-      True  -> project eligibility as if AGENT_RUNTIME=1
-      False -> project with runtime OFF (eligible set empty for dispatch)
+      None  → use current AGENT_RUNTIME env
+      True  → project eligibility as if AGENT_RUNTIME=1
+      False → project with runtime OFF (eligible set empty for dispatch)
     """
     from app.platform import agent_registry as ar
     from app.platform import agent_runtime as rt
@@ -127,7 +127,7 @@ def canary_isolation_preflight(
     *,
     assume_runtime_on: bool = True,
 ) -> dict[str, Any]:
-    """Fail-closed single-agent canary guard. Read-only - never mutates env/flags.
+    """Fail-closed single-agent canary guard. Read-only — never mutates env/flags.
 
     Returns allowed=True only when the projected eligible set is exactly
     ``{expected_agent}``.

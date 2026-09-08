@@ -13,7 +13,7 @@ class TestConfiguration:
         from app.config import settings
 
         assert settings.app_name == "AI Voice Agent"
-        # "test" is a valid env - CI's pytest job sets APP_ENV=test (see .github/workflows/ci.yml)
+        # "test" is a valid env — CI's pytest job sets APP_ENV=test (see .github/workflows/ci.yml)
         assert settings.app_env in ["development", "staging", "production", "test"]
         assert settings.log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]
 
@@ -251,7 +251,7 @@ class TestProductionChecklist:
         assert os.path.exists(".env.example")
 
     def test_production_checklist_exists(self):
-        # PRODUCTION_CHECKLIST.md ADR-001 cleanup me hata (commit 12f6721) -
+        # PRODUCTION_CHECKLIST.md ADR-001 cleanup me hata (commit 12f6721) —
         # ab canonical readiness doc docs/ me hai.
         import os
 

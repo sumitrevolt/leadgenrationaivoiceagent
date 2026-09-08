@@ -1,4 +1,4 @@
-"""Admin customer removal - soft-disable default + owner-gated purge.
+"""Admin customer removal — soft-disable default + owner-gated purge.
 
 Covers: confirm-required gate, soft status=cancelled (ledgers kept), purge
 gates (confirm_purge + ADMIN_CUSTOMER_PURGE_ENABLED), portal-login revoke,

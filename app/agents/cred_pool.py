@@ -1,18 +1,16 @@
-"""Multi-key credential pools - Hermes-agent parity. Free-tier capacity = #1 constraint.
+"""Multi-key credential pools — Hermes-agent parity. Free-tier capacity = #1 constraint.
 
-Per-provider MULTIPLE API keys with round-robin rotation (load-spread -> higher aggregate
+Per-provider MULTIPLE API keys with round-robin rotation (load-spread → higher aggregate
 free rate-limit) + per-key cooldown machinery. `free_ai._key()` consults `rotate()` ONLY
-when `CRED_POOLS=1`
-default OFF = single-key behaviour unchanged (settings value used
+when `CRED_POOLS=1`; default OFF = single-key behaviour unchanged (settings value used
 directly). Pure in-memory, hot-path safe, never-raise.
 
 Extra keys read from env as `<ATTR>_2 .. <ATTR>_5` where ATTR is the settings/env key name
 (e.g. `GROQ_API_KEY_2`). The base key (settings value) is slot 1. Key VALUES are never
-logged or exposed via status - only counts/indices.
+logged or exposed via status — only counts/indices.
 
 Note: MVP wires round-robin into the hot path (the capacity win). `mark_fail()` cooldown is
-available for programmatic callers
-deep per-call failure attribution into free_ai is a
+available for programmatic callers; deep per-call failure attribution into free_ai is a
 future wire (kept out to minimise danger-file surgery).
 
 Flag: CRED_POOLS=1
@@ -39,8 +37,8 @@ def enabled() -> bool:
 
 
 def _norm(attr: str) -> str:
-    """Canonical env/dict key - UPPER (env vars are uppercase; free_ai may pass the
-    lowercase settings-attr, the router passes uppercase - normalize so both match)."""
+    """Canonical env/dict key — UPPER (env vars are uppercase; free_ai may pass the
+    lowercase settings-attr, the router passes uppercase — normalize so both match)."""
     return (attr or "").strip().upper()
 
 
@@ -86,7 +84,7 @@ def rotate(attr: str, base: str = "") -> str:
                 if _COOLDOWN.get(f"{attr}#{k}", 0.0) <= now:
                     _RR[attr] = (idx + 1) % n
                     return k
-            # all cooled -> still rotate (fail-open: a cooled key beats no key)
+            # all cooled → still rotate (fail-open: a cooled key beats no key)
             _RR[attr] = (start + 1) % n
             return keys[start]
     except Exception:

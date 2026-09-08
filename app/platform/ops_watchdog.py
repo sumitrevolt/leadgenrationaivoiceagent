@@ -1,13 +1,12 @@
-"""AI Ops Watchdog - autonomous monitoring + AI diagnosis + proactive alerting.
+"""AI Ops Watchdog — autonomous monitoring + AI diagnosis + proactive alerting.
 
 THE missing ops automation: the stack self-runs (scheduler, agents, outreach), but if a
 job silently stops or an LLM provider goes down, nobody knows. This is the agentic-AIOps
-loop - **sense -> reason -> alert** (2026 best practice): collect health signals, detect
+loop — **sense → reason → alert** (2026 best practice): collect health signals, detect
 anomalies by rules, let free_ai diagnose them in Hinglish, and EMAIL Sumit when something
 needs a human. Throttled per-issue so it never spams.
 
-Heartbeat pattern: the scheduler already touches `data/.scheduler.lock` every tick
-a stale
+Heartbeat pattern: the scheduler already touches `data/.scheduler.lock` every tick; a stale
 lock means jobs have stopped. Output-file freshness (digest) tells us dailies ran.
 
 OFF by default + never-crash. Enable `OPS_WATCHDOG=1`. Alerts need `notify_email` + SMTP
@@ -45,7 +44,7 @@ def _age_min(path: str):
 
 
 def _redis_ok() -> bool | None:
-    """Ping Redis - Celery broker + cache + rate-limit + distributed call-state.
+    """Ping Redis — Celery broker + cache + rate-limit + distributed call-state.
     True = reachable · False = configured-but-unreachable (REAL outage) · None =
     can't assess (redis lib missing / no URL). Never raises. False is the only
     state that alerts, so a dev box without redis (None) stays quiet."""
@@ -123,7 +122,7 @@ def _detect(s: dict[str, Any]) -> list[dict]:
             {
                 "key": "scheduler_stalled",
                 "sev": "critical",
-                "msg": f"Automation heartbeat {shown} min purana - jobs ruk gaye ho sakte hain",
+                "msg": f"Automation heartbeat {shown} min purana — jobs ruk gaye ho sakte hain",
             }
         )
     if s.get("any_llm") is False:
@@ -131,7 +130,7 @@ def _detect(s: dict[str, Any]) -> list[dict]:
             {
                 "key": "llm_down",
                 "sev": "critical",
-                "msg": "Koi LLM provider available nahi (key/quota) - AI features down",
+                "msg": "Koi LLM provider available nahi (key/quota) — AI features down",
             }
         )
     if s.get("redis_ok") is False:
@@ -139,7 +138,7 @@ def _detect(s: dict[str, Any]) -> list[dict]:
             {
                 "key": "redis_down",
                 "sev": "critical",
-                "msg": "Redis down - Celery queue/cache/rate-limit/call-state ruk gaye. "
+                "msg": "Redis down — Celery queue/cache/rate-limit/call-state ruk gaye. "
                 "Check: docker ps | grep redis (ya container restart)",
             }
         )
@@ -152,7 +151,7 @@ def _detect(s: dict[str, Any]) -> list[dict]:
             {
                 "key": "digest_stale",
                 "sev": "warning",
-                "msg": f"Daily digest {dh}h purana - 08:30 wala job shayad nahi chala",
+                "msg": f"Daily digest {dh}h purana — 08:30 wala job shayad nahi chala",
             }
         )
     return issues
@@ -196,7 +195,7 @@ def _should_alert(key: str) -> bool:
 
 
 async def _alert(subject: str, body: str) -> bool:
-    # Phone push bhi (self-hosted ntfy, gated NTFY_URL/TOPIC - best-effort).
+    # Phone push bhi (self-hosted ntfy, gated NTFY_URL/TOPIC — best-effort).
     try:
         from app.integrations import ntfy
 
@@ -227,12 +226,12 @@ def _log(kind: str, detail: str) -> None:
 
 
 async def run_watchdog() -> dict[str, Any]:
-    """Sense -> detect -> diagnose -> alert. Always returns a report dict. Never raises."""
+    """Sense → detect → diagnose → alert. Always returns a report dict. Never raises."""
     if not _flag("OPS_WATCHDOG"):
         return {"skipped": "OPS_WATCHDOG off"}
     try:
-        # Outbox flush - failed outbound-webhook deliveries ko TIME-based retry (event-traffic
-        # ke bina bhi, e.g. raat me). Best-effort - watchdog ko kabhi block/break nahi karta.
+        # Outbox flush — failed outbound-webhook deliveries ko TIME-based retry (event-traffic
+        # ke bina bhi, e.g. raat me). Best-effort — watchdog ko kabhi block/break nahi karta.
         try:
             from app.platform import outbound_webhooks as _ow
 

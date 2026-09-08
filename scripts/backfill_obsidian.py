@@ -7,7 +7,7 @@ and writes them to the Obsidian staging vault as markdown files.
 Run once after setting up the vault:
   OBSIDIAN_SYNC=1 python scripts/backfill_obsidian.py
 
-Does NOT push to Git - run scripts/setup_obsidian_vault.sh first, then
+Does NOT push to Git — run scripts/setup_obsidian_vault.sh first, then
 trigger a manual push or wait for the nightly job.
 """
 
@@ -33,10 +33,10 @@ print("[backfill] Starting Obsidian historical backfill...")
 counts = {"leads": 0, "memory": 0, "adrs": 0, "coordination": 0}
 
 
-# ── 1. Lead usage ledger -> Leads/  ─────────────────────────────────────────
+# ── 1. Lead usage ledger → Leads/  ─────────────────────────────────────────
 lead_file = DATA / "lead_usage.jsonl"
 if lead_file.exists():
-    print("[backfill] lead_usage.jsonl -> Leads/...")
+    print("[backfill] lead_usage.jsonl → Leads/...")
     by_ref: dict[str, list[dict]] = {}
     with lead_file.open(encoding="utf-8") as f:
         for line in f:
@@ -51,20 +51,20 @@ if lead_file.exists():
         lines = [f"# Lead: {slug}\n"]
         for r in recs:
             lines.append(
-                f"- **{r.get('ts', '')[:10]}** - {r.get('kind', '?')} leads={r.get('leads', 0)} plan={r.get('plan', '?')}"
+                f"- **{r.get('ts', '')[:10]}** — {r.get('kind', '?')} leads={r.get('leads', 0)} plan={r.get('plan', '?')}"
             )
         write_note("Leads", slug, "\n".join(lines), tags=["lead", "backfill"])
         counts["leads"] += 1
-    print(f"[backfill]   -> {counts['leads']} lead files written")
+    print(f"[backfill]   → {counts['leads']} lead files written")
 
 
-# ── 2. Memory vault prospect/client files -> Leads/ + Clients/  ─────────────
+# ── 2. Memory vault prospect/client files → Leads/ + Clients/  ─────────────
 memory_dir = DATA / "memory"
 prospects_dir = memory_dir / "prospects"
 clients_dir = memory_dir / "clients"
 
 if prospects_dir.exists():
-    print("[backfill] memory/prospects/ -> Leads/...")
+    print("[backfill] memory/prospects/ → Leads/...")
     for md_file in prospects_dir.glob("*.md"):
         try:
             content = md_file.read_text(encoding="utf-8")
@@ -78,7 +78,7 @@ if prospects_dir.exists():
             counts["memory"] += 1
         except Exception:
             pass
-    print(f"[backfill]   -> {counts['memory']} prospect memory files mirrored")
+    print(f"[backfill]   → {counts['memory']} prospect memory files mirrored")
 
 if clients_dir.exists():
     for md_file in clients_dir.glob("*.md"):
@@ -91,8 +91,8 @@ if clients_dir.exists():
             pass
 
 
-# ── 3. ADRs + key docs -> Decisions/  ───────────────────────────────────────
-print("[backfill] docs/ADR* -> Decisions/...")
+# ── 3. ADRs + key docs → Decisions/  ───────────────────────────────────────
+print("[backfill] docs/ADR* → Decisions/...")
 adr_patterns = ["ADR*.md", "ADR_*.md"]
 for pattern in adr_patterns:
     for adr_file in sorted(DOCS.glob(pattern)):
@@ -101,15 +101,15 @@ for pattern in adr_patterns:
             slug = adr_file.stem.lower().replace("_", "-")
             write_note("Decisions", slug, content, tags=["adr", "decision"])
             counts["adrs"] += 1
-            print(f"[backfill]   -> {adr_file.name}")
+            print(f"[backfill]   → {adr_file.name}")
         except Exception as e:
             print(f"[backfill]   SKIP {adr_file.name}: {e}")
 
 
-# ── 4. Coordination runs -> Decisions/  ─────────────────────────────────────
+# ── 4. Coordination runs → Decisions/  ─────────────────────────────────────
 runs_file = DATA / "coordination_runs.jsonl"
 if runs_file.exists():
-    print("[backfill] coordination_runs.jsonl -> Decisions/...")
+    print("[backfill] coordination_runs.jsonl → Decisions/...")
     with runs_file.open(encoding="utf-8") as f:
         for line in f:
             try:
@@ -129,10 +129,10 @@ if runs_file.exists():
                 counts["coordination"] += 1
             except Exception:
                 pass
-    print(f"[backfill]   -> {counts['coordination']} coordination runs mirrored")
+    print(f"[backfill]   → {counts['coordination']} coordination runs mirrored")
 
 
-# ── 5. Key skill docs -> Skills/  ────────────────────────────────────────────
+# ── 5. Key skill docs → Skills/  ────────────────────────────────────────────
 skills_dir = ROOT / ".claude" / "skills"
 key_skills = [
     "llm-council-decision",
@@ -146,7 +146,7 @@ key_skills = [
     "multi-agent-coordination",
 ]
 if skills_dir.exists():
-    print("[backfill] .claude/skills/ -> Skills/ (key skills)...")
+    print("[backfill] .claude/skills/ → Skills/ (key skills)...")
     sk_count = 0
     for skill_name in key_skills:
         for ext in (".md", "/SKILL.md"):
@@ -163,7 +163,7 @@ if skills_dir.exists():
                     break
                 except Exception:
                     pass
-    print(f"[backfill]   -> {sk_count} skill docs mirrored")
+    print(f"[backfill]   → {sk_count} skill docs mirrored")
 
 
 # ── Summary  ────────────────────────────────────────────────────────────────

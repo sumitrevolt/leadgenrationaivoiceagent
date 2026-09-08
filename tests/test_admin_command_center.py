@@ -1,12 +1,9 @@
-"""Admin Command Center (Customer Delivery OS Phase 2) - business-outcome
+"""Admin Command Center (Customer Delivery OS Phase 2) — business-outcome
 front door. Covers: (1) _build_command_center's bucket definitions using real
-fixture data (not just presence-checking - this is pure Python aggregation,
-so real logic can be verified)
-(2) the _plan_price("trial") regression found
+fixture data (not just presence-checking — this is pure Python aggregation,
+so real logic can be verified); (2) the _plan_price("trial") regression found
 while building this (was silently attributing full Starter MRR to free-trial
-signups)
-(3) the GET /api/admin/command-center endpoint
-(4) static-HTML
+signups); (3) the GET /api/admin/command-center endpoint; (4) static-HTML
 presence for the new page + its main.py route."""
 
 from fastapi.testclient import TestClient
@@ -32,7 +29,7 @@ def _client(id, plan="starter", setup_done=True, status="active"):
 def _patch_sources(monkeypatch, clients, summaries, approvals):
     """summaries: dict[client_id -> summary dict]. approvals: list of
     {"client_id": ...} pending-approval rows (as content_approval.pending()
-    itself returns - NOT pre-bucketed, to prove the builder buckets it)."""
+    itself returns — NOT pre-bucketed, to prove the builder buckets it)."""
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
         lambda status=None, product=None: clients,
@@ -52,7 +49,7 @@ def _patch_sources(monkeypatch, clients, summaries, approvals):
 
 def test_bucket_definitions_cover_each_customer_type(monkeypatch):
     """One customer of each type; each must land in exactly the buckets it
-    qualifies for - this is the part that silently goes wrong (advisor-flagged)."""
+    qualifies for — this is the part that silently goes wrong (advisor-flagged)."""
     from app.api.admin_dashboard_builders import _build_command_center
 
     clients = [
@@ -114,7 +111,7 @@ def test_revenue_excludes_trial_and_sums_by_plan(monkeypatch):
 def test_posts_failed_alone_also_counts_as_automation_issue(monkeypatch):
     """A customer with zero automation_failed events but a failed post-publish
     (post_failed, wired in the Marketing Calendar loop) must still surface in
-    the Automation Issues bucket - not just the older automation_failed signal."""
+    the Automation Issues bucket — not just the older automation_failed signal."""
     from app.api.admin_dashboard_builders import _build_command_center
 
     clients = [_client("only-post-failed")]
@@ -197,7 +194,7 @@ def test_plan_price_trial_is_free_not_starter_fallback():
 
 def test_plan_price_unknown_plan_still_falls_back_to_cheapest():
     """The min-nonzero fallback must still work for genuinely unrecognized
-    plan keys (corrupt/legacy data) - only "trial" gets a real lookup now."""
+    plan keys (corrupt/legacy data) — only "trial" gets a real lookup now."""
     from app.api.admin_dashboard_builders import _plan_price
 
     assert _plan_price("some_garbage_plan_key") == 1999
@@ -263,12 +260,11 @@ def test_page_calls_real_endpoint_and_reuses_localstorage_auth_pattern():
 def test_delivery_cockpit_paying_kpi_matches_invoice_backed_revenue():
     """The live cockpit must not count a selected non-trial plan as paid.
 
-    Revenue is invoice-backed
-    using a plan-count KPI beside it produced the
+    Revenue is invoice-backed; using a plan-count KPI beside it produced the
     contradictory live state "Paying 3 / MRR ₹0".
     """
     html = _page_html()
-    assert "var payingCustomers = Number(revenue.paying_customers)\n" in html
+    assert "var payingCustomers = Number(revenue.paying_customers);" in html
     assert "paying_customers: payingCustomers" in html
     assert (
         'paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length'
@@ -296,7 +292,7 @@ def test_page_has_useful_empty_state():
 
 
 def test_admin_dashboard_links_to_command_center():
-    """A page with no inbound link is unreachable in practice - CLAUDE.md §4
+    """A page with no inbound link is unreachable in practice — CLAUDE.md §4
     ("naya admin feature = UI tab SAATH hi") and §8 both require this."""
     with open("frontend/admin_dashboard.html", encoding="utf-8") as f:
         html = f.read()
@@ -305,7 +301,7 @@ def test_admin_dashboard_links_to_command_center():
 
 def test_admin_dashboard_never_calls_undefined_toast():
     """Regression guard: toast() was called in c360DeliverNow/c360ScrapeWebsite/
-    c360ResetPassword/dqDeliverNow but only adminToast(msg,type) is defined -
+    c360ResetPassword/dqDeliverNow but only adminToast(msg,type) is defined —
     every click threw an uncaught ReferenceError with zero admin feedback on
     real customer-facing actions (Deliver Value Now, Reset Password, etc.)."""
     import re

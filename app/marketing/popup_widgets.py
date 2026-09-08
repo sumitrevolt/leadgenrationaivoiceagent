@@ -1,12 +1,12 @@
-"""Popup conversion pack (OptinMonster-style, free-stack) - ek script se client
+"""Popup conversion pack (OptinMonster-style, free-stack) — ek script se client
 website pe 3 cheezein: exit-intent/scroll/delay POPUP + ANNOUNCEMENT BAR
 (countdown ke saath) + SPIN-TO-WIN wheel (loyalty.py ke REAL coupon codes).
 
 CORS-free lead capture (prod lesson): popup/wheel ka CTA hamare PROVEN
-`/b/{slug}/embed` iframe modal ko kholta hai (embed_widget.py wala contract -
+`/b/{slug}/embed` iframe modal ko kholta hai (embed_widget.py wala contract —
 form HAMARI origin se `POST /api/public/inquiry` + source_slug karta, lead auto
 client se link). Cross-origin JSON fetch jaan-bujhke NAHI (prod CORS allowlist
-tight hai - direct fetch fail hota).
+tight hai — direct fetch fail hota).
 
   get_config(slug)              -> effective config (defaults merged, latest-wins)
   save_config(slug, cfg)        -> validate + append (data/popup_config.jsonl)
@@ -31,12 +31,11 @@ _CONFIG_FILE = os.path.join("data", "popup_config.jsonl")
 
 _TRIGGERS = {"exit_intent", "scroll50", "delay"}
 _MAX_SEGMENTS = 6
-_MIN_SEGMENTS = 2  # 4-6 recommended
-<2 = wheel render nahi hota
+_MIN_SEGMENTS = 2  # 4-6 recommended; <2 = wheel render nahi hota
 
 
 def _slug_key(slug: str) -> str:
-    """Slug normalize - sirf [a-z0-9-] (regex-lock, JS/URL inject safe)."""
+    """Slug normalize — sirf [a-z0-9-] (regex-lock, JS/URL inject safe)."""
     return "".join(c for c in (slug or "").strip().lower() if c.isalnum() or c == "-")[:64]
 
 
@@ -100,7 +99,7 @@ def _defaults() -> dict[str, Any]:
             "trigger": "delay",  # exit_intent | scroll50 | delay
             "delay_s": 8,
             "title": "Ek minute! \U0001f381",
-            "body": "Apna number chhodiye - turant callback milega.",
+            "body": "Apna number chhodiye — turant callback milega.",
             "cta_text": "Callback chahiye",
             "coupon_code": "",
         },
@@ -127,7 +126,7 @@ def _clean_segment(s: Any) -> dict[str, str] | None:
 
 
 def _clean_config(cfg: dict[str, Any] | None) -> dict[str, Any]:
-    """Incoming config validate/normalize - unknown keys drop, galat values default."""
+    """Incoming config validate/normalize — unknown keys drop, galat values default."""
     cfg = cfg if isinstance(cfg, dict) else {}
     out = _defaults()
 
@@ -153,7 +152,7 @@ def _clean_config(cfg: dict[str, Any] | None) -> dict[str, Any]:
     b["enabled"] = bool(b_in.get("enabled"))
     b["text"] = str(b_in.get("text") or "").strip()[:120]
     cd = str(b_in.get("countdown_until") or "").strip()[:25]
-    # rough ISO sanity: "2026-06-15..." (warna JS Date.parse NaN - defensive yahin)
+    # rough ISO sanity: "2026-06-15..." (warna JS Date.parse NaN — defensive yahin)
     b["countdown_until"] = cd if (len(cd) >= 10 and cd[:4].isdigit() and cd[4] == "-") else ""
     b["link"] = _safe_url(b_in.get("link"))
 
@@ -245,7 +244,7 @@ def create_wheel_coupons(client_id: str, slug: str, offers: list[dict] | None) -
 
 
 # --------------------------------------------------------------------------- #
-# JS render (vanilla IIFE, no deps) - strings json.dumps se embed (inject-safe),
+# JS render (vanilla IIFE, no deps) — strings json.dumps se embed (inject-safe),
 # DOM text hamesha textContent se (innerHTML user-text kabhi nahi).
 # --------------------------------------------------------------------------- #
 _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
@@ -253,17 +252,10 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
  if(window.__lgaiPopupPack)return;window.__lgaiPopupPack=1;
  var CFG=__CFG__,SLUG=__SLUG__,EMBED=__EMBED__,COLOR=__COLOR__;
  var FONT="-apple-system,Segoe UI,Roboto,Arial,sans-serif";
- function today(){return new Date().toISOString().slice(0,10)
- }
- function seen(k){try{return localStorage.getItem(k)===today()
- }catch(e){return false
- }}
- function mark(k){try{localStorage.setItem(k,today())
- }catch(e){}}
- function el(t,c){var d=document.createElement(t)
- if(c)d.style.cssText=c
- return d
- }
+ function today(){return new Date().toISOString().slice(0,10);}
+ function seen(k){try{return localStorage.getItem(k)===today();}catch(e){return false;}}
+ function mark(k){try{localStorage.setItem(k,today());}catch(e){}}
+ function el(t,c){var d=document.createElement(t);if(c)d.style.cssText=c;return d;}
  var ov=null;
  function openForm(){
   if(!ov){
@@ -287,26 +279,21 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
   var x=el("span","position:absolute;right:10px;top:6px;font-size:15px;cursor:pointer;opacity:.85");
   x.textContent="✕";bar.appendChild(x);
   x.addEventListener("click",function(e){e.stopPropagation();bar.remove();});
-  if(B.link){bar.addEventListener("click",function(){location.href=B.link
-  })
-  }
+  if(B.link){bar.addEventListener("click",function(){location.href=B.link;});}
   document.body.appendChild(bar);
   if(B.countdown_until){
    var end=Date.parse(B.countdown_until);
    if(!isNaN(end)){
     var iv=setInterval(function(){
      var s=Math.floor((end-Date.now())/1e3);
-     if(s<=0){cd.textContent=""
-     clearInterval(iv)
-     return
-     }
+     if(s<=0){cd.textContent="";clearInterval(iv);return;}
      var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
      cd.textContent="⏳ "+(d>0?d+"d ":"")+h+"h "+m+"m "+(s%60)+"s";
     },1000);
    }
   }
  })();
- /* ---- popup (exit-intent / scroll50 / delay) - 1/day localStorage cap ---- */
+ /* ---- popup (exit-intent / scroll50 / delay) — 1/day localStorage cap ---- */
  (function(){
   var P=CFG.popup||{};if(!P.enabled)return;
   var KEY="lgpw_"+SLUG,shown=false;
@@ -328,8 +315,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var b=el("button","width:100%;padding:12px;border:0;border-radius:10px;background:"+COLOR+";color:#fff;font:700 15px/1 "+FONT+";cursor:pointer");
    b.type="button";b.textContent=P.cta_text||"Callback chahiye";c.appendChild(b);
    o.appendChild(c);document.body.appendChild(o);
-   function close(){try{o.remove()
-   }catch(e){}}
+   function close(){try{o.remove();}catch(e){}}
    x.addEventListener("click",close);
    o.addEventListener("click",function(e){if(e.target===o)close();});
    b.addEventListener("click",function(){close();openForm();});
@@ -345,7 +331,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    setTimeout(show,Math.max(1,P.delay_s||8)*1000);
   }
  })();
- /* ---- spin-to-win wheel (CSS conic, coupon reveal) - 1/day cap ---- */
+ /* ---- spin-to-win wheel (CSS conic, coupon reveal) — 1/day cap ---- */
  (function(){
   var W=CFG.wheel||{},SEG=W.segments||[];
   if(!W.enabled||SEG.length<2)return;
@@ -354,16 +340,10 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
   var COLS=["#f59e0b","#10b981","#3b82f6","#ef4444","#8b5cf6","#14b8a6"];
   var fab=el("button","position:fixed;left:18px;bottom:18px;z-index:2147483200;background:"+COLOR+";color:#fff;border:0;border-radius:999px;padding:12px 16px;font:600 14px/1 "+FONT+";cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.25)");
   fab.type="button";fab.textContent="🎡 Lucky Spin";
-  if(document.body){document.body.appendChild(fab)
-  }else{document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(fab)
-  })
-  }
+  if(document.body){document.body.appendChild(fab);}else{document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(fab);});}
   fab.addEventListener("click",function(){
    var n=SEG.length,arc=360/n,stops=[],i;
-   for(i=0
-   i<n
-   i++){stops.push(COLS[i%COLS.length]+" "+(i*arc)+"deg "+((i+1)*arc)+"deg")
-   }
+   for(i=0;i<n;i++){stops.push(COLS[i%COLS.length]+" "+(i*arc)+"deg "+((i+1)*arc)+"deg");}
    var o=el("div","position:fixed;inset:0;z-index:2147483400;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center");
    var c=el("div","position:relative;width:320px;max-width:92vw;background:#fff;border-radius:16px;padding:22px 18px;text-align:center;font-family:"+FONT);
    var x=el("button","position:absolute;top:6px;right:10px;background:none;border:0;font-size:20px;cursor:pointer;color:#888");
@@ -372,9 +352,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var ptr=el("div","width:0;height:0;margin:0 auto;border-left:10px solid transparent;border-right:10px solid transparent;border-top:14px solid #111");c.appendChild(ptr);
    var wh=el("div","width:230px;height:230px;margin:2px auto 10px;border-radius:50%;border:6px solid #eee;background:conic-gradient("+stops.join(",")+");transition:transform 3.2s cubic-bezier(.15,.65,.1,1)");c.appendChild(wh);
    var lg=el("div","font-size:12px;color:#555;text-align:left;margin:0 auto 10px;max-width:230px");
-   for(i=0
-   i<n
-   i++){
+   for(i=0;i<n;i++){
     var row=el("div","margin:2px 0");
     var dot=el("span","display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:"+COLS[i%COLS.length]);
     var lb=document.createElement("span");lb.textContent=SEG[i].label||"";
@@ -385,8 +363,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var b=el("button","width:100%;padding:12px;border:0;border-radius:10px;background:"+COLOR+";color:#fff;font:700 15px/1 "+FONT+";cursor:pointer");
    b.type="button";b.textContent="SPIN 🎰";c.appendChild(b);
    o.appendChild(c);document.body.appendChild(o);
-   function close(){try{o.remove()
-   }catch(e){}}
+   function close(){try{o.remove();}catch(e){}}
    x.addEventListener("click",close);
    o.addEventListener("click",function(e){if(e.target===o)close();});
    var spun=false;
@@ -396,17 +373,15 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
     wh.style.transform="rotate("+(5*360+(360-(idx*arc+arc/2)))+"deg)";
     setTimeout(function(){
      var s=SEG[idx]||{};
-     res.textContent="🎉 "+(s.label||"Offer")+(s.coupon_code?" - code: "+s.coupon_code:"");
+     res.textContent="🎉 "+(s.label||"Offer")+(s.coupon_code?" — code: "+s.coupon_code:"");
      b.disabled=false;b.textContent="📞 Offer claim karein";
      b.addEventListener("click",function(){close();openForm();});
-     try{fab.style.display="none"
-     }catch(e){}
+     try{fab.style.display="none";}catch(e){}
     },3400);
    });
   });
  })();
-})()
-"""
+})();"""
 
 
 def render_js(slug: str) -> str:
@@ -416,7 +391,7 @@ def render_js(slug: str) -> str:
         key = _slug_key(slug)
         cfg = get_config(key)
         embed = f"{_site_base()}/b/{key}/embed"
-        # "</" -> "<\/" - json.dumps "/" escape nahi karta; </script> breakout lock
+        # "</" → "<\/" — json.dumps "/" escape nahi karta; </script> breakout lock
         cfg_json = json.dumps(cfg, ensure_ascii=True).replace("</", "<\\/")
         return (
             _JS_TEMPLATE.replace("__CFG__", cfg_json)

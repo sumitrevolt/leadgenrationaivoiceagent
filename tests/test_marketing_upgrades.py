@@ -1,5 +1,5 @@
-"""Tests - marketing AI upgrades (content_feedback, trends, kb_personalize,
-reel_video). No network, no LLM - sab defensive paths."""
+"""Tests — marketing AI upgrades (content_feedback, trends, kb_personalize,
+reel_video). No network, no LLM — sab defensive paths."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def test_trends_rss_parse_and_fallback(monkeypatch):
 
 
 def test_kb_context_defensive():
-    # bina KB seed / bad id - empty list, no raise
+    # bina KB seed / bad id — empty list, no raise
     assert kb_personalize.client_context("") == []
     assert isinstance(kb_personalize.client_context("nonexistent-xyz"), list)
 
@@ -70,16 +70,16 @@ def test_reel_default_slides():
 def test_ai_image_new_api_key_safety(monkeypatch):
     from app.marketing import ai_image
 
-    # no key -> direct URL, no key leak
+    # no key → direct URL, no key leak
     monkeypatch.delenv("POLLINATIONS_API_KEY", raising=False)
     monkeypatch.delenv("POLLINATIONS_TOKEN", raising=False)
     u = ai_image.image_url("diwali poster")
     assert u.startswith("https://gen.pollinations.ai/image/") and "key=" not in u
-    # pk_ (publishable, client-safe) -> embedded
+    # pk_ (publishable, client-safe) → embedded
     monkeypatch.setenv("POLLINATIONS_API_KEY", "pk_test123")
     assert "key=pk_test123" in ai_image.image_url("x")
     assert "key=pk_test123" in ai_image.video_url("x")
-    # sk_ (secret) -> NEVER in URL; marketing flows use proxy path
+    # sk_ (secret) → NEVER in URL; marketing flows use proxy path
     monkeypatch.setenv("POLLINATIONS_API_KEY", "sk_secret")
     assert "sk_secret" not in ai_image.image_url("x")
     assert ai_image.logo_url("Biz").startswith("/api/marketing/ai-image-proxy?")

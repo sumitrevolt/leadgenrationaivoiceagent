@@ -1,18 +1,18 @@
-"""Customer Delivery OS - final 3 ledger events (Loop 6): lead_captured,
+"""Customer Delivery OS — final 3 ledger events (Loop 6): lead_captured,
 followup_sent, weekly_report_generated.
 
 Covers:
-  - app/platform/inquiry_hooks.py::run_after_inquiry - logs lead_captured for
+  - app/platform/inquiry_hooks.py::run_after_inquiry — logs lead_captured for
     any client-owned inquiry. Wired here (not submit_inquiry()) because this
     is the SHARED chokepoint for all 4 entry paths (mini-site POST, widget-
-    chat, lead-in webhook, WhatsApp Flow) per the module's own docstring -
+    chat, lead-in webhook, WhatsApp Flow) per the module's own docstring —
     wiring only submit_inquiry() would silently miss the other 3.
-  - app/api/public_site.py::_auto_callback - logs followup_sent only when the
+  - app/api/public_site.py::_auto_callback — logs followup_sent only when the
     AI callback actually placed AND the lead belongs to a paying client
     (platform-level /audit leads have no client to attribute the event to).
-  - app/marketing/client_report.py::build_report - logs weekly_report_generated
+  - app/marketing/client_report.py::build_report — logs weekly_report_generated
     on the scheduled/pushed report path (run_monthly's chokepoint), not the
-    customer's on-demand view endpoint - logging on-demand would count
+    customer's on-demand view endpoint — logging on-demand would count
     customer-initiated page views as if the AI had "delivered" a report.
 """
 
@@ -22,7 +22,7 @@ import asyncio
 
 
 # ---------------------------------------------------------------------------
-# lead_captured - app/platform/inquiry_hooks.py::run_after_inquiry
+# lead_captured — app/platform/inquiry_hooks.py::run_after_inquiry
 # ---------------------------------------------------------------------------
 def _run_hook(rec, monkeypatch, **kw):
     from app.platform import inquiry_hooks
@@ -91,7 +91,7 @@ def test_lead_captured_ledger_failure_does_not_break_hook(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# followup_sent - app/api/public_site.py::_auto_callback
+# followup_sent — app/api/public_site.py::_auto_callback
 # ---------------------------------------------------------------------------
 def _run_callback(monkeypatch, placed, client_id="client_xyz"):
     import app.api.public_site as ps
@@ -164,7 +164,7 @@ def test_followup_sent_ledger_failure_does_not_break_callback(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# weekly_report_generated - app/marketing/client_report.py::build_report
+# weekly_report_generated — app/marketing/client_report.py::build_report
 # ---------------------------------------------------------------------------
 def test_weekly_report_generated_logged_on_success(tmp_path, monkeypatch):
     from app.marketing import client_report as cr

@@ -1,4 +1,4 @@
-"""Signed bridge projection - one authenticated publisher, not 31 keypairs."""
+"""Signed bridge projection — one authenticated publisher, not 31 keypairs."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _secret() -> bytes:
     raw = (os.environ.get("STAFF_BUS_HMAC_SECRET") or "").strip()
     if raw:
         return raw.encode("utf-8")
-    # Deterministic inert local default - never a real prod secret.
+    # Deterministic inert local default — never a real prod secret.
     return b"staff-bus-inert-dev-only-not-for-prod"
 
 

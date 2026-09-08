@@ -42,7 +42,7 @@ def test_resume_all_reports_false_when_pause_persists(controls, monkeypatch):
     controls.pause("arjun", by="e2e", note="stop")
     # Sabotage resume writes so the record cannot clear.
     monkeypatch.setattr(controls, "_append", lambda rec: None)
-    # resume() also logs to team - stub it out.
+    # resume() also logs to team — stub it out.
     class _FakeTeam:
         @staticmethod
         def log_event(*a, **k):

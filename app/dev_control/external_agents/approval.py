@@ -1,7 +1,7 @@
 """AMBER mission approval via Owner OS verification ledger (no second store).
 
 Binds ``approval_decision_id`` (``oosv_*``) to mission identity fields and
-verifies through ``approvals_bridge`` + decision stamps - never a request-body
+verifies through ``approvals_bridge`` + decision stamps — never a request-body
 boolean alone.
 """
 
@@ -67,7 +67,7 @@ def request_amber_approval(
     bind = approval_binding(mission, target_state=target_state, head_sha=head_sha)
     out = approvals_bridge.create_verification_approval(
         by=actor,
-        title=f"AMBER external-agent {mission.mission_id} -> {bind['target_state']}",
+        title=f"AMBER external-agent {mission.mission_id} → {bind['target_state']}",
         note=f"Bound approval for external agent mission {mission.mission_id}",
         ttl_hours=ttl_hours,
         meta=bind,

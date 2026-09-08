@@ -1,9 +1,9 @@
-"""Security tests - Auth Bypass.
+"""Security tests — Auth Bypass.
 
 Verifies that authenticated endpoints cannot be accessed without valid credentials,
 and that auth bypass vectors (missing auth, weak tokens, session fixation) are blocked.
 
-Playbook ref: Security Playbook - Auth bypass tests.
+Playbook ref: Security Playbook — Auth bypass tests.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ client = TestClient(app)
 
 # Security invariant: an unauthenticated request to a protected DATA endpoint must
 # NOT return a success (2xx). 401/403 (gated), 404 (route absent), 405 (method
-# guard), 422 (validation) and 3xx (login redirect) are all acceptable - only a 2xx
+# guard), 422 (validation) and 3xx (login redirect) are all acceptable — only a 2xx
 # is a real bypass. (HTML SPA shells are 200 by design and tested separately below.)
 _SUCCESS = {200, 201, 202, 203, 204, 206}
 
@@ -30,7 +30,7 @@ def _assert_unauthed(response):
 
 
 # ---------------------------------------------------------------------------
-# Admin SPA shells (static HTML) - served (200) but their DATA is API-gated.
+# Admin SPA shells (static HTML) — served (200) but their DATA is API-gated.
 # The page shell is intentionally public + gated client-side; the security
 # guarantee lives on the /api endpoints (asserted below). The shell must be
 # served or redirect to login, and must NOT inline server-rendered secrets.
@@ -47,14 +47,14 @@ def test_spa_shell_pages_do_not_leak_secrets(path: str):
     if resp.status_code == 200:
         body = resp.text
         # Static SPA shell may legitimately contain UI labels like "API Key" or a
-        # password <input>. What must NOT appear is a POPULATED secret VALUE - a
+        # password <input>. What must NOT appear is a POPULATED secret VALUE — a
         # provider key prefix or a server-issued bearer/JWT baked into the page.
         assert "sk_live" not in body and "sk_test" not in body
         assert "Bearer eyJ" not in body and "-----BEGIN" not in body
 
 
 # ---------------------------------------------------------------------------
-# Admin API endpoints - must require auth
+# Admin API endpoints — must require auth
 # ---------------------------------------------------------------------------
 ADMIN_PATHS = [
     "/api/admin/stats",
@@ -85,7 +85,7 @@ def test_admin_endpoints_require_auth(path: str):
 
 
 # ---------------------------------------------------------------------------
-# Customer portal - must require auth
+# Customer portal — must require auth
 # ---------------------------------------------------------------------------
 CUSTOMER_PATHS = [
     "/api/customer/profile",
@@ -103,7 +103,7 @@ def test_customer_endpoints_require_auth(path: str):
 
 
 # ---------------------------------------------------------------------------
-# Billing mutation endpoints - must require auth
+# Billing mutation endpoints — must require auth
 # ---------------------------------------------------------------------------
 BILLING_MUTATION_PATHS = [
     ("POST", "/api/billing/subscribe"),
@@ -122,7 +122,7 @@ def test_billing_mutations_require_auth(method: str, path: str):
 
 
 # ---------------------------------------------------------------------------
-# Voice/Telephony endpoints - must require auth or valid token
+# Voice/Telephony endpoints — must require auth or valid token
 # ---------------------------------------------------------------------------
 VOICE_AUTH_PATHS = [
     "/api/telephony/call",

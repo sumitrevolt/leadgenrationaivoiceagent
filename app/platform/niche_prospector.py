@@ -1,14 +1,14 @@
-"""Niche-driven scraping orchestrator - saare 42 NICHES auto-cover karta.
+"""Niche-driven scraping orchestrator — saare 42 NICHES auto-cover karta.
 
 PROBLEM: `prospector.py` default sirf 4 niches scrape karta (`_DEFAULT_TARGETS`);
 `app.niches.NICHES` ke 42 niches ke rich `keywords` use nahi hote.
 
 YEH module EXISTING prospector pipeline (scrape + dedupe + persist) ko drive karta
-hai - har niche ke apne `keywords` se - **round-robin batch** me. Roz ek batch
-chalta -> kuch din me saare niches cover. Prospector ko TOUCH nahi karta:
+hai — har niche ke apne `keywords` se — **round-robin batch** me. Roz ek batch
+chalta → kuch din me saare niches cover. Prospector ko TOUCH nahi karta:
 `PROSPECT_TARGETS` env inject karke `run_prospecting()` call karta, fir env restore.
 
-Cursor `data/niche_prospect_cursor.json` me - rotation persist hota. Tier filter
+Cursor `data/niche_prospect_cursor.json` me — rotation persist hota. Tier filter
 (S/A/B) optional. Free (Google Maps + OSM Overpass jo prospector already use karta).
 Import-safe, kabhi raise nahi karta.
 """
@@ -26,9 +26,9 @@ logger = setup_logger(__name__)
 _CURSOR = os.path.join("data", "niche_prospect_cursor.json")
 _DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur", "Nashik", "Thane"]
 
-# REACH SCALE: bada legal city-pool (Google Places API + OSM - dono ToS-safe).
+# REACH SCALE: bada legal city-pool (Google Places API + OSM — dono ToS-safe).
 # `PROSPECT_CITIES` env (comma-separated) pool override karta. Har din rotating
-# window of `_CITY_WINDOW` cities - kuch dino me poora pool cover (over-scrape
+# window of `_CITY_WINDOW` cities — kuch dino me poora pool cover (over-scrape
 # ya billing-surprise ke bina).
 _CITY_POOL = [
     "Pune",
@@ -51,7 +51,7 @@ _CITY_WINDOW = 4
 
 
 def city_rotation(window: int = _CITY_WINDOW, day_ordinal: int | None = None) -> list[str]:
-    """Aaj ke scrape ke liye rotating city window (deterministic by date - testable).
+    """Aaj ke scrape ke liye rotating city window (deterministic by date — testable).
     PROSPECT_CITIES env set ho to wahi pool. Kabhi raise nahi."""
     try:
         pool = [
@@ -68,10 +68,9 @@ def city_rotation(window: int = _CITY_WINDOW, day_ordinal: int | None = None) ->
 
 
 def _all_niche_keys(tier: str | None = None, leadgen_only: bool = True) -> list[str]:
-    """NICHES keys (optional tier filter). leadgen_only=True -> marketing-only skip
-    (un businesses ko hum scrape nahi karte jinko sirf marketing bechni hai? nahi -
-    leadgen+both dono prospect-worthy
-    pure 'marketing' category bhi business hai).
+    """NICHES keys (optional tier filter). leadgen_only=True → marketing-only skip
+    (un businesses ko hum scrape nahi karte jinko sirf marketing bechni hai? nahi —
+    leadgen+both dono prospect-worthy; pure 'marketing' category bhi business hai).
     """
     try:
         from app.niches import NICHES
@@ -112,7 +111,7 @@ def build_targets(
     max_keywords: int = 2,
     cities: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Next `batch` niches (round-robin) ke targets - har niche ke first
+    """Next `batch` niches (round-robin) ke targets — har niche ke first
     `max_keywords` keywords se. Returns prospector-shape list (niche/query/cities).
     """
     from app.niches import NICHES
@@ -144,11 +143,10 @@ async def run(
 ) -> dict[str, Any]:
     """Next niche-batch scrape karo (existing prospector se). Kabhi raise nahi.
 
-    advance=True -> cursor aage badhao (agla run agle niches karega).
+    advance=True → cursor aage badhao (agla run agle niches karega).
 
-    Post-scrape rescore/cadence are HARD-BOUNDED - 2026-07-20: dlq:dead SoftTimeLimit
-    on prospect while NICHE_ROTATION=1
-    scrape itself had wall-clock budget but
+    Post-scrape rescore/cadence are HARD-BOUNDED — 2026-07-20: dlq:dead SoftTimeLimit
+    on prospect while NICHE_ROTATION=1; scrape itself had wall-clock budget but
     ``rescore_db(2000)`` after it blew past Celery soft 540s.
     """
     import asyncio
@@ -195,7 +193,7 @@ async def run(
         keys = _all_niche_keys(tier)
         if keys:
             # SKIP-SAFE: cursor ko ACTUALLY-scraped niches se aage badhao (lookup-cap
-            # se aksar batch ka sirf pehla niche hi scrape hota - batch se advance
+            # se aksar batch ka sirf pehla niche hi scrape hota — batch se advance
             # karne par baaki skip ho jaate). by_niche se real count lo, min 1.
             scraped = 0
             try:
@@ -206,7 +204,7 @@ async def run(
             step = max(1, scraped or batch)
             _write_cursor((_read_cursor() + step) % len(keys))
 
-    # Auto-score - bounded so post-work cannot SoftTimeLimit the Celery task.
+    # Auto-score — bounded so post-work cannot SoftTimeLimit the Celery task.
     rescore_out: dict[str, Any] = {"skipped": True}
     elapsed = _time.monotonic() - t0
     if elapsed < 420.0:
@@ -219,10 +217,10 @@ async def run(
             rescore_out = {"ok": False, "error": str(e)[:120]}
     else:
         logger.warning(
-            f"[niche_prospector] skip rescore - scrape already {elapsed:.0f}s (Celery soft-limit margin)"
+            f"[niche_prospector] skip rescore — scrape already {elapsed:.0f}s (Celery soft-limit margin)"
         )
 
-    # Cadence auto-enroll - naye scraped leads ko omnichannel sequence me daalo.
+    # Cadence auto-enroll — naye scraped leads ko omnichannel sequence me daalo.
     # Gated CADENCE_ENGINE=1 (cadence.enroll guard karta hai agar off).
     cadence_enrolled = 0
     try:

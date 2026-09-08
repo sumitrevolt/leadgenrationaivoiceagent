@@ -1,8 +1,8 @@
-"""AgentGoal model - Paperclip-style goal hierarchy records.
+"""AgentGoal model — Paperclip-style goal hierarchy records.
 
 Goals answer the "why": company goals break down into team goals, which break
 down into agent-level goals. Tasks (AgentTask) carry free-text goal CONTEXT;
-goals are the tracked, statused, linkable records above them. Additive table -
+goals are the tracked, statused, linkable records above them. Additive table —
 created by Base.metadata.create_all (DB_CREATE_ALL), no migration needed.
 """
 
@@ -17,7 +17,7 @@ GOAL_STATUSES = ("planned", "active", "achieved", "cancelled")
 
 
 class AgentGoal(Base):
-    """One tracked goal in the company -> team -> agent hierarchy."""
+    """One tracked goal in the company → team → agent hierarchy."""
 
     __tablename__ = "agent_goals"
 
@@ -39,7 +39,7 @@ class AgentGoal(Base):
     campaign_id = Column(String(36), nullable=True)
     target_metric = Column(String(200), default="")  # e.g. "12 calls/day", "5 inquiries/week"
     progress_notes = Column(Text, default="")  # append-only log, newline separated
-    linked_task_ids = Column(Text, default="[]")  # JSON array - advisory task linkage
+    linked_task_ids = Column(Text, default="[]")  # JSON array — advisory task linkage
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

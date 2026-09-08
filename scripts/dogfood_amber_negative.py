@@ -1,4 +1,4 @@
-"""AMBER negative dogfood - admin without Owner OS approval must not start a child."""
+"""AMBER negative dogfood — admin without Owner OS approval must not start a child."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def main() -> int:
 
     created = orchestrator.create_mission(
         title="prepare alembic migration for invoice numbering",
-        description="AMBER negative dogfood - must park without child process",
+        description="AMBER negative dogfood — must park without child process",
         executor="cursor",
         reviewer="claude",
         idempotency_key="amber-neg-" + uuid.uuid4().hex,

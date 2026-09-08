@@ -1,4 +1,4 @@
-"""Console Event Dispatcher - durable contract between product consoles
+"""Console Event Dispatcher — durable contract between product consoles
 (EVENT_SLOTS in app/api/product_consoles.py) and the worker.
 
 WHAT THIS IS
@@ -23,11 +23,10 @@ worker drains the queue and routes envelopes to HANDLERS (typed map below).
 
 DESIGN PRINCIPLES
 -----------------
-* Fail-closed but never crash-the-caller. Every storage op is wrapped
-an
+* Fail-closed but never crash-the-caller. Every storage op is wrapped; an
   IO error is logged and the call returns ``{"emitted": False, "reason": ...}``
   so production paths (billing, voice, webhooks) keep working.
-* Per-tenant isolation - ``data/console_events/<tenant_id>.jsonl`` is the
+* Per-tenant isolation — ``data/console_events/<tenant_id>.jsonl`` is the
   canonical store. A tenant never sees another tenant's events.
 * Dedupe is content+tenant+key based, not time based. Two identical inbound
   misses from the same number within 60s collapse to one dispatch (anti-flood).
@@ -52,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 #: Per-tenant store root. Resolves to ``data/console_events`` in the checkout,
 #: which is the same legacy pattern WhatsApp drafts already uses. We deliberately
-#: do NOT route this through runtime_data_authority - this is a new store, not
+#: do NOT route this through runtime_data_authority — this is a new store, not
 #: a migrated one, and adding authority coupling now would lock us into the wrong
 #: layer when the cutover plan is finalized.
 DEFAULT_STORE_ROOT = Path(
@@ -64,7 +63,7 @@ DEFAULT_STORE_ROOT = Path(
 #: in drain (handlers are expected to be idempotent).
 DEDUPE_WINDOW_S = float(os.environ.get("CONSOLE_EVENT_DEDUPE_WINDOW_S", "60"))
 
-#: Hard cap per tenant - protects against runaway emitters. Older envelopes
+#: Hard cap per tenant — protects against runaway emitters. Older envelopes
 #: are trimmed from the head, keeping the most recent (most actionable) state.
 #: Read at call-time (NOT module import) so tests + env-var overlays work
 #: without needing to reload the module.
@@ -80,7 +79,7 @@ def _max_per_tenant() -> int:
 # --------------------------------------------------------------------------- #
 # Fail-closed imports. The dispatcher is the seam; product_consoles is the
 # source of truth for valid event keys. If product_consoles cannot import
-# (rare - only happens during early bootstrap), the dispatcher still loads
+# (rare — only happens during early bootstrap), the dispatcher still loads
 # and uses a frozen fallback set, so we never crash the worker tick.
 # --------------------------------------------------------------------------- #
 def _load_event_slots() -> tuple[dict[str, dict[str, Any]], set[str]]:
@@ -107,13 +106,13 @@ def valid_event_keys() -> frozenset[str]:
 
 
 def _refresh_slots_cache() -> None:
-    """Test/admin hook - re-read EVENT_SLOTS after hot reload."""
+    """Test/admin hook — re-read EVENT_SLOTS after hot reload."""
     global _SLOTS_BY_KEY, _VALID_KEYS  # noqa: PLW0603
     _SLOTS_BY_KEY, _VALID_KEYS = _load_event_slots()
 
 
 # --------------------------------------------------------------------------- #
-# Storage helpers - pure functions, no side-effects beyond the file system.
+# Storage helpers — pure functions, no side-effects beyond the file system.
 # --------------------------------------------------------------------------- #
 def _tenant_path(store_root: Path, tenant_id: str) -> Path:
     safe = tenant_id.strip() or "unknown"
@@ -145,7 +144,7 @@ def _new_event_id(tenant_id: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# In-process dedupe ring - bounded, never grows.
+# In-process dedupe ring — bounded, never grows.
 # Key: dedupe_key string. Value: monotonic expiry timestamp.
 # --------------------------------------------------------------------------- #
 _DEDUPE_RING: dict[str, float] = {}
@@ -201,12 +200,11 @@ def emit_console_event(
          "dedupe_key": str, "store_path": str}
 
     Reasons on the no-emit path:
-      * "unknown_event_key" - not declared in EVENT_SLOTS
-      * "voice_kill_active"  - VOICE_LAUNCH_KILL=1 and slot uses voice
-      * "duplicate"          - within DEDUPE_WINDOW_S of an identical event
-      * "empty_tenant"       - caller passed "" or whitespace
-      * "storage_error"      - JSONL write raised
-      logged but not raised
+      * "unknown_event_key" — not declared in EVENT_SLOTS
+      * "voice_kill_active"  — VOICE_LAUNCH_KILL=1 and slot uses voice
+      * "duplicate"          — within DEDUPE_WINDOW_S of an identical event
+      * "empty_tenant"       — caller passed "" or whitespace
+      * "storage_error"      — JSONL write raised; logged but not raised
     """
     payload = payload or {}
     now = time.time()
@@ -359,7 +357,7 @@ def drain_console_events(
 
     With ``clear_after=True``, the store is reset after a successful read so the
     next drain starts fresh. With ``clear_after=False`` (default), this is a
-    peek - useful for admin/inspect views.
+    peek — useful for admin/inspect views.
     """
     # Resolve the store root as a plain assignment so the runtime-data
     # allowlist walker can resolve `root` through `DEFAULT_STORE_ROOT`
@@ -410,7 +408,7 @@ def pending_event_count(
     store_root: Path | str | None = None,
 ) -> int:
     """How many envelopes are queued for ``tenant_id``. Zero if no file."""
-    # Resolve the store root via plain if/else - see emit_console_event for
+    # Resolve the store root via plain if/else — see emit_console_event for
     # the runtime-data allowlist rationale (ternaries are opaque to the
     # symbol walker; CI requires this branch shape).
     if store_root is None:
@@ -427,14 +425,14 @@ def pending_event_count(
 
 
 # --------------------------------------------------------------------------- #
-# HANDLERS - typed map of event_key -> sync handler.
+# HANDLERS — typed map of event_key -> sync handler.
 # Each handler receives ``(envelope, ctx)`` where ``ctx`` is a free-form dict
 # the worker tick can populate with things like ``{"dry_run": True}``.
-# Handlers MUST be idempotent - drain semantics may re-deliver on crash.
+# Handlers MUST be idempotent — drain semantics may re-deliver on crash.
 #
 # The default handlers are safe no-ops so the dispatcher can be deployed and
 # tested without a real provider behind each event. Owners wire real handlers
-# in M3+ (see PRODUCT_CONSOLES_2026-09-04.md -> "real-handler backlog").
+# in M3+ (see PRODUCT_CONSOLES_2026-09-04.md → "real-handler backlog").
 # --------------------------------------------------------------------------- #
 Handler = Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]]
 

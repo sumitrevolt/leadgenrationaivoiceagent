@@ -1,6 +1,6 @@
-"""W1.13 - per-job Prometheus metrics (dependency-free), fed from record_run.
+"""W1.13 — per-job Prometheus metrics (dependency-free), fed from record_run.
 
-Core marketing/agent engines emitted zero Prometheus job metrics - no way to see, in
+Core marketing/agent engines emitted zero Prometheus job metrics — no way to see, in
 Grafana/Alertmanager, whether a job succeeded/failed or how long it took. This adds
 per-job success/fail counts + duration, recorded at the ONE common completion path
 (`automation_health.record_run`, which W1.2 made status-accurate) and exposed on

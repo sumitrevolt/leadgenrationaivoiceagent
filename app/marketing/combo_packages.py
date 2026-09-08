@@ -1,19 +1,18 @@
 """
-AI Growth Suite - Combo Product (Product 3) pricing source-of-truth.
+AI Growth Suite — Combo Product (Product 3) pricing source-of-truth.
 =====================================================================
 
-Product 3 = AI Automated Marketing + AI Voice Calling Agent - ek subscription me dono.
+Product 3 = AI Automated Marketing + AI Voice Calling Agent — ek subscription me dono.
 
 PRICING MODEL:
-  - Combo Starter : Mktg Starter  + Voice Band A = ₹6,998 alag-alag -> ₹4,999/mo  (save ₹1,999)
-  - Combo Growth  : Mktg Growth   + Voice Band B = ₹12,998 alag-alag -> ₹9,999/mo  (save ₹2,999)
-  - Combo Pro     : Mktg Advanced + Voice Band C = ₹25,998 alag-alag -> ₹21,999/mo (save ₹3,999)
+  - Combo Starter : Mktg Starter  + Voice Band A = ₹6,998 alag-alag → ₹4,999/mo  (save ₹1,999)
+  - Combo Growth  : Mktg Growth   + Voice Band B = ₹12,998 alag-alag → ₹9,999/mo  (save ₹2,999)
+  - Combo Pro     : Mktg Advanced + Voice Band C = ₹25,998 alag-alag → ₹21,999/mo (save ₹3,999)
   - Annual        : 10× monthly (2 mahine FREE)
   - Free Pilot    : 7 din / 50 voice calls (marketing features full, zero payment)
 
 USP: India me koi aur competitor yeh bundle nahi deta.
-     Marketing content warm audience banata hai
-     AI voice us audience ko convert karta hai.
+     Marketing content warm audience banata hai; AI voice us audience ko convert karta hai.
      Alag-alag lene se ~₹2,000–4,000/mo zyada lagta hai.
 
 Plan IDs:
@@ -23,11 +22,11 @@ Plan IDs:
   combo_pilot           (₹0, 7 din, 50 calls, marketing-lite)
 
 Consumers:
-  - GET /api/combo/packages (PUBLIC - pricing page)
+  - GET /api/combo/packages (PUBLIC — pricing page)
   - app/billing/subscription.py _sync_combo_plans
   - app/billing/lead_usage.py (UNLIMITED_QUOTA = flat plan signal)
 
-Pure-data module - koi heavy import nahi. Kabhi raise nahi karta.
+Pure-data module — koi heavy import nahi. Kabhi raise nahi karta.
 """
 
 from __future__ import annotations
@@ -43,7 +42,7 @@ COMBO_TIERS: dict[str, dict] = {
     "starter": {
         "key": "combo_starter",
         "name": "Combo Starter",
-        "tagline": "Apni brand banao + AI voice se leads convert karo - ek flat monthly subscription.",
+        "tagline": "Apni brand banao + AI voice se leads convert karo — ek flat monthly subscription.",
         "voice_band": "A",
         "marketing_plan": "starter",
         "marketing_price_month": 1_999,
@@ -60,16 +59,16 @@ COMBO_TIERS: dict[str, dict] = {
         "badge": "",
         "features": [
             # Marketing features (Starter)
-            "AI social posts + festival calendar - roz ready content",
+            "AI social posts + festival calendar — roz ready content",
             "Google Business Profile audit + top fixes (0-100 score)",
             "4 branded festival posters har mahine",
-            "WhatsApp content pack - broadcast + status messages",
+            "WhatsApp content pack — broadcast + status messages",
             "Website lead-capture form / chat widget",
             # Voice features (Band A)
-            "AI Voice Caller - Band A niches (insurance, coaching, solar, hospital, travel…)",
-            "Unlimited AI calls - koi lead counting nahi",
-            "Live call dashboard - recordings + Hinglish transcripts",
-            "AI call qualification report - intent, budget, timeline",
+            "AI Voice Caller — Band A niches (insurance, coaching, solar, hospital, travel…)",
+            "Unlimited AI calls — koi lead counting nahi",
+            "Live call dashboard — recordings + Hinglish transcripts",
+            "AI call qualification report — intent, budget, timeline",
             "Missed-call instant callback + WhatsApp follow-up drafts",
             "TRAI AI-disclosure built-in",
         ],
@@ -77,7 +76,7 @@ COMBO_TIERS: dict[str, dict] = {
     "growth": {
         "key": "combo_growth",
         "name": "Combo Growth",
-        "tagline": "Poora marketing engine + AI voice - complete lead-to-conversion pipeline.",
+        "tagline": "Poora marketing engine + AI voice — complete lead-to-conversion pipeline.",
         "voice_band": "B",
         "marketing_plan": "growth",
         "marketing_price_month": 2_999,
@@ -95,23 +94,23 @@ COMBO_TIERS: dict[str, dict] = {
         "features": [
             # Marketing features (Growth)
             "Starter ke saare marketing features included",
-            "Unlimited AI posters - jitne chahiye",
-            "Content calendar auto - mahine bhar ka plan ready",
+            "Unlimited AI posters — jitne chahiye",
+            "Content calendar auto — mahine bhar ka plan ready",
             "Competitor analysis + database reactivation (win-back)",
             "WhatsApp drip nurture sequences",
             "Monthly marketing performance report",
             # Voice features (Band B)
-            "AI Voice Caller - Band B niches (home loans, study abroad, dental…)",
-            "Unlimited AI calls - flat monthly, zero disputes",
+            "AI Voice Caller — Band B niches (home loans, study abroad, dental…)",
+            "Unlimited AI calls — flat monthly, zero disputes",
             "Live call dashboard + transcripts + AI qualification",
-            "CRM / webhook integration - leads seedha aapke system me",
+            "CRM / webhook integration — leads seedha aapke system me",
             "Missed-call instant callback + WhatsApp follow-up drafts",
         ],
     },
     "pro": {
         "key": "combo_pro",
         "name": "Combo Pro",
-        "tagline": "Premium marketing + AI voice for high-ticket niches - maximum ROI per client.",
+        "tagline": "Premium marketing + AI voice for high-ticket niches — maximum ROI per client.",
         "voice_band": "C",
         "marketing_plan": "advanced",
         "marketing_price_month": 5_999,
@@ -130,13 +129,13 @@ COMBO_TIERS: dict[str, dict] = {
             # Marketing features (Advanced)
             "Growth ke saare marketing features included",
             "AI Voice Agent FEATURE in marketing (inquiry auto-callback, 500 min/mo)",
-            "Lead qualification + appointment booking - AI khud karta hai",
+            "Lead qualification + appointment booking — AI khud karta hai",
             "Priority support + dedicated monthly review call",
             # Voice features (Band C)
-            "AI Voice Caller - Band C premium niches (IVF, immigration, hair transplant…)",
-            "Unlimited AI calls - highest-ticket niche support",
+            "AI Voice Caller — Band C premium niches (IVF, immigration, hair transplant…)",
+            "Unlimited AI calls — highest-ticket niche support",
             "Live call dashboard + transcripts + AI qualification",
-            "Full CRM sync (Zoho / HubSpot) - qualified leads auto-push",
+            "Full CRM sync (Zoho / HubSpot) — qualified leads auto-push",
             "Missed-call instant callback + WhatsApp follow-up drafts",
             "Dedicated voice strategy session (setup + script tuning)",
         ],
@@ -153,8 +152,8 @@ COMBO_PLAN_IDS: list[str] = (
 # Pilot package (₹0)
 COMBO_PILOT: dict = {
     "key": "combo_pilot",
-    "name": "Combo Pilot - Free 7 Days",
-    "tagline": "Marketing + Voice dono try karo - 7 din mein dekho ROI, koi payment nahi.",
+    "name": "Combo Pilot — Free 7 Days",
+    "tagline": "Marketing + Voice dono try karo — 7 din mein dekho ROI, koi payment nahi.",
     "billing": "one-time",
     "price_month": 0,
     "price_year": None,
@@ -166,7 +165,7 @@ COMBO_PILOT: dict = {
     "features": [
         "Marketing: 5 AI posts + 1 GBP audit + WhatsApp pack",
         f"Voice: {PILOT_CALL_CAP} AI calls on your niche database",
-        "Live dashboard - recordings + transcripts",
+        "Live dashboard — recordings + transcripts",
         "Koi card ya payment nahi chahiye",
     ],
 }
@@ -178,7 +177,7 @@ COMBO_PILOT: dict = {
 
 
 def get_combo_packages() -> dict:
-    """Combo product ka full pricing payload - /api/combo/packages ke liye.
+    """Combo product ka full pricing payload — /api/combo/packages ke liye.
 
     Shape:
       {product, pricing_model, pilot, tiers:[starter,growth,pro+annual], comparison, savings_table}
@@ -220,7 +219,7 @@ def get_combo_packages() -> dict:
     return {
         "product": "combo",
         "product_name": "AI Growth Suite",
-        "tagline": "Marketing attract kare, AI Voice convert kare - ek subscription, poora pipeline.",
+        "tagline": "Marketing attract kare, AI Voice convert kare — ek subscription, poora pipeline.",
         "pricing_model": "flat_monthly",
         "usp": "India me koi competitor yeh bundle nahi deta.",
         "pilot": COMBO_PILOT,

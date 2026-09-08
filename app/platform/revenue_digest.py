@@ -1,4 +1,4 @@
-"""Revenue Ops Digest - Sumit ko weekly MRR/funnel/health ka ek email (Baremetrics-
+"""Revenue Ops Digest — Sumit ko weekly MRR/funnel/health ka ek email (Baremetrics-
 style metrics, free-stack).
 
 Kya cover karta: MRR estimate (active subs), subscription counts (active/trial/
@@ -6,7 +6,7 @@ past_due), dunning (open/recovered), lifecycle nurture funnel, hot leads, sales
 deals, churn-risk (red/yellow clients). Sab EXISTING engines se read-only.
 
 GATED `REVENUE_DIGEST=1` + NOTIFY_EMAIL (default OFF). Scheduler digest job se
-`maybe_run_weekly()` - sirf Monday (IST) + week-dedupe (data/revenue_digest.jsonl).
+`maybe_run_weekly()` — sirf Monday (IST) + week-dedupe (data/revenue_digest.jsonl).
 Kabhi raise nahi.
 """
 
@@ -62,7 +62,7 @@ def _mark_sent(week: str) -> None:
 
 
 async def _collect() -> dict[str, Any]:
-    """Saare engines se stats (har block defensive - fail = skip)."""
+    """Saare engines se stats (har block defensive — fail = skip)."""
     stats: dict[str, Any] = {}
     # Subscriptions + MRR
     try:
@@ -145,14 +145,14 @@ async def _collect() -> dict[str, Any]:
 
 
 def compose(stats: dict[str, Any], week: str) -> tuple[str, str]:
-    """Stats -> (subject, Hinglish body). Pure function - testable."""
+    """Stats -> (subject, Hinglish body). Pure function — testable."""
     mrr = stats.get("mrr", 0)
     subs = stats.get("subscriptions", {}) or {}
     dn = stats.get("dunning", {}) or {}
     lc = stats.get("lifecycle", {}) or {}
     hl = stats.get("health", {}) or {}
     deals = stats.get("deals", {}) or {}
-    subject = f"📊 Revenue Digest {week} - MRR ₹{mrr}, {subs.get('active', 0)} active clients"
+    subject = f"📊 Revenue Digest {week} — MRR ₹{mrr}, {subs.get('active', 0)} active clients"
     lines = [
         f"Week {week} ka revenue snapshot:",
         "",

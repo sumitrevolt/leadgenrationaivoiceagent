@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""backup_offsite_check.py - offsite backup freshness SENSOR (G6 / agent-signal).
+"""backup_offsite_check.py — offsite backup freshness SENSOR (G6 / agent-signal).
 
 KYU: pg_backup.sh offsite copy karta (R2/B2), par "kya woh actually ho raha?"
 ka koi check nahi tha. Ye script local + offsite dono ki LATEST backup ki age
-dekhi - stale (> threshold) ho to ALERT (ntfy push agar configured). Kavya/
+dekhi — stale (> threshold) ho to ALERT (ntfy push agar configured). Kavya/
 ops-watchdog isko cron/loop se call kar sakta (§4 of gap-analysis).
 
 stdlib-only · never-raise · exit 0 (cron-spam nahi). RCLONE_REMOTE/rclone na ho
@@ -89,7 +89,7 @@ def _latest_offsite_age_hours() -> float | None:
         newest = max(times)
         return (datetime.now(timezone.utc) - newest).total_seconds() / 3600.0
     except FileNotFoundError:
-        log("rclone not installed - offsite check skipped")
+        log("rclone not installed — offsite check skipped")
         return None
     except Exception as e:
         log(f"offsite check error: {e}")
@@ -108,14 +108,14 @@ def main() -> int:
     if RCLONE_REMOTE:
         off = _latest_offsite_age_hours()
         if off is None:
-            log(f"offsite ({RCLONE_REMOTE}) age unknown (rclone/remote issue) - verify config")
+            log(f"offsite ({RCLONE_REMOTE}) age unknown (rclone/remote issue) — verify config")
         elif off > STALE_HOURS:
             _alert(f"OFFSITE backup STALE: {off:.1f}h old on {RCLONE_REMOTE} (> {STALE_HOURS}h).")
         else:
             log(f"offsite backup OK: {off:.1f}h old on {RCLONE_REMOTE}")
     else:
         log(
-            "RCLONE_REMOTE unset - offsite disabled (set it + rclone.conf to enable, see deploy/offsite/)"
+            "RCLONE_REMOTE unset — offsite disabled (set it + rclone.conf to enable, see deploy/offsite/)"
         )
     return 0
 

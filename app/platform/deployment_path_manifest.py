@@ -1,8 +1,7 @@
-"""Semantic deployment-path manifest - one row per logical entry point.
+"""Semantic deployment-path manifest — one row per logical entry point.
 
 NOT one row per command occurrence. The raw scanner finds 85 mutation-pattern
-occurrences across 38 files
-that is candidate discovery, not classification.
+occurrences across 38 files; that is candidate discovery, not classification.
 Three files it flagged production-capable turned out to be a CI workflow, a
 throwaway-container restore drill, and an `echo` of operator instructions.
 
@@ -11,7 +10,7 @@ The load-bearing distinction here is:
     requires_runtime_data_guard = production_capable AND runtime_data_mutation_capable
 
 A production-scoped script that writes `.env` is sensitive, but it cannot revert
-the checkout or replace containers - counting it as an unguarded deployment path
+the checkout or replace containers — counting it as an unguarded deployment path
 would inflate the denominator and hide the real gap.
 
 Every `evidence` field cites what was READ, not what was pattern-matched.
@@ -29,7 +28,7 @@ NORMAL_RELEASE = "NORMAL_RELEASE"
 RECOVERY_SELF_HEAL = "RECOVERY_SELF_HEAL"
 DATABASE_RESTORE = "DATABASE_RESTORE"
 BOOTSTRAP_PROVISIONING = "BOOTSTRAP_PROVISIONING"
-# nosecret - a classification label whose value equals its own name, not a credential.
+# nosecret — a classification label whose value equals its own name, not a credential.
 # `# pragma: allowlist secret` covers GitGuardian; scripts/check_secrets.py wants `nosecret`.
 SECRET_CONFIG_PREPARATION = "SECRET_CONFIG_PREPARATION"  # pragma: allowlist secret  nosecret
 MAINTENANCE = "MAINTENANCE"
@@ -73,7 +72,7 @@ def _e(**kw: Any) -> dict[str, Any]:
     kw.setdefault("guard_location", None)
     kw.setdefault("fallback_after_denial", False)
     # Detached delegation (`setsid nohup ... &`) still inherits the parent's
-    # guard - the guard runs before any mutation either way - but the caller
+    # guard — the guard runs before any mutation either way — but the caller
     # cannot observe whether the release actually completed. That is an
     # OPERATIONAL weakness, not a containment one, so it gets its own fields
     # rather than being folded into `guarded`.
@@ -81,7 +80,7 @@ def _e(**kw: Any) -> dict[str, Any]:
     kw.setdefault("operational_completion_observable", True)
     # True where a wrapper legitimately mutates AFTER a successful guarded
     # release (migrations, feature-enable). Containment then rests on ordering,
-    # not on the wrapper being read-only - so it is stated rather than implied.
+    # not on the wrapper being read-only — so it is stated rather than implied.
     kw.setdefault("post_parent_mutation", False)
     kw.setdefault("post_parent_operations", [])
     kw.setdefault("post_parent_failure_propagated", True)
@@ -111,8 +110,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="canonical release authority
-        rolls all 5 app-image services",
+        evidence="canonical release authority; rolls all 5 app-image services",
     ),
     _e(
         deployment_id="release.mcp_remote",
@@ -131,8 +129,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="independent reset --hard chain
-        cannot delegate without changing MCP flow",
+        evidence="independent reset --hard chain; cannot delegate without changing MCP flow",
     ),
     _e(
         deployment_id="release.pitch",
@@ -151,8 +148,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="app-only rollout variant
-        delegation candidate for a later wave",
+        evidence="app-only rollout variant; delegation candidate for a later wave",
     ),
     _e(
         deployment_id="release.force_pull",
@@ -199,10 +195,10 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         operational_risks=["RECOVERY_RESULT_PROPAGATION_DEGRADED"],
         status=GUARDED_BY_CANONICAL_PARENT,
         evidence='line 31 runs `setsid nohup bash scripts/deploy_vps.sh "$VER"`. '
-        "Lines 5-6 before it are `cd` and `git rev-parse` - read-only. No "
+        "Lines 5-6 before it are `cd` and `git rev-parse` — read-only. No "
         "independent mutation chain, so the parent's guard covers it. NOTE: the "
         "delegation is detached (setsid nohup &), so the parent's exit status is "
-        "NOT propagated to this wrapper - tracked as a separate weakness.",
+        "NOT propagated to this wrapper — tracked as a separate weakness.",
     ),
     # ================================= UNGUARDED, GENUINELY REQUIRES GUARD
     _e(
@@ -262,8 +258,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_BY_CANONICAL_PARENT,
-        evidence="CONSOLIDATED 2026-07-26. Its whole purpose - rolling all five "
-        "app-image services to clear :latest skew - is already a property of the "
+        evidence="CONSOLIDATED 2026-07-26. Its whole purpose — rolling all five "
+        "app-image services to clear :latest skew — is already a property of the "
         "parent, so only the extra read-only skew report remains. The "
         "`worker-heavy` hyphen hazard (a wrong service name aborts the entire "
         "`up`) now exists in one place instead of nine.",
@@ -325,7 +321,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
             "reset that followed. Now: structured args, shell=False, single parent "
             "invocation, verbatim exit propagation. Proven by AST analysis in "
             "tests/test_python_builder_delegation.py (substring scans were "
-            "rejected - they match this very prose).",
+            "rejected — they match this very prose).",
         )
         for stem in ("vps_build_deploy", "vps_deploy_dashboard", "vps_deploy_workflow_fix")
     ],
@@ -353,7 +349,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         "origin/main` against the production checkout. A default is not a "
         "restriction and the file's `sandbox` comment enforced nothing. "
         "Now: `runtime_data_preflight.py check-bootstrap` classifies the target "
-        "before ANY mutation, and the reset branch is DELETED rather than gated - "
+        "before ANY mutation, and the reset branch is DELETED rather than gated — "
         "an existing installation is refused (92) and the operator is directed to "
         "the release parent or a protected recovery path, so bootstrap cannot "
         "become a second deployment implementation. Codes 92/93/94 are distinct "
@@ -380,7 +376,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         exit_code_propagated=True,
         status=PRODUCTION_NON_RUNTIME_MUTATION,
         evidence="line 68 emits the compose command through `echo` as operator "
-        "guidance; it is never executed. Writes .env only - cannot revert the "
+        "guidance; it is never executed. Writes .env only — cannot revert the "
         "checkout or replace containers. Needs its own config-safety controls "
         "(atomic write, backup, permissions), tracked separately.",
     ),
@@ -402,8 +398,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=False,
         exit_code_propagated=True,
         status=NON_PRODUCTION,
-        evidence="runs-on: ubuntu-latest
-        mutates only the runner's ephemeral "
+        evidence="runs-on: ubuntu-latest; mutates only the runner's ephemeral "
         "checkout and pushes a ci-debug branch. No /opt/leadgen, no ssh, no "
         "production compose. The scanner matched the git identity ci@leadsgenai.in.",
     ),
@@ -423,8 +418,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=False,
         exit_code_propagated=True,
         status=DIAGNOSTIC_ONLY,
-        evidence="restores a backup into a THROWAWAY container
-        its `docker rm -f` "
+        evidence="restores a backup into a THROWAWAY container; its `docker rm -f` "
         "targets that same temp container. Reads /opt/leadgen/backups. Never "
         "mutates the production checkout or production services.",
     ),
@@ -446,7 +440,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         first_mutating_operation="docker stop -t 5 leadgen_worker ... (line 36)",
         # Out of the runtime-data denominator, but NOT risk-free. An unattended
         # `docker system prune` can remove stopped containers, unused networks,
-        # unused images and build cache - which includes the ROLLBACK images the
+        # unused images and build cache — which includes the ROLLBACK images the
         # release runbook depends on. That is a recovery-posture risk, not a
         # checkout-backed data-loss risk, so it is tracked here rather than
         # smuggled back into the guard count where it would distort the gate.
@@ -468,7 +462,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         "`--volumes` cannot remove the bind-mounted data dir. Line 110 tar is a "
         "backup (read). So: production-capable, container-affecting, but NOT "
         "runtime-data mutating. Guarded by a test asserting `--volumes` never "
-        "appears - adding it would change this classification.",
+        "appears — adding it would change this classification.",
     ),
 ]
 
@@ -500,7 +494,7 @@ def requires_guard(e: dict[str, Any]) -> bool:
     """production_capable AND runtime_data_mutation_capable.
 
     `None` for mutation-capability means UNRESOLVED, which counts as requiring a
-    guard - an unverified unattended script is not evidence of safety.
+    guard — an unverified unattended script is not evidence of safety.
     """
     if not e.get("production_capable"):
         return False
@@ -527,7 +521,7 @@ def counts() -> dict[str, int]:
         "parent_guarded_entrypoints": sum(
             1 for e in req if e["status"] == GUARDED_BY_CANONICAL_PARENT
         ),
-        # An entry that REQUIRES a guard and does not have one is unguarded -
+        # An entry that REQUIRES a guard and does not have one is unguarded —
         # including UNKNOWN_REQUIRES_REVIEW. Leaving unknowns in their own
         # bucket would let the invariant balance while real exposure hid there,
         # and would let the release gate read zero before anyone had looked.

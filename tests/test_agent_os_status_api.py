@@ -25,7 +25,7 @@ def test_agent_os_status_requires_admin():
 
 
 def test_agent_os_status_shape_for_admin(monkeypatch):
-    """Conftest already mocks admin - assert shape + no secret leakage."""
+    """Conftest already mocks admin — assert shape + no secret leakage."""
     monkeypatch.delenv("OMNIROUTE_ENABLED", raising=False)
     monkeypatch.delenv("OMNIROUTE_AGENTS", raising=False)
     r = client.get("/api/platform/office/agent-os-status")

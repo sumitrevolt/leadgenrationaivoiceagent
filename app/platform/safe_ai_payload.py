@@ -1,4 +1,4 @@
-"""Safe AI Payload - PII masking + provider safety routing.
+"""Safe AI Payload — PII masking + provider safety routing.
 
 Privacy layer that MUST be applied before any external model call.
 Masks Indian business PII: names, phones, emails, addresses, GST/PAN,
@@ -44,7 +44,7 @@ _ADDRESS_HINTS = [
     r"\b[1-9][0-9]{5}\b",  # Indian pincode
 ]
 
-# API key / token patterns - broader: cover "api key is sk-..." syntax too
+# API key / token patterns — broader: cover "api key is sk-..." syntax too
 _SECRET_PATTERNS = [
     re.compile(r"(?:api[_\-\.\s]*key|password|auth)\s*[:=\s]+\s*[\S]+", re.IGNORECASE),
     re.compile(
@@ -61,7 +61,7 @@ _OAUTH_PATTERNS = [
     re.compile(r"\bEA[A-Za-z0-9]{30,}\b"),  # Facebook page token
 ]
 
-# WhatsApp number patterns - cover @wa.gateway, @s.whatsapp.net, etc.
+# WhatsApp number patterns — cover @wa.gateway, @s.whatsapp.net, etc.
 _WA_NUMBER_RE = re.compile(r"\+?\d{10,15}@(?:wa|whatsapp|s\.whatsapp)[a-z.]*", re.IGNORECASE)
 
 
@@ -227,6 +227,6 @@ def block_if_sensitive(payload: dict[str, Any] | str, provider: str) -> None:
         if _PHONE_RE.search(text) or _EMAIL_RE.search(text) or _GSTIN_RE.search(text):
             raise SafePayloadError(f"Cannot send customer PII to unsafe provider: {provider}")
     if provider in _STRICT_PROVIDERS:
-        # Check dict directly - validate_no_secrets handles fragments better
+        # Check dict directly — validate_no_secrets handles fragments better
         validate_no_secrets(payload)
-    # SAFE_PROVIDERS (claude/anthropic) - no blocking needed, but secrets should still be redacted
+    # SAFE_PROVIDERS (claude/anthropic) — no blocking needed, but secrets should still be redacted

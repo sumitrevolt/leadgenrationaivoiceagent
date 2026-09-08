@@ -2,7 +2,7 @@
 
 WHY (2026-07-14): the 2026-07-11 canary gate `data/social_engine.json
 {"dry_run": true}` was left ON for three days. The engine drained the queue,
-FABRICATED PublishResult(ok=True) and marked jobs `published` - while never
+FABRICATED PublishResult(ok=True) and marked jobs `published` — while never
 calling Postiz. Six self-brand jobs read "published" (post_id empty) and not a
 single post ever reached social. The founder only found out by noticing the
 silence. Nothing in logs or the drain result said "this is a dry run".
@@ -10,7 +10,7 @@ silence. Nothing in logs or the drain result said "this is a dry run".
 Same class as ADR-095/096 (synthetic/fake state polluting a real status
 surface) and the same fix as ADR-097: make the silent state LOUD.
 
-Offline/pure - no providers, no network.
+Offline/pure — no providers, no network.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def test_dry_run_drain_logs_a_loud_warning(monkeypatch):
 
 
 def test_real_drain_is_quiet(monkeypatch, caplog):
-    """No warning when publishing for real - the alarm must stay meaningful."""
+    """No warning when publishing for real — the alarm must stay meaningful."""
     import logging
 
     caplog.set_level(logging.WARNING, logger="app.social_engine.engine")

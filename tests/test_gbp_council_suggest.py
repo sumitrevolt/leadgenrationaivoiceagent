@@ -1,4 +1,4 @@
-"""GBP audit - heuristic + council suggestions (never auto-persist score)."""
+"""GBP audit — heuristic + council suggestions (never auto-persist score)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ def test_heuristic_suggest_conservative_without_facts():
 
     out = gbp_audit.heuristic_suggest({})
     assert out["ok"] is True
-    # empty profile -> mostly worst indices
+    # empty profile → mostly worst indices
     assert out["answers"]["photos"] == gbp_audit._worst_idx("photos")
     assert out["answers"]["reviews_count"] == gbp_audit._worst_idx("reviews_count")
 

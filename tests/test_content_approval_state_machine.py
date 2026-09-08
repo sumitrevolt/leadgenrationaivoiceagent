@@ -4,11 +4,11 @@ Contract:
 - Extended states: pending, ready_for_review, changes_requested, approved,
   rejected, scheduled, publishing, published, partially_published, cancelled.
 - `transition(approval_id, new_status, actor, note, extra)` enforces
-  `_ALLOWED_TRANSITIONS` - illegal moves refused with `illegal_transition`.
+  `_ALLOWED_TRANSITIONS` — illegal moves refused with `illegal_transition`.
 - `cancel(id)` / `request_changes(id)` are sugar over `transition()`.
 - Every legal transition appends a JSONL row (audit trail) + emits the mapped
   canonical delivery-ledger event.
-- Legacy 3-state `_STATUSES` (`pending/approved/rejected`) still works - old
+- Legacy 3-state `_STATUSES` (`pending/approved/rejected`) still works — old
   `approve()`/`reject()` unchanged.
 - Terminal states (published, cancelled) refuse further transitions.
 """
@@ -23,7 +23,7 @@ import pytest
 
 @pytest.fixture()
 def ca(monkeypatch):
-    """Isolated JSONL store - every test starts empty."""
+    """Isolated JSONL store — every test starts empty."""
     from app.marketing import content_approval as _ca
 
     td = tempfile.mkdtemp()

@@ -1,4 +1,4 @@
-"""W3.1 - team_scheduler boot-grace + time-window routing coverage.
+"""W3.1 — team_scheduler boot-grace + time-window routing coverage.
 
 `scheduler_loop` had no test for its two subtlest behaviours (lock/dead-man/content/
 last-run are covered by the W1.x suites):

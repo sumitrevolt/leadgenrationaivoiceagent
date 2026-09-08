@@ -89,11 +89,9 @@ def _safe_transaction_name_from_router(scope):
     Guarded drop-in keeps the same contract - first FULL match wins, return
     its `.path` - and for a lazy route, recurses into its wrapped
     `original_router.routes` to resolve the concrete route's path (bounded
-    depth
-    missing internals degrade to None, never raise). Applied as a
+    depth; missing internals degrade to None, never raise). Applied as a
     runtime monkeypatch only when the 1.x function is present (2.x fixed
-    upstream
-    then no-op).
+    upstream; then no-op).
     """
     router = scope.get("router") if isinstance(scope, dict) else None
     if not router:
@@ -162,7 +160,7 @@ if settings.sentry_dsn and settings.app_env == "production":
         logger.info("✅ Sentry error tracking initialized")
         # 2026-08-15: sentry-sdk 1.x `_transaction_name_from_router` crashes on
         # FastAPI >= 0.115 lazy `_IncludedRouter` entries (no .path) AFTER a
-        # request already failed -> masks the real exception (prod 500 evidence).
+        # request already failed → masks the real exception (prod 500 evidence).
         # Guarded drop-in (same contract) replaces it at call-time; 2.x no-op.
         try:
             import sentry_sdk.integrations.starlette as _sentry_starlette
@@ -381,7 +379,7 @@ async def lifespan(app: FastAPI):
                 from app.platform import obsidian_sync as _obs
 
                 _ROOT = _pl.Path(__file__).resolve().parent.parent
-                # Mirror ADR decision docs -> Decisions/
+                # Mirror ADR decision docs → Decisions/
                 for _f in sorted((_ROOT / "docs").glob("ADR*.md")):
                     await _aio3.get_running_loop().run_in_executor(
                         None,
@@ -567,7 +565,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp, Advanced tier me AI voice agent jo inquiries ko call kare)",
+    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp; Advanced tier me AI voice agent jo inquiries ko call kare)",
     version=os.environ.get("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
     docs_url="/docs" if settings.app_env != "production" else None,  # Disable in production
@@ -715,15 +713,16 @@ try:
     from app.api.internal_media import public as content_public_router
     from app.api.internal_media import router as content_internal_router
 
-    app.include_router(content_internal_router)  # /internal/* (HMAC-protected renderer webhooks)
+    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
     app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentOS router not mounted: {_e}")
 try:
     from app.api.page_agent import router as page_agent_router
 
-    # /api/page-agent/* (admin copilot LLM proxy + boot.js PAGE_AGENT gated)
-    app.include_router(page_agent_router, prefix="/api")
+    app.include_router(
+        page_agent_router, prefix="/api"
+    )  # /api/page-agent/* (admin copilot LLM proxy + boot.js; PAGE_AGENT gated)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Page-agent router not mounted: {_e}")
 try:
@@ -1379,7 +1378,7 @@ try:
 
     app.include_router(
         model_cookbook_router
-    )  # /api/cookbook/* (niche->LLM recipes, MODEL_COOKBOOK_ENABLED gated, INERT default)
+    )  # /api/cookbook/* (niche→LLM recipes, MODEL_COOKBOOK_ENABLED gated, INERT default)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Model Cookbook router not mounted: {_e}")
 try:
@@ -1585,7 +1584,7 @@ if _reels_dir.is_dir():
 # Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned
 # build directory exists - static files are flag-independent; the gated entry point is
 # /app/office?mode=3d (UNITY_VIRTUAL_OFFICE_ENABLED). Placed before the "/" catch-all.
-# Unity builds with decompressionFallback=false -> the .br artifacts MUST be served with
+# Unity builds with decompressionFallback=false → the .br artifacts MUST be served with
 # `Content-Encoding: br` (plain StaticFiles sets Content-Type via mimetypes but omits the
 # encoding header, so the loader would receive raw brotli bytes and fail).
 class _PrecompressedStaticFiles(StaticFiles):
@@ -1626,7 +1625,7 @@ async def customer_login_page():
 
 @app.get("/login", tags=["Frontend"], include_in_schema=False)
 async def login_alias_redirect():
-    """Public `/login` -> canonical `/app/login` (launch UX; bare /login was 404)."""
+    """Public `/login` → canonical `/app/login` (launch UX; bare /login was 404)."""
     return RedirectResponse(url="/app/login", status_code=307)
 
 
@@ -1664,14 +1663,14 @@ async def brain_page():
 
 @app.get("/app/admin-login", tags=["Frontend"])
 async def admin_login_page():
-    """Admin login - email+password -> /api/admin/auth/login -> sets accessToken (unlocks
+    """Admin login - email+password → /api/admin/auth/login → sets accessToken (unlocks
     all admin dashboards). Without this, admin pages 401 (no token)."""
     return FileResponse(str(FRONTEND_DIR / "admin_login.html"))
 
 
 @app.get("/app/voice-keys", tags=["Frontend"])
 async def voice_keys_page():
-    """Admin: paste free Gemini API keys -> validate -> activate the voice brain's
+    """Admin: paste free Gemini API keys → validate → activate the voice brain's
     Gemini pool (no SSH / .env / restart). Posts to /api/admin/voice/gemini-keys."""
     return FileResponse(str(FRONTEND_DIR / "voice_keys.html"))
 
@@ -1708,7 +1707,7 @@ async def inbox_page():
 
 @app.get("/app/studio", tags=["Frontend"])
 async def studio_page():
-    """AI Studio - photo->poster (image-to-image), AI poster, template gallery."""
+    """AI Studio - photo→poster (image-to-image), AI poster, template gallery."""
     return FileResponse(str(FRONTEND_DIR / "studio.html"))
 
 
@@ -1860,7 +1859,7 @@ async def owner_os_page():
 async def office_map_page(mode: str | None = None):
     """Virtual office map - all AI staff grouped into rooms, live status + activity.
 
-    mode=3d + UNITY_VIRTUAL_OFFICE_ENABLED=1 -> Unity Blueprint Office shell
+    mode=3d + UNITY_VIRTUAL_OFFICE_ENABLED=1 → Unity Blueprint Office shell
     (office_blueprint.html). Warna HAMESHA existing 2D Phaser map - flag OFF ya
     mode=map par zero behavior change (INERT default). Docs:
     docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md §2.
@@ -1881,9 +1880,8 @@ async def office_map_page(mode: str | None = None):
 async def customer_office_page(mode: str | None = None):
     """Customer Blueprint Office shell (Milestone E).
 
-    mode=3d + UNITY_CUSTOMER_OFFICE_ENABLED=1 -> office_customer_blueprint.html
-    (tenant-scoped shell
-    data sirf /api/customer/* se). Flag OFF ya koi aur mode ->
+    mode=3d + UNITY_CUSTOMER_OFFICE_ENABLED=1 → office_customer_blueprint.html
+    (tenant-scoped shell; data sirf /api/customer/* se). Flag OFF ya koi aur mode →
     existing customer dashboard pe redirect (safe default, fully INERT).
     Docs: docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md §2.
     """
@@ -1984,7 +1982,7 @@ async def clients_page():
 
 @app.get("/pricing", tags=["Frontend"])
 async def pricing_page():
-    """PUBLIC self-serve revenue funnel: pricing -> signup -> manual UPI checkout.
+    """PUBLIC self-serve revenue funnel: pricing → signup → manual UPI checkout.
 
     Backend already built (/api/billing/plans, /api/public/signup).
     Payments via manual UPI only (Stripe removed 2026-07-10, Razorpay removed 2026-06-18).
@@ -2015,7 +2013,7 @@ async def assistant_page():
 
 @app.get("/app/journeys", tags=["Frontend"])
 async def journeys_page():
-    """Omnichannel journey/rule engine admin (Expedify-style) - event->action drafts.
+    """Omnichannel journey/rule engine admin (Expedify-style) - event→action drafts.
 
     CRUD over /api/journeys/* (admin token). Engine gated JOURNEY_ENGINE=1.
     """
@@ -2068,8 +2066,7 @@ async def agent_tools_page():
     """Agent Tools admin cockpit - UI for the 17 /api/agents-ext capabilities
     (Kilo/OpenCode/Ruflo/Hermes): codebase-search, diagnostics, code-review, recall,
     trajectories, consensus, permissions, hooks, custom-agents, capacity, checkpoints,
-    batch, code-exec, browser. Admin token from localStorage
-    super-admin gates honored."""
+    batch, code-exec, browser. Admin token from localStorage; super-admin gates honored."""
     return FileResponse(str(FRONTEND_DIR / "agent_tools.html"))
 
 
@@ -2093,8 +2090,7 @@ async def affiliates_page():
 async def pay_page(order_ref: str):
     """Hosted pay-page - order-ref se amount-prefilled UPI intent + QR +
     'maine pay kar diya' submit (revenue sprint 2026-08-23). Data /api/public/
-    offers/{ref} se fetch hota hai
-    ref unknown/expired ho to page khud
+    offers/{ref} se fetch hota hai; ref unknown/expired ho to page khud
     fail-closed message dikhata hai."""
     return FileResponse(str(FRONTEND_DIR / "pay.html"))
 
@@ -2103,8 +2099,7 @@ async def pay_page(order_ref: str):
 async def revenue_kit_page():
     """Owner revenue console - pay-link issue + WhatsApp close text, launch
     promo create (pricing-page countdown), orders/redemptions ledger. Admin
-    token localStorage se
-    APIs /api/admin/revenue|promo (revenue sprint)."""
+    token localStorage se; APIs /api/admin/revenue|promo (revenue sprint)."""
     return FileResponse(str(FRONTEND_DIR / "revenue_kit.html"))
 
 
@@ -2118,8 +2113,7 @@ async def dialer_page():
 async def battlecard_page():
     """Internal sales battlecard - LeadGen AI vs Dhanda / AdBanao / MyOperator /
     Vodex.ai / GoHighLevel. Static competitive-intel asset (comparison matrix +
-    talk tracks + landmine questions). Admin/sales internal
-    no API/secrets."""
+    talk tracks + landmine questions). Admin/sales internal; no API/secrets."""
     return FileResponse(str(FRONTEND_DIR / "battlecard.html"))
 
 
@@ -2164,13 +2158,13 @@ async def control_center_graph_page():
 
 @app.get("/audit", tags=["Frontend"])
 async def public_audit_page():
-    """PUBLIC lead-magnet: FREE GBP audit funnel (questions -> score -> inquiry)."""
+    """PUBLIC lead-magnet: FREE GBP audit funnel (questions → score → inquiry)."""
     return FileResponse(str(_website_dir / "audit.html"))
 
 
 @app.get("/site-audit", tags=["Frontend"])
 async def public_site_audit_page():
-    """PUBLIC lead-magnet #2: website URL -> AI report card (score/tips/CTA).
+    """PUBLIC lead-magnet #2: website URL → AI report card (score/tips/CTA).
     POST /api/growth/tools/website-audit ko call karta (rate-limited)."""
     return FileResponse(str(_website_dir / "site-audit.html"))
 
@@ -2184,7 +2178,7 @@ async def public_geo_check_page():
 
 @app.get("/demo", tags=["Frontend"])
 async def public_demo_page():
-    """PUBLIC lead-magnet: AI marketing preview - business naam -> real posts/hashtags/offer
+    """PUBLIC lead-magnet: AI marketing preview - business naam → real posts/hashtags/offer
     (POST /api/public/ai-demo). Shows prospects what LeadGenAI's AI team builds for them."""
     return FileResponse(str(_website_dir / "demo.html"))
 
@@ -2204,8 +2198,7 @@ async def public_compare_page():
     """PUBLIC: competitor comparison page (dono products ALAG sections) - SEO + conversion.
 
     Marketing: vs Dhanda/Predis/AdBanao/Practina/GHL. Voice: vs SquadStack/Vodex/
-    Exotel/Knowlarity/CallHippo. Data June 2026 public sources
-    bundle framing NAHI.
+    Exotel/Knowlarity/CallHippo. Data June 2026 public sources; bundle framing NAHI.
     """
     return FileResponse(str(_website_dir / "compare.html"))
 
@@ -2443,7 +2436,7 @@ async def blog_index():
 
 @app.get("/blog/{slug}", tags=["Frontend"], include_in_schema=False)
 async def blog_article(slug: str):
-    """Ek SEO article render karo (404-safe -> /blog redirect)."""
+    """Ek SEO article render karo (404-safe → /blog redirect)."""
     from html import escape as _h
 
     from fastapi.responses import HTMLResponse, RedirectResponse
@@ -2607,7 +2600,7 @@ async def niche_landing(slug: str):
         "</div>"
         f'<div class="cta"><h2>Shuru karo aaj hi</h2>'
         f"<p>{_h(niche_label)} {_h(city_phrase)} - Starter plan sirf ₹1,999/mahina.</p>"
-        '<a href="/start">Abhi Start Karo -></a></div>'
+        '<a href="/start">Abhi Start Karo →</a></div>'
         '<footer>© LeadsGenAI · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>'
         "</body></html>"
     )
@@ -2619,7 +2612,7 @@ async def niche_landing(slug: str):
 # ---------------------------------------------------------------------------
 @app.get("/b/{slug}", tags=["Frontend"], include_in_schema=False)
 async def mini_site_page(slug: str):
-    """Ek marketing client ka mini-site render karo (404-safe -> / redirect).
+    """Ek marketing client ka mini-site render karo (404-safe → / redirect).
 
     Page brand-colored hota hai + enquiry/booking form POST /api/public/inquiry
     par jata hai (hidden source_slug se lead funnel me capture). Kabhi 500 nahi.

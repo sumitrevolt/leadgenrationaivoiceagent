@@ -4,7 +4,7 @@ The defect: `marker_still_active(now=_now())` used the injected clock seam while
 `_job_due_today()` / `_job_due_yet()` read the wall clock independently. Because
 those two answer *weekday* and *window* questions, a single classification could
 combine two different DAYS. The result therefore depended on when the process
-happened to run - which is why `test_same_day_boot_grace_after_window_is_recoverable`
+happened to run — which is why `test_same_day_boot_grace_after_window_is_recoverable`
 started failing on a real-world date change rather than on any code change.
 
 These tests pin the property that makes that impossible: pinning `_now()` must
@@ -57,7 +57,7 @@ def test_naive_timestamp_is_rejected_not_silently_compared() -> None:
 
 
 def test_utc_input_is_converted_to_ist() -> None:
-    """19:30 UTC Fri == 01:00 IST Sat - the IST weekday must win."""
+    """19:30 UTC Fri == 01:00 IST Sat — the IST weekday must win."""
     utc = datetime(2026, 7, 24, 19, 30, tzinfo=timezone.utc)  # Friday UTC
     assert tov._ist_now(utc).weekday() == 5  # Saturday in IST
 

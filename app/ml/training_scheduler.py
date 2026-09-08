@@ -207,7 +207,7 @@ class MLTrainingScheduler:
             # 4. Prompt optimization
             # 5. Agent Brain self-training
 
-            # Full intent classifier training (no force kwarg - method
+            # Full intent classifier training (no force kwarg — method
             # signature takes none; passing one raised TypeError and made
             # every weekly deep-training run fail silently)
             intent_result = await self.auto_trainer.train_intent_classifier()

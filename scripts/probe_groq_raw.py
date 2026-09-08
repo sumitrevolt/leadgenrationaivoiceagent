@@ -1,4 +1,4 @@
-"""Raw Groq probe - run inside leadgen_app container.
+"""Raw Groq probe — run inside leadgen_app container.
 
 Checks whether the Groq API actually returns content for gpt-oss-20b, and
 times it. Prints 1 line of evidence.

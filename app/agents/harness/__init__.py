@@ -1,5 +1,5 @@
 """
-app.agents.harness - a thin control tier that unifies the harness controls the
+app.agents.harness — a thin control tier that unifies the harness controls the
 existing engines already half-implement.
 
 Turn on with ``AGENT_HARNESS=1`` (INERT by default, canary like AGENT_RUNTIME).

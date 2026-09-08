@@ -1,24 +1,23 @@
-"""approvals_bridge.py - unified read+decide bridge over agentic draft streams.
+"""approvals_bridge.py — unified read+decide bridge over agentic draft streams.
 
 Sub-project D V1 (bridge-first): surfaces the "rotting" agentic outputs
 (sales_team deep-dives, coordinator draft runs, FDE deploy reports) into ONE
 human-in-the-loop queue with risk-tiered smart 1-click actions. The already-
 surfaced streams (code_upgrader patches, process breakpoints, self_improve)
-keep their own endpoints - this bridge is ONLY for the three orphan streams.
+keep their own endpoints — this bridge is ONLY for the three orphan streams.
 
 Design (mirrors the code_upgrader gold-pattern):
 - File-backed status sidecar data/approval_decisions.jsonl, read-on-each-call
-  (NEVER an in-memory singleton - that is the verified self_improve
+  (NEVER an in-memory singleton — that is the verified self_improve
   ApprovalQueue bug where web vs worker process state diverged).
-- Source files are NOT mutated
-status lives only in the sidecar (collapse-to-
+- Source files are NOT mutated; status lives only in the sidecar (collapse-to-
   latest by (source, item_id)).
 - decide() stamps status + fires a BOUNDED SAFE next-action per source:
     sales       -> mark-reviewed (the real send stays 1-click manual / draft-only)
     coordinator -> push the plan's next-action to self_improve.add_task (internal)
     fde         -> enable the disabled drip-journey from the deploy report
 - Risky real-send (rohan outreach at scale, swara calls) is NEVER in the
-  approve path - draft-only by design (must-stay-manual).
+  approve path — draft-only by design (must-stay-manual).
 - Never raises. One bad stream returns [] for that source only.
 """
 
@@ -122,13 +121,13 @@ def create_verification_approval(
     title: str = "Owner OS production verification (disposable)",
     by: str = "admin",
     ttl_hours: int = 24,
-    note: str = "Internal disposable approval - no external side effects",
+    note: str = "Internal disposable approval — no external side effects",
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a disposable internal approval with ZERO external side effects.
 
     Appears in the same list_drafts / Mission Control drafts queue as other
-    sources. Approve/reject only stamps status - no workflow, publish, email,
+    sources. Approve/reject only stamps status — no workflow, publish, email,
     WhatsApp, call, billing, or customer mutation.
     """
     item_id = "oosv_" + uuid.uuid4().hex[:12]
@@ -153,7 +152,7 @@ def create_verification_approval(
         "status": "pending",
     }
     if isinstance(meta, dict) and meta:
-        # Binding fields for External Agent AMBER (and similar) - still one ledger.
+        # Binding fields for External Agent AMBER (and similar) — still one ledger.
         row["meta"] = meta
     try:
         os.makedirs("data", exist_ok=True)
@@ -216,7 +215,7 @@ def _drafts_verification(smap: dict) -> list[dict[str, Any]]:
                     "customer": "",
                     "agent": "owner_os",
                     "action": "internal_verification",
-                    "impact": "none - disposable verification only",
+                    "impact": "none — disposable verification only",
                     "disposable": True,
                     "no_side_effects": True,
                     "expires_at": r.get("expires_at"),
@@ -242,7 +241,7 @@ def _drafts_sales(smap: dict) -> list[dict[str, Any]]:
     try:
         from app.agents import sales_team
 
-        seen: set[str] = set()  # index has dup pids (re-analyzed) - latest-first wins
+        seen: set[str] = set()  # index has dup pids (re-analyzed) — latest-first wins
         for r in sales_team.list_analyses(limit=20):
             pid = str(r.get("pid") or "")
             if not pid or pid in seen:
@@ -261,7 +260,7 @@ def _drafts_sales(smap: dict) -> list[dict[str, Any]]:
                 {
                     "source": "sales",
                     "id": pid,
-                    "title": f"{r.get('name') or pid} - {r.get('grade') or '?'} ({r.get('score') or 0}/100)",
+                    "title": f"{r.get('name') or pid} — {r.get('grade') or '?'} ({r.get('score') or 0}/100)",
                     "body": body
                     or f"{r.get('niche') or ''} · {r.get('city') or ''} · {r.get('phone') or ''}",
                     "created_at": _ts_to_iso(r.get("ts")),
@@ -286,7 +285,7 @@ def _drafts_coordinator(smap: dict) -> list[dict[str, Any]]:
 
         # Draft runs only (execute falsy) with substance; recent cap = noise control.
         # NOTE: engineering_crew runs carry design/implementation_plan (NOT
-        # summary/solution) - include those keys or the flagship mode is dropped.
+        # summary/solution) — include those keys or the flagship mode is dropped.
         def _has_substance(r: dict) -> bool:
             return bool(
                 r.get("summary")
@@ -335,15 +334,14 @@ def _drafts_fde(smap: dict) -> list[dict[str, Any]]:
                 continue
             client = r.get("client") or {}
             steps = r.get("steps") or []
-            summ = "
-            ".join(
+            summ = "; ".join(
                 f"{s.get('title')}: {s.get('summary', '')}" for s in steps if isinstance(s, dict)
             )[:2000]
             out.append(
                 {
                     "source": "fde",
                     "id": rid,
-                    "title": f"FDE {r.get('agent') or ''} -> {client.get('business_name') or 'client'} ({r.get('deployed', 0)}/{r.get('total', 0)})",
+                    "title": f"FDE {r.get('agent') or ''} → {client.get('business_name') or 'client'} ({r.get('deployed', 0)}/{r.get('total', 0)})",
                     "body": summ,
                     "created_at": r.get("at") or "",
                     "status": _status_for("fde", rid, smap),
@@ -380,13 +378,11 @@ def list_drafts(include_decided: bool = False) -> dict[str, Any]:
 
 
 def recent_decisions(limit: int = 8) -> list[dict[str, Any]]:
-    """Audit-trail strip for the Office HQ Approvals panel - "who decided what,
-    when". Reads the same append-only sidecar `decide()` writes to
-    latest
+    """Audit-trail strip for the Office HQ Approvals panel — "who decided what,
+    when". Reads the same append-only sidecar `decide()` writes to; latest
     (source, item_id) wins, newest-first. Draft titles are re-resolved from
     `list_drafts(include_decided=True)` (source files are the title's source of
-    truth)
-    patch/self-improve titles are left blank in this v1 - those kinds
+    truth); patch/self-improve titles are left blank in this v1 — those kinds
     keep their own status stores and aren't wired here yet. Never raises."""
     out: list[dict[str, Any]] = []
     try:
@@ -435,7 +431,7 @@ def _action_coordinator(item_id: str) -> str:
             or (d or {}).get("title")
             or "coordinator plan"
         )
-        self_improve.add_task(f"Approved coordinator plan - follow up: {goal}", source="approval")
+        self_improve.add_task(f"Approved coordinator plan — follow up: {goal}", source="approval")
         return "queued to self_improve"
     except Exception as e:
         logger.debug("[approvals] coordinator action skip: %s", e)
@@ -461,8 +457,8 @@ def _action_fde(item_id: str) -> str:
 
 
 def _action_verification(item_id: str) -> str:
-    """Intentionally empty - disposable Owner OS verification has no side effects."""
-    return "verification only - no external action"
+    """Intentionally empty — disposable Owner OS verification has no side effects."""
+    return "verification only — no external action"
 
 
 def decide(
@@ -495,7 +491,7 @@ def decide(
         return {"ok": True, "source": source, "id": item_id, "status": cur, "noop": True}
 
     status = "approved" if decision == "approve" else "rejected"
-    # Stamp the decision FIRST, then fire the best-effort action - so a concurrent
+    # Stamp the decision FIRST, then fire the best-effort action — so a concurrent
     # double-approve or an action failure cannot leave the item un-stamped or
     # double-fire the bounded action (TOCTOU narrowing for the single-admin case).
     _set_status(source, item_id, status, by, reason=reason)
@@ -521,7 +517,7 @@ def decide(
             "arnav",
             f"approval_{status}",
             f"{source} {item_id[:24]} {status} by {by}"
-            + (f" - {action}" if action else "")
+            + (f" — {action}" if action else "")
             + (f" ({reason})" if reason else ""),
         )
     except Exception:

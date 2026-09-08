@@ -14,8 +14,7 @@ found-but-not-fixed in this session's Priority 4 admin endpoint audit.
 The backend endpoint already writes a delivery_ledger "admin_manual_action"
 audit event on every call (success or failure) -- see
 tests/test_admin_client_actions_audit.py's deliver-now sibling coverage is
-out of scope here
-this file only covers the frontend confirmation gap.
+out of scope here; this file only covers the frontend confirmation gap.
 
 admin_dashboard.html has its own in-file modal convention (_focusTrap-based
 custom overlay, used by the pre-existing password-reset modal and this

@@ -2,7 +2,7 @@
 """Local governed DSH planning/turn/tool loop for NEXT todos.
 
 This is LeadGen's DeepSeek Harness runtime (ADR-181/182), NOT Harness.io.
-It uses memory token/run backends + ``app.api.dsh_internal`` MCP tools - the
+It uses memory token/run backends + ``app.api.dsh_internal`` MCP tools — the
 same seam the Linux ``dsh-jsonrpc-agent`` child would call.
 
 Never: DSH_AGENT_ALLOWLIST=* · swara/ananya · billing/UPI/voice capability
@@ -49,7 +49,7 @@ def _star_allowlist_collapses(dispatch: Any) -> bool:
 
 
 def run_plan(*, write: bool = False) -> dict[str, Any]:
-    """One Kavya read-only MCP turn: heartbeat -> gtm_ops_ready proposal -> UPI refuse."""
+    """One Kavya read-only MCP turn: heartbeat → gtm_ops_ready proposal → UPI refuse."""
     _prepare_memory_backends()
     import httpx
     from fastapi import FastAPI

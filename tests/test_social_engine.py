@@ -1,15 +1,12 @@
-"""social_engine - native social-posting engine (own queue + providers + vault).
+"""social_engine — native social-posting engine (own queue + providers + vault).
 
 Bars:
 - vault: token encrypt-at-rest roundtrip (Fernet if key, plaintext fallback).
-- enqueue_publish -> durable job(s) queued
-process_queue dispatches via provider.
-- configured provider ok -> published
-inert provider -> skipped (terminal, no endless retry).
+- enqueue_publish -> durable job(s) queued; process_queue dispatches via provider.
+- configured provider ok -> published; inert provider -> skipped (terminal, no endless retry).
 - SOCIAL_ENGINE flag OFF -> process_queue inert.
 - second drain claims 0 (idempotent).
-Providers/DB stubbed
-engine logic only.
+Providers/DB stubbed; engine logic only.
 """
 
 from __future__ import annotations

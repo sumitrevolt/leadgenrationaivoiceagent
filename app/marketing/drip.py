@@ -1,15 +1,15 @@
 """
-drip.py - WhatsApp nurture (drip) sequences: Day 0/2/5/9 follow-up plan.
+drip.py — WhatsApp nurture (drip) sequences: Day 0/2/5/9 follow-up plan.
 =========================================================================
 
 Lead type ke hisab se 4-step Hinglish WhatsApp sequence:
-  - new_inquiry   : nayi inquiry ko bharosa -> proof -> doubt-clear -> soft close
+  - new_inquiry   : nayi inquiry ko bharosa → proof → doubt-clear → soft close
   - no_reply      : thandi lead ko dobara jagana (value-first, pushy nahi)
-  - post_purchase : thank-you -> review ask -> referral -> repeat offer
+  - post_purchase : thank-you → review ask → referral → repeat offer
 
 LLM-first (1 free_ai call, "Day X | goal | message" lines), per-lead-type
-TEMPLATE fallback - KABHI empty, KABHI raise nahi. Send manual hota hai
-(wa.me / copy-paste) - bulk auto-send WhatsApp ban risk hai.
+TEMPLATE fallback — KABHI empty, KABHI raise nahi. Send manual hota hai
+(wa.me / copy-paste) — bulk auto-send WhatsApp ban risk hai.
 """
 
 from __future__ import annotations
@@ -40,23 +40,23 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
         {
             "day": 0,
             "goal": "Turant bharosa banao",
-            "message": "Namaste! 🙏 {biz} se - aapki inquiry mil gayi, dhanyawad! "
+            "message": "Namaste! 🙏 {biz} se — aapki inquiry mil gayi, dhanyawad! "
             "Aapke sawalon ke jawab ready hain. Bataiye, baat karne ka "
-            "sahi time kya rahega - aaj shaam ya kal subah?",
+            "sahi time kya rahega — aaj shaam ya kal subah?",
             "suggested_buttons": ["💬 Yes, talk now", "📞 Call me later", "❌ Not now"],
         },
         {
             "day": 2,
             "goal": "Proof / value dikhao",
             "message": "Hello! {biz} se. Socha aapko hamare recent kaam ki jhalak "
-            "bhej dein - customers ka feedback dekh kar aapko sahi "
+            "bhej dein — customers ka feedback dekh kar aapko sahi "
             "andaaza milega ⭐ Koi sawal ho to bas reply karein.",
             "suggested_buttons": ["⭐ Read reviews", "💬 Talk to team"],
         },
         {
             "day": 5,
             "goal": "Doubt / objection clear karo",
-            "message": "Namaste! Aksar log price aur process ko lekar sochte hain - "
+            "message": "Namaste! Aksar log price aur process ko lekar sochte hain — "
             "bilkul natural hai. {biz} me dono transparent hain, 5-min "
             "call me sab clear ho jayega. Kab call karein? 😊",
             "suggested_buttons": ["📞 5-min call", "❌ Not interested"],
@@ -66,7 +66,7 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "goal": "Soft close / last nudge",
             "message": "Hi! {biz} se aakhri reminder 🙏 Aapki inquiry abhi bhi "
             "hamare paas saved hai. Is hafte book karne par special "
-            "attention milega. Interest ho to bas 'YES' reply karein - "
+            "attention milega. Interest ho to bas 'YES' reply karein — "
             "warna hum aapko disturb nahi karenge.",
             "suggested_buttons": ["🙋 Yes, interested", "❌ Unsubscribe"],
         },
@@ -76,14 +76,14 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "day": 0,
             "goal": "Naram re-open (guilt nahi)",
             "message": "Namaste! 🙏 {biz} se. Kaafi din pehle aapne interest dikhaya "
-            "tha - busy schedule samajh sakte hain! Bas batana chaha ki "
+            "tha — busy schedule samajh sakte hain! Bas batana chaha ki "
             "hum abhi bhi aapki madad ke liye ready hain. 1 reply kaafi hai 😊",
             "suggested_buttons": ["💬 Yes, let's talk", "❌ Not now"],
         },
         {
             "day": 2,
             "goal": "Nayi value / update do",
-            "message": "Hello! {biz} se ek chhota update - is mahine humne kuch naya "
+            "message": "Hello! {biz} se ek chhota update — is mahine humne kuch naya "
             "shuru kiya hai jo aapke kaam aa sakta hai. 30-second me "
             "padh lijiye, details bhej dein kya?",
             "suggested_buttons": ["ℹ️ Details please", "📞 Call me"],
@@ -92,14 +92,14 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "day": 5,
             "goal": "Social proof se jagao",
             "message": "Namaste! Pichhle hafte 3 logon ne (aap jaise hi sawal ke "
-            "saath) {biz} ki service li - unka experience bahut accha "
+            "saath) {biz} ki service li — unka experience bahut accha "
             "raha ⭐ Aapke sawal ka jawab bhi 5 minute me de sakte hain.",
             "suggested_buttons": ["⭐ Read feedback", "💬 Chat with team"],
         },
         {
             "day": 9,
             "goal": "Polite break-up (door khula)",
-            "message": "Hi! {biz} se. Lagta hai abhi sahi time nahi hai - koi baat "
+            "message": "Hi! {biz} se. Lagta hai abhi sahi time nahi hai — koi baat "
             "nahi 🙏 Hum follow-up band kar rahe hain, par jag bhi zaroorat "
             "ho ye number saved rakhiye. Bas 'HI' likhiye, hum hazir!",
             "suggested_buttons": ["👋 Keep in touch", "❌ Delete number"],
@@ -111,14 +111,14 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "goal": "Thank you + support",
             "message": "Dhanyawad! 🙏 {biz} ko chunne ke liye dil se shukriya. Koi "
             "bhi dikkat ya sawal ho to seedha is number par message "
-            "karein - hum turant help karenge 😊",
+            "karein — hum turant help karenge 😊",
             "suggested_buttons": ["🙋 Ask a question", "👍 All good"],
         },
         {
             "day": 2,
             "goal": "Review ask",
             "message": "Namaste! Umeed hai {biz} ki service se aap khush hain ⭐ "
-            "Agar 30 second hon to Google par chhota review de dijiye - "
+            "Agar 30 second hon to Google par chhota review de dijiye — "
             "aapke 2 shabd hamare liye bahut keemti hain. Link bhej dein?",
             "suggested_buttons": ["⭐ Give review link", "❌ Later"],
         },
@@ -126,7 +126,7 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "day": 5,
             "goal": "Referral maango",
             "message": "Hello! {biz} se 🙏 Agar hamara kaam pasand aaya ho to apne "
-            "kisi dost/family ko hamara number share kar dein - unke "
+            "kisi dost/family ko hamara number share kar dein — unke "
             "liye special first-time benefit rakha hai 🎁",
             "suggested_buttons": ["🎁 Referral info", "❌ Skip"],
         },
@@ -135,7 +135,7 @@ _FALLBACK: dict[str, list[dict[str, Any]]] = {
             "goal": "Repeat / upsell offer",
             "message": "Namaste! {biz} ki taraf se sirf existing customers ke liye: "
             "agli service par khaas discount 🎉 Valid limited time ke "
-            "liye hai - book karne ke liye bas reply karein.",
+            "liye hai — book karne ke liye bas reply karein.",
             "suggested_buttons": ["🎉 View discounts", "❌ Not now"],
         },
     ],
@@ -151,7 +151,7 @@ def _niche_hook(niche: str) -> str:
 
 
 def _parse_llm_steps(text: str, biz: str, lt: str) -> list[dict[str, Any]]:
-    """'Day X | goal | message' lines parse - EXACT 4 valid steps chahiye."""
+    """'Day X | goal | message' lines parse — EXACT 4 valid steps chahiye."""
     steps: list[dict[str, Any]] = []
     try:
         for line in (text or "").splitlines():
@@ -201,7 +201,7 @@ async def drip_sequence(
             goals = " -> ".join(s["goal"] for s in _FALLBACK[lt])
             system = (
                 "Tu ek Indian business ka WhatsApp follow-up copywriter hai. "
-                "4-step nurture sequence likh - har step EXACTLY is format me, "
+                "4-step nurture sequence likh — har step EXACTLY is format me, "
                 "EXACTLY 4 lines, koi extra text nahi:\n"
                 "Day <n> | <goal 3-5 shabd> | <2-3 line Hinglish (Roman) message, 1 emoji>\n"
                 "Days: 0, 2, 5, 9. Pushy mat ban, har message me 1 clear "
@@ -243,9 +243,9 @@ async def drip_sequence(
         "lead_type": lt,
         "steps": steps,
         "tips": [
-            "Har step apne CRM/reminder me daal lo - Day 0 turant, baaki "
+            "Har step apne CRM/reminder me daal lo — Day 0 turant, baaki "
             "schedule par. Reply aate hi sequence band karo.",
-            "Same text sabko mat bhejo - naam/detail badal kar bhejo, warna "
+            "Same text sabko mat bhejo — naam/detail badal kar bhejo, warna "
             "WhatsApp spam-flag kar sakta hai.",
         ],
         "provider": provider,

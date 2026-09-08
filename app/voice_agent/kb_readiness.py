@@ -1,10 +1,10 @@
-"""ADR-104 - niche-catalog readiness via BARE, metadata-only Qdrant access.
+"""ADR-104 — niche-catalog readiness via BARE, metadata-only Qdrant access.
 
-WHY THIS MODULE EXISTS (measured, not assumed - ADR-104 addendum #6/#7):
+WHY THIS MODULE EXISTS (measured, not assumed — ADR-104 addendum #6/#7):
 `_get_qdrant_client()` calls `_get_qdrant_embedder()` BEFORE it touches Qdrant, so
 it force-loads FastEmbed. Measured in production: bare `QdrantClient` ctor = **13.6ms**
 vs `_get_qdrant_client()` = **>239s (never returned)**. A `count()` needs no embeddings
-at all. So readiness MUST use a bare client - routing it through `_get_qdrant_client()`
+at all. So readiness MUST use a bare client — routing it through `_get_qdrant_client()`
 would drag the whole 39-niche embed path onto the live voice turn, i.e. recreate the
 exact incident this module exists to prevent.
 
@@ -12,7 +12,7 @@ Measured warm latency of the readiness count: **~6-8ms median** (voice budget ~1
 First call costs ~0.5-1.5s (connection warm-up) -> keep the client a process singleton
 and warm it off the spoken hot path.
 
-READINESS FILTER (proven - addendum #7):
+READINESS FILTER (proven — addendum #7):
     namespace == <niche>  AND  source == "niche:<niche>"
 Namespace-only counting FALSE-READIES: `insurance` ns-only=3970 vs ns+source=1674,
 because a namespace holds points from other sources too.
@@ -22,7 +22,7 @@ HARD RULES for this module:
     `bootstrap_default_kb`
   * never create/delete/migrate a collection, never dimension-check
   * never load vectors or payload text into process memory
-  * log only niche key / count / duration / error class - never URL, api key, text
+  * log only niche key / count / duration / error class — never URL, api key, text
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ def _bare_client():
     if _CLIENT_FAILED:
         return None
     try:
-        # NOTE: only URL/const helpers - these do NOT load the embedder.
+        # NOTE: only URL/const helpers — these do NOT load the embedder.
         from app.voice_agent.knowledge_base import _get_qdrant_url
 
         url = _get_qdrant_url()
@@ -117,7 +117,7 @@ def _bare_client():
 
 
 def reset_client_cache() -> None:
-    """Test/ops hook - drop the singleton so the next call reconstructs it."""
+    """Test/ops hook — drop the singleton so the next call reconstructs it."""
     global _CLIENT, _CLIENT_FAILED
     _CLIENT = None
     _CLIENT_FAILED = False
@@ -164,7 +164,7 @@ def count_niche_catalog_points(niche: str, client: Any | None = None) -> NicheRe
         state = STATE_READY if n > 0 else STATE_NOT_READY
         return NicheReadiness(niche, True, state, n, _ms())
     except Exception as e:
-        # error_class only - messages can carry infra detail.
+        # error_class only — messages can carry infra detail.
         return NicheReadiness(niche, True, STATE_ERROR, 0, _ms(), type(e).__name__)
 
 

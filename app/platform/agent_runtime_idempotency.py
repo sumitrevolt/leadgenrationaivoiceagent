@@ -1,4 +1,4 @@
-"""Agent Runtime distributed idempotency store - Redis-backed, fail-closed.
+"""Agent Runtime distributed idempotency store — Redis-backed, fail-closed.
 
 WHY (2026-07-22): billing ``idempotency.seen_before_sync`` is Redis-primary with
 **memory fail-open**. That allows duplicate execution across API/worker when Redis

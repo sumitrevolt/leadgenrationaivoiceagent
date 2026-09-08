@@ -1,11 +1,11 @@
-"""Local SEO API - GEO visibility (AI-search) + 3×3 grid rank + listings presence.
+"""Local SEO API — GEO visibility (AI-search) + 3×3 grid rank + listings presence.
 
   POST /api/localseo/geo-check          (PUBLIC, 5/60s)  AI-search visibility report (lead magnet #3)
   GET  /api/localseo/geo-checks         (admin)          recent geo checks
   POST /api/localseo/grid-rank          (admin)          3×3 grid rank check (9 lookups, 3 runs/day cap)
   GET  /api/localseo/grid-runs          (admin)          recent grid runs
   GET  /api/localseo/listings-checklist (admin)          India directories + manual deep-links (NO scraping)
-  POST /api/localseo/listings-status    (admin)          self-reported present-map save -> score+tips
+  POST /api/localseo/listings-status    (admin)          self-reported present-map save → score+tips
   GET  /api/localseo/listings-status    (admin)          latest status + live score (?client_id=)
 
 Mount (main session):
@@ -14,7 +14,7 @@ Mount (main session):
 
 Patterns (engage.py/seoops.py jaisa): lazy imports, modules never-raise
 (error dicts), LLM/network endpoints `asyncio.wait_for` wrapped (prod-down
-lesson - event loop kabhi block nahi). Koi naya env flag NAHI (manual/on-demand
+lesson — event loop kabhi block nahi). Koi naya env flag NAHI (manual/on-demand
 endpoints). Listings me koi directory HTTP fetch NAHI (ToS policy).
 """
 
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/localseo", tags=["Local-SEO"])
 
 
 # --------------------------------------------------------------------------- #
-# F1 - GEO / AI-search visibility (PUBLIC lead magnet)
+# F1 — GEO / AI-search visibility (PUBLIC lead magnet)
 # --------------------------------------------------------------------------- #
 class GeoCheckIn(BaseModel):
     business_name: str = Field(..., min_length=2, max_length=120)
@@ -49,13 +49,11 @@ class GeoCheckIn(BaseModel):
     dependencies=[Depends(rate_limit("geo", 5, 60)), Depends(verify_turnstile)],
 )
 async def geo_check(body: GeoCheckIn):
-    """PUBLIC: 'AI search me aapka business dikh raha hai?' - score+verdict+tips.
+    """PUBLIC: 'AI search me aapka business dikh raha hai?' — score+verdict+tips.
 
-    Cache-first (1 hr)
-    LLM probes hard 20s timeout me (event loop safe). Turnstile-
-    gated (2026-07-01) - this fans out multiple free-LLM calls per request, same
-    abuse class as /api/public/ai-demo
-    INERT when TURNSTILE_SECRET_KEY unset."""
+    Cache-first (1 hr); LLM probes hard 20s timeout me (event loop safe). Turnstile-
+    gated (2026-07-01) — this fans out multiple free-LLM calls per request, same
+    abuse class as /api/public/ai-demo; INERT when TURNSTILE_SECRET_KEY unset."""
     from app.marketing import geo_visibility
 
     try:
@@ -67,7 +65,7 @@ async def geo_check(body: GeoCheckIn):
         return {
             "ok": False,
             "error": "timeout",
-            "message": "AI check me time lag raha hai - thodi der baad try karo.",
+            "message": "AI check me time lag raha hai — thodi der baad try karo.",
         }
     except Exception as e:  # pragma: no cover - module khud never-raise hai
         logger.warning(f"[localseo] geo-check failed: {e}")
@@ -76,14 +74,14 @@ async def geo_check(body: GeoCheckIn):
 
 @router.get("/geo-checks")
 async def geo_checks(limit: int = Query(20, ge=1, le=200), _user=Depends(require_admin)):
-    """Recent geo-checks (admin) - kaun lead-magnet use kar raha hai."""
+    """Recent geo-checks (admin) — kaun lead-magnet use kar raha hai."""
     from app.marketing import geo_visibility
 
     return {"checks": geo_visibility.recent(limit)}
 
 
 # --------------------------------------------------------------------------- #
-# F2 - 3×3 local grid rank (admin - Places quota costs)
+# F2 — 3×3 local grid rank (admin — Places quota costs)
 # --------------------------------------------------------------------------- #
 class GridRankIn(BaseModel):
     keyword: str = Field(..., min_length=2, max_length=120)
@@ -96,7 +94,7 @@ class GridRankIn(BaseModel):
 
 @router.post("/grid-rank")
 async def grid_rank_check(body: GridRankIn, _user=Depends(require_admin)):
-    """3×3 grid rank - 9 parallel Places lookups (10s each), max 3 runs/day."""
+    """3×3 grid rank — 9 parallel Places lookups (10s each), max 3 runs/day."""
     from app.platform import grid_rank
 
     try:
@@ -110,7 +108,7 @@ async def grid_rank_check(body: GridRankIn, _user=Depends(require_admin)):
         return {
             "ok": False,
             "error": "timeout",
-            "message": "Grid check slow chal raha - dobara try karo.",
+            "message": "Grid check slow chal raha — dobara try karo.",
         }
     except Exception as e:  # pragma: no cover - module khud never-raise hai
         logger.warning(f"[localseo] grid-rank failed: {e}")
@@ -126,7 +124,7 @@ async def grid_runs(limit: int = Query(20, ge=1, le=100), _user=Depends(require_
 
 
 # --------------------------------------------------------------------------- #
-# F3 - India listings presence (NO scraping - manual deep-links + self-report)
+# F3 — India listings presence (NO scraping — manual deep-links + self-report)
 # --------------------------------------------------------------------------- #
 class ListingsStatusIn(BaseModel):
     client_id: str = Field(..., min_length=1, max_length=64)
@@ -148,7 +146,7 @@ async def listings_checklist(
 
 @router.post("/listings-status")
 async def listings_status_save(body: ListingsStatusIn, _user=Depends(require_admin)):
-    """Self-reported present-map save karo -> 0-100 score + Hinglish gap tips."""
+    """Self-reported present-map save karo → 0-100 score + Hinglish gap tips."""
     from app.marketing import listings_presence
 
     return listings_presence.save_status(body.client_id, body.present)

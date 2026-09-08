@@ -1,21 +1,21 @@
-"""sales_team.py - 5-parallel-agent prospect deep-dive (ai-sales-team-claude adapt).
+"""sales_team.py — 5-parallel-agent prospect deep-dive (ai-sales-team-claude adapt).
 
-zubair-trabzada/ai-sales-team-claude ka flagship `/sales prospect` pattern -
+zubair-trabzada/ai-sales-team-claude ka flagship `/sales prospect` pattern —
 humare free-stack + Indian-SMB context me: 5 agents PARALLEL (asyncio.gather)
 ek prospect pe, Boss aggregate, ready-to-act analysis + drafts.
 
-Agents (sab existing staff personas reuse - naya roster NAHI):
-- Riya 🔍 Research      - prospect website fetch+clean (web_extract) -> 3-bullet brief
-- Veer 📊 Qualify       - BANT (sales_qualify, pure) + grade A-D
-- Dev 🥊 Competitive    - niche ke common alternatives + humara differentiation angle
-- Isha ✉️ Outreach      - 5-touch Hinglish sequence (hook->value->proof->angle->breakup,
-                          email+WhatsApp mix) - ban-safe DRAFTS, auto-send NAHI
-- Arjun 🛡️ Objections   - top-5 anticipated objections, LAER-style Hinglish rebuttals
+Agents (sab existing staff personas reuse — naya roster NAHI):
+- Riya 🔍 Research      — prospect website fetch+clean (web_extract) → 3-bullet brief
+- Veer 📊 Qualify       — BANT (sales_qualify, pure) + grade A-D
+- Dev 🥊 Competitive    — niche ke common alternatives + humara differentiation angle
+- Isha ✉️ Outreach      — 5-touch Hinglish sequence (hook→value→proof→angle→breakup,
+                          email+WhatsApp mix) — ban-safe DRAFTS, auto-send NAHI
+- Arjun 🛡️ Objections   — top-5 anticipated objections, LAER-style Hinglish rebuttals
 
 Sab LLM calls free_ai.chat (fallback static templates = LLM-down pe bhi kaam).
 Output: dict + markdown report `data/prospect_analyses/<id>.md` + jsonl index.
-AUTO-PILOT: `run_auto()` GATED `SALES_TEAM=1` - roz top hot-leads (bina analysis
-wale) pe auto deep-dive -> drafts taiyaar, Sumit sirf 1-click send kare.
+AUTO-PILOT: `run_auto()` GATED `SALES_TEAM=1` — roz top hot-leads (bina analysis
+wale) pe auto deep-dive → drafts taiyaar, Sumit sirf 1-click send kare.
 Kabhi raise nahi karta. Side-effect ZERO (sirf files + agent_events log).
 """
 
@@ -49,7 +49,7 @@ def _pid(p: dict) -> str:
 def _persona_prefix(topic: str, max_chars: int = 420) -> str:
     """Agency sales-persona pack se guidance prefix (skill_pack.snippet_for).
 
-    LLM ko ek senior sales specialist ka playbook deta - ppc nahi, sales
+    LLM ko ek senior sales specialist ka playbook deta — ppc nahi, sales
     personas (account/deal/outbound/coach). Defensive: skill_pack missing ya
     kuch na mile to ""."""
     if not topic:
@@ -93,7 +93,7 @@ def _pdesc(p: dict) -> str:
 
 # ----------------------------- Agents ----------------------------- #
 async def _research(p: dict) -> dict[str, Any]:
-    """Riya: website text (agar hai) + record -> short brief."""
+    """Riya: website text (agar hai) + record → short brief."""
     site_text = ""
     url = (p.get("website") or "").strip()
     if url:
@@ -109,7 +109,7 @@ async def _research(p: dict) -> dict[str, Any]:
         except Exception:
             site_text = ""
     brief = await _llm(
-        "Tum Riya ho - sales research analyst. 3 short Hinglish bullets me prospect brief do: "
+        "Tum Riya ho — sales research analyst. 3 short Hinglish bullets me prospect brief do: "
         "kya bechte hain, kitne serious/established lagte hain, marketing me kya GAP dikhta hai. Sirf bullets.",
         _pdesc(p)
         + (
@@ -122,8 +122,8 @@ async def _research(p: dict) -> dict[str, Any]:
     if not brief:
         brief = (
             f"- {p.get('niche') or 'local'} business, {p.get('city') or '?'}\n"
-            f"- {'Website hai' if url else 'Website NAHI - digital gap'}\n"
-            f"- Reviews: {p.get('reviews') or p.get('user_ratings_total') or 0} - Google presence "
+            f"- {'Website hai' if url else 'Website NAHI — digital gap'}\n"
+            f"- Reviews: {p.get('reviews') or p.get('user_ratings_total') or 0} — Google presence "
             + (
                 "theek"
                 if int(float(p.get("reviews") or p.get("user_ratings_total") or 0)) >= 10
@@ -134,7 +134,7 @@ async def _research(p: dict) -> dict[str, Any]:
 
 
 async def _qualify(p: dict) -> dict[str, Any]:
-    """Veer: BANT (pure-Python - LLM nahi chahiye)."""
+    """Veer: BANT (pure-Python — LLM nahi chahiye)."""
     from app.platform import sales_qualify
 
     q = sales_qualify.bant_score(p)
@@ -145,7 +145,7 @@ async def _qualify(p: dict) -> dict[str, Any]:
 async def _competitive(p: dict) -> dict[str, Any]:
     """Dev: prospect ke paas abhi kya options hain + humara edge."""
     txt = await _llm(
-        "Tum Dev ho - competitive analyst. Is local business ko marketing services bechne ja rahe hain "
+        "Tum Dev ho — competitive analyst. Is local business ko marketing services bechne ja rahe hain "
         "(AI posts+GBP+reviews+voice callbacks, ₹1,999-5,999/mo). 3 Hinglish bullets: (1) yeh abhi marketing "
         "kaise karta hoga (2) humse pehle kis se compare karega (local agency/Dhanda-type app/khud) "
         "(3) humara 1-line killer differentiation iske liye. Sirf bullets.",
@@ -162,7 +162,7 @@ async def _competitive(p: dict) -> dict[str, Any]:
 
 
 def build_sequence_fallback(p: dict) -> list[dict[str, str]]:
-    """Pure (testable): 5-touch Hinglish sequence - LLM down ho to bhi drafts bante."""
+    """Pure (testable): 5-touch Hinglish sequence — LLM down ho to bhi drafts bante."""
     nm = p.get("name") or p.get("business_name") or "ji"
     niche = p.get("niche") or "business"
     city = p.get("city") or "aapke area"
@@ -171,35 +171,35 @@ def build_sequence_fallback(p: dict) -> list[dict[str, str]]:
             "day": "1",
             "channel": "email",
             "title": "Hook",
-            "draft": f"Namaste {nm}! {city} me aapka {niche} dekha - Google pe aapki listing me kuch quick "
+            "draft": f"Namaste {nm}! {city} me aapka {niche} dekha — Google pe aapki listing me kuch quick "
             f"improvements dikhe jo naye customer la sakte hain. 2-min ka FREE audit bhejun? leadsgenai.in/audit",
         },
         {
             "day": "2",
             "channel": "whatsapp",
             "title": "WA nudge",
-            "draft": f"Namaste {nm} 🙏 Kal email bheja tha - aapke {niche} ke liye FREE Google audit ready hai. "
+            "draft": f"Namaste {nm} 🙏 Kal email bheja tha — aapke {niche} ke liye FREE Google audit ready hai. "
             f"Haan bolo to abhi link bhej deta hoon.",
         },
         {
             "day": "7",
             "channel": "email",
             "title": "Social proof",
-            "draft": f"{nm}, {city} ke ek {niche} ne humare AI marketing se 30 din me inquiries double ki - "
+            "draft": f"{nm}, {city} ke ek {niche} ne humare AI marketing se 30 din me inquiries double ki — "
             f"posts+reviews+missed-call callback sab automatic. ₹1,999/mo se start. Demo: leadsgenai.in/demo",
         },
         {
             "day": "14",
             "channel": "email",
             "title": "Different angle",
-            "draft": f"{nm}, ek sawaal - jab koi customer call karta hai aur aap busy ho, woh kahan jata hai? "
+            "draft": f"{nm}, ek sawaal — jab koi customer call karta hai aur aap busy ho, woh kahan jata hai? "
             f"Competitor ke paas. Humara AI 2-min me callback karta hai. Dekho: leadsgenai.in/pricing",
         },
         {
             "day": "21",
             "channel": "email",
             "title": "Breakup",
-            "draft": f"{nm}, lagta hai abhi sahi time nahi. Koi baat nahi! Yeh FREE audit link rakh lijiye - "
+            "draft": f"{nm}, lagta hai abhi sahi time nahi. Koi baat nahi! Yeh FREE audit link rakh lijiye — "
             f"jab bhi marketing badhani ho, 2 minute me report milegi: leadsgenai.in/audit. Shubhkamnayein!",
         },
     ]
@@ -210,11 +210,10 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
     seq = build_sequence_fallback(p)
     hints = ""
     if qual:
-        hints = f"\nBANT: grade {qual.get('grade')}, need-reasons: {'
-        '.join(qual.get('reasons', [])[:3])}"
+        hints = f"\nBANT: grade {qual.get('grade')}, need-reasons: {'; '.join(qual.get('reasons', [])[:3])}"
     raw = await _llm(
-        "Tum Isha ho - outreach copywriter. Niche template sequence ko is prospect ke liye PERSONALIZE karo "
-        "(unke niche/city/gap reference karo). JSON array lautao, har item {day, channel, title, draft} - "
+        "Tum Isha ho — outreach copywriter. Niche template sequence ko is prospect ke liye PERSONALIZE karo "
+        "(unke niche/city/gap reference karo). JSON array lautao, har item {day, channel, title, draft} — "
         "drafts short Hinglish, pushy nahi. Sirf JSON.",
         _pdesc(p) + hints + "\n\nTemplate:\n" + json.dumps(seq, ensure_ascii=False),
         max_tokens=700,
@@ -243,13 +242,13 @@ OBJECTION_PLAYBOOK = [
         "objection": "Pehle se koi (agency/ladka) sambhal raha hai",
         "category": "competition",
         "laer": "Acknowledge: badhiya, matlab marketing ki value samajhte ho. Explore: results se khush ho? reviews/callback "
-        "bhi karta hai? Respond: hum replace nahi, AUTOMATE karte hain - roz ka content+review reply+missed-call "
+        "bhi karta hai? Respond: hum replace nahi, AUTOMATE karte hain — roz ka content+review reply+missed-call "
         "callback 24/7. Redirect: ek mahina saath chala ke compare kar lo.",
     },
     {
         "objection": "Time nahi hai / baad me",
         "category": "timing",
-        "laer": "Acknowledge: samajh sakta hoon, dhandha pehle. Explore: kaunsa season busy hai? Respond: isiliye to yeh hai - "
+        "laer": "Acknowledge: samajh sakta hoon, dhandha pehle. Explore: kaunsa season busy hai? Respond: isiliye to yeh hai — "
         "setup 10 minute, baaki sab AI khud karta hai; busy season me hi naye customer sabse zyada milte hain. "
         "Redirect: abhi sirf FREE audit dekh lo, 2 minute.",
     },
@@ -257,13 +256,13 @@ OBJECTION_PLAYBOOK = [
         "objection": "Khud kar lenge / bhatija kar dega",
         "category": "diy",
         "laer": "Acknowledge: bilkul ho sakta hai. Explore: roz post + har review ka reply + har missed call pe turant "
-        "callback - consistently ho pa raha hai? Respond: consistency hi game hai, AI kabhi chutti nahi leta. "
-        "Redirect: demo dekho - leadsgenai.in/demo pe apne business ka naam daalo.",
+        "callback — consistently ho pa raha hai? Respond: consistency hi game hai, AI kabhi chutti nahi leta. "
+        "Redirect: demo dekho — leadsgenai.in/demo pe apne business ka naam daalo.",
     },
     {
         "objection": "AI pe bharosa nahi / gimmick lagta hai",
         "category": "trust",
-        "laer": "Acknowledge: sahi soch, naya hai. Explore: sabse bada dar kya hai - galat post ya paisa waste? "
+        "laer": "Acknowledge: sahi soch, naya hai. Explore: sabse bada dar kya hai — galat post ya paisa waste? "
         "Respond: har post aap approve karte ho (1-click), kuch bhi auto-publish nahi hota; pehla hafta result "
         "khud dekho. Redirect: ₹0 me /demo try karo, card bhi nahi chahiye.",
     },
@@ -274,7 +273,7 @@ async def _objections(p: dict) -> dict[str, Any]:
     """Arjun: anticipated objections + LAER rebuttals (niche-personalized, fallback static)."""
     out = OBJECTION_PLAYBOOK
     raw = await _llm(
-        "Tum Arjun ho - sales objection coach. Is prospect ke liye 5 most-likely objections + LAER "
+        "Tum Arjun ho — sales objection coach. Is prospect ke liye 5 most-likely objections + LAER "
         "(Listen-Acknowledge-Explore-Respond) Hinglish rebuttals do. JSON array [{objection, category, laer}]. Sirf JSON.",
         _pdesc(p),
         max_tokens=600,
@@ -295,10 +294,10 @@ async def _objections(p: dict) -> dict[str, Any]:
 def _render_md(p: dict, parts: dict[str, Any]) -> str:
     q = parts.get("qualify", {})
     lines = [
-        f"# Prospect Analysis - {p.get('name') or p.get('business_name') or '?'}",
+        f"# Prospect Analysis — {p.get('name') or p.get('business_name') or '?'}",
         f"_{_pdesc(p)}_",
         "",
-        f"## Score: {q.get('total', 0)}/100 - Grade {q.get('grade', '?')}",
+        f"## Score: {q.get('total', 0)}/100 — Grade {q.get('grade', '?')}",
         f"B {q.get('budget', 0)}/25 · A {q.get('authority', 0)}/25 · N {q.get('need', 0)}/25 · T {q.get('timeline', 0)}/25",
         f"**Action:** {q.get('action', '')}",
         "",
@@ -308,7 +307,7 @@ def _render_md(p: dict, parts: dict[str, Any]) -> str:
         "## 🥊 Competitive (Dev)",
         parts.get("competitive", {}).get("competitive", ""),
         "",
-        "## ✉️ Outreach sequence (Isha) - drafts, 1-click send",
+        "## ✉️ Outreach sequence (Isha) — drafts, 1-click send",
     ]
     for s in parts.get("outreach", {}).get("sequence", []):
         lines.append(
@@ -316,7 +315,7 @@ def _render_md(p: dict, parts: dict[str, Any]) -> str:
         )
     lines += ["", "## 🛡️ Objection playbook (Arjun)"]
     for o in parts.get("objections", {}).get("playbook", []):
-        lines.append(f'- **"{o.get("objection")}"** -> {o.get("laer")}')
+        lines.append(f'- **"{o.get("objection")}"** → {o.get("laer")}')
     if parts.get("boss_summary"):
         lines += ["", "## 🎯 Boss verdict", parts["boss_summary"]]
     return "\n".join(lines)
@@ -335,7 +334,7 @@ def _index_rows() -> list[dict]:
 async def analyze(p: dict) -> dict[str, Any]:
     """Ek prospect pe 5-agent parallel deep-dive. Output: analysis dict + saved .md."""
     try:
-        qual = await _qualify(p)  # pehle - outreach ko hints milte
+        qual = await _qualify(p)  # pehle — outreach ko hints milte
         research, competitive, outreach, objections = await asyncio.gather(
             _research(p),
             _competitive(p),
@@ -355,11 +354,10 @@ async def analyze(p: dict) -> dict[str, Any]:
             "objections": _ok(objections, {"playbook": OBJECTION_PLAYBOOK}),
         }
         boss = await _llm(
-            "Tum Boss ho - sales manager. 2-line Hinglish verdict: is prospect pe kitna effort lagana chahiye "
+            "Tum Boss ho — sales manager. 2-line Hinglish verdict: is prospect pe kitna effort lagana chahiye "
             "aur pehla move kya ho. Direct, no fluff.",
             f"{_pdesc(p)}\nBANT: {qual.get('total')}/100 grade {qual.get('grade')}. "
-            f"Reasons: {'
-            '.join(qual.get('reasons', [])[:4])}",
+            f"Reasons: {'; '.join(qual.get('reasons', [])[:4])}",
             max_tokens=120,
         )
         parts["boss_summary"] = boss or f"Grade {qual.get('grade')}: {qual.get('action')}"
@@ -400,7 +398,7 @@ async def analyze(p: dict) -> dict[str, Any]:
             team.log_event(
                 "swara",
                 "sales_deepdive",
-                f"Prospect deep-dive: {row['name']} -> {row['score']}/100 (grade {row['grade']})",
+                f"Prospect deep-dive: {row['name']} → {row['score']}/100 (grade {row['grade']})",
             )
         except Exception:
             pass

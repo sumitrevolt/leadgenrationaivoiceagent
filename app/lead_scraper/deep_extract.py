@@ -1,7 +1,7 @@
-"""Deep web data extraction for marketing - **Crawl4AI** with a trafilatura fallback.
+"""Deep web data extraction for marketing — **Crawl4AI** with a trafilatura fallback.
 
 Crawl4AI is the LLM-friendly crawler: it renders a page and returns clean Markdown
-with boilerplate/noise stripped (BM25 filtering) - ideal for competitor analysis and
+with boilerplate/noise stripped (BM25 filtering) — ideal for competitor analysis and
 business enrichment (pull a prospect's real services / about / offers). If Crawl4AI
 (or its headless browser) isn't set up, this transparently falls back to a plain
 httpx fetch + trafilatura main-text extraction, so callers always get *something*.
@@ -9,8 +9,7 @@ httpx fetch + trafilatura main-text extraction, so callers always get *something
 Both paths are defensive and never raise. Returns a dict:
   {"ok": bool, "url": str, "markdown": str, "text": str, "emails": [...], "phones": [...], "engine": str}
 
-Crawl4AI is heavier (needs a one-time `crawl4ai-setup` to install Chromium)
-it is
+Crawl4AI is heavier (needs a one-time `crawl4ai-setup` to install Chromium); it is
 OPTIONAL and OFF unless installed. The trafilatura fallback covers the common case.
 
 Use:
@@ -68,14 +67,14 @@ async def _via_crawl4ai(url: str) -> dict[str, Any] | None:
             "engine": "crawl4ai",
         }
     except Exception as exc:
-        logger.info("deep_extract crawl4ai unavailable (%s) - falling back", exc)
+        logger.info("deep_extract crawl4ai unavailable (%s) — falling back", exc)
         return None
 
 
 def _url_is_public(url: str) -> bool:
     """SSRF guard (audit 2026-07-04): client['website'] can originate from
     scraped external sources (Maps/OSM), and this fetch runs unattended in the
-    AUTO_ONBOARD/kb_refresh sweeps - so block non-http schemes and any host
+    AUTO_ONBOARD/kb_refresh sweeps — so block non-http schemes and any host
     resolving to private/loopback/metadata IPs, same as every sibling fetcher."""
     try:
         from urllib.parse import urlparse
@@ -96,7 +95,7 @@ async def _via_trafilatura(url: str) -> dict[str, Any]:
 
         from app.lead_scraper.web_extract import clean_text, find_contacts
 
-        # follow_redirects=False + manual hop revalidation - a public host
+        # follow_redirects=False + manual hop revalidation — a public host
         # 302'ing to an internal target must not be followed blindly.
         resp = None
         cur = url
@@ -134,7 +133,7 @@ async def _via_trafilatura(url: str) -> dict[str, Any]:
 
 
 async def extract_url(url: str) -> dict[str, Any]:
-    """Deep-extract a page -> markdown + contacts. Crawl4AI if present, else trafilatura."""
+    """Deep-extract a page → markdown + contacts. Crawl4AI if present, else trafilatura."""
     if not (url or "").strip():
         return _empty(url)
     if not _url_is_public(url):

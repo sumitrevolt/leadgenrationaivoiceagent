@@ -1,12 +1,11 @@
-"""End-to-end wizard flow smoke - disposable client pe apply -> snapshot + knowledge.
+"""End-to-end wizard flow smoke — disposable client pe apply → snapshot + knowledge.
 
 Deploy se PEHLE prove karta hai ki full wizard chain kaam karta hai:
-  add_client -> apply_auto_setup (business type) -> niche snapshot applied +
-  knowledge seed persisted + services/offer/opening_line saved -> brain opening
-  override live -> cleanup (client + snapshot files delete).
+  add_client → apply_auto_setup (business type) → niche snapshot applied +
+  knowledge seed persisted + services/offer/opening_line saved → brain opening
+  override live → cleanup (client + snapshot files delete).
 
-Disposable = unique phone (dev/test number range) + client id
-har case ke baad
+Disposable = unique phone (dev/test number range) + client id; har case ke baad
 delete_client + snapshot files clean. Sab checks print + exit 0/1. Never touches
 prod data (sirf data/ me files, jo bhi test client id se delete hote hain).
 
@@ -25,7 +24,7 @@ import uuid
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Dev/test number range - real client kabhi nahi chhuega
+# Dev/test number range — real client kabhi nahi chhuega
 TEST_PHONE_PREFIX = "99900"
 FAILS: list[str] = []
 PASSES: list[str] = []
@@ -61,13 +60,13 @@ def _cleanup(keep: bool) -> None:
                 print(f"  [i] cleaned client {cid}")
         except Exception as e:
             print(f"  [i] cleanup client {cid} skip: {e}")
-    # NOTE: niche_template snapshots deliberately NOT deleted - wo reusable
+    # NOTE: niche_template snapshots deliberately NOT deleted — wo reusable
     # product assets hain (find_niche_snapshot index unhe refer karta hai);
     # file-only delete se index stale ho jaata hai -> "snapshot nahi mila".
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Wizard E2E smoke - disposable client")
+    ap = argparse.ArgumentParser(description="Wizard E2E smoke — disposable client")
     ap.add_argument("--keep", action="store_true", help="client delete mat karo (debug)")
     args = ap.parse_args()
 
@@ -77,8 +76,8 @@ def main() -> int:
     print("== Wizard E2E smoke (disposable client) ==")
     from app.marketing import onboard_wizard as wz
 
-    # ---- Case 1: restaurant (NICHES-covered - full snapshot + knowledge) ----
-    print("[1] restaurant_cafe - full auto-setup")
+    # ---- Case 1: restaurant (NICHES-covered — full snapshot + knowledge) ----
+    print("[1] restaurant_cafe — full auto-setup")
     c1 = _make_client("Wizard E2E Restaurant", "restaurant_cafe")
     r1 = wz.apply_auto_setup(
         c1["id"],
@@ -86,7 +85,7 @@ def main() -> int:
         business_name="Wizard E2E Restaurant",
         services="Dine-in, Takeaway, Home delivery",
         offer="Weekday lunch 20% off",
-        opening_line="Namaste! Main Swara bol rahi hoon Wizard E2E Restaurant se - lunch menu ka naya offer hai, 2 minute?",
+        opening_line="Namaste! Main Swara bol rahi hoon Wizard E2E Restaurant se — lunch menu ka naya offer hai, 2 minute?",
     )
     _check("restaurant: ok", bool(r1.get("ok")), f"applied={r1.get('applied')}")
     _check(
@@ -103,7 +102,7 @@ def main() -> int:
         "services_offer_opening" in (r1.get("applied") or []),
     )
 
-    # Client record verify - services/offer/opening_line persist hui?
+    # Client record verify — services/offer/opening_line persist hui?
     from app.marketing import clients_store
 
     rec1 = clients_store.get_client(c1["id"]) or {}
@@ -126,12 +125,12 @@ def main() -> int:
     _check(
         "restaurant: brain uses wizard opening",
         "lunch menu ka naya offer hai"
-        in line1,  # exact wizard opening - niche script ka [Company] nahi
+        in line1,  # exact wizard opening — niche script ka [Company] nahi
         line1[:70],
     )
 
-    # ---- Case 2: salon (NICHES-missing - knowledge seed hi main) ----
-    print("[2] salon_spa - knowledge seed + graceful snapshot warning")
+    # ---- Case 2: salon (NICHES-missing — knowledge seed hi main) ----
+    print("[2] salon_spa — knowledge seed + graceful snapshot warning")
     c2 = _make_client("Wizard E2E Salon", "salon_spa")
     r2 = wz.apply_auto_setup(c2["id"], "salon", business_name="Wizard E2E Salon")
     _check("salon: ok", bool(r2.get("ok")), f"applied={r2.get('applied')}")
@@ -142,7 +141,7 @@ def main() -> int:
     )
 
     # ---- Case 3: tiffin (own script + knowledge + services) ----
-    print("[3] tiffin_service - own script + services")
+    print("[3] tiffin_service — own script + services")
     c3 = _make_client("Wizard E2E Tiffin", "tiffin_service")
     r3 = wz.apply_auto_setup(
         c3["id"],
@@ -170,7 +169,7 @@ def main() -> int:
         "tiffin" in (prev.get("opening") or "").lower(),
     )
 
-    # ---- Case 4: flag OFF -> apply blocked (423-equivalent) ----
+    # ---- Case 4: flag OFF → apply blocked (423-equivalent) ----
     print("[4] flag OFF gate")
     os.environ["ONBOARD_WIZARD_APPLY"] = "0"
     r4 = wz.apply_auto_setup(c1["id"], "restaurant")

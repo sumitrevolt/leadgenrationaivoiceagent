@@ -1,16 +1,16 @@
-"""Onboarding wizard - business-type -> niche template -> auto-setup.
+"""Onboarding wizard — business-type → niche template → auto-setup.
 
 Interactive onboarding ka core: admin ya customer "Salon", "Restaurant", "Clinic"
-chunta hai -> wizard us business type ke liye READY niche template resolve karta
+chunta hai → wizard us business type ke liye READY niche template resolve karta
 hai (niche key + kya auto-setup hoga) aur 1-click apply karta hai.
 
 Design:
-  - Pure-data catalog (BUSINESS_TYPES): business-type -> niche key + display meta.
+  - Pure-data catalog (BUSINESS_TYPES): business-type → niche key + display meta.
     Niche ka content (script, KB pack, palette) pahle se NICHES / NICHE_SCRIPTS /
-    niche_knowledge_data / client_snapshots me hai - yeh unhe 1-click wizard me
+    niche_knowledge_data / client_snapshots me hai — yeh unhe 1-click wizard me
     bind karta hai. Koi naya heavy data nahi.
   - apply_auto_setup(): client_snapshots.apply_niche_to_client (mini-site palette,
-    journeys, festival schedule) + niche_knowledge facts -> client record. Best-effort,
+    journeys, festival schedule) + niche_knowledge facts → client record. Best-effort,
     never raises. Flag-gated: ONBOARD_WIZARD_APPLY (default OFF, opt-in).
   - Import-safe: koi module-level heavy import nahi.
 """
@@ -25,7 +25,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Business-type catalog - salon / restaurant / clinic / gym / more
+# Business-type catalog — salon / restaurant / clinic / gym / more
 # --------------------------------------------------------------------------- #
 # "business type" = aam Indian business category ek non-tech owner pehchanta hai.
 # Har entry niche key resolve karti hai jo NICHES/NICHE_SCRIPTS me existing hai.
@@ -307,7 +307,7 @@ BUSINESS_TYPES: list[dict[str, Any]] = [
     },
 ]
 
-# Business-type id -> niche key (fast lookup, avoid double scan)
+# Business-type id → niche key (fast lookup, avoid double scan)
 _BY_ID: dict[str, str] = {b["id"]: b["niche"] for b in BUSINESS_TYPES}
 
 
@@ -317,7 +317,7 @@ def get_business_types() -> list[dict[str, Any]]:
 
 
 def resolve_niche(business_type: str) -> str:
-    """Business-type id -> niche key. Unknown -> 'general'."""
+    """Business-type id → niche key. Unknown → 'general'."""
     return _BY_ID.get(str(business_type or "").strip().lower(), "general")
 
 
@@ -372,7 +372,7 @@ def _has_niche_catalog(niche: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Voice script preview - done-for-you setup step 3
+# Voice script preview — done-for-you setup step 3
 # --------------------------------------------------------------------------- #
 
 
@@ -383,15 +383,14 @@ def get_script_preview(
     services: str = "",
     offer: str = "",
 ) -> dict[str, Any]:
-    """Niche script ka live preview - editable opening ke liye base.
+    """Niche script ka live preview — editable opening ke liye base.
 
     Returns: {"ok", "niche", "has_script", "opening", "suggested_opening",
     "discovery": [...], "closing", "objection_types": [...]}. Kabhi raise nahi.
 
     - ``opening`` = niche script ka asli opening (placeholders filled).
     - ``suggested_opening`` = services/offer se personalized opening (jo wizard UI
-      pre-fill karega
-      user edit kar sakta hai).
+      pre-fill karega; user edit kar sakta hai).
     """
     try:
         bt = str(business_type or "").strip().lower()
@@ -434,7 +433,7 @@ def get_script_preview(
 
         # Personalized suggested opening (services/offer aware).
         if svc or off:
-            tail = f" - {off}" if off else ""
+            tail = f" — {off}" if off else ""
             out["suggested_opening"] = (
                 f"Namaste, main Swara bol rahi hoon {biz} ki taraf se. "
                 f"Hum {svc or 'apni services'} ke baare me baat karna chahte hain{tail}. "
@@ -449,7 +448,7 @@ def get_script_preview(
 
 
 # --------------------------------------------------------------------------- #
-# Auto-setup apply - niche template client pe lagao
+# Auto-setup apply — niche template client pe lagao
 # --------------------------------------------------------------------------- #
 
 
@@ -463,15 +462,15 @@ def apply_auto_setup(
     offer: str = "",
     opening_line: str = "",
 ) -> dict[str, Any]:
-    """Business-type wizard auto-setup: niche resolve -> niche snapshot apply +
+    """Business-type wizard auto-setup: niche resolve → niche snapshot apply +
     KB facts seed + services/offer/custom opening persist. Best-effort, never
     raises. Gated ONBOARD_WIZARD_APPLY.
 
     Reuses existing infra:
       - client_snapshots.apply_niche_to_client (palette, journeys, festivals)
-      - niche_knowledge_data (facts/benefits) -> client record "wizard_knowledge"
-      - NICHES catalog meta (offer/tagline/services) - already inside snapshot
-      - ``opening_line`` -> client record ``wizard_setup.opening_line`` (voice agent
+      - niche_knowledge_data (facts/benefits) → client record "wizard_knowledge"
+      - NICHES catalog meta (offer/tagline/services) — already inside snapshot
+      - ``opening_line`` → client record ``wizard_setup.opening_line`` (voice agent
         isko live calls me use karta hai, agar set ho)
 
     Returns {"ok": bool, "business_type", "niche", "applied": [...], "error"?}.
@@ -525,7 +524,7 @@ def apply_auto_setup(
     except Exception as exc:
         out["knowledge_warning"] = f"knowledge seed exception: {exc}"[:160]
 
-    # Services / offer / custom opening -> client record (voice agent runtime reads
+    # Services / offer / custom opening → client record (voice agent runtime reads
     # ``wizard_setup.opening_line``; services/offer niche content me use honge).
     svc = (services or "").strip()
     off = (offer or "").strip()
@@ -557,7 +556,7 @@ def _persist_client_knowledge(client_id: str, note: dict[str, Any]) -> None:
         rec = clients_store.get_client(client_id) or {}
         wizard = dict(rec.get("wizard_setup") or {})
         wizard["last_auto_setup"] = note
-        # NOTE: update_client(cid, **fields) hai - positional dict TypeError deta
+        # NOTE: update_client(cid, **fields) hai — positional dict TypeError deta
         # hai (silent swallow, 2026-08-17 E2E catch). Isliye ** unpack zaroori.
         clients_store.update_client(client_id, **{"wizard_setup": wizard})
     except Exception as exc:
@@ -596,7 +595,7 @@ def _persist_setup_fields(
             if offer:
                 wizard["offer"] = offer
             fields["wizard_setup"] = wizard
-        # update_client(cid, **fields) - positional dict TypeError dega (E2E 2026-08-17).
+        # update_client(cid, **fields) — positional dict TypeError dega (E2E 2026-08-17).
         clients_store.update_client(client_id, **fields)
     except Exception as exc:
         logger.debug("[onboard_wizard] persist setup fields skip: %s", exc)

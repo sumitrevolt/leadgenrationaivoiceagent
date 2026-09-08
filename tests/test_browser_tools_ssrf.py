@@ -33,7 +33,7 @@ def test_unsafe_urls_blocked(url):
 
 
 def test_public_ip_literal_allowed():
-    # 8.8.8.8 is a public IP literal - resolves without DNS, so offline-safe.
+    # 8.8.8.8 is a public IP literal — resolves without DNS, so offline-safe.
     assert _url_is_safe("http://8.8.8.8/") is True
 
 

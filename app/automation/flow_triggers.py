@@ -1,9 +1,9 @@
-"""Flow Runner - Phase 3 triggers (cron scan + event dispatch).
+"""Flow Runner — Phase 3 triggers (cron scan + event dispatch).
 
 Pure logic + thin firing seam. A trigger only decides WHEN a saved flow starts;
 it reuses the full run lifecycle via flow_dispatch.start (linear->process_engine,
 dag->dag_engine) + process_tick. Double-gated (FLOW_RUNNER + FLOW_AUTO_TRIGGERS),
-default OFF. Import-safe, never raises - can never break customer_webhooks.emit,
+default OFF. Import-safe, never raises — can never break customer_webhooks.emit,
 billing, inquiry, or the scheduler tick.
 """
 
@@ -154,7 +154,7 @@ def _fire(flow_id: str, inputs: dict) -> bool:
 
             process_tick.delay(r["run_id"])
         except Exception:
-            pass  # worker down - ensure_alive/watchdog will revive
+            pass  # worker down — ensure_alive/watchdog will revive
         return True
     except Exception as e:
         logger.debug(f"[flow_triggers] fire {flow_id} failed: {e}")
@@ -185,7 +185,7 @@ def run_cron_due(now: datetime | None = None) -> dict:
         state = _read_state()
         started = 0
         per_owner: dict[str, int] = {}  # PER-OWNER flood cap (was a global break that
-        # permanently starved overflow single-slot crons - they don't re-match next tick)
+        # permanently starved overflow single-slot crons — they don't re-match next tick)
         for flow in flow_store.list_flows_full():
             trig = flow.get("trigger") or {}
             if trig.get("type") != "cron":
@@ -198,11 +198,11 @@ def run_cron_due(now: datetime | None = None) -> dict:
                 continue  # already fired this slot
             owner = str(flow.get("owner_client_id") or "")
             if per_owner.get(owner, 0) >= _MAX_STARTS_PER_TICK:
-                continue  # this owner hit their cap - keep scanning OTHER tenants
+                continue  # this owner hit their cap — keep scanning OTHER tenants
             if not _compiles(flow):
                 continue  # don't start an un-runnable flow
             # Hydrate the owning tenant's client context so executors (brand_pulse needs
-            # business_name, client_report needs client_id) get their inputs - the cron
+            # business_name, client_report needs client_id) get their inputs — the cron
             # path never did this; mirrors customer_flows.cf_run. Admin flows (owner "")
             # keep empty context.
             inputs = {"_trigger": "cron", "fired_at": now.isoformat()}

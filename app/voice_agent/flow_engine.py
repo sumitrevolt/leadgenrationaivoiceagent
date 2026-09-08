@@ -204,8 +204,7 @@ class FlowState:
         current_node_id: The node we are currently sitting on.
         captured:        Qualification answers + captured fields
                          (field_name -> value).
-        history:         Ordered turn log
-        each entry is a dict with keys
+        history:         Ordered turn log; each entry is a dict with keys
                          role, content, node_id, intent, timestamp.
         finished:        True once an END/TRANSFER terminal is reached.
         outcome:         Final outcome label, e.g. "transfer", "ended",
@@ -281,8 +280,7 @@ class FlowRunner:
         """
         Args:
             llm_brain:        Optional pre-built LLMBrain instance. If None the
-                              runner tries to lazily build one
-                              if that fails it
+                              runner tries to lazily build one; if that fails it
                               stays in rule-based mode.
             intent_detector:  Optional IntentDetector. Same lazy/fallback rules.
         """
@@ -502,8 +500,7 @@ class FlowRunner:
         Produce the agent's spoken text for a node.
 
         Tries the LLM brain to phrase the node's `text` naturally given the
-        captured context
-        on any failure falls back to the raw node text.
+        captured context; on any failure falls back to the raw node text.
         """
         base = node.text or ""
 

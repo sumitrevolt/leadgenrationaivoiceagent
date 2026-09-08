@@ -24,7 +24,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 
 # Whole router is admin-only: every route controls or feeds the voice-agent
 # training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
-# ingestion) - synchronous heavy-compute + billed GCP calls + data-poisoning
+# ingestion) — synchronous heavy-compute + billed GCP calls + data-poisoning
 # risk if reachable anonymously (production audit 2026-07-01, security batch 4).
 router = APIRouter(prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)])
 
@@ -130,7 +130,7 @@ async def get_ml_insights():
         return {"success": True, "insights": insights}
     except Exception as e:
         logger.warning(f"Insights not available yet: {e}")
-        return {"success": True, "insights": {}, "note": "No ML insights yet - needs call data."}
+        return {"success": True, "insights": {}, "note": "No ML insights yet — needs call data."}
 
 
 @router.get("/best-responses")
@@ -274,8 +274,7 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Qdrant configured hai; next KB coverage aur retrieval eval badhao."
                 if qdrant_configured
-                else "QDRANT_URL set nahi
-                local fallback chalega, production semantic KB ke liye Qdrant arm karo."
+                else "QDRANT_URL set nahi; local fallback chalega, production semantic KB ke liye Qdrant arm karo."
             ),
         },
         {
@@ -286,8 +285,7 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Eval gate ON hai; baselines build hone do."
                 if (eval_gate and eval_gate.enabled())
-                else "EVAL_GATE=1 se observability mode ON karo
-                hard mode baad me."
+                else "EVAL_GATE=1 se observability mode ON karo; hard mode baad me."
             ),
         },
         {
@@ -305,8 +303,7 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Dataset export experiment Colab/Kaggle/Lightning pe chala sakte ho."
                 if enough_for_lora
-                else "Abhi LoRA mat chalao
-                pehle accepted examples aur eval history collect karo."
+                else "Abhi LoRA mat chalao; pehle accepted examples aur eval history collect karo."
             ),
         },
     ]

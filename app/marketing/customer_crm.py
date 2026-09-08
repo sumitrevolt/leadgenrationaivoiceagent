@@ -1,26 +1,26 @@
 """
-customer_crm.py - end-customer mini-CRM + birthday/anniversary WISH ENGINE.
+customer_crm.py — end-customer mini-CRM + birthday/anniversary WISH ENGINE.
 ============================================================================
 
 Dhanda-app edge: client (local business) apne CUSTOMERS ki list rakhe
 (naam/phone/birthday/anniversary/tags) aur hum unke liye roz ke occasion
-wishes READY kar dein - Hinglish caption + AI image + wa.me 1-click link.
+wishes READY kar dein — Hinglish caption + AI image + wa.me 1-click link.
 
-IMPORTANT - yeh module EXISTING `app/marketing/crm_lite.py` ke UPAR bana hai
+IMPORTANT — yeh module EXISTING `app/marketing/crm_lite.py` ke UPAR bana hai
 (woh store + basic add/list/wishes pehle se deta hai, /api/marketing/crm/*
-pe wired). Store wahi ek hai: `data/crm/<client_id>.jsonl` - do stores
+pe wired). Store wahi ek hai: `data/crm/<client_id>.jsonl` — do stores
 banakar data split NAHI kiya. Yahan ADD hota hai:
 
   - import_rows()        : Apollo/Excel-style alias mapping (Name/Mobile/DOB…)
                            + csv_text support
   - todays_occasions()   : aaj (IST) ke birthday/anniversary customers (sync)
   - all_clients_todays_occasions() : saare marketing clients ke liye ek saath
-  - run_wishes()         : occasion -> Hinglish wish caption (free-LLM, template
+  - run_wishes()         : occasion → Hinglish wish caption (free-LLM, template
                            fallback) + AI image URL (ai_image, key-safe proxy)
-                           + wa.me prefilled link -> DRAFTS
+                           + wa.me prefilled link → DRAFTS
                            `data/customer_wish_drafts.jsonl`. KABHI auto-send
-                           nahi - human 1-click hi bhejta hai (WA ban-safe).
-  - run_wishes_if_enabled(): scheduler hook - sirf `CUSTOMER_WISHES=1` pe
+                           nahi — human 1-click hi bhejta hai (WA ban-safe).
+  - run_wishes_if_enabled(): scheduler hook — sirf `CUSTOMER_WISHES=1` pe
                            run_wishes() chalata, warna graceful skip.
 
 Free stack, pure stdlib + lazy imports, NEVER raises (error dicts).
@@ -40,7 +40,7 @@ logger = setup_logger(__name__)
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 _DRAFTS_PATH = os.path.join("data", "customer_wish_drafts.jsonl")
-_MAX_LLM_WISHES_PER_RUN = 15  # token discipline - baaki template se
+_MAX_LLM_WISHES_PER_RUN = 15  # token discipline — baaki template se
 
 # ---- import alias mapping (Apollo/Excel/Google-Contacts style headers) ---- #
 _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
@@ -81,7 +81,7 @@ def _norm_header(h: Any) -> str:
 
 
 def _map_row(raw: dict[str, Any]) -> dict[str, Any]:
-    """Ek raw row (kisi bhi header naming me) -> canonical customer dict."""
+    """Ek raw row (kisi bhi header naming me) → canonical customer dict."""
     out: dict[str, Any] = {}
     lowered = {_norm_header(k): v for k, v in raw.items() if k is not None}
     for field, aliases in _FIELD_ALIASES.items():
@@ -89,14 +89,14 @@ def _map_row(raw: dict[str, Any]) -> dict[str, Any]:
             if alias in lowered and str(lowered[alias] or "").strip():
                 out[field] = lowered[alias]
                 break
-    # tags string "vip, regular" -> list
+    # tags string "vip, regular" → list
     if isinstance(out.get("tags"), str):
         out["tags"] = [t.strip() for t in str(out["tags"]).split(",") if t.strip()]
     return out
 
 
 # --------------------------------------------------------------------------- #
-# CRUD (thin reuse layer over crm_lite - single store data/crm/<id>.jsonl)
+# CRUD (thin reuse layer over crm_lite — single store data/crm/<id>.jsonl)
 # --------------------------------------------------------------------------- #
 def add_customer(
     client_id: str,
@@ -106,7 +106,7 @@ def add_customer(
     anniversary: str = "",
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Ek customer add karo. Returns {ok, added, skipped, total} - never raises."""
+    """Ek customer add karo. Returns {ok, added, skipped, total} — never raises."""
     try:
         from app.marketing import crm_lite
 
@@ -133,7 +133,7 @@ def import_rows(
     rows: list[dict[str, Any]] | None = None,
     csv_text: str = "",
 ) -> dict[str, Any]:
-    """Bulk import - dict rows YA raw CSV text (Excel paste). Alias-mapped headers
+    """Bulk import — dict rows YA raw CSV text (Excel paste). Alias-mapped headers
     (Name/Full Name, Mobile/Phone Number, DOB/Birthday, Anniversary, Tags).
     Phone-dedupe crm_lite karta hai. Never raises."""
     try:
@@ -151,7 +151,7 @@ def import_rows(
             if isinstance(r, dict):
                 parsed.append(r)
         if not parsed:
-            return {"ok": False, "error": "Koi rows nahi mile - rows ya csv_text bhejo."}
+            return {"ok": False, "error": "Koi rows nahi mile — rows ya csv_text bhejo."}
 
         mapped = [_map_row(r) for r in parsed]
         mapped = [m for m in mapped if m.get("phone")]
@@ -236,7 +236,7 @@ def all_clients_todays_occasions() -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Wish drafting (NEVER auto-send - wa.me 1-click only)
+# Wish drafting (NEVER auto-send — wa.me 1-click only)
 # --------------------------------------------------------------------------- #
 _WISH_TEMPLATES = {
     "birthday": (
@@ -245,7 +245,7 @@ _WISH_TEMPLATES = {
     ),
     "anniversary": (
         "💐 Shaadi ki salgirah mubarak ho, {name} ji! {biz} ki taraf se aap "
-        "dono ko dher saari badhai - aapka saath yun hi bana rahe! 🎉🙏"
+        "dono ko dher saari badhai — aapka saath yun hi bana rahe! 🎉🙏"
     ),
 }
 
@@ -256,7 +256,7 @@ def _template_wish(name: str, biz: str, occasion: str) -> str:
 
 
 async def _llm_wish(name: str, biz: str, occasion: str, niche: str) -> str:
-    """Free-LLM personalized wish - fail/empty par '' (caller template use kare)."""
+    """Free-LLM personalized wish — fail/empty par '' (caller template use kare)."""
     try:
         from app.voice_agent import free_ai
 
@@ -267,7 +267,7 @@ async def _llm_wish(name: str, biz: str, occasion: str, niche: str) -> str:
             "Tu ek Indian local business ka friendly social-media writer hai. "
             "Customer ke liye EK chhota (max 35 shabd) warm Hinglish (Roman script) "
             f"{occ_hi} wish message likh, business ke naam ke saath, 1-2 emoji. "
-            "Sirf message do - koi heading/quotes/commentary nahi."
+            "Sirf message do — koi heading/quotes/commentary nahi."
         )
         user = f"Customer: {name}\nBusiness: {biz} ({niche.replace('_', ' ')})"
         text, _provider = await free_ai.chat(
@@ -283,7 +283,7 @@ async def _llm_wish(name: str, biz: str, occasion: str, niche: str) -> str:
 
 def _image_url_for(occasion: str, biz: str, niche: str) -> str:
     """AI image URL (key-safe): sk_ key ho to server proxy path, warna direct URL.
-    ai_image module ke builders REUSE - kabhi raise nahi."""
+    ai_image module ke builders REUSE — kabhi raise nahi."""
     prompt = (
         f"warm festive {'birthday' if occasion == 'birthday' else 'wedding anniversary'} "
         f"greeting card, flowers and celebration, from '{biz}' a {niche.replace('_', ' ')} "
@@ -292,10 +292,10 @@ def _image_url_for(occasion: str, biz: str, niche: str) -> str:
     try:
         from app.marketing import ai_image
 
-        # sk_ (secret) key -> server proxy (key URL me kabhi nahi);
-        # pk_/no key -> direct Pollinations URL theek hai.
+        # sk_ (secret) key → server proxy (key URL me kabhi nahi);
+        # pk_/no key → direct Pollinations URL theek hai.
         try:
-            if ai_image._is_secret():  # noqa: SLF001 - same-package helper
+            if ai_image._is_secret():  # noqa: SLF001 — same-package helper
                 return ai_image.proxy_path(prompt, 1024, 1024)
         except Exception:
             pass
@@ -353,11 +353,10 @@ async def run_wishes(execute: bool = False) -> dict[str, Any]:
     """Aaj ke saare occasions (saare clients) ke wish DRAFTS banao.
 
     Har draft: Hinglish caption (free-LLM, template fallback) + AI image URL +
-    wa.me 1-click prefilled link -> `data/customer_wish_drafts.jsonl`.
+    wa.me 1-click prefilled link → `data/customer_wish_drafts.jsonl`.
 
-    `execute` flag SIRF signature-compat ke liye hai - yeh function KABHI
-    auto-send nahi karta (WhatsApp auto-send = number ban
-    policy: human
+    `execute` flag SIRF signature-compat ke liye hai — yeh function KABHI
+    auto-send nahi karta (WhatsApp auto-send = number ban; policy: human
     1-click). Same-day duplicate drafts skip hote hain. Never raises.
     """
     try:
@@ -410,7 +409,7 @@ async def run_wishes(execute: bool = False) -> dict[str, Any]:
             "drafts_created": len(drafts),
             "llm_captions": llm_used,
             "drafts": drafts,
-            "note": "Auto-send NAHI hota - wa_link se 1-click bhejo (ban-safe).",
+            "note": "Auto-send NAHI hota — wa_link se 1-click bhejo (ban-safe).",
         }
     except Exception as e:
         logger.warning(f"[customer_crm] run_wishes failed: {e}")
@@ -418,7 +417,7 @@ async def run_wishes(execute: bool = False) -> dict[str, Any]:
 
 
 async def run_wishes_if_enabled() -> dict[str, Any]:
-    """Scheduler hook - sirf `CUSTOMER_WISHES=1` pe chalta (default OFF)."""
+    """Scheduler hook — sirf `CUSTOMER_WISHES=1` pe chalta (default OFF)."""
     flag = (os.getenv("CUSTOMER_WISHES") or "").strip().lower()
     if flag not in ("1", "true", "yes", "on"):
         return {"ok": True, "skipped": True, "reason": "CUSTOMER_WISHES flag OFF"}

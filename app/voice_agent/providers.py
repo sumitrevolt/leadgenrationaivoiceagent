@@ -1,5 +1,5 @@
 """
-Provider Registry (BYOK) - Dograh/Vapi-inspired pluggable provider layer.
+Provider Registry (BYOK) — Dograh/Vapi-inspired pluggable provider layer.
 
 This module gives the streaming voice pipeline ONE uniform way to grab a ready
 STT / TTS / LLM provider, no matter which underlying engine is configured. It
@@ -13,7 +13,7 @@ thin interfaces so the pipeline never has to know provider-specific details:
 BYOK = "Bring Your Own Keys": the active provider is chosen from env vars
 (STT_PROVIDER / TTS_PROVIDER / LLM_PROVIDER) with FREE, safe defaults
 (vosk/whisper, edge-tts, gemini). Anything that fails to construct degrades to
-a Mock provider, so `get_registry()` NEVER hard-crashes - it always returns
+a Mock provider, so `get_registry()` NEVER hard-crashes — it always returns
 working instances. This makes pure-text testing possible with zero external
 services.
 
@@ -112,12 +112,12 @@ class LLMProvider(ABC):
 
 
 # =============================================================================
-# MOCK PROVIDERS (zero-dependency fallback - always work)
+# MOCK PROVIDERS (zero-dependency fallback — always work)
 # =============================================================================
 
 
 class MockSTT(STTProvider):
-    """Deterministic mock STT - cycles canned user lines, no deps."""
+    """Deterministic mock STT — cycles canned user lines, no deps."""
 
     name = "mock-stt"
 
@@ -148,7 +148,7 @@ class MockSTT(STTProvider):
 
 
 class MockTTS(TTSProvider):
-    """Mock TTS - returns deterministic fake audio bytes, no deps."""
+    """Mock TTS — returns deterministic fake audio bytes, no deps."""
 
     name = "mock-tts"
 
@@ -158,7 +158,7 @@ class MockTTS(TTSProvider):
 
 
 class MockLLM(LLMProvider):
-    """Mock LLM - echoes a canned, on-brand sales reply, no deps."""
+    """Mock LLM — echoes a canned, on-brand sales reply, no deps."""
 
     name = "mock-llm"
 
@@ -171,7 +171,7 @@ class MockLLM(LLMProvider):
         if not last_user:
             return "Hello! Thanks for taking my call. How are you today?"
         return (
-            f"I understand you said '{last_user}'. That's great - "
+            f"I understand you said '{last_user}'. That's great — "
             "would you be open to a quick 5-minute chat so I can show you how we help?"
         )
 
@@ -386,8 +386,7 @@ class ProviderRegistry:
         instance: Any = None
         if factory is None:
             logger.warning(
-                f"{kind.upper()} provider '{name}' not registered
-                falling back to Mock."
+                f"{kind.upper()} provider '{name}' not registered; falling back to Mock."
             )
         else:
             try:
@@ -395,8 +394,7 @@ class ProviderRegistry:
                 logger.info(f"✅ {kind.upper()} provider active: {name}")
             except Exception as e:
                 logger.warning(
-                    f"{kind.upper()} provider '{name}' failed to init ({e})
-                    falling back to Mock."
+                    f"{kind.upper()} provider '{name}' failed to init ({e}); falling back to Mock."
                 )
                 instance = None
 

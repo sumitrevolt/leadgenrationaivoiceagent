@@ -1,10 +1,10 @@
-"""Voice product (Product 2) public-API contract - flat per-band pricing truth.
+"""Voice product (Product 2) public-API contract — flat per-band pricing truth.
 
 Kyun ye file exist karti hai (2026-07-14 postmortem):
 `GET /api/voice/niches` production me 7 din tak **500** de raha tha aur kisi test ne
 nahi pakda. Root cause: pricing 2026-06-12 ko lead-counting se **flat per-niche-band**
 ho gayi (`voice_packages.py` docstring: "Koi lead-counting nahi", "Unlimited AI calls"),
-aur tab `lead_topup_price()` hata diya gaya - par `app/api/voice_product.py` use abhi
+aur tab `lead_topup_price()` hata diya gaya — par `app/api/voice_product.py` use abhi
 bhi import kar raha tha. Import fail -> har request pe ImportError -> 500.
 Sentry: 375 + 222 + 84 (`'_IncludedRouter' object has no attribute 'path'`, secondary)
 + 173 (`PlanTierRateLimit call_next failed: ImportError(...)`) events.
@@ -39,7 +39,7 @@ def test_lead_topup_price_stays_removed():
     jaan-bujh kar fail hoga taaki `test_billing_truth_2026.py` bhi saath update ho.
     """
     assert not hasattr(VP, "lead_topup_price"), (
-        "lead_topup_price flat-band pricing me retire ho chuka hai - "
+        "lead_topup_price flat-band pricing me retire ho chuka hai — "
         "wapas laane se pehle billing-truth contract update karo"
     )
 
@@ -48,7 +48,7 @@ def test_lead_topup_price_stays_removed():
 def test_voice_niches_returns_200_and_never_500(client):
     """REGRESSION: ye endpoint prod me 500 de raha tha (dangling import)."""
     r = client.get("/api/voice/niches")
-    assert r.status_code == 200, f"/api/voice/niches must not 500 - got {r.status_code}"
+    assert r.status_code == 200, f"/api/voice/niches must not 500 — got {r.status_code}"
     body = r.json()
     assert body["product"] == "voice_agent"
     assert body["count"] == len(body["niches"])
@@ -56,7 +56,7 @@ def test_voice_niches_returns_200_and_never_500(client):
 
 
 def test_voice_niches_exposes_flat_band_price_not_topup(client):
-    """Har niche apne band ka FLAT monthly price de - dead topup field nahi."""
+    """Har niche apne band ka FLAT monthly price de — dead topup field nahi."""
     body = client.get("/api/voice/niches").json()
     for n in body["niches"]:
         assert "topup_pack_inr" not in n, "topup_pack_inr retired hai (flat pricing)"

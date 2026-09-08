@@ -1,5 +1,5 @@
-"""Tests - content/intel tools batch (repurpose, brand_pulse, month_planner,
-team_report, webpush + contentauto router import). Pure-python - NO network,
+"""Tests — content/intel tools batch (repurpose, brand_pulse, month_planner,
+team_report, webpush + contentauto router import). Pure-python — NO network,
 NO LLM (free_ai + httpx + generators sab mocked/fallback paths)."""
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ import os
 from datetime import date, timedelta
 
 # ---------------------------------------------------------------------------- #
-# 1) repurpose - compose 7 formats, partial-fail OK
+# 1) repurpose — compose 7 formats, partial-fail OK
 # ---------------------------------------------------------------------------- #
 
 
@@ -83,7 +83,7 @@ def test_repurpose_partial_fail_ok(monkeypatch):
         return {"hashtags": []}
 
     async def fake_chat(*a, **k):
-        return ("", "")  # LLM dead -> wa/email template fallback
+        return ("", "")  # LLM dead → wa/email template fallback
 
     monkeypatch.setattr(carousel, "generate_carousel", boom)
     monkeypatch.setattr(post_generator, "generate_post", fake_post)
@@ -108,7 +108,7 @@ def test_repurpose_url_detect():
 
 
 # ---------------------------------------------------------------------------- #
-# 2) brand_pulse - parsers, scan (mocked fetch), cache, gating
+# 2) brand_pulse — parsers, scan (mocked fetch), cache, gating
 # ---------------------------------------------------------------------------- #
 
 _RSS = (
@@ -168,7 +168,7 @@ def test_pulse_scan_sentiment_and_drafts(tmp_path, monkeypatch):
     assert "Sharma Solar" in d["reply_drafts"][0]["draft"]
     assert d["cached"] is False
 
-    # 2nd scan -> cache hit (fetchers na bhi chalein to)
+    # 2nd scan → cache hit (fetchers na bhi chalein to)
     async def boom(q):
         raise RuntimeError("no net")
 
@@ -193,7 +193,7 @@ def test_pulse_scan_requires_name():
 
 
 # ---------------------------------------------------------------------------- #
-# 3) month_planner - dry-run plan + commit dedupe
+# 3) month_planner — dry-run plan + commit dedupe
 # ---------------------------------------------------------------------------- #
 
 
@@ -237,7 +237,7 @@ def test_month_plan_commit_dedupes(tmp_path, monkeypatch):
     )
     assert out1["committed"] == 10 and out1["skipped"] == 0
     assert len(content_schedule.list_scheduled()) == 10
-    # repeat commit -> sab dup-skip
+    # repeat commit → sab dup-skip
     out2 = month_planner.plan_month(
         niche="gym", business_name="FitZone", days=10, commit=True, dry_run=False
     )
@@ -246,7 +246,7 @@ def test_month_plan_commit_dedupes(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------- #
-# 4) team_report - narrative (mocked events + LLM-down fallback) + gating
+# 4) team_report — narrative (mocked events + LLM-down fallback) + gating
 # ---------------------------------------------------------------------------- #
 
 
@@ -304,7 +304,7 @@ def test_team_report_gated_off(monkeypatch):
 
 
 # ---------------------------------------------------------------------------- #
-# 5) webpush - inert without keys, sub dedupe, draft-only send, JS snippet
+# 5) webpush — inert without keys, sub dedupe, draft-only send, JS snippet
 # ---------------------------------------------------------------------------- #
 
 

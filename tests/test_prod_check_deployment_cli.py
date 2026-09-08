@@ -1,4 +1,4 @@
-"""`prod_check.py --deployment` - the canonical deployment preflight.
+"""`prod_check.py --deployment` — the canonical deployment preflight.
 
 Two modes, one checker:
 
@@ -7,8 +7,7 @@ Two modes, one checker:
 
 The voice-kill ENV gate runs ONLY in deployment mode. Wiring it
 unconditionally would make every local and CI readiness run red on an unset
-variable
-leaving it unwired would ship a gate that never executes. Neither is
+variable; leaving it unwired would ship a gate that never executes. Neither is
 acceptable, so the context is explicit and testable.
 """
 
@@ -122,7 +121,7 @@ def test_real_cli_accepts_the_deployment_flag():
 
 
 def _deploy_lines():
-    """Executable lines only - a commented mention must not count as a gate."""
+    """Executable lines only — a commented mention must not count as a gate."""
     raw = (REPO / "scripts" / "deploy_vps.sh").read_text(encoding="utf-8").splitlines()
     return [
         (i + 1, ln) for i, ln in enumerate(raw) if ln.strip() and not ln.strip().startswith("#")
@@ -130,7 +129,7 @@ def _deploy_lines():
 
 
 def _preflight_invocations():
-    """Real invocations only - an `echo` that merely names the command is not a gate."""
+    """Real invocations only — an `echo` that merely names the command is not a gate."""
     return [
         (n, ln)
         for n, ln in _deploy_lines()
@@ -156,7 +155,7 @@ def test_preflight_precedes_every_destructive_operation():
     `git fetch` (object database), the candidate worktree and the candidate
     image build are deliberately excluded: none of them moves the live checkout
     or replaces a container, and requiring the gate before them would mean
-    gating code that has not been fetched yet - which is how the gate ended up
+    gating code that has not been fetched yet — which is how the gate ended up
     unable to run at all.
     """
     lines = _deploy_lines()
@@ -177,7 +176,7 @@ def test_preflight_precedes_every_destructive_operation():
         )
         if pat in ln
     ]
-    assert mutators, "no mutating operations found - parser is wrong"
+    assert mutators, "no mutating operations found — parser is wrong"
     first = min(n for n, _ in mutators)
     assert gate < first, f"preflight at {gate} runs after mutation at {first}"
 
@@ -187,8 +186,7 @@ def test_runtime_data_guard_precedes_the_deployment_gate_and_the_build():
 
     The runtime-data guard is the FIRST decision: it is what stands between the
     release and the ledgers that still live inside the checkout. Building an
-    image before it has spoken would be wasteful
-    pulling before it has spoken
+    image before it has spoken would be wasteful; pulling before it has spoken
     would be the incident this whole workstream exists to prevent.
     """
     lines = _deploy_lines()

@@ -1,7 +1,7 @@
 """Smoke-test the newly enabled features (safe ones). Run on VPS after restart.
 
 Runs ops watchdog (read-only), onboarding sweep (limit 2), and a structured-content
-post. Skips reply-triage on purpose (it marks inbox mail seen - let the scheduler do it).
+post. Skips reply-triage on purpose (it marks inbox mail seen — let the scheduler do it).
 """
 
 import asyncio

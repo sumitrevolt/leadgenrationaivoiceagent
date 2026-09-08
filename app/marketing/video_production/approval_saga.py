@@ -1,4 +1,4 @@
-"""Stage 3A - compensated approval saga coordinator.
+"""Stage 3A — compensated approval saga coordinator.
 
 Two JSONL stores (content-approval decisions and video-ad records) cannot be
 written atomically. This is a COMPENSATED RECOVERABLE SAGA, not a transaction:
@@ -14,7 +14,7 @@ tests/test_video_approval_recursion_trace.py):
                                            finalization
 
 The coordinator never calls ``cell.approve_version``, ``content_approval.approve``,
-``_decide`` or ``on_approved`` - anything that could re-enter it.
+``_decide`` or ``on_approved`` — anything that could re-enter it.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def transaction_id(
     without silently reusing an old id.
 
     ``actor_subject`` must be a stable internal id. The checks below are a
-    TRIPWIRE against a resolver regression, not the trust boundary - a string
+    TRIPWIRE against a resolver regression, not the trust boundary — a string
     containing no ``@`` can still be untrusted or PII. Trust comes from the fact
     that :mod:`approval_principal` built the value from an authenticated object.
     """
@@ -129,7 +129,7 @@ def _safe_update(rec_id: str, **fields: Any) -> bool:
     """Durable record write that never escapes as an unhandled error.
 
     A store failure must become a CONTROLLED refusal (409), never a generic
-    500 - and never a silently-ignored write either, so the caller decides what
+    500 — and never a silently-ignored write either, so the caller decides what
     the transaction state should be.
     """
     from app.marketing import video_ad_cycle
@@ -143,7 +143,7 @@ def _safe_update(rec_id: str, **fields: Any) -> bool:
 
 
 def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dict[str, Any]:
-    """LAYER C - side effects, exactly once, only AFTER finalization.
+    """LAYER C — side effects, exactly once, only AFTER finalization.
 
     These used to run inside ``_decide`` before the video record was finalized,
     so a later failure left an enqueued item for an unapproved video. They are
@@ -182,7 +182,7 @@ def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dic
         from app.marketing import delivery_ledger
 
         # log_event(key=...) skips when an event with this key already exists
-        # for the client - the idempotency lives DOWNSTREAM, so it holds even
+        # for the client — the idempotency lives DOWNSTREAM, so it holds even
         # if our local marker write dies after the ledger write.
         delivery_ledger.log_event(
             client_id,
@@ -237,7 +237,7 @@ def approve(
     expected_sha256: str,
     principal: Any,
 ) -> dict[str, Any]:
-    """LAYER B - the one coordinated customer approval path.
+    """LAYER B — the one coordinated customer approval path.
 
     Takes a server-created :class:`ApprovalPrincipal`, never a caller-supplied
     actor string: the previous signature let every surface name itself, and
@@ -263,7 +263,7 @@ def approve(
         return {"ok": False, "error": "video_ad_not_found"}
     tenant_id = str(rec.get("client_id") or "")
 
-    # Wrong tenant fails here - before snapshot, before any store write.
+    # Wrong tenant fails here — before snapshot, before any store write.
     if not tenant_id or principal.tenant_id != tenant_id:
         return {"ok": False, "error": "approval_tenant_mismatch", "status": 403}
 
@@ -357,7 +357,7 @@ def approve(
         ):
             return {"ok": False, "error": "prepared_write_failed", "txn_id": txn}
 
-        # 7. decision bytes only - no callbacks, no effects
+        # 7. decision bytes only — no callbacks, no effects
         decided = content_approval.persist_decision(token, "approved", txn_id=txn)
         if not decided.get("ok"):
             if not _safe_update(
@@ -366,12 +366,12 @@ def approve(
                 approval_failure_reason="decision_write_failed",
             ):
                 # Compensation itself could not be written. Leave the record in
-                # PREPARED so recovery surfaces it - never guess it away.
+                # PREPARED so recovery surfaces it — never guess it away.
                 return {"ok": False, "error": "compensation_write_failed", "txn_id": txn}
             return {"ok": False, "error": "decision_write_failed", "txn_id": txn}
 
         # 8. decision recorded. The decision IS durable now, so a failure here
-        # must leave PREPARED for recovery to finalize - not compensate.
+        # must leave PREPARED for recovery to finalize — not compensate.
         if not _safe_update(record_id, approval_txn_state=TXN_DECISION_RECORDED):
             return {"ok": False, "error": "state_write_failed", "txn_id": txn}
 
@@ -400,7 +400,7 @@ def approve(
             approval_finalized_at=video_ad_cycle._now(),
         ):
             # record_approval already wrote the approved fields but the
-            # transaction marker did not land - recovery resolves it.
+            # transaction marker did not land — recovery resolves it.
             return {"ok": False, "error": "finalize_state_write_failed", "txn_id": txn}
 
         # 11. effects, exactly once, after finalization
@@ -420,7 +420,7 @@ def recover(record_id: str) -> dict[str, Any]:
     """Resume or safely compensate an incomplete transaction. Idempotent.
 
     Uses the same transaction lock as :func:`approve`. Never publishes and
-    never invents an approval - a state it cannot resolve becomes visibly
+    never invents an approval — a state it cannot resolve becomes visibly
     ``inconsistent`` for an operator.
     """
     from app.marketing import content_approval, video_ad_cycle

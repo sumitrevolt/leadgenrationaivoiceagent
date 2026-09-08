@@ -1,12 +1,11 @@
-"""F3 "Kaam Do" - office HQ map task dispatch.
+"""F3 "Kaam Do" — office HQ map task dispatch.
 
 Bars:
 - POST /api/platform/office/agents/{member}/task is admin-gated (401 w/o auth).
 - run_agent_task() is DRAFT-SAFE: team scope calls coordinator.coordinate with
   execute=False (never a real side-effect), solo scope calls fan_out for that
   single member only.
-- Goal validation: empty -> ok:False
->500 chars capped (not rejected).
+- Goal validation: empty -> ok:False; >500 chars capped (not rejected).
 - Failure path: coordinator raising -> ok:False, HTTP still 200 (never-raise).
 - Timeout path: primitive hitting the budget -> ok:True, status:"timeout" with
   an honest note (coroutine cancelled, NOT backgrounded).
@@ -41,7 +40,7 @@ def _run(coro):
 # conftest.py globally overrides require_admin/get_current_user with a mock
 # admin for the whole suite (so most tests run auth-open). To genuinely test
 # the gate we temporarily REMOVE those overrides so the real dependency runs
-# and rejects a no-token request - then restore them (else we'd break sibling
+# and rejects a no-token request — then restore them (else we'd break sibling
 # tests, the documented "mocked-open auth = false confidence" lesson).
 # --------------------------------------------------------------------------- #
 def test_task_endpoint_requires_admin():
@@ -63,7 +62,7 @@ def test_task_endpoint_requires_admin():
 
 def test_task_endpoint_happy_path(monkeypatch):
     """Admin authed (conftest global mock super-admin) + coordinator mocked ->
-    200 with {ok, summary}. We do NOT touch dependency_overrides here - conftest
+    200 with {ok, summary}. We do NOT touch dependency_overrides here — conftest
     already hands the client a super-admin, and popping it in a finally would
     delete the global override for every sibling test."""
 
@@ -140,7 +139,7 @@ def test_team_scope_calls_coordinate_draft_safe(monkeypatch):
     monkeypatch.setattr("app.agents.coordinator.fan_out", _boom_fanout)
     out = _run(office_hq.run_agent_task("isha", "poori team se campaign", "team"))
     assert out["ok"] is True
-    assert captured["execute"] is False  # DRAFT-SAFE - no side effects
+    assert captured["execute"] is False  # DRAFT-SAFE — no side effects
     assert out["run_id"] == "abc123"
     assert out["summary"] == "team plan ready"
 

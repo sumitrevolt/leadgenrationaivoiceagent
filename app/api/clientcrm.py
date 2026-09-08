@@ -1,10 +1,9 @@
-"""ClientCRM API - client-facing features ka surface (admin).
+"""ClientCRM API — client-facing features ka surface (admin).
 
 - End-customer mini-CRM + birthday/anniversary wishes (app/marketing/customer_crm.py)
 - Mini-site product catalog CRUD (app/marketing/product_catalog.py)
 
-(Razorpay payment links removed 2026-06-18 - no online gateway
-manual UPI.)
+(Razorpay payment links removed 2026-06-18 — no online gateway; manual UPI.)
 Sab additive + free-stack + ban-safe (wishes = DRAFT/1-click, KOI auto-send
 nahi). Writes admin-only. Mount: /api + prefix /clientcrm.
 """
@@ -52,7 +51,7 @@ class ImportIn(BaseModel):
 
 @router.post("/customers/{client_id}/import")
 async def import_customers(client_id: str, body: ImportIn, _user=Depends(require_admin)):
-    """Bulk import - Excel/CSV paste ya dict rows (Name/Mobile/DOB alias-mapped)."""
+    """Bulk import — Excel/CSV paste ya dict rows (Name/Mobile/DOB alias-mapped)."""
     from app.marketing import customer_crm
 
     return customer_crm.import_rows(client_id, rows=body.rows, csv_text=body.csv_text or "")
@@ -69,7 +68,7 @@ async def get_customers(client_id: str, tag: str | None = None, _user=Depends(re
 
 @router.get("/occasions/today")
 async def occasions_today(_user=Depends(require_admin)):
-    """Aaj (IST) ke birthday/anniversary - saare clients ek saath."""
+    """Aaj (IST) ke birthday/anniversary — saare clients ek saath."""
     from app.marketing import customer_crm
 
     groups = customer_crm.all_clients_todays_occasions()
@@ -157,5 +156,5 @@ async def catalog_delete(slug: str, product_id: str, _user=Depends(require_admin
     return product_catalog.delete_product(slug, product_id)
 
 
-# Razorpay payment-link routes (/payment-link, /payment-links) removed 2026-06-18 -
+# Razorpay payment-link routes (/payment-link, /payment-links) removed 2026-06-18 —
 # no online gateway; clients collect from their customers via manual UPI.

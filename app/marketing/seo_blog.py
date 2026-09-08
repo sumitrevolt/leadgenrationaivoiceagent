@@ -1,21 +1,21 @@
 """
-seo_blog.py - Programmatic SEO blog engine (100% FREE).
+seo_blog.py — Programmatic SEO blog engine (100% FREE).
 ========================================================
 
 Site ke liye apne-aap useful Hinglish articles likhta hai jo Google par
-local-business marketing keywords pe rank karein aur inbound leads laayein -
+local-business marketing keywords pe rank karein aur inbound leads laayein —
 sab free stack par:
 
   LLM:    app.voice_agent.free_ai.chat() (Cerebras/Groq/OpenRouter chain).
-          free_ai ("","") de sakta hai (zero keys / quota / timeout) - ISLIYE
+          free_ai ("","") de sakta hai (zero keys / quota / timeout) — ISLIYE
           har article ka TEMPLATE fallback hai jo niche ke content_focus se
           asli, kaam ki tips deta hai. KABHI khali article nahi.
   Niches: app.niches.NICHES (category=="marketing"/"both") se naam + focus.
 
 Storage: data/blog/<slug>.json (ek file = ek article). Static pages (koi DB
-nahi) - main.py routes inse render karte hain. Sitemap dynamic ho jaata hai.
+nahi) — main.py routes inse render karte hain. Sitemap dynamic ho jaata hai.
 
-Articles genuinely useful rakhe gaye hain (keyword-stuffed spam NAHI) -
+Articles genuinely useful rakhe gaye hain (keyword-stuffed spam NAHI) —
 har ek me intro + 4-6 H2 sections + ek closing CTA hai. CTA hamesha:
   "FREE Google audit: leadsgenai.in/audit | WhatsApp: wa.me/918459012607"
 
@@ -137,8 +137,8 @@ def _focus_label(f: str) -> str:
         "festival posts": "Festival posts se customers jodein",
         "gbp optimization": "Google Business Profile optimize karein",
         "social posts": "Regular social media posts daalein",
-        "reels": "Reels banaye - sabse zyada reach yahi deti hai",
-        "reviews": "Google reviews badhaye - bharosa jeetein",
+        "reels": "Reels banaye — sabse zyada reach yahi deti hai",
+        "reviews": "Google reviews badhaye — bharosa jeetein",
         "menu posters": "Menu aur product posters share karein",
         "offer posters": "Offer posters se footfall badhaye",
         "offer creatives": "Offer creatives roz post karein",
@@ -166,21 +166,21 @@ def _focus_label(f: str) -> str:
 
 
 # ============================================================================ #
-# Template article (LLM-fail fallback - genuinely useful, never empty)
+# Template article (LLM-fail fallback — genuinely useful, never empty)
 # ============================================================================ #
 
 # Universal, niche-agnostic free tips (har article me kaam ke aate hain).
 _UNIVERSAL_TIPS: list[str] = [
-    "Roz ek post karein - consistency hi sabse bada free hack hai. Google aur "
+    "Roz ek post karein — consistency hi sabse bada free hack hai. Google aur "
     "Instagram dono active business ko upar dikhate hain.",
     "Har post me apna area/city ka naam daalein (jaise '{city} me best {niche}') "
-    "- 'near me' searches me aapka business tabhi match karta hai.",
-    "Customer se Google review maangna mat bhoolein - har naye review se aapki "
+    "— 'near me' searches me aapka business tabhi match karta hai.",
+    "Customer se Google review maangna mat bhoolein — har naye review se aapki "
     "local ranking aur bharosa dono badhte hain.",
     "Festival aur local events ka calendar bana ke pehle se posts taiyaar "
-    "rakhein - last-minute me quality gir jaati hai.",
+    "rakhein — last-minute me quality gir jaati hai.",
     "Phone number aur WhatsApp link har jagah same rakhein (Google, Instagram, "
-    "website) - mismatch se Google ka trust girta hai.",
+    "website) — mismatch se Google ka trust girta hai.",
 ]
 
 
@@ -196,11 +196,11 @@ def _template_article(niche: str, city: str, topic: str) -> dict[str, str]:
     # Intro
     parts.append(
         f"<p>Aaj ke time me {city_phrase}{name} chalana sirf accha kaam karne "
-        f"tak limited nahi hai - log pehle online dekhte hain, phir aate hain. "
+        f"tak limited nahi hai — log pehle online dekhte hain, phir aate hain. "
         f"Agar aapka business Google aur Instagram par sahi se nahi dikh raha, "
         f"toh customers seedhe aapke competitor ke paas chale jaate hain. "
         f"Achhi baat ye hai ki marketing badhane ke liye bada budget zaroori "
-        f"nahi - bas sahi cheezein consistently karni hoti hain. Is guide me hum "
+        f"nahi — bas sahi cheezein consistently karni hoti hain. Is guide me hum "
         f"{name} ke liye simple, free aur asar-daar tareeke dekhenge.</p>"
     )
 
@@ -222,7 +222,7 @@ def _template_article(niche: str, city: str, topic: str) -> dict[str, str]:
     uni = list(_UNIVERSAL_TIPS)
     ui = 0
     uni_heads = [
-        "Roz post karein - consistency ka jaadu",
+        "Roz post karein — consistency ka jaadu",
         "Local keywords ka istemaal karein",
         "Google reviews maange bina sharmaye",
     ]
@@ -239,12 +239,12 @@ def _template_article(niche: str, city: str, topic: str) -> dict[str, str]:
     # Practical "kaise shuru karein" section
     parts.append("<h2>Aaj se kaise shuru karein</h2>")
     parts.append(
-        f"<p>Sabse pehle apna Google Business Profile poora bharein - photos, "
+        f"<p>Sabse pehle apna Google Business Profile poora bharein — photos, "
         f"timings, services aur phone number. Phir hafte ke 3-4 din ke liye "
         f"posts pehle se plan karein. {name} jaise business me sabse zyada "
         f"asar tab hota hai jab aap apne asli kaam ki photos aur khush "
         f"customers ke reviews dikhate hain. Shuruaat chhoti rakhein, par "
-        f"rukne mat dein - 30 din baad farak khud dikhega.</p>"
+        f"rukne mat dein — 30 din baad farak khud dikhega.</p>"
     )
 
     # CTA section (ALWAYS appended)
@@ -267,13 +267,13 @@ def _focus_body(f: str, name: str, city: str) -> str:
         "reels": (
             f"Short reels (15-30 second) aaj ki sabse badi free reach hain. "
             f"{name} ke liye apne kaam, behind-the-scenes ya ek tip ka reel "
-            f"banaye - trending audio lagaye aur hafte me 2-3 reels zaroor "
+            f"banaye — trending audio lagaye aur hafte me 2-3 reels zaroor "
             f"daalein. Reels nayi audience tak pahunchte hain jo aapko "
             f"follow nahi karti."
         ),
         "reviews": (
             f"Google reviews aapki local ranking ka sabse bada factor "
-            f"hain. Har khush customer se politely review maangein - ek "
+            f"hain. Har khush customer se politely review maangein — ek "
             f"WhatsApp link bhej dein jisse wo 30 second me review de "
             f"sakein. Jitne zyada 4-5 star reviews, utna upar aapka "
             f"business{in_city} dikhega."
@@ -281,7 +281,7 @@ def _focus_body(f: str, name: str, city: str) -> str:
         "festival posters": (
             f"Har festival ek free marketing mauka hai. {name} "
             f"ke liye Diwali, Holi, Eid, Raksha Bandhan jaise har "
-            f"tyohaar pe poster pehle se taiyaar rakhein - apne "
+            f"tyohaar pe poster pehle se taiyaar rakhein — apne "
             f"naam, number aur ek chhote offer ke saath. Log "
             f"festival posts zyada share karte hain."
         ),
@@ -289,32 +289,32 @@ def _focus_body(f: str, name: str, city: str) -> str:
             "Google Business Profile (GBP) free me aapki dukaan "
             "ko 'near me' searches me laata hai. Profile 100% "
             "bharein, hafte me photos daalein, har review ka "
-            "reply dein aur sahi category chunein - yahi sabse "
+            "reply dein aur sahi category chunein — yahi sabse "
             "sasta aur asar-daar lever hai."
         ),
         "menu posters": (
             "Apne menu ya popular items ke clean posters banaye aur "
             "Instagram + WhatsApp status pe share karein. Photo "
-            "acchi ho toh log bina poochhe order kar dete hain - "
+            "acchi ho toh log bina poochhe order kar dete hain — "
             "price clearly likhein."
         ),
         "before-after reels": (
             f"Before-after content sabse zyada bikta hai kyunki "
             f"usme result saaf dikhta hai. {name} ke liye "
             f"customer ki permission le ke transformation reel "
-            f"banaye - yahi naye customers ko convince karta hai."
+            f"banaye — yahi naye customers ko convince karta hai."
         ),
         "lead forms": (
             "Website ya Instagram bio me ek simple lead-capture form/"
             "link lagaye taaki interested log apna number chhod sakein. "
-            "Phir 5 minute ke andar follow-up karein - jaldi reply "
+            "Phir 5 minute ke andar follow-up karein — jaldi reply "
             "karne wala business hi deal jeetta hai."
         ),
         "whatsapp offers": (
             f"WhatsApp par apne regular customers ko hafte me ek "
             f"chhota offer ya update bhejein (broadcast list use "
             f"karein, har kisi ko alag nahi). {name} ke liye yahi "
-            f"repeat business laata hai - bilkul free."
+            f"repeat business laata hai — bilkul free."
         ),
     }
     if f in bodies:
@@ -322,7 +322,7 @@ def _focus_body(f: str, name: str, city: str) -> str:
     label = f.replace("-", " ").replace("_", " ")
     return (
         f"{label.capitalize()} {name} ki marketing ka ek important hissa hai. "
-        f"Ise regularly aur achhi quality me karein - apne area ka naam "
+        f"Ise regularly aur achhi quality me karein — apne area ka naam "
         f"daalein, photos clear rakhein aur har post pe ek clear call-to-action "
         f"(call/WhatsApp) dein taaki customer turant action le sake."
     )
@@ -334,7 +334,7 @@ def _focus_body(f: str, name: str, city: str) -> str:
 
 
 def _strip_md(text: str) -> str:
-    """Basic markdown ko clean text me badlo (## , **, * , - ) - clean HTML ke liye."""
+    """Basic markdown ko clean text me badlo (## , **, * , - ) — clean HTML ke liye."""
     text = text or ""
     text = re.sub(r"`{1,3}", "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
@@ -346,8 +346,7 @@ def _strip_md(text: str) -> str:
 def _llm_to_html(text: str) -> str:
     """LLM ke '## heading' + paragraph output ko clean <h2>/<p> HTML me badlo.
 
-    Markdown headings/bold strip
-    har line either <h2> (## se) ya <p>.
+    Markdown headings/bold strip; har line either <h2> (## se) ya <p>.
     """
     lines = (text or "").splitlines()
     out: list[str] = []
@@ -392,14 +391,14 @@ def _ensure_cta(html_body: str, name: str) -> str:
         return html_body
     cta = (
         "<h2>Free me apni marketing ki shuruaat karein</h2>\n"
-        f"<p>Apne business ka Google par setup 2 minute me free check karein - "
+        f"<p>Apne business ka Google par setup 2 minute me free check karein — "
         f"hum batayenge kahan sudhaar chahiye. <strong>{_esc(_CTA_LINE)}</strong></p>"
     )
     return (html_body.rstrip() + "\n" + cta) if html_body.strip() else cta
 
 
 # ============================================================================ #
-# generate_article - LLM-first, template-guaranteed
+# generate_article — LLM-first, template-guaranteed
 # ============================================================================ #
 
 
@@ -425,8 +424,7 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
 
     if free_ai is not None:
         try:
-            try:  # semantic cache (flag-gated, OFF default
-            import-safe)
+            try:  # semantic cache (flag-gated, OFF default; import-safe)
                 from app.cache.semantic_cache import semantic_complete
             except Exception:  # pragma: no cover
 
@@ -439,7 +437,7 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
             system = (
                 "Tu ek expert Indian local-business marketing writer hai. Hinglish "
                 "(Hindi + English mix, Roman script) me ek genuinely useful, "
-                "practical blog article likh - keyword stuffing ya spam BILKUL "
+                "practical blog article likh — keyword stuffing ya spam BILKUL "
                 "nahi. Structure EXACT ye ho:\n"
                 "- Pehle 2-3 line ka intro paragraph (koi heading nahi).\n"
                 "- Phir 4 se 6 sections, har section '## ' se shuru hone wala "
@@ -468,7 +466,7 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
                     provider = _prov
                 return (_txt or "").strip()
 
-            # Bulk programmatic-SEO articles = templated niche×city×topic prompts -
+            # Bulk programmatic-SEO articles = templated niche×city×topic prompts —
             # same niche ke similar topics free-LLM TPD/token jaldi jalate hain. Yeh
             # wrapper near-duplicate prompts ko cache karta (scope=niche isolation).
             # OFF default (SEMANTIC_CACHE flag) -> _gen_article_text() seedha = byte-
@@ -493,12 +491,11 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
     else:
         html_body = _ensure_cta(html_body, name)
 
-    # Meta description (<=155 chars) - pehle paragraph ka clean text
+    # Meta description (<=155 chars) — pehle paragraph ka clean text
     first_p = re.search(r"<p>(.*?)</p>", html_body, re.S)
     raw_meta = re.sub(r"<[^>]+>", "", first_p.group(1)) if first_p else f"{name} ki marketing tips."
     raw_meta = re.sub(r"\s+", " ", raw_meta).strip()
-    meta = raw_meta[:152].rstrip(" ,.
-    :-") + ("…" if len(raw_meta) > 152 else "")
+    meta = raw_meta[:152].rstrip(" ,.;:-") + ("…" if len(raw_meta) > 152 else "")
 
     base = _slugify(f"{niche}-{city}-{topic}") if city else _slugify(f"{niche}-{topic}")
     slug = base
@@ -516,7 +513,7 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
 
 
 # ============================================================================ #
-# Storage - data/blog/<slug>.json
+# Storage — data/blog/<slug>.json
 # ============================================================================ #
 
 
@@ -618,7 +615,7 @@ def list_articles(limit: int = 200) -> list[dict[str, Any]]:
 
 
 # ============================================================================ #
-# run_daily_blog - n naye niche×city articles publish karo (never raises)
+# run_daily_blog — n naye niche×city articles publish karo (never raises)
 # ============================================================================ #
 
 
@@ -666,7 +663,7 @@ async def run_daily_blog(n: int = 3) -> dict[str, Any]:
             except Exception as e:
                 logger.warning(f"run_daily_blog: combo {niche}/{city} failed: {e}")
 
-        # log to team feed (isha) - best-effort
+        # log to team feed (isha) — best-effort
         try:
             from app.platform.team import log_event
 

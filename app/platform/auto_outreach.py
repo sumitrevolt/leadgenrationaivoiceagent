@@ -1,15 +1,14 @@
 """
-Auto Email Outreach - system KHUD scraped prospects ko cold email bhejta hai.
+Auto Email Outreach — system KHUD scraped prospects ko cold email bhejta hai.
 =============================================================================
 
 WhatsApp bulk auto-send = number ban (isliye wo 1-human-click hai). Email
-LEGALLY automate ho sakta hai - scraped business ki website se email nikla
+LEGALLY automate ho sakta hai — scraped business ki website se email nikla
 (prospector capture karta hai), uspe personalized Hinglish+English cold email
 auto-jaata hai. Yeh Rohan (Leads Manager) ka kaam hai.
 
 Public API (sab import-safe, KABHI raise nahi karte):
-  - run_email_outreach(limit=None) -> dict   (async
-  bhejta hai, marks "emailed")
+  - run_email_outreach(limit=None) -> dict   (async; bhejta hai, marks "emailed")
   - outreach_stats() -> dict                 (counts: total/with_email/emailed/pending)
   - _email_subject_body(prospect) -> (subject, text, html)
 
@@ -17,11 +16,11 @@ Guards (har layer):
   - settings.auto_email_outreach False  -> {"skipped": "AUTO_EMAIL_OUTREACH off"}
   - SMTP unset (settings.smtp_user)     -> {"skipped": "smtp_unset"} + warn log
   - daily cap = settings.outreach_daily_cap (env OUTREACH_DAILY_CAP)
-  - per-send try/except - ek fail dusre ko nahi rokta
+  - per-send try/except — ek fail dusre ko nahi rokta
   - bheje hue prospects dobara email NAHI hote (emailed_at marker)
   - sends ke beech ~2-4s sleep (domain reputation safety)
 
-Scheduler (team_scheduler) roz 10:30 IST chalata hai - flag+SMTP off ho to no-op.
+Scheduler (team_scheduler) roz 10:30 IST chalata hai — flag+SMTP off ho to no-op.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Public links (footer + CTAs) - landing/audit + WhatsApp.
+# Public links (footer + CTAs) — landing/audit + WhatsApp.
 _AUDIT_URL = "https://leadsgenai.in/audit"
 _SITE_URL = "https://leadsgenai.in"
 _WA_LINK = "https://wa.me/918459012607"
@@ -49,15 +48,15 @@ _WA_LINK = "https://wa.me/918459012607"
 _SLEEP_MIN_S = 2.0
 _SLEEP_MAX_S = 4.0
 
-# Unsubscribe line - har mail me (anti-spam compliance + courtesy).
+# Unsubscribe line — har mail me (anti-spam compliance + courtesy).
 _UNSUB_LINE = (
     "Agar yeh emails nahi chahiye to is mail ka reply REMOVE likh ke kar dijiye "
-    "- hum turant hata denge."
+    "— hum turant hata denge."
 )
 
 _SPINTAX_RE = re.compile(r"\{([^{}]+)\}")
 
-# Niche-specific hook questions - peer-feel, 1 line per niche.
+# Niche-specific hook questions — peer-feel, 1 line per niche.
 _NICHE_HOOKS: dict[str, str] = {
     "restaurant": "kya naye customers Zomato ke bahar seedha aapko dhundhte hain",
     "dental": "kya naye patients Google se directly aapke paas aa rahe hain",
@@ -77,7 +76,7 @@ _NICHE_HOOKS: dict[str, str] = {
 
 
 def _niche_hook(prospect: dict) -> str:
-    """Niche-specific hook question - generic fallback."""
+    """Niche-specific hook question — generic fallback."""
     niche = str((prospect or {}).get("niche") or (prospect or {}).get("category") or "").lower()
     for k, v in _NICHE_HOOKS.items():
         if k in niche:
@@ -96,7 +95,7 @@ def _track_url(url: str, campaign: str = "cold_email") -> str:
 
 
 def _pick_spintax(text: str) -> str:
-    """Expand {a|b|c} spintax - one random choice per slot."""
+    """Expand {a|b|c} spintax — one random choice per slot."""
     if not text or "{" not in text:
         return text
 
@@ -113,7 +112,7 @@ def _pick_spintax(text: str) -> str:
 
 
 # W1.6: is.gd/tracked-link network call ab MODULE-IMPORT pe nahi (import slow/hang
-# side-effect hataya) - lazy + cached: first email-build pe compute, phir memoized.
+# side-effect hataya) — lazy + cached: first email-build pe compute, phir memoized.
 _AUDIT_TRACKED_CACHE: str | None = None
 _SITE_TRACKED_CACHE: str | None = None
 
@@ -133,7 +132,7 @@ def _site_url_tracked() -> str:
 
 
 def _flywheel_variants_on() -> bool:
-    """OUTREACH_CAMPAIGN_VARIANTS=1 -> use Kiran-approved champion/challenger copy."""
+    """OUTREACH_CAMPAIGN_VARIANTS=1 → use Kiran-approved champion/challenger copy."""
     try:
         import os as _os
 
@@ -196,13 +195,13 @@ def _from_name() -> str:
     try:
         from app.config import settings
 
-        return (getattr(settings, "outreach_from_name", "") or "Sumit - LeadGen AI").strip()
+        return (getattr(settings, "outreach_from_name", "") or "Sumit — LeadGen AI").strip()
     except Exception:
-        return "Sumit - LeadGen AI"
+        return "Sumit — LeadGen AI"
 
 
 def _audit_led_on() -> bool:
-    """OUTREACH_AUDIT_LED gate (default OFF). Env OR settings attr - truthy check.
+    """OUTREACH_AUDIT_LED gate (default OFF). Env OR settings attr — truthy check.
 
     Default-OFF => first-touch email unchanged (byte-for-byte). Read at call-time
     (not cached) so admin/env flips take effect without restart. NEVER raises.
@@ -241,7 +240,7 @@ def _audit_gap(prospect: dict[str, Any]) -> str:
         has_site_flag = p.get("has_website")
         website = str(p.get("website") or "").strip()
         if has_site_flag is False or (has_site_flag is None and not website):
-            return "website link missing - customers aapko online dhund nahi paa rahe"
+            return "website link missing — customers aapko online dhund nahi paa rahe"
 
         # 2) Low rating (present and < 4.0).
         try:
@@ -250,7 +249,7 @@ def _audit_gap(prospect: dict[str, Any]) -> str:
         except Exception:
             rating = None
         if rating is not None and 0 < rating < 4.0:
-            return f"rating {rating}★ hai - top competitors 4.5★+ pe hain"
+            return f"rating {rating}★ hai — top competitors 4.5★+ pe hain"
 
         # 3) Very low reviews (present and < 5).
         try:
@@ -259,7 +258,7 @@ def _audit_gap(prospect: dict[str, Any]) -> str:
         except Exception:
             reviews = None
         if reviews is not None and reviews < 5:
-            return "Google reviews bahut kam - naye customers trust nahi karte"
+            return "Google reviews bahut kam — naye customers trust nahi karte"
 
         # 4) Niche/category-flavored generic gap.
         niche = str(p.get("niche") or p.get("category") or "").strip()
@@ -273,12 +272,12 @@ def _audit_gap(prospect: dict[str, Any]) -> str:
 
 
 def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
-    """Personalized Hinglish+English cold email - (subject, text, html).
+    """Personalized Hinglish+English cold email — (subject, text, html).
 
     Real Google signal (rating/reviews) ho to acknowledge karta hai. FREE GBP
     audit + 3 sample posters + ₹2,999/mo marketing offer + audit link + WA.
     Polite unsubscribe + sender footer. Professional, spammy NAHI (no ALL-CAPS
-    shouting, minimal emoji). KABHI raise nahi karta - fields missing ho to bhi
+    shouting, minimal emoji). KABHI raise nahi karta — fields missing ho to bhi
     sane defaults.
     """
     try:
@@ -298,17 +297,17 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
         from_name = _from_name()
 
         # --- subject ---
-        subject = f"{name} - aapka Google profile (free audit)"
+        subject = f"{name} — aapka Google profile (free audit)"
 
         # --- opening line: real signal acknowledge karo (warm, not creepy) ---
         if reviews is not None and reviews > 0 and rating is not None and rating > 0:
             opener = (
-                f"Maine {name} ka Google profile dekha - {rating}⭐ rating "
+                f"Maine {name} ka Google profile dekha — {rating}⭐ rating "
                 f"aur {reviews} reviews. Achhi shuruat hai!"
             )
         elif reviews is not None and reviews > 0:
             opener = (
-                f"Maine {name} ka Google profile dekha - aapke {reviews} reviews "
+                f"Maine {name} ka Google profile dekha — aapke {reviews} reviews "
                 f"hain. Achhi baat hai!"
             )
         elif city:
@@ -325,25 +324,25 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             except Exception:
                 gap = ""
             if gap:
-                subject = f"{name} - {gap}"
-                opener = f"Maine {name} ka Google profile dekha - {gap}. " + opener
+                subject = f"{name} — {gap}"
+                opener = f"Maine {name} ka Google profile dekha — {gap}. " + opener
 
         hook = _niche_hook(prospect)
 
-        # --- plain text body (peer 3-line format - shorter = better deliverability) ---
+        # --- plain text body (peer 3-line format — shorter = better deliverability) ---
         text_lines = [
             "Namaste,",
             "",
-            f"{opener} Ek sawaal - {hook}?",
+            f"{opener} Ek sawaal — {hook}?",
             "",
-            f"Maine {city or 'aapke area'} ke businesses ke liye kuch ideas nikali hain - "
+            f"Maine {city or 'aapke area'} ke businesses ke liye kuch ideas nikali hain — "
             f"2 min me free audit: {_audit_url_tracked()}",
             "",
             f"Ya seedha WhatsApp karein: {_WA_LINK}",
             "",
             _UNSUB_LINE,
             "",
-            f"- {from_name}, LeadGen AI",
+            f"— {from_name}, LeadGen AI",
         ]
         text = "\n".join(text_lines)
 
@@ -353,49 +352,41 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             '<html><body style="font-family:Arial,Helvetica,sans-serif;'
             'font-size:15px;line-height:1.6;color:#222;max-width:560px;margin:0 auto;">'
             "<p>Namaste,</p>"
-            f"<p>{e(opener)} Ek sawaal - {e(hook)}?</p>"
-            f"<p>Maine {e(city or 'aapke area')} ke businesses ke liye kuch ideas nikali hain - "
-            f'<a href="{e(_audit_url_tracked())}" style="color:#4f46e5
-            font-weight:600
-            ">'
+            f"<p>{e(opener)} Ek sawaal — {e(hook)}?</p>"
+            f"<p>Maine {e(city or 'aapke area')} ke businesses ke liye kuch ideas nikali hain — "
+            f'<a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
             "2 min free audit yahan lo</a>.</p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-            f'<p style="color:#999
-            font-size:12px
-            margin-top:24px
-            ">{e(_UNSUB_LINE)}</p>'
-            f'<p style="color:#555
-            font-size:13px
-            ">- {e(from_name)}, '
-            f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5
-            ">LeadGen AI</a></p>'
+            f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
+            f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
+            f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
-    except Exception as e:  # absolute guard - never raise
+    except Exception as e:  # absolute guard — never raise
         logger.debug(f"[auto_outreach] subject/body build failed: {e}")
         fb_name = str((prospect or {}).get("business_name") or "aapke business")
         from_name = _from_name()
-        subject = f"{fb_name} - free Google profile audit"
+        subject = f"{fb_name} — free Google profile audit"
         text = (
             "Namaste,\n\n"
             f"Main {from_name} se hoon. Hum chhote businesses ka online marketing "
             "sambhalte hain. Free Google profile audit + 3 sample posters bhej "
             f"sakta hoon. Yahan le lijiye: {_audit_url_tracked()}\n\n"
-            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI - {_site_url_tracked()}"
+            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI — {_site_url_tracked()}"
         )
         return _pick_spintax(subject), text, text
 
 
 def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, str, str]:
-    """Multi-touch follow-up email - (subject, text, html). step 1 ya 2.
+    """Multi-touch follow-up email — (subject, text, html). step 1 ya 2.
 
-    Cold-email me ek touch kaafi nahi - log busy hote hain. Yeh DIFFERENT (chhota,
+    Cold-email me ek touch kaafi nahi — log busy hote hain. Yeh DIFFERENT (chhota,
     polite) reminder bhejta hai jo pehle wale `_email_subject_body` se alag dikhe:
       step 1 (~3 din baad): "pichla email dekha? FREE audit ka offer abhi bhi khula"
       step 2 (~7 din baad): "last reminder" + ek concrete sample-poster idea
     Step 2 ke baad aur follow-up nahi (run_email_followups cap karta hai).
-    KABHI raise nahi karta - fields missing ho to sane defaults.
+    KABHI raise nahi karta — fields missing ho to sane defaults.
     """
     try:
         name = str((prospect or {}).get("business_name") or "").strip() or "aapke business"
@@ -405,66 +396,51 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
         niche_hook = _niche_hook(prospect)
         if int(step) <= 1:
             # ---- Follow-up #1: short Re: nudge + social proof ---- #
-            subject = f"Re: {name} - free audit"
+            subject = f"Re: {name} — free audit"
             sp_line = (
-                "Is mahine humne isi area ke 3 businesses ka profile optimize kiya - "
+                "Is mahine humne isi area ke 3 businesses ka profile optimize kiya — "
                 "unme se ek ko 40% zyada Google clicks mile pehle 2 hafte me."
             )
             text_lines = [
                 "Namaste,",
                 "",
-                f"Pichle email ka follow-up - {name} ke liye {niche_hook}?",
+                f"Pichle email ka follow-up — {name} ke liye {niche_hook}?",
                 "",
                 sp_line,
                 "",
                 f"2 min audit: {_audit_url_tracked()}  ·  WhatsApp: {_WA_LINK}",
                 "",
                 _UNSUB_LINE,
-                f"- {from_name}, LeadGen AI",
+                f"— {from_name}, LeadGen AI",
             ]
             text = "\n".join(text_lines)
             html_body = (
                 '<html><body style="font-family:Arial,Helvetica,sans-serif;'
                 'font-size:15px;line-height:1.6;color:#222;max-width:560px;margin:0 auto;">'
                 "<p>Namaste,</p>"
-                f"<p>Pichle email ka follow-up - {e(name)} ke liye {e(niche_hook)}?</p>"
-                f'<p style="background:#f0f4ff
-                border-left:3px solid #4f46e5
-                padding:12px 16px
-                '
-                f'border-radius:0 6px 6px 0
-                ">{e(sp_line)}</p>'
-                f'<p><a href="{e(_audit_url_tracked())}" style="color:#4f46e5
-                font-weight:600
-                ">'
-                f"2 min audit yahan lo</a> &nbsp
-                ·&nbsp
-                "
-                f'<a href="{e(_WA_LINK)}" style="color:#4f46e5
-                ">WhatsApp</a></p>'
-                f'<p style="color:#999
-                font-size:12px
-                margin-top:24px
-                ">{e(_UNSUB_LINE)}</p>'
-                f'<p style="color:#555
-                font-size:13px
-                ">- {e(from_name)}, '
-                f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5
-                ">LeadGen AI</a></p>'
+                f"<p>Pichle email ka follow-up — {e(name)} ke liye {e(niche_hook)}?</p>"
+                f'<p style="background:#f0f4ff;border-left:3px solid #4f46e5;padding:12px 16px;'
+                f'border-radius:0 6px 6px 0;">{e(sp_line)}</p>'
+                f'<p><a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
+                f"2 min audit yahan lo</a> &nbsp;·&nbsp; "
+                f'<a href="{e(_WA_LINK)}" style="color:#4f46e5;">WhatsApp</a></p>'
+                f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
+                f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
+                f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
                 "</body></html>"
             )
             return _pick_spintax(subject), text, html_body
 
         # ---- Follow-up #2: last reminder + concrete sample idea ---- #
-        subject = f"{name} ji - aakhri reminder + ek poster idea"
+        subject = f"{name} ji — aakhri reminder + ek poster idea"
         idea = (
-            f'"{name} - aaj ka special!" wala ek festive poster, aapke naam aur '
-            "phone ke saath - exactly aisa hum har hafte bana ke de sakte hain."
+            f'"{name} — aaj ka special!" wala ek festive poster, aapke naam aur '
+            "phone ke saath — exactly aisa hum har hafte bana ke de sakte hain."
         )
         text_lines = [
             "Namaste,",
             "",
-            f"{name} ji, yeh mera aakhri reminder hai - uske baad aapko pareshan nahi karunga.",
+            f"{name} ji, yeh mera aakhri reminder hai — uske baad aapko pareshan nahi karunga.",
             "",
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
@@ -477,46 +453,40 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "",
             "Shukriya,",
             from_name,
-            "LeadGen AI - " + _site_url_tracked(),
+            "LeadGen AI — " + _site_url_tracked(),
         ]
         text = "\n".join(text_lines)
         html_body = (
             '<html><body style="font-family:Arial,Helvetica,sans-serif;'
             'font-size:15px;line-height:1.5;color:#222;max-width:600px;margin:0 auto;">'
             "<p>Namaste,</p>"
-            f"<p>{e(name)} ji, yeh mera <b>aakhri reminder</b> hai - uske baad "
+            f"<p>{e(name)} ji, yeh mera <b>aakhri reminder</b> hai — uske baad "
             "aapko pareshan nahi karunga.</p>"
             "<p>Ek chhota idea jo aapke kaam aa sakta hai:</p>"
-            f'<p style="background:#f4f4ff
-            border-left:3px solid #4f46e5
-            '
-            f'padding:10px 14px
-            border-radius:4px
-            ">{e(idea)}</p>'
+            f'<p style="background:#f4f4ff;border-left:3px solid #4f46e5;'
+            f'padding:10px 14px;border-radius:4px;">{e(idea)}</p>'
             f'<p><a href="{e(_audit_url_tracked())}" '
             'style="background:#4f46e5;color:#fff;padding:10px 18px;'
             'border-radius:6px;text-decoration:none;display:inline-block;">'
             "Free sample + audit dekhein</a></p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-            f'<p style="color:#888
-            font-size:12px
-            ">{e(_UNSUB_LINE)}</p>'
+            f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
             f"<p>Shukriya,<br>{e(from_name)}<br>"
-            f'LeadGen AI - <a href="{e(_site_url_tracked())}">{e(_site_url_tracked())}</a></p>'
+            f'LeadGen AI — <a href="{e(_site_url_tracked())}">{e(_site_url_tracked())}</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
-    except Exception as ex:  # absolute guard - never raise
+    except Exception as ex:  # absolute guard — never raise
         logger.debug(f"[auto_outreach] followup subject/body build failed: {ex}")
         fb_name = str((prospect or {}).get("business_name") or "aapke business")
         from_name = _from_name()
-        subject = f"{fb_name} ji - free Google audit (reminder)"
+        subject = f"{fb_name} ji — free Google audit (reminder)"
         text = (
             "Namaste,\n\n"
-            f"{fb_name} ji, pichle email ka reminder - free Google profile audit "
+            f"{fb_name} ji, pichle email ka reminder — free Google profile audit "
             f"+ 3 sample posters ka offer abhi bhi khula hai. Yahan le lijiye: "
             f"{_audit_url_tracked()}\n\n{_UNSUB_LINE}\n\nShukriya,\n{from_name}\n"
-            f"LeadGen AI - {_site_url_tracked()}"
+            f"LeadGen AI — {_site_url_tracked()}"
         )
         return _pick_spintax(subject), text, text
 
@@ -532,10 +502,10 @@ def _valid_email(addr: str, check_mx: bool = True) -> bool:
             return False
     except Exception:
         pass
-    # Deliverability gate (syntax + MX) - keeps bounce rate <2% so Gmail/Outlook don't
+    # Deliverability gate (syntax + MX) — keeps bounce rate <2% so Gmail/Outlook don't
     # reject our bulk mail and the sending domain stays clean. Defensive: if
     # email-validator isn't installed, the basic check above is enough.
-    # check_mx=False (dashboard/stats callers) skips the real DNS MX lookup - a
+    # check_mx=False (dashboard/stats callers) skips the real DNS MX lookup — a
     # per-prospect network round-trip that made outreach_stats() take 151s across
     # ~2k prospects (admin_dashboard 0-clients incident, 2026-07-04: this call runs
     # on EVERY dashboard load, not just at send-time). Send-decision call sites keep
@@ -626,7 +596,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         if not bool(getattr(settings, "auto_email_outreach", False)):
             return {"skipped": "AUTO_EMAIL_OUTREACH off"}
 
-        # API key (Resend/Brevo) ya SMTP - koi bhi ek configured ho to chalega.
+        # API key (Resend/Brevo) ya SMTP — koi bhi ek configured ho to chalega.
         _api = False
         try:
             from app.integrations.email_api import api_available
@@ -635,16 +605,16 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             _api = False
         if not _api and not (getattr(settings, "smtp_user", "") or "").strip():
-            logger.warning("[auto_outreach] na API key na SMTP - outreach skipped")
+            logger.warning("[auto_outreach] na API key na SMTP — outreach skipped")
             return {"skipped": "email_unconfigured"}
 
         from app.platform import prospector
 
         # Pick: status ready + not already emailed (emailable hone ka baad `_valid_email`
         # gate karta hai, jo `skipped_no_email` counter ko MEANINGFUL banata hai).
-        # `_read_all()` direct use - `list_prospects` 500-newest hard-cap reachable
+        # `_read_all()` direct use — `list_prospects` 500-newest hard-cap reachable
         # backlog ko chhupa deta tha (470 reachable prospects kabhi email nahi hote the).
-        # pending_for_outreach() ka email-filter YAHAAN deliberately nahi lagate - wo
+        # pending_for_outreach() ka email-filter YAHAAN deliberately nahi lagate — wo
         # sirf caller-side "jo candidates mere paas aaye" semantics ke liye filter karta;
         # yahan hum chahte hain ki NO-EMAIL ready prospects skip count me bhi aayein
         # (product metric: "kitne ready leads ko email nahi mil saka?").
@@ -653,9 +623,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             _ready_pool = list(prospector._read_all())
         except Exception:
             _ready_pool = []
-        # Oldest first (FIFO backlog drain - purana pehle email jaye).
+        # Oldest first (FIFO backlog drain — purana pehle email jaye).
         _ready_pool.sort(key=lambda r: str(r.get("found_at") or ""))
-        # Selection me MX lookup SKIP (default ON) - pehle har candidate (up to 500)
+        # Selection me MX lookup SKIP (default ON) — pehle har candidate (up to 500)
         # pe blocking DNS MX round-trip hota tha (~151s across ~2k prospects, code me
         # already documented) = email_outreach TimeLimitExceeded(600). Asli MX verify
         # ab sirf final chhote batch (<=cap<=25) pe hota hai (send loop me). Flag off
@@ -678,7 +648,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 result["skipped_quality"] = result.get("skipped_quality", 0) + 1
                 continue
             if p.get("emailed_at"):
-                continue  # already emailed - never re-send (defensive)
+                continue  # already emailed — never re-send (defensive)
             email = str(p.get("email") or "").strip()
             if not _valid_email(email, check_mx=not _skip_sel_mx):
                 result["skipped_no_email"] += 1
@@ -705,7 +675,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             _seen_recipients.add(recipient)
             candidates.append(p)
             if len(candidates) >= 500:
-                break  # safety cap - pending_for_outreach jaisa behavior
+                break  # safety cap — pending_for_outreach jaisa behavior
 
         if _selection_invalid_marks:
             try:
@@ -719,8 +689,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
-        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP
-        OFF = base cap unchanged)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
             from app.platform import email_warmup
 
             daily_cap = email_warmup.effective_cap(daily_cap)
@@ -740,8 +709,8 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         sender = EmailSender()
 
         # Bulk-mark (default ON): emailed_at markers jama karke har 10 pe + end me
-        # ek saath likho - pehle har send poora prospects file rewrite karta tha
-        # (O(N²) -> OOM/SIGKILL). Flag off (OUTREACH_BULK_MARK=0) = purana per-send.
+        # ek saath likho — pehle har send poora prospects file rewrite karta tha
+        # (O(N²) → OOM/SIGKILL). Flag off (OUTREACH_BULK_MARK=0) = purana per-send.
         import os as _os_mark
 
         _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {
@@ -768,9 +737,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 _unsub_hdrs = _eu.headers_for(to_addr)
             except Exception:
                 pass
-            # Selection me MX skip hua tha (perf) - ab is chhote batch pe asli MX
+            # Selection me MX skip hua tha (perf) — ab is chhote batch pe asli MX
             # verify karo (bounded: <=cap<=25 DNS calls) taaki dead-domain pe send
-            # na ho. Flag off tha to selection me hi MX ho chuka - yahan double na karo.
+            # na ho. Flag off tha to selection me hi MX ho chuka — yahan double na karo.
             if _skip_sel_mx and to_addr and not _valid_email(to_addr):
                 result["skipped_no_email"] += 1
                 if pid:
@@ -798,8 +767,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                             variant_id = str(picked.get("id") or "")
                 except Exception:
                     pass
-                try:  # A/B spintax subject (GATED OUTREACH_AB=1
-                OFF = zero change)
+                try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
                     import os as _os
 
                     if (_os.getenv("OUTREACH_AB") or "").strip().lower() in {
@@ -813,8 +781,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         subject, text, html_body = apply_ab(p, subject, text, html_body)
                 except Exception:
                     pass
-                try:  # email open/click tracking (GATED EMAIL_TRACKING=1
-                OFF = zero change)
+                try:  # email open/click tracking (GATED EMAIL_TRACKING=1; OFF = zero change)
                     from app.marketing import email_tracking
 
                     if email_tracking.enabled():
@@ -823,8 +790,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         )
                 except Exception:
                     pass
-                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON
-                absent = no-op)
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
                     from app.marketing.outreach_variants import rotate_sender
 
                     rotate_sender(sender)
@@ -843,7 +809,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     ok = False
                     if "554" in _es or "Disabled by user" in _es:
                         result["error"] = "smtp_account_disabled"
-                        break  # account blocked - stop the loop
+                        break  # account blocked — stop the loop
 
                 if ok:
                     # Mark so it's never re-emailed (keep status "ready" so the
@@ -911,7 +877,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 pass
             _pending_marks = {}
 
-        try:  # warmup stats (flag-independent - bounce-rate denominator)
+        try:  # warmup stats (flag-independent — bounce-rate denominator)
             from app.platform import email_warmup
 
             email_warmup.record_sent(int(result.get("sent") or 0))
@@ -974,7 +940,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             _api = False
         if not _api and not (getattr(settings, "smtp_user", "") or "").strip():
-            logger.warning("[auto_outreach] na API key na SMTP - followups skipped")
+            logger.warning("[auto_outreach] na API key na SMTP — followups skipped")
             return {"skipped": "email_unconfigured"}
 
         from app.platform import prospector
@@ -1026,8 +992,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
-        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP
-        OFF = base cap unchanged)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
             from app.platform import email_warmup
 
             daily_cap = email_warmup.effective_cap(daily_cap)
@@ -1045,9 +1010,9 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
 
         sender = EmailSender()
 
-        # W1.4: bulk-mark (default ON) - followup markers jama karke har 10 pe + end me
+        # W1.4: bulk-mark (default ON) — followup markers jama karke har 10 pe + end me
         # ek saath likho; pehle har followup send poora prospects file rewrite karta tha
-        # (O(N²) -> OOM). Same pattern jaisa run_email_outreach. Flag OUTREACH_BULK_MARK=0 = per-send.
+        # (O(N²) → OOM). Same pattern jaisa run_email_outreach. Flag OUTREACH_BULK_MARK=0 = per-send.
         import os as _os_mark
 
         _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {
@@ -1075,8 +1040,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                 pass
             try:
                 subject, text, html_body = _followup_subject_body(p, step)
-                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON
-                absent = no-op)
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
                     from app.marketing.outreach_variants import rotate_sender
 
                     rotate_sender(sender)
@@ -1095,7 +1059,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     ok = False
                     if "554" in _es or "Disabled by user" in _es:
                         result["error"] = "smtp_account_disabled"
-                        break  # stop retrying all leads - account is blocked
+                        break  # stop retrying all leads — account is blocked
 
                 if ok:
                     try:
@@ -1175,7 +1139,7 @@ def outreach_stats() -> dict[str, Any]:
     try:
         from app.platform import prospector
 
-        # ALL prospects (not list_prospects' 500-newest cap) - warna pending/total galat
+        # ALL prospects (not list_prospects' 500-newest cap) — warna pending/total galat
         # dikhte (470 reachable backlog "0 pending" lagta tha).
         try:
             rows = prospector._read_all()
@@ -1185,7 +1149,7 @@ def outreach_stats() -> dict[str, Any]:
         suppressed = _suppressed_email_set()
         seen_pending: set[str] = set()
         for r in rows:
-            # check_mx=False - this is a dashboard COUNT, not a send decision; the
+            # check_mx=False — this is a dashboard COUNT, not a send decision; the
             # real MX gate still runs at actual send-time (line ~568 above).
             email = str(r.get("email") or "")
             has_email = _valid_email(email, check_mx=False)
@@ -1212,18 +1176,18 @@ def outreach_stats() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# MULTI-CHANNEL ORCHESTRATION - email -> WhatsApp -> calling pipeline
+# MULTI-CHANNEL ORCHESTRATION — email → WhatsApp → calling pipeline
 # ---------------------------------------------------------------------------
 # Enterprise-grade: email-openers ko WhatsApp follow-up link bhejta hai,
 # high-intent prospects ko calling queue me flag karta hai.
-# NEVER raises - har step ka apna try/except.
+# NEVER raises — har step ka apna try/except.
 # ---------------------------------------------------------------------------
 
 import urllib.parse as _urlparse
 
 
 def _wa_followup_link(phone10: str, biz_name: str, msg: str) -> str:
-    """1-click WhatsApp follow-up link (NOT auto-send - ban-safe)."""
+    """1-click WhatsApp follow-up link (NOT auto-send — ban-safe)."""
     return f"https://wa.me/91{phone10}?text={_urlparse.quote(msg)}"
 
 
@@ -1245,7 +1209,7 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
         from app.platform import prospector
 
         rows = prospector._read_all()
-        # Emailed prospects jinke paas phone hai - WhatsApp eligible
+        # Emailed prospects jinke paas phone hai — WhatsApp eligible
         emailed_with_phone = [
             r
             for r in rows
@@ -1268,11 +1232,11 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
                 biz = str(p.get("business_name") or "Business").strip()
                 niche = str(p.get("niche") or "business").replace("_", " ")
 
-                # WhatsApp follow-up message - polite, value-forward
+                # WhatsApp follow-up message — polite, value-forward
                 wa_msg = (
                     f"Namaste {biz} ji 🙏 Maine aapko email kiya tha {niche} ke liye "
                     f"free Google audit ke baare me. Agar dekhna ho to 2 min lagenge: "
-                    f"leadsgenai.in/audit - ya yahan baat karte hain!"
+                    f"leadsgenai.in/audit — ya yahan baat karte hain!"
                 )
                 wa_link = _wa_followup_link(phone10, biz, wa_msg)
 
@@ -1287,7 +1251,7 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
                 )
                 result["wa_links_generated"] += 1
 
-                # High-intent signal: niche is local SMB + has phone -> calling candidate
+                # High-intent signal: niche is local SMB + has phone → calling candidate
                 if str(p.get("niche") or "") in {
                     "solar_residential",
                     "real_estate",
@@ -1336,7 +1300,7 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
 
 
 def hot_queue_candidates(limit: int = 20) -> list[dict[str, Any]]:
-    """Prospects jo Hot Queue ke liye ready hain - replied ya high-intent.
+    """Prospects jo Hot Queue ke liye ready hain — replied ya high-intent.
 
     Hot Queue `/app/inbox` ke liye data source. KABHI raise nahi karta.
     """
@@ -1730,7 +1694,7 @@ def review_decision_counts() -> dict[str, int]:
 
 
 def outreach_activity(limit: int = 20) -> dict[str, Any]:
-    """Admin-friendly outreach activity - kisko bheja, kitne, kya reply aaya.
+    """Admin-friendly outreach activity — kisko bheja, kitne, kya reply aaya.
     Plain-Hinglish counts + recent sent recipients + recent replies. KABHI raise nahi
     (failure pe safe-empty)."""
     from datetime import date
@@ -1783,7 +1747,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         pending_bucket_meta: dict[str, dict[str, str]] = {}
         pending_samples: list[dict[str, str]] = []
         for r in rows:
-            # check_mx=False - dashboard COUNT, not a send decision (see outreach_stats).
+            # check_mx=False — dashboard COUNT, not a send decision (see outreach_stats).
             email = str(r.get("email") or "")
             has_email = _valid_email(email, check_mx=False)
             is_suppressed = has_email and _is_suppressed_email(email, suppressed)
@@ -1813,7 +1777,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
                         if len(pending_samples) < max(5, min(limit, 20)):
                             pending_samples.append(
                                 {
-                                    "business": str(r.get("business_name") or r.get("name") or "-")[
+                                    "business": str(r.get("business_name") or r.get("name") or "—")[
                                         :80
                                     ],
                                     "email": recipient[:90],
@@ -1843,7 +1807,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         for r in emailed_rows[:limit]:
             out["recent_sent"].append(
                 {
-                    "business": str(r.get("business_name") or r.get("name") or "-")[:60],
+                    "business": str(r.get("business_name") or r.get("name") or "—")[:60],
                     "email": str(r.get("email") or "")[:80],
                     "city": str(r.get("city") or "")[:40],
                     "when": _rel_time(str(r.get("emailed_at") or "")),
@@ -1862,7 +1826,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             txt = str(d.get("text") or d.get("body_snippet") or d.get("subject") or "")
             out["recent_replies"].append(
                 {
-                    "from": str(d.get("from") or "-")[:80],
+                    "from": str(d.get("from") or "—")[:80],
                     "channel": str(d.get("channel") or "email"),
                     "intent": str(d.get("intent") or "reply"),
                     "snippet": txt[:140],
@@ -1882,9 +1846,9 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
     except Exception:
         pass
     # 3b) Bounce-rate visibility (2026-07-04: reply_agent ab bounce/NDR mail auto
-    # detect + record_bounce() karta hai - is se pehle yeh counter hamesha ~0 read
+    # detect + record_bounce() karta hai — is se pehle yeh counter hamesha ~0 read
     # hota tha kyunki koi automatic feed nahi tha). Deliverability ka REAL signal
-    # yahan dikhta hai - 0-reply funnel diagnose karne ke liye zaroori.
+    # yahan dikhta hai — 0-reply funnel diagnose karne ke liye zaroori.
     try:
         from app.platform import email_warmup
 
@@ -1913,8 +1877,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
     if s.get("warmup_attention"):
         state = "PAUSED" if s.get("warmup_paused") else "ATTENTION"
         out["headline"] = (
-            f"Email warmup {state}: {s.get('paused_reason') or 'deliverability gate red'}
-            "
+            f"Email warmup {state}: {s.get('paused_reason') or 'deliverability gate red'}; "
             f"complaint rate (7d) {s.get('complaint_rate_7d_pct', 0.0)}% "
             f"({s.get('complaints_7d', 0)} complaints), "
             f"{s.get('pending', 0)} sendable pending, {s.get('suppressed', 0)} suppressed"
@@ -1934,7 +1897,7 @@ def last_run_summaries(limit: int = 5) -> list[dict[str, Any]]:
 
     run_email_outreach/run_email_followups already record har run ka result
     (sent/failed/cap/... meta) via _log_event -> team.log_event (AgentEvent).
-    Isse bas newest-first filter karke return karo - koi naya persistence nahi.
+    Isse bas newest-first filter karke return karo — koi naya persistence nahi.
     Never raises (failure pe safe-empty)."""
     out: list[dict[str, Any]] = []
     try:

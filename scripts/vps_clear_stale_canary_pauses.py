@@ -61,7 +61,7 @@ def main() -> int:
     targets = [r for r in rows if _is_stale_canary(r)]
     print(f"scheduled_pause rows={len(rows)} stale_canary={len(targets)}")
     if not targets:
-        print("OK - nothing to clear")
+        print("OK — nothing to clear")
         return 0
 
     for r in targets:
@@ -81,7 +81,7 @@ def main() -> int:
             print(f"  dispatch {job} allowed={allowed} reason={reason or '-'}")
 
     if args.dry_run:
-        print("DRY-RUN - no writes")
+        print("DRY-RUN — no writes")
     return 0
 
 

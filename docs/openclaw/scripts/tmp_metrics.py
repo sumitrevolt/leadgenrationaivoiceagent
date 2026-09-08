@@ -35,7 +35,7 @@ try:
     pkgs = get_public_packages()
     print("\n=== PUBLIC PACKAGES ===")
     for p in pkgs:
-        print(f"  {p.get('id')}: ₹{p.get('price')}/mo - {p.get('name')}")
+        print(f"  {p.get('id')}: ₹{p.get('price')}/mo — {p.get('name')}")
 except Exception as e:
     print(f"Packages error: {e}")
 

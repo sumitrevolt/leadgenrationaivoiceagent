@@ -1,6 +1,6 @@
-"""Customer Delivery Assurance - read-only missed-deliverable detection (GREEN lane).
+"""Customer Delivery Assurance — read-only missed-deliverable detection (GREEN lane).
 
-WHY (2026-07-19, Agent-OS upgrade slice 1 - priority: customer delivery): the
+WHY (2026-07-19, Agent-OS upgrade slice 1 — priority: customer delivery): the
 delivery-assurance building blocks all existed but were never composed. Detection
 was scattered and none of it returned an admin-readable, evidence-backed answer to
 the one question that matters for a paying customer: *"which paid customers are NOT
@@ -22,14 +22,12 @@ SAFETY CONTRACT (enforced by tests):
   - TENANT-SAFE. Every id is normalised through ``clients_store.canonical_client_id``
     (resolves the billing/login alias -> marketing id, e.g. d79d690f61b3 -> jiya-makeover)
     so a customer is never double-counted or mis-attributed.
-  - NEVER RAISES. Every client is best-effort
-  one bad record cannot sink the scan.
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
-  strictly
+  - NEVER RAISES. Every client is best-effort; one bad record cannot sink the scan.
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
     marketing-domain (out of scope: the voice calling stack).
 
-OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``nikhil`` (Revenue Ops) -
-an undelivered paid customer is revenue-leak / churn-risk, which is nikhil's lane -
+OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``nikhil`` (Revenue Ops) —
+an undelivered paid customer is revenue-leak / churn-risk, which is nikhil's lane —
 so the run is visible on the existing team activity feed with a real owner (no new
 persona invented). Escalation target for a missed item is the owner (human).
 
@@ -48,7 +46,7 @@ logger = setup_logger(__name__)
 
 # Observability owner for delivery-assurance runs. Revenue Ops owns "paid customer
 # not getting value = revenue leak / churn risk". Kept as a module constant so the
-# attribution is explicit and testable (NOT a new persona - one of the 31).
+# attribution is explicit and testable (NOT a new persona — one of the 31).
 _OWNER_MEMBER = "nikhil"
 
 # health_status values from customer_delivery_status that mean trouble.
@@ -129,7 +127,7 @@ def _evidence(cid: str) -> dict[str, Any]:
 
 def assess_client_delivery(client: dict[str, Any]) -> dict[str, Any]:
     """Structured, tenant-safe, evidence-backed delivery assessment for ONE paid
-    client. Pure READ. Never raises - returns a shaped record even on partial
+    client. Pure READ. Never raises — returns a shaped record even on partial
     failure (so one bad customer can't break the aggregate scan)."""
     raw_id = str((client or {}).get("id") or "").strip()
     cid = _canonical_id(raw_id) or raw_id
@@ -163,7 +161,7 @@ def assess_client_delivery(client: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         pass
 
-    # rich per-customer status (canonicalises id internally too) - read-only
+    # rich per-customer status (canonicalises id internally too) — read-only
     try:
         from app.marketing import product_one_delivery
 
@@ -214,7 +212,7 @@ def scan_missed_deliverables(limit: int = 100, include_healthy: bool = False) ->
     paid customers whose delivery is missed / at-risk. AgentRunResult-shaped.
 
     No sends, no state mutation. Emits one observability event (nikhil). Never
-    raises - returns a shaped record with status='error' + error string on failure.
+    raises — returns a shaped record with status='error' + error string on failure.
     """
     run_id = str(uuid.uuid4())
     started = _now()
@@ -265,7 +263,7 @@ def scan_missed_deliverables(limit: int = 100, include_healthy: bool = False) ->
     result["completed_at"] = _iso(completed)
     result["latency_ms"] = int((completed - started).total_seconds() * 1000)
 
-    # observability - one team event under the revenue-ops owner (no new persona)
+    # observability — one team event under the revenue-ops owner (no new persona)
     try:
         from app.platform import team
 

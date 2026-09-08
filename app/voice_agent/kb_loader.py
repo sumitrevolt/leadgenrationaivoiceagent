@@ -33,21 +33,21 @@ from collections.abc import Iterable
 from app.voice_agent.knowledge_base import KnowledgeBase, chunk_text, get_knowledge_base
 
 # --------------------------------------------------------------------------- #
-# Common business FAQs - har niche ke liye relevant (LeadGen AI ka apna pitch).
+# Common business FAQs — har niche ke liye relevant (LeadGen AI ka apna pitch).
 # Yeh natural_dialog.DEFAULT_KNOWLEDGE["_global"] ke saath consistent hai.
 # --------------------------------------------------------------------------- #
 COMMON_BUSINESS_FAQS: list[str] = [
-    "LeadGen AI ka main product AI Automated Marketing hai - Instagram, Facebook "
+    "LeadGen AI ka main product AI Automated Marketing hai — Instagram, Facebook "
     "aur Google pe posts, ads aur profile boost AI se automatic hota hai.",
     "Pricing: Main plan ₹1,999/mahina, Advanced/Combo ₹5,999/mahina. Growth ₹2,999 "
-    "legacy hidden hai. Per-lead paisa nahi - flat monthly SaaS.",
-    "7 din FREE trial bina card. Aapko khud posts nahi banani - AI banata hai, "
+    "legacy hidden hai. Per-lead paisa nahi — flat monthly SaaS.",
+    "7 din FREE trial bina card. Aapko khud posts nahi banani — AI banata hai, "
     "aap approve ya publish karte ho.",
     "Advanced plan me inquiry pe AI voice callback bhi milta hai (feature), "
-    "lekin main product marketing automation hai - marketing+voice bundle framing mat use karo.",
+    "lekin main product marketing automation hai — marketing+voice bundle framing mat use karo.",
     "Demo bilkul free hai. 15 minute me dikha dete hain ki system aapke business "
     "ke liye kaise content aur leads laata hai.",
-    "Aap kisi bhi waqt start ya pause kar sakte ho - koi lambe contract ki majboori nahi.",
+    "Aap kisi bhi waqt start ya pause kar sakte ho — koi lambe contract ki majboori nahi.",
 ]
 
 
@@ -92,9 +92,9 @@ def load_niche_faqs(
     Args:
         kb: KnowledgeBase instance.
         namespace: jahan common business FAQs jaayein (default "_global").
-        only: ADR-104 - niche scoping. `None` (default) = LEGACY behaviour, saare
+        only: ADR-104 — niche scoping. `None` (default) = LEGACY behaviour, saare
             NICHES + common FAQs seed hote hain (bootstrap_default_kb ke 4 global
-            callers isi pe depend karte hain - behaviour byte-for-byte same).
+            callers isi pe depend karte hain — behaviour byte-for-byte same).
             str ya iterable dene par SIRF wahi niche(s) seed hote hain aur common
             business FAQs SKIP hote hain (wo niche-data nahi hai). Filtering
             expensive doc-generation/embed/upsert se PEHLE hoti hai, isliye ek
@@ -121,7 +121,7 @@ def load_niche_faqs(
             )
         return 0
 
-    # ADR-104: `only` ko normalize + validate karo - expensive kaam se PEHLE.
+    # ADR-104: `only` ko normalize + validate karo — expensive kaam se PEHLE.
     wanted: set[str] | None = None
     if only is not None:
         raw = [only] if isinstance(only, str) else list(only)
@@ -134,9 +134,9 @@ def load_niche_faqs(
     #    scoped seed sirf maanga hua niche chhuta hai).
     # replace_source=True (ADR-104 A4.6): existing delete-before-reseed
     # mechanism (see load_from_website + tests/test_kb_delete_before_reseed.py)
-    # - bina iske, dobara-bootstrap old text ko orphan chhod deta hai (naya
+    # — bina iske, dobara-bootstrap old text ko orphan chhod deta hai (naya
     # deterministic id != purana), sirf APPEND, kabhi OVERWRITE nahi. Scope
-    # (namespace, source) tak seemित - koi doosra source/namespace touch nahi hota.
+    # (namespace, source) tak seemित — koi doosra source/namespace touch nahi hota.
     if wanted is None:
         total += kb.add_documents(
             COMMON_BUSINESS_FAQS,
@@ -145,7 +145,7 @@ def load_niche_faqs(
             replace_source=True,
         )
 
-    # Professional telecaller script dataset (pure-data, import-safe) - har niche
+    # Professional telecaller script dataset (pure-data, import-safe) — har niche
     # ke researched opening / discovery / objection-rebuttals / value-lines /
     # closing ko KB me seed karte hain taaki retrieval pe salesperson-grade
     # language surface ho (TelecallerBrain._kb_facts inhe pick karta hai).
@@ -156,8 +156,8 @@ def load_niche_faqs(
         _script_docs = None
 
     for niche_key, cfg in (NICHES or {}).items():
-        # ADR-104: scoped seed - unrelated niche ka koi doc-generation/embed/upsert
-        # nahi. Ye check LOOP ke sabse upar hai (expensive kaam se pehle) - yehi wo
+        # ADR-104: scoped seed — unrelated niche ka koi doc-generation/embed/upsert
+        # nahi. Ye check LOOP ke sabse upar hai (expensive kaam se pehle) — yehi wo
         # jagah hai jiski kami se 4-niche QA run 39 niches seed kar deta tha.
         if wanted is not None and niche_key not in wanted:
             continue
@@ -167,7 +167,7 @@ def load_niche_faqs(
         deal = cfg.get("avg_deal_value")
 
         facts.append(
-            f"{name} ke liye hum specially leads laate hain - "
+            f"{name} ke liye hum specially leads laate hain — "
             f"aapke type ke business ke potential customers ko call karke qualify karte hain."
         )
         if hook:
@@ -182,12 +182,11 @@ def load_niche_faqs(
         if qs:
             facts.append(
                 f"{name} leads qualify karte waqt hum aise sawaal poochhte hain: "
-                + "
-                ".join(q.strip() for q in qs if q and q.strip())
+                + "; ".join(q.strip() for q in qs if q and q.strip())
                 + "."
             )
 
-        # Rich end-customer domain facts (niche_knowledge pack) - yahi se agent
+        # Rich end-customer domain facts (niche_knowledge pack) — yahi se agent
         # client ke offering ka grounded jawab deta hai (subsidy, EMI, process,
         # warranty...). Sirf builtin niches ke paas pack hota hai; custom niches
         # apne thin SAAS facts ke saath rehte hain.
@@ -201,15 +200,15 @@ def load_niche_faqs(
 
         # niche-specific facts apne namespace me + global me bhi (taaki default
         # KB me sab niches ki value-prop available rahe).
-        # replace_source=True (ADR-104 A4.6 - the duplicate-vector-write fix):
+        # replace_source=True (ADR-104 A4.6 — the duplicate-vector-write fix):
         # NICHES/niche_knowledge text kabhi-kabhi edit hoti hai (pitch_hook
-        # wording, naye facts) - bina replace_source ke purana-text ka point
+        # wording, naye facts) — bina replace_source ke purana-text ka point
         # `_kb_point_id`(namespace, text) se DIFFERENT id banata (naya
         # deterministic id != purana), to reseed sirf APPEND karta, kabhi
         # OVERWRITE/clean nahi. Yehi ~185x kb_main duplication ka root cause
-        # tha (ADR-104 addendum #7 - measured, not assumed). Scope EXACTLY
+        # tha (ADR-104 addendum #7 — measured, not assumed). Scope EXACTLY
         # (namespace, source) tak seemित hai (delete_source implementation:
-        # knowledge_base.py _QdrantIndex.delete_source) - koi doosra niche,
+        # knowledge_base.py _QdrantIndex.delete_source) — koi doosra niche,
         # koi doosra source (website:, kb_interview, ...) touch nahi hota.
         n1 = kb.add_documents(
             facts, source=f"niche:{niche_key}", namespace=niche_key, replace_source=True
@@ -222,7 +221,7 @@ def load_niche_faqs(
         # Professional script lines -> SAME per-niche namespace, taaki retrieval
         # pe opening/objection/closing/value surface ho. Covered niche apna
         # script deta hai; uncovered (custom incl.) "general" script pe map.
-        # replace_source=True yahan bhi - same reasoning as facts above.
+        # replace_source=True yahan bhi — same reasoning as facts above.
         if _script_docs is not None:
             try:
                 sdocs = _script_docs(niche_key)
@@ -236,7 +235,7 @@ def load_niche_faqs(
             except Exception as e:  # pragma: no cover
                 logger.debug(f"script docs skipped for {niche_key}: {e}")
 
-    logger.info(f"KB: loaded niche FAQs - {total} chunk(s) total.")
+    logger.info(f"KB: loaded niche FAQs — {total} chunk(s) total.")
     return total
 
 
@@ -251,7 +250,7 @@ def load_from_website(
     Retell/Vapi ke "sync KB from your website" jaisa.
 
     Defensive: koi bhi network / parse error par gracefully 0 return karta hai
-    (crash nahi). httpx + BeautifulSoup optional hain - na hon to skip.
+    (crash nahi). httpx + BeautifulSoup optional hain — na hon to skip.
 
     Args:
         kb: KnowledgeBase instance.
@@ -309,17 +308,14 @@ def _html_to_text(html: str) -> str:
             tag.decompose()
         text = soup.get_text(separator="\n")
     except Exception as e:
-        logger.debug(f"BeautifulSoup unavailable/failed ({e})
-        regex strip.")
+        logger.debug(f"BeautifulSoup unavailable/failed ({e}); regex strip.")
         import re
 
         # drop scripts/styles, then tags
         text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", html)
         text = re.sub(r"(?s)<[^>]+>", " ", text)
-        text = re.sub(r"&nbsp
-        ", " ", text)
-        text = re.sub(r"&amp
-        ", "&", text)
+        text = re.sub(r"&nbsp;", " ", text)
+        text = re.sub(r"&amp;", "&", text)
 
     # normalize whitespace, keep paragraph breaks
     import re as _re
@@ -350,18 +346,18 @@ def bootstrap_default_kb() -> KnowledgeBase:
         load_niche_faqs(kb, namespace="_global")
     except Exception as e:  # pragma: no cover
         logger.warning(f"bootstrap_default_kb: niche FAQ load issue: {e}")
-    logger.info(f"KB bootstrap complete - {kb.stats()}")
+    logger.info(f"KB bootstrap complete — {kb.stats()}")
     return kb
 
 
 def seed_niche(kb: KnowledgeBase, niche: str) -> dict:
     """ADR-104: EK niche ka scoped seed + structured (redacted) result.
 
-    `bootstrap_default_kb()` saare 39 niches seed karta hai - wo live voice
+    `bootstrap_default_kb()` saare 39 niches seed karta hai — wo live voice
     reply-path ke liye kabhi safe nahi tha (dekho ADR-104). Ye uska bounded,
     owned replacement hai: sirf maanga hua niche.
 
-    Result me SIRF safe operational metadata hai - koi document text, prompt,
+    Result me SIRF safe operational metadata hai — koi document text, prompt,
     transcript, customer data ya secret nahi.
 
     Returns:
@@ -380,7 +376,7 @@ def seed_niche(kb: KnowledgeBase, niche: str) -> dict:
             "error_class": None,
         }
     except Exception as e:
-        # error_class only - message me customer/secret data leak ho sakta hai.
+        # error_class only — message me customer/secret data leak ho sakta hai.
         return {
             "niche": niche,
             "ok": False,

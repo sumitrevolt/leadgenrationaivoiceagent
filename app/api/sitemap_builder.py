@@ -1,5 +1,5 @@
 """
-sitemap_builder.py - Enriched XML sitemap generator (SEO: lastmod + changefreq + priority).
+sitemap_builder.py — Enriched XML sitemap generator (SEO: lastmod + changefreq + priority).
 
 Usage (drop-in replacement for the inline block in main.py sitemap_xml()):
 
@@ -17,8 +17,7 @@ Priority / changefreq table (Google best-practices):
   Niche×city pages  0.5  monthly
   Legal             0.3  yearly
 
-lastmod = today's date (ISO 8601) - used as a proxy
-dynamic content pages like
+lastmod = today's date (ISO 8601) — used as a proxy; dynamic content pages like
 blog articles ideally carry their real publish date but that requires per-slug
 lookup which would slow sitemap generation. Today-date is widely accepted.
 """
@@ -52,7 +51,7 @@ _STATIC_URLS: list[tuple[str, str, str]] = [
     ("/compare", "weekly", "0.9"),
     ("/geo-check", "weekly", "0.8"),
     ("/pricing", "weekly", "0.8"),
-    # /start deliberately excluded - it's a pure alias serving the same file as
+    # /start deliberately excluded — it's a pure alias serving the same file as
     # /pricing (its own canonical points to /pricing), sitemaps should only
     # list canonical/self-referencing URLs.
     ("/voice-agent", "weekly", "0.8"),
@@ -90,7 +89,7 @@ async def build_sitemap_xml(base: str) -> str:
     for path, freq, pri in _STATIC_URLS:
         blocks.append(_url_block(base, path, freq, pri, today))
 
-    # 2) Blog articles - real publish date if available, else today
+    # 2) Blog articles — real publish date if available, else today
     try:
         from app.marketing import seo_blog
 

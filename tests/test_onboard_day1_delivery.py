@@ -1,8 +1,8 @@
 """Contract for day-1 delivery seed (Product-1 delivery-gap fix, 2026-07-06).
 
-A new customer was landing on an EMPTY portal: `auto_onboard` (website->KB seed +
+A new customer was landing on an EMPTY portal: `auto_onboard` (website→KB seed +
 first content pack + customer-visible content queue + niche snapshot) had no
-signup/onboard caller - it only ran via the AUTO_ONBOARD-gated hourly sweep. Now
+signup/onboard caller — it only ran via the AUTO_ONBOARD-gated hourly sweep. Now
 signup + admin-onboard enqueue `onboard_client` to the worker. Two guards:
   1. `auto_onboard(send_welcome=False)` skips its welcome (so /signup, which sends
      its own, doesn't double-message the customer).
@@ -89,7 +89,7 @@ def test_onboard_client_task_never_raises(monkeypatch):
 
 
 async def test_auto_onboard_skips_when_already_setup(monkeypatch):
-    # Admin onboard is re-callable (password reset) - a re-run of an already-setup
+    # Admin onboard is re-callable (password reset) — a re-run of an already-setup
     # client must NOT re-scrape/regenerate or re-send a welcome to an existing customer.
     from app.marketing import onboarding
 

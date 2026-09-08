@@ -1,7 +1,6 @@
 """Compatibility entrypoint for the local 14-combo watchdog.
 
-The implementation is kept under docs/openclaw for the OpenClaw runbook
-this
+The implementation is kept under docs/openclaw for the OpenClaw runbook; this
 stable scripts/ path is used by Task Scheduler and desktop operators.
 """
 

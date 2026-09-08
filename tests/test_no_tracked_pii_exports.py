@@ -1,6 +1,6 @@
 """Guard: no personal-data export may be tracked in this PUBLIC repository.
 
-2026-08-06 - `prospect_leads_export.csv` was found tracked at the repo ROOT of a
+2026-08-06 — `prospect_leads_export.csv` was found tracked at the repo ROOT of a
 repository whose GitHub metadata reports `repository_public: true`. It carried
 200 real Indian businesses with `business_name, phone, address, city, email,
 pitch, wa_link`. `.gitignore` had `data/*`, but the file sat at the root, so
@@ -15,8 +15,7 @@ every tracked `.csv` and fails when personal-data columns appear. Renaming the
 file does not evade it.
 
 **If this test is RED, the exposure is live.** Remediation is in the failure
-message
-it is an owner decision because it requires rewriting published history.
+message; it is an owner decision because it requires rewriting published history.
 """
 
 from __future__ import annotations
@@ -95,7 +94,7 @@ def test_no_tracked_csv_carries_personal_data_columns():
             "Personal-data export(s) are TRACKED in this PUBLIC repository:\n"
             + "\n".join(lines)
             + "\n\nThis is a live DPDP Act 2023 exposure, not a style issue.\n"
-            "Untracking alone does NOT undo it - the blob stays in published history.\n\n"
+            "Untracking alone does NOT undo it — the blob stays in published history.\n\n"
             "Owner remediation, in order:\n"
             "  1. git rm --cached <file>          # untrack, KEEP the local copy\n"
             "  2. commit + push                   # stops future propagation\n"
@@ -104,13 +103,13 @@ def test_no_tracked_csv_carries_personal_data_columns():
             "  5. rotate anything the data could have exposed; migrate leads to\n"
             "     Postgres/encrypted object storage with source, collection date,\n"
             "     legal basis, suppression state and retention deadline\n\n"
-            "Steps 3-4 rewrite published history and invalidate existing clones/forks -\n"
+            "Steps 3-4 rewrite published history and invalidate existing clones/forks —\n"
             "owner decision only. Do NOT auto-run them."
         )
 
 
 def test_guard_detects_a_pii_header_shape():
-    """The guard must actually fire - proves it is not vacuously green."""
+    """The guard must actually fire — proves it is not vacuously green."""
     assert PII_COLUMNS & {"phone", "email", "address"}
     sample = {"id", "business_name", "phone", "city"}
     assert sample & PII_COLUMNS == {"phone"}

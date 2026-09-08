@@ -3,8 +3,7 @@ Regression tests for the 2026-06-22 "agent goes deaf after 2-3 turns" fix.
 
 Root cause was an UNBOUNDED await inside VobizStreamSession._on_utterance:
   * free_ai.chat_stream iterated tokens with no per-token timeout, so a free
-    provider that stalled mid-stream hung the generator forever
-    and
+    provider that stalled mid-stream hung the generator forever; and
   * vobiz_stream._whisper_transcribe ran the local-STT executor with no timeout.
 Either hang left self._thinking == True permanently, and _on_media then dropped
 ALL subsequent caller audio -> the call went permanently silent.
@@ -29,7 +28,7 @@ from app.telephony import vobiz_stream as vs
 
 
 class _FakeWS:
-    """Minimal async websocket double - never touches the network."""
+    """Minimal async websocket double — never touches the network."""
 
     def __init__(self) -> None:
         self.sent: list[str] = []
@@ -53,7 +52,7 @@ def _session() -> vs.VobizStreamSession:
 
 async def test_thinking_clears_when_stream_reply_hangs(monkeypatch):
     """The exact production bug: the streaming reply path hangs. The watchdog must
-    still clear _thinking AND deliver a (non-stream) spoken reply - never deaf."""
+    still clear _thinking AND deliver a (non-stream) spoken reply — never deaf."""
     monkeypatch.setattr(vs, "THINK_MAX_S", 0.3)
     monkeypatch.setattr(vs, "TTS_AVAILABLE", True)
     monkeypatch.setenv("USE_THINKING_FILLER", "0")
@@ -85,12 +84,12 @@ async def test_thinking_clears_when_stream_reply_hangs(monkeypatch):
     assert sess._thinking is False, "watchdog must clear _thinking (the deaf-call bug)"
     roles = [m["role"] for m in sess.hist]
     assert "user" in roles and "assistant" in roles, "turn must record user + reply"
-    assert said and said[-1], "agent must speak a reply - never dead air"
+    assert said and said[-1], "agent must speak a reply — never dead air"
 
 
 async def test_never_dead_air_when_both_paths_empty(monkeypatch):
     """Worst case: stream AND non-stream both return nothing. The agent must still
-    speak a safe bridge line and clear _thinking - silence is the failure mode."""
+    speak a safe bridge line and clear _thinking — silence is the failure mode."""
     monkeypatch.setattr(vs, "THINK_MAX_S", 0.3)
     monkeypatch.setattr(vs, "TTS_AVAILABLE", True)
     monkeypatch.setenv("USE_THINKING_FILLER", "0")
@@ -150,7 +149,7 @@ class _StallStream:
         self._n += 1
         if self._n == 1:
             return _Chunk("Hello")
-        await asyncio.sleep(30)  # stall - must NOT hang the caller
+        await asyncio.sleep(30)  # stall — must NOT hang the caller
         raise StopAsyncIteration
 
     async def aclose(self):
@@ -158,7 +157,7 @@ class _StallStream:
 
 
 async def test_chat_stream_is_bounded_on_midstream_stall(monkeypatch):
-    """chat_stream must not hang when a provider stalls after the first token -
+    """chat_stream must not hang when a provider stalls after the first token —
     it yields what it got and terminates (idle deadline)."""
     from app.voice_agent import free_ai
 
@@ -200,10 +199,9 @@ async def test_chat_stream_is_bounded_on_midstream_stall(monkeypatch):
 async def test_send_is_bounded_when_ws_write_hangs(monkeypatch):
     """2026-07-03: _send() used to `await self.ws.send_text(...)` with no timeout.
     _play_frames() calls _send() for every 20ms playAudio frame while
-    self._speaking=True
-    a single hung send would leave _speaking stuck True
+    self._speaking=True; a single hung send would leave _speaking stuck True
     forever, permanently blocking the ONLY code path that finalizes an
-    utterance (lives entirely under "not speaking") - the exact failure shape
+    utterance (lives entirely under "not speaking") — the exact failure shape
     seen on a real 2026-07-03 test call (clean decoded audio the whole call,
     zero user_turns). Lock in that a hung ws.send_text() no longer hangs the
     session forever: it times out and closes the session instead."""
@@ -221,7 +219,7 @@ async def test_send_is_bounded_when_ws_write_hangs(monkeypatch):
 
 
 async def test_processing_ack_does_not_cancel_live_stream(monkeypatch):
-    """Ack bridge must stop stale playback only - never kill in-flight LLM stream."""
+    """Ack bridge must stop stale playback only — never kill in-flight LLM stream."""
     monkeypatch.setenv("VOICE_PROCESSING_ACK", "1")
     monkeypatch.setenv("VOICE_PROCESSING_ACK_DELAY_S", "0.05")
     monkeypatch.setattr(vs, "TTS_AVAILABLE", True)

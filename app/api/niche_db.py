@@ -1,23 +1,22 @@
 """
-Niche Prospect Database - FastAPI Router
+Niche Prospect Database — FastAPI Router
 ========================================
 
 AI Voice Agent ke liye per-niche prospect database ka REST API.
-Har niche ke call-ready prospects - import, queue, post-call update, stats.
+Har niche ke call-ready prospects — import, queue, post-call update, stats.
 
 Endpoints:
-  POST   /api/niche/prospects              - add single prospect
-  POST   /api/niche/prospects/bulk         - bulk import (JSON rows ya CSV text)
-  GET    /api/niche/prospects              - list prospects (niche/client/status/city filters)
-  GET    /api/niche/prospects/next-to-call - call queue next batch
-  PATCH  /api/niche/prospects/{id}         - post-call update (outcome + niche_data)
-  GET    /api/niche/schema/{niche_key}     - niche-specific call schema (pre-call + collect fields)
-  GET    /api/niche/stats                  - prospects count by niche + status
+  POST   /api/niche/prospects              — add single prospect
+  POST   /api/niche/prospects/bulk         — bulk import (JSON rows ya CSV text)
+  GET    /api/niche/prospects              — list prospects (niche/client/status/city filters)
+  GET    /api/niche/prospects/next-to-call — call queue next batch
+  PATCH  /api/niche/prospects/{id}         — post-call update (outcome + niche_data)
+  GET    /api/niche/schema/{niche_key}     — niche-specific call schema (pre-call + collect fields)
+  GET    /api/niche/stats                  — prospects count by niche + status
 
 Auth: admin-required (require_admin) sirf write ops pe.
-Rate limiting: list/schema = 60/60s
-write = 20/60s.
-Kabhi raise nahi karta - errors as JSON.
+Rate limiting: list/schema = 60/60s; write = 20/60s.
+Kabhi raise nahi karta — errors as JSON.
 """
 
 from __future__ import annotations
@@ -58,7 +57,7 @@ class ProspectIn(BaseModel):
 
 class BulkImportIn(BaseModel):
     rows: list[dict] = Field(default_factory=list, description="JSON array of prospect rows")
-    csv_text: str = Field("", description="CSV text (header row required) - alternate to rows")
+    csv_text: str = Field("", description="CSV text (header row required) — alternate to rows")
     niche: str = Field(..., description="Niche key")
     client_id: str = Field(..., description="Client ID")
     source: str = Field("import")
@@ -74,7 +73,7 @@ class PostCallUpdateIn(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# GET /niche/schema/{niche_key} - niche call schema (public, rate-limited)
+# GET /niche/schema/{niche_key} — niche call schema (public, rate-limited)
 # ---------------------------------------------------------------------------
 
 
@@ -84,7 +83,7 @@ async def get_niche_schema(
     request: Request,
     _rl=Depends(rate_limit("niche_schema", 60, 60)),
 ):
-    """AI agent ko call se pehle kya context chahiye - per-niche field definitions."""
+    """AI agent ko call se pehle kya context chahiye — per-niche field definitions."""
     try:
         from app.platform.niche_database import get_niche_schema
 
@@ -114,7 +113,7 @@ async def all_niche_schemas(
 
 
 # ---------------------------------------------------------------------------
-# POST /niche/prospects - add single prospect
+# POST /niche/prospects — add single prospect
 # ---------------------------------------------------------------------------
 
 
@@ -146,7 +145,7 @@ async def add_prospect(
 
 
 # ---------------------------------------------------------------------------
-# POST /niche/prospects/bulk - bulk import
+# POST /niche/prospects/bulk — bulk import
 # ---------------------------------------------------------------------------
 
 
@@ -182,7 +181,7 @@ async def bulk_import_prospects(
 
 
 # ---------------------------------------------------------------------------
-# GET /niche/prospects - list with filters
+# GET /niche/prospects — list with filters
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +199,7 @@ async def list_prospects(
     _rl=Depends(rate_limit("niche_list", 60, 60)),
     _user=Depends(require_admin),
 ):
-    """Prospects list karo - niche/status/city/score filters ke saath."""
+    """Prospects list karo — niche/status/city/score filters ke saath."""
     try:
         from sqlalchemy import and_, select
 
@@ -288,7 +287,7 @@ async def list_prospects(
 
 
 # ---------------------------------------------------------------------------
-# GET /niche/prospects/next-to-call - call queue
+# GET /niche/prospects/next-to-call — call queue
 # ---------------------------------------------------------------------------
 
 
@@ -301,7 +300,7 @@ async def next_to_call(
     _rl=Depends(rate_limit("niche_queue", 60, 60)),
     _user=Depends(require_admin),
 ):
-    """AI dialer ke liye next-to-call queue - priority ordered (callbacks first, hot leads, new, retry)."""
+    """AI dialer ke liye next-to-call queue — priority ordered (callbacks first, hot leads, new, retry)."""
     try:
         from app.platform.niche_database import call_queue_next
 
@@ -313,7 +312,7 @@ async def next_to_call(
 
 
 # ---------------------------------------------------------------------------
-# PATCH /niche/prospects/{id} - post-call update
+# PATCH /niche/prospects/{id} — post-call update
 # ---------------------------------------------------------------------------
 
 
@@ -328,12 +327,12 @@ async def post_call_update(
     """Call ke baad prospect status + niche data update karo.
 
     outcome values:
-      qualified     -> HOT lead, score +20
-      callback      -> callback scheduled
-      not_interested -> dropped
-      wrong_number   -> wrong number
-      dnd            -> DND registered
-      voicemail      -> retry next day
+      qualified     → HOT lead, score +20
+      callback      → callback scheduled
+      not_interested → dropped
+      wrong_number   → wrong number
+      dnd            → DND registered
+      voicemail      → retry next day
     """
     try:
         from app.platform.niche_database import update_after_call
@@ -352,7 +351,7 @@ async def post_call_update(
 
 
 # ---------------------------------------------------------------------------
-# GET /niche/stats - prospects count by niche + status
+# GET /niche/stats — prospects count by niche + status
 # ---------------------------------------------------------------------------
 
 
@@ -374,7 +373,7 @@ async def niche_stats(
 
 
 # ---------------------------------------------------------------------------
-# GET /niche/voice-niches - list all voice niches with schema summary
+# GET /niche/voice-niches — list all voice niches with schema summary
 # ---------------------------------------------------------------------------
 
 
@@ -383,7 +382,7 @@ async def voice_niches_list(
     request: Request,
     _rl=Depends(rate_limit("niche_voice_list", 60, 60)),
 ):
-    """All 25 voice niches - key, display, band, pitch_hook, schema summary."""
+    """All 25 voice niches — key, display, band, pitch_hook, schema summary."""
     try:
         from app.niches import NICHES
         from app.platform.niche_database import NICHE_CALL_SCHEMA
@@ -416,7 +415,7 @@ async def voice_niches_list(
 
 
 # ---------------------------------------------------------------------------
-# POST /niche/queue-call - niche DB prospects ko Vobiz call queue me push karo
+# POST /niche/queue-call — niche DB prospects ko Vobiz call queue me push karo
 # ---------------------------------------------------------------------------
 
 
@@ -439,7 +438,7 @@ async def queue_call_batch(
     """Niche DB se next-to-call prospects uthao aur Vobiz CallManager queue me push karo.
 
     Flow:
-      1. call_queue_next(client_id, niche, limit) - priority-ordered prospects
+      1. call_queue_next(client_id, niche, limit) — priority-ordered prospects
       2. Har prospect ke liye CallRequest banao + CallManager.queue_call()
       3. Compliance gate (DND check) CallManager ke andar hi hota hai
       4. Return: queued_count + skipped (compliance/no-phone) + call IDs

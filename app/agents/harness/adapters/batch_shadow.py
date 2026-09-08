@@ -1,14 +1,13 @@
-"""Batch-harness shadow adapter - record-only observation of each real batch item.
+"""Batch-harness shadow adapter — record-only observation of each real batch item.
 
 Wraps the item boundary in app/agents/batch_harness.py:run_batch/_run_one
-(`res = await fn(item)`). Observes AFTER the real item completes
-never invokes
+(`res = await fn(item)`). Observes AFTER the real item completes; never invokes
 the item fn, schedules items, changes concurrency/order/retries, alters the
 checkpoint, or raises into the batch.
 
 Concurrency: called from asyncio tasks (never threads). Harness.observe ->
 audit.record is fully SYNCHRONOUS (no await), so asyncio cannot interleave two
-writes - JSONL stays line-atomic without a lock. The dedup set is likewise
+writes — JSONL stays line-atomic without a lock. The dedup set is likewise
 mutated synchronously. No global lock is held during item execution.
 
 Resume: a skipped (already-checkpointed) item is a DIAGNOSTIC (RESUME_SKIPPED),

@@ -1,10 +1,10 @@
-"""explorer_sync.py - architecture-graph drift auditor (graph <-> codebase).
+"""explorer_sync.py — architecture-graph drift auditor (graph <-> codebase).
 
 frontend/explorer.html (/app/explorer) is a HAND-CURATED graph: nodes have
 manual x/y coords + human descriptions. We deliberately do NOT auto-regenerate
 it (that would destroy the curated layout). Instead this tool AUDITS whether the
 graph still reflects the code, reports what's missing, and can emit ready-to-
-paste node stubs for the gaps - so the curation stays, but drift is visible.
+paste node stubs for the gaps — so the curation stays, but drift is visible.
 
 Usage:
     python scripts/explorer_sync.py            # report (coverage + missing lists)
@@ -14,7 +14,7 @@ Usage:
 Coverage sources (the architecture backbone):
   - engine modules wired into team_scheduler._run_job (the scheduled engines)
   - STAFF_JOBS scheduler jobs
-  - AUTOMATION_FLAGS (info - graph tags only key flags, not all)
+  - AUTOMATION_FLAGS (info — graph tags only key flags, not all)
 Never raises. Windows venv: .venv\\Scripts\\python.exe scripts/explorer_sync.py
 """
 
@@ -112,7 +112,7 @@ def files_ref_audit(html: str) -> list[str]:
     """Reverse-sync (graph -> code): explorer `files:` tokens that EXPLICITLY name
     a source file (ext in SRC_EXT) but don't resolve to a real repo file = drift.
     Loose capability labels / routes / plan-ids (no extension) are ignored on
-    purpose - product-view nodes use them as human descriptions, not file claims."""
+    purpose — product-view nodes use them as human descriptions, not file claims."""
     real = _real_filenames()
     missing: set[str] = set()
     for fld in re.findall(r"files:'([^']*)'", html):
@@ -173,8 +173,8 @@ def parse_views(html: str) -> dict[str, dict]:
 
 def edge_audit(html: str) -> dict[str, dict]:
     """Per-view connection health: dangling edges (f/t not a node in that view),
-    orphan nodes (degree 0 - on the graph but wired to nothing), leaf nodes
-    (degree 1 - likely missing downstream/upstream)."""
+    orphan nodes (degree 0 — on the graph but wired to nothing), leaf nodes
+    (degree 1 — likely missing downstream/upstream)."""
     out: dict[str, dict] = {}
     for k, v in parse_views(html).items():
         ids, edges = v["ids"], v["edges"]
@@ -190,7 +190,7 @@ def edge_audit(html: str) -> dict[str, dict]:
             if t in deg:
                 deg[t] += 1
 
-        # rm_*/gap_* = intentional roadmap/status marker tiles -> allowed standalone
+        # rm_*/gap_* = intentional roadmap/status marker tiles → allowed standalone
         def _marker(i):
             return i.startswith(("rm_", "gap_"))
 
@@ -236,7 +236,7 @@ def main(argv: list[str]) -> int:
     )
     if a["miss_files"]:
         print(
-            f"  DRIFT - `files:` refs not on disk ({len(a['miss_files'])}): {', '.join(a['miss_files'])}"
+            f"  DRIFT — `files:` refs not on disk ({len(a['miss_files'])}): {', '.join(a['miss_files'])}"
         )
     else:
         print("file refs (graph -> code): all resolve to real files")
@@ -258,7 +258,7 @@ def main(argv: list[str]) -> int:
         if r["orphans"]:
             print(f"    ORPHAN (0 edges): {', '.join(r['orphans'])}")
         if r["leaves"]:
-            print(f"    leaf (1 edge - maybe needs more): {', '.join(r['leaves'])}")
+            print(f"    leaf (1 edge — maybe needs more): {', '.join(r['leaves'])}")
 
     if "--stubs" in argv and a["miss_mods"]:
         print("\n--- paste-ready node stubs (place + edit coords/desc) ---")
@@ -271,7 +271,7 @@ def main(argv: list[str]) -> int:
         if a["miss_mods"]:
             print(
                 f"\n[FAIL] {len(a['miss_mods'])} scheduled engine module(s) not on the graph "
-                "- add nodes (--stubs) or this drift was intentional."
+                "— add nodes (--stubs) or this drift was intentional."
             )
             return 1
         if dangling:

@@ -1,12 +1,12 @@
 """
-Regression Detector - compares two assessment JSON snapshots to surface
+Regression Detector — compares two assessment JSON snapshots to surface
 regressions (status downgrades), improvements (gaps closed), and score deltas.
 
 Exit-code contract:
-  0 - no regressions
-  1 - feature_completeness dropped > 5 percentage points
-  2 - WCAG critical violations count increased
-  3 - must_have backlog items count increased
+  0 — no regressions
+  1 — feature_completeness dropped > 5 percentage points
+  2 — WCAG critical violations count increased
+  3 — must_have backlog items count increased
 """
 
 from __future__ import annotations
@@ -109,8 +109,8 @@ class AssessmentComparator:
     ) -> list[dict]:
         """
         Match features by name (case-insensitive) across dashboards, find
-        status regressions (complete->broken or complete->partial or
-        partial->broken).
+        status regressions (complete→broken or complete→partial or
+        partial→broken).
 
         Returns a list of regression dicts:
         {
@@ -137,7 +137,7 @@ class AssessmentComparator:
 
             baseline_status = baseline_map.get(key)
             if baseline_status is None:
-                # New feature - not a regression
+                # New feature — not a regression
                 continue
 
             b_rank = _STATUS_RANK.get(baseline_status, 1)
@@ -206,7 +206,7 @@ class AssessmentComparator:
         Compute (current - baseline) for every score key present in either dict.
 
         Missing keys in either dict are treated as 0.0.
-        Returns dict mapping score_key -> delta (float).
+        Returns dict mapping score_key → delta (float).
         """
         all_keys = set(baseline_scores) | set(current_scores)
         deltas: dict[str, float] = {}
@@ -221,14 +221,13 @@ class AssessmentComparator:
         Determine the CI exit code from a RegressionReport.
 
         Priority (first match wins):
-          3 - must_have backlog items increased vs baseline
-          2 - WCAG critical violations count increased (more issues with
+          3 — must_have backlog items increased vs baseline
+          2 — WCAG critical violations count increased (more issues with
               wcag_violation=True and severity='critical')
-          1 - feature_completeness dropped more than _COMPLETENESS_DROP_THRESHOLD %
-          0 - no regressions
+          1 — feature_completeness dropped more than _COMPLETENESS_DROP_THRESHOLD %
+          0 — no regressions
 
-        The method examines score_deltas and regression lists
-        it does NOT
+        The method examines score_deltas and regression lists; it does NOT
         reload JSON files, so callers should pass the full RegressionReport as
         produced by compare().
         """
@@ -259,7 +258,7 @@ class AssessmentComparator:
         ]
         if critical_regressions:
             log.warning(
-                "CI exit 1: %d complete->broken regressions detected",
+                "CI exit 1: %d complete→broken regressions detected",
                 len(critical_regressions),
             )
             return 1
@@ -291,8 +290,8 @@ def save_baseline(
     data_dir/assessment_history/.
 
     Two files are written atomically (write-then-rename):
-      1. <assessment_id>.json  - immutable snapshot keyed by ID
-      2. latest.json           - always points to the most recent baseline
+      1. <assessment_id>.json  — immutable snapshot keyed by ID
+      2. latest.json           — always points to the most recent baseline
 
     Args:
         assessment_data: Dict produced by DashboardAssessment.run_assessment()
@@ -357,7 +356,7 @@ def load_baseline(
 
 
 def _atomic_write(path: pathlib.Path, data: bytes) -> None:
-    """Write data to a temp file then rename - avoids partial-write corruption."""
+    """Write data to a temp file then rename — avoids partial-write corruption."""
     tmp = path.with_suffix(".tmp")
     try:
         tmp.write_bytes(data)
@@ -375,7 +374,7 @@ def _serialise(obj):
         return {k: _serialise(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_serialise(v) for v in obj]
-    # dataclasses / enums - convert to string/dict where needed
+    # dataclasses / enums — convert to string/dict where needed
     if hasattr(obj, "value"):  # Enum
         return obj.value
     if hasattr(obj, "__dataclass_fields__"):

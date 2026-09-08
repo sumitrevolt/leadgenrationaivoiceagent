@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""One-off diagnostic - NOT part of the daily loop. Kept because the answer it
+"""One-off diagnostic — NOT part of the daily loop. Kept because the answer it
 found is load-bearing and someone will doubt it.
 
 What does the Buzz Desktop credential actually contain?
 
 `buzz agents draft-create` fails with "agent draft requests require
-BUZZ_AUTH_TAG" - the NIP-OA owner attestation. This prints the SHAPE of the
+BUZZ_AUTH_TAG" — the NIP-OA owner attestation. This prints the SHAPE of the
 stored credential (key names, types, lengths) so we can find where that tag
 lives, without ever printing a value.
 

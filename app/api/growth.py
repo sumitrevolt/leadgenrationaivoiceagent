@@ -62,8 +62,7 @@ class ReviewReqIn(BaseModel):
     place_query: str | None = None
     customer_name: str | None = ""
     customer_phone: str | None = ""
-    sentiment_score: int | None = None  # 1-5
-    <4 => private feedback
+    sentiment_score: int | None = None  # 1-5; <4 => private feedback
     auto_send: bool | None = None
 
 
@@ -113,8 +112,7 @@ class MissedCallIn(BaseModel):
 @router.post("/missed-call")
 async def missed_call(body: MissedCallIn, _user=Depends(require_admin)):
     """Missed-call -> lead capture + (gated) instant AI callback. Telephony webhook
-    isi ko call karega
-    abhi admin test endpoint."""
+    isi ko call karega; abhi admin test endpoint."""
     if not (body.from_number or "").strip():
         raise HTTPException(status_code=422, detail="from_number chahiye.")
     from app.telephony.missed_call import handle_missed_call
@@ -307,7 +305,7 @@ class SeoPageIn(BaseModel):
 
 @router.post("/seo/page")
 async def seo_page(body: SeoPageIn, _user=Depends(require_admin)):
-    """Ek nicheÃ-city SEO landing page generate karo (inbound)."""
+    """Ek nicheÃ—city SEO landing page generate karo (inbound)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_page(body.niche, body.city)
@@ -320,7 +318,7 @@ class SeoBatchIn(BaseModel):
 
 @router.post("/seo/batch")
 async def seo_batch(body: SeoBatchIn, _user=Depends(require_admin)):
-    """Multiple nicheÃ-city SEO pages (LLM-heavy; limit)."""
+    """Multiple nicheÃ—city SEO pages (LLM-heavy; limit)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_batch(tier=body.tier, limit=body.limit)
@@ -1065,8 +1063,7 @@ async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
 
                     celery_app.send_task(
                         "app.tasks.staff_jobs.run_staff_job", args=[job], ignore_result=True
-                    )  # fire-and-forget
-                    avoid result-backend pre-subscribe block
+                    )  # fire-and-forget; avoid result-backend pre-subscribe block
                     retried.append(job)
                     continue
                 except Exception:
@@ -1113,8 +1110,7 @@ async def infra_dlq_purge(key: str = "failed", _user=Depends(require_admin)):
         return {"error": str(e)[:120]}
 
 
-from app.api.automation_flags import (  # noqa: E402,F401  (registry moved out
-re-export)
+from app.api.automation_flags import (  # noqa: E402,F401  (registry moved out; re-export)
     AUTOMATION_FLAGS,
 )
 
@@ -1504,8 +1500,7 @@ async def infra_flags(_user=Depends(require_admin)):
         except Exception:
             _eff = bool(out["REPLY_AUTO_SEND"].get("on"))
         out["REPLY_AUTO_SEND"]["effective_on"] = _eff
-        _eff_note = "env OR Redis runtime reply_auto_send
-        REPLY_AUTO_SEND_HARD_OFF wins"
+        _eff_note = "env OR Redis runtime reply_auto_send; REPLY_AUTO_SEND_HARD_OFF wins"
         out["REPLY_AUTO_SEND"]["effective_note"] = _eff_note
 
     on = [k for k, d in out.items() if d["on"]]
@@ -1537,8 +1532,7 @@ async def infra_flags(_user=Depends(require_admin)):
 @router.get("/infra/judge-calibration")
 async def infra_judge_calibration(_user=Depends(require_admin)):
     """Per-judge agreement + Cohen's kappa vs human approve/reject ground-truth.
-    Offline read of data/*.jsonl
-    verdict = reliable | advisory | insufficient-data."""
+    Offline read of data/*.jsonl; verdict = reliable | advisory | insufficient-data."""
     try:
         from app.agents import judge_calibration
 

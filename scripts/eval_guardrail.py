@@ -3,15 +3,15 @@
 
 Scores recorded call transcripts (data/call_transcripts/*.jsonl) with the
 deterministic metrics in app/agents/eval_metrics.py and feeds the rolling-median
-regression gate in app/agents/eval_gate.py. No LLM judge, no network -> safe to
+regression gate in app/agents/eval_gate.py. No LLM judge, no network → safe to
 run on every build.
 
 Exit code:
-  0  - accept / no_baseline / soft-mode (DEFAULT - never breaks CI)
-  1  - ONLY when the gate says "reject" AND EVAL_GATE_HARD=1 (opt-in hard mode)
+  0  — accept / no_baseline / soft-mode (DEFAULT — never breaks CI)
+  1  — ONLY when the gate says "reject" AND EVAL_GATE_HARD=1 (opt-in hard mode)
 
 So wiring this into final_integration_check is non-breaking until you flip
-EVAL_GATE_HARD=1 on purpose. Never raises (any error -> report + exit 0).
+EVAL_GATE_HARD=1 on purpose. Never raises (any error → report + exit 0).
 
 Run: python scripts/eval_guardrail.py
 """
@@ -77,7 +77,7 @@ def main() -> int:
     try:
         from app.agents import eval_gate, eval_metrics
     except Exception as e:
-        print(f"  (eval modules unavailable: {e}) - skipping, exit 0")
+        print(f"  (eval modules unavailable: {e}) — skipping, exit 0")
         return 0
 
     convos = _load_transcripts()
@@ -104,7 +104,7 @@ def main() -> int:
             suite="voice_quality", metric="turn_score", current_score=mean, agent="ci"
         )
     except Exception as e:
-        print(f"  (eval_gate error: {e}) - exit 0")
+        print(f"  (eval_gate error: {e}) — exit 0")
         return 0
 
     decision = verdict.get("decision", "no_baseline")
@@ -118,12 +118,12 @@ def main() -> int:
         except Exception:
             hard = False
         if hard:
-            print("FAIL - voice-quality regression beyond tolerance (EVAL_GATE_HARD=1).")
+            print("FAIL — voice-quality regression beyond tolerance (EVAL_GATE_HARD=1).")
             return 1
-        print("WARN - regression detected, but soft-mode (set EVAL_GATE_HARD=1 to enforce).")
+        print("WARN — regression detected, but soft-mode (set EVAL_GATE_HARD=1 to enforce).")
         return 0
 
-    print("PASS - no voice-quality regression.")
+    print("PASS — no voice-quality regression.")
     return 0
 
 

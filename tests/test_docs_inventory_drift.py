@@ -1,4 +1,4 @@
-"""Docs must not hardcode stale inventory counts - source of truth is code."""
+"""Docs must not hardcode stale inventory counts — source of truth is code."""
 
 from __future__ import annotations
 

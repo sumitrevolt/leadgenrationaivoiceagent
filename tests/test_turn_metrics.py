@@ -1,8 +1,7 @@
 """
-Tests for app.voice_agent.turn_metrics - the per-turn latency helper (P1).
+Tests for app.voice_agent.turn_metrics — the per-turn latency helper (P1).
 
-Pure functions
-no network/LLM. Disk writes are routed to a tmp dir so the test
+Pure functions; no network/LLM. Disk writes are routed to a tmp dir so the test
 never touches the real data/ directory.
 """
 
@@ -45,7 +44,7 @@ def test_rollup_over_ms_keys():
         {"stt_ms": 100.0, "turn_ms": 900.0, "outcome": "ok"},
         {"stt_ms": 200.0, "turn_ms": 1100.0, "outcome": "ok"},
         {"stt_ms": 300.0, "turn_ms": 1300.0, "llm_first_ms": 400.0},
-        {"outcome": "junk"},  # no _ms keys - counted but contributes nothing
+        {"outcome": "junk"},  # no _ms keys — counted but contributes nothing
     ]
     out = tm.rollup(records)
     assert out["count"] == 4

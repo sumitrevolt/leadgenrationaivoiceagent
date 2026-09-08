@@ -1,13 +1,13 @@
 """
-Agent Budget Governor - Paperclip-inspired 3-tier spend governance.
+Agent Budget Governor — Paperclip-inspired 3-tier spend governance.
 ===================================================================
 
-Tier 1: Dashboard visibility (agent_cost_tracker.today_snapshot() - already done)
-Tier 2: Soft alert at threshold% - ntfy push notification
-Tier 3: Hard ceiling - auto-pause agent via agent_controls.pause()
+Tier 1: Dashboard visibility (agent_cost_tracker.today_snapshot() — already done)
+Tier 2: Soft alert at threshold% — ntfy push notification
+Tier 3: Hard ceiling — auto-pause agent via agent_controls.pause()
 
 Budget config stored in Redis (hot) + data/agent_budgets.json (durable).
-Per-agent daily token limits. Cascade: global default -> per-agent override.
+Per-agent daily token limits. Cascade: global default → per-agent override.
 
 Usage:
     from app.platform import agent_budget
@@ -112,7 +112,7 @@ def check(agent_id: str) -> dict[str, Any]:
 
     Tier 1 = within budget (dashboard only)
     Tier 2 = soft alert sent (80%+ used)
-    Tier 3 = hard stop (100%+ used) - agent auto-paused
+    Tier 3 = hard stop (100%+ used) — agent auto-paused
     """
     if not _BUDGET_ENABLED:
         return {
@@ -225,13 +225,13 @@ def _hard_stop(agent_id: str, usage: int, limit: int) -> None:
         team.log_event(
             agent_id,
             "budget_hard_stop",
-            f"🛑 HARD STOP - daily limit exceeded ({usage:,}/{limit:,} tokens). Agent paused.",
+            f"🛑 HARD STOP — daily limit exceeded ({usage:,}/{limit:,} tokens). Agent paused.",
             status="error",
         )
     except Exception:
         pass
 
-    # ntfy push - high priority
+    # ntfy push — high priority
     try:
         import httpx
 
@@ -252,7 +252,7 @@ def _hard_stop(agent_id: str, usage: int, limit: int) -> None:
 
 
 def budget_dashboard() -> dict[str, Any]:
-    """Full budget dashboard - all agents' usage vs limits. For admin UI."""
+    """Full budget dashboard — all agents' usage vs limits. For admin UI."""
     try:
         from app.platform import agent_cost_tracker as act
         from app.platform.team import STAFF

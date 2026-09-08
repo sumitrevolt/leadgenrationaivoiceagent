@@ -1,4 +1,4 @@
-"""TASK_RS-001 enrichment - deterministic, CSV-driven (no fabrication).
+"""TASK_RS-001 enrichment — deterministic, CSV-driven (no fabrication).
 
 Reads data/hunter_leads/TASK_LI-001_top10.csv (verified by Board) and writes
 data/enriched_prospects/TASK_LI-001_enriched.jsonl with pain_thesis derived

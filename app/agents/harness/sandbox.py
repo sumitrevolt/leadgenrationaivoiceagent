@@ -11,17 +11,16 @@ a backend hook for stronger isolation in production:
 * ``subprocess`` backend (default): POSIX ``resource`` rlimits (CPU seconds,
   address space, file size, no core dumps), an **environment scrubbed of every
   secret**, a throwaway temp CWD, wall-clock timeout+kill, and output caps.
-  Egress is *not* trusted to the process - the allow-list is advisory here and
+  Egress is *not* trusted to the process — the allow-list is advisory here and
   MUST be backed by a network namespace / firewall in prod.
 * ``container`` / ``gvisor`` / ``microvm`` backends (prod): selected via
-  ``SANDBOX_BACKEND`` - stubs that raise NotImplementedError until wired to
+  ``SANDBOX_BACKEND`` — stubs that raise NotImplementedError until wired to
   your Docker/Firecracker tooling, so you cannot silently ship the weak backend
   to prod thinking it is strong.
 
 NOTE: real egress default-deny requires OS-level isolation. On the subprocess
 backend we scrub credentials so leaked code cannot *authenticate* to your
-providers, which is the highest-value mitigation
-treat network containment as
+providers, which is the highest-value mitigation; treat network containment as
 a prod-backend responsibility.
 """
 

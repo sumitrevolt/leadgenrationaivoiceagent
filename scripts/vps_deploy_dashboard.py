@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot VPS deploy smoke - delegate the release, then verify endpoints.
+"""One-shot VPS deploy smoke — delegate the release, then verify endpoints.
 
 CONSOLIDATED 2026-07-26. This ran the whole release chain over SSH as one
 remote string:
@@ -9,7 +9,7 @@ remote string:
 
 `git reset --hard` discards uncommitted files, and this checkout still holds
 the live invoice, consent and suppression ledgers plus DPDP call recordings.
-Being remote made it no safer - it was simply an unguarded release path with
+Being remote made it no safer — it was simply an unguarded release path with
 an SSH hop in front of it.
 
 The remote command is now a single fixed invocation of the guarded canonical

@@ -18,7 +18,7 @@ from app.dev_control.external_agents.schema import Mission, MissionState, RiskCl
 
 FLAG = "EXTERNAL_AGENT_ORCHESTRATOR"
 
-#: Intents that are refused outright - no flag, env var or param may enable them.
+#: Intents that are refused outright — no flag, env var or param may enable them.
 RED_PATTERNS: tuple[tuple[str, str], ...] = (
     (
         r"\b(enable|turn\s*on|arm)\b.{0,40}\b(calling|dialer|platform[_\s-]?dial|outbound\s*call)",
@@ -78,7 +78,7 @@ AMBER_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 
 #: Repo areas an external mission may never own (frozen / compliance-critical).
-#: '.env' is matched as a prefix deliberately (fail-closed) - that also flags
+#: '.env' is matched as a prefix deliberately (fail-closed) — that also flags
 #: benign files such as `.env.example`. Prefer that overshoot over leakage.
 PROTECTED_PATH_PREFIXES: tuple[str, ...] = (
     ".env",
@@ -99,7 +99,7 @@ def canonical_path(raw: Any) -> str:
 
     Rules (deliberately NOT ``lstrip('./')``, which would collapse ``.github``
     into ``github``):
-      * backslashes -> forward slashes
+      * backslashes → forward slashes
       * strip only literal repeated ``./`` prefixes
       * ``posixpath.normpath`` to collapse ``..`` / ``.``
       * reject absolute, UNC, drive-letter and root-escape paths (return "")
@@ -116,7 +116,7 @@ def normalize_repo_path(raw: Any) -> str:
         return ""
     if p.startswith("/") or p.startswith("//") or (len(p) > 1 and p[1] == ":"):
         return ""
-    # Strip only literal "./" prefixes - never strip a leading '.' of a name.
+    # Strip only literal "./" prefixes — never strip a leading '.' of a name.
     while p.startswith("./"):
         p = p[2:]
     p = _posix_normpath(p)
@@ -128,7 +128,7 @@ def normalize_repo_path(raw: Any) -> str:
 
 
 def orchestrator_enabled() -> bool:
-    """Master kill-switch. Default OFF - fail closed."""
+    """Master kill-switch. Default OFF — fail closed."""
     return (os.getenv(FLAG) or "0").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -182,7 +182,7 @@ def refuse_red(title: str, description: str = "") -> dict[str, Any] | None:
         "refused": True,
         "risk_class": RiskClass.RED.value,
         "reason": reason,
-        "next_action": "Owner OS / documented admin runbook use karo - no bypass exists",
+        "next_action": "Owner OS / documented admin runbook use karo — no bypass exists",
     }
 
 
@@ -194,7 +194,7 @@ def normalise_prohibited(paths: list[str] | None) -> list[str]:
     return out
 
 
-#: Runner-owned control files at worktree root - not mission deliverables.
+#: Runner-owned control files at worktree root — not mission deliverables.
 _RUNNER_CONTROL_BASENAMES = frozenset(
     {
         ".external_agent_result_manifest.json",
@@ -216,7 +216,7 @@ def path_violations(mission: Mission, changed_paths: list[str]) -> list[str]:
         display = normalize_repo_path(raw)
         key = canonical_path(raw)
         # Un-normalisable paths (absolute, drive letter, escaped-to-root) are
-        # themselves a scope breach - report the raw form for the evidence trail.
+        # themselves a scope breach — report the raw form for the evidence trail.
         if not key:
             bad.append(str(raw).strip() or "(empty)")
             continue
@@ -306,6 +306,5 @@ def redact(payload: Any) -> Any:
         from app.integrations.openclaw.policies import redact_secrets
 
         return redact_secrets(payload)
-    except Exception:  # pragma: no cover - defensive
-    redaction must never crash
+    except Exception:  # pragma: no cover - defensive; redaction must never crash
         return payload

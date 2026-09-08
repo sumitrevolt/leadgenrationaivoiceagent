@@ -1,4 +1,4 @@
-"""RL self-improvement flywheel (Phase 0) - reward spine only.
+"""RL self-improvement flywheel (Phase 0) — reward spine only.
 
 Logging-only reward consolidation. No policy/decision change. Policy engine
 (Thompson / contextual / OPE) is deferred behind a sample-count graduation gate.

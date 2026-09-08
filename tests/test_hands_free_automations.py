@@ -1,9 +1,8 @@
-"""Hands-Free Automations - proof that every advertised auto is backed by a real,
+"""Hands-Free Automations — proof that every advertised auto is backed by a real,
 importable engine with its run-entry, and that customer_autopilot is inert-by-default.
 
 Guards the 'surface not fabricate' rule: each of the 20 'Hands-Free Automations'
-pricing items maps to a wired engine
-the 4 new-wire jobs are flag-gated DEFAULT-OFF,
+pricing items maps to a wired engine; the 4 new-wire jobs are flag-gated DEFAULT-OFF,
 draft-only, and never raise.
 """
 

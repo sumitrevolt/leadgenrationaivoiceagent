@@ -9,7 +9,7 @@ Usage:
     python scripts/buzz_staff_pulse.py --dry-run  # fetch + print, do not post
 
 Protocol: ~/.buzz/GUIDES/AUTONOMY_POLICY.md (Stage 1 = read-only canary).
-Commands never flow the other way - Buzz is an interface, not a control plane.
+Commands never flow the other way — Buzz is an interface, not a control plane.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def _age(mins) -> str:
 
 
 def _flag(mem: dict) -> str:
-    """ok / warn / fail - warn is the useful one: silently stale or erroring."""
+    """ok / warn / fail — warn is the useful one: silently stale or erroring."""
     if (mem.get("errs") or 0) > 0 or (mem.get("lstatus") == "error"):
         return "fail"
     if (mem.get("state") or "") in ("offline", "stalled"):
@@ -148,7 +148,7 @@ def build_message(data: dict) -> str:
     headline = "all green" if not n_fail and not n_warn else f"{n_fail} fail · {n_warn} warn"
 
     lines = [
-        f"**[PULSE] {now}** - {len(members)}/31 staff · {headline}",
+        f"**[PULSE] {now}** — {len(members)}/31 staff · {headline}",
         "",
         f"actions today **{totals.get('actions_today', '?')}** · "
         f"errors **{totals.get('errors_today', '?')}** · "

@@ -1,21 +1,21 @@
 """
-brand_frames.py - AdBanao-killer branded frames + daily ready-post feed.
+brand_frames.py — AdBanao-killer branded frames + daily ready-post feed.
 =========================================================================
 
 Kisi bhi template (SVG poster ya raster image) ke neeche client ka BRAND
-FRAME (logo + business name + phone strip) overlay karo - AdBanao ka core
+FRAME (logo + business name + phone strip) overlay karo — AdBanao ka core
 "apna naam-number wala poster" experience, free-stack me.
 
   compose_frame(template, brand)        -> {"ok", "svg"} ya {"ok", "png_path"}
   daily_feed(slug_or_id, date=None)     -> {"ok", "posts": [3 ready posts]}
        har post = festival/quote/offer template × client brand frame + caption
-       (free-LLM caption, deterministic template fallback - KABHI empty nahi).
+       (free-LLM caption, deterministic template fallback — KABHI empty nahi).
 
 Reuses (REBUILD NAHI): posters.generate_poster (SVG templates + brand colors),
-festivals.upcoming (calendar), brand_kit.get_brand, clients_store (slug->client),
-data/logos/ (minisite_builder ke uploaded logos - `<slug>-<rand>.<ext>`).
+festivals.upcoming (calendar), brand_kit.get_brand, clients_store (slug→client),
+data/logos/ (minisite_builder ke uploaded logos — `<slug>-<rand>.<ext>`).
 
-Sab inputs XML-escaped (injection-safe). Top-level fns kabhi raise nahi -
+Sab inputs XML-escaped (injection-safe). Top-level fns kabhi raise nahi —
 error pe {"ok": False, "error": ...}.
 """
 
@@ -44,21 +44,21 @@ _SVG_DIM_RE = re.compile(r'<svg[^>]*?\bwidth="(\d+)"[^>]*?\bheight="(\d+)"', re.
 
 _STRIP_H = 110  # bottom brand strip height (px)
 
-# Deterministic Hinglish business quotes (day-of-year rotation - fallback feed)
+# Deterministic Hinglish business quotes (day-of-year rotation — fallback feed)
 _QUOTES = [
-    "Mehnat ka koi shortcut nahi - bas roz thoda behtar.",
+    "Mehnat ka koi shortcut nahi — bas roz thoda behtar.",
     "Customer ka bharosa hi sabse bada brand hai.",
     "Quality yaad rehti hai, daam bhool jaate hain.",
     "Aaj ka chhota kadam, kal ka bada business.",
     "Time pe service = free me marketing.",
     "Sapne bade rakho, kaam roz karo.",
-    "Jo dikhta hai wahi bikta hai - roz post karo!",
+    "Jo dikhta hai wahi bikta hai — roz post karo!",
 ]
 
 _OFFER_LINES = [
-    "Aaj ka Special Offer - abhi poochhein!",
+    "Aaj ka Special Offer — abhi poochhein!",
     "Pehli booking par khaas discount!",
-    "Limited slots - jaldi karein!",
+    "Limited slots — jaldi karein!",
     "Is hafte ki dhamaka deal!",
 ]
 
@@ -69,9 +69,9 @@ def _safe_color(c: Any, default: str) -> str:
 
 
 def resolve_brand(slug_or_id: str) -> dict[str, Any]:
-    """slug YA client_id -> merged brand dict (clients_store + brand_kit).
+    """slug YA client_id → merged brand dict (clients_store + brand_kit).
 
-    Hamesha dict deta hai (na mile to safe defaults) - kabhi raise nahi.
+    Hamesha dict deta hai (na mile to safe defaults) — kabhi raise nahi.
     Keys: client_id, slug, business_name, phone, tagline, niche, city,
     primary, accent, logo_data_uri.
     """
@@ -133,7 +133,7 @@ def resolve_brand(slug_or_id: str) -> dict[str, Any]:
 
 
 def _find_logo_data_uri(slug: str, client_id: str = "") -> str:
-    """data/logos/ me `<slug>-*.png|jpg|webp` ka newest file -> base64 data URI.
+    """data/logos/ me `<slug>-*.png|jpg|webp` ka newest file → base64 data URI.
 
     Logo na mile / read fail = "" (kabhi raise nahi). 1MB cap (SVG bloat na ho).
     """
@@ -159,8 +159,7 @@ def _find_logo_data_uri(slug: str, client_id: str = "") -> str:
         }.get(ext, "image/png")
         with open(newest, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("ascii")
-        return f"data:{mime}
-        base64,{b64}"
+        return f"data:{mime};base64,{b64}"
     except Exception as e:  # pragma: no cover
         logger.debug(f"[brand_frames] logo lookup skip: {e}")
         return ""
@@ -207,15 +206,15 @@ def compose_frame(template: str, brand: dict[str, Any] | None = None) -> dict[st
 
     template = SVG string (`<svg...`) YA raster image ka file path (png/jpg).
     brand = resolve_brand() jaisa dict (ya {"business_name","phone","primary",...}).
-    SVG -> {"ok": True, "format": "svg", "svg": ...} (canvas height +strip).
-    Image -> {"ok": True, "format": "png", "png_path": "data/frames/..."}.
+    SVG → {"ok": True, "format": "svg", "svg": ...} (canvas height +strip).
+    Image → {"ok": True, "format": "png", "png_path": "data/frames/..."}.
     Kabhi raise nahi.
     """
     try:
         brand = brand if isinstance(brand, dict) else {}
         tpl = str(template or "").strip()
         if not tpl:
-            return {"ok": False, "error": "template missing - SVG string ya image path do."}
+            return {"ok": False, "error": "template missing — SVG string ya image path do."}
         if tpl.lstrip().lower().startswith("<svg"):
             return _compose_svg(tpl, brand)
         if os.path.isfile(tpl):
@@ -240,7 +239,7 @@ def _compose_svg(svg: str, brand: dict[str, Any]) -> dict[str, Any]:
 
 
 def _compose_raster(path: str, brand: dict[str, Any]) -> dict[str, Any]:
-    from PIL import Image, ImageDraw  # lazy - heavy dep
+    from PIL import Image, ImageDraw  # lazy — heavy dep
 
     img = Image.open(path).convert("RGB")
     w, h = img.size
@@ -281,7 +280,7 @@ def _load_font(size: int):
 
 
 # --------------------------------------------------------------------------- #
-# Daily feed - aaj ke 3 ready posts (festival/quote/offer × brand frame)
+# Daily feed — aaj ke 3 ready posts (festival/quote/offer × brand frame)
 # --------------------------------------------------------------------------- #
 def _today(date_str: str | None) -> _date:
     try:
@@ -306,11 +305,11 @@ def _fallback_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> li
             )
         elif kind == "quote":
             caps.append(
-                f"\U0001f4ad {it.get('title')}\n- {name}. Aaj ka vichaar, roz ki mehnat.{tail}"
+                f"\U0001f4ad {it.get('title')}\n— {name}. Aaj ka vichaar, roz ki mehnat.{tail}"
             )
         else:
             caps.append(
-                f"\U0001f525 {it.get('title')} {name} par aaj hi visit karein - offer limited hai!{tail}"
+                f"\U0001f525 {it.get('title')} {name} par aaj hi visit karein — offer limited hai!{tail}"
             )
     return caps
 
@@ -320,8 +319,7 @@ async def _llm_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> l
     try:
         from app.voice_agent import free_ai
 
-        listing = "
-        ".join(f"{i + 1}. {it['kind']}: {it['title']}" for i, it in enumerate(items))
+        listing = "; ".join(f"{i + 1}. {it['kind']}: {it['title']}" for i, it in enumerate(items))
         raw, _ = await free_ai.chat(
             (
                 "Tu Indian local business ka social media caption writer hai. Har item ke "
@@ -352,7 +350,7 @@ async def _llm_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> l
 async def daily_feed(slug_or_id: str, date: str | None = None) -> dict[str, Any]:
     """Aaj ka ready-to-post feed: 3 branded-frame posts (festival/quote/offer).
 
-    Har post: {"kind","title","caption","svg"} - svg = poster × brand frame.
+    Har post: {"kind","title","caption","svg"} — svg = poster × brand frame.
     Caption free-LLM (1 call), fallback deterministic. KABHI empty/raise nahi.
     """
     try:

@@ -1,8 +1,7 @@
 """Register Video Production Cell capabilities in the canonical harness registry.
 
-Shadow-friendly: definitions only
-enforcement gated by VIDEO_HARNESS_ENFORCE.
-Agents map to existing STAFF (isha / zara / arnav) - no 32nd persona.
+Shadow-friendly: definitions only; enforcement gated by VIDEO_HARNESS_ENFORCE.
+Agents map to existing STAFF (isha / zara / arnav) — no 32nd persona.
 """
 
 from __future__ import annotations
@@ -58,8 +57,7 @@ def register_video_tools() -> None:
     _reg(
         name="video.script.write",
         version="1.0.0",
-        description="Write hook/script/CTA/caption from brief
-        never invent prices.",
+        description="Write hook/script/CTA/caption from brief; never invent prices.",
         input_schema={
             "type": "object",
             "properties": {"brief": {"type": "object"}},
@@ -79,8 +77,7 @@ def register_video_tools() -> None:
     _reg(
         name="video.render.social",
         version="1.0.0",
-        description="Local FFmpeg render via video_pipeline
-        queues customer review.",
+        description="Local FFmpeg render via video_pipeline; queues customer review.",
         input_schema={
             "type": "object",
             "properties": {

@@ -1,4 +1,4 @@
-"""Tests - 2026-07-05 USER-MANDATE fixes (paisa-burn + IVR/bot false-qualify).
+"""Tests — 2026-07-05 USER-MANDATE fixes (paisa-burn + IVR/bot false-qualify).
 
 1. dial_gate: promotional outbound TEST-MODE allowlist (default ON, fail-closed).
 2. call_qualifier: bot/IVR detection + min-user-turns gate (qualified ka darwaza).
@@ -70,7 +70,7 @@ def test_file_can_disable_test_mode(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# call_qualifier - bot/IVR detection
+# call_qualifier — bot/IVR detection
 # --------------------------------------------------------------------------- #
 def test_detect_ivr_phrases():
     from app.voice_agent.call_qualifier import detect_bot_or_ivr
@@ -203,7 +203,7 @@ async def test_qualify_clean_human_passes(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# post_call_hooks - bot-suspect mapping + cost metering
+# post_call_hooks — bot-suspect mapping + cost metering
 # --------------------------------------------------------------------------- #
 def test_build_call_log_bot_suspect_null_outcome_and_cost(monkeypatch):
     monkeypatch.setenv("CALL_LOG_DB", "1")
@@ -221,7 +221,7 @@ def test_build_call_log_bot_suspect_null_outcome_and_cost(monkeypatch):
         q=q,
     )
     assert row is not None
-    assert row.outcome is None  # unknown/unverified - NOT interested
+    assert row.outcome is None  # unknown/unverified — NOT interested
     assert row.detected_intent == "bot_suspected"
     assert row.call_cost == 2 * 45  # ceil(90s/60)=2 min × 45 paise
 
@@ -238,7 +238,7 @@ def test_build_call_log_cost_zero_for_phoneless(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# VobizClient.place_call - dial_gate choke-point
+# VobizClient.place_call — dial_gate choke-point
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_place_call_blocked_by_dial_gate(monkeypatch, tmp_path):
@@ -256,7 +256,7 @@ async def test_place_call_blocked_by_dial_gate(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_place_call_allowlisted_passes_gate(monkeypatch, tmp_path):
     """Allowlisted promo number dial_gate se aage badhta hai (phir compliance/
-    network layer apna kaam kare - yahan sirf gate-pass verify)."""
+    network layer apna kaam kare — yahan sirf gate-pass verify)."""
     _isolate(monkeypatch, tmp_path, allow_env="9812345678")
     from app.telephony import vobiz_handler as vh
 
@@ -280,6 +280,6 @@ async def test_place_call_allowlisted_passes_gate(monkeypatch, tmp_path):
     result = await client.place_call(
         to="+919812345678", answer_url="https://x/answer", call_type="promotional"
     )
-    # dial_gate ne pass kiya (blocked_by_dial_test_mode NAHI) - compliance tak pahuncha
+    # dial_gate ne pass kiya (blocked_by_dial_test_mode NAHI) — compliance tak pahuncha
     assert called.get("compliance") is True
     assert result["body"].get("error") != "blocked_by_dial_test_mode"

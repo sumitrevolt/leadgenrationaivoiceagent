@@ -2,7 +2,7 @@
 """Vobiz cold-calling go-live smoke (run inside leadgen_app container).
 
 Checks: env vars · readiness score · balance · compliance gate · optional dry-run.
-Never prints secrets - only SET/missing + masked caller-id tail.
+Never prints secrets — only SET/missing + masked caller-id tail.
 """
 
 from __future__ import annotations

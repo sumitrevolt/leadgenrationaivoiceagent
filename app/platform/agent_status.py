@@ -4,7 +4,7 @@ WHY (2026-07-20, Agent-OS upgrade): the canonical registry (agent_registry) know
 each agent's *contract* but not whether it is actually doing useful work right now.
 And the existing team feed marks an agent by process-level activity, which is the
 exact anti-pattern the mandate calls out: "do not mark an agent healthy merely
-because the scheduler process is alive." This module adds the missing layer - an
+because the scheduler process is alive." This module adds the missing layer — an
 HONEST per-agent health that reflects useful work within the agent's allowed
 window, plus enabled / gated-off / kill-switched state.
 
@@ -20,10 +20,10 @@ Two distinct health concepts (as the mandate requires):
   - ``runtime_state`` = process-level heartbeat (the team feed's live state)
   - ``health``        = useful-work heartbeat (did the agent do its expected work
                         within useful_work_gap_min, or is it a ready event-driven
-                        agent) - the honest signal.
+                        agent) — the honest signal.
 
 Scope: the 23 NON-VOICE agents (platform + marketing). The voice team (Swara & co.)
-is intentionally EXCLUDED - voice health is managed by its own stack and this module
+is intentionally EXCLUDED — voice health is managed by its own stack and this module
 never imports or touches any voice/telephony runtime.
 
 Pure READ. Never raises. No sends, no mutation.
@@ -64,7 +64,7 @@ def _flag_enabled(flag: str, *, require_explicit: bool = False) -> bool:
     """Blank primary_flag: historical 'ungated/core' for non-dispatchable inventory.
 
     Dispatchable pilots must not use blank flags (validate_registry + evaluate_policy).
-    When require_explicit=True (pilots), blank ≠ always-on - project disabled.
+    When require_explicit=True (pilots), blank ≠ always-on — project disabled.
     """
     if not flag:
         return not require_explicit
@@ -224,8 +224,7 @@ def agent_health(agent_id: str) -> dict[str, Any] | None:
 def fleet_health(include_voice: bool = False) -> dict[str, Any]:
     """Honest health rollup for the non-voice workforce. Admin-consumable.
 
-    include_voice=False (default) reports the 23 platform+marketing agents
-    voice
+    include_voice=False (default) reports the 23 platform+marketing agents; voice
     is out-of-scope (managed separately). Never raises.
     """
     result: dict[str, Any] = {

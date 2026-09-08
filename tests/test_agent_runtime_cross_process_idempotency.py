@@ -22,9 +22,7 @@ def test_cross_process_duplicate_suppression_file_backend(tmp_path):
     def script(out_path: str) -> str:
         return textwrap.dedent(
             f"""
-            import asyncio
-            import os
-            import sys
+            import asyncio, os, sys
             sys.path.insert(0, {str(ROOT)!r})
             os.environ["AGENT_RUNTIME_IDEM_BACKEND"] = "file"
             os.environ["AGENT_RUNTIME_IDEM_FILE"] = {str(store)!r}

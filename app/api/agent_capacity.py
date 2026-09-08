@@ -1,7 +1,7 @@
-"""Capacity & approval-policy admin endpoints - Hermes/OpenCode parity (#1, #3).
+"""Capacity & approval-policy admin endpoints — Hermes/OpenCode parity (#1, #3).
 
 Mounted by main session under /api/agents-ext. Read-only status + a risk-score preview.
-Never exposes key VALUES - counts only.
+Never exposes key VALUES — counts only.
 """
 
 from __future__ import annotations

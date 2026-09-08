@@ -1,11 +1,10 @@
-"""Auto-proposal / quote generator - per-lead personalized sales proposal.
+"""Auto-proposal / quote generator — per-lead personalized sales proposal.
 
-Interested lead -> AI ek ready proposal banata: problem -> solution -> plan+pricing ->
-ROI (missed-revenue calc) -> demo-link + payment-link. 1-click send / self-serve close.
+Interested lead → AI ek ready proposal banata: problem → solution → plan+pricing →
+ROI (missed-revenue calc) → demo-link + payment-link. 1-click send / self-serve close.
 
 Reuse: packages (pricing), lead_tools (ROI), free_ai (polish). Ban-safe (content +
-links
-payment self-serve via /pricing). Import-safe, kabhi raise nahi.
+links; payment self-serve via /pricing). Import-safe, kabhi raise nahi.
 """
 
 from __future__ import annotations
@@ -18,8 +17,8 @@ logger = setup_logger(__name__)
 
 BASE = "https://leadsgenai.in"
 
-# Fallback only - live prices ALWAYS prefer get_public_packages() (billing truth).
-# Legacy "growth" is intentionally mapped -> starter so sales assets never quote ₹2,999.
+# Fallback only — live prices ALWAYS prefer get_public_packages() (billing truth).
+# Legacy "growth" is intentionally mapped → starter so sales assets never quote ₹2,999.
 PLANS = {
     "starter": {
         "name": "AI Marketing Automation",
@@ -28,7 +27,7 @@ PLANS = {
         "key": "starter",
     },
     "advanced": {
-        "name": "Combo - Marketing + AI Voice",
+        "name": "Combo — Marketing + AI Voice",
         "price": 5999,
         "for": "marketing + AI voice callback feature (500 min/mo)",
         "key": "advanced",
@@ -37,7 +36,7 @@ PLANS = {
 
 
 def _plan(plan_key: str) -> dict[str, Any]:
-    """Resolve a public plan. Legacy `growth` -> starter (hidden plan must not leak)."""
+    """Resolve a public plan. Legacy `growth` → starter (hidden plan must not leak)."""
     key = (plan_key or "starter").strip().lower() or "starter"
     if key == "growth":
         key = "starter"
@@ -73,7 +72,7 @@ async def generate_proposal(
     """Ek lead ke liye personalized proposal + payment/demo links + ROI. Kabhi raise nahi.
 
     `phone` (optional) ho to memory_vault history LLM prompt me jaati (proposal
-    prospect ki actual baat-cheet pe personalized) - memory na ho = aaj jaisa."""
+    prospect ki actual baat-cheet pe personalized) — memory na ho = aaj jaisa."""
     biz = (business_name or "Aapka business").strip()
     p = _plan(plan)
 
@@ -100,13 +99,13 @@ async def generate_proposal(
     template = (
         f"*Proposal for {biz}*\n\n"
         f"Problem: {(niche or 'aapke').replace('_', ' ')} business me aadhe inquiries bina follow-up "
-        f"ke nikal jaate - ~₹{lost:,}/mo ka nuksan.\n\n"
-        f"Solution: LeadGen AI marketing automation - posts/GBP/reviews/WhatsApp drafts. "
+        f"ke nikal jaate — ~₹{lost:,}/mo ka nuksan.\n\n"
+        f"Solution: LeadGen AI marketing automation — posts/GBP/reviews/WhatsApp drafts. "
         f"Advanced plan me AI voice callback feature bhi. Aap ready leads pe focus karo.\n\n"
-        f"Plan: *{p['name']} - ₹{p['price']}/mo* ({p['for']}). Cancel anytime.\n\n"
+        f"Plan: *{p['name']} — ₹{p['price']}/mo* ({p['for']}). Cancel anytime.\n\n"
         f"2-min live demo: {BASE}/app/test-call\n"
         f"Shuru karein (UPI pay): {BASE}/pricing\n\n"
-        f"- Sumit, LeadGen AI"
+        f"— Sumit, LeadGen AI"
     )
 
     proposal = template
@@ -115,8 +114,8 @@ async def generate_proposal(
 
         sys = (
             "Tum ek B2B sales-proposal writer ho (India). Ek SHORT (6-8 line) Hinglish proposal "
-            "likho: problem (ROI loss) -> solution -> plan+price -> demo+pay link. "
-            "Confident par pushy nahi. Sirf proposal text. Card/netbanking mat bolo - UPI primary."
+            "likho: problem (ROI loss) → solution → plan+price → demo+pay link. "
+            "Confident par pushy nahi. Sirf proposal text. Card/netbanking mat bolo — UPI primary."
         )
         prompt = (
             f"Business: {biz}, Niche: {niche}, City: {city}. Plan: {p['name']} ₹{p['price']}/mo. "

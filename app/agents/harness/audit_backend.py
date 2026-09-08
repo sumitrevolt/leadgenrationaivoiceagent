@@ -2,24 +2,23 @@
 
 INERT BY DEFAULT. Selected by ``HARNESS_AUDIT_BACKEND`` (default ``"jsonl"``):
 with the default, behaviour is byte-identical to the historical append-only JSONL
-sink - production is unchanged until an operator explicitly sets ``redis``.
+sink — production is unchanged until an operator explicitly sets ``redis``.
 
-Persistence model (redis) - ONE authoritative all-or-nothing write
+Persistence model (redis) — ONE authoritative all-or-nothing write
 ------------------------------------------------------------------
 Each observation is a single immutable **record key** created with
 ``SET harness:{audit}:record:<sha256> <value> NX GET PX <retention>``. That one
 command is simultaneously the durable audit record, the first-observer claim, the
 duplicate identity, and the replay envelope:
 
-* returns nil  -> the record was created (first observer);
-* returns old  -> a duplicate; the returned value IS the existing record;
-* raises        -> nothing was created (fail closed).
+* returns nil  → the record was created (first observer);
+* returns old  → a duplicate; the returned value IS the existing record;
+* raises        → nothing was created (fail closed).
 
 No second structure is required to establish evidence durability, so a partial
 commit is impossible. The Redis **Stream** and **metrics** hash are
 NON-authoritative derived indexes updated best-effort AFTER the authoritative
-write
-if they fail, the audit evidence still exists, status reports index lag,
+write; if they fail, the audit evidence still exists, status reports index lag,
 and an idempotent reconciler can rebuild them from the authoritative records.
 
 Retention: the record's TTL is also its dedup lifetime (one key), so "dedup
@@ -27,12 +26,10 @@ exists but record missing" and "record exists but dedup missing" are impossible.
 After retention expiry a replay legitimately becomes a new observation.
 
 Fail-closed: in ``redis`` mode an unreachable/errored Redis drops the observation
-and emits an operational error
-it NEVER silently falls back to process-local
+and emits an operational error; it NEVER silently falls back to process-local
 dedup or the file. An invalid ``HARNESS_AUDIT_BACKEND`` value is unhealthy and
-writes nothing - never silently coerced to jsonl. This dedups the audit/shadow
-EVIDENCE only
-it makes no claim of exactly-once BUSINESS execution.
+writes nothing — never silently coerced to jsonl. This dedups the audit/shadow
+EVIDENCE only; it makes no claim of exactly-once BUSINESS execution.
 
 Never stored: credentials, raw customer payloads, private message bodies, full
 environment variables, or unbounded model output (size-capped + key-filtered).
@@ -78,8 +75,7 @@ def _int_env(name: str, default: int) -> int:
 
 def resolve_backend_config() -> dict[str, Any]:
     """Strict resolution. Unset/empty or 'jsonl' -> jsonl (valid); 'redis' -> redis
-    (valid)
-    ANY other explicit value -> invalid (unhealthy, no write, no silent
+    (valid); ANY other explicit value -> invalid (unhealthy, no write, no silent
     fallback). A typo like 'redi'/'postgres' never becomes jsonl."""
     raw = os.getenv("HARNESS_AUDIT_BACKEND")
     # STRICT exact matching: unset/empty -> jsonl; exactly "jsonl"/"redis" -> that
@@ -116,8 +112,7 @@ def max_event_bytes() -> int:
 
 class AuditBackendUnavailable(RuntimeError):
     """Durable backend could not service a request. Callers turn this into a
-    fail-closed dropped observation + operational error
-    never raised into legacy."""
+    fail-closed dropped observation + operational error; never raised into legacy."""
 
 
 # --------------------------------------------------------------------------- #
@@ -192,8 +187,7 @@ def enforce_size(row: dict[str, Any]) -> dict[str, Any]:
 
 def derive_dedup_key(row: dict[str, Any], source_app_version: str | None = None) -> str:
     """Deterministic evidence identity. Live observations bind the CURRENT runtime
-    SHA (APP_VERSION/GIT_SHA)
-    a migration passes an explicit validated
+    SHA (APP_VERSION/GIT_SHA); a migration passes an explicit validated
     ``source_app_version`` so historical events keep their original provenance and
     are NOT re-identified under the migrating process's SHA."""
     ex = row.get("extra") or {}
@@ -431,8 +425,7 @@ class RedisBackend(AuditBackend):
             self._r.hincrby(_METRICS_KEY, "records_created", 1)
             self._r.hincrby(_METRICS_KEY, f"family:{fam}", 1)
             self._r.hincrby(_METRICS_KEY, f"mode:{mode}", 1)
-        except Exception as e:  # index lag is recoverable
-        the record already exists
+        except Exception as e:  # index lag is recoverable; the record already exists
             logger.warning("harness.audit: derived index update lagged (record durable): %s", e)
             self._note("index_errors")
 
@@ -490,8 +483,7 @@ class RedisBackend(AuditBackend):
 
     def reconcile(self, dry_run: bool = True, cap: int = 1_000_000) -> dict[str, Any]:
         """Idempotently rebuild derived stream/metrics from authoritative records.
-        Never modifies authoritative records
-        never creates duplicate index entries."""
+        Never modifies authoritative records; never creates duplicate index entries."""
         seen_stream = set()
         try:
             for _id, fields in self._r.xrange(_STREAM_KEY):
@@ -603,7 +595,7 @@ def get_backend(*, client: Any = None) -> AuditBackend:
 
 
 def write(row: dict[str, Any], *, backend: AuditBackend | None = None) -> dict[str, Any]:
-    """Atomic dedup + durable append for one audit row. NEVER raises - a durable
+    """Atomic dedup + durable append for one audit row. NEVER raises — a durable
     failure is reported as a fail-closed dropped observation (written=False, error
     set) so the caller can emit an operational error without touching legacy."""
     dk = derive_dedup_key(row)  # derive BEFORE size-capping so identity is stable

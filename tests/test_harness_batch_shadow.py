@@ -248,5 +248,4 @@ def test_real_run_batch(monkeypatch, tmp_path):
         if r.get("kind") == "shadow" and r["extra"].get("source_loop") == "batch_harness"
     ]
     skips = [r for r in rows2 if r.get("kind") == "shadow_resume_skip"]
-    assert len(actions2) == before and len(skips) == 5  # no new actions
-    5 resume diagnostics
+    assert len(actions2) == before and len(skips) == 5  # no new actions; 5 resume diagnostics

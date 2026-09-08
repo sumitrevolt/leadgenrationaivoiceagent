@@ -1,8 +1,8 @@
 """
-Tests for app.voice_agent.self_test - the built-in on-demand voice self-test.
+Tests for app.voice_agent.self_test — the built-in on-demand voice self-test.
 
 Deterministic + network-free by design: personas run rule-based (brain=None +
-use_llm_fallback=False intent -> zero LLM/network), live reads local transcripts,
+use_llm_fallback=False intent → zero LLM/network), live reads local transcripts,
 and STACK PROBES ARE OFF here (no edge-tts / provider network in CI). Proves the
 orchestrator never raises and the scorecard shape stays stable.
 """
@@ -12,7 +12,7 @@ from app.voice_agent import self_test
 
 async def test_personas_only_network_free():
     """Rule-based persona suite passes the project's 0.7 bar (7/7 = 1.0 today)
-    and the verdict is well-formed - all without touching the network."""
+    and the verdict is well-formed — all without touching the network."""
     rep = await self_test.run_voice_self_test(
         personas=True, stack=False, live=False, llm=False, niche="solar"
     )
@@ -37,7 +37,7 @@ async def test_live_only_no_data_is_neutral():
 
 
 async def test_no_components_is_fail():
-    """Nothing selected -> fail/0.0 (no component ran), still never raises."""
+    """Nothing selected → fail/0.0 (no component ran), still never raises."""
     rep = await self_test.run_voice_self_test(personas=False, stack=False, live=False, llm=False)
     assert rep["status"] == "fail"
     assert rep["score"] == 0.0
@@ -45,7 +45,7 @@ async def test_no_components_is_fail():
 
 
 def test_verdict_weighting_pure():
-    """_verdict only weights components that actually ran; empty -> fail."""
+    """_verdict only weights components that actually ran; empty → fail."""
     score, status = self_test._verdict({"personas": {"pass_rate": 1.0}})
     assert score == 1.0 and status == "ok"
 
@@ -55,7 +55,7 @@ def test_verdict_weighting_pure():
     score, status = self_test._verdict({})
     assert score == 0.0 and status == "fail"
 
-    # stack-only: 2 probes, 1 ok -> 0.5 fraction -> fail tier
+    # stack-only: 2 probes, 1 ok → 0.5 fraction → fail tier
     score, status = self_test._verdict(
         {"stack": {"tts": {"ok": True}, "stt": {"ok": False}, "ok": False}}
     )

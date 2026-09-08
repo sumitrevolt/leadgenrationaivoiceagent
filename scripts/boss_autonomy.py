@@ -1,4 +1,4 @@
-"""Boss Full Autonomy CLI - thin adapter over app.platform.boss_autonomy.
+"""Boss Full Autonomy CLI — thin adapter over app.platform.boss_autonomy.
 
 Canonical runtime logic lives in app.platform.boss_autonomy (public API only,
 no monkey-patching, no private catalog access). This script is a thin CLI.
@@ -17,8 +17,7 @@ Usage:
   python scripts/boss_autonomy.py simulate <title> [--agent hermes]
 
 Sweep advances EXISTING decision ids (never re-proposes). Execution requires a
-canary (PILOT_AGENTS) executor
-manager is held until its mutating canary.
+canary (PILOT_AGENTS) executor; manager is held until its mutating canary.
 Boss authority = HMAC via BOSS_GOV_AUTHORITY_KEY, verified by governance.
 """
 

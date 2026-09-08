@@ -6,17 +6,17 @@ Why: the call loop currently decides "user spoke" from raw PCM16 RMS
 silence. That crude gate false-triggers on line noise/echo and clips callers
 who pause mid-sentence. Two free, CPU-only, open-source models fix this:
 
-  * **Silero VAD** (snakers4/silero-vad, MIT) - robust speech/non-speech gate.
+  * **Silero VAD** (snakers4/silero-vad, MIT) — robust speech/non-speech gate.
     2MB ONNX, <1ms per 32ms frame on CPU. Implemented here.
-  * **Smart Turn v3** (pipecat-ai/smart-turn-v3, open weights) - *semantic*
+  * **Smart Turn v3** (pipecat-ai/smart-turn-v3, open weights) — *semantic*
     end-of-turn detection (knows the caller actually FINISHED vs just paused),
     8MB int8 ONNX, ~12ms CPU, Hindi supported. Recommended next step via the
-    existing pipecat skeleton - see ``get_smart_turn()`` below and
+    existing pipecat skeleton — see ``get_smart_turn()`` below and
     ``docs/Efficiency_Repos_Integration.md``.
 
 Design rules (match the rest of the voice agent):
   * OFF by default. Enable per detector via env once installed + tested on the
-    FREE web-call (``leadsgenai.in/app/test-call``) - never first on a paid call.
+    FREE web-call (``leadsgenai.in/app/test-call``) — never first on a paid call.
   * Never raise. Any missing dep / load error / inference error disables the
     detector permanently and returns ``None`` so the caller falls back to the
     existing energy + silence-timer logic. Zero behaviour change unless enabled.
@@ -30,7 +30,7 @@ Env flags:
   USE_TEXT_ENDPOINT=1     # turn on the zero-dep text/semantic endpoint check on
                           # the partial transcript (complements audio Smart-Turn)
 
-Adaptive interruption handling (free, deterministic - inspired by LiveKit's
+Adaptive interruption handling (free, deterministic — inspired by LiveKit's
 "adaptive interruption" + Pipecat semantic turn-taking): a cough, click or a
 one-syllable backchannel ("haan"/"hmm"/"achha") should NOT stop the bot
 mid-sentence. Two opt-in pieces, both default OFF so prod is unchanged:
@@ -41,8 +41,7 @@ mid-sentence. Two opt-in pieces, both default OFF so prod is unchanged:
   TURN_BARGE_GUARD_MS     # sustained-speech window for the guard (default 280 ms)
 
 Shared turn-taking knobs (read by the stream files + pipeline so a single env
-controls every audio path
-sane defaults keep prod identical until set):
+controls every audio path; sane defaults keep prod identical until set):
   TURN_SILENCE_MS         # trailing silence that ends a turn (default 700 ms)
   TURN_VAD_RMS            # PCM16 RMS speech gate (default 300)
   TURN_BARGE_MIN_MS       # speech-over-bot before barge-in fires (default 100 ms)
@@ -62,7 +61,7 @@ def _flag(name: str) -> bool:
 
 
 def _env_float(name: str, default: float) -> float:
-    """float(env[name]) with a safe fallback - a bad value never breaks import
+    """float(env[name]) with a safe fallback — a bad value never breaks import
     or a call. Shared by every voice path so one env tunes turn-taking globally."""
     try:
         raw = os.getenv(name, "")
@@ -143,7 +142,7 @@ class SileroSpeechGate:
 
             audio = _pcm16_to_float32(pcm16)
             # Silero needs a full window: 512 samples @16k, 256 @8k. Below that,
-            # defer to RMS (None) - the caller buffers up to this floor (D-5).
+            # defer to RMS (None) — the caller buffers up to this floor (D-5).
             min_samples = 512 if sample_rate >= 16000 else 256
             if audio is None or len(audio) < min_samples:
                 return None
@@ -167,7 +166,7 @@ class SmartTurnDetector:
     ``smart-turn-v3.2-cpu`` ONNX) when pipecat is installed AND ``USE_SMART_TURN=1``.
     Disabled (or any load/inference failure) -> ``is_endpoint`` returns ``None`` so
     the silence-timer decides. The standalone call binds the model's private
-    ``_predict_endpoint`` (ONNX sigmoid head) - pipecat normally drives it inside
+    ``_predict_endpoint`` (ONNX sigmoid head) — pipecat normally drives it inside
     its pipeline, but the head itself is a pure ``float32 -> probability`` fn.
     """
 
@@ -196,7 +195,7 @@ class SmartTurnDetector:
             self._analyzer = LocalSmartTurnAnalyzerV3(smart_turn_model_path=path)
             # smart-turn-v3 exposes a private ``_predict_endpoint(np_float32_16k)``
             # that runs the ONNX session directly and returns a dict with a
-            # sigmoid ``probability`` - perfect for our standalone (no-pipeline)
+            # sigmoid ``probability`` — perfect for our standalone (no-pipeline)
             # call. Bind it if present; otherwise stay conservative (predict=None
             # -> is_endpoint returns None -> silence-timer decides).
             self._predict = getattr(self._analyzer, "_predict_endpoint", None)
@@ -221,8 +220,7 @@ class SmartTurnDetector:
         mid-sentence, None when disabled/unavailable/uncertain (silence-timer decides).
 
         Runs smart-turn-v3's ONNX endpoint head on the trailing audio. The model
-        wants mono float32 @ 16 kHz
-        8 kHz phone audio is upsampled (cheap). ANY
+        wants mono float32 @ 16 kHz; 8 kHz phone audio is upsampled (cheap). ANY
         failure degrades to None so a bad frame can never end/hold a turn wrongly.
         """
         if not self._ensure() or self._predict is None:
@@ -231,11 +229,11 @@ class SmartTurnDetector:
             import numpy as np
 
             audio = _pcm16_to_float32(pcm16)
-            if audio is None or len(audio) < 1600:  # <100 ms @16k - too little to judge
+            if audio is None or len(audio) < 1600:  # <100 ms @16k — too little to judge
                 return None
             if sample_rate and sample_rate != 16000:
                 # linear-interp resample to 16k (feature extractor's rate). Crude
-                # but adequate - the model classifies prosody, not exact samples.
+                # but adequate — the model classifies prosody, not exact samples.
                 ratio = 16000.0 / float(sample_rate)
                 n_out = int(len(audio) * ratio)
                 if n_out < 1600:
@@ -279,9 +277,9 @@ def get_smart_turn() -> SmartTurnDetector:
 
 
 # --------------------------------------------------------------------------- #
-# Text-based semantic endpointing - zero-dep, rule-first. Runs on the PARTIAL
+# Text-based semantic endpointing — zero-dep, rule-first. Runs on the PARTIAL
 # transcript to complement the audio Smart-Turn: a caller can pause AFTER a
-# dangling conjunction ("...kyunki-") and the silence-timer would wrongly end
+# dangling conjunction ("...kyunki—") and the silence-timer would wrongly end
 # the turn; the words say "not done". Cheap pure-string heuristics, no model.
 # --------------------------------------------------------------------------- #
 
@@ -292,7 +290,7 @@ _INCOMPLETE_TAIL_WORDS = frozenset(
     {
         # conjunctions / connectives (Roman)
         "aur",
-        # English connectives - code-mixed callers switch to English mid-thought;
+        # English connectives — code-mixed callers switch to English mid-thought;
         # these almost never END a real turn, so "keep listening" is high-precision.
         "and",
         "but",
@@ -380,10 +378,10 @@ def text_end_of_turn(text: str) -> bool | None:
     """Rule-first text/semantic endpoint check on a partial transcript.
 
     Returns:
-      * ``True``  - the words look COMPLETE (ends on terminal . ? ! danda).
-      * ``False`` - the words look INCOMPLETE (ends on a dangling Hinglish
+      * ``True``  — the words look COMPLETE (ends on terminal . ? ! danda).
+      * ``False`` — the words look INCOMPLETE (ends on a dangling Hinglish
         conjunction like aur/lekin/kyunki/ya or a thinking-filler matlab/woh/uh).
-      * ``None``  - undecided / empty (caller should fall back to the audio
+      * ``None``  — undecided / empty (caller should fall back to the audio
         silence-timer + Smart-Turn). Never raises.
 
     Zero-dep, no model, no network. Designed to *complement* the audio
@@ -401,27 +399,26 @@ def text_end_of_turn(text: str) -> bool | None:
             return True
         # A bare trailing comma/dash (attached or space-separated) reads as
         # "more coming" -> incomplete.
-        if t[-1] in {",", "-", "–", "-"}:
+        if t[-1] in {",", "-", "–", "—"}:
             return False
         # 2) Look at the last word (strip trailing non-word punctuation like
         #    comma/dash/ellipsis that don't terminate a sentence).
         last = t.split()[-1] if t.split() else ""
-        last_clean = last.strip(",
-        :-–-…\"'()[]{}").lower()
+        last_clean = last.strip(",;:-–—…\"'()[]{}").lower()
         if not last_clean:
             return None
         if last_clean in _INCOMPLETE_TAIL_WORDS:
             return False  # dangling conjunction / filler -> keep listening
-        # 3) Otherwise undecided - let audio/silence decide.
+        # 3) Otherwise undecided — let audio/silence decide.
         return None
     except Exception:
         return None
 
 
 # --------------------------------------------------------------------------- #
-# Backchannel detection - zero-dep, rule-first. A "backchannel" is a pure short
+# Backchannel detection — zero-dep, rule-first. A "backchannel" is a pure short
 # acknowledgment ("haan"/"hmm"/"achha"/"ok") the caller drops WHILE the bot
-# talks to signal "I'm listening / go on" - NOT taking the floor or asking a
+# talks to signal "I'm listening / go on" — NOT taking the floor or asking a
 # question. Used (with BARGE_GUARD) to tell a real interruption from a mere ack
 # so the bot doesn't abandon its point mid-sentence. Mirrors LiveKit's adaptive
 # interruption idea, done free + deterministic.
@@ -504,12 +501,12 @@ _BACKCHANNEL_WORDS = frozenset(
     }
 )
 
-# A backchannel utterance is at most this many tokens - longer = real content.
+# A backchannel utterance is at most this many tokens — longer = real content.
 _BACKCHANNEL_MAX_TOKENS = 3
 
 
 def is_backchannel(text: str) -> bool:
-    """True if ``text`` is a PURE short acknowledgment/backchannel - the caller
+    """True if ``text`` is a PURE short acknowledgment/backchannel — the caller
     is signalling "I'm listening / go on", not taking the floor or asking
     something. Used by the streams (gated BARGE_GUARD) to keep a "haan"/"hmm"
     from derailing the bot mid-reply.
@@ -519,8 +516,7 @@ def is_backchannel(text: str) -> bool:
       * at most ``_BACKCHANNEL_MAX_TOKENS`` tokens,
       * False for empty/None.
     The streams only ACT on this when the bot was actually speaking (a true
-    interruption)
-    a bare "haan" answering the bot's yes/no question is handled
+    interruption); a bare "haan" answering the bot's yes/no question is handled
     normally because the bot isn't speaking then. Never raises.
     """
     try:
@@ -530,8 +526,7 @@ def is_backchannel(text: str) -> bool:
         t = t.strip(".!?,।॥…\"'()[]{} ")
         if not t:
             return False
-        toks = [w.strip(".,!?
-        :-–-…\"'()[]{}") for w in t.split()]
+        toks = [w.strip(".,!?;:-–—…\"'()[]{}") for w in t.split()]
         toks = [w for w in toks if w]
         if not toks or len(toks) > _BACKCHANNEL_MAX_TOKENS:
             return False
@@ -551,12 +546,11 @@ def confirm_end_of_turn(
 
     ``silence_ended=False`` -> caller still talking, return False. ``silence_ended=True``
     -> Smart Turn (USE_SMART_TURN=1) se poochho: agar woh kahe turn ABHI complete nahi
-    (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko)
-    complete
+    (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko); complete
     ya uncertain/disabled (None) to silence-timer honor karo -> True.
 
     TEXT layer (USE_TEXT_ENDPOINT=1, default OFF): jab ``text`` partial transcript
-    diya ho - agar woh ek dangling conjunction/filler pe khatam ho (aur/lekin/matlab)
+    diya ho — agar woh ek dangling conjunction/filler pe khatam ho (aur/lekin/matlab)
     to False (abhi mat toko), terminal . ? ! danda pe khatam ho to turn complete maano.
     Undecided/empty/flag-off = no effect (audio + silence-timer authoritative).
     Never raises.
@@ -584,31 +578,28 @@ def confirm_end_of_turn(
 
 
 # --------------------------------------------------------------------------- #
-# Shared turn-taking knobs - ONE place every audio path reads, so a single env
+# Shared turn-taking knobs — ONE place every audio path reads, so a single env
 # tunes end-of-turn snappiness across vobiz_stream (16k), phone_stream (8k) and
 # the text/web pipeline. Defaults reproduce the previous hard-coded behaviour
 # (silence 700 ms, RMS 300, barge-in ~100 ms), so prod is unchanged until set.
 # --------------------------------------------------------------------------- #
 def turn_silence_ms(default: float = 700.0) -> float:
     """Trailing silence (ms) that ends a user turn. Env: TURN_SILENCE_MS.
-    Lower = snappier (risk: clip a slow talker)
-    higher = safer but laggier.
+    Lower = snappier (risk: clip a slow talker); higher = safer but laggier.
     ~500-800 ms is the human-feeling sweet spot."""
     return _env_float("TURN_SILENCE_MS", default)
 
 
 def turn_vad_rms(default: int = 300) -> int:
     """PCM16 RMS above which a frame counts as speech. Env: TURN_VAD_RMS.
-    Higher on a noisy line (ignore hum)
-    lower in a quiet studio."""
+    Higher on a noisy line (ignore hum); lower in a quiet studio."""
     return _env_int("TURN_VAD_RMS", default)
 
 
 def barge_in_ms(default: float = 100.0) -> float:
     """How long the caller must talk over the bot before barge-in fires (ms).
     Env: TURN_BARGE_MIN_MS. Lower = more eager cut-in (risk: own echo stops the
-    bot)
-    higher = bot less interruptible."""
+    bot); higher = bot less interruptible."""
     return _env_float("TURN_BARGE_MIN_MS", default)
 
 
@@ -638,7 +629,7 @@ def barge_guard_enabled() -> bool:
 
 def barge_guard_ms(default: float = 280.0) -> float:
     """Sustained speech-over-bot (ms) required to commit a barge-in when the
-    guard is ON. Env: TURN_BARGE_GUARD_MS. Default 280 ms - longer than a cough
+    guard is ON. Env: TURN_BARGE_GUARD_MS. Default 280 ms — longer than a cough
     or a one-syllable "haan" (which is followed by silence and resets the
     counter), shorter than a real interrupting clause."""
     return _env_float("TURN_BARGE_GUARD_MS", default)
@@ -646,8 +637,7 @@ def barge_guard_ms(default: float = 280.0) -> float:
 
 def barge_guard_frames(frame_ms: float, default_ms: float = 280.0) -> int:
     """Frames of SUSTAINED speech needed to commit a barge-in when BARGE_GUARD
-    is ON
-    falls back to the snappy ``barge_in_frames`` (~100 ms) when OFF so
+    is ON; falls back to the snappy ``barge_in_frames`` (~100 ms) when OFF so
     prod is unchanged. Min 1. Callers tick per inbound frame."""
     if not barge_guard_enabled():
         return barge_in_frames(frame_ms)

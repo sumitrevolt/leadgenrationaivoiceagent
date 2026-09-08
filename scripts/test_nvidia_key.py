@@ -1,4 +1,4 @@
-"""test_nvidia_key.py - real-API smoke for the NVIDIA NIM provider.
+"""test_nvidia_key.py — real-API smoke for the NVIDIA NIM provider.
 
 Confirms the wired NVIDIA NIM entry can reach integrate.api.nvidia.com and return
 a completion. Reads NVIDIA_API_KEY from env/.env (via app.config settings).
@@ -20,7 +20,7 @@ async def main() -> int:
     has_key = free_ai._has_key("nvidia")
     print(f"[nvidia] model={model}  key_present={has_key}")
     if not has_key:
-        print("[nvidia] NO KEY - set NVIDIA_API_KEY in env or .env. (provider is inert)")
+        print("[nvidia] NO KEY — set NVIDIA_API_KEY in env or .env. (provider is inert)")
         return 2
 
     text, provider = await free_ai.chat_provider(
@@ -36,7 +36,7 @@ async def main() -> int:
     if text:
         print("[nvidia] SMOKE PASS ✅ (real 200 from integrate.api.nvidia.com)")
         return 0
-    print("[nvidia] SMOKE FAIL ❌ (empty reply - check key/credits/model id)")
+    print("[nvidia] SMOKE FAIL ❌ (empty reply — check key/credits/model id)")
     return 1
 
 

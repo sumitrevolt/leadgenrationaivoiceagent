@@ -1,4 +1,4 @@
-"""Tests - revenue+infra batch 2026-06-10 (gst_invoice, email_warmup, usage_alerts,
+"""Tests — revenue+infra batch 2026-06-10 (gst_invoice, email_warmup, usage_alerts,
 annual pricing). Project convention: sync + asyncio.run, tmp stores monkeypatch,
 DB/network nahi chahiye.
 """

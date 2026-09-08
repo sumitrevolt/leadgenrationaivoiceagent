@@ -1,8 +1,8 @@
 """
-Agents API - LangGraph supervisor endpoints.
+Agents API — LangGraph supervisor endpoints.
 
-POST /agents/run    (admin) - route a task through the supervisor graph
-GET  /agents/status          - engine availability + node list
+POST /agents/run    (admin) — route a task through the supervisor graph
+GET  /agents/status          — engine availability + node list
 
 Returns HTTP 501 when the langgraph engine is not installed (graceful path).
 """
@@ -71,7 +71,7 @@ async def agents_status(
 
 
 # ============================================================================
-# Multi-agent COORDINATOR - free-stack coordination over the STAFF roster.
+# Multi-agent COORDINATOR — free-stack coordination over the STAFF roster.
 # plan -> sequential handoff (shared blackboard) | parallel fan-out -> aggregate.
 # Always available (no langgraph dep). SAFE default (execute=False = drafts only).
 # ============================================================================
@@ -89,8 +89,7 @@ class FanOutRequest(BaseModel):
     """Goal to fan out to multiple agents in parallel."""
 
     goal: str = Field(..., min_length=3, max_length=2000)
-    agents: list[str] | None = Field(None, description="STAFF keys
-    default dev/rohan/isha/kavya")
+    agents: list[str] | None = Field(None, description="STAFF keys; default dev/rohan/isha/kavya")
 
 
 @router.get("/roster")
@@ -98,8 +97,7 @@ async def agents_roster(
     user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
     """STAFF roster + executable-capability flag (PUBLIC). recent_runs carry the
-    internal coordination goal/output text -> admin-only
-    anon/non-admin get []."""
+    internal coordination goal/output text → admin-only; anon/non-admin get []."""
     out: dict[str, Any] = {"roster": coordinator.roster(), "recent_runs": []}
     if user is not None and user.can_access_admin():
         out["recent_runs"] = coordinator.recent_runs(10)
@@ -116,12 +114,12 @@ async def coordinate_agents(
 
 @router.post("/fanout", dependencies=[Depends(rate_limit("agents", 15, 60))])
 async def fanout_agents(req: FanOutRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
-    """Parallel coordination - multiple agents work the same goal at once, then aggregate."""
+    """Parallel coordination — multiple agents work the same goal at once, then aggregate."""
     return await coordinator.fan_out(req.goal, agents=req.agents)
 
 
 # ============================================================================
-# ADVANCED orchestration (2026 SOTA): Reflexion loop (plan->execute->verify->reflect->retry)
+# ADVANCED orchestration (2026 SOTA): Reflexion loop (plan→execute→verify→reflect→retry)
 # + episodic memory + critic, and debate/consensus. Free-stack, admin + rate-limited.
 # ============================================================================
 class AdvancedRequest(BaseModel):
@@ -147,7 +145,7 @@ class DebateRequest(BaseModel):
 async def coordinate_advanced_agents(
     req: AdvancedRequest, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Reflexion orchestration: plan -> execute (handoff) -> critic verify -> reflect + retry -> aggregate.
+    """Reflexion orchestration: plan → execute (handoff) → critic verify → reflect + retry → aggregate.
     Episodic memory recall/persist + guardrails (max_iterations, quality_bar)."""
     return await coordinator.coordinate_advanced(
         req.goal,
@@ -160,7 +158,7 @@ async def coordinate_advanced_agents(
 
 @router.post("/debate", dependencies=[Depends(rate_limit("agents", 10, 60))])
 async def debate_agents(req: DebateRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
-    """Consensus pattern - pro vs con agents argue, Boss judges with a clear verdict."""
+    """Consensus pattern — pro vs con agents argue, Boss judges with a clear verdict."""
     return await coordinator.debate(req.question, rounds=req.rounds)
 
 
@@ -185,7 +183,7 @@ async def council_members(user: User = Depends(require_admin)) -> dict[str, Any]
 async def council_agents(
     req: CouncilRequest, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """LLM Council - parallel multi-model opinions -> anonymized peer rank -> Chairman synthesis."""
+    """LLM Council — parallel multi-model opinions → anonymized peer rank → Chairman synthesis."""
     return await coordinator.council(req.question)
 
 
@@ -196,7 +194,7 @@ async def agents_memory(limit: int = 30, user: User = Depends(require_admin)) ->
 
 
 class HierRequest(BaseModel):
-    """Goal for hierarchical (Boss -> sub-teams -> members) orchestration."""
+    """Goal for hierarchical (Boss → sub-teams → members) orchestration."""
 
     goal: str = Field(..., min_length=3, max_length=2000)
     execute: bool = Field(False, description="True = agents ki SAFE capabilities bhi chalao")
@@ -211,8 +209,8 @@ async def coordinate_hierarchical_agents(
 
 
 # ============================================================================
-# AGENTVERSE task-solving (OpenBMB, ICLR'24 - arXiv:2308.10848): dynamic expert
-# recruitment + evaluate->re-compose closed loop. Differs from coordinate-advanced
+# AGENTVERSE task-solving (OpenBMB, ICLR'24 — arXiv:2308.10848): dynamic expert
+# recruitment + evaluate→re-compose closed loop. Differs from coordinate-advanced
 # (fixed-roster Reflexion): yahan team khud goal ke hisaab se banti + feedback pe
 # badalti. Free-stack, admin + rate-limited, SAFE default (execute=False=drafts).
 # ============================================================================
@@ -223,7 +221,7 @@ class AgentVerseRequest(BaseModel):
     execute: bool = Field(
         False, description="True = recruited experts ki SAFE staff-capabilities bhi chalao"
     )
-    max_rounds: int = Field(2, ge=1, le=3, description="recruit->solve->evaluate->re-compose rounds")
+    max_rounds: int = Field(2, ge=1, le=3, description="recruit→solve→evaluate→re-compose rounds")
     quality_bar: float = Field(0.75, ge=0.0, le=1.0, description="early-stop evaluator score")
     team_size: int = Field(3, ge=2, le=4, description="experts recruited per round")
 
@@ -232,8 +230,8 @@ class AgentVerseRequest(BaseModel):
 async def coordinate_agentverse_agents(
     req: AgentVerseRequest, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """AgentVerse: dynamically RECRUIT task-tailored experts -> collaborate + solver synthesize
-    -> EVALUATE (critic) -> feedback se team RE-COMPOSE + refine (rounds tak). Best-of kept."""
+    """AgentVerse: dynamically RECRUIT task-tailored experts → collaborate + solver synthesize
+    → EVALUATE (critic) → feedback se team RE-COMPOSE + refine (rounds tak). Best-of kept."""
     return await coordinator.coordinate_agentverse(
         req.goal,
         execute=req.execute,
@@ -244,9 +242,9 @@ async def coordinate_agentverse_agents(
 
 
 # ============================================================================
-# ENGINEERING crew (MetaGPT/OpenHands-inspired): Architect -> Engineer -> Reviewer ->
-# Tester -> design + implementation plan + review + test plan. DRAFT-ONLY (code
-# auto-apply NAHI). code_upgrader (signal->patch) ka goal->design complement.
+# ENGINEERING crew (MetaGPT/OpenHands-inspired): Architect → Engineer → Reviewer →
+# Tester → design + implementation plan + review + test plan. DRAFT-ONLY (code
+# auto-apply NAHI). code_upgrader (signal→patch) ka goal→design complement.
 # ============================================================================
 class EngineeringRequest(BaseModel):
     """Goal for the engineering crew (draft-only design/plan/tests)."""
@@ -261,6 +259,6 @@ class EngineeringRequest(BaseModel):
 async def coordinate_engineering_agents(
     req: EngineeringRequest, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Engineering crew -> design + implementation PLAN + security/reliability review + test plan.
+    """Engineering crew → design + implementation PLAN + security/reliability review + test plan.
     DRAFT-ONLY (code auto-apply nahi). Free-stack, never raises."""
     return await coordinator.coordinate_engineering(req.goal, context=req.context)

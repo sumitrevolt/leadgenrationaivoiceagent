@@ -71,7 +71,7 @@ class User(Base):
     profile_picture_path = Column(String(500))  # Path in bucket
 
     # Role and permissions - values_callable matches PostgreSQL lowercase enum;
-    # native_enum=False added (production audit 2026-07-01, F-DB4) - was still a
+    # native_enum=False added (production audit 2026-07-01, F-DB4) — was still a
     # native Postgres ENUM type despite already storing correct lowercase values,
     # confirmed via alembic/versions/010_enum_columns_to_varchar.py.
     role = Column(

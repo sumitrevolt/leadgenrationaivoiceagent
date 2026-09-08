@@ -1,11 +1,10 @@
 """
 Audit: frontend /api/... references vs registered FastAPI routes.
-Finds "dead buttons" - UI fetch() calls to endpoints that don't exist (404).
+Finds "dead buttons" — UI fetch() calls to endpoints that don't exist (404).
 
 Run: python scripts/audit_frontend_links.py
-Exit 0 always (report-only). Heuristic - concatenated dynamic paths may be
-flagged as candidates
-verify each before "fixing".
+Exit 0 always (report-only). Heuristic — concatenated dynamic paths may be
+flagged as candidates; verify each before "fixing".
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def matches(p: str) -> bool:
     # frontend concatenation often leaves a trailing slash before a dynamic id,
     # possibly followed by MORE path: '/api/marketing/crm/'+id+'/customers'.
     # The extracted literal is only the static prefix '/api/marketing/crm/'.
-    # It's valid as long as SOME registered route begins with that prefix - the
+    # It's valid as long as SOME registered route begins with that prefix — the
     # dynamic tail can't be statically validated anyway.
     if p.endswith("/"):
         if any(orig.startswith(p) for _, orig in route_res):

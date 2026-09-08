@@ -2,7 +2,7 @@
 recommendation): OUTREACH_AB=1 used to apply the A/B variant to 100% of sends
 immediately. Council verdict on the outreach_quality (0-reply) incident: canary a
 new content change on a small slice first, watch bounce_rate_7d/reply-rate, then
-widen - rather than flipping everything at once. OUTREACH_AB_PCT enforces that.
+widen — rather than flipping everything at once. OUTREACH_AB_PCT enforces that.
 """
 
 from app.marketing import outreach_variants as ov

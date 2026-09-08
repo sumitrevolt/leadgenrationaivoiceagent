@@ -1,8 +1,7 @@
-"""sales_qualify.py - BANT qualification, Indian local-SMB adapted.
+"""sales_qualify.py — BANT qualification, Indian local-SMB adapted.
 
-ai-sales-team-claude (zubair-trabzada) ke BANT+MEDDIC rubric se inspired -
-unka US-B2B-SaaS version funding-rounds/G2/LinkedIn pe chalta tha
-humara
+ai-sales-team-claude (zubair-trabzada) ke BANT+MEDDIC rubric se inspired —
+unka US-B2B-SaaS version funding-rounds/G2/LinkedIn pe chalta tha; humara
 LOCAL SMB (solar/gym/salon) version GBP-signals pe: rating, reviews, website,
 owner-access, inquiry recency. Pure-Python (no LLM/no network) = fast + testable.
 
@@ -12,9 +11,9 @@ Dimensions (0-25 each, total 0-100):
 - Need: marketing gap = HUMARA pitch (website nahi / reviews kam / rating low)
 - Timeline: abhi garam hai? (status, recency, inquiry source)
 
-`bant_score(prospect_dict)` -> {total, grade A-D, dimension scores, reasons[],
+`bant_score(prospect_dict)` → {total, grade A-D, dimension scores, reasons[],
 action (Hinglish next step)}. Kabhi raise nahi karta.
-NOTE: yeh EXISTING lead_scoring (priority-ranking) ka REPLACEMENT nahi -
+NOTE: yeh EXISTING lead_scoring (priority-ranking) ka REPLACEMENT nahi —
 woh "kis pe pehle dhyan do" batata, yeh "deal kitni qualified + kaise close
 karein" batata (sales_team deep-dive ka hissa).
 """
@@ -31,10 +30,10 @@ logger = setup_logger(__name__)
 GRADES = [(75, "A"), (55, "B"), (35, "C"), (0, "D")]
 
 _ACTIONS = {
-    "A": "Aaj hi call/WhatsApp karo - full pitch + demo link bhejo (yeh closed hone layak hai).",
-    "B": "Personalized outreach bhejo + 2 din me follow-up - ek strong proof point ke saath.",
-    "C": "Nurture me daalo (cadence) - free audit/value content se garam karo, pitch abhi nahi.",
-    "D": "Token mat jalao - low-priority list, sirf seasonal/festival touch.",
+    "A": "Aaj hi call/WhatsApp karo — full pitch + demo link bhejo (yeh closed hone layak hai).",
+    "B": "Personalized outreach bhejo + 2 din me follow-up — ek strong proof point ke saath.",
+    "C": "Nurture me daalo (cadence) — free audit/value content se garam karo, pitch abhi nahi.",
+    "D": "Token mat jalao — low-priority list, sirf seasonal/festival touch.",
 }
 
 
@@ -106,7 +105,7 @@ def score_timeline(p: dict) -> tuple[int, list[str]]:
     status = (p.get("status") or "").lower()
     if status in ("hot", "interested"):
         s += 10
-        why.append("abhi garam - turant move karo")
+        why.append("abhi garam — turant move karo")
     elif status in ("contacted", "callback"):
         s += 5
     ts = _num(p.get("ts") or p.get("updated_at_ts") or p.get("created_ts"))
@@ -132,7 +131,7 @@ def grade_of(total: int) -> str:
 
 
 def bant_score(p: dict) -> dict[str, Any]:
-    """Full BANT - pure, never-raise."""
+    """Full BANT — pure, never-raise."""
     try:
         b, bw = score_budget(p or {})
         a, aw = score_authority(p or {})

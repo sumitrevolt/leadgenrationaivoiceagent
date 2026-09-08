@@ -124,7 +124,7 @@ def classify(
     # Checked against BOTH the raw input and the resolved path, with any drive
     # letter stripped. On Windows `Path("/opt/leadgen").resolve()` becomes
     # `C:\opt\leadgen`, so matching only the resolved value would make this
-    # check silently platform-dependent - passing in CI while the operator who
+    # check silently platform-dependent — passing in CI while the operator who
     # typed `/opt/leadgen` is the one who needs stopping.
     resolved_str = _protected_form(str(resolved))
     raw_str = _protected_form(target)

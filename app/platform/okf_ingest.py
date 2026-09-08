@@ -1,4 +1,4 @@
-"""OKF -> Qdrant ingest bridge (ADR-119 Phase-1).
+"""OKF → Qdrant ingest bridge (ADR-119 Phase-1).
 
 Additive, flag-gated (``OKF_INGEST_ENABLED`` OFF default). Uses existing
 ``KnowledgeBase.add_documents`` into namespace ``okf`` with per-file sources
@@ -98,7 +98,7 @@ def ingest(*, root=None, force: bool = False) -> dict[str, Any]:
 
 
 def recall(query: str, k: int = 5) -> list[dict[str, Any]]:
-    """Retrieve curated OKF chunks only (namespace filter). Fail-open -> []."""
+    """Retrieve curated OKF chunks only (namespace filter). Fail-open → []."""
     q = (query or "").strip()
     if not q:
         return []

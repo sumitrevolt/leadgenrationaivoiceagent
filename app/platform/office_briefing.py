@@ -1,4 +1,4 @@
-"""F4 "Subah ki Briefing" - daily Hinglish HQ radio bulletin (text + Swara audio).
+"""F4 "Subah ki Briefing" — daily Hinglish HQ radio bulletin (text + Swara audio).
 
 A short 6-8 line spoken bulletin for /app/office: collects REAL operational
 numbers (overdue/failed jobs, DLQ depth, hot-queue count, today's top active
@@ -7,11 +7,9 @@ the FREE LLM chain (`free_ai.chat`), then renders Swara's voice (EdgeTTS
 `hi-IN-SwaraNeural`) to an mp3.
 
 Hard rules (match office_hq.py):
-  - READ-ONLY. Every number is a direct read of an existing store/builder
-  no
-    new DB models. Never fabricated - a source that fails contributes 0/None.
-  - Never raises. Each collector is try/except with a safe default
-  the compose
+  - READ-ONLY. Every number is a direct read of an existing store/builder; no
+    new DB models. Never fabricated — a source that fails contributes 0/None.
+  - Never raises. Each collector is try/except with a safe default; the compose
     step degrades LLM-fail -> deterministic template, TTS-fail -> text-only.
   - One LLM + one TTS call per IST-day: results cached to
     data/office_briefing/{date}.json + {date}.mp3 (force=True regenerates).
@@ -34,10 +32,10 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 # Module-level so tests can monkeypatch to tmp_path (never write into real data/).
 _DIR = "data/office_briefing"
 
-# Swara - EdgeTTS hi-IN-SwaraNeural via the existing voice-stack TTS helper.
+# Swara — EdgeTTS hi-IN-SwaraNeural via the existing voice-stack TTS helper.
 _TTS_VOICE_PRESET = "hindi_female"
 
-# EdgeTTS has NO internal timeout (aiohttp default ~300s) - a stall would pin one
+# EdgeTTS has NO internal timeout (aiohttp default ~300s) — a stall would pin one
 # of only WEB_CONCURRENCY=2 workers (documented prod-down class). Module-level so
 # tests can shrink it.
 _TTS_TIMEOUT_S = 20.0
@@ -47,10 +45,10 @@ _CLAIM_WAIT_S = 60.0
 _SYSTEM = (
     "Tu LeadGenAI ke Operating HQ ka subah ka radio-announcer hai. Tujhe aaj ke "
     "REAL business numbers diye jayenge. In numbers se ek chhota, energetic "
-    "Hinglish (Roman script) radio-bulletin bana - jaise koi office ke intercom "
+    "Hinglish (Roman script) radio-bulletin bana — jaise koi office ke intercom "
     "par subah ki khabar sunata hai. Rules: SIRF diye gaye numbers use kar (koi "
     "naya number mat bana), zyada se zyada 8 lines, har line chhoti, warm aur "
-    "action-oriented. Koi heading/emoji/bullet nahi - sirf bolne wali lines."
+    "action-oriented. Koi heading/emoji/bullet nahi — sirf bolne wali lines."
 )
 
 
@@ -138,7 +136,7 @@ async def _wait_for_cached(date: str) -> dict[str, Any] | None:
 
 
 # --------------------------------------------------------------------------- #
-# Collectors - each never-raises, contributes a safe default on failure.
+# Collectors — each never-raises, contributes a safe default on failure.
 # --------------------------------------------------------------------------- #
 def _collect_numbers() -> dict[str, Any]:
     """Gather the REAL operational numbers the bulletin will cite."""
@@ -152,7 +150,7 @@ def _collect_numbers() -> dict[str, Any]:
         "top_agents": [],  # list[{"name": str, "count": int}]
     }
 
-    # Automation health - overdue jobs + DLQ depth (failed Celery tasks).
+    # Automation health — overdue jobs + DLQ depth (failed Celery tasks).
     try:
         from app.platform import automation_health
 
@@ -164,7 +162,7 @@ def _collect_numbers() -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[office_briefing] automation_health skipped: {e}")
 
-    # Hot Queue - interested/question replies awaiting a human (reply_agent).
+    # Hot Queue — interested/question replies awaiting a human (reply_agent).
     try:
         from app.platform import reply_agent
 
@@ -238,12 +236,12 @@ def _leads_today() -> tuple[int, int]:
 
 
 # --------------------------------------------------------------------------- #
-# Compose - LLM bulletin, deterministic template fallback.
+# Compose — LLM bulletin, deterministic template fallback.
 # --------------------------------------------------------------------------- #
 def _template_bulletin(nums: dict[str, Any]) -> str:
-    """Deterministic Hinglish bulletin straight from the numbers - used when the
+    """Deterministic Hinglish bulletin straight from the numbers — used when the
     LLM is unavailable. Still cites every real number so it stays useful."""
-    lines = ["Subah ki briefing - aaj ka office update."]
+    lines = ["Subah ki briefing — aaj ka office update."]
     lines.append(
         f"Aaj {nums['new_leads']} naye leads aaye, jisme se {nums['qualified_leads']} qualified hue."
     )
@@ -258,11 +256,11 @@ def _template_bulletin(nums: dict[str, Any]) -> str:
     )
     if nums["overdue_jobs"] or nums["failed_jobs"] or nums["dlq_depth"]:
         lines.append(
-            f"Reliability: {nums['overdue_jobs']} jobs overdue, DLQ me {nums['dlq_depth']} failed tasks - "
+            f"Reliability: {nums['overdue_jobs']} jobs overdue, DLQ me {nums['dlq_depth']} failed tasks — "
             "inhe repair karna hai."
         )
     else:
-        lines.append("Reliability side clean hai - koi overdue job ya failed task nahi.")
+        lines.append("Reliability side clean hai — koi overdue job ya failed task nahi.")
     lines.append("Chaliye, aaj ka din shuru karte hain!")
     return "\n".join(lines)
 
@@ -304,7 +302,7 @@ async def _compose_text(nums: dict[str, Any]) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# TTS - thin wrapper so tests can monkeypatch a single function. Never raises
+# TTS — thin wrapper so tests can monkeypatch a single function. Never raises
 # here; the caller decides has_audio from the return value.
 # --------------------------------------------------------------------------- #
 async def _tts_to_file(text: str, path: str) -> bool:
@@ -318,7 +316,7 @@ async def _tts_to_file(text: str, path: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Public - build_briefing (cached, never-raises).
+# Public — build_briefing (cached, never-raises).
 # --------------------------------------------------------------------------- #
 async def build_briefing(force: bool = False) -> dict[str, Any]:
     """Today's HQ bulletin: {ok, date, text, has_audio}.
@@ -361,11 +359,11 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
             _release_generation_claim(date)
             return cached
 
-    # _collect_numbers is SYNC and touches the DB + every draft/agent-event -
+    # _collect_numbers is SYNC and touches the DB + every draft/agent-event —
     # run it OFF the event loop with a hard deadline (same rule + pattern as
     # office_hq._safe_collect_live_stats; blocking the loop = documented prod-down
     # class). On timeout/failure degrade to zeros so a slow store never hangs the
-    # briefing (the template still renders a useful - if empty - bulletin).
+    # briefing (the template still renders a useful — if empty — bulletin).
     try:
         nums = await asyncio.wait_for(asyncio.to_thread(_collect_numbers), timeout=10.0)
     except Exception as e:
@@ -394,7 +392,7 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
 
     has_audio = False
     try:
-        # Bounded - same pattern as web_call.py TTS calls (see _TTS_TIMEOUT_S note).
+        # Bounded — same pattern as web_call.py TTS calls (see _TTS_TIMEOUT_S note).
         has_audio = bool(await asyncio.wait_for(_tts_to_file(text, mpath), timeout=_TTS_TIMEOUT_S))
     except Exception as e:
         logger.debug(f"[office_briefing] TTS failed -> text-only: {e}")
@@ -547,8 +545,7 @@ async def run_scheduled() -> dict[str, Any]:
     """Build today's draft-only revenue brief when the control plane is safe.
 
     The existing daily cache is the idempotency ledger. Health collection runs
-    off-loop and is bounded
-    degraded/unknown health fails closed before any
+    off-loop and is bounded; degraded/unknown health fails closed before any
     LLM or TTS work. The result stays inside Office HQ and `/app/inbox` remains
     the human-only action surface.
     """
@@ -573,8 +570,8 @@ async def run_scheduled() -> dict[str, Any]:
         )
         _log_scheduled_event("warn", detail)
         # ADR-109 ops fix (2026-07-16): intentional fail-closed SKIP is NOT a job
-        # failure. Returning ok:False made Celery retry -> dlq:dead -> health stayed
-        # degraded -> brief skipped forever (death spiral). ok:True + skipped keeps
+        # failure. Returning ok:False made Celery retry → dlq:dead → health stayed
+        # degraded → brief skipped forever (death spiral). ok:True + skipped keeps
         # the gate (no LLM/TTS) without poisoning DLQ / dead-man status.
         return {
             "ok": True,

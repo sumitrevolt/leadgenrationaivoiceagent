@@ -1,12 +1,12 @@
 """
-posters.py - AdBanao-lite SVG poster generator (NO image-AI, NO external assets).
+posters.py — AdBanao-lite SVG poster generator (NO image-AI, NO external assets).
 =================================================================================
 
-6 inline 1080x1080 SVG templates - gradients/shapes/emoji-text only, system
+6 inline 1080x1080 SVG templates — gradients/shapes/emoji-text only, system
 fonts (Segoe UI/Arial). Placeholders: {business_name} {tagline} {offer}
 {phone} {festival}. Inputs XML-ESCAPED hote hain (injection-safe).
 
-PURE LOGIC - koi LLM/network nahi, kabhi raise nahi. SVG string browser me
+PURE LOGIC — koi LLM/network nahi, kabhi raise nahi. SVG string browser me
 direct render hota hai aur PNG me convert bhi kar sakte ho (client-side).
 """
 
@@ -23,8 +23,8 @@ logger = setup_logger(__name__)
 _FONT = "Segoe UI, Arial, sans-serif"
 
 # ============================================================================ #
-# Templates - 1080x1080, sirf gradients/shapes/emoji (no external images/fonts)
-# NOTE: .format() use hota hai - SVG me literal { } kahin nahi (no <style> blocks).
+# Templates — 1080x1080, sirf gradients/shapes/emoji (no external images/fonts)
+# NOTE: .format() use hota hai — SVG me literal { } kahin nahi (no <style> blocks).
 # ============================================================================ #
 
 _SVG_FESTIVAL_GLOW = (
@@ -196,7 +196,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
     },
     "clean-pro": {
         "name": "Clean Pro (white + brand stripe)",
-        "best_for": "Services/B2B - clinics, consultants, real-estate, corporate look",
+        "best_for": "Services/B2B — clinics, consultants, real-estate, corporate look",
         "svg": _SVG_CLEAN_PRO,
     },
     "diwali-special": {
@@ -235,7 +235,7 @@ _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 def _apply_brand_colors(svg: str, template_id: str, brand_primary: str, brand_accent: str) -> str:
     """Valid #RRGGBB brand colors ko template ke slot-colors par replace karo.
 
-    Invalid/khali color = no-op (injection-safe - sirf strict hex pass hota hai).
+    Invalid/khali color = no-op (injection-safe — sirf strict hex pass hota hai).
     """
     slots = _BRAND_SLOTS.get(template_id, {})
     for color, slot in ((brand_primary, "primary"), (brand_accent, "accent")):
@@ -254,7 +254,7 @@ def list_templates() -> list[dict[str, str]]:
 
 
 def _esc(value: str, default: str = "") -> str:
-    """XML-escape (quotes included) - SVG injection-safe."""
+    """XML-escape (quotes included) — SVG injection-safe."""
     v = (value or "").strip() or default
     return escape(v, quote=True)
 
@@ -271,9 +271,8 @@ def generate_poster(
 ) -> dict[str, Any]:
     """1080x1080 SVG poster banao. Unknown template => clean-pro. Kabhi raise nahi.
 
-    brand_primary/brand_accent (#RRGGBB, optional - brand_kit se) template ke
-    default gradient/accent colors replace karte hain
-    khali = default look.
+    brand_primary/brand_accent (#RRGGBB, optional — brand_kit se) template ke
+    default gradient/accent colors replace karte hain; khali = default look.
     Returns: {"svg": str, "template": id, "width": 1080, "height": 1080}.
     """
     tid = (template_id or "").strip().lower()
@@ -284,7 +283,7 @@ def generate_poster(
         svg = TEMPLATES[tid]["svg"].format(
             business_name=_esc(business_name, "Aapka Business"),
             tagline=_esc(tagline, "Quality service, sahi daam"),
-            offer=_esc(offer, "Special Offer - aaj hi poochhein!"),
+            offer=_esc(offer, "Special Offer — aaj hi poochhein!"),
             phone=_esc(phone, "Call / WhatsApp karein"),
             festival=_esc(festival, "Shubh Avsar"),
         )

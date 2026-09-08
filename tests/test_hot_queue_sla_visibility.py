@@ -1,4 +1,4 @@
-"""Hot Queue SLA / idle-reason visibility - GTM operator truth (no outbound)."""
+"""Hot Queue SLA / idle-reason visibility — GTM operator truth (no outbound)."""
 
 from __future__ import annotations
 

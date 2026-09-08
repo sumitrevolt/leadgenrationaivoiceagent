@@ -60,8 +60,7 @@ def _identity(f: dict[str, Any]) -> str:
 def evaluate(findings: list[dict[str, Any]]) -> dict[str, Any]:
     """Compare current findings against the frozen baseline.
 
-    Returns a structured verdict
-    never raises.
+    Returns a structured verdict; never raises.
     """
     base = {e["finding_fingerprint"]: e for e in _baseline.ENTRIES}
     base_by_identity = {e["identity"]: e for e in _baseline.ENTRIES}
@@ -120,7 +119,7 @@ def evaluate(findings: list[dict[str, Any]]) -> dict[str, Any]:
 
     # Baseline expansions must be accounted for, not merely absorbed. Saying
     # "new unresolved = 0" right after replacing the baseline describes the
-    # state AFTER accepting the expansion - which is exactly the impression I
+    # state AFTER accepting the expansion — which is exactly the impression I
     # gave when it went 691 -> 881.
     governed, gov_detail = _changes.expansion_is_governed(len(base))
     change_problems = _changes.validate()

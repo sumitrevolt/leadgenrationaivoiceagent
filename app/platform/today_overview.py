@@ -1,8 +1,8 @@
 """
-Today Overview - "Aaj kya hua?" plain-Hinglish admin snapshot (NO LLM, instant).
+Today Overview — "Aaj kya hua?" plain-Hinglish admin snapshot (NO LLM, instant).
 ================================================================================
 
-PROBLEM (user feedback 2026-06-12): automation command center technical tha -
+PROBLEM (user feedback 2026-06-12): automation command center technical tha —
 heartbeat tables, flag names, job keys. Admin ko ek nazar me samajh nahi aata
 tha ki (a) automations chal rahe hain ya nahi, (b) agents ne aaj kya kiya,
 (c) kya tootha hai aur kaise theek karein.
@@ -11,7 +11,7 @@ YEH MODULE existing data ko (automation_health + team.team_status + llm_metrics
 + flags) PLAIN HINGLISH sentences me aggregate karta hai. Koi naya store nahi,
 koi LLM call nahi (instant + free), kabhi raise nahi karta.
 
-API: GET /api/growth/overview/today (growth.py) -> /app/automation "🏠 Aaj" tab.
+API: GET /api/growth/overview/today (growth.py) → /app/automation "🏠 Aaj" tab.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# weekday() 0=Mon … 6=Sun - weekly staff jobs (baaki daily = har din due)
+# weekday() 0=Mon … 6=Sun — weekly staff jobs (baaki daily = har din due)
 _WEEKLY_ON: dict[str, int] = {
     "weekly_marketing": 2,  # Budh
     "saturday_hygiene": 5,  # Shani
@@ -103,7 +103,7 @@ def _job_due_today(job: str, *, now: datetime | None = None) -> bool:
 
 def _job_due_yet(job: str, *, now: datetime | None = None) -> bool:
     """True only when today's scheduled window has started in IST."""
-    # Reuse the SAME resolved instant for both the weekday and the window check -
+    # Reuse the SAME resolved instant for both the weekday and the window check —
     # resolving twice could straddle midnight and answer for two different days.
     current = _ist_now(now)
     if not _job_due_today(job, now=current):
@@ -114,14 +114,14 @@ def _job_due_yet(job: str, *, now: datetime | None = None) -> bool:
     return (current.hour, current.minute) >= due
 
 
-# Har scheduled job ka insaani naam + "yeh kya karta hai" - admin-friendly.
+# Har scheduled job ka insaani naam + "yeh kya karta hai" — admin-friendly.
 JOB_INFO: dict[str, dict[str, str]] = {
     "growth": {
         "label": "Growth pulse (har 15 min)",
         "kya": "Funnel ki sehat check karke chhote auto-fix karta hai",
     },
     "ops": {
-        "label": "Kavya - system health (hourly)",
+        "label": "Kavya — system health (hourly)",
         "kya": "Server/DB/queue sab theek hai ya nahi",
     },
     "reply_triage": {
@@ -136,11 +136,11 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Auto onboarding (hourly)",
         "kya": "Naye paid client ka setup khud kar deta hai",
     },
-    "qa": {"label": "Arjun - QA (raat 2:30)", "kya": "Voice agent ki quality test karta hai"},
-    "trainer": {"label": "Meera - trainer (raat 3)", "kya": "Agents ko naya seekhata hai"},
+    "qa": {"label": "Arjun — QA (raat 2:30)", "kya": "Voice agent ki quality test karta hai"},
+    "trainer": {"label": "Meera — trainer (raat 3)", "kya": "Agents ko naya seekhata hai"},
     "blog": {"label": "SEO blog (subah 6:30)", "kya": "Roz ek SEO blog post banata hai"},
     "content": {
-        "label": "Isha - content (subah 7)",
+        "label": "Isha — content (subah 7)",
         "kya": "Apne + clients ke social posts/captions banata hai",
     },
     "hot_queue_brief": {
@@ -153,35 +153,35 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
     "digest": {"label": "Daily digest (subah 8:30)", "kya": "Din ka summary email Sumit ko"},
     "prospect": {
-        "label": "Rohan - prospect scrape (subah 9:30)",
+        "label": "Rohan — prospect scrape (subah 9:30)",
         "kya": "Naye business prospects dhundta hai (42 niches rotation)",
     },
     "email_outreach": {
-        "label": "Rohan - cold email (subah 10:30)",
+        "label": "Rohan — cold email (subah 10:30)",
         "kya": "Roz 25 tak personalized cold emails + follow-ups bhejta hai",
     },
     "pipeline": {
-        "label": "Neha - pipeline (11:00)",
+        "label": "Neha — pipeline (11:00)",
         "kya": "Leads rescore + hot leads Rohan ko surface",
     },
     "midday_prospect": {
-        "label": "Rohan - midday harvest (14:30)",
+        "label": "Rohan — midday harvest (14:30)",
         "kya": "Dusra free lead-supply pass (websearch/opendata)",
     },
     "email_followup": {
-        "label": "Rohan - afternoon followup (16:00)",
+        "label": "Rohan — afternoon followup (16:00)",
         "kya": "Day-3/Day-7 email follow-ups (naya cold batch nahi)",
     },
     "evening_wrap": {
-        "label": "Boss - evening wrap (18:30)",
+        "label": "Boss — evening wrap (18:30)",
         "kya": "Din ka summary + hot leads EOD recap",
     },
     "afternoon_content": {
-        "label": "Isha - afternoon content (15:00)",
+        "label": "Isha — afternoon content (15:00)",
         "kya": "Dusra content-gen pass (gated AFTERNOON_CONTENT)",
     },
     "evening_prospect": {
-        "label": "Rohan - evening harvest (17:00)",
+        "label": "Rohan — evening harvest (17:00)",
         "kya": "Teesra free lead-harvest pass (gated EVENING_PROSPECT)",
     },
     "obsidian_push": {
@@ -189,15 +189,15 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "kya": "Second-brain notes compact + nightly git push (gated OBSIDIAN_SYNC)",
     },
     "weekly_marketing": {
-        "label": "Isha - weekly packs (Wed 12:30)",
+        "label": "Isha — weekly packs (Wed 12:30)",
         "kya": "S-tier niche marketing content bank top-up",
     },
     "kb_refresh": {
-        "label": "Dev - KB refresh (Sun 05:00)",
+        "label": "Dev — KB refresh (Sun 05:00)",
         "kya": "Client websites se contextual KB re-ingest",
     },
     "saturday_hygiene": {
-        "label": "Kavya - Sat hygiene (04:00)",
+        "label": "Kavya — Sat hygiene (04:00)",
         "kya": "DLQ sweep + stale celery queue trim",
     },
     "standup": {
@@ -220,7 +220,7 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "kya": "Dependency/CVE hygiene report",
     },
     "mcp_engineer": {
-        "label": "Arya - MCP engineer (hourly :40)",
+        "label": "Arya — MCP engineer (hourly :40)",
         "kya": "MCP health score + quota pressure + 90-din key rotation check",
     },
     "readiness_digest": {
@@ -245,7 +245,7 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
     "heartbeat": {
         "label": "Owner alive heartbeat (every 5m)",
-        "kya": "Owner zinda hai signal - self_improve revive gate",
+        "kya": "Owner zinda hai signal — self_improve revive gate",
     },
     "content_approval_notify": {
         "label": "Content approval notify (hourly :40)",
@@ -294,7 +294,7 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
     "sales_autopilot": {
         "label": "Sales Autopilot canary (hourly :25)",
-        "kya": "Policy-driven sales tick - dry-run default, calling HARD OFF, INERT jab SALES_AUTOPILOT_ENABLED off",
+        "kya": "Policy-driven sales tick — dry-run default, calling HARD OFF, INERT jab SALES_AUTOPILOT_ENABLED off",
     },
     "task_lease_reap": {
         "label": "Agent-task lease close-out (hourly :05)",
@@ -310,46 +310,46 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
     "content_approval_sweep": {
         "label": "Orphan approval sweep (subah 4:30)",
-        "kya": "Dead-client pending approvals ko expire mark karta hai - dry_run default, live tabhi jab CONTENT_APPROVAL_SWEEP_LIVE",
+        "kya": "Dead-client pending approvals ko expire mark karta hai — dry_run default, live tabhi jab CONTENT_APPROVAL_SWEEP_LIVE",
     },
     "daily_owner_brief": {
         "label": "Owner brief + ntfy push (subah 8:10)",
-        "kya": "P0/P1 exceptions pe owner ko ntfy push - gated DAILY_OWNER_BRIEF_NTFY. data/daily_owner_brief.txt hamesha save hota hai",
+        "kya": "P0/P1 exceptions pe owner ko ntfy push — gated DAILY_OWNER_BRIEF_NTFY. data/daily_owner_brief.txt hamesha save hota hai",
     },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
-# RULE: sirf woh flags jo prod me ON HONE chahiye (CLAUDE.md "=1 ON") - warna
+# RULE: sirf woh flags jo prod me ON HONE chahiye (CLAUDE.md "=1 ON") — warna
 # OFF-by-default flag yahan add karne se "Aaj" tab pe false-alarm noise aayega.
 _IMPORTANT_FLAGS = {
-    "AUTO_EMAIL_OUTREACH": "Cold email outreach band hai - naye leads ko mail nahi ja raha",
-    "NICHE_ROTATION": "42-niche scraping rotation band hai - sirf default niches scrape ho rahe",
+    "AUTO_EMAIL_OUTREACH": "Cold email outreach band hai — naye leads ko mail nahi ja raha",
+    "NICHE_ROTATION": "42-niche scraping rotation band hai — sirf default niches scrape ho rahe",
     "REPLY_AGENT": "Email replies koi nahi padh raha (hot leads miss ho sakte)",
     "OPS_WATCHDOG": "System toote to alert nahi aayega",
-    "SELF_IMPROVE_LOOP": "Self-improve loop band hai - agents khud kaam nahi uthayenge",
+    "SELF_IMPROVE_LOOP": "Self-improve loop band hai — agents khud kaam nahi uthayenge",
     "DUNNING_ENGINE": "Payment fail hone par recovery emails nahi jayenge",
-    "LEAD_HARVESTER": "Lead harvester band hai - naye prospects ki free supply nahi aa rahi",
-    "SALES_ENGINE": "Sales pipeline automation band hai - deals + next-action auto nahi ban rahe",
-    "CADENCE_ENGINE": "Omnichannel follow-up sequences band hain - leads ko auto touch/reminder nahi ja rahe",
-    "GROWTH_OPTIMIZER": "Funnel ka auto-optimizer band hai - leaks khud theek nahi ho rahe",
-    "CHANNEL_EXPERIMENTS": "Channel A/B bandit band hai - best outreach channel auto-pick nahi ho raha",
-    "AUTO_ONBOARD": "Naye paid client ka auto-setup band hai - manually karna padega",
+    "LEAD_HARVESTER": "Lead harvester band hai — naye prospects ki free supply nahi aa rahi",
+    "SALES_ENGINE": "Sales pipeline automation band hai — deals + next-action auto nahi ban rahe",
+    "CADENCE_ENGINE": "Omnichannel follow-up sequences band hain — leads ko auto touch/reminder nahi ja rahe",
+    "GROWTH_OPTIMIZER": "Funnel ka auto-optimizer band hai — leaks khud theek nahi ho rahe",
+    "CHANNEL_EXPERIMENTS": "Channel A/B bandit band hai — best outreach channel auto-pick nahi ho raha",
+    "AUTO_ONBOARD": "Naye paid client ka auto-setup band hai — manually karna padega",
 }
 
-# Flags jo ON hon to KHATARNAK - admin ko turant batao (problems[] me, kya+fix).
-# Normal prod me ye sab OFF rehte hain -> koi false-alarm nahi; koi ON ho to genuine.
+# Flags jo ON hon to KHATARNAK — admin ko turant batao (problems[] me, kya+fix).
+# Normal prod me ye sab OFF rehte hain → koi false-alarm nahi; koi ON ho to genuine.
 _DANGER_ON_FLAGS: dict[str, dict[str, str]] = {
     "LLM_BUDGET_HARD_KILL": {
-        "kya": "🚨 Emergency LLM kill-switch ON hai - saara AI band hai (replies/calls/content kuch nahi chalega)",
+        "kya": "🚨 Emergency LLM kill-switch ON hai — saara AI band hai (replies/calls/content kuch nahi chalega)",
         "fix": "Jaan-boojh ke nahi kiya to .env me LLM_BUDGET_HARD_KILL=0 karke app recreate karo",
     },
     "WHATSAPP_AUTO_SEND": {
-        "kya": "WhatsApp auto-send ON hai - bulk par number-ban ka risk",
+        "kya": "WhatsApp auto-send ON hai — bulk par number-ban ka risk",
         "fix": "Sirf approved-template + kam volume safe; sure nahi to WHATSAPP_AUTO_SEND off karo",
     },
     "REPLY_AUTO_SEND": {
-        "kya": "Email auto-reply ON hai - interested replies bina review ja rahe (ban/galti risk)",
-        "fix": "Draft-review safe hai - confidence nahi to REPLY_AUTO_SEND off rakho",
+        "kya": "Email auto-reply ON hai — interested replies bina review ja rahe (ban/galti risk)",
+        "fix": "Draft-review safe hai — confidence nahi to REPLY_AUTO_SEND off rakho",
     },
 }
 
@@ -364,7 +364,7 @@ def _pending_decisions() -> int:
     Canonical source = approvals_bridge (same count owner_home + Mission Control
     dikhate hain). Import-safe + never-raise: creds/store na ho to 0 (fail-open,
     kabhi false-alarm nahi). Yeh 'events_today' (jo agents AAJ kar CHUKE hain) se
-    alag hai - yeh asli 'boss decision chahiye' backlog hai."""
+    alag hai — yeh asli 'boss decision chahiye' backlog hai."""
     try:
         from app.platform import approvals_bridge
 
@@ -376,7 +376,7 @@ def _pending_decisions() -> int:
 
 
 def _customer_approval_backlog() -> dict[str, Any]:
-    """Work the CUSTOMER has not decided on yet - a DIFFERENT queue from
+    """Work the CUSTOMER has not decided on yet — a DIFFERENT queue from
     ``_pending_decisions()``.
 
     `approvals_bridge` (the source of `needs_decision`) covers the agentic-draft
@@ -423,7 +423,7 @@ def _customer_approval_backlog() -> dict[str, Any]:
 
 
 def _env_tri_state(name: str) -> str:
-    """Boolean env -> on/off/unset. Kabhi raw value return nahi (secrets-safe)."""
+    """Boolean env → on/off/unset. Kabhi raw value return nahi (secrets-safe)."""
     raw = (os.environ.get(name, "") or "").strip().lower()
     if not raw:
         return "unset"
@@ -549,13 +549,12 @@ def _marketing_feature_totals() -> dict[str, Any]:
 
 
 def _paid_activations_today() -> dict[str, Any]:
-    """Aaj ke Product-1 (Marketing) paid activations - ledger-backed, IST din.
+    """Aaj ke Product-1 (Marketing) paid activations — ledger-backed, IST din.
 
     ``docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`` ka north-star KPI hai, par owner ke
     home snapshot pe iska koi number tha hi nahi: sirf MRR snapshot delta tha, jo
     price/plan edit se bhi hilta hai. Ab invoice + UPI ledger se seedha count aata
-    hai. Read-only - kuch activate/approve nahi hota. Never raises
-    store na
+    hai. Read-only — kuch activate/approve nahi hota. Never raises; store na
     padhe to zeroes (fail-open, kabhi fabricated paid count nahi).
     """
     try:
@@ -592,13 +591,13 @@ def _ago_str(mins: int | None) -> str:
 
 
 def build() -> dict[str, Any]:
-    """Poora 'Aaj' snapshot - headline, problems[], staff[], jobs[], flags_off[].
+    """Poora 'Aaj' snapshot — headline, problems[], staff[], jobs[], flags_off[].
     Har item plain Hinglish. Kabhi raise nahi karta (partial data theek hai)."""
     problems: list[dict[str, str]] = []
     jobs_out: list[dict[str, Any]] = []
     staff_out: list[dict[str, Any]] = []
     flags_off: list[dict[str, str]] = []
-    # events_today = agents ne AAJ kitne kaam KIYE (done, DB event count) - NOT pending.
+    # events_today = agents ne AAJ kitne kaam KIYE (done, DB event count) — NOT pending.
     # needs_decision = asli boss-decision backlog (pending agentic approvals).
     totals = {"events_today": 0, "working": 0, "staff": 0, "needs_decision": 0, "hot_queue": 0}
 
@@ -613,18 +612,18 @@ def build() -> dict[str, Any]:
             mins = _ago_minutes(j.get("last_run"))
             status = j.get("status", "unknown")
             if status == "ok":
-                line = f"✅ Chal raha hai - pichhli baar {_ago_str(mins)}"
+                line = f"✅ Chal raha hai — pichhli baar {_ago_str(mins)}"
             elif status == "overdue":
                 if _job_due_today(key):
                     line = f"⚠️ Time par nahi chala (pichhli baar {_ago_str(mins)})"
                     problems.append(
                         {
                             "kya": f"{info['label']} time par nahi chala",
-                            "fix": "Worker/scheduler container check karo - /app/ops me ya 'docker ps' se",
+                            "fix": "Worker/scheduler container check karo — /app/ops me ya 'docker ps' se",
                         }
                     )
                 else:
-                    line = f"📅 Weekly job - agle din schedule ({_DAY_HI[_WEEKLY_ON[key]]})"
+                    line = f"📅 Weekly job — agle din schedule ({_DAY_HI[_WEEKLY_ON[key]]})"
                     status = "scheduled_off"
             elif status == "last_failed":
                 line = f"❌ Pichhla run FAIL hua ({_ago_str(mins)})"
@@ -636,13 +635,13 @@ def build() -> dict[str, Any]:
                 )
             elif status == "never_ran":
                 if not _job_due_today(key):
-                    line = f"📅 Aaj schedule nahi - har {_DAY_HI[_WEEKLY_ON[key]]} ko chalega"
+                    line = f"📅 Aaj schedule nahi — har {_DAY_HI[_WEEKLY_ON[key]]} ko chalega"
                     status = "scheduled_off"
                 elif not _job_due_yet(key):
-                    line = "📅 Aaj baad me chalega - scheduled time abhi nahi aaya"
+                    line = "📅 Aaj baad me chalega — scheduled time abhi nahi aaya"
                     status = "scheduled_off"
                 else:
-                    line = "⏳ Abhi tak nahi chala - deploy ke baad pehli run pending"
+                    line = "⏳ Abhi tak nahi chala — deploy ke baad pehli run pending"
                     problems.append(
                         {
                             "kya": f"{info['label']} abhi tak heartbeat nahi mila",
@@ -651,7 +650,7 @@ def build() -> dict[str, Any]:
                     )
             elif status == "scheduled_off":
                 day = _DAY_HI[_WEEKLY_ON[key]] if key in _WEEKLY_ON else "?"
-                line = f"📅 Aaj schedule nahi - har {day} ko chalega"
+                line = f"📅 Aaj schedule nahi — har {day} ko chalega"
             else:
                 line = "❓ Status pata nahi"
             jobs_out.append({**info, "job": key, "status": status, "line": line})
@@ -672,11 +671,11 @@ def build() -> dict[str, Any]:
         # dlq:dead held retry-exhausted tasks.
         # 2026-08-09: a mega-job that runs out of its wall-clock budget DROPS the
         # engines queued behind it. Prod ran `content` over its 420s budget on 15
-        # consecutive days with zero visible signal - the "Aaj" tab happily said
+        # consecutive days with zero visible signal — the "Aaj" tab happily said
         # sab theek while engines behind it never ran. Surface it in the owner's
         # own words, with the actual engine names.
         # A producer that still reports green but has stopped producing. The
-        # liveness dead-man cannot see this - it only knows the job ran and did
+        # liveness dead-man cannot see this — it only knows the job ran and did
         # not raise, which stayed true for all 15 days of the video outage.
         for _o in h.get("stale_outputs") or []:
             if _o.get("status") != "stale":
@@ -698,12 +697,12 @@ def build() -> dict[str, Any]:
             problems.append(
                 {
                     "kya": (
-                        f"{_skips.get('total')} baar kaam chhoda gaya - time khatam hone se yeh "
+                        f"{_skips.get('total')} baar kaam chhoda gaya — time khatam hone se yeh "
                         f"engines chale hi nahi: {_names}"
                     ),
                     "fix": (
                         "Job ka time budget badhao (CONTENT_TIME_BUDGET_S) ya bhaari engine ko "
-                        "apne alag job me nikalo - jaise daily video ke liye kiya gaya"
+                        "apne alag job me nikalo — jaise daily video ke liye kiya gaya"
                     ),
                     "href": "/app/automation",
                 }
@@ -711,7 +710,7 @@ def build() -> dict[str, Any]:
         # Customer-side approval pile. Nothing on this page counted it before
         # (see _customer_approval_backlog), which is how 32 of 39 video records
         # sat pending on prod while the tab said sab theek. A generated video the
-        # customer never approves is never delivered - so it is a REVENUE problem,
+        # customer never approves is never delivered — so it is a REVENUE problem,
         # not a queue statistic. Threshold 3 keeps normal same-day review quiet.
         _appr = _customer_approval_backlog()
         if _appr.get("total", 0) >= 3 or _appr.get("oldest_days", 0) >= 3:
@@ -722,11 +721,11 @@ def build() -> dict[str, Any]:
                     "kya": (
                         f"{_appr.get('total')} cheezein customer ki approval ka intezaar kar rahi "
                         f"hain{f' (sabse purani {_age} din se)' if _age else ''}"
-                        f"{f' - {_kinds}' if _kinds else ''}. Approve nahi hui to customer tak "
+                        f"{f' — {_kinds}' if _kinds else ''}. Approve nahi hui to customer tak "
                         f"kuch nahi pahunchta."
                     ),
                     "fix": (
-                        "Customer ko yaad dilao ya unki taraf se approve karo - "
+                        "Customer ko yaad dilao ya unki taraf se approve karo — "
                         "roz ka video bhi backlog wale client ke liye ruk jayega"
                     ),
                     "href": "/app/automation",
@@ -736,7 +735,7 @@ def build() -> dict[str, Any]:
             problems.append(
                 {
                     "kya": (
-                        f"{q.get('dead')} failed kaam stuck hain - system ne retry band kar diya "
+                        f"{q.get('dead')} failed kaam stuck hain — system ne retry band kar diya "
                         f"(dead/exhausted)"
                     ),
                     "fix": "Stuck tasks dekho, root-cause fix karo, phir retry/clear",
@@ -757,7 +756,7 @@ def build() -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[today] automation_health failed: {e}")
 
-    # ---- 2) Staff - aaj kisne kya kiya ----
+    # ---- 2) Staff — aaj kisne kya kiya ----
     try:
         from app.platform.team import team_status
 
@@ -804,7 +803,7 @@ def build() -> dict[str, Any]:
             problems.append(
                 {
                     "kya": f"AI brain struggle kar raha hai ({round(fb * 100)}% calls fail/fallback)",
-                    "fix": "Free LLM quota khatam ho sakta hai - kal tak rukna ya naya key add karna",
+                    "fix": "Free LLM quota khatam ho sakta hai — kal tak rukna ya naya key add karna",
                 }
             )
     except Exception as e:
@@ -839,7 +838,7 @@ def build() -> dict[str, Any]:
     totals["activations_today"] = int(_paid.get("activations_today") or 0)
     totals["paid_gross_today_inr"] = float(_paid.get("gross_inr_today") or 0)
 
-    # ---- 6) Hot Queue (GTM bottleneck) - owner 15-min sprint, never auto-send ----
+    # ---- 6) Hot Queue (GTM bottleneck) — owner 15-min sprint, never auto-send ----
     try:
         from app.platform import reply_agent
 
@@ -850,7 +849,7 @@ def build() -> dict[str, Any]:
                 0,
                 {
                     "kya": (
-                        f"{hq_n} garam replies Hot Queue me wait kar rahe hain - "
+                        f"{hq_n} garam replies Hot Queue me wait kar rahe hain — "
                         "15 min sprint se next paid customer"
                     ),
                     "fix": "/app/inbox kholo, top card pe Call/WA draft, phir Done (auto-send nahi)",
@@ -898,7 +897,7 @@ def build() -> dict[str, Any]:
                         f"(pending={totals['upi_pending']}, bind={totals['upi_needs_bind']})"
                     ),
                     "fix": (
-                        "Bind/Re-Approve tabhi jab bank credit sach me aaya ho - "
+                        "Bind/Re-Approve tabhi jab bank credit sach me aaya ho — "
                         "auto-confirm mat karo"
                     ),
                     "href": "/app/admin#sec-upi-selfserve",
@@ -907,7 +906,7 @@ def build() -> dict[str, Any]:
 
     # ---- Headline ----
     if problems:
-        headline = f"⚠️ {len(problems)} cheez dhyan maangti hai - neeche dekho"
+        headline = f"⚠️ {len(problems)} cheez dhyan maangti hai — neeche dekho"
     elif totals["events_today"] > 0:
         nd = totals["needs_decision"]
         tail = (
@@ -916,7 +915,7 @@ def build() -> dict[str, Any]:
             else " · kuch bhi aapki manzoori pe atka nahi (sab auto)"
         )
         headline = (
-            f"✅ Sab theek chal raha hai - aaj team ne {totals['events_today']} kaam KIYE"
+            f"✅ Sab theek chal raha hai — aaj team ne {totals['events_today']} kaam KIYE"
             f" ({totals['working']} agent abhi active){tail}"
         )
     else:

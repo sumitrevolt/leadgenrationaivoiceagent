@@ -69,7 +69,7 @@ class TestGoldenUtterances:
 
 
 class TestAdaptation:
-    """Rule 5: English -> Hinglish pipeline"""
+    """Rule 5: English → Hinglish pipeline"""
 
     def test_produce_hinglish(self):
         from app.voice_agent.swara_adaptation import adapt_english_to_swara

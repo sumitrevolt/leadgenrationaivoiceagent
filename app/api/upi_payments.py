@@ -1,14 +1,13 @@
-"""Self-serve UPI payment API - "maine pay kiya" submission + admin review.
+"""Self-serve UPI payment API — "maine pay kiya" submission + admin review.
 
 Public POST ``/upi/submit`` lets a customer report a UPI payment (ref + plan)
 without waiting for a WhatsApp-screenshot + manual admin activation. Admins
 review the pending queue and approve/reject. With ``UPI_AUTO_ACTIVATE=1`` the
 plan auto-activates instantly on submit.
 
-NO prefix here - the main app mounts this at ``/api`` (so routes become
+NO prefix here — the main app mounts this at ``/api`` (so routes become
 ``/api/upi/...``). Auth is enforced PER-ROUTE. Defensive:
-import never fails
-import handlers never 500.
+import never fails, handlers never 500.
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ class UpiSubmitIn(BaseModel):
     amount: float = 0
     payer_name: str = ""
     payer_contact: str = ""
-    # client_id is derived from the customer's JWT - client CANNOT submit for someone else.
+    # client_id is derived from the customer's JWT — client CANNOT submit for someone else.
     client_id: str = ""
     # #240 reconciliation anchor. Accepted but NEVER trusted as submitted:
     # submit_payment re-resolves it against the offer store and refuses unknown,
@@ -43,7 +42,7 @@ class UpiSubmitIn(BaseModel):
 
 
 class UpiBindIn(BaseModel):
-    """Admin-only bind payload - client_id for an unbound (guest) submission."""
+    """Admin-only bind payload — client_id for an unbound (guest) submission."""
 
     client_id: str = ""
 
@@ -56,10 +55,9 @@ class UpiBindIn(BaseModel):
 async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_customer)):
     """Customer (ya guest) apna UPI payment report karta hai. Never 500.
 
-    client_id is derived from the customer's JWT when logged in - a client CANNOT
+    client_id is derived from the customer's JWT when logged in — a client CANNOT
     submit for someone else's account. Guests (no token) submit a pending record
-    keyed by payer_contact
-    admin reaches out + activates (frontend home-page pay
+    keyed by payer_contact; admin reaches out + activates (frontend home-page pay
     modal path). Guests NEVER auto-activate: submit_payment only auto-activates
     when client_id is non-empty AND on the UPI_AUTO_ACTIVATE_CLIENTS allowlist.
     """
@@ -80,11 +78,11 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
             return {
                 "ok": False,
                 "error": res.get("error") or "Submit fail",
-                "message": res.get("error") or "Submit fail - dobara try karo",
+                "message": res.get("error") or "Submit fail — dobara try karo",
             }
         status = res.get("status", "pending")
         if status == "auto_activated":
-            message = "Plan activate ho gaya - dhanyavaad!"
+            message = "Plan activate ho gaya — dhanyavaad!"
         else:
             message = "Mil gaya! Verify ho raha hai, jaldi activate."
         return {
@@ -98,13 +96,13 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
         return {
             "ok": False,
             "error": "internal",
-            "message": "Kuch gadbad - thodi der baad try karo.",
+            "message": "Kuch gadbad — thodi der baad try karo.",
         }
 
 
 @router.get("/upi/pending", summary="Admin: pending UPI submissions queue")
 async def upi_pending_list(_user=Depends(require_admin)):
-    """Admin-only - pending plus approved-but-unactivated submissions."""
+    """Admin-only — pending plus approved-but-unactivated submissions."""
     try:
         from app.platform import upi_payments
 
@@ -119,7 +117,7 @@ async def upi_pending_list(_user=Depends(require_admin)):
 
 @router.post("/upi/pending/{pid}/approve", summary="Admin: approve a UPI submission")
 async def upi_approve(pid: str, _user=Depends(require_admin)):
-    """Admin-only - approve + activate plan (if client_id present)."""
+    """Admin-only — approve + activate plan (if client_id present)."""
     try:
         from app.platform import upi_payments
 
@@ -132,13 +130,12 @@ async def upi_approve(pid: str, _user=Depends(require_admin)):
 
 @router.post("/upi/pending/{pid}/bind", summary="Admin: bind a client to an unbound UPI submission")
 async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
-    """Admin-only - resolve a guest (unbound) submission (#304).
+    """Admin-only — resolve a guest (unbound) submission (#304).
 
-    Guest "maine pay kiya" submissions carry no client_id
-    approving one fails
+    Guest "maine pay kiya" submissions carry no client_id; approving one fails
     closed with ``approved_but_unbound``. This operator queue action binds the
     verified marketing client (fail-closed: unknown client / cross-tenant
-    re-point refused), then Approve activates - the owner's Approve stays the
+    re-point refused), then Approve activates — the owner's Approve stays the
     single activation gate.
     """
     try:
@@ -155,7 +152,7 @@ async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
 
 @router.post("/upi/pending/{pid}/reject", summary="Admin: reject a UPI submission")
 async def upi_reject(pid: str, _user=Depends(require_admin)):
-    """Admin-only - reject submission (no activation)."""
+    """Admin-only — reject submission (no activation)."""
     try:
         from app.platform import upi_payments
 

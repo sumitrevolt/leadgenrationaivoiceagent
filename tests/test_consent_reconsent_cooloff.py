@@ -1,6 +1,6 @@
 """TRAI 90-din re-consent cool-off tests (consent_ledger + compliance gate wiring).
 
-Pure-python: tmp jsonl stores (monkeypatched), seeded timestamps - no network/DB/LLM.
+Pure-python: tmp jsonl stores (monkeypatched), seeded timestamps — no network/DB/LLM.
 """
 
 import json
@@ -14,7 +14,7 @@ from app.telephony import consent_ledger as cl
 
 @pytest.fixture(autouse=True)
 def _tmp_stores(tmp_path, monkeypatch):
-    # Resolver functions, not constants - see test_consent_ledger.py for why.
+    # Resolver functions, not constants — see test_consent_ledger.py for why.
     # The WhatsApp store is patched too because record_opt_out cross-propagates
     # there; leaving it out writes into the repository's own data/ directory.
     monkeypatch.setattr(cl, "ledger_path", lambda: tmp_path / "consent_ledger.jsonl")
@@ -78,7 +78,7 @@ def test_opt_back_in_rejected_within_cooloff():
     res = cl.opt_back_in("9876500015", source="admin", proof="t1")
     assert res.get("error") == "reconsent_cooloff"
     assert res["reconsent_blocked"] is True
-    assert res["suppressed"] is True  # still suppressed - number NOT callable
+    assert res["suppressed"] is True  # still suppressed — number NOT callable
     assert cl.is_suppressed("9876500015") is True
     assert cl.has_consent("9876500015") is False
 
@@ -105,7 +105,7 @@ def test_opt_back_in_force_override_within_cooloff():
 
 def test_cooloff_env_override():
     _seed_opt_out("9876500018", days_ago=10)
-    # tighten cool-off to 5 days -> 10d-old opt-out now allowed
+    # tighten cool-off to 5 days → 10d-old opt-out now allowed
     import os
 
     os.environ["RECONSENT_COOLOFF_DAYS"] = "5"

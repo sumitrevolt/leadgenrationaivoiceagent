@@ -35,8 +35,7 @@ LOCK = Path(__file__).resolve().parents[1] / "requirements.lock.txt"
 
 # `pydantic-core` and `pydantic_core` are the same distribution; the lock has
 # historically used both spellings, so normalise before comparing.
-_PIN = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*==\s*([^\s
-#]+)", re.MULTILINE)
+_PIN = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*==\s*([^\s;#]+)", re.MULTILINE)
 
 
 def _normalise(name: str) -> str:
@@ -74,14 +73,12 @@ def test_lock_pins_the_core_version_pydantic_actually_requires():
         pytest.skip("pydantic not installed in this environment")
 
     required = [
-        r for r in requires if _normalise(r.split("==")[0].split("
-        ")[0]) == "pydantic-core"
+        r for r in requires if _normalise(r.split("==")[0].split(";")[0]) == "pydantic-core"
     ]
     if not required:  # pragma: no cover - defensive
         pytest.skip("installed pydantic does not pin pydantic-core exactly")
 
-    expected = required[0].split("==", 1)[1].split("
-    ")[0].strip()
+    expected = required[0].split("==", 1)[1].split(";")[0].strip()
 
     assert pins["pydantic-core"] == expected, (
         f"lock pins pydantic-core=={pins['pydantic-core']} but the pinned "

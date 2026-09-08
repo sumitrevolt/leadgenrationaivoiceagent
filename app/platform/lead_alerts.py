@@ -1,12 +1,12 @@
-"""Instant lead alerts (speed-to-lead) - naya inquiry/lead aate hi MALIK ko turant
+"""Instant lead alerts (speed-to-lead) — naya inquiry/lead aate hi MALIK ko turant
 email ping. GHL ka killer feature, free-stack me.
 
 Channel (gated, fail-soft):
-  - Email: NOTIFY_EMAIL pe (EmailSender reuse - ops_watchdog wala pattern).
+  - Email: NOTIFY_EMAIL pe (EmailSender reuse — ops_watchdog wala pattern).
     NOTIFY_EMAIL unset = silent skip.
 
 Dedupe: max 1 alert / phone / hour (data/lead_alerts.jsonl). Total budget ~8s
-(asyncio.wait_for). NEVER raises - callers fire-and-forget.
+(asyncio.wait_for). NEVER raises — callers fire-and-forget.
 
   notify_new_lead(rec)    -> async, awaitable result dict
   notify_new_lead_bg(rec) -> sync-safe scheduler (create_task / daemon thread)
@@ -39,7 +39,7 @@ def _digits(phone: str) -> str:
 
 
 def _recently_alerted(phone_d: str) -> bool:
-    """Pichhle 1 ghante me isi phone ka alert gaya? (file scan - chhota store)."""
+    """Pichhle 1 ghante me isi phone ka alert gaya? (file scan — chhota store)."""
     try:
         if not phone_d or not os.path.isfile(_PATH):
             return False
@@ -87,7 +87,7 @@ def _lookup_client(rec: dict[str, Any]) -> dict[str, Any]:
 
 
 def _alert_text(rec: dict[str, Any], client: dict[str, Any]) -> tuple[str, str]:
-    """(subject, body) - Hinglish, action-ready (wa.me + dashboard link)."""
+    """(subject, body) — Hinglish, action-ready (wa.me + dashboard link)."""
     name = str(rec.get("name") or "Naya lead").strip()[:80]
     phone_d = _digits(rec.get("phone") or "")
     source = str(
@@ -106,7 +106,7 @@ def _alert_text(rec: dict[str, Any], client: dict[str, Any]) -> tuple[str, str]:
 
     wa = f"https://wa.me/91{phone_d[-10:]}" if len(phone_d) >= 10 else ""
     lines = [
-        "🔥 NAYA LEAD - turant call/WhatsApp karo (5-min me reply = 9x conversion)!",
+        "🔥 NAYA LEAD — turant call/WhatsApp karo (5-min me reply = 9x conversion)!",
         f"👤 Naam: {name}",
         f"📞 Phone: {phone_d or 'nahi mila'}",
         f"📍 Source: {source}" + (f" · Niche: {niche}" if niche else ""),
@@ -153,7 +153,7 @@ def _client_alert_enabled() -> bool:
 
 
 def _client_dedupe_key(rec: dict[str, Any], client: dict[str, Any]) -> str:
-    """Per-(client|lead) dedupe key - same lead ke liye client ko double WA na jaye.
+    """Per-(client|lead) dedupe key — same lead ke liye client ko double WA na jaye.
     lead id na ho to phone pe fall back (admin dedupe wala hi phone digits)."""
     cid = str(client.get("id") or rec.get("client_id") or "").strip()
     lead_marker = str(
@@ -194,7 +194,7 @@ def _client_owner_text(rec: dict[str, Any], client: dict[str, Any]) -> str:
     msg = str(rec.get("message") or "").strip()[:200]
     wa = f"https://wa.me/91{phone_d[-10:]}" if len(phone_d) >= 10 else ""
     lines = [
-        "🔥 Naya lead aaya hai - 5 min me call/WhatsApp = 9x conversion!",
+        "🔥 Naya lead aaya hai — 5 min me call/WhatsApp = 9x conversion!",
         f"👤 {name}",
         f"📞 {phone_d or 'nahi mila'}",
         f"📍 Source: {source}",
@@ -244,12 +244,12 @@ async def _notify_client_owner(rec: dict[str, Any], client: dict[str, Any]) -> b
 
 def _ntfy_alert_enabled() -> bool:
     """LEAD_NTFY_ALERT default ON (=1). '0'/'false'/'no' se OFF. Alag se
-    ntfy.enabled() (NTFY_URL+NTFY_TOPIC) bhi chahiye - dono par push jaata."""
+    ntfy.enabled() (NTFY_URL+NTFY_TOPIC) bhi chahiye — dono par push jaata."""
     return os.environ.get("LEAD_NTFY_ALERT", "1").strip().lower() not in ("0", "false", "no")
 
 
 async def _notify_owner_ntfy(rec: dict[str, Any], client: dict[str, Any]) -> bool:
-    """Speed-to-lead: platform owner ke PHONE pe instant ntfy push - email
+    """Speed-to-lead: platform owner ke PHONE pe instant ntfy push — email
     (inbox me dab jaata) ka complement. 1-tap 'WhatsApp' action seedha lead ko
     reply karne ke liye. Gated LEAD_NTFY_ALERT (default ON) + ntfy.enabled().
     Dedupe upstream (_recently_alerted) se hota. KABHI raise nahi karta."""
@@ -292,7 +292,7 @@ async def _notify_owner_ntfy(rec: dict[str, Any], client: dict[str, Any]) -> boo
                 actions=actions[:3],
             )
         )
-    except Exception as e:  # never-raise - alert flow ko kabhi nahi todta
+    except Exception as e:  # never-raise — alert flow ko kabhi nahi todta
         logger.debug(f"lead_alerts ntfy owner push skipped: {e}")
         return False
 
@@ -304,7 +304,7 @@ async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
         em = await _send_email(subject, body)
     except Exception:
         em = False
-    # Owner ke PHONE pe instant ntfy push (email complement - speed-to-lead:
+    # Owner ke PHONE pe instant ntfy push (email complement — speed-to-lead:
     # "5-min me reply = 9x conversion"). Gated + never-raise.
     try:
         push_ok = await _notify_owner_ntfy(rec, client)
@@ -326,7 +326,7 @@ async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
 
 
 async def notify_new_lead(rec: dict[str, Any]) -> dict[str, Any]:
-    """Naye lead ka instant alert - dedupe + ~8s hard budget. NEVER raises."""
+    """Naye lead ka instant alert — dedupe + ~8s hard budget. NEVER raises."""
     try:
         rec = rec if isinstance(rec, dict) else {}
         phone_d = _digits(rec.get("phone") or "")
@@ -352,7 +352,7 @@ async def notify_new_lead(rec: dict[str, Any]) -> dict[str, Any]:
 
 
 def notify_new_lead_bg(rec: dict[str, Any]) -> None:
-    """Sync-safe fire-and-forget - loop chal raha to create_task, warna daemon
+    """Sync-safe fire-and-forget — loop chal raha to create_task, warna daemon
     thread me apna mini-loop. Caller ka request path KABHI block/raise nahi hota."""
     try:
         try:

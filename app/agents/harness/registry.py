@@ -2,22 +2,18 @@
 
 This is the ONE authoritative store of executable tool identity, version, schema,
 risk lane, authority, permissions and execution requirements. Adapters may
-*describe* actions
-they may not redefine registry policy. Owner OS remains the
-sole mutation authority - a definition can require OWNER_OS_REQUIRED but the
+*describe* actions; they may not redefine registry policy. Owner OS remains the
+sole mutation authority — a definition can require OWNER_OS_REQUIRED but the
 registry never executes anything.
 
 Shadow-only in this phase: `evaluate_action` returns what enforcement WOULD
 decide (registry_comparison + would_allow/deny/require_approval). Nothing is
-enforced
-nothing is executed here.
+enforced; nothing is executed here.
 
 Reconciliation (Graphify):
 - app/agents/harness/tool_registry.py  = per-RUN lightweight registry used by the
-  observe() throwaway path (kept
-  unchanged).
-- app/dev_control/registry.py          = MODEL/provider catalog (not tools
-kept).
+  observe() throwaway path (kept; unchanged).
+- app/dev_control/registry.py          = MODEL/provider catalog (not tools; kept).
 - app/integrations/openclaw/policies.py= OpenClaw COMMAND lanes (kept).
 - THIS module                          = canonical TOOL registry (new, additive).
 """
@@ -181,7 +177,7 @@ class ToolDefinition(BaseModel):
         return v
 
     def public_view(self) -> dict:
-        """Listing-safe view - no executor callables/secrets."""
+        """Listing-safe view — no executor callables/secrets."""
         return {
             "name": self.name,
             "version": self.version,
@@ -499,7 +495,7 @@ def _register_builtins() -> None:
         pass
     try:
         # Second registry-backed family: dag_engine. Maps the stable, explicitly
-        # named internal process-library step 'internal_calculation' - a
+        # named internal process-library step 'internal_calculation' — a
         # deterministic read-only calc isolated from business behaviour. NOT a
         # promoted business step, NOT the temporary shadow proof name.
         REGISTRY.register(
@@ -533,7 +529,7 @@ def _register_builtins() -> None:
         pass
     try:
         # Third registry-backed family: staff.run_member/Nikhil. HONEST composite
-        # classification - run_nikhil() runs revenue_digest + client_health +
+        # classification — run_nikhil() runs revenue_digest + client_health +
         # usage_alerts; usage_alerts CAN send customer-facing upsell emails, so
         # the composite is AMBER / EXTERNAL_SEND / APPROVAL_REQUIRED (NOT a simple
         # autonomous GREEN). Registry classification is authoritative; this is
@@ -667,7 +663,7 @@ def _register_builtins() -> None:
         pass
     try:
         # Fifth family: supervisor/staff_supervisor. The data route REUSES the
-        # existing agent.delegate.dev (GREEN, read-only) - one canonical capability
+        # existing agent.delegate.dev (GREEN, read-only) — one canonical capability
         # invoked from multiple orchestrators, no duplicate policy. The leads route
         # delegates to Rohan, whose canonical role is OUTREACH (customer-facing
         # send). Even though this specific supervisor leads_agent_node only drafts
@@ -709,7 +705,7 @@ def _register_builtins() -> None:
                 budget_scope="supervisor",
                 sandbox_required=False,
                 network_policy="restricted",
-                executor_ref="supervisor.leads_agent_node / staff outreach (Rohan) - approval-gated",
+                executor_ref="supervisor.leads_agent_node / staff outreach (Rohan) — approval-gated",
                 enabled_by_default=True,
             )
         )

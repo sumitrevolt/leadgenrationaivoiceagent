@@ -1,11 +1,11 @@
-"""Skill Library - agents ka AUTO-LEARN store (compounding tactic knowledge).
+"""Skill Library — agents ka AUTO-LEARN store (compounding tactic knowledge).
 
 PROBLEM: agents (coordinator/growth_optimizer/channel_experiments) apne runs se
-seekh ke kahin SHARE nahi karte the - har engine apni jagah. Yeh library ek
+seekh ke kahin SHARE nahi karte the — har engine apni jagah. Yeh library ek
 common ledger hai: kaunsa action/tactic kitni baar chala, kitna succeed hua
 (Laplace success-rate), aur free-text LESSONS (reflection se ya manual).
 Self-improve loop isi se agla action pick karta (epsilon-greedy) aur har
-iteration ke baad outcome wapas likhta - learning kabhi rukti nahi.
+iteration ke baad outcome wapas likhta — learning kabhi rukti nahi.
 
 Free-stack, pure-Python, NO LLM yahan (callers LLM use karke lesson de sakte).
 Import-safe, kabhi raise nahi. Stores: data/skill_uses.jsonl + skill_lessons.jsonl.
@@ -180,7 +180,7 @@ def record_lesson(topic: str, lesson: str, source: str = "auto", agent: str = ""
             "at": _now(),
         }
         _append(_LESSONS, rec)
-        # ADR-154: dual-write into workforce hub (L2 skill) - fail-open.
+        # ADR-154: dual-write into workforce hub (L2 skill) — fail-open.
         try:
             from app.platform import workforce_memory as _wfm
 

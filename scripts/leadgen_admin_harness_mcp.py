@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""leadgen_admin_harness_mcp.py - 1000-Engineers Talent, Visual Mouse & Admin Computer Use MCP Server.
+"""leadgen_admin_harness_mcp.py — 1000-Engineers Talent, Visual Mouse & Admin Computer Use MCP Server.
 
 Standard JSON-RPC 2.0 stdio MCP server for Claude Desktop, Hermes Desktop,
 WorkBuddy Desktop, DSH, and any MCP client.
@@ -322,8 +322,7 @@ def tool_hot_queue_triage(args: dict) -> dict:
         PYTHON_EXE,
         "-c",
         f"""
-import sys
-import json
+import sys, json
 sys.path.insert(0, r'{str(REPO_ROOT)}')
 from app.platform import reply_agent
 
@@ -460,7 +459,7 @@ def tool_omniroute_health_check(args: dict) -> dict:
 
 
 def tool_omniroute_self_heal(args: dict) -> dict:
-    """Autonomous self-healing trigger - reseed 14 combos into database and resync all 5 desktop apps."""
+    """Autonomous self-healing trigger — reseed 14 combos into database and resync all 5 desktop apps."""
     try:
         sync_script = REPO_ROOT / "scripts" / "sync_all_combos_all_apps.py"
         r = subprocess.run(

@@ -67,7 +67,7 @@ def test_shared_knobs_env_override(monkeypatch):
 
 
 def test_shared_knobs_bad_env_falls_back(monkeypatch):
-    # garbage env must never raise / never break import - falls back to default.
+    # garbage env must never raise / never break import — falls back to default.
     monkeypatch.setenv("TURN_SILENCE_MS", "not-a-number")
     monkeypatch.setenv("TURN_VAD_RMS", "")
     assert TD.turn_silence_ms() == 700.0

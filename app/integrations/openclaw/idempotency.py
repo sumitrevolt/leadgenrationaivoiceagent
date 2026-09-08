@@ -1,4 +1,4 @@
-"""OpenClaw idempotency store - Stage A uses in-process cache for GREEN reads only.
+"""OpenClaw idempotency store — Stage A uses in-process cache for GREEN reads only.
 
 Durable (Redis) storage is Stage B preparation for AMBER. Production must not
 enable AMBER until durable_idempotency_available() is True.
@@ -26,7 +26,7 @@ class OpenClawIdempotencyStore(Protocol):
 
 
 class MemoryIdempotencyStore:
-    """In-process cache - GREEN read optimization / local tests only. Not durable."""
+    """In-process cache — GREEN read optimization / local tests only. Not durable."""
 
     def __init__(self, max_entries: int = 500) -> None:
         self._data: dict[str, tuple[float, dict[str, Any]]] = {}

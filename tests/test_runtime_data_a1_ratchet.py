@@ -1,4 +1,4 @@
-"""A1 ratchet - the three migrated stores must stay migrated.
+"""A1 ratchet — the three migrated stores must stay migrated.
 
 The repo-wide debt ratchet only forbids GROWTH: existing findings are tolerated
 because 1000+ of them predate the workstream. That is the right rule for the
@@ -35,7 +35,7 @@ A1_MODULES = (
 #: Counts pinned so a "small cleanup" cannot quietly relax the controls this
 #: migration depends on.
 #: 0 AFTER host cutover activate + CUTOVER_COMPLETE flip. DUAL_READ alone must
-#: never drop this count - only CUTOVER_COMPLETE after verified bytes move.
+#: never drop this count — only CUTOVER_COMPLETE after verified bytes move.
 EXPECTED_BLOCKERS = 0
 # 2026-07-30: ops.owner_email_canary adds one narrowly-scoped CREATE entry.
 # 2026-07-31: governance.mission_control adds 4 entries (ledger/missions/idem/file).
@@ -53,25 +53,25 @@ EXPECTED_BLOCKERS = 0
 # EXPECTED_BASELINE_FINGERPRINTS below is deliberately unchanged.
 # 2026-08-05: 45 -> 47 via campaign_offer_policies.jsonl (+temp) under billing.upi_payments.
 # 2026-08-05: 47 -> 50. ADR-158/161 memory stack declared platform.memory_governance
-# (+3 entries: rules_fn, rules_path_var, audit_fn). CLASSIFIED, not tolerated -
+# (+3 entries: rules_fn, rules_path_var, audit_fn). CLASSIFIED, not tolerated —
 # baseline fingerprint count unchanged.
 # 2026-08-06: 50 -> 52. Tenant-aware workforce memory adds two READ bindings
 # (_entries_path and tenants_dir) under the existing platform.workforce_memory
-# family. CLASSIFIED, not tolerated - baseline fingerprints remain unchanged.
+# family. CLASSIFIED, not tolerated — baseline fingerprints remain unchanged.
 # 2026-08-11: 52 -> 55. ADR-177 GSC rank snapshot declares marketing.gsc_rankings
-# (+3 entries: daily, state, state_tmp). CLASSIFIED, not tolerated - baseline
+# (+3 entries: daily, state, state_tmp). CLASSIFIED, not tolerated — baseline
 # fingerprint count unchanged.
 # 2026-08-12: 55 -> 61. PR #333 staff_bus declares platform.staff_bus
 # (+6 entries: root, events, idempotency, idempotency_open, audit, dlq).
-# CLASSIFIED, not tolerated - baseline fingerprint count unchanged.
+# CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
 # 2026-08-14: 61 -> 62. Hot Queue owner reminder declares ops.office_briefing
-# (+1 entry: _notification_path READ/DELETE claim). CLASSIFIED, not tolerated -
+# (+1 entry: _notification_path READ/DELETE claim). CLASSIFIED, not tolerated —
 # baseline fingerprint count unchanged.
 # 2026-08-16: 62 -> 70. Marketing factory JSONL (appointment/health/drips/forms/
 # proposals/review) classified as TIER_3 REBUILDABLE_CACHE (+8 allowlist rows).
-# CLASSIFIED, not tolerated - baseline fingerprint count unchanged.
+# CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
 # 2026-08-27: 83 -> 85. ADR-OWNER-1 added 2 allowlist entries for the new
-# hot_queue_owner_pack CSV+MD files. CLASSIFIED, not tolerated - baseline
+# hot_queue_owner_pack CSV+MD files. CLASSIFIED, not tolerated — baseline
 # fingerprint count unchanged.
 # 2026-09-04: 85 -> 92 re-pin. Workbuddy+main consolidation merge (ea2f8c95):
 # +7 classified allowlist rows (marketing offline tooling + hot-queue pack)
@@ -86,13 +86,13 @@ EXPECTED_BASELINE_FINGERPRINTS = 793
 def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
     """In-checkout runtime paths that the code would actually open.
 
-    Deliberately AST-based. These modules NAME their stores in prose - a line
+    Deliberately AST-based. These modules NAME their stores in prose — a line
     scan flagged the docstrings that explain the very rule being enforced, which
     is a false positive with the same shape as the bug it was hunting.
 
     Not counted:
-      * docstrings - prose, never a path the code opens;
-      * the declared `legacy_path=` argument - that IS the controlled reference,
+      * docstrings — prose, never a path the code opens;
+      * the declared `legacy_path=` argument — that IS the controlled reference,
         and the authority needs it to keep pre-cutover behaviour identical.
 
     Counted:
@@ -106,7 +106,7 @@ def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
     only when a segment is computed. The reconstruction matters: an exclusion
     list can only name what the detector names, and a finding reported as an
     anonymous kind forces a caller to exclude every join in the module at once
-    - which is the hole this test exists to close.
+    — which is the hole this test exists to close.
     """
     tree = ast.parse((REPO / module_path).read_text(encoding="utf-8"))
 
@@ -141,7 +141,7 @@ def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
                 segments.append(arg.value.replace("\\", "/").strip("/"))
             else:
                 return "join-with-data-root"
-        # Absorb `Path("data") / "sub" / "file"` - the divisions are the
+        # Absorb `Path("data") / "sub" / "file"` — the divisions are the
         # remaining segments and they sit ABOVE the call in the tree.
         node: ast.AST = call
         while True:
@@ -195,7 +195,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/dial_blocklist_audit.jsonl": (
             "DIAL_BLOCKLIST_AUDIT. The manifest deliberately keeps this audit "
             "ledger OUT of telephony.dial_suppression until it has its own "
-            "reader/writer evidence - folding it in here would migrate a store "
+            "reader/writer evidence — folding it in here would migrate a store "
             "nobody has classified."
         ),
     },
@@ -205,7 +205,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
 
 @pytest.mark.parametrize("module_path", A1_MODULES)
 def test_a1_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
-    """Zero for the A1 stores - and every survivor named, with its owner.
+    """Zero for the A1 stores — and every survivor named, with its owner.
 
     'Zero findings in these files' would have been a nicer sentence and a false
     one: two A1 modules also host stores from later waves. Claiming those away
@@ -219,7 +219,7 @@ def test_a1_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -252,7 +252,7 @@ def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
     )
     assert "data/recordings" in values, "the Path('data') / 'sub' shape slipped through"
     assert "join-with-data-root" in values, (
-        "a join with a COMPUTED segment must still be reported - degrading to the "
+        "a join with a COMPUTED segment must still be reported — degrading to the "
         "bare kind is what keeps an unnameable path from being silently dropped"
     )
 
@@ -262,7 +262,7 @@ def test_the_three_a1_rows_are_cutover_complete():
     """A1's own rows, asserted by A1's own file.
 
     This was `moved == A1_STORE_IDS` while A1 was the newest wave. It is a
-    subset assertion now that later waves have landed - NOT a relaxation: the
+    subset assertion now that later waves have landed — NOT a relaxation: the
     exact global set is asserted once in ``test_runtime_data_waves.py`` as the
     union of every wave declared in ``runtime_data_waves.py``.
     """
@@ -295,7 +295,7 @@ def test_cutover_complete_clears_deployment_blockers():
     """After host copy/verify/activate, A1 stores are CUTOVER_COMPLETE and non-blocking.
 
     DUAL_READ_PRE_CUTOVER remains a blocking state for any future wave that has
-    not yet finished host cutover - the empty blocker list is the honest answer
+    not yet finished host cutover — the empty blocker list is the honest answer
     only when every previously dual-read store has reached CUTOVER_COMPLETE.
     """
     blocking = manifest.blocking_stores()
@@ -312,7 +312,7 @@ def test_no_allowlist_or_baseline_relaxation():
 
 
 def test_deployment_still_denied_with_the_root_unset(monkeypatch):
-    """Three migrated stores do not authorise a deploy - nothing has moved yet."""
+    """Three migrated stores do not authorise a deploy — nothing has moved yet."""
     import importlib.util
 
     monkeypatch.delenv("LEADGEN_RUNTIME_DATA_DIR", raising=False)

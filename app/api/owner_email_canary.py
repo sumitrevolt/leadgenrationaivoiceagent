@@ -1,4 +1,4 @@
-"""Admin API - owner-inbox one-shot email canary (super_admin only).
+"""Admin API — owner-inbox one-shot email canary (super_admin only).
 
 Never enables ``AUTO_EMAIL_OUTREACH``. Recipient is accepted from the authenticated
 UI POST body and is never echoed back in cleartext (masked only).

@@ -1,10 +1,9 @@
-"""Durable harness audit backend - authoritative single-write model, strict config,
+"""Durable harness audit backend — authoritative single-write model, strict config,
 status semantics, and guarded migration (unit level over a fake Redis).
 
 Real-Redis / real-multiprocess durability runs in
 tests/test_harness_audit_backend_integration.py (mandatory in CI). All harness
-flags remain OFF
-no executor runs here."""
+flags remain OFF; no executor runs here."""
 
 from __future__ import annotations
 
@@ -40,8 +39,7 @@ class FakeRedis:
         existed = name in kv
         old = kv.get(name)
         if nx and existed:
-            return old if get else None  # not set
-            GET returns existing
+            return old if get else None  # not set; GET returns existing
         kv[name] = value
         if px:
             self.store["kv_ttl"][name] = px

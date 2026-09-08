@@ -1,12 +1,11 @@
-"""Optional reranking for KB retrieval (content/marketing RAG - NOT live voice turns).
+"""Optional reranking for KB retrieval (content/marketing RAG — NOT live voice turns).
 
 Gated ``USE_RERANKER=1``. Fuses the vector retriever score with a lightweight
 lexical BM25-style rescore (zero new deps). If ``sentence-transformers`` is
 installed and ``RERANKER_BACKEND=crossencoder``, uses
-``BAAI/bge-reranker-v2-m3`` instead (heavy - image-bake recommended).
+``BAAI/bge-reranker-v2-m3`` instead (heavy — image-bake recommended).
 
-Never raises
-on any failure returns the input list truncated to top_k.
+Never raises; on any failure returns the input list truncated to top_k.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ def _tokenize(text: str) -> list[str]:
 
 
 def _lexical_score(query: str, passage: str) -> float:
-    """BM25-ish overlap score in [0, 1] - cheap, no ML deps."""
+    """BM25-ish overlap score in [0, 1] — cheap, no ML deps."""
     q = _tokenize(query)
     p = _tokenize(passage)
     if not q or not p:
@@ -80,7 +79,7 @@ def _get_cross_encoder():
             return _CROSS_ENCODER
         except Exception as exc:
             _CROSS_BROKEN = True
-            logger.info("Reranker: CrossEncoder unavailable (%s) - lexical fallback", exc)
+            logger.info("Reranker: CrossEncoder unavailable (%s) — lexical fallback", exc)
             return None
 
 

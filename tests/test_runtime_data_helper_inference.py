@@ -59,7 +59,7 @@ def test_nested_path_return_helper_resolves() -> None:
     tree = ast.parse(textwrap.dedent(src))
     pat = s._helper_patterns(tree, h)["item_path"]
     assert "STORE_DIR" in pat and "data/store" in pat
-    # The interpolated id is STRUCTURE only - never a runtime value.
+    # The interpolated id is STRUCTURE only — never a runtime value.
     assert "item_id" not in pat
 
 
@@ -122,8 +122,8 @@ def test_conditional_path_expression_is_proven_when_both_branches_are() -> None:
 
     `runtime_data.store_dir` is written exactly this way. Provenance had no
     `ast.IfExp` arm, so the ternary fell through to UNSUPPORTED_EXPRESSION,
-    `path` never entered the table, and the canonical `path.mkdir()` - the one
-    call that proves the canonical resolver is used - was never recorded.
+    `path` never entered the table, and the canonical `path.mkdir()` — the one
+    call that proves the canonical resolver is used — was never recorded.
     """
     src = """
         def store_dir(*segments):
@@ -273,7 +273,7 @@ def test_direct_append_helper() -> None:
 
 
 def test_path_parameter_is_not_first() -> None:
-    """`_write_all(records, destination)` - position 1 is the path."""
+    """`_write_all(records, destination)` — position 1 is the path."""
     h = _helpers(
         """
         def _write_all(records, destination):
@@ -516,7 +516,7 @@ def test_real_consent_ledger_helpers_are_inferred() -> None:
     findings = s.scan_python("app/telephony/consent_ledger.py", src)
     symbols = {f.get("symbol") for f in findings}
     # A2 replaced the LEDGER_FILE / SUPPRESSION_FILE constants with resolver
-    # CALLS. The scanner must keep seeing the writes through that shape too -
+    # CALLS. The scanner must keep seeing the writes through that shape too —
     # a detector that only recognised module constants would have gone quiet on
     # the repo's two most compliance-critical stores the moment they migrated,
     # and reported that silence as zero findings.
@@ -531,7 +531,7 @@ def test_real_consent_ledger_helpers_are_inferred() -> None:
 def test_real_wa_campaign_runner_helpers_are_inferred() -> None:
     src = (_REPO / "app" / "marketing" / "wa_campaign_runner.py").read_text(encoding="utf-8")
     findings = s.scan_python("app/marketing/wa_campaign_runner.py", src)
-    # Resolver call, not a constant, since A2 - see the consent-ledger test above.
+    # Resolver call, not a constant, since A2 — see the consent-ledger test above.
     suppression = [f for f in findings if f.get("symbol") == "_suppression_path"]
     assert suppression, "WhatsApp suppression writers not detected"
     assert {f["operation"] for f in suppression} & {s.APPEND, s.REWRITE}
@@ -541,7 +541,7 @@ def test_real_wa_campaign_runner_helpers_are_inferred() -> None:
 #
 # A method NAME never proves filesystem semantics; the receiver's provenance
 # does. Treating the name as proof classified a prompt builder as a REPLACE
-# writer and turned a READ into a destructive operation - a regression, not new
+# writer and turned a READ into a destructive operation — a regression, not new
 # visibility, and one no capability record may launder.
 
 
@@ -567,7 +567,7 @@ def test_list_remove_is_not_a_filesystem_delete() -> None:
 
 
 def test_arbitrary_stream_write_is_not_a_path_writer() -> None:
-    """Arbitrary receiver - distinct from the local-helper case above."""
+    """Arbitrary receiver — distinct from the local-helper case above."""
     f = _scan(
         """
         def emit(stream, content):
@@ -592,7 +592,7 @@ def test_arbitrary_object_replace_is_not_a_filesystem_replace() -> None:
 
 
 def test_proven_path_replace_is_a_filesystem_operation() -> None:
-    """Receiver proven by `Path(...)` assignment - not by being named tmp_path."""
+    """Receiver proven by `Path(...)` assignment — not by being named tmp_path."""
     f = _scan(
         """
         from pathlib import Path

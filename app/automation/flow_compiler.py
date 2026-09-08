@@ -1,4 +1,4 @@
-"""Flow compiler - visual {nodes, edges} -> executable shape.
+"""Flow compiler — visual {nodes, edges} -> executable shape.
 
 Phase 1: LINEAR flows -> process_engine process-as-code ({name, steps:[...]}).
 Phase 2: BRANCHING flows -> dag_engine graph (per-node, conditional edges, merge).
@@ -17,7 +17,7 @@ from typing import Any
 # A NON-FATAL warning is attached when one has no upstream Approval (breakpoint).
 SIDE_EFFECT_ACTIONS = {"crm_queue"}
 
-# Phase 7: the ONLY actions a customer-portal flow may use - draft-only, no send,
+# Phase 7: the ONLY actions a customer-portal flow may use — draft-only, no send,
 # no cost-scrape, no SSRF. Compiler customer_safe=True rejects everything else.
 CUSTOMER_SAFE_ACTIONS = {
     "content_pack",
@@ -30,7 +30,7 @@ CUSTOMER_SAFE_ACTIONS = {
 
 
 def _warn_text(nid: str, action: str) -> str:
-    return f"'{nid}' ({action}) has no upstream Approval - add a breakpoint before it"
+    return f"'{nid}' ({action}) has no upstream Approval — add a breakpoint before it"
 
 
 def _linear_warnings(order: list[str], nmap: dict) -> list[str]:
@@ -146,7 +146,7 @@ def compile_flow(flow: dict, customer_safe: bool = False) -> tuple[dict | None, 
 
 
 def _compile_linear(flow, nmap, idset, valid_edges, roots, errors):
-    """Phase-1 linear path - byte-identical steps output."""
+    """Phase-1 linear path — byte-identical steps output."""
     if errors:
         return None, errors, "linear"
     nxt = {str(e["f"]): str(e["t"]) for e in valid_edges}
@@ -187,7 +187,7 @@ def _compile_linear(flow, nmap, idset, valid_edges, roots, errors):
 
 
 def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, errors):
-    """Phase-2 DAG path - validate then emit a graph dict."""
+    """Phase-2 DAG path — validate then emit a graph dict."""
     # condition validity (caught at save)
     for e in valid_edges:
         w = e.get("when")
@@ -199,7 +199,7 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
     for i in idset:
         n = nmap[i]
         if indeg[i] >= 2 and n.get("kind") != "merge":
-            errors.append(f"node '{i}' has {indeg[i]} incoming edges - use a merge node before it")
+            errors.append(f"node '{i}' has {indeg[i]} incoming edges — use a merge node before it")
         if n.get("kind") == "merge" and indeg[i] < 2:
             errors.append(f"merge node '{i}' needs >=2 incoming edges")
 
@@ -213,7 +213,7 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
     for e in valid_edges:
         adj[str(e["f"])].append(str(e["t"]))
     if not roots:
-        errors.append("no start node (every node has an incoming edge - cycle?)")
+        errors.append("no start node (every node has an incoming edge — cycle?)")
     ind = dict(indeg)
     q = deque([i for i in idset if ind[i] == 0])
     visited = 0
@@ -225,7 +225,7 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
             if ind[v] == 0:
                 q.append(v)
     if visited != len(idset):
-        errors.append("cycle detected - Phase 2 is a strict DAG (no loops)")
+        errors.append("cycle detected — Phase 2 is a strict DAG (no loops)")
     reach: set[str] = set()
     dq = deque(roots)
     while dq:
@@ -239,7 +239,7 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
         if i not in reach:
             errors.append(f"node '{i}' unreachable from any start node")
 
-    # Phase 4: inputs_map validation - source must be a topological ANCESTOR; key valid.
+    # Phase 4: inputs_map validation — source must be a topological ANCESTOR; key valid.
     rev: dict[str, list[str]] = defaultdict(list)
     for e in valid_edges:
         rev[str(e["t"])].append(str(e["f"]))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""runbook_drift.py - flag drift between activation.py probes, runbook, .env.example.
+"""runbook_drift.py — flag drift between activation.py probes, runbook, .env.example.
 
 The activation runbook + `scripts/activate.py` + `app/api/activation.py` probes
 + `.env.example` are FOUR sources of truth for the same set of env keys. Drift
@@ -164,7 +164,7 @@ def main() -> int:
     print(f"activate.py CLI  : {len(cli):3d}")
     print()
 
-    # Per-source drift - focused on the highest-value gap: probes (the SoT for
+    # Per-source drift — focused on the highest-value gap: probes (the SoT for
     # 'what we actually check') vs the other three.
     drift = {
         "in probes, missing from runbook": sorted(probes - runbook),

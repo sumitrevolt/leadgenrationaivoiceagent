@@ -1,4 +1,4 @@
-"""D2 - post-prospect harvest SoftTimeLimit budget (2026-08-07)."""
+"""D2 — post-prospect harvest SoftTimeLimit budget (2026-08-07)."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ def _clear_harvest_env(monkeypatch):
 
 
 def test_default_budget_uses_240_under_ample_remain():
-    # Old hard-cap was 120 - that is the WS3 bug. Default must exceed it.
+    # Old hard-cap was 120 — that is the WS3 bug. Default must exceed it.
     assert post_prospect_harvest_timeout(345.0) == 240.0
 
 
 def test_budget_clamped_by_remain_minus_margin():
-    # remain 90 -> min(60, 240) = 60
+    # remain 90 → min(60, 240) = 60
     assert post_prospect_harvest_timeout(90.0) == 60.0
 
 

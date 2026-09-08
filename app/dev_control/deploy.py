@@ -1,8 +1,7 @@
 """Staged promotion + human production-approval gate (Phase 5).
 
 This module NEVER executes a deployment. Production deploys on this project are
-MANUAL (Hostinger runbook
-CI is gate-only). Here we only:
+MANUAL (Hostinger runbook; CI is gate-only). Here we only:
   * drive the legal state progression review -> tests -> staging,
   * require an explicit human approval carrying a fail-closed token before a task
     may enter PRODUCTION_DEPLOYED, and
@@ -29,7 +28,7 @@ def _flag(name: str) -> bool:
 
 
 def auto_deploy_enabled() -> bool:
-    """Reported for transparency only - code never auto-deploys regardless."""
+    """Reported for transparency only — code never auto-deploys regardless."""
     return _flag("AUTO_DEPLOY")
 
 
@@ -145,7 +144,7 @@ async def approve_production(
             "approved_at": datetime.utcnow().isoformat(),
             "commit_hash": commit_hash,
             "auto_deploy_executed_by_code": False,
-            "note": "human-approved; operator runs the Hostinger runbook - code did not deploy",
+            "note": "human-approved; operator runs the Hostinger runbook — code did not deploy",
         }
     )[:8000]
     task.updated_at = datetime.utcnow()

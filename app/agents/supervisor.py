@@ -1,18 +1,18 @@
 """
-LangGraph Supervisor - minimal multi-agent orchestration (P2 of stack roadmap).
+LangGraph Supervisor — minimal multi-agent orchestration (P2 of stack roadmap).
 
 Graph (3 nodes):
 
     START -> supervisor -> {data_agent | leads_agent} -> END
 
-  - supervisor   : rule-based router (NO LLM call) - task keywords decide route.
+  - supervisor   : rule-based router (NO LLM call) — task keywords decide route.
   - data_agent   : KB-grounded answer/plan (client namespace -> niche fallback),
                    mirrors the provisioned role="data" agent.
   - leads_agent  : concrete outreach/qualification plan from NICHES config,
                    mirrors the provisioned role="leads" agent.
 
 Degrades gracefully: if `langgraph` is not installed, AGENTS_AVAILABLE=False and
-run_supervisor_task() raises RuntimeError - API layer turns that into HTTP 501.
+run_supervisor_task() raises RuntimeError — API layer turns that into HTTP 501.
 Persistence: SQLite checkpointer at data/agent_graph.db (best-effort).
 """
 
@@ -42,7 +42,7 @@ try:
     AGENTS_AVAILABLE = True
 except Exception as _e:  # pragma: no cover - depends on environment
     AGENTS_AVAILABLE = False
-    logger.info(f"langgraph not installed - agents engine disabled ({_e})")
+    logger.info(f"langgraph not installed — agents engine disabled ({_e})")
 
 # Checkpointers (separate optional package: langgraph-checkpoint-sqlite).
 _ASYNC_SAVER_CLS = None
@@ -57,7 +57,7 @@ if AGENTS_AVAILABLE:
     except Exception:
         _SYNC_SAVER_CLS = None
     if _ASYNC_SAVER_CLS is None and _SYNC_SAVER_CLS is None:
-        logger.info("langgraph sqlite checkpointer unavailable - running without persistence")
+        logger.info("langgraph sqlite checkpointer unavailable — running without persistence")
 
 
 # --------------------------------------------------------------------------- #
@@ -77,11 +77,10 @@ class AgentState(TypedDict, total=False):
 # --------------------------------------------------------------------------- #
 def route_for_task(task: str) -> str:
     """
-    Pure rule-based router - NO LLM call, NO langgraph dependency.
+    Pure rule-based router — NO LLM call, NO langgraph dependency.
 
-    Data keywords pehle check hote hain, phir leads keywords
-    kuch match na ho
-    to default "leads_agent". Substring match on the lowercased task -
+    Data keywords pehle check hote hain, phir leads keywords; kuch match na ho
+    to default "leads_agent". Substring match on the lowercased task —
     behavior exactly the same as the original inline supervisor logic.
     """
     task = (task or "").lower()
@@ -92,7 +91,7 @@ def route_for_task(task: str) -> str:
     return "leads_agent"  # default
 
 
-# Lightweight FREE-LLM router prompt - classify a task into exactly one agent.
+# Lightweight FREE-LLM router prompt — classify a task into exactly one agent.
 _ROUTER_SYSTEM = (
     "You route a task to ONE agent for an Indian lead-gen + data platform. Labels:\n"
     "- data_agent: needs knowledge-base research, business details/profiles, or data metrics.\n"
@@ -132,8 +131,7 @@ async def semantic_route_for_task(task: str) -> str:
         if "lead" in low and "data" not in low:
             return "leads_agent"
     except Exception as e:
-        logger.debug(f"semantic router LLM failed ({e})
-        keyword fallback.")
+        logger.debug(f"semantic router LLM failed ({e}); keyword fallback.")
     return route_for_task(task)
 
 
@@ -145,7 +143,7 @@ async def supervisor_node(state: AgentState) -> dict[str, Any]:
 
 
 def _llm_brain():
-    """Lazy import - keeps this module importable even if voice deps misbehave."""
+    """Lazy import — keeps this module importable even if voice deps misbehave."""
     from app.voice_agent.llm_brain import LLMBrain
 
     return LLMBrain()
@@ -243,7 +241,7 @@ if AGENTS_AVAILABLE:
 
 async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
     """Run the graph with the best available checkpointer (best-effort)."""
-    # 1) AsyncSqliteSaver - the correct saver for async nodes (.ainvoke).
+    # 1) AsyncSqliteSaver — the correct saver for async nodes (.ainvoke).
     if _ASYNC_SAVER_CLS is not None:
         try:
             os.makedirs(os.path.dirname(_DB_PATH) or ".", exist_ok=True)
@@ -251,9 +249,8 @@ async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
                 graph = _WORKFLOW.compile(checkpointer=saver)
                 return await graph.ainvoke(state, config=config)
         except Exception as e:
-            logger.warning(f"async sqlite checkpointer failed ({e})
-            retrying without persistence")
-    # 2) Sync SqliteSaver - works only if this langgraph version bridges async;
+            logger.warning(f"async sqlite checkpointer failed ({e}); retrying without persistence")
+    # 2) Sync SqliteSaver — works only if this langgraph version bridges async;
     #    NotImplementedError surfaces immediately (first checkpoint read).
     elif _SYNC_SAVER_CLS is not None:
         try:
@@ -271,8 +268,7 @@ async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
                 "sync SqliteSaver does not support async graphs; running without persistence"
             )
         except Exception as e:
-            logger.warning(f"sqlite checkpointer failed ({e})
-            retrying without persistence")
+            logger.warning(f"sqlite checkpointer failed ({e}); retrying without persistence")
     # 3) No persistence.
     graph = _WORKFLOW.compile()
     return await graph.ainvoke(state, config=config)
@@ -353,7 +349,7 @@ async def run_supervisor_task(
 
         route = out.get("route") or "?"
         worker = "dev" if route == "data_agent" else "rohan"
-        log_event("manager", "task_routed", f"Task '{task[:60]}' -> {route} ({niche_key})")
+        log_event("manager", "task_routed", f"Task '{task[:60]}' → {route} ({niche_key})")
         log_event(
             worker,
             "task_done",

@@ -26,10 +26,10 @@ try:
     with urllib.request.urlopen(req, timeout=15) as r:
         data = json.loads(r.read())
     text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-    print(f"RESULT: OK - reply: {text[:80]}")
+    print(f"RESULT: OK — reply: {text[:80]}")
 except urllib.error.HTTPError as e:
     body_err = e.read().decode()
     err_msg = json.loads(body_err).get("error", {}).get("message", body_err[:120])
-    print(f"RESULT: HTTP_{e.code} - {err_msg}")
+    print(f"RESULT: HTTP_{e.code} — {err_msg}")
 except Exception as e:
-    print(f"RESULT: ERROR - {e}")
+    print(f"RESULT: ERROR — {e}")

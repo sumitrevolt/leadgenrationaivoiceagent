@@ -18,14 +18,14 @@ marketing assets for THEIR niche/business:
   GET  /api/customer/studio/tools         -> capability list (drives UI cards)
 
 Design rules (mirrors marketing-feature skill + existing customer endpoints):
-  * Free-stack only - every generator already does free_ai LLM + never-empty
+  * Free-stack only — every generator already does free_ai LLM + never-empty
     template fallback, so the UI is never blank and there is no paid dependency.
-  * BAN-SAFE - these GENERATE copy only. Nothing is auto-sent (no WhatsApp/email
+  * BAN-SAFE — these GENERATE copy only. Nothing is auto-sent (no WhatsApp/email
     blast). The customer copies the output and posts/sends manually.
-  * client-scoped - business_name / niche / city come from the customer's own
+  * client-scoped — business_name / niche / city come from the customer's own
     record (require_customer -> _client_record), never from request body, so one
     customer can't generate "as" another.
-  * Cost guard - per-caller rate limit on the LLM endpoints.
+  * Cost guard — per-caller rate limit on the LLM endpoints.
 
 Mount in main.py:
     from app.api.customer_marketing_studio import router as customer_studio_router
@@ -47,22 +47,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/customer/studio", tags=["Customer Marketing Studio"])
 
 # Per-caller cost guard for the LLM generation endpoints (free providers, but
-# circuit-breakered - keep self-serve usage bounded). GET tips/tools are exempt.
+# circuit-breakered — keep self-serve usage bounded). GET tips/tools are exempt.
 _GEN_LIMIT = rate_limit(
     "cust_studio", 60, 60
 )  # 60 generations / minute / IP (free-stack, but bounded)
 
 
 # --------------------------------------------------------------------------- #
-# Client context - niche/business/city ALWAYS from the authed client's record  #
+# Client context — niche/business/city ALWAYS from the authed client's record  #
 # --------------------------------------------------------------------------- #
 def _entitlement_gate(client_id: str, rec: dict) -> None:
     """STUDIO_ENTITLEMENT_GATE=1 (default OFF = zero behavior change): block
     (a) expired free trials and (b) paid-plan signups that never actually paid,
-    after a 7-day grace (signup provisions the plan pre-payment - audit
+    after a 7-day grace (signup provisions the plan pre-payment — audit
     2026-07-04 P2: without this, a free signup keeps generating forever).
     Payment proof = an ACTIVE/TRIAL/PAUSED Subscription row (UPI/Stripe
-    activation creates one). Every lookup failure = ALLOW (fail-open - a DB
+    activation creates one). Every lookup failure = ALLOW (fail-open — a DB
     hiccup must never lock a paying customer out of their studio)."""
     import os as _os
 
@@ -83,7 +83,7 @@ def _entitlement_gate(client_id: str, rec: dict) -> None:
         except Exception:
             return None
 
-    pay_cta = "Plan active nahi hai - /pricing se payment karke unlock karo."
+    pay_cta = "Plan active nahi hai — /pricing se payment karke unlock karo."
     # (a) Trial path: expired trial => 402.
     if rec.get("trial") or str(rec.get("plan") or "").strip().lower() == "trial":
         exp = _parse(rec.get("trial_expires") or "")
@@ -109,7 +109,7 @@ def _entitlement_gate(client_id: str, rec: dict) -> None:
         return
     created = _parse(rec.get("created_at") or "")
     if created is None:
-        return  # unknown age - fail-open
+        return  # unknown age — fail-open
     if datetime.utcnow() - created > timedelta(days=7):
         raise HTTPException(status_code=402, detail=pay_cta)
 
@@ -125,7 +125,7 @@ def _ctx(client_id: str) -> dict:
         "niche": str(rec.get("niche") or "general").strip().lower() or "general",
         "city": str(rec.get("city") or rec.get("location") or "").strip(),
         "website": str(rec.get("website") or "").strip(),
-        # Client-scoped branding/CTA (carousel/referral etc. - customer output me
+        # Client-scoped branding/CTA (carousel/referral etc. — customer output me
         # LeadGen ka apna CTA/default-violet nahi, CLIENT ki mini-site/brand jaani chahiye).
         "slug": str(rec.get("slug") or "").strip(),
         "phone": str(rec.get("phone") or "").strip(),
@@ -209,8 +209,8 @@ def _classify_intent(msg: str) -> str:
 _INTENT_ACTION = {
     "price": "Rate clear bhejo + ek chhota offer add karo.",
     "booking": "Slot offer karo aur jaldi confirm karo.",
-    "complaint": "Turant sorry + solution do - escalate karo.",
-    "spam": "Skip - ye genuine lead nahi lagta.",
+    "complaint": "Turant sorry + solution do — escalate karo.",
+    "spam": "Skip — ye genuine lead nahi lagta.",
     "general": "Friendly reply do + unki zaroorat poocho.",
 }
 
@@ -221,7 +221,7 @@ def _wa_link(phone: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Request bodies (all optional - generators have safe defaults)                #
+# Request bodies (all optional — generators have safe defaults)                #
 # --------------------------------------------------------------------------- #
 class PostReq(BaseModel):
     occasion: str = Field("", max_length=120, description="Festival / theme / topic")
@@ -288,7 +288,7 @@ class MiniSiteReq(BaseModel):
 def _fail(name: str, exc: Exception):
     logger.error("studio.%s failed: %s", name, exc)
     raise HTTPException(
-        status_code=503, detail=f"{name} abhi available nahi - thodi der baad try karo."
+        status_code=503, detail=f"{name} abhi available nahi — thodi der baad try karo."
     )
 
 
@@ -296,7 +296,7 @@ def _fail(name: str, exc: Exception):
 async def studio_variations(
     req: VariationsReq = Body(default=VariationsReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """A/B post variations (2-4 alag versions) - jo chale wo chuno. (Pehle admin-only tha.)"""
+    """A/B post variations (2-4 alag versions) — jo chale wo chuno. (Pehle admin-only tha.)"""
     import asyncio
 
     c = _ctx(client_id)
@@ -333,7 +333,7 @@ async def studio_variations(
 async def studio_review_kit(
     req: ReviewKitReq = Body(default=ReviewKitReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Review kit - khush customer ko Google-review request, naraz ko private feedback
+    """Review kit — khush customer ko Google-review request, naraz ko private feedback
     (1-star public se bachao). Copy-paste WhatsApp messages, branded. Template-based, never fails.
     """
     c = _ctx(client_id)
@@ -346,12 +346,12 @@ async def studio_review_kit(
     )
     happy = (
         f"Namaste! 🙏 {biz} ko choose karne ke liye shukriya. Aapko humari service pasand "
-        f"aayi ho to ek chhota favour - {review_cta}\nAapka 30-second review humare liye "
+        f"aayi ho to ek chhota favour — {review_cta}\nAapka 30-second review humare liye "
         "bohot maayne rakhta hai. 💛"
     )
     unhappy = (
-        f"Namaste 🙏 {biz} se aapka experience perfect nahi raha - humein khed hai. Kya hua, "
-        "seedha humein batayein (yeh PRIVATE hai, public nahi) - hum turant theek karenge. "
+        f"Namaste 🙏 {biz} se aapka experience perfect nahi raha — humein khed hai. Kya hua, "
+        "seedha humein batayein (yeh PRIVATE hai, public nahi) — hum turant theek karenge. "
         "Aapki baat humare liye sabse zaroori hai."
     )
     return {
@@ -360,7 +360,7 @@ async def studio_review_kit(
         "result": {
             "happy_message": happy,
             "unhappy_message": unhappy,
-            "tip": "Khush customer -> 'happy' bhejo (Google review milega). Naraz -> 'unhappy' "
+            "tip": "Khush customer → 'happy' bhejo (Google review milega). Naraz → 'unhappy' "
             "(private feedback; 1-star public review se bachao).",
         },
         "context": c,
@@ -372,7 +372,7 @@ async def studio_catalog(
     req: CatalogReq = Body(default=CatalogReq()), client_id: str = Depends(require_customer)
 ) -> dict:
     """Service/product catalog (rate-list) + per-item UPI pay-link. Customer ka customer
-    seedha UPI pe pay kare - koi gateway nahi (UPI deep-link universal). Template-based."""
+    seedha UPI pe pay kare — koi gateway nahi (UPI deep-link universal). Template-based."""
     import urllib.parse as _u
 
     c = _ctx(client_id)
@@ -392,9 +392,9 @@ async def studio_catalog(
         if vpa and price:
             pay = "upi://pay?" + _u.urlencode({"pa": vpa, "pn": biz, "am": price, "cu": "INR"})
         items.append({"name": name, "price": price, "pay_link": pay})
-    lines = [f"*{biz} - Rate List* 📋", ""]
+    lines = [f"*{biz} — Rate List* 📋", ""]
     for it in items:
-        p = f" - ₹{it['price']}" if it["price"] else ""
+        p = f" — ₹{it['price']}" if it["price"] else ""
         lines.append(
             f"• {it['name']}{p}" + (f"\n  💳 Pay: {it['pay_link']}" if it["pay_link"] else "")
         )
@@ -412,14 +412,13 @@ async def studio_catalog(
 async def studio_minisite(
     req: MiniSiteReq = Body(default=MiniSiteReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Apni mini-site KHUD customize karo - palette/colors/logo/tagline. Slug token se
-    resolve (IDOR-safe
-    doosre ki site edit nahi). Update -> /b/{slug} pe turant live.
+    """Apni mini-site KHUD customize karo — palette/colors/logo/tagline. Slug token se
+    resolve (IDOR-safe; doosre ki site edit nahi). Update → /b/{slug} pe turant live.
     (Pehle ye sirf admin kar sakta tha.)"""
     from app.api import minisite_builder as mb
     from app.marketing import clients_store
 
-    # Mini-site/brand marketing id pe keyed - billing/login alias canonicalize.
+    # Mini-site/brand marketing id pe keyed — billing/login alias canonicalize.
     mcid = clients_store.canonical_client_id(client_id)
     c = clients_store.resolve_client(client_id) or {}
     slug = str(c.get("slug") or "").strip()
@@ -605,7 +604,7 @@ def studio_gbp_tips(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Batch 2 - MVP-12 coverage (festival, poster, review-request, follow-ups,     #
+# Batch 2 — MVP-12 coverage (festival, poster, review-request, follow-ups,     #
 # reel, win-back, quote, next-best-action). All wrap existing generators.      #
 # --------------------------------------------------------------------------- #
 class FestivalReq(BaseModel):
@@ -649,11 +648,10 @@ class QuoteReq(BaseModel):
 
 class UpiQrReq(BaseModel):
     vpa: str = Field(
-        "", max_length=100, description="Apna UPI ID (naam@bank) - ek baar set, save ho jata"
+        "", max_length=100, description="Apna UPI ID (naam@bank) — ek baar set, save ho jata"
     )
     amount: float | None = Field(
-        None, ge=0, le=100000000, description="Fixed amount (optional
-        khali = any-amount QR)"
+        None, ge=0, le=100000000, description="Fixed amount (optional; khali = any-amount QR)"
     )
     note: str = Field("", max_length=100, description="Payment note (optional)")
 
@@ -765,7 +763,7 @@ async def studio_speed_followup(client_id: str = Depends(require_customer)) -> d
         instant = (
             steps[0]
             if steps
-            else {"message": "Namaste! Aapki enquiry mili - main abhi aapse baat karta hoon. 🙏"}
+            else {"message": "Namaste! Aapki enquiry mili — main abhi aapse baat karta hoon. 🙏"}
         )
     except Exception as e:
         _fail("Speed-to-Lead", e)
@@ -813,14 +811,14 @@ async def studio_win_back(
 async def studio_quote_draft(
     req: QuoteReq = Body(default=QuoteReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Customer-scoped price-quote draft - CLIENT ke apne END-customer ke liye ek
+    """Customer-scoped price-quote draft — CLIENT ke apne END-customer ke liye ek
     professional Hinglish quotation (business_name/niche/brand + inquiry text se).
 
     Pehle ye ``proposal.generate_proposal`` call karta tha jo LEADGEN ka apna sales
-    pitch banata (Growth ₹2,999 tak mention karta) - ye customer ke portal me galat
+    pitch banata (Growth ₹2,999 tak mention karta) — ye customer ke portal me galat
     output tha (audit 2026-07-05). Ab ye us salon/shop ka quote banata JO WO apne
     customer ko bhej sake. free_ai.chat pattern (proposal.py jaisa) + never-empty
-    template fallback - UI kabhi blank nahi."""
+    template fallback — UI kabhi blank nahi."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     biz = c["business_name"]
@@ -837,15 +835,15 @@ async def studio_quote_draft(
     # Never-empty template quote (LLM output isko replace kar sakta, warna yahi jaata).
     _svc_line = f"Aapki requirement: {service or inquiry or 'aapke kaam'}"
     quote_text = (
-        f"*{biz} - Quotation*\n\n"
+        f"*{biz} — Quotation*\n\n"
         f"Namaste{greet_name} 🙏 Aapki inquiry ke liye dhanyawad.\n"
         f"{_svc_line}.\n\n"
         f"Hum {niche_h} me quality kaam + time pe delivery dete hain. "
         f"{('Budget ' + budget + ' ke hisaab se ') if budget else ''}best rate + options aapko "
-        f"bhej rahe hain - final price kaam ke scope pe depend karega.\n\n"
+        f"bhej rahe hain — final price kaam ke scope pe depend karega.\n\n"
         f"Aage badhne ke liye reply karein ya call karein"
-        f"{(' - ' + phone) if phone else ''}. Hum aaj hi confirm kar denge. 👍\n\n"
-        f"- {biz}" + (f"\n{tagline}" if tagline else "")
+        f"{(' — ' + phone) if phone else ''}. Hum aaj hi confirm kar denge. 👍\n\n"
+        f"— {biz}" + (f"\n{tagline}" if tagline else "")
     )
 
     try:
@@ -854,9 +852,9 @@ async def studio_quote_draft(
         sys = (
             "Tum ek local Indian business (salon/shop/service) ke liye price-QUOTATION "
             "writer ho. Ek SHORT (6-9 line) professional Hinglish quote likho JO YE BUSINESS "
-            "apne CUSTOMER ko bheje: greeting -> customer ki requirement -> hum kya denge (quality/"
-            "delivery) -> indicative pricing/options (koi fixed number invent mat karo agar diya "
-            "nahi) -> next step (reply/call/book). SIRF is business ka naam use karo. Kisi platform/"
+            "apne CUSTOMER ko bheje: greeting → customer ki requirement → hum kya denge (quality/"
+            "delivery) → indicative pricing/options (koi fixed number invent mat karo agar diya "
+            "nahi) → next step (reply/call/book). SIRF is business ka naam use karo. Kisi platform/"
             "software/vendor ('LeadGen', 'AI agent', SaaS plan/₹pricing) ka ZIKR bilkul mat karo. "
             "Sirf quotation text return karo."
         )
@@ -894,15 +892,15 @@ async def studio_quote_draft(
 def studio_upi_qr(
     req: UpiQrReq = Body(default=UpiQrReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Apna UPI payment QR pack - customer ka customer seedha UPI se pay kare (koi
+    """Apna UPI payment QR pack — customer ka customer seedha UPI se pay kare (koi
     gateway nahi). VPA ek baar daalo, client record me save ho jata (agli baar auto).
     upi_qr.payment_qr_pack ka customer-facing wrapper (engage/upi-qr admin-only tha).
 
-    IDOR-safe: client_id HAMESHA auth dependency se - request body me client_id nahi."""
+    IDOR-safe: client_id HAMESHA auth dependency se — request body me client_id nahi."""
     c = _ctx(client_id)
     from app.marketing import clients_store, upi_qr
 
-    # New VPA diya to persist (whitelisted field) - warna record ka purana use hota.
+    # New VPA diya to persist (whitelisted field) — warna record ka purana use hota.
     vpa = (req.vpa or "").strip()
     if vpa:
         try:
@@ -911,7 +909,7 @@ def studio_upi_qr(
             logger.debug("studio upi-qr vpa persist skip: %s", e)
     pack = upi_qr.payment_qr_pack(client_id, amount=req.amount, note=(req.note or ""))
     if not pack.get("ok"):
-        # VPA missing/invalid -> actionable message, not a 5xx (pack never raises).
+        # VPA missing/invalid → actionable message, not a 5xx (pack never raises).
         return {
             "ok": False,
             "tool": "upi-qr",
@@ -925,9 +923,9 @@ def studio_upi_qr(
 async def studio_ai_image(
     req: StudioImageReq = Body(default=StudioImageReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """AI marketing-image (Pollinations Flux, FREE) - customer ke apne business/niche
+    """AI marketing-image (Pollinations Flux, FREE) — customer ke apne business/niche
     ke liye real image URL. Admin-only /api/marketing/ai-image ka customer wrapper
-    (business_name/niche client record se - IDOR-safe)."""
+    (business_name/niche client record se — IDOR-safe)."""
     c = _ctx(client_id)
     try:
         from app.marketing import ai_image
@@ -951,7 +949,7 @@ async def studio_complete_post(
     req: CompletePostStudioReq = Body(default=CompletePostStudioReq()),
     client_id: str = Depends(require_customer),
 ) -> dict:
-    """COMPLETE post ek shot me - caption + hashtags + asli AI image (free). Admin-only
+    """COMPLETE post ek shot me — caption + hashtags + asli AI image (free). Admin-only
     /api/marketing/complete-post ka customer wrapper (business/niche client record se)."""
     import asyncio
 
@@ -984,7 +982,7 @@ async def studio_complete_post(
 
 @router.get("/next-best-action")
 def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
-    """ "Aaj kya karna hai" - prioritized task list from the client's live signals.
+    """ "Aaj kya karna hai" — prioritized task list from the client's live signals.
 
     PURE LOGIC (no LLM): reads leads / pending approvals / GBP score / content
     queue and returns an ordered action list. Never-empty, never-raise.
@@ -1013,7 +1011,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
     try:
         from app.marketing import clients_store, content_approval
 
-        # Approvals marketing id pe keyed - billing/login alias canonicalize.
+        # Approvals marketing id pe keyed — billing/login alias canonicalize.
         _mcid = clients_store.canonical_client_id(client_id)
         pend = content_approval.pending(_mcid) if hasattr(content_approval, "pending") else []
         if pend:
@@ -1029,7 +1027,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
     except Exception as e:
         logger.debug("nba approvals failed: %s", e)
 
-    # 3) GBP score - low or missing -> audit/fix
+    # 3) GBP score — low or missing -> audit/fix
     try:
         import json as _json
         import os as _os
@@ -1047,7 +1045,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
                     "priority": 3,
                     "icon": "🏪",
                     "action": "Google Business audit karo (2 min)",
-                    "why": "Score pata chalega + top-5 fix milenge - Google par upar aane ke liye.",
+                    "why": "Score pata chalega + top-5 fix milenge — Google par upar aane ke liye.",
                     "target": "studioCard",
                 }
             )
@@ -1056,7 +1054,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
                 {
                     "priority": 2,
                     "icon": "🏪",
-                    "action": f"GBP score {int(score)}/100 - fixes lagao",
+                    "action": f"GBP score {int(score)}/100 — fixes lagao",
                     "why": "70+ profile zyada calls + direction requests laata hai.",
                     "target": "studioCard",
                 }
@@ -1104,7 +1102,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Batch 3 - toward 40 (competitor, FAQ-reply, carousel, bio-page, lead-magnet, #
+# Batch 3 — toward 40 (competitor, FAQ-reply, carousel, bio-page, lead-magnet, #
 # negative-review-rescue + pure-logic reminders/budget/appointment).          #
 # --------------------------------------------------------------------------- #
 class CompetitorReq(BaseModel):
@@ -1144,7 +1142,7 @@ class ReminderReq(BaseModel):
 async def studio_competitor(
     req: CompetitorReq = Body(default=CompetitorReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Competitor notes -> strengths to copy + gaps to exploit + action plan."""
+    """Competitor notes → strengths to copy + gaps to exploit + action plan."""
     c = _ctx(client_id)
     try:
         from app.marketing import competitor
@@ -1161,7 +1159,7 @@ async def studio_competitor(
 
 @router.post("/faq-reply", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_faq_reply(req: FaqReplyReq, client_id: str = Depends(require_customer)) -> dict:
-    """FAQ / WhatsApp reply assistant - customer ke sawaal ka KB-grounded answer."""
+    """FAQ / WhatsApp reply assistant — customer ke sawaal ka KB-grounded answer."""
     c = _ctx(client_id)
     try:
         from app.marketing import chatbot
@@ -1178,7 +1176,7 @@ async def studio_faq_reply(req: FaqReplyReq, client_id: str = Depends(require_cu
 async def studio_carousel(
     req: CarouselReq = Body(default=CarouselReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Instagram/LinkedIn carousel - slide texts + per-slide SVG."""
+    """Instagram/LinkedIn carousel — slide texts + per-slide SVG."""
     c = _ctx(client_id)
     try:
         from app.marketing import carousel
@@ -1199,7 +1197,7 @@ async def studio_carousel(
 
 @router.post("/bio-page", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_bio_page(client_id: str = Depends(require_customer)) -> dict:
-    """Social bio / landing copy kit - Insta/FB/Google bios + page setup."""
+    """Social bio / landing copy kit — Insta/FB/Google bios + page setup."""
     c = _ctx(client_id)
     try:
         from app.marketing import social_page_kit
@@ -1263,13 +1261,13 @@ def studio_photo_reminder(client_id: str = Depends(require_customer)) -> dict:
         "Team / aap khud kaam karte hue (trust banta hai)",
         "Shop / setup ka clean front photo",
         "Happy customer (permission se) ya unka result",
-        "Before/After - sabse zyada engagement",
+        "Before/After — sabse zyada engagement",
         f"{niche.title()} ka koi tip ya behind-the-scenes",
     ]
     return {
         "ok": True,
         "tool": "photo-reminder",
-        "message": "Google par har hafte 1-2 nayi photo daalo - listing active dikhti hai + zyada calls aati hain.",
+        "message": "Google par har hafte 1-2 nayi photo daalo — listing active dikhti hai + zyada calls aati hain.",
         "ideas": ideas,
         "context": c,
     }
@@ -1314,19 +1312,19 @@ def studio_customer_reminder(
     kind = (req.kind or "appointment").strip().lower()
     templates = {
         "appointment": [
-            f"Namaste 🙏 {biz} se reminder - aapka appointment kal hai. Time confirm hai? Reply 'YES' ya naya time batayein.",
+            f"Namaste 🙏 {biz} se reminder — aapka appointment kal hai. Time confirm hai? Reply 'YES' ya naya time batayein.",
             f"Reminder: kal aapka slot {biz} me booked hai. Milte hain! Koi badlav ho to bata dein.",
         ],
         "renewal": [
-            f"Namaste! {biz} - aapki service/plan jald renew hone wali hai. Aaj renew karein, bina rukawat seva jaari rahe 🙏",
+            f"Namaste! {biz} — aapki service/plan jald renew hone wali hai. Aaj renew karein, bina rukawat seva jaari rahe 🙏",
             "Reminder: renewal due hai. 1-click renew link bhej dun? Reply 'HAAN'.",
         ],
         "service": [
             f"{biz}: aapki next service/maintenance due hai. Slot book kar lein taaki sab sahi chale 👍",
-            "Reminder - last service ko time ho gaya. Aaj book karein, baad me rush se bachein.",
+            "Reminder — last service ko time ho gaya. Aaj book karein, baad me rush se bachein.",
         ],
         "payment": [
-            f"Namaste 🙏 {biz} - aapka payment pending hai. UPI/link se aaj clear kar dein to badi madad hogi. Dhanyawad!",
+            f"Namaste 🙏 {biz} — aapka payment pending hai. UPI/link se aaj clear kar dein to badi madad hogi. Dhanyawad!",
             "Gentle reminder: invoice pending hai. Koi dikkat ho to bata dein, hum help karenge.",
         ],
     }
@@ -1345,22 +1343,22 @@ def studio_appointment_assistant(client_id: str = Depends(require_customer)) -> 
         "context": c,
         "result": {
             "slot_offer": [
-                f"Namaste 🙏 {biz} - aapke liye 2 slot free hain: aaj 4 PM ya kal 11 AM. Kaunsa theek hai?",
-                f"Booking ke liye bas time bata dein - main {biz} me aapka slot pakka kar deta hoon 👍",
+                f"Namaste 🙏 {biz} — aapke liye 2 slot free hain: aaj 4 PM ya kal 11 AM. Kaunsa theek hai?",
+                f"Booking ke liye bas time bata dein — main {biz} me aapka slot pakka kar deta hoon 👍",
             ],
             "confirmation": [
                 f"Confirmed! ✅ Aapka appointment {biz} me book ho gaya. Time pe milte hain. Address/location bhej dun?",
                 "Ho gaya booking! Reminder ek din pehle bhej dunga. Dhanyawad 🙏",
             ],
             "no_show_followup": [
-                f"Aaj aap aa nahi paaye - koi baat nahi! {biz} me naya slot rakh dun? Bas time bata dein.",
+                f"Aaj aap aa nahi paaye — koi baat nahi! {biz} me naya slot rakh dun? Bas time bata dein.",
             ],
         },
     }
 
 
 # --------------------------------------------------------------------------- #
-# Batch 4 - Growth-OS (#41-100): planner/templates/blog/audit/testimonial/     #
+# Batch 4 — Growth-OS (#41-100): planner/templates/blog/audit/testimonial/     #
 # repurpose/referral + pure-logic ROI/objection/best-time/brief/coach.         #
 # --------------------------------------------------------------------------- #
 class MonthPlanReq(BaseModel):
@@ -1437,7 +1435,7 @@ def studio_month_planner(
 def studio_templates(
     req: TemplatesReq = Body(default=TemplatesReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Niche template library - ready post/poster ideas for the client's niche."""
+    """Niche template library — ready post/poster ideas for the client's niche."""
     c = _ctx(client_id)
     try:
         from app.marketing import template_library
@@ -1452,7 +1450,7 @@ def studio_templates(
 async def studio_blog(
     req: BlogReq = Body(default=BlogReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Local-SEO blog post - generate + STORE + live at /b/{slug}/blog (Google-indexable).
+    """Local-SEO blog post — generate + STORE + live at /b/{slug}/blog (Google-indexable).
     (#29 fix: pehle sirf template milta tha, koi live per-client blog page nahi.)"""
     c = _ctx(client_id)
     try:
@@ -1482,7 +1480,7 @@ async def studio_blog(
 
 @router.post("/landing-audit", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_landing_audit(req: AuditReq, client_id: str = Depends(require_customer)) -> dict:
-    """Website/landing audit - CTA, mobile, speed, trust signals (SSRF-guarded)."""
+    """Website/landing audit — CTA, mobile, speed, trust signals (SSRF-guarded)."""
     c = _ctx(client_id)
     try:
         from app.marketing import website_auditor
@@ -1497,7 +1495,7 @@ async def studio_landing_audit(req: AuditReq, client_id: str = Depends(require_c
 async def studio_testimonial(
     req: TestimonialReq, client_id: str = Depends(require_customer)
 ) -> dict:
-    """Good review -> branded thank-you poster (SVG) + social caption."""
+    """Good review → branded thank-you poster (SVG) + social caption."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     try:
@@ -1516,7 +1514,7 @@ async def studio_testimonial(
 
 @router.post("/repurpose", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_repurpose(req: RepurposeReq, client_id: str = Depends(require_customer)) -> dict:
-    """1 topic/URL -> 7 formats (post, WA, email, reel, etc.)."""
+    """1 topic/URL → 7 formats (post, WA, email, reel, etc.)."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     try:
@@ -1537,7 +1535,7 @@ async def studio_repurpose(req: RepurposeReq, client_id: str = Depends(require_c
 def studio_referral(
     req: ReferralReq = Body(default=ReferralReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Referral kit - code + WhatsApp message + link + 1080 card SVG."""
+    """Referral kit — code + WhatsApp message + link + 1080 card SVG."""
     c = _ctx(client_id)
     try:
         from app.marketing import referral_kit
@@ -1558,7 +1556,7 @@ def studio_referral(
 def studio_roi_calculator(
     req: RoiReq = Body(default=RoiReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Marketing ROI estimate (PURE MATH) - spend vs expected revenue."""
+    """Marketing ROI estimate (PURE MATH) — spend vs expected revenue."""
     c = _ctx(client_id)
     deals = req.leads_per_month * (req.close_rate_pct / 100.0)
     revenue = deals * req.avg_deal_value
@@ -1593,13 +1591,13 @@ def studio_objection_handler(
     c = _ctx(client_id)
     biz = c["business_name"]
     lib = {
-        "mehenga": f"Samajh sakta hoon. {biz} me daam thoda zyada isliye hai kyunki quality + warranty + service guaranteed milti hai - sasta lekar baar-baar kharcha zyada padta hai. Aaj ek baar try karke dekhiye.",
-        "time": "Bilkul, jaldi nahi. Main aapko detail WhatsApp kar deta hoon, aaram se dekh lijiye - koi sawaal ho to main yahin hoon.",
-        "sochenge": "Zaroor sochiye! Bas itna - abhi book karne pe {} milega. Main aapke liye 24 ghante hold kar deta hoon.".format(
+        "mehenga": f"Samajh sakta hoon. {biz} me daam thoda zyada isliye hai kyunki quality + warranty + service guaranteed milti hai — sasta lekar baar-baar kharcha zyada padta hai. Aaj ek baar try karke dekhiye.",
+        "time": "Bilkul, jaldi nahi. Main aapko detail WhatsApp kar deta hoon, aaram se dekh lijiye — koi sawaal ho to main yahin hoon.",
+        "sochenge": "Zaroor sochiye! Bas itna — abhi book karne pe {} milega. Main aapke liye 24 ghante hold kar deta hoon.".format(
             "special rate"
         ),
-        "competitor": f"Achhi baat hai aap compare kar rahe ho. {biz} ka farak hai - service + bharosa + after-support. Ek demo le lijiye, khud farak dikhega.",
-        "discount": "Aapke liye ek best price nikaalta hoon - par quality compromise nahi. Chhota loyalty discount de sakta hoon, deal pakki karein?",
+        "competitor": f"Achhi baat hai aap compare kar rahe ho. {biz} ka farak hai — service + bharosa + after-support. Ek demo le lijiye, khud farak dikhega.",
+        "discount": "Aapke liye ek best price nikaalta hoon — par quality compromise nahi. Chhota loyalty discount de sakta hoon, deal pakki karein?",
     }
     obj = (req.objection or "").lower()
     matched = None
@@ -1629,7 +1627,7 @@ def studio_best_time(client_id: str = Depends(require_customer)) -> dict:
             "instagram_post": "Shaam 7-9 PM (peak scroll time).",
             "instagram_reel": "1-3 PM lunch ya 8-10 PM raat.",
             "phone_call": "11 AM-1 PM ya 4-6 PM (subah-subah/late evening avoid).",
-            "new_lead_followup": "Lead aate hi 2-5 min ke andar - sabse zyada conversion.",
+            "new_lead_followup": "Lead aate hi 2-5 min ke andar — sabse zyada conversion.",
             "tip": "Calling-window TRAI 9 AM-7 PM ke andar rakho.",
         },
     }
@@ -1637,7 +1635,7 @@ def studio_best_time(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/owner-brief")
 def studio_owner_brief(client_id: str = Depends(require_customer)) -> dict:
-    """Daily owner brief (PURE LOGIC) - aaj ke leads/approvals/posts ek nazar me."""
+    """Daily owner brief (PURE LOGIC) — aaj ke leads/approvals/posts ek nazar me."""
     c = _ctx(client_id)
     leads_n = approvals_n = 0
     leads_n = len(_client_inquiries(client_id))
@@ -1654,9 +1652,9 @@ def studio_owner_brief(client_id: str = Depends(require_customer)) -> dict:
         pass
     brief = [
         (
-            f"🔥 {leads_n} naye lead - inko aaj call/WhatsApp karo."
+            f"🔥 {leads_n} naye lead — inko aaj call/WhatsApp karo."
             if leads_n
-            else "🔥 Abhi koi naya lead nahi - outreach/post badhao."
+            else "🔥 Abhi koi naya lead nahi — outreach/post badhao."
         ),
         (
             f"✅ {approvals_n} post approval pending."
@@ -1678,7 +1676,7 @@ def studio_owner_brief(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/growth-coach")
 def studio_growth_coach(client_id: str = Depends(require_customer)) -> dict:
-    """Weekly AI growth coach - agle 7 din ke 3 high-impact actions (PURE LOGIC)."""
+    """Weekly AI growth coach — agle 7 din ke 3 high-impact actions (PURE LOGIC)."""
     c = _ctx(client_id)
     niche = c["niche"]
     actions = [
@@ -1705,7 +1703,7 @@ def studio_growth_coach(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Batch 5 - complete the buildable set (#41-100). Pure-logic packs (uniform    #
+# Batch 5 — complete the buildable set (#41-100). Pure-logic packs (uniform    #
 # "sections" shape, zero LLM/network) + 3 generator wires.                     #
 # --------------------------------------------------------------------------- #
 class TopicReq(BaseModel):
@@ -1737,7 +1735,7 @@ def _pack(tool: str, client_id: str, fn_name: str, *args) -> dict:
         out = getattr(studio_packs, fn_name)(*args)
     except Exception as e:
         logger.debug("studio pack %s failed: %s", fn_name, e)
-        out = {"sections": [{"title": "Note", "items": ["Abhi available nahi - thodi der baad."]}]}
+        out = {"sections": [{"title": "Note", "items": ["Abhi available nahi — thodi der baad."]}]}
     return {"ok": True, "tool": tool, **out, "context": c}
 
 
@@ -1856,12 +1854,12 @@ def studio_ugc_request(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Batch 6 - engine LINKS (per-client views, IDOR-safe). Surface existing       #
+# Batch 6 — engine LINKS (per-client views, IDOR-safe). Surface existing       #
 # backend capability scoped to THIS customer's own inquiries.                  #
 # --------------------------------------------------------------------------- #
 @router.get("/ai-inbox")
 def studio_ai_inbox(client_id: str = Depends(require_customer)) -> dict:
-    """AI Inbox - is customer ki apni inquiries ko intent + urgency se classify
+    """AI Inbox — is customer ki apni inquiries ko intent + urgency se classify
     karke suggested action deta hai (per-client, IDOR-safe). reply_agent ka
     customer-facing view (uska global IMAP inbox NAHI)."""
     c = _ctx(client_id)
@@ -1901,13 +1899,13 @@ def studio_ai_inbox(client_id: str = Depends(require_customer)) -> dict:
         "count": len(items),
         "counts": counts,
         "items": items,
-        "empty_note": "Abhi koi inquiry nahi - mini-site/widget share karo to leads yahan aayenge.",
+        "empty_note": "Abhi koi inquiry nahi — mini-site/widget share karo to leads yahan aayenge.",
     }
 
 
 @router.get("/re-engagement")
 def studio_re_engagement(client_id: str = Depends(require_customer)) -> dict:
-    """Re-engagement - cold/inactive leads (48h+ purane) surface karke 1-click
+    """Re-engagement — cold/inactive leads (48h+ purane) surface karke 1-click
     win-back message deta hai. cadence/lifecycle engine ka per-client view."""
     c = _ctx(client_id)
     biz = c["business_name"]
@@ -1925,7 +1923,7 @@ def studio_re_engagement(client_id: str = Depends(require_customer)) -> dict:
                 "wa_link": _wa_link(r.get("phone")),
                 "days_cold": days,
                 "message": (
-                    f"Namaste {name}! 🙏 {biz} se - aapne kuch din pehle enquiry ki thi. "
+                    f"Namaste {name}! 🙏 {biz} se — aapne kuch din pehle enquiry ki thi. "
                     "Abhi bhi interested ho to ek special offer de sakta hoon. Bataiye? 😊"
                 ),
             }
@@ -1937,12 +1935,12 @@ def studio_re_engagement(client_id: str = Depends(require_customer)) -> dict:
         "context": c,
         "count": len(cold),
         "items": cold[:50],
-        "empty_note": "Abhi koi cold lead nahi - sab fresh hain ya follow-up ho chuka.",
+        "empty_note": "Abhi koi cold lead nahi — sab fresh hain ya follow-up ho chuka.",
     }
 
 
 # --------------------------------------------------------------------------- #
-# Batch 7 - web-research-grounded (Birdeye/Podium/GHL/BrightLocal/WA-commerce  #
+# Batch 7 — web-research-grounded (Birdeye/Podium/GHL/BrightLocal/WA-commerce  #
 # parity). 9 pure-logic packs + 2 wires (listings/NAP, website widget).        #
 # --------------------------------------------------------------------------- #
 @router.get("/nps-survey")
@@ -2042,13 +2040,13 @@ def studio_website_widget(client_id: str = Depends(require_customer)) -> dict:
         "context": c,
         "result": {
             "snippet": code,
-            "note": "Ye code apni website ke page me paste karo - enquiry form/widget aa jayega.",
+            "note": "Ye code apni website ke page me paste karo — enquiry form/widget aa jayega.",
         },
     }
 
 
 # --------------------------------------------------------------------------- #
-# Batch 8 - more FREE-stack wires (meme, card, signature, regional post,       #
+# Batch 8 — more FREE-stack wires (meme, card, signature, regional post,       #
 # trends, partnerships, reviews widget). All zero-paid-API.                    #
 # --------------------------------------------------------------------------- #
 class MultilangReq(BaseModel):
@@ -2070,7 +2068,7 @@ def _snippet_of(out) -> str:
 async def studio_meme(
     req: TopicReq = Body(default=TopicReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Relatable Hinglish meme - top/bottom text + SVG + caption (downloadable)."""
+    """Relatable Hinglish meme — top/bottom text + SVG + caption (downloadable)."""
     c = _ctx(client_id)
     try:
         from app.marketing import meme_gen
@@ -2100,7 +2098,7 @@ async def studio_multilang_post(
 
 @router.get("/trends")
 async def studio_trends(client_id: str = Depends(require_customer)) -> dict:
-    """Trending topics -> aapke niche ke liye post angles (free RSS, never-empty)."""
+    """Trending topics → aapke niche ke liye post angles (free RSS, never-empty)."""
     c = _ctx(client_id)
     try:
         from app.marketing import trends
@@ -2126,7 +2124,7 @@ async def studio_partnerships(client_id: str = Depends(require_customer)) -> dic
 
 @router.get("/business-card")
 def studio_business_card(client_id: str = Depends(require_customer)) -> dict:
-    """Digital business card (HTML) - share link/QR, save-to-contacts."""
+    """Digital business card (HTML) — share link/QR, save-to-contacts."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     slug = str(rec.get("slug") or rec.get("id") or client_id)
@@ -2150,7 +2148,7 @@ def studio_business_card(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/email-signature")
 def studio_email_signature(client_id: str = Depends(require_customer)) -> dict:
-    """Branded email signature (HTML) - har email me brand + CTA."""
+    """Branded email signature (HTML) — har email me brand + CTA."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     code = ""
@@ -2177,7 +2175,7 @@ def studio_email_signature(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/reviews-widget")
 def studio_reviews_widget(client_id: str = Depends(require_customer)) -> dict:
-    """Embeddable reviews widget - apni website pe Google reviews dikhaao."""
+    """Embeddable reviews widget — apni website pe Google reviews dikhaao."""
     c = _ctx(client_id)
     rec = _client_record(client_id) or {}
     slug = str(rec.get("slug") or rec.get("id") or client_id)
@@ -2196,13 +2194,13 @@ def studio_reviews_widget(client_id: str = Depends(require_customer)) -> dict:
         "context": c,
         "result": {
             "snippet": code,
-            "note": "Ye code website pe paste karo - reviews auto dikhenge.",
+            "note": "Ye code website pe paste karo — reviews auto dikhenge.",
         },
     }
 
 
 # --------------------------------------------------------------------------- #
-# Batch 9 - final free-stack wires (niche-pack, missed-call #24, sentiment,    #
+# Batch 9 — final free-stack wires (niche-pack, missed-call #24, sentiment,    #
 # community-content) + evergreen ideas.                                        #
 # --------------------------------------------------------------------------- #
 class SentimentReq(BaseModel):
@@ -2211,7 +2209,7 @@ class SentimentReq(BaseModel):
 
 @router.get("/niche-pack")
 async def studio_niche_pack(client_id: str = Depends(require_customer)) -> dict:
-    """Complete niche content pack - multiple ready posts for the client's niche."""
+    """Complete niche content pack — multiple ready posts for the client's niche."""
     c = _ctx(client_id)
     try:
         from app.marketing import niche_pack
@@ -2241,7 +2239,7 @@ async def studio_missed_call_reply(client_id: str = Depends(require_customer)) -
 
 @router.post("/sentiment", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_sentiment(req: SentimentReq, client_id: str = Depends(require_customer)) -> dict:
-    """Reviews/feedback ka sentiment analysis - positive/negative + theme."""
+    """Reviews/feedback ka sentiment analysis — positive/negative + theme."""
     c = _ctx(client_id)
     try:
         from app.marketing import sentiment
@@ -2254,7 +2252,7 @@ async def studio_sentiment(req: SentimentReq, client_id: str = Depends(require_c
 
 @router.get("/community-content")
 async def studio_community_content(client_id: str = Depends(require_customer)) -> dict:
-    """Community posts - Quora/Reddit/WhatsApp-group/LinkedIn ke liye content."""
+    """Community posts — Quora/Reddit/WhatsApp-group/LinkedIn ke liye content."""
     c = _ctx(client_id)
     try:
         from app.marketing import community_content
@@ -2314,7 +2312,7 @@ async def studio_service_area(
 async def studio_service_menu(
     req: ServiceMenuReq = Body(default=ServiceMenuReq()), client_id: str = Depends(require_customer)
 ) -> dict:
-    """Services/products -> clean menu/price-list card (SVG) + WhatsApp text."""
+    """Services/products → clean menu/price-list card (SVG) + WhatsApp text."""
     c = _ctx(client_id)
     items: list[dict] = []
     for line in (req.items_text or "").splitlines():
@@ -2342,7 +2340,7 @@ async def studio_service_menu(
 
 
 # --------------------------------------------------------------------------- #
-# Capability list - drives the UI cards (so frontend stays in sync)            #
+# Capability list — drives the UI cards (so frontend stays in sync)            #
 # --------------------------------------------------------------------------- #
 _TOOLS = [
     {
@@ -2448,7 +2446,7 @@ _TOOLS = [
         "key": "gbp-audit",
         "icon": "📊",
         "title": "GBP Audit (0–100)",
-        "desc": "16 sawal -> score + top-5 Hinglish fixes (saved)",
+        "desc": "16 sawal → score + top-5 Hinglish fixes (saved)",
         "method": "GET",
         "path": "/api/customer/gbp/questions",
         "fields": [],
@@ -2529,7 +2527,7 @@ _TOOLS = [
         "key": "next-best-action",
         "icon": "🎯",
         "title": "Next Best Action",
-        "desc": "Aaj kya karna hai - task list",
+        "desc": "Aaj kya karna hai — task list",
         "method": "GET",
         "path": "/api/customer/studio/next-best-action",
         "fields": [],
@@ -2664,7 +2662,7 @@ _TOOLS = [
         "key": "testimonial",
         "icon": "💬",
         "title": "Testimonial Poster",
-        "desc": "Review -> branded poster + caption",
+        "desc": "Review → branded poster + caption",
         "method": "POST",
         "path": "/api/customer/studio/testimonial",
         "fields": ["review_text", "author", "rating"],
@@ -2673,7 +2671,7 @@ _TOOLS = [
         "key": "repurpose",
         "icon": "♻️",
         "title": "Content Repurpose",
-        "desc": "1 topic -> 7 formats",
+        "desc": "1 topic → 7 formats",
         "method": "POST",
         "path": "/api/customer/studio/repurpose",
         "fields": ["topic_or_url"],
@@ -2745,7 +2743,7 @@ _TOOLS = [
         "key": "service-menu",
         "icon": "📋",
         "title": "Service Menu / Price List",
-        "desc": "Services -> clean menu card",
+        "desc": "Services → clean menu card",
         "method": "POST",
         "path": "/api/customer/studio/service-menu",
         "fields": ["items_text"],
@@ -3033,7 +3031,7 @@ _TOOLS = [
         "key": "multilang-post",
         "icon": "🌐",
         "title": "Regional Language Post",
-        "desc": "Caption -> Hindi/Marathi/Tamil…",
+        "desc": "Caption → Hindi/Marathi/Tamil…",
         "method": "POST",
         "path": "/api/customer/studio/multilang-post",
         "fields": ["caption"],

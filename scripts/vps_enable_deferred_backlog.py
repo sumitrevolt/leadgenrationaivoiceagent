@@ -65,7 +65,7 @@ def main() -> int:
                 print(f"SET {STREAM_TTS_KEY}=1 (smoke PASS)")
                 changed = True
         else:
-            print("Stream TTS smoke FAIL - flag unchanged")
+            print("Stream TTS smoke FAIL — flag unchanged")
             return 1
     if run_rag:
         print("=== RAG A/B gate ===")
@@ -82,7 +82,7 @@ def main() -> int:
                     print(f"SET {k}=1 (gate PASS)")
                     changed = True
         else:
-            print("RAG gate FAIL - retrieval flags unchanged")
+            print("RAG gate FAIL — retrieval flags unchanged")
 
     if changed:
         bak = ENV_PATH + ".bak_deferred_backlog"

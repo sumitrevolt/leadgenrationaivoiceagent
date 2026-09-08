@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Live call se seekho -> voice agent improve karo.
+"""Live call se seekho → voice agent improve karo.
 
 Flow:
   1. (optional) fire_calls.py se 1+ outbound Vobiz stream call
   2. transcript + recording ka wait
   3. eval_metrics + Meera trainer stats
-  4. free-LLM mistake analysis -> skill_library lesson
+  4. free-LLM mistake analysis → skill_library lesson
   5. self_improve record_use
 
 Run (VPS container):
@@ -87,7 +87,7 @@ def _score_transcript(rec: dict[str, Any]) -> dict[str, Any]:
 async def _llm_mistake_analysis(rec: dict[str, Any], metrics: dict[str, Any]) -> str:
     tx = _transcript_text(rec)
     if len(tx) < 20:
-        return "Transcript bahut chhota - koi analysis nahi."
+        return "Transcript bahut chhota — koi analysis nahi."
     flags = metrics.get("flags") or {}
     prompt = (
         f"Niche: {rec.get('niche', 'general')}. Duration: {rec.get('duration_s')}s.\n"
@@ -222,13 +222,13 @@ async def main() -> int:
         placed = await place_calls(args.call_limit, args.platform)
         print("place_result:", placed)
         if not placed.get("ok"):
-            print("WARN: call placement failed - learn-only on existing data")
+            print("WARN: call placement failed — learn-only on existing data")
         else:
             print(f">> Waiting up to {args.wait}s for transcript...")
             got = await wait_for_new_transcript(before, args.wait)
             print("transcript_arrived:", got)
             if not got:
-                print("WARN: no new transcript yet - analysing whatever exists")
+                print("WARN: no new transcript yet — analysing whatever exists")
 
     print("\n>> Learning from transcripts...")
     result = await learn_from_recent(args.limit)

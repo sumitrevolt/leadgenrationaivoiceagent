@@ -58,9 +58,9 @@ def test_dsh_worker_lock_closure_covers_app_config_imports() -> None:
     """Regression: 2026-08-15 the dsh worker cancelled EVERY run_dsh_workforce.
 
     Root cause: `requirements-dsh.lock.txt` lacked `pydantic-settings` (and its
-    `python-dotenv` import-time dep) -> `from app.config import settings` inside
-    `agent_runtime_cancellation._sync_redis()` raised ModuleNotFoundError ->
-    fail-closed `cancellation_store_unavailable` -> all 29 armed agents executed
+    `python-dotenv` import-time dep) → `from app.config import settings` inside
+    `agent_runtime_cancellation._sync_redis()` raised ModuleNotFoundError →
+    fail-closed `cancellation_store_unavailable` → all 29 armed agents executed
     nothing for 12h+. The lock closure MUST keep both pins in sync with the
     canonical lock so `app/config.py` imports inside the isolated worker.
     """

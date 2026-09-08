@@ -1,12 +1,11 @@
-"""Meta Graph API publisher (Facebook Page + Instagram) - Track 3 social auto-posting.
+"""Meta Graph API publisher (Facebook Page + Instagram) — Track 3 social auto-posting.
 
 DEFENSIVE + opt-in. Real publishing sirf tab jab ``SOCIAL_AUTOPOST=1`` AND ek usable
 Page/IG access token ho (per-client ``data/meta_connections.jsonl``, ya global platform
 token ``settings.meta_page_access_token``). Warna -> MOCK mode: kuch publish nahi hota,
 sirf ek mock-result return hota hai (log me dikh jata kya post HOTA). NEVER raises.
 
-Meta app-review unlock hone tak yeh mock chalega
-tokens milte hi flag on + connect karo
+Meta app-review unlock hone tak yeh mock chalega; tokens milte hi flag on + connect karo
 => live posting. Per-client connection store taaki har client apna FB/IG jod sake.
 """
 
@@ -27,7 +26,7 @@ def _flag(name: str) -> bool:
 
 
 def autopost_enabled() -> bool:
-    """Master switch - real publishing only when SOCIAL_AUTOPOST is truthy (env or settings)."""
+    """Master switch — real publishing only when SOCIAL_AUTOPOST is truthy (env or settings)."""
     if _flag("SOCIAL_AUTOPOST"):
         return True
     try:
@@ -100,7 +99,7 @@ def get_connection(client_id: str | None) -> dict[str, Any] | None:
         for r in _read_conns():
             if str(r.get("client_id")) == cid and (r.get("page_access_token") or "").strip():
                 return r
-    # Global fallback - the platform's own page/IG (for self-marketing posts).
+    # Global fallback — the platform's own page/IG (for self-marketing posts).
     try:
         from app.config import settings
 
@@ -125,7 +124,7 @@ def has_connection(client_id: str | None) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Low-level Graph publish (sync httpx - called off-thread by the async poster)
+# Low-level Graph publish (sync httpx — called off-thread by the async poster)
 # --------------------------------------------------------------------------- #
 def _post(url: str, data: dict) -> dict[str, Any]:
     try:
@@ -231,7 +230,7 @@ def publish_post(item: dict, image_url: str = "") -> dict[str, Any]:
 
         tok = conn.get("page_access_token", "")
         results: dict[str, Any] = {}
-        # Facebook page (text or photo) - default for most niches / when no IG linked.
+        # Facebook page (text or photo) — default for most niches / when no IG linked.
         if channel in ("facebook", "fb", "both", "all") or not conn.get("instagram_account_id"):
             results["facebook"] = publish_facebook(conn.get("page_id", ""), tok, caption, image_url)
         # Instagram (needs a public image_url).

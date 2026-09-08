@@ -87,7 +87,7 @@ def _clean(monkeypatch):
 
     IMPORTANT: metering is neutralised by default. The real
     ``meter_call_completion`` reaches for Postgres/Redis, which do not exist
-    here - leaving it live makes any "completed" webhook block. Tests that
+    here — leaving it live makes any "completed" webhook block. Tests that
     assert on metering override it with their own recorder.
     """
     monkeypatch.delenv("SMARTFLO_WEBHOOK_SECRET", raising=False)
@@ -149,12 +149,12 @@ class TestSmartfloDollarFormat:
         assert logged["start_stamp"] == "2026-09-07 12:00:00"
 
     def test_call_status_maps_to_status(self):
-        """Smartflo sends $call_status, not $status - must still be read."""
+        """Smartflo sends $call_status, not $status — must still be read."""
         _call({"$call_id": "CA-2", "$call_status": "failed"})
         assert sw.get_recent_webhooks(limit=1)[-1]["status"] == "failed"
 
     def test_mixed_prefix_payload(self):
-        """Sigil is inconsistent in the docs - both forms must work together."""
+        """Sigil is inconsistent in the docs — both forms must work together."""
         _call({"$call_id": "CA-3", "ref_id": "r3", "$call_status": "no-answer"})
         logged = sw.get_recent_webhooks(limit=1)[-1]
         assert logged["call_id"] == "CA-3"
@@ -214,7 +214,7 @@ class TestFormEncoded:
 # ---------------------------------------------------------------------------
 class TestSecretGate:
     def test_no_secret_configured_means_open(self):
-        """Default (unset) keeps the endpoint open - backward compatible."""
+        """Default (unset) keeps the endpoint open — backward compatible."""
         status, _ = _call({"$call_id": "CA-open", "$call_status": "completed"})
         assert status == 200
 

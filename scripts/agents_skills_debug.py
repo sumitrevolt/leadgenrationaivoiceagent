@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Agents + skills full debugger - STAFF, FDE, coordinator, skill_pack (NDJSON -> debug-6e326c.log).
+"""Agents + skills full debugger — STAFF, FDE, coordinator, skill_pack (NDJSON → debug-6e326c.log).
 
 Loops:
   A STAFF roster + team_status + 7d event coverage

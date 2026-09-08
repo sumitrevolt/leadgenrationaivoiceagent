@@ -5,10 +5,9 @@ Found while wiring the durable Celery campaign-launch task (P2-1,
 app.tasks.calling.run_campaign_task): a bare `celery -A app.worker worker`
 with no -Q only drains the DEFAULT queue ("celery"). task_routes sends
 scraping/calling/reporting/sync/brain_training tasks to their own named
-queues - without listing those queues on a worker's -Q, tasks enqueue
+queues — without listing those queues on a worker's -Q, tasks enqueue
 successfully (send_task/beat succeed, status looks "queued"/"running") but
-NO worker ever picks them up
-they sit in Redis forever. This silently
+NO worker ever picks them up; they sit in Redis forever. This silently
 affected the pre-existing beat-scheduled process-call-queue task too, not
 just the new one. Fixed in docker-compose.vps.yml / .prod.yml / .yml.
 """
@@ -29,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def _statically_routed_queues() -> set[str]:
     """Queue names from app/worker.py's static task_routes dict (the
     router-fns' dynamic "heavy"/"video" routes are checked separately below).
-    task_routes is (router_fn, router_fn, ..., static_dict) - N router
+    task_routes is (router_fn, router_fn, ..., static_dict) — N router
     callables followed by exactly one trailing static dict, so unpack with a
     star instead of a fixed arity (a new router fn is additive, not a reason
     to touch this helper again)."""
@@ -63,15 +62,15 @@ _CLASSIC_STATIC_QUEUES = {
 }
 # Dedicated / profile-gated queues that live in the static task_routes dict
 # but MUST NOT be drained by the main app worker (separate process + image).
-# "dsh" -> profiles: [dsh] leadgen_dsh_worker (deploy/dsh/worker.Dockerfile).
+# "dsh" → profiles: [dsh] leadgen_dsh_worker (deploy/dsh/worker.Dockerfile).
 # Explicit "celery" route for execute_governed_capability is the default queue
-# already on every worker -Q - not a new drain target.
+# already on every worker -Q — not a new drain target.
 _DEDICATED_STATIC_QUEUES = {"dsh"}
 _KNOWN_STATIC_QUEUES = _CLASSIC_STATIC_QUEUES | _DEDICATED_STATIC_QUEUES | {"celery"}
 
 
 def test_statically_routed_queues_are_known():
-    # Sanity: this project routes exactly these - if someone adds a new
+    # Sanity: this project routes exactly these — if someone adds a new
     # app.tasks.X module with its own queue, this test's failure is the
     # reminder to also wire a consumer (main -Q or a dedicated worker).
     assert _statically_routed_queues() == _KNOWN_STATIC_QUEUES
@@ -79,9 +78,8 @@ def test_statically_routed_queues_are_known():
 
 def test_vps_worker_consumes_every_routed_queue():
     """docker-compose.vps.yml = the LIVE deploy file. "heavy"/"video" are
-    router-fn queues with dedicated workers
-    "dsh" is a static route but
-    profile-gated to dsh-worker (INERT default) - main worker must still
+    router-fn queues with dedicated workers; "dsh" is a static route but
+    profile-gated to dsh-worker (INERT default) — main worker must still
     drain every classic static queue + the default celery queue."""
     cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
     consumed = _dash_q_queues(cmd)
@@ -101,20 +99,20 @@ def test_vps_worker_video_consumes_video_queue():
 
 
 def test_vps_worker_does_not_drain_video():
-    # worker-video isolates it - same starve-prevention shape as worker-heavy.
+    # worker-video isolates it — same starve-prevention shape as worker-heavy.
     cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
     assert "video" not in _dash_q_queues(cmd)
 
 
 def test_vps_worker_does_not_drain_dsh():
-    # dsh-worker (profiles: [dsh]) isolates it - main worker must not steal
+    # dsh-worker (profiles: [dsh]) isolates it — main worker must not steal
     # DSH jobs into the general app image / memcg.
     cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
     assert "dsh" not in _dash_q_queues(cmd)
 
 
 def test_vps_dsh_worker_is_profile_gated_and_consumes_dsh_queue():
-    """dsh-worker has no compose `command` - queues live on the Dockerfile
+    """dsh-worker has no compose `command` — queues live on the Dockerfile
     ENTRYPOINT. Compose only profile-gates the service."""
     data = yaml.safe_load((REPO_ROOT / "docker-compose.vps.yml").read_text(encoding="utf-8"))
     svc = data["services"]["dsh-worker"]
@@ -126,7 +124,7 @@ def test_vps_dsh_worker_is_profile_gated_and_consumes_dsh_queue():
 
 def test_prod_worker_consumes_every_routed_queue_plus_heavy_and_video():
     """docker-compose.prod.yml has no separate heavy or video worker, so its
-    single `worker` service must drain both. DSH stays VPS-profile-only -
+    single `worker` service must drain both. DSH stays VPS-profile-only —
     legacy prod stack must not pretend to consume `dsh`."""
     cmd = _worker_command(REPO_ROOT / "deploy" / "legacy" / "docker-compose.prod.yml", "worker")
     consumed = _dash_q_queues(cmd)
@@ -174,7 +172,7 @@ def test_onboard_router_none_when_flag_off(monkeypatch):
 
 
 def test_onboard_router_heavy_when_flag_on(monkeypatch):
-    """Reuse worker-heavy - a brand-new queue with no consumer would orphan jobs."""
+    """Reuse worker-heavy — a brand-new queue with no consumer would orphan jobs."""
     from app import worker
 
     monkeypatch.setenv("CELERY_ONBOARD_QUEUE", "1")
@@ -210,20 +208,20 @@ def test_video_router_none_for_other_tasks(monkeypatch):
 
 def test_static_routes_unchanged_by_video_addition():
     # video is router-fn based (like "heavy"), NOT added to the static dict.
-    # DSH *is* static (dedicated worker) - assert video still stays dynamic.
+    # DSH *is* static (dedicated worker) — assert video still stays dynamic.
     assert "video" not in _statically_routed_queues()
     assert "heavy" not in _statically_routed_queues()
     assert _CLASSIC_STATIC_QUEUES <= _statically_routed_queues()
 
 
 def test_kb_refresh_router_routes_when_flag_on(monkeypatch):
-    """2026-07-15 - ADR-104 kb_niche_refresh moved off the default queue after
+    """2026-07-15 — ADR-104 kb_niche_refresh moved off the default queue after
     a live-prod OOM finding (see app/worker.py._route_kb_refresh_task
     docstring): it collided with the default queue's staff-job battery inside
     leadgen_worker's 2GB memcg limit, got SIGKILL'd 3x via WorkerLostError
-    (which bypasses the task's own max_retries - broker-level redelivery of
+    (which bypasses the task's own max_retries — broker-level redelivery of
     the same task id, unbounded). worker-heavy already exists + is already
-    consumed by every compose worker's -Q (see tests above) - no compose
+    consumed by every compose worker's -Q (see tests above) — no compose
     change needed, only this routing rule."""
     from app import worker
 
@@ -261,7 +259,7 @@ def test_static_routes_unchanged_by_kb_refresh_addition():
 
 
 def test_worker_process_init_warmup_skipped_on_default_worker(monkeypatch):
-    """2026-07-15 ADR-104 A10 - worker_heavy Qdrant/fastembed warm-up (see
+    """2026-07-15 ADR-104 A10 — worker_heavy Qdrant/fastembed warm-up (see
     on_worker_process_init docstring for the measured ~90s-hang finding this
     fixes). Routing stays enabled here, but the heavy process-role marker is
     absent, so the default worker must remain a true no-op."""
@@ -304,10 +302,9 @@ def test_worker_process_init_warmup_runs_when_flag_on(monkeypatch):
 
 
 def test_worker_process_init_warmup_never_raises_on_failure(monkeypatch):
-    """Warm-up is best-effort - a broken Qdrant endpoint must never crash
+    """Warm-up is best-effort — a broken Qdrant endpoint must never crash
     worker boot. Task-time fallback logic (knowledge_base.py's own
-    Qdrant->Chroma->keyword cascade) remains the real safety net
-    this
+    Qdrant->Chroma->keyword cascade) remains the real safety net; this
     warm-up is purely an optimization, never a dependency."""
     from app import worker
 
@@ -350,10 +347,9 @@ def test_heavy_worker_marker_is_exclusive_across_all_compose_files():
     """Only worker-heavy may run the memory-heavy Qdrant/ONNX warm-up.
 
     incidents.md rule (2026-07-16): CELERY_HEAVY_QUEUE is a SEND-side routing flag
-    shared by app/scheduler/worker/heavy - using it as process-role identity made
+    shared by app/scheduler/worker/heavy — using it as process-role identity made
     every default-worker fork pay the ~1.2-1.4 GiB warm-up. The fix introduced the
-    exclusive CELERY_HEAVY_WORKER=1 marker on worker-heavy
-    this test proves the
+    exclusive CELERY_HEAVY_WORKER=1 marker on worker-heavy; this test proves the
     marker appears in EXACTLY ONE service across EVERY compose file, so a future
     file cannot silently re-introduce a duplicate warm-up path."""
     marked: list[tuple[str, str]] = []

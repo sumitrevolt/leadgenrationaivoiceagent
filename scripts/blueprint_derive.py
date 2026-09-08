@@ -1,4 +1,4 @@
-"""blueprint_derive.py - evidence-backed L1/L2 parent derivation for the Master Blueprint.
+"""blueprint_derive.py — evidence-backed L1/L2 parent derivation for the Master Blueprint.
 
 Consumes the ``MIGRATE_VERIFIED`` set from ``scripts/blueprint_reconcile.py`` and
 proposes, for each legacy node, where it belongs in the canonical registry
@@ -23,8 +23,7 @@ SIGNALS (all evidence-derived, never filename similarity)
   registration, scheduler job membership, agent-registry membership,
   feature-flag gate.
 
-AST evidence alone can prove a code dependency
-it cannot prove production
+AST evidence alone can prove a code dependency; it cannot prove production
 activation, scheduling, queue consumption, flag state or business ownership.
 So critical domains (outreach, calling, billing, tenancy, auth, Owner OS,
 deployment, queues, consent, PII) can never reach HIGH on AST votes alone.
@@ -54,7 +53,7 @@ def _ensure_repo_importable() -> None:
 
     blueprint_graph imports app.platform.blueprint_detail_nodes at module level
     (fail-closed by design), so `python scripts/blueprint_derive.py` needs the
-    repo root importable - sys.path[0] is `scripts/` in that case.
+    repo root importable — sys.path[0] is `scripts/` in that case.
 
     This must NOT run at import time. pytest imports this module, and inserting
     another root entry there can make `app` resolve under two module identities;
@@ -100,7 +99,7 @@ CRITICAL_DOMAINS = {
     "crm_hotqueue",
 }
 
-MIN_DOMAIN_VOTES = 4  # absolute floor - "1 vs 0" must never read as dominant
+MIN_DOMAIN_VOTES = 4  # absolute floor — "1 vs 0" must never read as dominant
 MIN_DISTINCT_EDGES = 2
 
 
@@ -287,7 +286,7 @@ def derive() -> dict[str, Any]:
                     node_votes[nid] += w
                     edges_used += 1
                 seen_hop1.add(src)
-        # 2-hop (weak) - reaches canonical layer through one intermediate module
+        # 2-hop (weak) — reaches canonical layer through one intermediate module
         for mid in list(seen_hop1)[:400]:
             if mid in file_owner:
                 continue
@@ -377,7 +376,7 @@ def derive() -> dict[str, Any]:
                 ),
             )
         elif not prov["available"]:
-            conf, why = "LOW", "Graphify graph unavailable - cannot prove dependency"
+            conf, why = "LOW", "Graphify graph unavailable — cannot prove dependency"
         elif not dranked:
             conf, why = "LOW", "no dependency path reaches any canonical domain"
         elif dominant and corr["count"] >= 1:
@@ -411,7 +410,7 @@ def derive() -> dict[str, Any]:
         # Caught live: `s_council` (app/agents/llm_council.py) scored kb_rag 4-2
         # purely because the LLM council READS the knowledge base, and would
         # have been parented under the RAG node. app/agents/ is a rejected
-        # mixed package, so it has no reviewed ownership - hold it at MEDIUM.
+        # mixed package, so it has no reviewed ownership — hold it at MEDIUM.
         if conf == "HIGH" and parent_node and not own_domain:
             conf, why = (
                 "MEDIUM",
@@ -422,7 +421,7 @@ def derive() -> dict[str, Any]:
             )
 
         # harness policy: critical domains never auto-accept on AST alone.
-        # Reviewed ownership is NOT one of the two - it is the thing being
+        # Reviewed ownership is NOT one of the two — it is the thing being
         # corroborated, so counting it toward its own corroboration is circular.
         # Two INDEPENDENT current-source signals (route/task/scheduler/agent-
         # registry/flag) are required, which is what
@@ -430,29 +429,28 @@ def derive() -> dict[str, Any]:
         #
         # Caught 2026-08-07: adding ONE env flag to app/telephony/post_call_hooks.py
         # promoted four legacy entries (post_call_hooks, post_call_pipe, rm_postcall,
-        # v_stack) straight to HIGH/IMPORTED_CANONICAL - on 0 graph edges and 0
-        # domain votes - because `own_domain` supplied the second "signal" itself.
+        # v_stack) straight to HIGH/IMPORTED_CANONICAL — on 0 graph edges and 0
+        # domain votes — because `own_domain` supplied the second "signal" itself.
         # A canonical blueprint placement must not be purchasable with an env var.
         if conf == "HIGH" and is_critical and corr["count"] < 2:
             conf, why = (
                 "MEDIUM",
                 (
-                    f"critical domain '{parent_domain}' - needs >=2 INDEPENDENT "
-                    f"current-source signals (has {corr['count']}) "
-                    "reviewed ownership "
+                    f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
+                    f"current-source signals (has {corr['count']}; reviewed ownership "
                     "does not corroborate itself)"
                 ),
             )
 
         # A dependency claim is only as good as the dependency evidence behind it.
         # With no graph loaded, `edges_used` is 0 for everything, so HIGH here
-        # would rest on AST/ownership alone - exactly what
+        # would rest on AST/ownership alone — exactly what
         # test_high_confidence_requires_evidence_and_corroboration forbids.
         if conf == "HIGH" and edges_used < MIN_DISTINCT_EDGES:
             conf, why = (
                 "MEDIUM",
                 (
-                    f"only {edges_used} distinct Graphify edge(s) - HIGH requires "
+                    f"only {edges_used} distinct Graphify edge(s) — HIGH requires "
                     f">={MIN_DISTINCT_EDGES} (graph "
                     f"{'unavailable' if not prov['available'] else 'has no path'})"
                 ),
@@ -474,9 +472,8 @@ def derive() -> dict[str, Any]:
             final = "REVIEW_REQUIRED"
             conf = "MEDIUM"
             why = (
-                f"{why} "
-                "but L2 detail has no verified same-domain group "
-                "parent - needs manual grouping before import"
+                f"{why}; but L2 detail has no verified same-domain group "
+                "parent — needs manual grouping before import"
             )
 
         rows.append(
@@ -533,7 +530,7 @@ def main(argv: list[str]) -> int:
         f"nodes={p['nodes']} links={p['links']}"
     )
     if not p["fresh"]:
-        print("  [WARN] graph is STALE or missing - derivation confidence is capped.")
+        print("  [WARN] graph is STALE or missing — derivation confidence is capped.")
     print(f"\ntotal candidates: {m['total_candidates']}")
     print("\n--- confidence ---")
     for k in ("HIGH", "MEDIUM", "LOW"):

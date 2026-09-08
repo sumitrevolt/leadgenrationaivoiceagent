@@ -5,8 +5,7 @@ this module's entire Redis surface) so these tests need no live Redis/Celery
 broker. `refresh_niche_task` itself (the Celery task body) is exercised via a
 direct `.run(...)` call on the real `celery.local.PromiseProxy` (bind=True
 tasks are already self-bound -- `.run`/`.__wrapped__` take `(niche,
-_lease_token)`, no fake `self` needed
-retry-count state is set via the real
+_lease_token)`, no fake `self` needed; retry-count state is set via the real
 `push_request(retries=...)`/`pop_request()` API), monkeypatching its imports
 at their real call sites.
 """
@@ -168,8 +167,7 @@ def test_refresh_niche_task_verifies_via_readiness_not_just_seed_ok(monkeypatch,
 
 def test_refresh_niche_task_time_limits_have_margin_above_measured_worst_case():
     """ADR-104 A10 (2026-07-15) pin: worker_heavy's first-use-per-process
-    Qdrant/fastembed init measured at ~97-99s (bare, non-Celery script
-    3
+    Qdrant/fastembed init measured at ~97-99s (bare, non-Celery script; 3
     separate ForkPoolWorker instances, all consistent). A task racing a
     fresh pool-respawn's still-in-flight worker_process_init warm-up blocks
     on the same lock, then does its own ~26s of real work -> ~123s observed

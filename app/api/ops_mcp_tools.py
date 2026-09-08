@@ -1,16 +1,15 @@
-"""Ops MCP tools - Hot Queue + Revenue summary as /mcp-exposed admin tools.
+"""Ops MCP tools — Hot Queue + Revenue summary as /mcp-exposed admin tools.
 
 fastapi-mcp mount (app/main.py) `include_tags=["Platform", ...]` se tools
 select karta hai, isliye saare routes tag="Platform" rakhe hain = Claude /
 Hermes MCP clients inhe direct tools ki tarah call kar sakte hain.
 
 Design rules (project discipline):
-- Engines REUSE hote hain (`reply_agent`, `gst_invoice`) - yahan sirf thin
+- Engines REUSE hote hain (`reply_agent`, `gst_invoice`) — yahan sirf thin
   admin surface hai, business logic duplicate NAHI.
 - Auth double-layered: route-level `require_admin` + /mcp middleware ka
   Bearer/IP gate (fail-closed prod).
-- Read-only + idempotent mark actions
-koi external send, koi payment move.
+- Read-only + idempotent mark actions; koi external send, koi payment move.
 - Rollback: main.py se is router ka include-block hatao (single line).
 
 Added 2026-08-23 (Hermes Desktop ops sprint, owner-approved "sab karo").
@@ -41,7 +40,7 @@ async def ops_hot_queue(
     scope: str = "boss",
     _user=Depends(require_admin_or_ops_readonly),
 ) -> dict[str, Any]:
-    """Hot Queue snapshot for MCP agents - warm/intent rows + summary counts.
+    """Hot Queue snapshot for MCP agents — warm/intent rows + summary counts.
 
     scope=boss (default) | admin (parked) | all. Read-only."""
     from app.platform import reply_agent
@@ -52,7 +51,7 @@ async def ops_hot_queue(
     try:
         rows = reply_agent.hot_queue(limit=max(1, min(200, limit)), scope=scope_n)
         summary = reply_agent.hot_queue_summary(rows, scope=scope_n)
-    except Exception as exc:  # never raise - defensive surface
+    except Exception as exc:  # never raise — defensive surface
         logger.warning("ops_hot_queue err: %s", exc)
         return {"ok": False, "error": "hot_queue_unavailable", "items": [], "summary": {}}
     return {
@@ -105,9 +104,8 @@ async def ops_revenue_summary(
     recent_limit: int = 10,
     _user=Depends(require_admin_or_ops_readonly),
 ) -> dict[str, Any]:
-    """Verified collected-revenue digest for MCP agents - GST invoice ledger
-    (data/invoices.jsonl) se. HONEST numbers only
-    voided alag count hote hain."""
+    """Verified collected-revenue digest for MCP agents — GST invoice ledger
+    (data/invoices.jsonl) se. HONEST numbers only; voided alag count hote hain."""
     from app.billing import gst_invoice
 
     try:

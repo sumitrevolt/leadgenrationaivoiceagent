@@ -1,7 +1,6 @@
-"""OpenTelemetry distributed tracing - import-safe, OFF by default.
+"""OpenTelemetry distributed tracing — import-safe, OFF by default.
 
-Sentry already errors capture karta
-yeh module **end-to-end traces** deta
+Sentry already errors capture karta; yeh module **end-to-end traces** deta
 (FastAPI request -> SQLAlchemy query -> Redis -> outbound httpx) taaki "slow/fail
 kahan aur kyun" dikhe. Grafana Tempo/LGTM stack me feed hota.
 
@@ -37,10 +36,10 @@ def _enabled() -> bool:
 def setup_otel(app) -> bool:
     """FastAPI app pe OTel auto-instrumentation lagao. True = laga, False = skip.
 
-    Kabhi raise nahi karta - observability wiring app boot ko block na kare.
+    Kabhi raise nahi karta — observability wiring app boot ko block na kare.
     """
     if not _enabled():
-        logger.info("⏭️ OTel disabled (ENABLE_OTEL unset) - Sentry/Prometheus active")
+        logger.info("⏭️ OTel disabled (ENABLE_OTEL unset) — Sentry/Prometheus active")
         return False
     try:
         from opentelemetry import trace
@@ -69,7 +68,7 @@ def setup_otel(app) -> bool:
             app, excluded_urls="/health,/health/ready,/health/live,/metrics"
         )
 
-        # Best-effort downstream instrumentation - har ek alag try (ek missing baaki na rok de).
+        # Best-effort downstream instrumentation — har ek alag try (ek missing baaki na rok de).
         for mod, fn in (
             ("opentelemetry.instrumentation.sqlalchemy", "SQLAlchemyInstrumentor"),
             ("opentelemetry.instrumentation.redis", "RedisInstrumentor"),
@@ -85,7 +84,7 @@ def setup_otel(app) -> bool:
         return True
     except ImportError:
         logger.warning(
-            "ENABLE_OTEL=1 par opentelemetry packages missing - `pip install` karo. Skipping."
+            "ENABLE_OTEL=1 par opentelemetry packages missing — `pip install` karo. Skipping."
         )
         return False
     except Exception as e:  # noqa: BLE001

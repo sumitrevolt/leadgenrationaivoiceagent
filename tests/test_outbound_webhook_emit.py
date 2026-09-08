@@ -2,7 +2,7 @@
 
 BUG (fixed): app/telephony/call_manager.py fired the post-call "call_completed"
 event via ``outbound_webhooks.fire_event(...)``. There is no ``fire_event`` on
-that module - only the async ``emit()`` - so the call raised AttributeError and
+that module — only the async ``emit()`` — so the call raised AttributeError and
 was silently swallowed by the enclosing ``try/except: pass``. The event NEVER
 fired for any completed call.
 
@@ -32,7 +32,7 @@ def test_outbound_webhooks_api_is_emit_not_fire_event():
 
     assert callable(getattr(ow, "emit", None)), "outbound_webhooks.emit() must exist"
     assert not hasattr(ow, "fire_event"), (
-        "outbound_webhooks has no fire_event() - callers must use emit()"
+        "outbound_webhooks has no fire_event() — callers must use emit()"
     )
 
 

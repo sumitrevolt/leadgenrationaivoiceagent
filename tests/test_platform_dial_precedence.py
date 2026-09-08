@@ -1,9 +1,9 @@
-"""platform_dial effective precedence - the "10 vs 100" cap question, pinned.
+"""platform_dial effective precedence — the "10 vs 100" cap question, pinned.
 
 Task: prove which value actually reaches the daily 11:30 IST auto-dial loop when
 ``PLATFORM_DIAL_LIMIT=100`` is set in prod.
 
-Chain (beat -> scheduler -> task -> loop):
+Chain (beat → scheduler → task → loop):
   worker.py beat "staff-platform-dial-daily" -> run_staff_job("platform_dial")
   team_scheduler._run_job_inner("platform_dial") -> _pd.enabled() gate, then
       ``_limit = _pd.dial_limit()`` -> send_task("app.tasks.calling.run_campaign_task",
@@ -11,8 +11,8 @@ Chain (beat -> scheduler -> task -> loop):
   run_campaign_task(limit=...) -> _get_campaign_prospects(db, limit, niche)
       -> ``q.limit(max(1, min(limit, 200)))``
 
-So the EFFECTIVE per-run cap is ``dial_limit()`` - env ``PLATFORM_DIAL_LIMIT``,
-else data-file ``limit``, else ``_DEFAULT_LIMIT = 15`` - clamped to 1..200.
+So the EFFECTIVE per-run cap is ``dial_limit()`` — env ``PLATFORM_DIAL_LIMIT``,
+else data-file ``limit``, else ``_DEFAULT_LIMIT = 15`` — clamped to 1..200.
 
 The "10" a reader may see is ``run_campaign_task``'s signature default
 (``limit: int = 10``). The scheduler never relies on it: it passes
@@ -42,7 +42,7 @@ def _chained_query_mock():
 
 
 # --------------------------------------------------------------------------- #
-# dial_limit() precedence - env first, then file, then the 15 default
+# dial_limit() precedence — env first, then file, then the 15 default
 # --------------------------------------------------------------------------- #
 
 
@@ -102,7 +102,7 @@ def test_unparseable_limit_falls_back_to_default(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# enabled() precedence - env boolean/number first, file only when env unset
+# enabled() precedence — env boolean/number first, file only when env unset
 # --------------------------------------------------------------------------- #
 
 
@@ -132,7 +132,7 @@ def test_env_zero_is_hard_kill_switch_even_if_file_enabled(monkeypatch, tmp_path
 
 
 # --------------------------------------------------------------------------- #
-# The daily path - scheduler passes dial_limit() explicitly, never the default
+# The daily path — scheduler passes dial_limit() explicitly, never the default
 # --------------------------------------------------------------------------- #
 
 
@@ -141,7 +141,7 @@ async def test_scheduler_sends_env_limit_not_the_task_default(monkeypatch):
     """The '10' default in run_campaign_task is dead on the scheduler path.
 
     With PLATFORM_DIAL_LIMIT=100 the beat-fired job must enqueue with
-    kwargs['limit'] == 100 - proving the effective cap is dial_limit(), not the
+    kwargs['limit'] == 100 — proving the effective cap is dial_limit(), not the
     ``limit: int = 10`` signature default of run_campaign_task.
     """
     import app.tasks.calling as calling
@@ -192,7 +192,7 @@ async def test_scheduler_uses_file_limit_when_env_unset(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Loop layer - _get_campaign_prospects enforces max(1, min(limit, 200))
+# Loop layer — _get_campaign_prospects enforces max(1, min(limit, 200))
 # --------------------------------------------------------------------------- #
 
 
@@ -217,7 +217,7 @@ def test_loop_keeps_100_through_the_clamp():
 
 
 def test_task_signature_default_is_10_but_scheduler_overrides():
-    """Document the '10' source: the signature default - never reached on the
+    """Document the '10' source: the signature default — never reached on the
     scheduler path (team_scheduler always passes dial_limit() via kwargs)."""
     import inspect
 

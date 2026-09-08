@@ -1,6 +1,6 @@
 """Resolve Docker APP_VERSION pin for VPS recreate (ADR-097).
 
-Never return ``latest`` - that tags UNKNOWN provenance and caused a live skew
+Never return ``latest`` — that tags UNKNOWN provenance and caused a live skew
 when Automation-Max flags were flipped (2026-07-25).
 """
 
@@ -19,7 +19,7 @@ def resolve_app_version_pin(
 
     Order:
     1. ``LEADGEN_APP_VERSION`` env override
-    2. Explicit ``inspect_image`` (``repo:tag`` or bare tag) - for tests
+    2. Explicit ``inspect_image`` (``repo:tag`` or bare tag) — for tests
     3. ``docker inspect leadgen_app`` Config.Image tag
     """
     e = env if env is not None else os.environ
@@ -52,6 +52,6 @@ def resolve_app_version_pin(
         raise SystemExit(
             "REFUSED recreate: APP_VERSION pin missing or :latest. "
             "Set LEADGEN_APP_VERSION=<sha> then re-run "
-            "(after .env write already done - flags are saved)."
+            "(after .env write already done — flags are saved)."
         )
     return pin

@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""Create / list / remove isolated git worktrees for Claude Code Agent Teams." "ADR-172: teammates must not share the chronically dirty primary checkout." "Allowlisted root mirrors external_agents (EXTERNAL_AGENT_WORKTREE_ROOT) with an" "optional AGENT_TEAM_WORKTREE_ROOT override." "python3 scripts/agent_team_worktree.py create --name docs-faq --teammate 1 --base origin/main" "python3 scripts/agent_team_worktree.py create --name tests-contract --teammate 2 --base origin/main" "python3 scripts/agent_team_worktree.py list" "python3 scripts/agent_team_worktree.py remove --name docs-faq --teammate 1 --force" "Exit codes: 0 ok · 1 usage/error · 2 refused (path/policy)." """"
+"""Create / list / remove isolated git worktrees for Claude Code Agent Teams.
+
+ADR-172: teammates must not share the chronically dirty primary checkout.
+Allowlisted root mirrors external_agents (EXTERNAL_AGENT_WORKTREE_ROOT) with an
+optional AGENT_TEAM_WORKTREE_ROOT override.
+
+    python3 scripts/agent_team_worktree.py create --name docs-faq --teammate 1 --base origin/main
+    python3 scripts/agent_team_worktree.py create --name tests-contract --teammate 2 --base origin/main
+    python3 scripts/agent_team_worktree.py list
+    python3 scripts/agent_team_worktree.py remove --name docs-faq --teammate 1 --force
+
+Exit codes: 0 ok · 1 usage/error · 2 refused (path/policy).
+"""
 
 from __future__ import annotations
 
@@ -96,7 +108,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     allowed_root().mkdir(parents=True, exist_ok=True)
     completed = _run_git(["worktree", "add", "-b", branch, str(wt), base])
     if completed.returncode != 0:
-        # Branch may already exist - try attaching without -b
+        # Branch may already exist — try attaching without -b
         completed = _run_git(["worktree", "add", str(wt), branch])
         if completed.returncode != 0:
             err = (completed.stderr or completed.stdout or "").strip()[:300]
@@ -113,7 +125,7 @@ def cmd_list(_args: argparse.Namespace) -> int:
     root = allowed_root()
     print(f"allowed_root={root}")
     if not root.exists():
-        print("(empty - root does not exist yet)")
+        print("(empty — root does not exist yet)")
         return 0
     found = sorted(p for p in root.glob("agent-team-*") if p.is_dir())
     if not found:
@@ -145,18 +157,18 @@ def cmd_remove(args: argparse.Namespace) -> int:
         err = (completed.stderr or completed.stdout or "").strip()[:300]
         print(f"worktree_remove_failed: {err}", file=sys.stderr)
         return 1
-    # Safe branch delete only when asked - never force-drop unmerged work by default.
+    # Safe branch delete only when asked — never force-drop unmerged work by default.
     if branch and branch != "HEAD" and getattr(args, "delete_branch", False):
         flag = "-D" if args.force else "-d"
         deleted = _run_git(["branch", flag, branch])
         if deleted.returncode != 0:
             print(
-                f"note: left branch {branch} (not deleted \u2014 unmerged or in use) "
+                f"note: left branch {branch} (not deleted — unmerged or in use); "
                 "pass --delete-branch after merge, or delete manually",
                 file=sys.stderr,
             )
     elif branch and branch != "HEAD":
-        print(f"note: worktree removed" "branch {branch} kept (use --delete-branch when safe)")
+        print(f"note: worktree removed; branch {branch} kept (use --delete-branch when safe)")
     print(f"REMOVED worktree={wt} branch={branch}")
     return 0
 
@@ -173,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         choices=(1, 2),
         default=None,
-        help="Canary teammate id -> branch agent/tm{N}/<name> (max 2)",
+        help="Canary teammate id → branch agent/tm{N}/<name> (max 2)",
     )
     p_create.add_argument(
         "--canary",

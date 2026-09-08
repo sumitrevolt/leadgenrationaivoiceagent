@@ -2,12 +2,12 @@
 Calendar Booking Integration
 ============================
 
-Appointment booking + availability checking for the AI voice agent - yeh wahi
+Appointment booking + availability checking for the AI voice agent — yeh wahi
 "in-call action" feature hai jo Retell/Vapi/Bland dete hain: agent call ke
 beech me hi slot dekh ke meeting book kar deta hai.
 
 Provider selection (priority order):
-    1. Google Calendar - agar service-account creds present hain
+    1. Google Calendar — agar service-account creds present hain
        (settings.google_sheets_credentials reuse, ya GOOGLE_CALENDAR_CREDENTIALS).
     2. Else -> in-memory SIMULATION mode: business hours Mon-Sat 10:00-18:00 IST
        me free slots generate karke book karta hai (no keys needed).
@@ -63,8 +63,8 @@ BUSINESS_START = dtime(10, 0)
 BUSINESS_END = dtime(18, 0)
 DEFAULT_DURATION_MIN = 15
 
-# Durable bookings ledger (gitignored data/). Every successful booking - internal,
-# Google, or Cal.com - is appended here so a phone/web call's appointment SURVIVES
+# Durable bookings ledger (gitignored data/). Every successful booking — internal,
+# Google, or Cal.com — is appended here so a phone/web call's appointment SURVIVES
 # a restart and the business owner can actually see/act on it (the old in-memory
 # "simulation" lost everything on restart and notified no one).
 DATA_BOOKINGS_DIR = os.path.join("data", "bookings")
@@ -105,12 +105,12 @@ def _setting(name: str, default: str = "") -> str:
 
 
 def _digits(s: str) -> str:
-    """Phone -> digits only (for cross-format last-10 matching). Never raises."""
+    """Phone → digits only (for cross-format last-10 matching). Never raises."""
     return "".join(ch for ch in (s or "") if ch.isdigit())
 
 
 def _slot_key(client_id: str, when_iso: str) -> str:
-    """Per-client slot key for the `_taken` set - scope availability/booking PER
+    """Per-client slot key for the `_taken` set — scope availability/booking PER
     business (jiya's slot must NOT block trending-tattoos' same slot).
 
     - Per-client -> "jiya|<iso>".
@@ -127,8 +127,7 @@ class CalendarBooking:
     """
     Calendar service facade for the voice agent.
 
-    Uses Google Calendar when credentials exist
-    otherwise an in-memory slot
+    Uses Google Calendar when credentials exist; otherwise an in-memory slot
     book that mimics a real calendar so the whole pipeline works key-free.
     """
 
@@ -148,13 +147,12 @@ class CalendarBooking:
                 if self._gcal is None:
                     self.provider = "internal"
             except Exception as e:
-                logger.error(f"Google Calendar init failed ({e})
-                using internal store.")
+                logger.error(f"Google Calendar init failed ({e}); using internal store.")
                 self.provider = "internal"
 
         if self.provider == "internal":
             logger.info(
-                "📅 CalendarBooking in INTERNAL mode - durable bookings ledger "
+                "📅 CalendarBooking in INTERNAL mode — durable bookings ledger "
                 "(data/bookings/), no calendar keys needed. Slots: Mon-Sat 10:00-18:00 IST."
             )
         else:
@@ -168,7 +166,7 @@ class CalendarBooking:
     # Provider detection / construction
     # ------------------------------------------------------------------ #
     def _detect_provider(self) -> str:
-        """Pick 'calcom' (BYOK API key - no OAuth), else 'google' (service-account
+        """Pick 'calcom' (BYOK API key — no OAuth), else 'google' (service-account
         creds), else 'internal' (durable local ledger, no keys needed)."""
         if _setting("CALCOM_API_KEY") and _setting("CALCOM_EVENT_TYPE_ID"):
             return "calcom"
@@ -220,10 +218,10 @@ class CalendarBooking:
             date_str:     "YYYY-MM-DD" (e.g. "2026-06-10"). Invalid/empty ->
                           next business day.
             duration_min: meeting length in minutes (grid step).
-            client_id:    scope availability PER business - a slot taken by another
+            client_id:    scope availability PER business — a slot taken by another
                           client (or globally/legacy) does NOT hide it here.
 
-        Never raises - on any failure returns the simulated free slots so the
+        Never raises — on any failure returns the simulated free slots so the
         agent can still offer something.
         """
         day = self._parse_date(date_str)
@@ -233,8 +231,7 @@ class CalendarBooking:
             try:
                 return await self._google_free_slots(day, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Google availability failed ({e})
-                simulating.")
+                logger.error(f"Google availability failed ({e}); simulating.")
 
         return self._sim_free_slots(day, duration_min, client_id)
 
@@ -254,7 +251,7 @@ class CalendarBooking:
         Tries the active provider (Cal.com / Google), always falling back to the
         durable internal ledger. On success the booking is PERSISTED to
         data/bookings/ and the business owner is notified (best-effort);
-        `client_id` / `niche` route that notification. Never raises - returns
+        `client_id` / `niche` route that notification. Never raises — returns
         BookingResult(ok=False, error=...) on failure.
         """
         when = self._normalize_when(when_iso)
@@ -263,7 +260,7 @@ class CalendarBooking:
                 ok=False,
                 provider=self.provider,
                 error=f"Invalid start time: {when_iso!r}",
-                confirmation_text="Sorry, woh time samajh nahi aaya - dobara batayein?",
+                confirmation_text="Sorry, woh time samajh nahi aaya — dobara batayein?",
             )
 
         duration_min = max(5, int(duration_min or DEFAULT_DURATION_MIN))
@@ -273,14 +270,12 @@ class CalendarBooking:
             try:
                 result = await self._calcom_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Cal.com booking failed ({e})
-                using internal ledger.")
+                logger.error(f"Cal.com booking failed ({e}); using internal ledger.")
         elif self.provider == "google" and self._gcal is not None:
             try:
                 result = await self._google_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Google booking failed ({e})
-                using internal ledger.")
+                logger.error(f"Google booking failed ({e}); using internal ledger.")
 
         if result is None:
             result = self._internal_book(when, name, phone, notes, duration_min, client_id)
@@ -306,7 +301,7 @@ class CalendarBooking:
 
         `phone`: optional possession factor. When provided AND the booking has a
         phone on record, the last-10 digits MUST match or the cancel is refused
-        (returns False) - stops a leaked/guessed booking_id ALONE from cancelling
+        (returns False) — stops a leaked/guessed booking_id ALONE from cancelling
         someone else's appointment. Internal callers (reschedule) pass no phone
         and are unaffected."""
         if not booking_id:
@@ -331,8 +326,7 @@ class CalendarBooking:
                     .execute
                 )
             except Exception as e:
-                logger.error(f"Google cancel failed ({e})
-                removing local mirror.")
+                logger.error(f"Google cancel failed ({e}); removing local mirror.")
 
         if record:
             self._taken.discard(
@@ -366,18 +360,18 @@ class CalendarBooking:
                 ok=False,
                 provider=self.provider,
                 error=f"Invalid new time: {new_when_iso!r}",
-                confirmation_text="Naya time samajh nahi aaya - dobara batayein?",
+                confirmation_text="Naya time samajh nahi aaya — dobara batayein?",
             )
         old = self._find_active_booking(booking_id=booking_id, phone=phone)
         if not old and not booking_id:
-            # No existing appointment to move - booking a NEW slot here would be a
+            # No existing appointment to move — booking a NEW slot here would be a
             # silent double-book. Ask the caller to confirm instead. (review fix)
             return BookingResult(
                 ok=False,
                 provider=self.provider,
                 error="no_active_booking",
                 confirmation_text=(
-                    "Aapki koi pehle se appointment nahi mili - phone number confirm karein, "
+                    "Aapki koi pehle se appointment nahi mili — phone number confirm karein, "
                     "ya seedha nayi appointment book kar dein?"
                 ),
             )
@@ -501,7 +495,7 @@ class CalendarBooking:
         cal_id = getattr(self, "_calendar_id", "primary")
         end = when + timedelta(minutes=duration_min)
         event = {
-            "summary": f"AI Voice Agent - meeting with {name or 'lead'}",
+            "summary": f"AI Voice Agent — meeting with {name or 'lead'}",
             "description": (
                 f"Booked via AI voice agent.\nLead: {name}\nPhone: {phone}\nNotes: {notes}"
             ),
@@ -536,7 +530,7 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     def _sim_free_slots(self, day: datetime, duration_min: int, client_id: str = "") -> list[str]:
         """Generate business-hours slots for `day`, minus THIS client's taken ones
-        (per-client scoping - another business's booking never hides a slot here)."""
+        (per-client scoping — another business's booking never hides a slot here)."""
         slots: list[str] = []
         cursor = datetime.combine(day.date(), BUSINESS_START)
         end = datetime.combine(day.date(), BUSINESS_END)
@@ -577,7 +571,7 @@ class CalendarBooking:
                 when=iso,
                 error="Slot already booked.",
                 confirmation_text=(
-                    "Woh slot abhi book ho gaya - main aapko aas-paas ka dusra time de doon?"
+                    "Woh slot abhi book ho gaya — main aapko aas-paas ka dusra time de doon?"
                 ),
             )
         booking_id = f"bk_{uuid.uuid4().hex[:12]}"
@@ -602,7 +596,7 @@ class CalendarBooking:
         )
 
     # ------------------------------------------------------------------ #
-    # Cal.com backend (BYOK API key - NO OAuth). Optional: set CALCOM_API_KEY +
+    # Cal.com backend (BYOK API key — NO OAuth). Optional: set CALCOM_API_KEY +
     # CALCOM_EVENT_TYPE_ID. Availability uses the internal business-hours grid;
     # only the booking is pushed to Cal.com (its availability API is heavier).
     # ------------------------------------------------------------------ #
@@ -711,14 +705,13 @@ class CalendarBooking:
     def _notify_owner(self, rec: dict[str, Any]) -> None:
         """Best-effort ntfy push + email so the business owner is told a meeting was
         booked. Routes email to the client owner (client_id) else NOTIFY_EMAIL.
-        Never raises
-        inert when no target is configured."""
+        Never raises; inert when no target is configured."""
         when = rec.get("when") or ""
         name = rec.get("name") or "lead"
         phone = rec.get("phone") or ""
         niche = rec.get("niche") or ""
         title = "📅 New appointment booked (AI voice agent)"
-        msg = f"{when} - {name} {phone} ({niche})".strip()
+        msg = f"{when} — {name} {phone} ({niche})".strip()
         try:
             from app.platform.ops_alerts import _ntfy
 
@@ -740,7 +733,7 @@ class CalendarBooking:
 
             try:
                 asyncio.get_running_loop().create_task(_send())
-            except RuntimeError:  # no running loop - fire synchronously
+            except RuntimeError:  # no running loop — fire synchronously
                 asyncio.run(_send())
         except Exception as e:  # pragma: no cover - defensive
             logger.debug(f"calendar: owner notify failed ({e})")
@@ -764,11 +757,11 @@ class CalendarBooking:
     def _load_today_taken(self) -> None:
         """Restore taken slots from the ledger (restart double-book guard). Ledger files
         are keyed by BOOKED-AT date, so a slot booked days ago for a FUTURE appointment
-        lives in an OLDER file - scan a recent window of booked-at files (not just today),
+        lives in an OLDER file — scan a recent window of booked-at files (not just today),
         else a cross-day restart re-offers an already-booked future slot."""
         try:
             today = datetime.now()
-            for d in range(0, 90):  # last 90 booked-at days - covers realistic lead time
+            for d in range(0, 90):  # last 90 booked-at days — covers realistic lead time
                 day = (today - timedelta(days=d)).strftime("%Y-%m-%d")
                 for rec in self.list_bookings(limit=0, date_str=day):
                     w = rec.get("when")
@@ -864,7 +857,7 @@ class CalendarBooking:
             "bookings_held": len(self._bookings),
             "notify": _booking_notify_enabled(),
             "note": (
-                "INTERNAL durable ledger (data/bookings/) - bookings persist across "
+                "INTERNAL durable ledger (data/bookings/) — bookings persist across "
                 "restart + owner notified. Optional: CALCOM_API_KEY+CALCOM_EVENT_TYPE_ID "
                 "(no OAuth) or GOOGLE_CALENDAR_CREDENTIALS+GOOGLE_CALENDAR_ID for sync."
                 if self.provider == "internal"

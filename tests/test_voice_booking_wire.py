@@ -30,7 +30,7 @@ def test_booking_intent_detection():
 
 def test_reply_with_tools_still_answers_question_no_dodge():
     # Under the VOICE_TOOLS path, a feature question must hit the deterministic
-    # fast-path answer (call is None, content enumerates) - NOT the tool-LLM that
+    # fast-path answer (call is None, content enumerates) — NOT the tool-LLM that
     # would re-introduce the dodge.
     b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     hist = [{"role": "assistant", "content": "interested hain?"}]

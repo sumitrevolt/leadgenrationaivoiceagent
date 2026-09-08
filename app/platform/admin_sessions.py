@@ -1,19 +1,18 @@
-"""Tier-1 Slice C - server-side admin JWT session revocation (Redis-backed).
+"""Tier-1 Slice C — server-side admin JWT session revocation (Redis-backed).
 
 Access tokens are stateless, so a plain logout cannot invalidate them. This adds two
 Redis revocation mechanisms so a token can be killed before its natural expiry:
 
-  * ``revoke_jti(jti, ttl)``         - blacklist ONE token (single-session logout /
+  * ``revoke_jti(jti, ttl)``         — blacklist ONE token (single-session logout /
                                        suspected-compromise of a specific token).
-  * ``revoke_all_for_user(user_id)`` - bump ``authrev:user:{id}`` to now
-  every token
+  * ``revoke_all_for_user(user_id)`` — bump ``authrev:user:{id}`` to now; every token
                                        with ``iat < epoch`` is then rejected
                                        (password reset, disable, role change, 2FA reset).
 
 ``is_revoked(payload, fail_closed=...)`` is called from ``get_current_user``:
-  - **fail-CLOSED** for admin-tier tokens (super/admin/manager) -> if Redis can't be
+  - **fail-CLOSED** for admin-tier tokens (super/admin/manager) → if Redis can't be
     reached we raise 503 rather than trust a possibly-revoked admin token.
-  - **fail-OPEN** for lower tiers -> a Redis blip doesn't lock everyone out.
+  - **fail-OPEN** for lower tiers → a Redis blip doesn't lock everyone out.
 
 Customer auth is a separate dependency (``require_customer``) with its own blacklist and
 is intentionally untouched here.

@@ -3,7 +3,7 @@
 When `create_access_token` raises during signup, the account is still created
 (idempotent password login intact) but the customer must recover via manual
 login. The admin Delivery Command Center's Automation Runs panel is already
-wired to `/api/admin/automation-logs` (ADR-064) - this loop plugs a
+wired to `/api/admin/automation-logs` (ADR-064) — this loop plugs a
 `signup_auto_login_failed` row so ops sees the count without grepping logs.
 
 RED-first: fails before the log_event emission, passes after.
@@ -83,7 +83,7 @@ def test_signup_auto_login_failure_emits_automation_log(client, monkeypatch):
 
 def test_signup_normal_path_emits_no_failure_log(client, monkeypatch):
     """GREEN: happy-path signup MUST NOT emit a failure row (no false positives in
-    the admin panel - panel filter would otherwise show noise on every signup)."""
+    the admin panel — panel filter would otherwise show noise on every signup)."""
     _stub_signup_side_effects(monkeypatch, cid="c_admin_ok")
 
     import app.platform.automation_log_service as als

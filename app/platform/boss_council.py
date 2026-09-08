@@ -1,11 +1,10 @@
-"""Boss unclear -> LLM Council decide (safe side-effects only).
+"""Boss unclear → LLM Council decide (safe side-effects only).
 
-Boss samajh aaye -> khud Approve/Done.
-Samajh na aaye -> multi-model council (opinions -> peer rank -> Chairman) ACTION nikaale.
+Boss samajh aaye → khud Approve/Done.
+Samajh na aaye → multi-model council (opinions → peer rank → Chairman) ACTION nikaale.
 
 Side-effects FAIL-SAFE:
-  - Hot Queue: done | park_admin | keep (CALL = keep + hint
-  WA auto-send KABHI nahi)
+  - Hot Queue: done | park_admin | keep (CALL = keep + hint; WA auto-send KABHI nahi)
   - Content approval: approve | park_admin | keep
 Gated by LLM_COUNCIL (reuse existing flag). Never raises from public helpers.
 """
@@ -49,7 +48,7 @@ def parse_council_action(text: str, *, allowed: frozenset[str]) -> dict[str, str
 
 def _hq_question(row: dict[str, Any]) -> str:
     return (
-        "LeadGen Hot Queue - boss ko samajh nahi aaya. Tum Chairman ho.\n"
+        "LeadGen Hot Queue — boss ko samajh nahi aaya. Tum Chairman ho.\n"
         "Decide karo kya karna chahiye. WhatsApp/email AUTO-SEND mat suggest karo as auto-exec.\n\n"
         f"From: {row.get('from') or '?'}\n"
         f"Business: {row.get('business_name') or '?'}\n"
@@ -60,10 +59,10 @@ def _hq_question(row: dict[str, Any]) -> str:
         f"Age days: {row.get('age_days')}\n"
         f"Injection flag: {bool(row.get('injection_flag'))}\n\n"
         "Allowed ACTION values ONLY:\n"
-        "- DONE = boss already handled / spam / not a real sales lead - queue se hatao\n"
-        "- PARK_ADMIN = unclear/risky - admin human review ke liye park\n"
+        "- DONE = boss already handled / spam / not a real sales lead — queue se hatao\n"
+        "- PARK_ADMIN = unclear/risky — admin human review ke liye park\n"
         "- CALL = phone pe human call better (queue me rehne do)\n"
-        "- KEEP = boss queue me rakho, draft theek hai - 1-click send boss karega\n\n"
+        "- KEEP = boss queue me rakho, draft theek hai — 1-click send boss karega\n\n"
         "Last lines MUST be exactly:\n"
         "ACTION: <one>\n"
         "CONFIDENCE: high|medium|low\n"
@@ -77,7 +76,7 @@ def _approval_question(rec: dict[str, Any]) -> str:
     title = content.get("title") or content.get("occasion") or "post"
     caption = str(content.get("caption") or content.get("text") or "")[:700]
     return (
-        "LeadGen customer content approval - boss/owner ko post samajh nahi aaya.\n"
+        "LeadGen customer content approval — boss/owner ko post samajh nahi aaya.\n"
         "Decide: approve publish queue me daale, admin park kare, ya pending chhodo.\n"
         "Auto-publish / WhatsApp bulk send mat suggest karo.\n\n"
         f"Client: {rec.get('client_id') or '?'}\n"
@@ -85,7 +84,7 @@ def _approval_question(rec: dict[str, Any]) -> str:
         f"Caption:\n{caption}\n\n"
         "Allowed ACTION values ONLY:\n"
         "- APPROVE = content theek hai, publish/approval queue me daalo\n"
-        "- PARK_ADMIN = unclear/brand-risk - admin review ke liye flag\n"
+        "- PARK_ADMIN = unclear/brand-risk — admin review ke liye flag\n"
         "- KEEP = pending chhodo, boss baad me decide kare\n\n"
         "Last lines MUST be exactly:\n"
         "ACTION: <one>\n"
@@ -139,7 +138,7 @@ async def decide_hot_queue(hq_id: str, *, apply: bool = True) -> dict[str, Any]:
                         reply_agent.park_for_admin(hq_id, note=parsed.get("why") or "council park")
                     )
                 elif action in ("KEEP", "CALL"):
-                    applied = True  # no mutation - intentional
+                    applied = True  # no mutation — intentional
             except Exception as exc:
                 apply_error = str(exc)[:160]
                 logger.warning("decide_hot_queue apply failed: %s", exc)
@@ -240,8 +239,7 @@ def _gbp_question(client: dict[str, Any], heuristic: dict[str, Any]) -> str:
     socials = c.get("socials") if isinstance(c.get("socials"), dict) else {}
     lines = []
     for q in gbp_audit.AUDIT_QUESTIONS:
-        opts = "
-        ".join(f"{i}={o.get('label')}" for i, o in enumerate(q.get("options") or []))
+        opts = "; ".join(f"{i}={o.get('label')}" for i, o in enumerate(q.get("options") or []))
         lines.append(f"- {q['id']}: {q['q']} | options: {opts}")
     heur = heuristic.get("answers") or {}
     try:
@@ -249,10 +247,10 @@ def _gbp_question(client: dict[str, Any], heuristic: dict[str, Any]) -> str:
     except Exception:
         heur_display = heur
     return (
-        "LeadGen GBP self-audit - boss ko form bhari nahi. Tum Chairman ho.\n"
+        "LeadGen GBP self-audit — boss ko form bhari nahi. Tum Chairman ho.\n"
         "Har sawal ke liye OPTION INDEX suggest karo. Unknown pe CONSERVATIVE "
-        "(worst / pata-nahi) index chuno - kabhi best score invent mat karo.\n"
-        "Score SAVE mat karo - sirf suggestions. Boss confirm karega.\n\n"
+        "(worst / pata-nahi) index chuno — kabhi best score invent mat karo.\n"
+        "Score SAVE mat karo — sirf suggestions. Boss confirm karega.\n\n"
         f"Business: {c.get('business_name') or '?'}\n"
         f"Niche/City: {c.get('niche') or ''} / {c.get('city') or ''}\n"
         f"Phone: {c.get('phone') or c.get('whatsapp_phone') or ''}\n"
@@ -312,7 +310,7 @@ async def decide_gbp_suggest(client: dict[str, Any]) -> dict[str, Any]:
             "summary": summary[:1200],
             "note_hi": (
                 "Council suggestions pre-select ho sakte hain. Boss GBP pe check "
-                "karke Score nikaalo - bina confirm save nahi hota."
+                "karke Score nikaalo — bina confirm save nahi hota."
             ),
             "persisted": False,
             "members_used": (result.get("metadata") or {}).get("members_used"),

@@ -30,7 +30,7 @@ def ensure_mission_worktree(
 ) -> dict[str, Any]:
     """Create or verify a dedicated worktree for a mission.
 
-    Uses ``git`` via argument arrays (git is NOT an executor allowlist entry -
+    Uses ``git`` via argument arrays (git is NOT an executor allowlist entry —
     worktree provisioning is a parent-process privilege, not child-executor).
     """
     if not _BRANCH_RE.match(branch or ""):
@@ -77,7 +77,7 @@ def ensure_mission_worktree(
         cmd, capture_output=True, text=True, shell=False, timeout=120, check=False
     )
     if completed.returncode != 0:
-        # Branch may already exist - try without -b
+        # Branch may already exist — try without -b
         cmd2 = ["git", "-C", str(repo), "worktree", "add", str(wt), branch]
         completed = subprocess.run(
             cmd2, capture_output=True, text=True, shell=False, timeout=120, check=False
@@ -92,7 +92,7 @@ def _disable_push_remotes(wt: Path) -> None:
     """Prevent push from this worktree without mutating shared remotes.
 
     Linked worktrees share ``remote.*`` with the primary repo. Never
-    ``git remote remove`` here - that would delete origin for every worktree.
+    ``git remote remove`` here — that would delete origin for every worktree.
     Instead enable worktree-local config and set a disabled pushurl.
     """
     subprocess.run(

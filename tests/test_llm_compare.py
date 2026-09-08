@@ -1,7 +1,7 @@
-"""Tests - LLM Compare blind arena (Odysseus-inspired, patterns-only reimplement).
+"""Tests — LLM Compare blind arena (Odysseus-inspired, patterns-only reimplement).
 
 Coverage:
- 1) INERT-default gate: LLM_COMPARE_ENABLED unset -> 503 (no data leak)
+ 1) INERT-default gate: LLM_COMPARE_ENABLED unset → 503 (no data leak)
  2) providers listing shape
  3) run endpoint parallel-fanout with monkeypatched chat_provider (no real API)
  4) blind labeling (no provider name leaked in /run response entries)
@@ -88,14 +88,14 @@ def test_run_blind_and_vote_flow(monkeypatch):
     fake_flags = dict.fromkeys(m._DEFAULT_MODELS.keys(), True)
     monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: fake_flags)
 
-    # Stub chat_provider - returns deterministic per-provider text
+    # Stub chat_provider — returns deterministic per-provider text
     async def fake_chat_provider(*, provider, model, system, messages, **kwargs):
         return f"reply from {provider} using {model}", provider
 
     monkeypatch.setattr(m.free_ai, "chat_provider", fake_chat_provider)
 
     async def _flow():
-        # RUN - pick 3 providers, expect 3 blind entries
+        # RUN — pick 3 providers, expect 3 blind entries
         payload = m.CompareRunIn(
             prompt="Test prompt",
             providers=["cerebras", "groq", "mistral"],

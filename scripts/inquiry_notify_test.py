@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick inquiry + notify test only - run in leadgen_app container."""
+"""Quick inquiry + notify test only — run in leadgen_app container."""
 
 import asyncio
 import uuid

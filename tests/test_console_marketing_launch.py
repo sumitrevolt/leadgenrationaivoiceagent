@@ -2,7 +2,7 @@
 
 Why this exists: the console's launch endpoint previously wrote ONLY to its own
 `console_configs.jsonl`, which nothing downstream reads. A tenant could be shown
-"launched" while the engine generated nothing - inert-by-default, which this
+"launched" while the engine generated nothing — inert-by-default, which this
 project treats as a defect rather than a working feature.
 
 The contract under test is that activation writes through to
@@ -254,7 +254,7 @@ def test_launch_warns_when_publishing_is_not_armed(tmp_store, fake_conns, monkey
         "armed": False,
         "engine_enabled": False,
         "prefs_honored": False,
-        "blockers": ["SOCIAL_ENGINE is off - publish queue is not drained (owner action)."],
+        "blockers": ["SOCIAL_ENGINE is off — publish queue is not drained (owner action)."],
     })
 
     out = asyncio.run(pc.marketing_launch(

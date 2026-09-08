@@ -1,10 +1,9 @@
-"""ContentAuto API - content/intel tools batch (agent R).
+"""ContentAuto API — content/intel tools batch (agent R).
 
-  POST /api/contentauto/repurpose          (admin)  1 topic/URL -> 7 formats
+  POST /api/contentauto/repurpose          (admin)  1 topic/URL → 7 formats
   POST /api/contentauto/pulse              (admin)  brand mention scan (news+reddit)
   GET  /api/contentauto/pulse/runs         (admin)  weekly brand-pulse run records
-  POST /api/contentauto/month-plan         (admin)  30-din calendar (dry_run default
-  commit=true -> content_schedule)
+  POST /api/contentauto/month-plan         (admin)  30-din calendar (dry_run default; commit=true → content_schedule)
   GET  /api/contentauto/team-report        (admin)  weekly AI-staff narrative (?client_id=)
   POST /api/contentauto/team-report/run    (admin)  gated TEAM_REPORT weekly sweep
   POST /api/contentauto/push/subscribe     (public, 30/60s)  browser push sub save
@@ -16,12 +15,9 @@ Mount (main.py):
     from app.api.contentauto import router as contentauto_router
     app.include_router(contentauto_router, prefix="/api")   # /api/contentauto/*
 
-Flags: BRAND_PULSE / TEAM_REPORT (default OFF)
-webpush = VAPID keys presence.
-PROD lessons baked in: har LLM/network call asyncio.wait_for
-sync/file work
-asyncio.to_thread
-modules never-raise (error dicts).
+Flags: BRAND_PULSE / TEAM_REPORT (default OFF); webpush = VAPID keys presence.
+PROD lessons baked in: har LLM/network call asyncio.wait_for; sync/file work
+asyncio.to_thread; modules never-raise (error dicts).
 """
 
 from __future__ import annotations
@@ -55,7 +51,7 @@ class RepurposeIn(BaseModel):
 
 @router.post("/repurpose")
 async def repurpose_pack(body: RepurposeIn, _user=Depends(require_admin)):
-    """1 input -> 7 formats (post/carousel/reel/GBP/WA-status/email/hashtags)."""
+    """1 input → 7 formats (post/carousel/reel/GBP/WA-status/email/hashtags)."""
     from app.marketing import repurpose
 
     try:
@@ -116,7 +112,7 @@ class MonthPlanIn(BaseModel):
 
 @router.post("/month-plan")
 async def month_plan(body: MonthPlanIn, _user=Depends(require_admin)):
-    """30-din content calendar - preview default; commit=true -> content_schedule queue."""
+    """30-din content calendar — preview default; commit=true → content_schedule queue."""
     from app.marketing import month_planner
 
     try:
@@ -143,7 +139,7 @@ async def month_plan(body: MonthPlanIn, _user=Depends(require_admin)):
 # ------------------------------ 4) Team report ------------------------------- #
 @router.get("/team-report")
 async def team_report(client_id: str = Query("", max_length=64), _user=Depends(require_admin)):
-    """'Aapki AI team ne is hafte yeh kiya' - Hinglish narrative HTML."""
+    """'Aapki AI team ne is hafte yeh kiya' — Hinglish narrative HTML."""
     from app.platform import team_report as tr
 
     try:
@@ -154,7 +150,7 @@ async def team_report(client_id: str = Query("", max_length=64), _user=Depends(r
 
 @router.post("/team-report/run")
 async def team_report_run(_user=Depends(require_admin)):
-    """Gated TEAM_REPORT=1 weekly sweep - active clients ke report files (+email)."""
+    """Gated TEAM_REPORT=1 weekly sweep — active clients ke report files (+email)."""
     from app.platform import team_report as tr
 
     try:
@@ -171,7 +167,7 @@ class PushSubscribeIn(BaseModel):
 
 @router.post("/push/subscribe", dependencies=[Depends(rate_limit("pushsub", 30, 60))])
 async def push_subscribe(body: PushSubscribeIn):
-    """PUBLIC - browser PushSubscription save (dedupe endpoint)."""
+    """PUBLIC — browser PushSubscription save (dedupe endpoint)."""
     from app.platform import webpush
 
     return await asyncio.to_thread(webpush.save_subscription, body.slug, body.subscription)
@@ -179,7 +175,7 @@ async def push_subscribe(body: PushSubscribeIn):
 
 @router.get("/push/subscribe.js")
 async def push_subscribe_js(slug: str = Query("default", max_length=64)):
-    """PUBLIC - vanilla JS snippet (mini-site/widget me <script src=> se lagao)."""
+    """PUBLIC — vanilla JS snippet (mini-site/widget me <script src=> se lagao)."""
     from app.platform import webpush
 
     return Response(webpush.subscribe_js(slug), media_type="application/javascript")
@@ -194,7 +190,7 @@ class PushSendIn(BaseModel):
 
 @router.post("/push/send")
 async def push_send(body: PushSendIn, _user=Depends(require_admin)):
-    """Web push to slug subscribers - keys/pywebpush absent = DRAFT-only (inert)."""
+    """Web push to slug subscribers — keys/pywebpush absent = DRAFT-only (inert)."""
     from app.platform import webpush
 
     try:

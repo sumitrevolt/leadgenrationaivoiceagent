@@ -2,7 +2,7 @@
 
 Both halves matter equally. A scanner that misses writers gives false comfort;
 a scanner that reports comments trains everyone to ignore it. Both failures
-have already happened in this workstream - a guard's own docstring was reported
+have already happened in this workstream — a guard's own docstring was reported
 as a violation, and an early version of this scanner found 53 findings in a
 repo that actually has 731 because it only looked at string literals.
 """
@@ -236,7 +236,7 @@ def test_real_repo_canonical_usage_is_detected() -> None:
 
     `runtime_data.store_dir` really does `path.mkdir(...)` on a canonical path.
     The scanner missed it because it took the path from `args[0]`, and for a
-    METHOD call the path is the receiver - `p.mkdir()` has no args at all.
+    METHOD call the path is the receiver — `p.mkdir()` has no args at all.
     Worse, `p.write_text(secret)` had the SECRET recorded as its path.
     """
     import pathlib
@@ -245,18 +245,17 @@ def test_real_repo_canonical_usage_is_detected() -> None:
         pathlib.Path(__file__).resolve().parents[1] / "app" / "platform" / "runtime_data.py"
     ).read_text(encoding="utf-8")
     f = s.scan_python("app/platform/runtime_data.py", src)
-    # Classification is the authoritative layer - discovery only proposes.
+    # Classification is the authoritative layer — discovery only proposes.
     # Canonical usage here is INDIRECT (`path = store_path(...)` then
     # `path.mkdir()`), so it is resolved during classify(), not at discovery.
     classes = {s.classify(x, {}) for x in f}
     assert s.CANONICAL_RUNTIME_PATH in classes, (
-        f"canonical resolver usage in runtime_data.py not detected
-        got {sorted(classes)}"
+        f"canonical resolver usage in runtime_data.py not detected; got {sorted(classes)}"
     )
 
 
 def test_method_call_path_is_the_receiver_not_the_content() -> None:
-    """Regression for the defect above - and a secret-safety property.
+    """Regression for the defect above — and a secret-safety property.
 
     If the content argument were read as the path, a token passed to
     write_text() would end up in scanner output.

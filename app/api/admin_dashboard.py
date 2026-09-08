@@ -4,7 +4,7 @@ Owner/operator overview + control view for the AI voice-agent lead-gen SaaS.
 
 Provides GET /api/admin/dashboard which returns a single JSON payload consumed
 by frontend/admin_dashboard.html. Shape is kept COMPATIBLE with that HTML so the
-page renders, but the numbers are now REAL - pulled from the actual data the
+page renders, but the numbers are now REAL — pulled from the actual data the
 platform produces (prospects, inquiries, marketing clients, emails, blog,
 content queue, AI-staff activity). NO hardcoded SunVolt/sample data.
 
@@ -18,7 +18,7 @@ Sources (all best-effort, never 500):
   - auto_outreach.outreach_stats  (emails sent / pending)
   - app/marketing/packages        (plan prices for revenue estimate)
 
-is_sample_data is ALWAYS False - we show the truth, even if everything is zero.
+is_sample_data is ALWAYS False — we show the truth, even if everything is zero.
 
 Import-safe: heavy imports are local + guarded so this module always mounts.
 """
@@ -50,11 +50,10 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
     """`_collect_live_stats()` is SYNC (prospector scan + per-client content-
     queue file reads) and confirmed 45s+ under real prod data (2026-07-01
     office_hq incident, same underlying call). Calling it directly inside an
-    async route blocks this event-loop worker for that long - which races
+    async route blocks this event-loop worker for that long — which races
     past the admin dashboard's 8s client-side AbortController and falls back
     to the zero-filled DEMO payload (clients showing 0 despite real rows,
-    2026-07-04). Run off-loop with a hard deadline
-    degrade to {} on
+    2026-07-04). Run off-loop with a hard deadline; degrade to {} on
     timeout/failure rather than blocking or 500ing."""
     try:
         return await asyncio.wait_for(asyncio.to_thread(_collect_live_stats), timeout=timeout)
@@ -66,8 +65,8 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
 
 
 # ----------------------------------------------------------------------------
-# REAL data aggregation. Every source is best-effort (file may be absent ->
-# 0). NEVER raises - returns a plain dict of true numbers.
+# REAL data aggregation. Every source is best-effort (file may be absent →
+# 0). NEVER raises — returns a plain dict of true numbers.
 # ----------------------------------------------------------------------------
 from app.api.admin_dashboard_builders import (  # noqa: F401  (helpers extracted 2026-06-20)
     _automation_snapshot,
@@ -121,11 +120,11 @@ async def get_admin_dashboard(
     _user=Depends(require_admin),
 ) -> DashboardResponse:
     """
-    Owner/operator dashboard payload - REAL data only.
+    Owner/operator dashboard payload — REAL data only.
 
     KPIs/clients/agents/charts are computed from the actual platform output:
     prospects, inquiries, marketing clients, emails sent, blog articles,
-    content queue and AI-staff activity. is_sample_data is always False - the
+    content queue and AI-staff activity. is_sample_data is always False — the
     numbers reflect reality, even if everything is currently zero.
 
     If a richer DB (clients/campaigns/billing tables) is populated, that detail
@@ -133,15 +132,15 @@ async def get_admin_dashboard(
     """
     try:
         # _build_real() is SYNC (prospector scan + per-client content-queue file
-        # reads inside _collect_live_stats) - confirmed 45s+ under real prod data
+        # reads inside _collect_live_stats) — confirmed 45s+ under real prod data
         # (2026-07-01 office_hq incident, same underlying call). Calling it
         # directly here blocked THIS event-loop worker for the same duration,
         # which raced past the frontend's 8s AbortController and fell back to
-        # the zero-filled DEMO payload - clients showing 0 even though
+        # the zero-filled DEMO payload — clients showing 0 even though
         # clients_store had real rows (2026-07-04). Run off-loop with a hard
         # deadline, same guard as office_hq._safe_collect_live_stats.
         resp = await asyncio.wait_for(asyncio.to_thread(_build_real), timeout=8.0)
-    except Exception as e:  # absolute guard - never 500
+    except Exception as e:  # absolute guard — never 500
         logger.warning("admin_dashboard: build_real failed (%s)", e)
         # ADR-121b: instead of all-zero fallback, compute critical KPIs
         # (client count + MRR) directly from fast JSONL source so the
@@ -184,10 +183,10 @@ async def get_admin_dashboard(
         )
 
     # NOTE: relational clients/campaigns tables me PURANA seeded DEMO data hai
-    # (SunVolt Solar Pvt Ltd, ₹2.3L revenue) - woh override "purana data dikha
+    # (SunVolt Solar Pvt Ltd, ₹2.3L revenue) — woh override "purana data dikha
     # raha" wali bug ki jad thi. Marketing business ka source-of-truth ab
     # file-based aggregates (prospects/inquiries/clients_store/blog/emails) hai,
-    # isliye _build_real() ka result HI return hota hai - DB demo-seed se override
+    # isliye _build_real() ka result HI return hota hai — DB demo-seed se override
     # NAHI. (Future: jab relational tables me asli clients aayein, _build_from_db
     # ko sirf empty panels bharne ke liye merge karna, KPIs replace karne ke liye nahi.)
     pf = (product or "").strip().lower()
@@ -200,9 +199,8 @@ async def get_admin_dashboard(
 async def admin_trial_nudge_status(_user=Depends(require_admin)) -> dict:
     """Trial-nudge admin surface: flag snapshot + dry-run eligible preview.
 
-    Preview = run_trial_nudge(dry_run=True) - NO emails sent, NO stamps
-    written
-    ENABLED gate bypassed for preview (arming decision helper) but
+    Preview = run_trial_nudge(dry_run=True) — NO emails sent, NO stamps
+    written; ENABLED gate bypassed for preview (arming decision helper) but
     HARD_OFF still blocks. BLK-02 UI-tab rule: admin feature = UI tab SAATH.
     """
     out: dict = {}
@@ -231,9 +229,8 @@ async def admin_trial_nudge_status(_user=Depends(require_admin)) -> dict:
 
 @router.post("/trial-nudge/run")
 async def admin_trial_nudge_run(request: Request, admin=Depends(require_admin)) -> dict:
-    """Manual trial-nudge run (admin). ALL internal gates still apply -
-    HARD_OFF blocks
-    TRIAL_NUDGE_ENABLED off => skip result returned so the
+    """Manual trial-nudge run (admin). ALL internal gates still apply —
+    HARD_OFF blocks; TRIAL_NUDGE_ENABLED off => skip result returned so the
     admin sees exactly why nothing was sent. Real emails go out only when
     the job's own gates pass."""
     try:
@@ -260,7 +257,7 @@ async def admin_trial_nudge_run(request: Request, admin=Depends(require_admin)) 
 
 @router.get("/revenue-analytics")
 async def get_revenue_analytics(_user=Depends(require_admin)) -> dict:
-    """MRR, churn-risk, LTV estimate - powers admin revenue analytics panel."""
+    """MRR, churn-risk, LTV estimate — powers admin revenue analytics panel."""
     out: dict = {
         "mrr": 0,
         "subscriptions": {},
@@ -378,8 +375,7 @@ def _build_client_timeline(
 
 def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
     """Best-effort sync read of AuditLog rows whose resource_id == client_id.
-    Never raises
-    returns [] if DB unreachable."""
+    Never raises; returns [] if DB unreachable."""
     try:
         from app.models.user import AuditLog
         from app.platform.team import _db
@@ -455,10 +451,9 @@ async def get_client_timeline(
 
 @router.get("/command-center")
 async def admin_command_center(_user=Depends(require_admin)) -> dict:
-    """Customer Delivery OS Phase 2 - business-outcome admin front door: total/
+    """Customer Delivery OS Phase 2 — business-outcome admin front door: total/
     paying/stuck-in-setup/receiving-value/failed-automation customers, pending
-    approvals, revenue. Read-only rollup
-    never mutates state."""
+    approvals, revenue. Read-only rollup; never mutates state."""
     try:
         return await asyncio.to_thread(_build_command_center)
     except Exception as e:
@@ -477,8 +472,7 @@ async def admin_delivery_cockpit(_user=Depends(require_admin)) -> dict:
     """Delivery-first cockpit for Product One operations.
 
     Shows pipeline, per-customer next action, deliverable completion, failures,
-    approvals, and renewal readiness. Reuses existing delivery stores
-    never
+    approvals, and renewal readiness. Reuses existing delivery stores; never
     creates a new disconnected dashboard data source."""
     try:
         from app.marketing import product_one_delivery
@@ -536,7 +530,7 @@ async def admin_entitlement_assurance(
     (``paid_no_invoice``), an invoice on a non-active subscription
     (``invoice_without_active_subscription``), an ``unknown_plan``, or
     ``entitlement_drift``. Composes existing billing primitives
-    (Rule-46 ledger + packages + subscription + canonical tenant ids) - NEVER
+    (Rule-46 ledger + packages + subscription + canonical tenant ids) — NEVER
     creates/voids an invoice, changes a subscription, or mutates a client.
     Owner attribution: nikhil (revenue ops). Mirrors ``/delivery-assurance``.
     """
@@ -687,9 +681,9 @@ def get_hourly_activity(
 ) -> dict:
     """Agent events ko IST ghante-wise bucket karke 'is ghante kya kya hua' timeline.
 
-    Admin dashboard ka 'hourly activity log' card isse banta hai - job-status grid
+    Admin dashboard ka 'hourly activity log' card isse banta hai — job-status grid
     (renderHourlyOps) se alag: yeh actual chronological kaam ka log hai (sab AI staff
-    ke events, har ghante kitne + kya). Best-effort - kabhi 500 nahi.
+    ke events, har ghante kitne + kya). Best-effort — kabhi 500 nahi.
     """
     try:
         from app.platform.team import recent_events
@@ -794,7 +788,7 @@ def get_prospects_preview(
 @router.get("/live-stats")
 async def get_live_stats(_user=Depends(require_admin)) -> dict:
     """Lightweight REAL aggregates dict (prospects, inquiries, clients, emails,
-    blog, content, staff actions, calls). Best-effort - never 500."""
+    blog, content, staff actions, calls). Best-effort — never 500."""
     try:
         stats = await _safe_collect_live_stats()
         stats["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
@@ -810,7 +804,7 @@ async def admin_sync_health(_user=Depends(require_admin)) -> dict:
     """Recently-shipped backend features surfaced for the admin dashboard
     (so the UI stays synced with the project): deliverability (SPF/DKIM/DMARC +
     bounce/complaint), judge-calibration, approval-queue pending, flags-on.
-    Each leg best-effort - never 500."""
+    Each leg best-effort — never 500."""
     out: dict = {}
     try:
         from app.platform import deliverability_monitor as _dm
@@ -862,7 +856,7 @@ async def admin_delete_client(
     client_id: str, body: ClientDeleteIn, request: Request, admin=Depends(require_admin)
 ) -> dict:
     """Permanently remove a client record (admin cleanup of test/junk). Irreversible
-    -> confirm required. Admin-gated like the other destructive admin actions."""
+    → confirm required. Admin-gated like the other destructive admin actions."""
     cid = (client_id or "").strip()
     if not body.confirm:
         await record_admin_action(
@@ -920,7 +914,7 @@ async def admin_remove_customer(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """Admin customer removal - soft-disable by default; purge is owner-gated.
+    """Admin customer removal — soft-disable by default; purge is owner-gated.
 
     **soft (default):** revoke portal login, CANCEL billing subscriptions
     (MRR truth), cancel scheduled content, mark converted autopilot prospects
@@ -985,7 +979,7 @@ async def admin_remove_customer(
             )
             return {
                 "ok": False,
-                "error": "purge disabled - set ADMIN_CUSTOMER_PURGE_ENABLED=1 (owner-gated)",
+                "error": "purge disabled — set ADMIN_CUSTOMER_PURGE_ENABLED=1 (owner-gated)",
             }
 
     audit_action = "client.disable" if mode == "soft" else "client.remove.purge"
@@ -1008,7 +1002,7 @@ async def admin_remove_customer(
     # id (`jiya-makeover`). Every derived store below is keyed on the MARKETING id,
     # so resolving the alias FIRST is what stops a half-removal: without this, an
     # alias id deletes nothing and still reports per-store `false` while the operator
-    # believes the customer is gone. Never raises - unknown ids fall through as-is.
+    # believes the customer is gone. Never raises — unknown ids fall through as-is.
     requested_cid = cid
     try:
         from app.marketing import clients_store as _cs_resolve
@@ -1049,7 +1043,7 @@ async def admin_remove_customer(
             logger.warning("[admin remove-customer] rm %s failed: %s", p, e)
         return False
 
-    # 1. Portal login(s) - customer can no longer log in.
+    # 1. Portal login(s) — customer can no longer log in.
     try:
         from app.api import customer_auth
 
@@ -1059,7 +1053,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] auth revoke failed: %s", e)
 
-    # 2. Billing subscriptions -> CANCELLED (MRR truth - audit 2026-08-08:
+    # 2. Billing subscriptions → CANCELLED (MRR truth — audit 2026-08-08:
     #    before this, remove-customer deleted the client record but left ACTIVE
     #    Subscription rows, so admin MRR/subscriptions-active still counted a
     #    removed customer as revenue). Alias-aware like billing.cancel_subscription.
@@ -1093,7 +1087,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] billing cancel failed: %s", e)
 
-    # 3. Scheduled content -> cancelled (never published later).
+    # 3. Scheduled content → cancelled (never published later).
     try:
         from app.marketing import content_schedule
 
@@ -1101,7 +1095,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] content cancel failed: %s", e)
 
-    # 4. Autopilot prospects that converted to this client -> terminal removed.
+    # 4. Autopilot prospects that converted to this client → terminal removed.
     try:
         from app.platform.sales_autopilot import store as _ap
 
@@ -1208,7 +1202,7 @@ async def admin_remove_customer(
 
 @router.post("/clients/dedupe")
 async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -> dict:
-    """Remove exact-duplicate client records (same phone -> keep newest)."""
+    """Remove exact-duplicate client records (same phone → keep newest)."""
     _idem = admin_idempotency.begin(
         request=request,
         actor_id=getattr(admin, "id", None),
@@ -1237,7 +1231,7 @@ async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -
 
 @router.get("/agents")
 async def admin_agents(_user=Depends(require_admin)) -> dict:
-    """Real AI staff roster (team_status -> 18 members) as a STANDALONE fast call -
+    """Real AI staff roster (team_status → 18 members) as a STANDALONE fast call —
     so the dashboard's agents panel always shows the FULL team even if the heavy
     /api/admin/dashboard payload is slow/unavailable. Never 500."""
     ags = _real_agents()
@@ -1246,7 +1240,7 @@ async def admin_agents(_user=Depends(require_admin)) -> dict:
 
 class BulkEmailIn(BaseModel):
     client_ids: list[str] = Field(..., min_length=1, max_length=50)
-    subject: str | None = "LeadsGenAI - quick check-in"
+    subject: str | None = "LeadsGenAI — quick check-in"
     message: str | None = ""
 
 
@@ -1254,7 +1248,7 @@ class BulkEmailIn(BaseModel):
 async def bulk_email_clients(
     body: BulkEmailIn, request: Request, admin=Depends(require_admin)
 ) -> dict:
-    """Selected clients ko transactional check-in email - SMTP off ho to graceful skip."""
+    """Selected clients ko transactional check-in email — SMTP off ho to graceful skip."""
     from app.api.billing import _client_email, _client_name
     from app.integrations.email_sender import EmailSender
 
@@ -1298,7 +1292,7 @@ async def bulk_email_clients(
     if isinstance(_idem, admin_idempotency.Replay):
         return _idem.response
 
-    subject = (body.subject or "LeadsGenAI - quick check-in").strip()[:200]
+    subject = (body.subject or "LeadsGenAI — quick check-in").strip()[:200]
     custom = (body.message or "").strip()
     sender = EmailSender()
     sent = 0
@@ -1319,9 +1313,9 @@ async def bulk_email_clients(
         name = _client_name(cid)
         text = custom or (
             f"Namaste {name},\n\n"
-            "Yeh LeadsGenAI se ek quick check-in hai - aapka dashboard aur leads theek chal rahe hain?\n"
+            "Yeh LeadsGenAI se ek quick check-in hai — aapka dashboard aur leads theek chal rahe hain?\n"
             "Koi sawal ho to reply karein ya portal pe login karein: https://leadsgenai.in/app/customer\n\n"
-            "- LeadsGenAI Team"
+            "— LeadsGenAI Team"
         )
         try:
             ok = await sender.send_email([to], subject, text)
@@ -1366,7 +1360,7 @@ class CeleryTrimIn(BaseModel):
 
 @router.get("/ops-snapshot")
 async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
-    """Single admin ops payload - live stats + today overview + recent agent events."""
+    """Single admin ops payload — live stats + today overview + recent agent events."""
     live = await _safe_collect_live_stats()
     live["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     try:
@@ -1381,12 +1375,10 @@ async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
 
 @router.get("/boss-autopilot")
 async def get_boss_autopilot(_user=Depends(require_admin)) -> dict:
-    """Boss autonomy observability - flag, status, decisions, rollout (read-only).
+    """Boss autonomy observability — flag, status, decisions, rollout (read-only).
 
-    Real values only: enabled/ready reflect the live env flags
-    boss_rollout is
-    the current rollout lane (held until the mutating canary)
-    never fabricated.
+    Real values only: enabled/ready reflect the live env flags; boss_rollout is
+    the current rollout lane (held until the mutating canary); never fabricated.
     """
     out: dict = {"ok": True, "source": "app.platform.boss_autonomy"}
     try:
@@ -1426,7 +1418,7 @@ async def trim_celery_queue(
             error="confirm:true required",
             severity="warning",
         )
-        return {"ok": False, "error": "confirm:true required - yeh pending tasks delete karta hai"}
+        return {"ok": False, "error": "confirm:true required — yeh pending tasks delete karta hai"}
     _idem = admin_idempotency.begin(
         request=request,
         actor_id=getattr(admin, "id", None),
@@ -1456,7 +1448,7 @@ async def trim_celery_queue(
             )
             result = {
                 "ok": False,
-                "error": f"queue depth {depth} < min_depth {body.min_depth} - trim skip",
+                "error": f"queue depth {depth} < min_depth {body.min_depth} — trim skip",
                 "depth": depth,
             }
             admin_idempotency.store(_idem, result)
@@ -1465,7 +1457,7 @@ async def trim_celery_queue(
         result = {
             "ok": True,
             "cleared": depth,
-            "message": "celery queue cleared - beat will re-queue jobs",
+            "message": "celery queue cleared — beat will re-queue jobs",
         }
         admin_idempotency.store(_idem, result)
         await record_admin_action(
@@ -1482,7 +1474,7 @@ async def trim_celery_queue(
         )
         return result
     except Exception as e:
-        # Transient failure: do NOT store -> the in_progress lock expires (LOCK_TTL) so a
+        # Transient failure: do NOT store → the in_progress lock expires (LOCK_TTL) so a
         # later retry re-executes rather than replaying a transient error.
         logger.warning("admin_dashboard: celery-trim failed (%s)", e)
         await record_admin_action(

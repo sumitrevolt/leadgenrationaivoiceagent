@@ -1,12 +1,12 @@
-"""Multi-language post (AdBanao ka edge neutralize) - ek caption -> 9 bhashayein.
+"""Multi-language post (AdBanao ka edge neutralize) — ek caption → 9 bhashayein.
 
 Hinglish/Hindi/Marathi (original 3) + Gujarati/Telugu/Tamil/Bengali/Punjabi/
-Kannada (native scripts) - AdBanao ke "10 languages" ka free-stack jawab.
-Local business ka customer apni bhasha me zyada engage karta - English-only
+Kannada (native scripts) — AdBanao ke "10 languages" ka free-stack jawab.
+Local business ka customer apni bhasha me zyada engage karta — English-only
 post = aadhi reach. free-LLM translate (brand names/numbers preserve), fallback
 original. Import-safe, kabhi raise nahi.
 
-Backward-compat: `langs=None` ab bhi sirf original 3 (DEFAULT_LANGS) deta -
+Backward-compat: `langs=None` ab bhi sirf original 3 (DEFAULT_LANGS) deta —
 existing callers (growth.py /content/multilang) unchanged. Naye langs explicit
 list me maango.
 """
@@ -32,7 +32,7 @@ LANGS = {
     "kannada": "Kannada (native ಕನ್ನಡ script)",
 }
 
-# langs=None par YAHI default - purane callers ka output shape/coverage same rahe.
+# langs=None par YAHI default — purane callers ka output shape/coverage same rahe.
 DEFAULT_LANGS = ["hinglish", "hindi", "marathi"]
 
 
@@ -55,11 +55,10 @@ async def translate_post(caption: str, langs: list[str] | None = None) -> dict[s
         from app.voice_agent.free_ai import chat
 
         spec = ", ".join(f'"{lg}"' for lg in want)
-        script_spec = "
-        ".join(f"{lg} = {LANGS[lg]}" for lg in want)
+        script_spec = "; ".join(f"{lg} = {LANGS[lg]}" for lg in want)
         raw, _ = await chat(
             (
-                "Tu social media translator hai. Caption ko naturally translate kar - "
+                "Tu social media translator hai. Caption ko naturally translate kar — "
                 "word-by-word nahi, LOCAL feel ke saath. Brand names, numbers, links, "
                 f"emojis, hashtags SAME rakho. Har language apni NATIVE script me: {script_spec}. "
                 f"JSON de: {{{spec}}} keys ke saath."

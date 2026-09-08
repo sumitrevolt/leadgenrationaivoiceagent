@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Make one Boss identity canonical across every Buzz channel.
 
-RUN ONCE, SUCCESSFULLY - 2026-08-09. `--apply` moved Boss across all seven
+RUN ONCE, SUCCESSFULLY — 2026-08-09. `--apply` moved Boss across all seven
 channels, every call `rc=0`, and a read-back confirmed `A present=False,
-C present=True` everywhere. Re-running `--apply` now is a no-op-ish repeat
-use
+C present=True` everywhere. Re-running `--apply` now is a no-op-ish repeat; use
 the default (read-only) to inspect state, and `--rollback` to undo.
 
 WHY (evidence, 2026-08-09):
@@ -17,7 +16,7 @@ WHY (evidence, 2026-08-09):
   the one this machine cannot run. So mentions resolve to an identity that can
   never answer.
 
-DECISION: canonical Boss = 1b13cecc - the only Boss this machine can operate.
+DECISION: canonical Boss = 1b13cecc — the only Boss this machine can operate.
 Membership without an operable credential is not operability.
 
 WHAT THIS DOES (in order, so there is never zero Boss):
@@ -25,7 +24,7 @@ WHAT THIS DOES (in order, so there is never zero Boss):
   2. re-reads membership and refuses to continue unless step 1 fully succeeded
   3. removes 20b69265 from those channels
 
-History is never touched - past messages stay attributed to whoever sent them.
+History is never touched — past messages stay attributed to whoever sent them.
 Removal is membership-only and is reversible with the printed rollback commands.
 
     python scripts/buzz_canonicalize_boss.py              # read-only plan
@@ -43,7 +42,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SNAPSHOT = REPO / "docs" / "coordination" / "BUZZ_MEMBERSHIP_SNAPSHOT.json"
 
-# Nostr PUBLIC keys. They are 64-char hex - the same shape as a private key -
+# Nostr PUBLIC keys. They are 64-char hex — the same shape as a private key —
 # so the entropy scanner flags them; they are published identifiers that appear
 # in every `channels members` listing. No private key is stored in this file.
 BOSS_A = (
@@ -88,7 +87,7 @@ def main() -> int:
 
     run, ch = _load()
     if not SNAPSHOT.exists():
-        raise SystemExit(f"snapshot missing: {SNAPSHOT} - refusing to change membership blind")
+        raise SystemExit(f"snapshot missing: {SNAPSHOT} — refusing to change membership blind")
     snap = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
 
     if args.rollback:
@@ -133,23 +132,22 @@ def main() -> int:
         print("Rollback afterwards: python scripts/buzz_canonicalize_boss.py --rollback")
         return 0
 
-    print("\nSTEP 1 - add canonical Boss")
+    print("\nSTEP 1 — add canonical Boss")
     for name, role in targets.items():
         rc, _, err = run(
             ["channels", "add-member", "--channel", ch[name], "--pubkey", BOSS_C, "--role", role]
         )
         print(f"  #{name:9} add C role={role:6} rc={rc} {'' if rc == 0 else err[:90]}")
 
-    print("\nSTEP 2 - verify before removing anything")
+    print("\nSTEP 2 — verify before removing anything")
     missing = [n for n in targets if BOSS_C not in members(run, ch[n])]
     if missing:
         print(f"  REFUSED: canonical Boss not present in {missing}.")
-        print("  Boss#A left in place - a half-migration is worse than none.")
+        print("  Boss#A left in place — a half-migration is worse than none.")
         return 2
     print("  canonical Boss present in every target channel")
 
-    print("\nSTEP 3 - retire Boss#A (membership only "
-    "history untouched)")
+    print("\nSTEP 3 — retire Boss#A (membership only; history untouched)")
     for name in targets:
         rc, _, err = run(["channels", "remove-member", "--channel", ch[name], "--pubkey", BOSS_A])
         print(f"  #{name:9} remove A rc={rc} {'' if rc == 0 else err[:90]}")

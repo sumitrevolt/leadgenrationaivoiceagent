@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Load + enforce Agent Teams canary SSOT (docs/coordination/canary_frozen_paths.yml).
 
-TM2 contract tests and lead tooling must import this - never paste frozen paths.
+TM2 contract tests and lead tooling must import this — never paste frozen paths.
 
     python3 scripts/canary_frozen.py              # render markdown from SSOT
     python3 scripts/canary_frozen.py check --base origin/main --head HEAD
@@ -129,9 +129,9 @@ def check_diff_against_frozen(
 
 
 def render_frozen_markdown() -> str:
-    """Helper for TM1 docs - render bullets from SSOT (no hand-copied list)."""
+    """Helper for TM1 docs — render bullets from SSOT (no hand-copied list)."""
     lines = [
-        "<!-- rendered from docs/coordination/canary_frozen_paths.yml - do not hand-edit paths -->",
+        "<!-- rendered from docs/coordination/canary_frozen_paths.yml — do not hand-edit paths -->",
         "",
     ]
     for p in frozen_paths():
@@ -139,7 +139,7 @@ def render_frozen_markdown() -> str:
     classes = frozen_classes()
     if classes:
         lines.append("")
-        lines.append("Classes (not diff-gated as paths - policy / gitignore):")
+        lines.append("Classes (not diff-gated as paths — policy / gitignore):")
         for c in classes:
             lines.append(f"- `{c}`")
     return "\n".join(lines) + "\n"

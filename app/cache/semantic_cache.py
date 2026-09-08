@@ -1,22 +1,20 @@
 """
-semantic_cache.py - free LLM response cache (L1 exact + L2 semantic).
+semantic_cache.py — free LLM response cache (L1 exact + L2 semantic).
 
-KYUN: greeting-audio + 60s API cache pehle se hai
-"general LLM response cache"
+KYUN: greeting-audio + 60s API cache pehle se hai; "general LLM response cache"
 audit me free-to-add GAP tha (latency↓ + free-tier token/TPD burn↓). Yeh wahi
-bharta - koi naya paid dep nahi, tera maujooda fastembed + Qdrant + Redis reuse.
+bharta — koi naya paid dep nahi, tera maujooda fastembed + Qdrant + Redis reuse.
 
 DESIGN (teri prod-rules ke according):
-  - FLAG-GATED: env `SEMANTIC_CACHE` (OFF default) - unset = ZERO behaviour change
+  - FLAG-GATED: env `SEMANTIC_CACHE` (OFF default) — unset = ZERO behaviour change
     aur ZERO extra Redis/embed overhead (disabled branch turant lautta).
   - FAIL-OPEN: koi bhi error/timeout = seedha factory() call (cache miss jaisa),
     request kabhi raise/ block nahi hoti.
   - OFF-LOOP + HARD-DEADLINE: embedding `asyncio.to_thread` + `wait_for` me chalti
-    (public-path pe ML kabhi event-loop block na kare - 3 prod-downs ka sabak).
-  - SHARED METRICS: hit/miss counters Redis me (multi-worker-correct - tera in-process
+    (public-path pe ML kabhi event-loop block na kare — 3 prod-downs ka sabak).
+  - SHARED METRICS: hit/miss counters Redis me (multi-worker-correct — tera in-process
     counter "unreliable" decision ke according). /metrics inhe expose karta hai.
-  - DECOUPLED + TESTABLE: core ek duck-typed `backend` pe chalta
-  default prod
+  - DECOUPLED + TESTABLE: core ek duck-typed `backend` pe chalta; default prod
     backend lazily fastembed/Qdrant/Redis use karta. Tests fake backend dete hain.
 
 USAGE (caller opt-in karta, koi auto-wiring nahi):
@@ -26,7 +24,7 @@ USAGE (caller opt-in karta, koi auto-wiring nahi):
     )
     # info = {"cache": "exact"|"semantic"|"miss"|"disabled", "score": float, ...}
 
-Top-level imports SIRF stdlib - `app.*` sab lazy taaki yeh module bina poore app
+Top-level imports SIRF stdlib — `app.*` sab lazy taaki yeh module bina poore app
 ke bhi import/test ho sake.
 """
 
@@ -60,7 +58,7 @@ def reset_stats() -> None:
 
 
 async def _bump(kind: str) -> None:
-    """Shared Redis counter (multi-worker-correct). Best-effort - fail-open."""
+    """Shared Redis counter (multi-worker-correct). Best-effort — fail-open."""
     try:
         from app.cache import get_cache_redis_client
 
@@ -77,7 +75,7 @@ async def _record(kind: str) -> None:
 
 
 async def redis_stats() -> dict[str, int]:
-    """Shared (Redis) counters - multi-worker-correct, /metrics ke liye. Fail = zeros."""
+    """Shared (Redis) counters — multi-worker-correct, /metrics ke liye. Fail = zeros."""
     out = {"exact": 0, "semantic": 0, "miss": 0, "error": 0, "disabled": 0}
     try:
         from app.cache import get_cache_redis_client
@@ -126,7 +124,7 @@ def _store_timeout() -> float:
 
 # --- helpers ------------------------------------------------------------------
 def _normalize(text: str) -> str:
-    """Whitespace collapse + lower - exact-match hit-rate badhane ke liye."""
+    """Whitespace collapse + lower — exact-match hit-rate badhane ke liye."""
     return " ".join((text or "").split()).lower()
 
 
@@ -175,7 +173,7 @@ class _ProdBackend:
     # -- L1 exact (Redis evictable cache; fail-soft already) -- #
     def _cache(self):
         if self._l1 is None:
-            from app.cache import Cache  # lazy - top-level light rakha
+            from app.cache import Cache  # lazy — top-level light rakha
 
             self._l1 = Cache(prefix="llmsem", default_ttl=_ttl())
         return self._l1
@@ -187,7 +185,7 @@ class _ProdBackend:
     async def l1_set(self, key: str, value: str, ttl: int) -> None:
         await self._cache().set(key, value, ttl=ttl)
 
-    # -- embedding (reuse the KB's fastembed model - same vector space) -- #
+    # -- embedding (reuse the KB's fastembed model — same vector space) -- #
     def embed(self, text: str) -> list[float]:
         from app.voice_agent.knowledge_base import _get_qdrant_embedder
 
@@ -290,8 +288,7 @@ async def semantic_complete(
     scope        : niche/client isolation (alag scope cross-serve nahi karega).
     Returns      : (response, info). info["cache"] = exact|semantic|miss|disabled.
 
-    FAIL-OPEN: cache layer ka koi bhi error = factory() chalega
-    response kabhi
+    FAIL-OPEN: cache layer ka koi bhi error = factory() chalega; response kabhi
     block/raise nahi hoga.
     """
     info: dict[str, Any] = {"cache": "miss", "score": 0.0, "scope": scope}
@@ -311,7 +308,7 @@ async def semantic_complete(
     now = time.time()
     l1key = _l1_key(scope, norm)
 
-    # L1: exact match (no embedding cost) - templated/repeat prompts yahin pakde jate.
+    # L1: exact match (no embedding cost) — templated/repeat prompts yahin pakde jate.
     try:
         hit = await be.l1_get(l1key)
     except Exception:
@@ -321,7 +318,7 @@ async def semantic_complete(
         info["cache"] = "exact"
         return hit, info
 
-    # L2: semantic - embed off-loop + Qdrant top-1 cosine.
+    # L2: semantic — embed off-loop + Qdrant top-1 cosine.
     vec = await _safe_embed(be, norm)
     if vec is not None:
         found = await _safe_thread(be.vsearch, vec, scope, timeout=_store_timeout())
@@ -338,7 +335,7 @@ async def semantic_complete(
                     pass
                 return found["response"], info
 
-    # MISS -> compute once, then store best-effort (never blocks the response).
+    # MISS → compute once, then store best-effort (never blocks the response).
     await _record("miss")
     value = await _call_factory(factory)
     try:

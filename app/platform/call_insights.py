@@ -1,18 +1,17 @@
-"""'Ask AI' over call/lead data - Vodex-style natural-language insights (Hinglish).
+"""'Ask AI' over call/lead data — Vodex-style natural-language insights (Hinglish).
 
-"Aaj kitne log interested the?", "callbacks kitne pending?" - admin saadhe sawaal
+"Aaj kitne log interested the?", "callbacks kitne pending?" — admin saadhe sawaal
 pooche, AI call/lead data padh ke jawab de. Sources (sab best-effort, jo mile):
-  - data/call_qualifications.jsonl  (post-call AI qualifier - call_manager likhta)
-  - data/call_transcripts/*.jsonl     (LIVE Vobiz stream full transcripts - vobiz_stream)
-  - data/dialer_logs.jsonl          (human dialer dispositions - dialer_log.py)
-  - data/cadence_runs.jsonl         (omnichannel cadence step drafts - cadence.py)
+  - data/call_qualifications.jsonl  (post-call AI qualifier — call_manager likhta)
+  - data/call_transcripts/*.jsonl     (LIVE Vobiz stream full transcripts — vobiz_stream)
+  - data/dialer_logs.jsonl          (human dialer dispositions — dialer_log.py)
+  - data/cadence_runs.jsonl         (omnichannel cadence step drafts — cadence.py)
   - agent_events                    (team.recent_events helper, lazy/DB-optional)
 
 Design: quick_stats() = PURE-python counts (LLM-free, hamesha kaam). ask() =
-compact context (recent N=50, truncated) -> free_ai Hinglish answer
-LLM fail =
+compact context (recent N=50, truncated) → free_ai Hinglish answer; LLM fail =
 stats-based fallback answer (phir bhi useful). Never raises. Koi flag nahi
-(read-only analytics - side-effect zero).
+(read-only analytics — side-effect zero).
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ _CADENCE_RUNS = os.path.join("data", "cadence_runs.jsonl")
 
 
 def _TRANSCRIPTS_DIR() -> str:
-    """Live call transcripts dir - resolved per call, never frozen at import."""
+    """Live call transcripts dir — resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -43,7 +42,7 @@ _RECENT_N = 50  # context me kitne recent records
 
 
 def _read_jsonl_tail(path: str, limit: int = _RECENT_N) -> list[dict[str, Any]]:
-    """JSONL file ke aakhri `limit` valid records (oldest->newest). Never raises."""
+    """JSONL file ke aakhri `limit` valid records (oldest→newest). Never raises."""
     out: list[dict[str, Any]] = []
     try:
         if not os.path.isfile(path):
@@ -100,7 +99,7 @@ def _recent_agent_events(limit: int = 30) -> list[dict[str, Any]]:
 
 
 def quick_stats() -> dict[str, Any]:
-    """Pure-python counts - LLM-free, kabhi fail nahi (fallback answers ka base)."""
+    """Pure-python counts — LLM-free, kabhi fail nahi (fallback answers ka base)."""
     try:
         quals = _read_jsonl_tail(_QUALIFICATIONS, 500)
         dialer = _read_jsonl_tail(_DIALER_LOGS, 500)
@@ -229,7 +228,7 @@ def _build_context() -> str:
 
 
 def _stats_answer(stats: dict[str, Any]) -> str:
-    """LLM-down fallback - stats se seedha Hinglish jawab (phir bhi useful)."""
+    """LLM-down fallback — stats se seedha Hinglish jawab (phir bhi useful)."""
     try:
         q = stats.get("calls_qualified") or {}
         d = stats.get("dialer") or {}
@@ -242,18 +241,18 @@ def _stats_answer(stats: dict[str, Any]) -> str:
             f"avg interest {q.get('avg_interest_score', 0)}/5). "
             f"LIVE calls logged: {lc.get('total', 0)} (aaj {lc.get('today', 0)}, "
             f"avg {lc.get('avg_duration_s', 0)}s). "
-            f"Dialer: {d.get('total_logged', 0)} dispositions (aaj {d.get('today', 0)}) - "
+            f"Dialer: {d.get('total_logged', 0)} dispositions (aaj {d.get('today', 0)}) — "
             f"interested {disp.get('interested', 0)}, callback {disp.get('callback', 0)}, "
             f"no-answer {disp.get('no-answer', 0)}. "
             f"Cadence: {c.get('recent_steps', 0)} recent outreach steps. "
-            f"(AI summary abhi available nahi - yeh direct counts hain.)"
+            f"(AI summary abhi available nahi — yeh direct counts hain.)"
         )
     except Exception:
-        return "Data abhi padh nahi paya - thodi der me dobara try karo."
+        return "Data abhi padh nahi paya — thodi der me dobara try karo."
 
 
 async def ask(question: str) -> dict[str, Any]:
-    """NL question over call/lead data -> Hinglish answer. Never raises.
+    """NL question over call/lead data → Hinglish answer. Never raises.
 
     LLM fail/empty = stats-based fallback answer (counts pure-python).
     """
@@ -266,7 +265,7 @@ async def ask(question: str) -> dict[str, Any]:
         if not context.strip():
             return {
                 "ok": True,
-                "answer": "Abhi koi call/dialer data nahi hai - pehle kuch calls/dispositions hone do.",
+                "answer": "Abhi koi call/dialer data nahi hai — pehle kuch calls/dispositions hone do.",
                 "stats": stats,
                 "provider": "",
             }
@@ -276,7 +275,7 @@ async def ask(question: str) -> dict[str, Any]:
             system=(
                 "Tu ek call-analytics assistant hai. Neeche call qualifications, dialer "
                 "dispositions, cadence steps ka recent data hai. User ke sawaal ka jawab "
-                "SIRF is data se do - 3-5 line Hinglish, numbers ke saath, ek actionable "
+                "SIRF is data se do — 3-5 line Hinglish, numbers ke saath, ek actionable "
                 "suggestion end me. Data me nahi hai to saaf bolo 'data me nahi mila'."
             ),
             messages=[{"role": "user", "content": f"DATA:\n{context}\n\nSAWAAL: {q[:300]}"}],

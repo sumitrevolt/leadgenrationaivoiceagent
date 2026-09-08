@@ -1,11 +1,11 @@
 """
-Swara Voice Learning Pipeline - voice_learning_event storage + learning loop.
+Swara Voice Learning Pipeline — voice_learning_event storage + learning loop.
 
 Rule 4: Every useful owner-facing OpenClaw voice interaction generates a structured
         learning event: voice_learning_event.
-Rule 5: English -> Swara Hinglish learning loop with candidate generation + evaluation.
-Rule 6: Owner corrections -> high-priority learning events.
-Rule 9:  Observe -> Candidate -> Test -> Score -> Approve -> Version -> Deploy -> Monitor -> Rollback
+Rule 5: English → Swara Hinglish learning loop with candidate generation + evaluation.
+Rule 6: Owner corrections → high-priority learning events.
+Rule 9:  Observe → Candidate → Test → Score → Approve → Version → Deploy → Monitor → Rollback
 
 Storage: Redis (primary, fast) + JSONL persistence (durability). Events are
          versioned and tagged with quality metadata.
@@ -168,7 +168,7 @@ class VoiceLearningStore:
         self._events: list[VoiceLearningEvent] = []  # in-process fallback
 
     def _init_redis(self) -> bool:
-        """Initialize Redis connection (optional - falls back to in-process)."""
+        """Initialize Redis connection (optional — falls back to in-process)."""
         if self._redis_connected:
             return self._redis is not None
         try:
@@ -199,9 +199,9 @@ class VoiceLearningStore:
         """Store a voice learning event.
 
         Persists to:
-        1. Redis (if available) - for real-time shadow eval
-        2. JSONL file (if writable) - for durability + batch processing
-        3. In-process list - always works as fallback
+        1. Redis (if available) — for real-time shadow eval
+        2. JSONL file (if writable) — for durability + batch processing
+        3. In-process list — always works as fallback
         """
         not self._redis_connected and self._init_redis()
         self._init_jsonl()

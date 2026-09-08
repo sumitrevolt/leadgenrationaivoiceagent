@@ -1,5 +1,5 @@
 """
-The single typed agent loop - the control tier (VA-01/02, PM-01/03, SB-04,
+The single typed agent loop — the control tier (VA-01/02, PM-01/03, SB-04,
 DL-01, OB-01, ST-01/02/03, GV-01).
 
 This is deliberately NOT a new agent framework. It is the one ordered pipeline
@@ -63,7 +63,7 @@ PreStepFn = Callable[[RunContext], Awaitable[bool]]
 
 async def _default_approval(ctx: RunContext, call: ToolCall, risk: RiskClass) -> bool:
     """Fail-closed. A dangerous action is approved ONLY when it carries an explicit
-    Owner OS approval reference. We never auto-approve via a heuristic scorer - the
+    Owner OS approval reference. We never auto-approve via a heuristic scorer — the
     real approval channel is Kavach -> Owner OS (AMBER parks for human decision)."""
     if call.approval_reference:
         return True
@@ -95,12 +95,11 @@ def _default_egress_scan(ctx: RunContext, call: ToolCall) -> tuple[bool, str]:
 
 
 async def _checkpoint(ctx: RunContext, call: ToolCall) -> None:
-    """SB-04 - checkpoint before a mutating action.
+    """SB-04 — checkpoint before a mutating action.
 
     File-mutating tools declare ``paths`` in their args -> real file snapshot via
     the repo's agent_checkpoints.snapshot(paths, label). For non-file mutations
-    (external send, billing) there is nothing to file-snapshot
-    the idempotency
+    (external send, billing) there is nothing to file-snapshot; the idempotency
     key + audit marker are the replay-safety guarantee, so we record a logical
     checkpoint instead of calling snapshot with the wrong shape."""
     label = f"pre:{call.name}:{call.call_id}"
@@ -222,7 +221,7 @@ class Harness:
         est_usd: float = 0.0,
         est_tokens: int = 0,
     ) -> ToolResult:
-        """Run ONE tool call through every control. Never raises - returns a
+        """Run ONE tool call through every control. Never raises — returns a
         ToolResult with ok=False and the control trail on any refusal/error."""
         t0 = time.time()
         res = ToolResult(call_id=call.call_id, ok=False)
@@ -426,11 +425,10 @@ class Harness:
         if d.get("would_validate") is False:
             verdict = ComparisonVerdict.MISSING_CONTEXT
         elif d.get("would_allow") is False:
-            verdict = ComparisonVerdict.POLICY_MISMATCH  # harness would deny
-            legacy did it
+            verdict = ComparisonVerdict.POLICY_MISMATCH  # harness would deny; legacy did it
         elif meta.get("verdict_override"):
             # Adapter-supplied observed verdict (FALLBACK/DELEGATION/PARSER_AMBIGUITY)
-            # - only honoured once structural gates (validate/permit) have passed.
+            # — only honoured once structural gates (validate/permit) have passed.
             try:
                 verdict = ComparisonVerdict(meta["verdict_override"])
             except Exception:

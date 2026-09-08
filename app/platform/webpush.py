@@ -1,8 +1,8 @@
-"""webpush.py - OneSignal-killer web push (open Web-Push standard, NO paid svc).
+"""webpush.py — OneSignal-killer web push (open Web-Push standard, NO paid svc).
 
-Browser push notifications clients ki mini-sites/widgets se - pywebpush + VAPID
+Browser push notifications clients ki mini-sites/widgets se — pywebpush + VAPID
 keys (env: VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, optional VAPID_CLAIM_EMAIL).
-NO new dep auto-install: pywebpush ya keys ABSENT -> poora module INERT
+NO new dep auto-install: pywebpush ya keys ABSENT → poora module INERT
 (available()={"ok":False}), send_push tab DRAFT-only record karta (jsonl).
 
 Store: data/push_subs.jsonl (dedupe by endpoint) · data/push_drafts.jsonl.
@@ -10,10 +10,7 @@ sw.js me push listener MAIN SESSION add karega (yeh module sw.js NAHI chhoota).
 NEVER raises, sab imports lazy.
 
 VAPID keys generate (one-time, free):
-    python -c "from py_vapid import Vapid01 as V
-    v=V()
-    v.generate_keys()
-    ..."
+    python -c "from py_vapid import Vapid01 as V; v=V(); v.generate_keys(); ..."
     ya: npx web-push generate-vapid-keys
 """
 
@@ -46,7 +43,7 @@ def _claim_email() -> str:
 
 
 def available() -> dict[str, Any]:
-    """pywebpush import + dono VAPID keys present? Absent -> inert (no install)."""
+    """pywebpush import + dono VAPID keys present? Absent → inert (no install)."""
     have_keys = bool(vapid_public() and _vapid_private())
     have_lib = False
     try:
@@ -154,12 +151,12 @@ def list_subs(slug: str | None = None) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Send (available() pe REAL webpush; warna draft-record-only - inert)
+# Send (available() pe REAL webpush; warna draft-record-only — inert)
 # --------------------------------------------------------------------------- #
 def send_push(slug: str, title: str, body: str, url: str = "") -> dict[str, Any]:
     """Slug ke saare subscribers ko push (cap 500, expired prune). Never raises.
 
-    NOT available -> draft record only (jab keys aayengi, dashboard se re-send).
+    NOT available → draft record only (jab keys aayengi, dashboard se re-send).
     """
     slug = (slug or "default").strip()[:64] or "default"
     payload = {
@@ -197,7 +194,7 @@ def send_push(slug: str, title: str, body: str, url: str = "") -> dict[str, Any]
             except WebPushException as e:
                 failed += 1
                 code = getattr(getattr(e, "response", None), "status_code", None)
-                if code in (404, 410):  # expired/gone - prune
+                if code in (404, 410):  # expired/gone — prune
                     dead_endpoints.add(str(sub.get("endpoint")))
             except Exception:
                 failed += 1
@@ -235,20 +232,19 @@ def status() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Client JS snippet (vanilla) - mini-site/widget me inject karne ke liye
+# Client JS snippet (vanilla) — mini-site/widget me inject karne ke liye
 # --------------------------------------------------------------------------- #
 def subscribe_js(slug: str) -> str:
     """Notification.requestPermission + pushManager.subscribe + POST sub.
 
     NOTE: kaam karne ke liye sw.js me push/notificationclick listeners chahiye
-    (main session add karega - yeh module sw.js edit NAHI karta).
+    (main session add karega — yeh module sw.js edit NAHI karta).
     """
     slug = (slug or "default").strip()[:64] or "default"
     pub = vapid_public()
     return (
         "(function(){\n"
-        f"  var SLUG={json.dumps(slug)}, VAPID={json.dumps(pub)}
-        \n"
+        f"  var SLUG={json.dumps(slug)}, VAPID={json.dumps(pub)};\n"
         "  if(!VAPID||!('serviceWorker' in navigator)||!('PushManager' in window))return;\n"
         "  function b64ToU8(s){var p='='.repeat((4-s.length%4)%4);"
         "var b=(s+p).replace(/-/g,'+').replace(/_/g,'/');var r=atob(b);"

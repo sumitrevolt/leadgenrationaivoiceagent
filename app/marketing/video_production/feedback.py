@@ -1,4 +1,4 @@
-"""Natural-language customer video feedback -> structured revision tasks.
+"""Natural-language customer video feedback → structured revision tasks.
 
 Never silently treats ambiguous replies as approval.
 """
@@ -23,7 +23,7 @@ _CHANGES_RE = re.compile(
     re.I,
 )
 
-# Ambiguous - must NOT approve
+# Ambiguous — must NOT approve
 _AMBIGUOUS_RE = re.compile(
     r"^\s*(theek|thik|ok|okay|haan|han|hmm+|dekh(ta|te)?\s*(hoon|hun)?|"
     r"dekhta\s*hu|looks?\s*okay|looks?\s*fine|👍|👌|🙂|😊|\.+)\s*$",

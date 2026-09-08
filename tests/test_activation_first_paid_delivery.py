@@ -12,20 +12,20 @@ Age-based SLA:
   ≥7d     : require ≥1 evidence-backed completed
 
 Test cases lock:
-  1. No paid customers -> _NEUTRAL
-  2. <24h grace with setup only -> _OK
-  3. ≥24h with setup only (jiya-shape before draft) -> _WARN
-  4. ≥24h with generated draft (jiya-shape after draft) -> still WARN on visible/completed
-     (because customer_visible remains false - draft only in admin queue)
-  5. ≥72h with admin-only draft -> _WARN on visible SLA
-  6. ≥72h with customer-visible artifact -> _OK for visible tier
-  7. ≥7d without evidence-backed -> _WARN on completed SLA
-  8. ≥7d with evidence_url populated -> _OK
+  1. No paid customers → _NEUTRAL
+  2. <24h grace with setup only → _OK
+  3. ≥24h with setup only (jiya-shape before draft) → _WARN
+  4. ≥24h with generated draft (jiya-shape after draft) → still WARN on visible/completed
+     (because customer_visible remains false — draft only in admin queue)
+  5. ≥72h with admin-only draft → _WARN on visible SLA
+  6. ≥72h with customer-visible artifact → _OK for visible tier
+  7. ≥7d without evidence-backed → _WARN on completed SLA
+  8. ≥7d with evidence_url populated → _OK
   9. business_profile + brand_kit alone NEVER count as customer-value
  10. Stage change alone NEVER counts as delivery
  11. Percentage change alone NEVER counts as delivery
  12. Trial customer never counts (not paid)
- 13. Wholesale eval failure -> sanitized _WARN (never _NEUTRAL)
+ 13. Wholesale eval failure → sanitized _WARN (never _NEUTRAL)
  14. Exception with credentials/SQL/IP/customer_id/email leaks NONE of them
  15. Result exposes only aggregate counts + bucket strings
  16. Exact timestamps NEVER appear in the result
@@ -128,7 +128,7 @@ def test_1_no_paid_customers_returns_neutral(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 2. <24h grace: setup only -> OK
+# 2. <24h grace: setup only → OK
 # --------------------------------------------------------------------------- #
 
 
@@ -146,13 +146,13 @@ def test_2_fresh_customer_with_setup_only_is_ok_within_grace(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 3. ≥24h with setup only -> WARN on generated SLA
+# 3. ≥24h with setup only → WARN on generated SLA
 # --------------------------------------------------------------------------- #
 
 
 def test_3_stale_customer_with_setup_only_warns_on_generated_sla(monkeypatch):
     """Jiya-shape BEFORE the live draft was generated: 4 days old, setup done,
-    zero generated. Previous probe reported _OK - false positive. New probe
+    zero generated. Previous probe reported _OK — false positive. New probe
     must return _WARN."""
     _install_stubs(
         monkeypatch,
@@ -168,7 +168,7 @@ def test_3_stale_customer_with_setup_only_warns_on_generated_sla(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 4. ≥24h with generated draft but admin-only -> WARN on visible SLA
+# 4. ≥24h with generated draft but admin-only → WARN on visible SLA
 # --------------------------------------------------------------------------- #
 
 
@@ -190,7 +190,7 @@ def test_4_generated_draft_admin_only_still_warns_on_visible_sla(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 5. ≥72h with customer-visible artifact -> OK on visible tier
+# 5. ≥72h with customer-visible artifact → OK on visible tier
 # --------------------------------------------------------------------------- #
 
 
@@ -207,7 +207,7 @@ def test_5_visible_artifact_satisfies_visible_sla(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 6. ≥7d without evidence-backed completed -> WARN
+# 6. ≥7d without evidence-backed completed → WARN
 # --------------------------------------------------------------------------- #
 
 
@@ -225,7 +225,7 @@ def test_6_stale_7d_without_evidence_warns(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 7. ≥7d with posts_published > 0 -> OK
+# 7. ≥7d with posts_published > 0 → OK
 # --------------------------------------------------------------------------- #
 
 
@@ -241,7 +241,7 @@ def test_7_evidence_backed_satisfies_all_slas(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 8. Evidence-backed via evidence_url on a deliverable -> OK
+# 8. Evidence-backed via evidence_url on a deliverable → OK
 # --------------------------------------------------------------------------- #
 
 
@@ -306,7 +306,7 @@ def test_9_business_profile_and_brand_kit_alone_do_not_count_as_delivery(monkeyp
 
 def test_10_stage_field_alone_does_not_count_as_delivery(monkeypatch):
     """A customer whose stage moved to 'renewal_ready' but has no generated /
-    visible / completed persisted evidence must still WARN - stage labels lie."""
+    visible / completed persisted evidence must still WARN — stage labels lie."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
@@ -335,7 +335,7 @@ def test_10_stage_field_alone_does_not_count_as_delivery(monkeypatch):
 
 def test_11_deliverable_completion_pct_alone_does_not_grant_ok(monkeypatch):
     """The old probe treated deliverable_completion_pct > 0 as progress. New
-    probe ignores the label - only persisted artifacts count."""
+    probe ignores the label — only persisted artifacts count."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
@@ -372,7 +372,7 @@ def test_12_trial_customer_not_counted(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 13. Wholesale eval failure -> WARN with sanitized message
+# 13. Wholesale eval failure → WARN with sanitized message
 # --------------------------------------------------------------------------- #
 
 
@@ -409,9 +409,9 @@ def test_14_no_credentials_or_pii_leak_via_exception_path(monkeypatch):
 
     def _boom(*a, **kw):
         raise RuntimeError(
-            "postgres://leadgen:P@sw0rd_9!@172.17.0.2:5432/db; "  # nosecret - synthetic
+            "postgres://leadgen:P@sw0rd_9!@172.17.0.2:5432/db; "  # nosecret — synthetic
             "SELECT * FROM clients WHERE id='jiya-makeover' AND "
-            "email='sumit@leadsgenai.in' AND access_token='sk-live-ABC123DEF'"  # nosecret - synthetic
+            "email='sumit@leadsgenai.in' AND access_token='sk-live-ABC123DEF'"  # nosecret — synthetic
         )
 
     monkeypatch.setattr(real_store, "list_clients", _boom)
@@ -527,7 +527,7 @@ def test_17_cache_ttl_bounded(monkeypatch):
 
 def test_18_cross_tenant_artifact_never_counted_for_wrong_customer(monkeypatch):
     """customer_delivery_status stub deliberately returns SAME artifacts for
-    both customer IDs. Each customer must be scored on its OWN state only -
+    both customer IDs. Each customer must be scored on its OWN state only —
     stub returns per-id state, so if cross-tenant leak existed both would
     have artifacts. Assert independent scoring."""
     _install_stubs(
@@ -570,8 +570,7 @@ def test_wiring_probe_in_probes_tuple():
 
 def test_19_item_level_delivery_does_not_imply_plan_complete(monkeypatch):
     """Jiya-shape: 1 published item + 4/10 deliverables done (40%). ITEM-level
-    counter increments
-    PLAN-level counter does NOT."""
+    counter increments; PLAN-level counter does NOT."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
@@ -614,7 +613,7 @@ def test_20_full_plan_completion_counted_separately(monkeypatch):
 
 
 def test_21_plan_distribution_covers_all_paid_customers(monkeypatch):
-    """Multiple paid customers land in different buckets - no double-counting,
+    """Multiple paid customers land in different buckets — no double-counting,
     sum(distribution) == paid_customers."""
     _install_stubs(
         monkeypatch,

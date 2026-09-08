@@ -1,4 +1,4 @@
-"""Per-client blog (programmatic SEO) - har customer ka apna blog at /b/{slug}/blog.
+"""Per-client blog (programmatic SEO) — har customer ka apna blog at /b/{slug}/blog.
 
 Audit gap #29: customer ko sirf template milta tha, koi live per-client blog page nahi.
 Yeh module woh deta: free_ai se niche-aware Hinglish blog post generate + per-client jsonl
@@ -117,7 +117,7 @@ async def generate_and_store(
     if not body:
         body = (
             f"{biz} aapke {niche} ki zaroorat ke liye yahan hai. Quality service, sahi daam, "
-            "aur bharosa. Aaj hi humse judiye - call ya WhatsApp karein!"
+            "aur bharosa. Aaj hi humse judiye — call ya WhatsApp karein!"
         )
     post = {
         "slug": _slugify(title) + "-" + datetime.now(timezone.utc).strftime("%m%d%H%M"),
@@ -138,25 +138,17 @@ def _shell(biz: str, primary: str, inner: str, slug: str) -> str:
     return (
         f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>'
         f'<meta name="viewport" content="width=device-width,initial-scale=1"/>'
-        f"<title>{e(biz)} - Blog</title><style>"
+        f"<title>{e(biz)} — Blog</title><style>"
         "body{font:16px/1.6 system-ui,-apple-system,sans-serif;margin:0;background:#fff;color:#1a1a2e}"
         ".wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px}"
-        f"a{{color:{primary}
-        text-decoration:none}} .top{{font-size:13px
-        color:#888
-        margin-bottom:8px}}"
+        f"a{{color:{primary};text-decoration:none}} .top{{font-size:13px;color:#888;margin-bottom:8px}}"
         "h1{font-size:24px;margin:6px 0 18px} h2{font-size:18px;margin:0 0 6px}"
         ".card{display:block;border:1px solid #eee;border-radius:12px;padding:14px 16px;margin:0 0 12px;color:inherit}"
         ".card p{color:#555;font-size:14px;margin:0} .empty{color:#888}"
-        f".cta{{display:inline-block
-        background:{primary}
-        color:#fff
-        padding:10px 18px
-        border-radius:10px
-        margin-top:18px}}"
+        f".cta{{display:inline-block;background:{primary};color:#fff;padding:10px 18px;border-radius:10px;margin-top:18px}}"
         "article{white-space:pre-wrap}</style></head><body><div class='wrap'>"
         f"<div class='top'><a href='/b/{e(slug)}'>← {e(biz)}</a></div>{inner}"
-        f"<a class='cta' href='/b/{e(slug)}'>Humse judiye -></a></div></body></html>"
+        f"<a class='cta' href='/b/{e(slug)}'>Humse judiye →</a></div></body></html>"
     )
 
 
@@ -174,8 +166,8 @@ def render_index(client: dict[str, Any], slug: str) -> str:
             for p in posts
         )
     else:
-        items = "<p class='empty'>Abhi koi blog post nahi - jaldi aayega.</p>"
-    return _shell(biz, primary, f"<h1>{e(biz)} - Blog</h1>{items}", slug)
+        items = "<p class='empty'>Abhi koi blog post nahi — jaldi aayega.</p>"
+    return _shell(biz, primary, f"<h1>{e(biz)} — Blog</h1>{items}", slug)
 
 
 def render_post(client: dict[str, Any], slug: str, post: dict[str, Any]) -> str:

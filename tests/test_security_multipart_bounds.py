@@ -1,10 +1,9 @@
 """CP5-3 regression: multipart parsing must stay bounded (DoS guard).
 
 Guards the reachable multipart denial-of-service class
-(GHSA-2c2j-9gv5-cj73 / GHSA-f96h-pmfr-66vw - unbounded per-part size and
+(GHSA-2c2j-9gv5-cj73 / GHSA-f96h-pmfr-66vw — unbounded per-part size and
 part-count parsing in older Starlette). Starlette's fixed versions enforce a
-per-part size ceiling and a part-count ceiling
-an oversized or multi-thousand
+per-part size ceiling and a part-count ceiling; an oversized or multi-thousand
 part request must be rejected quickly (4xx), never accepted/unbounded.
 
 The public test surface mirrors the app's real unauthenticated multipart route
@@ -26,7 +25,7 @@ def test_parser_has_bounded_defaults() -> None:
     max_part = getattr(MultiPartParser, "max_part_size", None)
     max_count = getattr(MultiPartParser, "max_part_count", None)
     assert max_part is not None or max_count is not None, (
-        "MultiPartParser exposes neither max_part_size nor max_part_count - "
+        "MultiPartParser exposes neither max_part_size nor max_part_count — "
         "unbounded multipart parsing reintroduced"
     )
     if max_part is not None:
@@ -61,9 +60,7 @@ def _multipart_body(part_size: int, n_parts: int = 1) -> tuple[bytes, str]:
     part = b"x" * part_size
     for i in range(n_parts):
         body.write(b"--" + b + b"\r\n")
-        body.write(b'Content-Disposition: form-data
-        name="file"
-        filename="f%d.webm"\r\n' % i)
+        body.write(b'Content-Disposition: form-data; name="file"; filename="f%d.webm"\r\n' % i)
         body.write(b"Content-Type: audio/webm\r\n\r\n")
         body.write(part)
         body.write(b"\r\n")
@@ -86,7 +83,7 @@ def test_oversized_single_part_rejected(client: TestClient) -> None:
         400,
         413,
         422,
-    ), f"oversized part was accepted (status {r.status_code}) - unbounded parse"
+    ), f"oversized part was accepted (status {r.status_code}) — unbounded parse"
 
 
 def test_many_parts_rejected_within_budget(client: TestClient) -> None:

@@ -1,6 +1,6 @@
-"""Onboarding Factory Pipeline - staged orchestrator for customer onboarding.
+"""Onboarding Factory Pipeline — staged orchestrator for customer onboarding.
 
-PROBLEM: auto_onboard() is a monolithic function - if KB seed fails, the entire
+PROBLEM: auto_onboard() is a monolithic function — if KB seed fails, the entire
 onboard fails and retries from scratch. At 50/day scale, we need:
   - Resume from last successful stage (not restart everything)
   - Per-stage retry with backoff
@@ -10,16 +10,16 @@ onboard fails and retries from scratch. At 50/day scale, we need:
   - Tenant isolation (pipeline state scoped by client_id)
 
 DESIGN: Pipeline tracks stage progress in Redis. Each stage is independently
-retryable. The orchestrator is a pure function (no Celery dependency) - the
+retryable. The orchestrator is a pure function (no Celery dependency) — the
 Celery task in app/tasks/onboard_pipeline.py wraps it.
 
 Stages (execution order):
-  1. VALIDATE    - client exists, not already setup_done, tenant check
-  2. KB_SEED     - website scrape -> vector KB + knowledge graph
-  3. CONTENT_PACK - first content pack (HTML)
-  4. CONTENT_QUEUE - seed content calendar (7-day queue)
-  5. NICHE_SNAPSHOT - apply niche template
-  6. COMPLETE    - mark setup_done, delivery ledger, welcome WhatsApp
+  1. VALIDATE    — client exists, not already setup_done, tenant check
+  2. KB_SEED     — website scrape → vector KB + knowledge graph
+  3. CONTENT_PACK — first content pack (HTML)
+  4. CONTENT_QUEUE — seed content calendar (7-day queue)
+  5. NICHE_SNAPSHOT — apply niche template
+  6. COMPLETE    — mark setup_done, delivery ledger, welcome WhatsApp
 
 Feature flag: ONBOARDING_PIPELINE=0 (default OFF, opt-in)
 """
@@ -58,8 +58,8 @@ STAGE_ORDER = [s.value for s in Stage]
 REDIS_KEY_PREFIX = "onboard:pipe:"
 REDIS_METRICS_PREFIX = "onboard:metrics:"
 REDIS_BACKPRESSURE_KEY = "onboard:active_count"
-PIPELINE_TTL_S = 24 * 3600  # 24h - pipeline state expires
-METRICS_TTL_S = 7 * 24 * 3600  # 7 days - metrics retention
+PIPELINE_TTL_S = 24 * 3600  # 24h — pipeline state expires
+METRICS_TTL_S = 7 * 24 * 3600  # 7 days — metrics retention
 
 
 def _redis():
@@ -235,7 +235,7 @@ def record_stage_metrics(stage: str, duration_s: float, success: bool, r=None) -
         field = "ok" if success else "fail"
         r.hincrby(k, field, 1)
         r.hincrby(k, f"{field}_sum", int(duration_s * 1000))  # ms accumulator
-        # Track percentiles via sorted set (latency -> timestamp)
+        # Track percentiles via sorted set (latency → timestamp)
         r.zadd(f"{k}:latency", {f"{duration_s:.3f}:{time.time()}": duration_s})
         r.zremrangebyrank(f"{k}:latency", 0, -501)  # keep last 500 samples
         r.expire(k, METRICS_TTL_S)
@@ -322,7 +322,7 @@ async def stage_validate(cid: str, **kw) -> dict[str, Any]:
 
 
 async def stage_kb_seed(cid: str, **kw) -> dict[str, Any]:
-    """Scrape website -> vector KB + knowledge graph."""
+    """Scrape website → vector KB + knowledge graph."""
     from app.marketing import clients_store, onboarding
 
     client = clients_store.get_client(cid)
@@ -361,7 +361,7 @@ async def stage_content_queue(cid: str, **kw) -> dict[str, Any]:
 
 
 async def stage_niche_snapshot(cid: str, **kw) -> dict[str, Any]:
-    """Apply niche template - mini-site palette, journeys, festival schedule."""
+    """Apply niche template — mini-site palette, journeys, festival schedule."""
     from app.platform import client_snapshots
 
     result = client_snapshots.apply_niche_to_client(cid)
@@ -399,7 +399,7 @@ async def stage_complete(cid: str, **kw) -> dict[str, Any]:
     return {"ok": True, "client_id": cid}
 
 
-# Stage registry: name -> executor
+# Stage registry: name → executor
 STAGE_EXECUTORS: dict[str, Any] = {
     Stage.VALIDATE: stage_validate,
     Stage.KB_SEED: stage_kb_seed,
@@ -423,7 +423,7 @@ async def run_pipeline(
     """Run the onboarding pipeline for one client.
 
     Resumes from last completed stage. Each stage is independently timed
-    and recorded. Never raises - returns result dict.
+    and recorded. Never raises — returns result dict.
 
     Args:
         cid: client ID

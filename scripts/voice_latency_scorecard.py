@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Voice latency scorecard - turn-taking latency + TTFT, p50/p95. FREE/offline.
+"""Voice latency scorecard — turn-taking latency + TTFT, p50/p95. FREE/offline.
 
 WHY
 ---
@@ -10,7 +10,7 @@ The live-call "feel" is dominated by two numbers:
     perceptually, but tracked).
 
 TTFT = endpoint-delay (how long we wait in silence before deciding the turn
-ended - the ``TURN_SILENCE_MS`` knob this task tunes) + STT + LLM + first-
+ended — the ``TURN_SILENCE_MS`` knob this task tunes) + STT + LLM + first-
 sentence TTS. Lowering ``TURN_SILENCE_MS`` from 700 -> ~550 ms directly cuts
 TTFT by ~150 ms, but too low clips slow talkers. This scorecard lets you SEE
 the trade-off before touching a paid call.
@@ -68,7 +68,7 @@ VAD_OVERHEAD_MS = _f("SCORE_VAD_OVERHEAD_MS", 15.0)
 
 
 def _endpoint_delay_ms() -> float:
-    """The silence we wait through before declaring end-of-turn - the knob being
+    """The silence we wait through before declaring end-of-turn — the knob being
     tuned. Reads the SAME helper the live code uses so the scorecard reflects the
     real configured value (TURN_SILENCE_MS), with a safe literal fallback."""
     try:
@@ -109,7 +109,7 @@ def _pctl(values: list[float], p: float) -> float:
 
 
 # --------------------------------------------------------------------------- #
-# Mode: sim - analytic per-turn model
+# Mode: sim — analytic per-turn model
 # --------------------------------------------------------------------------- #
 def _sim_turn() -> dict[str, float]:
     """One simulated turn. Returns ttft_ms + turn_ms + the stage breakdown."""
@@ -142,17 +142,17 @@ def _sim_turn() -> dict[str, float]:
 
 
 # --------------------------------------------------------------------------- #
-# Mode: pipe - drive the real VoicePipeline (Mock providers) + simulated sleeps
+# Mode: pipe — drive the real VoicePipeline (Mock providers) + simulated sleeps
 # --------------------------------------------------------------------------- #
 async def _pipe_turns(runs: int) -> list[dict[str, float]]:
     """Use the actual VoicePipeline in text mode with Mock providers, but wrap
-    the providers so each stage sleeps a realistic amount - this measures the
+    the providers so each stage sleeps a realistic amount — this measures the
     pipeline's own orchestration overhead on top of the modelled stage costs."""
     try:
         from app.voice_agent.pipeline import VoicePipeline
         from app.voice_agent.providers import MockLLM, MockSTT, MockTTS
     except Exception as e:
-        print(f"[pipe mode unavailable: {e}] - falling back to sim mode.", file=sys.stderr)
+        print(f"[pipe mode unavailable: {e}] — falling back to sim mode.", file=sys.stderr)
         return [_sim_turn() for _ in range(runs)]
 
     class _SlowSTT(MockSTT):
@@ -234,12 +234,12 @@ def _summary(samples: list[dict[str, float]]) -> dict[str, float]:
 
 def _verdict(ttft_p95: float) -> str:
     if ttft_p95 <= 800:
-        return "EXCELLENT (<=800 ms p95 - human-feeling)"
+        return "EXCELLENT (<=800 ms p95 — human-feeling)"
     if ttft_p95 <= 1500:
-        return "GOOD (<=1.5 s p95 - acceptable)"
+        return "GOOD (<=1.5 s p95 — acceptable)"
     if ttft_p95 <= 2200:
-        return "LAGGY (>1.5 s p95 - callers notice the gap)"
-    return "POOR (>2.2 s p95 - feels broken, lower stage latencies / silence)"
+        return "LAGGY (>1.5 s p95 — callers notice the gap)"
+    return "POOR (>2.2 s p95 — feels broken, lower stage latencies / silence)"
 
 
 def main() -> int:
@@ -274,7 +274,7 @@ def main() -> int:
     print(f"   LLM          : {s['avg_llm_ms']:.0f} ms")
     print(f"   TTS (1st sent): {s['avg_tts_first_ms']:.0f} ms")
     print("-" * 60)
-    print(" TIME-TO-FIRST-AUDIO (TTFT) - the snappiness number:")
+    print(" TIME-TO-FIRST-AUDIO (TTFT) — the snappiness number:")
     print(f"   p50 : {s['ttft_p50']:.0f} ms")
     print(f"   p95 : {s['ttft_p95']:.0f} ms")
     print(f"   min/mean/max : {s['ttft_min']:.0f} / {s['ttft_mean']:.0f} / {s['ttft_max']:.0f} ms")

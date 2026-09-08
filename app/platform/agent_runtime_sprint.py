@@ -1,27 +1,25 @@
-"""Agent Runtime - GTM sprint capabilities (kavya host, 2026-07-31).
+"""Agent Runtime — GTM sprint capabilities (kavya host, 2026-07-31).
 
 ================================================================================
 
 Teeno already-deployed sprint actions (``app.agents.sprint_actions``) ko Agent
 Runtime ke under ek governed one-shot surface pe laata hai. Host = **kavya**
-(existing Wave-A GREEN L0 read-only pilot) - naya persona/agent nahi banta, isliye
+(existing Wave-A GREEN L0 read-only pilot) — naya persona/agent nahi banta, isliye
 31-agent canonical invariant intact. Runtime gate = ``OPS_HEALTH_AGENT`` (kavya ka
-``primary_flag``, already in automation-flags registry)
-scheduler ka gate alag
-(``OPS_WATCHDOG``) - ye flag sirf RUNTIME dispatch unlock karta hai, koi scheduled
+``primary_flag``, already in automation-flags registry); scheduler ka gate alag
+(``OPS_WATCHDOG``) — ye flag sirf RUNTIME dispatch unlock karta hai, koi scheduled
 work auto-start nahi hota.
 
-Risk honesty: teeno actions ``side_effect="none"`` - draft / brief / internal
+Risk honesty: teeno actions ``side_effect="none"`` — draft / brief / internal
 re-dispatch only, koi customer contact send nahi. ``WHATSAPP_AUTO_SEND``,
 ``REPLY_AUTO_SEND``, ``AUTO_EMAIL_OUTREACH``, ``PLATFORM_DIAL_DAILY`` untouched.
 
-Kavya's contract ``prohibited=("mutate_infra", "customer_contact")`` - teeno
+Kavya's contract ``prohibited=("mutate_infra", "customer_contact")`` — teeno
 actions inhe violate nahi karte (draft save / brief generate / job heartbeat
-re-dispatch = internal, bounded). ``counts_contact=False`` - koi customer touch
+re-dispatch = internal, bounded). ``counts_contact=False`` — koi customer touch
 nahi.
 
-Import-safe
-``ensure_sprint_registered()`` idempotent.
+Import-safe; ``ensure_sprint_registered()`` idempotent.
 """
 
 from __future__ import annotations
@@ -38,10 +36,10 @@ _HOST_AGENT = "kavya"
 
 
 # --------------------------------------------------------------------------- #
-# Adapters - sprint_actions functions ko AgentExecutionContext-shaped caps
+# Adapters — sprint_actions functions ko AgentExecutionContext-shaped caps
 # --------------------------------------------------------------------------- #
 async def kavya_dialer_sprint_prep(ctx: AgentExecutionContext) -> dict[str, Any]:
-    """Dialer sprint prep briefs (read-only) - untapped phones ka prep."""
+    """Dialer sprint prep briefs (read-only) — untapped phones ka prep."""
     from app.agents import sprint_actions
 
     limit = int(ctx.task.payload.get("limit") or 3)
@@ -74,7 +72,7 @@ async def kavya_job_heal_sweep(ctx: AgentExecutionContext) -> dict[str, Any]:
 # Registration (idempotent)
 # --------------------------------------------------------------------------- #
 def ensure_sprint_registered() -> None:
-    """Idempotent - register_capability is a plain keyed overwrite."""
+    """Idempotent — register_capability is a plain keyed overwrite."""
     register_capability(
         AgentCapability(
             agent_id=_HOST_AGENT,
@@ -85,7 +83,7 @@ def ensure_sprint_registered() -> None:
             requires_approval=False,
             counts_contact=False,
             description=(
-                "Dialer sprint prep briefs for untapped prospect phones - "
+                "Dialer sprint prep briefs for untapped prospect phones — "
                 "read-only, no call/message (GREEN L0)"
             ),
         )
@@ -100,7 +98,7 @@ def ensure_sprint_registered() -> None:
             requires_approval=False,
             counts_contact=False,
             description=(
-                "Hot Queue warm-lead WhatsApp reply drafts - draft-only, "
+                "Hot Queue warm-lead WhatsApp reply drafts — draft-only, "
                 "human 1-click send, no auto-send (GREEN L0)"
             ),
         )

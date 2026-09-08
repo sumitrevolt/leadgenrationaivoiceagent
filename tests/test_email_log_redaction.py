@@ -22,7 +22,7 @@ def _sender() -> module.EmailSender:
 
 @contextmanager
 def _capture(logger: logging.Logger, level: int = logging.INFO):
-    """Attach a temporary handler - setup_logger console handlers can miss caplog."""
+    """Attach a temporary handler — setup_logger console handlers can miss caplog."""
     records: list[str] = []
 
     class _H(logging.Handler):

@@ -1,4 +1,4 @@
-"""Security tests - RBAC enforcement.
+"""Security tests — RBAC enforcement.
 
 Verifies that role-based access control is enforced:
 - Admin endpoints reject customer tokens.
@@ -6,7 +6,7 @@ Verifies that role-based access control is enforced:
 - Admin endpoints accept admin tokens.
 - Missing roles default to least privilege.
 
-Playbook ref: Security Playbook - RBAC tests.
+Playbook ref: Security Playbook — RBAC tests.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ client = TestClient(app)
 # A protected endpoint must NEVER return a success (2xx) to an unauthenticated /
 # wrong-role caller. That is the real security invariant. 401/403 (gated), 404
 # (route absent), 405 (method guard), 422 (validation) and 3xx (redirect to login)
-# are ALL acceptable - only a 2xx is a genuine auth bypass. Asserting an exact code
+# are ALL acceptable — only a 2xx is a genuine auth bypass. Asserting an exact code
 # couples the test to specific route paths/methods that drift (and turns a missing
 # route into a false "failure"); asserting "not 2xx" tests the actual guarantee.
 _SUCCESS = {200, 201, 202, 203, 204, 206}
@@ -52,12 +52,12 @@ def test_admin_api_rejects_no_auth(path: str):
 
 # ---------------------------------------------------------------------------
 # Regression: app/api/platform.py tenant CRUD/billing + app/api/ml_training.py
-# were fully unauthenticated (production audit 2026-07-01, security batch 4) -
+# were fully unauthenticated (production audit 2026-07-01, security batch 4) —
 # anyone could read tenant PII, free-upgrade billing, pause/resume/DELETE any
 # tenant, and trigger prod ML training/scheduler control. Fixed by adding
 # require_admin (require_super_admin for the destructive delete). These tests
 # only run real auth enforcement here (tests/security/conftest.py strips the
-# harness's mock-admin override) - the top-level suite's mocked-open auth is
+# harness's mock-admin override) — the top-level suite's mocked-open auth is
 # exactly why this class of bug shipped undetected before.
 # ---------------------------------------------------------------------------
 def _seed_fake_tenant(monkeypatch, tenant_id: str):
@@ -147,7 +147,7 @@ PLATFORM_TENANT_POST_PATHS = [
 @pytest.mark.parametrize("path", PLATFORM_TENANT_POST_PATHS)
 def test_platform_tenant_post_rejects_no_auth(path: str):
     """These three don't gate on tenant existence (pause/resume no-op silently,
-    scrape/platform takes no id) - a nonexistent id doesn't mask an auth bypass."""
+    scrape/platform takes no id) — a nonexistent id doesn't mask an auth bypass."""
     resp = client.post(path, json={"tier": "growth"}, follow_redirects=False)
     assert resp.status_code not in _SUCCESS, (
         f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
@@ -195,7 +195,7 @@ def test_leads_stats_summary_rejects_no_auth():
 
 def test_leads_scrape_status_rejects_no_auth():
     # A nonexistent task_id would 404 regardless of auth (dependency runs first,
-    # but so would a real 401) - seed a REAL entry so an auth bypass would
+    # but so would a real 401) — seed a REAL entry so an auth bypass would
     # actually surface as a 200, not be masked by an incidental 404.
     import app.api.leads as leads_mod
 
@@ -265,12 +265,12 @@ def test_public_endpoints_remain_open(path: str):
     """Public endpoints must NOT require auth."""
     resp = client.get(path, follow_redirects=False)
     assert resp.status_code in (200, 307, 308, 404), (
-        f"Public endpoint {path} got {resp.status_code} - should be open"
+        f"Public endpoint {path} got {resp.status_code} — should be open"
     )
 
 
 def test_activation_summary_omits_named_blockers():
-    """Public /summary exposes counts + booleans ONLY - never the named
+    """Public /summary exposes counts + booleans ONLY — never the named
     blockers/warns arrays (a recon list of which controls are unarmed).
     Sec sweep 2026-07-06."""
     resp = client.get("/api/activation/summary")

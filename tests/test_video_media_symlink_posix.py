@@ -1,7 +1,6 @@
 """POSIX symlink-component proof for the media-root authority.
 
-Production runs Linux
-Windows dev boxes skip symlink creation because it needs
+Production runs Linux; Windows dev boxes skip symlink creation because it needs
 a privilege. This module imports ONLY `video_media_paths` (no FastAPI, no app
 bootstrap) so it can run in a minimal, network-disabled Linux container:
 
@@ -28,7 +27,7 @@ def root(tmp_path, monkeypatch):
     r = tmp_path / "reels"
     r.mkdir()
     # Patch the authority's own root accessors so this module never imports the
-    # renderer (PIL / edge-tts) - keeps the Linux container minimal and offline.
+    # renderer (PIL / edge-tts) — keeps the Linux container minimal and offline.
     monkeypatch.setattr(vmp, "reels_dir", lambda: r)
     monkeypatch.setattr(vmp, "video_ads_dir", lambda: r)
     return r

@@ -1,7 +1,7 @@
-"""E2E tests - Playbook mandatory scenarios (batch 2, REAL paths).
+"""E2E tests — Playbook mandatory scenarios (batch 2, REAL paths).
 
 These scenarios were flagged as gaps in the 2026-06-25 playbook audit
-(docs/PLAYBOOK_AUDIT_2026_06_25.md, section 9 - 18 mandatory E2E scenarios):
+(docs/PLAYBOOK_AUDIT_2026_06_25.md, section 9 — 18 mandatory E2E scenarios):
 
     3. Content approval     8. CRM update          9. WhatsApp follow-up
    12. Failed payment recov 13. Admin retry        14. Scheduler missed-run
@@ -9,9 +9,8 @@ These scenarios were flagged as gaps in the 2026-06-25 playbook audit
 
 UNLIKE the first draft of this file, every test here DRIVES REAL PRODUCTION
 CODE (not a tautology that sets a value then asserts it). Each test is:
-  - hermetic  - module store paths redirected to tmp_path
-  no network/DB/Redis,
-  - real      - calls the actual prod function (content_approval.approve,
+  - hermetic  — module store paths redirected to tmp_path; no network/DB/Redis,
+  - real      — calls the actual prod function (content_approval.approve,
                 sales_pipeline.set_stage, dunning.on_payment_failed,
                 dlq_retry.run_sweep, idempotency.seen_before, ...),
   - never-raise asserting the prod contract (prod code is never-raise by design).
@@ -29,10 +28,10 @@ from app.platform.dlq_retry import DLQ_KEY as _DLQ_KEY
 
 
 # ---------------------------------------------------------------------------
-# 3. Content approval workflow  ->  app/marketing/content_approval.py
+# 3. Content approval workflow  →  app/marketing/content_approval.py
 # ---------------------------------------------------------------------------
 def test_e2e_content_approval_workflow(monkeypatch, tmp_path):
-    """submit() -> pending -> approve(token) -> approved, idempotent on re-approve."""
+    """submit() → pending → approve(token) → approved, idempotent on re-approve."""
     from app.marketing import content_approval as ca
 
     monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "content_approvals.jsonl"))
@@ -58,10 +57,10 @@ def test_e2e_content_approval_workflow(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 8. CRM update workflow  ->  app/marketing/sales_pipeline.py (native CRM)
+# 8. CRM update workflow  →  app/marketing/sales_pipeline.py (native CRM)
 # ---------------------------------------------------------------------------
 def test_e2e_crm_update_lead_stage(monkeypatch, tmp_path):
-    """Lead -> upsert_deal -> set_stage transition persists; re-upsert dedupes."""
+    """Lead → upsert_deal → set_stage transition persists; re-upsert dedupes."""
     from app.marketing import sales_pipeline as sp
 
     monkeypatch.setattr(sp, "_DEALS", str(tmp_path / "deals.jsonl"))
@@ -86,7 +85,7 @@ def test_e2e_crm_update_lead_stage(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 9. WhatsApp follow-up  ->  app/marketing/cadence.py (draft-only = ban-safe)
+# 9. WhatsApp follow-up  →  app/marketing/cadence.py (draft-only = ban-safe)
 # ---------------------------------------------------------------------------
 def test_e2e_whatsapp_followup_is_draft_only(monkeypatch, tmp_path):
     """Cadence enroll works; WhatsApp step stays a DRAFT (no auto-send = ban-safe)."""
@@ -112,7 +111,7 @@ def test_e2e_whatsapp_followup_is_draft_only(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 12. Failed payment recovery (dunning)  ->  app/billing/dunning.py
+# 12. Failed payment recovery (dunning)  →  app/billing/dunning.py
 # ---------------------------------------------------------------------------
 def test_e2e_failed_payment_recovery_dunning(monkeypatch, tmp_path):
     """on_payment_failed opens ONE case (dedupe); mark_recovered closes it."""
@@ -137,7 +136,7 @@ def test_e2e_failed_payment_recovery_dunning(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 13. Admin retry of a failed/replayed workflow run  ->  process_engine.py
+# 13. Admin retry of a failed/replayed workflow run  →  process_engine.py
 # ---------------------------------------------------------------------------
 def test_e2e_workflow_run_replay_roundtrip(monkeypatch, tmp_path):
     """A run is journalled and its state re-derives from the journal (crash-safe
@@ -149,7 +148,7 @@ def test_e2e_workflow_run_replay_roundtrip(monkeypatch, tmp_path):
     monkeypatch.setattr(pe, "_INDEX", str(tmp_path / "process_runs" / "index.jsonl"))
 
     keys = process_library.list_keys()
-    if not keys:  # no registered process in this build -> assert graceful handling
+    if not keys:  # no registered process in this build → assert graceful handling
         assert pe.start_run("nope")["ok"] is False
         return
 
@@ -164,7 +163,7 @@ def test_e2e_workflow_run_replay_roundtrip(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 14. Scheduler missed-run / future-window handling  ->  automation_health.py
+# 14. Scheduler missed-run / future-window handling  →  automation_health.py
 # ---------------------------------------------------------------------------
 def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
     """health() never raises, returns the expected shape, and a job whose IST
@@ -176,7 +175,7 @@ def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
 
     # Force one job's window to be "not due yet" and confirm it is suppressed.
     future = {"obsidian_push"}
-    # `**_kw` absorbs the injected `now=` - health() now threads one captured
+    # `**_kw` absorbs the injected `now=` — health() now threads one captured
     # timestamp into every scheduling helper so a single classification cannot
     # combine two different instants.
     monkeypatch.setattr(ah, "_job_due_yet", lambda job, **_kw: job not in future)
@@ -189,7 +188,7 @@ def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 15. Queue DLQ replay  ->  app/platform/dlq_retry.py (REAL sweep logic)
+# 15. Queue DLQ replay  →  app/platform/dlq_retry.py (REAL sweep logic)
 # ---------------------------------------------------------------------------
 class _FakeRedis:
     """Minimal Redis stand-in for the dlq_retry sweep (list + per-job incr)."""
@@ -249,11 +248,11 @@ def test_e2e_queue_dlq_replay(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 17. Duplicate prevention / idempotency  ->  app/billing/idempotency.py
+# 17. Duplicate prevention / idempotency  →  app/billing/idempotency.py
 # ---------------------------------------------------------------------------
 def test_e2e_idempotency_dedupes_retry():
     """seen_before(key): first call False (process), second True (skip duplicate).
-    Redis is down in the test env -> exercises the fail-open memory path."""
+    Redis is down in the test env → exercises the fail-open memory path."""
     from app.billing import idempotency
 
     key = "test:inv-2026-06-25-001"
@@ -274,5 +273,5 @@ def test_e2e_idempotency_sync_for_celery_tasks():
     assert idempotency.seen_before_sync(key) is True
     idempotency.forget_sync(key)
     assert idempotency.seen_before_sync(key) is False
-    # Empty key = cannot dedupe -> fail-open (process), never claims
+    # Empty key = cannot dedupe → fail-open (process), never claims
     assert idempotency.seen_before_sync("") is False

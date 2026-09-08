@@ -1,25 +1,23 @@
 """
-lead_magnet.py - niche guide generator (Beacon.by-style branded lead magnet).
+lead_magnet.py — niche guide generator (Beacon.by-style branded lead magnet).
 ==============================================================================
 
 Client ke liye ek branded HTML guide ("<Niche> business <City> me grow karne
-ki 10-point checklist") - free_ai se 8-10 points (static NICHES content_focus
+ki 10-point checklist") — free_ai se 8-10 points (static NICHES content_focus
 fallback hamesha) + brand-color cover + CTA (mini-site /b/{slug} + WhatsApp +
 free audit). File: data/lead_magnets/<slug>-<niche>.html (regex-safe name,
 public serve route ke liye).
 
-Capture/gating: NAYA form NAHI banaya - EXISTING embed widget
-(`/b/{slug}/widget.js`) hi capture form hai
-guide me uska note + link daala
+Capture/gating: NAYA form NAHI banaya — EXISTING embed widget
+(`/b/{slug}/widget.js`) hi capture form hai; guide me uska note + link daala
 jata hai (reuse, rebuild nahi).
 
 PDF: agar `weasyprint` ya `pdfkit` installed ho to PDF bhi banti hai
-(`available()` pattern) - warna HTML-only, koi nayi dependency NAHI.
+(`available()` pattern) — warna HTML-only, koi nayi dependency NAHI.
 
 Public API (never-raise):
   - available()                                    -> {"weasyprint": bool, "pdfkit": bool}
-  - generate(niche, city, business_name, slug="")  -> async
-  {ok, name, file, url, pdf, points}
+  - generate(niche, city, business_name, slug="")  -> async; {ok, name, file, url, pdf, points}
   - safe_file_path(name)                           -> serve helper (regex-locked, traversal-proof)
 """
 
@@ -43,13 +41,13 @@ _DEFAULT_PRIMARY = "#4f46e5"
 
 # Generic local-marketing checklist (universal fallback tail)
 _GENERIC_POINTS = [
-    "Google Business Profile 100% complete karo - photos, timing, services, sab.",
+    "Google Business Profile 100% complete karo — photos, timing, services, sab.",
     "Har khush customer se Google review maango (QR code counter pe rakho).",
-    "Hafte me kam se kam 3 social media posts - festival, offer, behind-the-scenes.",
-    "Har inquiry ka jawab 5 minute ke andar do - late reply = gaya customer.",
-    "WhatsApp Business use karo - catalog, auto-greeting, quick replies set karo.",
-    "Apne top 3 competitors ke reviews padho - jo unke customers complain karte hain, wahi aap better karo.",
-    "Purane customers ko mahine me ek baar yaad karo - repeat business sabse sasta business hai.",
+    "Hafte me kam se kam 3 social media posts — festival, offer, behind-the-scenes.",
+    "Har inquiry ka jawab 5 minute ke andar do — late reply = gaya customer.",
+    "WhatsApp Business use karo — catalog, auto-greeting, quick replies set karo.",
+    "Apne top 3 competitors ke reviews padho — jo unke customers complain karte hain, wahi aap better karo.",
+    "Purane customers ko mahine me ek baar yaad karo — repeat business sabse sasta business hai.",
     "Apni website/mini-site pe clear phone number + booking button rakho.",
 ]
 
@@ -60,7 +58,7 @@ def _safe_part(s: str) -> str:
 
 
 def available() -> dict[str, bool]:
-    """Optional PDF deps check (no new dep - jo installed ho wahi use)."""
+    """Optional PDF deps check (no new dep — jo installed ho wahi use)."""
     out = {"weasyprint": False, "pdfkit": False}
     try:
         import weasyprint  # noqa: F401
@@ -103,7 +101,7 @@ def _static_points(niche: str, city: str) -> list[str]:
         cfg = NICHES.get(str(niche or "").strip().lower()) or {}
         for focus in cfg.get("content_focus") or []:
             points.append(
-                f"{str(focus).strip().capitalize()} pe regular kaam karo - "
+                f"{str(focus).strip().capitalize()} pe regular kaam karo — "
                 f"{city or 'aapke area'} ke customers yahi dekh ke decide karte hain."
             )
         hook = str(cfg.get("pitch_hook") or "").strip()
@@ -119,13 +117,13 @@ def _static_points(niche: str, city: str) -> list[str]:
 
 
 async def _llm_points(niche: str, city: str, business_name: str) -> list[str]:
-    """Free-LLM 8-10 checklist points - fail par [] (caller static use kare)."""
+    """Free-LLM 8-10 checklist points — fail par [] (caller static use kare)."""
     try:
         from app.voice_agent import free_ai
 
         system = (
             "Tu ek Indian local-business marketing expert hai. Hinglish (Roman "
-            "script) me EK numbered checklist de - 8 se 10 practical, specific "
+            "script) me EK numbered checklist de — 8 se 10 practical, specific "
             "points. Har point ek line (max 25 shabd). Sirf points, koi intro/"
             "outro/heading nahi. Format: har line '1. ...' jaisi."
         )
@@ -182,32 +180,22 @@ def _render_html(
     if len(wa_digits) == 10:
         wa_digits = "91" + wa_digits
     wa_url = f"https://wa.me/{wa_digits}" if wa_digits else ""
-    items = "".join(f"<li style='margin:0 0 14px
-    padding-left:6px
-    '>{e(p)}</li>" for p in points)
+    items = "".join(f"<li style='margin:0 0 14px;padding-left:6px;'>{e(p)}</li>" for p in points)
     ctas = []
     if minisite:
         ctas.append(
-            f"<a href='{e(minisite)}' style='background:{e(primary)}
-            color:#fff
-            padding:12px 22px
-            "
+            f"<a href='{e(minisite)}' style='background:{e(primary)};color:#fff;padding:12px 22px;"
             "border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
             "🌐 Book / Visit karein</a>"
         )
     if wa_url:
         ctas.append(
-            f"<a href='{e(wa_url)}' style='background:#25D366
-            color:#fff
-            padding:12px 22px
-            "
+            f"<a href='{e(wa_url)}' style='background:#25D366;color:#fff;padding:12px 22px;"
             "border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
             "💬 WhatsApp karein</a>"
         )
     ctas.append(
-        f"<a href='{e(_SITE_URL)}/audit?utm_source=lead_magnet' style='background:#222
-        color:#fff
-        "
+        f"<a href='{e(_SITE_URL)}/audit?utm_source=lead_magnet' style='background:#222;color:#fff;"
         "padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
         "🔍 Free Google Audit</a>"
     )
@@ -217,43 +205,21 @@ def _render_html(
         f"<title>{e(title)}</title></head>"
         "<body style='font-family:Arial,Helvetica,sans-serif;margin:0;background:#f7f7fb;color:#222;'>"
         # cover
-        f"<div style='background:{e(primary)}
-        color:#fff
-        padding:56px 24px
-        text-align:center
-        '>"
-        f"<div style='font-size:13px
-        letter-spacing:2px
-        opacity:.85
-        '>FREE GUIDE</div>"
-        f"<h1 style='margin:10px 0 6px
-        font-size:28px
-        line-height:1.25
-        '>{e(title)}</h1>"
-        f"<div style='font-size:15px
-        opacity:.9
-        '>by {e(business_name)}"
+        f"<div style='background:{e(primary)};color:#fff;padding:56px 24px;text-align:center;'>"
+        f"<div style='font-size:13px;letter-spacing:2px;opacity:.85;'>FREE GUIDE</div>"
+        f"<h1 style='margin:10px 0 6px;font-size:28px;line-height:1.25;'>{e(title)}</h1>"
+        f"<div style='font-size:15px;opacity:.9;'>by {e(business_name)}"
         f"{(' · ' + e(city)) if city else ''}</div></div>"
         # checklist
         "<div style='max-width:640px;margin:0 auto;padding:30px 22px;'>"
         "<div style='background:#fff;border-radius:12px;padding:26px 28px;"
         "box-shadow:0 2px 10px rgba(0,0,0,.05);'>"
-        f"<ol style='margin:0
-        padding-left:22px
-        font-size:15px
-        line-height:1.55
-        '>{items}</ol>"
+        f"<ol style='margin:0;padding-left:22px;font-size:15px;line-height:1.55;'>{items}</ol>"
         "</div>"
         # CTA
-        f"<div style='text-align:center
-        margin:26px 0
-        '>{''.join(ctas)}</div>"
-        f"<p style='text-align:center
-        color:#888
-        font-size:12px
-        '>Guide by {e(business_name)} "
-        f"· Powered by <a href='{e(_SITE_URL)}' style='color:#888
-        '>LeadGen AI</a></p>"
+        f"<div style='text-align:center;margin:26px 0;'>{''.join(ctas)}</div>"
+        f"<p style='text-align:center;color:#888;font-size:12px;'>Guide by {e(business_name)} "
+        f"· Powered by <a href='{e(_SITE_URL)}' style='color:#888;'>LeadGen AI</a></p>"
         "</div></body></html>"
     )
 
@@ -288,7 +254,7 @@ async def generate(niche: str, city: str, business_name: str, slug: str = "") ->
         slug = str(slug or "").strip().lower()
 
         niche_label = (niche or "local business").replace("_", " ").title()
-        title = f"{niche_label} {('in ' + city) if city else ''} - naye customers laane ki checklist".strip()
+        title = f"{niche_label} {('in ' + city) if city else ''} — naye customers laane ki checklist".strip()
 
         points = await _llm_points(niche, city, business_name)
         source = "llm"
@@ -320,9 +286,9 @@ async def generate(niche: str, city: str, business_name: str, slug: str = "") ->
         pdf_path = _try_pdf(path, html_content)
 
         capture_note = (
-            "Capture/gating ke liye NAYA form nahi chahiye - apni website pe EXISTING "
+            "Capture/gating ke liye NAYA form nahi chahiye — apni website pe EXISTING "
             f"embed widget lagao (script: {_SITE_URL}/b/{slug or '<slug>'}/widget.js) "
-            "aur 'Free guide chahiye? Enquiry karo' CTA me yeh guide link do - "
+            "aur 'Free guide chahiye? Enquiry karo' CTA me yeh guide link do — "
             "lead aate hi dashboard me dikhegi."
         )
         return {

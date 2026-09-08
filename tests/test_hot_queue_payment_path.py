@@ -1,7 +1,7 @@
 """BLK-01 (2026-08-22): calling_flagged Hot Queue cards me payment path.
 
 Regression cover: high-intent cards pehle sirf free-audit pitch (precomputed
-``wa_followup_link``) ya generic "reply karein" fallback bhejte the - warm lead
+``wa_followup_link``) ya generic "reply karein" fallback bhejte the — warm lead
 ke haath me UPI link nahi aata tha (BLK-01 root cause). Ab card builder
 ``_interested_offer_block`` ka offer+UPI footer embed karta hai:
 
@@ -9,7 +9,7 @@ ke haath me UPI link nahi aata tha (BLK-01 root cause). Ab card builder
 - unarmed    -> link BILKUL pehle jaisa (zero behaviour change)
 - no followup link -> fallback message + footer
 
-Pure python - upi_config store tmp_path pe, candidates monkeypatched.
+Pure python — upi_config store tmp_path pe, candidates monkeypatched.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import pytest
 
 @pytest.fixture
 def cfg(tmp_path, monkeypatch):
-    """upi_config resolver chain neutralised (env + settings + store -> tmp)."""
+    """upi_config resolver chain neutralised (env + settings + store → tmp)."""
     from app.config import settings
     from app.platform import upi_config as mod
 
@@ -59,7 +59,7 @@ def flagged_candidate() -> dict:
         "status": "ready",
         "lead_score": 80,
         "reason": "calling_flagged",
-        # Pre-computed audit pitch (asli prod shape - NO payment path).
+        # Pre-computed audit pitch (asli prod shape — NO payment path).
         "wa_followup_link": (
             "https://wa.me/919876543210"
             "?text=Namaste+AFM+Solar+ji+%E2%80%94+free+Google+audit"

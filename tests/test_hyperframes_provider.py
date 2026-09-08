@@ -237,7 +237,7 @@ def test_manifest_binds_verified_brand_facts():
 
 
 def test_manifest_never_invents_social_proof():
-    """A testimonial/rating must stay empty unless verified - never generated."""
+    """A testimonial/rating must stay empty unless verified — never generated."""
     m = hp.build_manifest(_make_spec(), brand=_BRAND)
     assert m["variables"]["proof_line"] == ""
 
@@ -251,8 +251,7 @@ def test_manifest_needs_customer_input_when_brand_facts_missing():
 
 def test_manifest_rejects_non_hex_color_injection():
     """Colors land in CSS custom properties, so only hex literals may pass."""
-    hostile = dict(_BRAND, primary_color="red
-    } body { display:none } :root{--x:")
+    hostile = dict(_BRAND, primary_color="red; } body { display:none } :root{--x:")
     with pytest.raises(hp.RenderError) as e:
         hp.build_manifest(_make_spec(), brand=hostile)
     assert e.value.code == "needs_customer_input"
@@ -346,7 +345,7 @@ def test_disallowed_mime_is_refused(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlink creation")
 def test_symlinked_asset_is_refused_real_symlink(tmp_path, monkeypatch):
-    """Real-symlink version - only runs where symlinks can be created."""
+    """Real-symlink version — only runs where symlinks can be created."""
     monkeypatch.setenv("CREATIVE_ASSET_ROOT", str(tmp_path / "assets"))
     real = tmp_path / "real.jpg"
     real.write_bytes(b"\xff\xd8\xff" + b"0" * 4096)
@@ -407,7 +406,7 @@ def stub_renderer(tmp_path, monkeypatch):
 
     These tests exercise HOW the child is invoked, not whether npm has run. CI
     checks out the repo without `node_modules`, so pointing at the real root made
-    every one of them fail with `renderer_not_installed` - masking the argv,
+    every one of them fail with `renderer_not_installed` — masking the argv,
     exit-code and timeout contracts they exist to protect.
     """
     root = tmp_path / "renderer"
@@ -602,7 +601,7 @@ def test_low_substance_render_is_not_customer_approvable(tmp_path):
 
 @needs_ffmpeg
 def test_enterprise_gate_quarantines_internal_identifiers(tmp_path):
-    """`beauty_makeover` is a real internal field key - never customer-facing."""
+    """`beauty_makeover` is a real internal field key — never customer-facing."""
     mp4 = _encode(tmp_path / "leak.mp4", w=1080, h=1920)
     spec = _make_spec(goal="beauty_makeover", script="beauty_makeover special")
     got = enterprise_qa.evaluate(
@@ -681,7 +680,7 @@ ALL_TEMPLATES = ("beauty_luxury_offer_v1", "local_service_promo_v1", "agency_pro
 
 @pytest.mark.parametrize("tid", ALL_TEMPLATES)
 def test_every_registered_template_is_self_contained(tid):
-    """No `../` escapes and fonts bundled per template - a shared parent dir
+    """No `../` escapes and fonts bundled per template — a shared parent dir
     404s in HyperFrames and silently drops the stylesheet."""
     d = ht.template_dir(tid)
     assert d is not None, tid
@@ -723,7 +722,7 @@ def test_templates_use_only_finite_animation(tid):
 
 @pytest.mark.parametrize("tid", ALL_TEMPLATES)
 def test_every_template_has_a_binder_producing_declared_variables(tid):
-    """Binder output must match the registry EXACTLY - an extra key raises and a
+    """Binder output must match the registry EXACTLY — an extra key raises and a
     missing required key is NEEDS_CUSTOMER_INPUT, so a template/binder drift can
     never render as silently blank slots."""
     tpl = ht.get_template(tid)

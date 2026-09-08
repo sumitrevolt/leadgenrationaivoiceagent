@@ -1,10 +1,9 @@
-"""System Health Monitor - per-process RAM/CPU, disk, and port monitoring.
+"""System Health Monitor — per-process RAM/CPU, disk, and port monitoring.
 
 Provides CPU%, RAM usage, per-process breakdown, disk C: usage, and
 port availability for the admin system health panel. Uses psutil when
-installed
-on Windows without psutil it falls back to PowerShell WMI
-and netstat commands. Never raises - degrades to -1/"unknown" on failure.
+installed; on Windows without psutil it falls back to PowerShell WMI
+and netstat commands. Never raises — degrades to -1/"unknown" on failure.
 """
 
 from __future__ import annotations
@@ -199,11 +198,7 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "powershell",
             "-NoProfile",
             "-Command",
-            r"""$os = Get-CimInstance Win32_OperatingSystem
-            $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-            @{cpu_pct=[math]::Round($cpu,1)
-            ram_total=[math]::Round($os.TotalVisibleMemorySize/1MB,2)
-            ram_free=[math]::Round($os.FreePhysicalMemory/1MB,2)} | ConvertTo-Json""",
+            r"$os = Get-CimInstance Win32_OperatingSystem; $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; @{cpu_pct=[math]::Round($cpu,1); ram_total=[math]::Round($os.TotalVisibleMemorySize/1MB,2); ram_free=[math]::Round($os.FreePhysicalMemory/1MB,2)} | ConvertTo-Json",
         ]
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=15, check=False
@@ -225,9 +220,7 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "powershell",
             "-NoProfile",
             "-Command",
-            r"""$d = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3 and DeviceID=\"C:\"'
-            @{total=[math]::Round($d.Size/1GB,2)
-            free=[math]::Round($d.FreeSpace/1GB,2)} | ConvertTo-Json""",
+            r"$d = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3 and DeviceID=\"C:\"'; @{total=[math]::Round($d.Size/1GB,2); free=[math]::Round($d.FreeSpace/1GB,2)} | ConvertTo-Json",
         ]
         proc2 = subprocess.run(
             cmd2, capture_output=True, text=True, timeout=15, check=False
@@ -344,7 +337,7 @@ def get_health() -> dict[str, Any]:
     """Aggregate system health payload for the admin API.
 
     Returns a dict with cpu/ram/disk aggregates, top processes, and
-    port status. Never raises - partial data on failure.
+    port status. Never raises — partial data on failure.
     """
     out: dict[str, Any] = {
         "cpu_percent": -1.0,

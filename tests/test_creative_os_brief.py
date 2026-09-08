@@ -1,4 +1,4 @@
-"""Creative OS Customer Video Brief - entitlement, brand provenance, anti-fabrication.
+"""Creative OS Customer Video Brief — entitlement, brand provenance, anti-fabrication.
 
 Pure unit tests: stores are monkeypatched, no FFmpeg, no queue, no network.
 """
@@ -153,7 +153,7 @@ def test_unverified_price_in_business_name_is_refused(store):
     out = B.resolve_brief(
         tenant_id="acme01",
         objective="general",
-        business_name="Acme - sirf ₹1,299",
+        business_name="Acme — sirf ₹1,299",
         niche="general",
     )
     assert out["outcome"] == B.OUTCOME_NEEDS_INPUT
@@ -171,7 +171,7 @@ def test_unverified_price_in_niche_is_refused(store):
 
 
 def test_unverified_price_in_store_business_name_is_refused(store):
-    store["rec"] = _client(business_name="Jiya Makeover - only ₹1,299")
+    store["rec"] = _client(business_name="Jiya Makeover — only ₹1,299")
     out = B.resolve_brief(
         tenant_id="acme01",
         objective="general",

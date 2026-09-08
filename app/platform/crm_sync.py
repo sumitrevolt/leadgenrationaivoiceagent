@@ -1,16 +1,15 @@
-"""CRM sync - qualified leads ko client ke Zoho/HubSpot me native push.
+"""CRM sync — qualified leads ko client ke Zoho/HubSpot me native push.
 
 Indian SMB CRM integration (feature-gap report ka last real gap): voice agent /
-funnel se aaya QUALIFIED lead client ke apne CRM me auto dikhe - "apna CRM
+funnel se aaya QUALIFIED lead client ke apne CRM me auto dikhe — "apna CRM
 chhodna nahi padega" = enterprise-feel selling point.
 
 Design (project pattern: gated / inert-without-creds / never-raise):
-  - Per-client config: client record (clients_store) me `crm` dict -
+  - Per-client config: client record (clients_store) me `crm` dict —
     {"provider": "zoho"|"hubspot", "zoho_client_id":..., "zoho_client_secret":...,
      "zoho_refresh_token":..., "zoho_dc": "in", "hubspot_token":..., "create_deal": false}
-  - Global fallback: settings/env (ZOHO_* / HUBSPOT_API_KEY) - apne khud ke CRM ke liye.
-  - AUTO hook (call_qualifier qualified=true) GATED `CRM_SYNC=1`
-  manual API
+  - Global fallback: settings/env (ZOHO_* / HUBSPOT_API_KEY) — apne khud ke CRM ke liye.
+  - AUTO hook (call_qualifier qualified=true) GATED `CRM_SYNC=1`; manual API
     endpoints flag-independent (project convention).
   - Har push `data/crm_sync.jsonl` me logged (ops visibility + dedupe).
 
@@ -56,7 +55,7 @@ def _client_crm(client_id: str) -> dict[str, Any]:
 
 
 def _resolve(client_id: str = "") -> tuple[str, dict[str, Any]]:
-    """(provider, creds) - pehle client config, warna global env. ('' = none)."""
+    """(provider, creds) — pehle client config, warna global env. ('' = none)."""
     crm = _client_crm(client_id)
     provider = str(crm.get("provider") or "").strip().lower()
     if provider in ("zoho", "hubspot"):
@@ -82,7 +81,7 @@ def _log(rec: dict[str, Any]) -> None:
     except Exception:
         pass
     # Staff-visibility (2026-07-01): CRM push runs completely invisibly on /app/team
-    # today - no STAFF member ever logs it. Attribute to "priya" (CRM Sync Specialist).
+    # today — no STAFF member ever logs it. Attribute to "priya" (CRM Sync Specialist).
     try:
         from app.platform import team
 
@@ -90,7 +89,7 @@ def _log(rec: dict[str, Any]) -> None:
         provider = rec.get("provider") or "?"
         ref = rec.get("lead_ref") or ""
         detail = f"{provider}: {ref}" + (
-            "" if ok else f" - {rec.get('skipped') or rec.get('error') or 'failed'}"
+            "" if ok else f" — {rec.get('skipped') or rec.get('error') or 'failed'}"
         )
         team.log_event(
             "priya",
@@ -157,7 +156,7 @@ async def push_lead(
                 return {"ok": False, "provider": provider, "skipped": "zoho creds incomplete"}
             rid = await z.upsert_lead(lead, note=note)
             if rid and note:
-                await z.add_note(rid, "LeadGen AI - qualification", note)
+                await z.add_note(rid, "LeadGen AI — qualification", note)
             out = {"ok": bool(rid), "provider": provider, "record_id": rid or ""}
             _log({**base, **out})
             return out
@@ -202,7 +201,7 @@ async def push_lead(
 
 
 async def test_connection(client_id: str = "") -> dict[str, Any]:
-    """Configured CRM ke creds verify (kuch create nahi karta - Zoho token / HubSpot search)."""
+    """Configured CRM ke creds verify (kuch create nahi karta — Zoho token / HubSpot search)."""
     provider, creds = _resolve(client_id)
     if not provider:
         return {"ok": False, "provider": "", "error": "no CRM configured"}
@@ -234,7 +233,7 @@ async def test_connection(client_id: str = "") -> dict[str, Any]:
 
 
 def status(client_id: str = "") -> dict[str, Any]:
-    """Armed status - kya configure hai (creds expose NAHI hote)."""
+    """Armed status — kya configure hai (creds expose NAHI hote)."""
     provider, creds = _resolve(client_id)
     return {
         "auto_sync": auto_enabled(),
@@ -307,7 +306,7 @@ async def pull_lead_status(
             }
             _log({"ts": _now(), "direction": "pull", "client_id": client_id, **out})
             return out
-        # Zoho pull - search by phone (best-effort stub until full Zoho search wired)
+        # Zoho pull — search by phone (best-effort stub until full Zoho search wired)
         return {"ok": False, "provider": provider, "skipped": "zoho pull search not configured"}
     except Exception as exc:
         return {"ok": False, "provider": provider, "error": str(exc)[:150]}

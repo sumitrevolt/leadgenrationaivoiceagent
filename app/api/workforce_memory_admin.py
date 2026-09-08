@@ -1,4 +1,4 @@
-"""Workforce Memory Hub admin API - inspect / recall / remember / purge / stats.
+"""Workforce Memory Hub admin API — inspect / recall / remember / purge / stats.
 
 Layered per-STAFF-agent memory (TencentDB-inspired patterns, native JSONL+refs).
 All admin-only. INERT when WORKFORCE_MEMORY unset.

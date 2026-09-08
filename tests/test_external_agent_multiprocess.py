@@ -2,8 +2,7 @@
 
 These launch real child Python processes against a shared EXTERNAL_MISSION_DIR
 using the filelock CAS backend (portalocker). Redis is preferred in production
-when reachable
-this suite proves the shared-volume path that VPS containers
+when reachable; this suite proves the shared-volume path that VPS containers
 already have via ``./data:/app/data``.
 """
 
@@ -90,10 +89,7 @@ def test_concurrent_claim_exactly_one_winner(shared_env):
     mid = _seed_mission(shared_env["root"])
     script = textwrap.dedent(
         f"""
-        import json
-        import os
-        import time
-        import random
+        import json, os, time, random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -125,10 +121,7 @@ def test_concurrent_claim_exactly_one_winner(shared_env):
 def test_concurrent_idempotent_create_same_mission_id(shared_env):
     script = textwrap.dedent(
         f"""
-        import json
-        import os
-        import time
-        import random
+        import json, os, time, random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -163,8 +156,7 @@ def test_concurrent_heartbeat_owner_only(shared_env):
     assert store.claim(mid, "owner-a", ttl_s=120)["claimed"]
     script = textwrap.dedent(
         f"""
-        import json
-        import os
+        import json, os
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -204,7 +196,7 @@ def test_stale_recovery_and_old_owner_blocked(shared_env):
     # Old owner must not be able to submit a result after ownership changed.
     from app.dev_control.external_agents import orchestrator
 
-    orchestrator.preflight(mid)  # may fail if not PREFLIGHT - retry path
+    orchestrator.preflight(mid)  # may fail if not PREFLIGHT — retry path
     # Re-seed to PREFLIGHT via transition for the submit attempt.
     mission = store.get(mid)
     assert mission is not None
@@ -229,10 +221,7 @@ def test_concurrent_transition_one_commits(shared_env):
     mid = _seed_mission(shared_env["root"], status="PREFLIGHT")
     script = textwrap.dedent(
         f"""
-        import json
-        import os
-        import time
-        import random
+        import json, os, time, random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -290,16 +279,13 @@ def test_concurrent_transition_one_commits(shared_env):
 
 
 def test_orchestrator_cancel_vs_advance_cas(shared_env):
-    """Production path: race two orchestrator.cancel calls - exactly one commits."""
+    """Production path: race two orchestrator.cancel calls — exactly one commits."""
     mid = _seed_mission(shared_env["root"], status="REVIEW_PASSED")
     from app.dev_control.external_agents import cas, store
 
     script = textwrap.dedent(
         f"""
-        import json
-        import os
-        import time
-        import random
+        import json, os, time, random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
