@@ -290,6 +290,9 @@ class SmartfloStreamSession:
         # Playback state
         self._speaking = False
         self._barge_frames = 0
+        # Monotonic token prevents a cancelled playback task from re-asserting
+        # _speaking=True after a newer barge-in has already stopped it.
+        self._playback_generation = 0
         # Background TTS+playback task (2026-09-07): playback used to run
         # inline in the receive loop, so inbound media was not read while the
         # bot spoke → barge-in could never fire. Now _say() schedules a task
@@ -363,22 +366,10 @@ class SmartfloStreamSession:
                 or data.get("stream_sid")
                 or start.get("streamSid")
                 or start.get("stream_sid")
-                or self.stream_sid
             )
-            # 2026-09-08 revenue-leak guard: the /stream route already seeded
-            # these from the query params (call_id / from / to). A start payload
-            # that omits them (or spells them differently) must NOT overwrite
-            # them with None -- _cleanup() meters with call_id, so a null
-            # call_id silently loses the billing record.
-            self.call_sid = (
-                start.get("callSid") or start.get("call_sid") or self.call_sid
-            )
-            self.from_number = (
-                start.get("from") or start.get("fromNumber") or self.from_number
-            )
-            self.to_number = (
-                start.get("to") or start.get("toNumber") or self.to_number
-            )
+            self.call_sid = start.get("callSid") or start.get("call_sid")
+            self.from_number = start.get("from")
+            self.to_number = start.get("to")
             # Pull niche/client from customParameters (if set in Smartflo portal)
             params = start.get("customParameters") or start.get("custom_parameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
@@ -481,7 +472,10 @@ class SmartfloStreamSession:
             self._silence_ms = 0.0
 
             # Barge-in detection
-            if self._speaking:
+            playback_active = self._speaking or (
+                self._play_task is not None and not self._play_task.done()
+            )
+            if playback_active:
                 self._barge_frames += 1
                 if self._barge_frames >= 3:  # ~60ms of speech = barge-in
                     await self._barge_in()
@@ -613,6 +607,7 @@ class SmartfloStreamSession:
             if self._telecaller is None and not getattr(self, "_telecaller_tried", False):
                 self._telecaller_tried = True
                 from app.voice_agent.telecaller_brain import TelecallerBrain
+
                 self._telecaller = TelecallerBrain(
                     niche=self.niche,
                     client_id=self.client_id,
@@ -702,18 +697,19 @@ class SmartfloStreamSession:
         if self._closed:
             return
         self._cancel_playback()
-        self._play_task = asyncio.create_task(self._speak_task(text))
+        generation = self._playback_generation
+        self._play_task = asyncio.create_task(self._speak_task(text, generation))
 
-    async def _speak_task(self, text: str) -> None:
+    async def _speak_task(self, text: str, generation: int) -> None:
         try:
             pcm_16k = await self._tts(text)
-            if not pcm_16k or self._closed:
+            if not pcm_16k or self._closed or generation != self._playback_generation:
                 return
             # Downsample 16kHz → 8kHz, encode to mulaw
             pcm_8k = pcm16_16k_to_8k(pcm_16k)
             mulaw = pcm16_to_mulaw(pcm_8k)
             # Send in chunks (160 bytes = 20ms)
-            await self._send_mulaw_audio(mulaw)
+            await self._send_mulaw_audio(mulaw, generation)
         except asyncio.CancelledError:
             self._speaking = False
             raise
@@ -722,6 +718,7 @@ class SmartfloStreamSession:
 
     def _cancel_playback(self) -> None:
         """Cancel an in-flight TTS/playback task (idempotent, never raises)."""
+        self._playback_generation += 1
         self._speaking = False
         task = self._play_task
         self._play_task = None
@@ -760,14 +757,14 @@ class SmartfloStreamSession:
         seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
         return seg.raw_data
 
-    async def _send_mulaw_audio(self, mulaw: bytes) -> None:
+    async def _send_mulaw_audio(self, mulaw: bytes, generation: int) -> None:
         """Send mulaw audio to Smartflo in 160-byte chunks with chunk counter."""
-        if not self.stream_sid:
+        if not self.stream_sid or generation != self._playback_generation:
             return
         self._speaking = True
         chunk_num = 1
         for offset in range(0, len(mulaw), MULAW_FRAME_BYTES):
-            if not self._speaking:
+            if not self._speaking or generation != self._playback_generation:
                 break  # barge-in cancelled playback
             frame = mulaw[offset : offset + MULAW_FRAME_BYTES]
             payload_b64 = base64.b64encode(frame).decode()
@@ -803,6 +800,7 @@ class SmartfloStreamSession:
                 )
             except Exception:
                 pass
+        self._speaking = False
 
     # ------------------------------------------------------------------ #
     # Barge-in
@@ -824,6 +822,7 @@ class SmartfloStreamSession:
                 )
             except Exception:
                 pass
+        self._speaking = False
 
     # ------------------------------------------------------------------ #
     # Greeting
@@ -880,31 +879,15 @@ class SmartfloStreamSession:
         try:
             from app.telephony.post_call_hooks import meter_call_completion
 
-            # 2026-09-08 revenue-leak fix. Real signature:
-            #   meter_call_completion(call_id, *, client_id="", client_name="",
-            #                         duration_seconds, campaign_id=None)
-            # The previous call sent call_duration_s / user_turns / metadata and no
-            # call_id at all -> TypeError -> swallowed by `except Exception: pass`
-            # -> every SmartFlo call completed with NO billing record.
-            # `call_id` is positional-or-keyword, so keyword form is used here to
-            # stay compatible with the contract test's **kwargs spy.
             await meter_call_completion(
-                call_id=str(self.stream_sid or ""),
-                client_id=str(self.client_id or ""),
-                client_name=self.client_name or "",
+                call_id=self.call_sid or self.stream_sid or "smartflo-unknown",
+                client_id=self.client_id,
                 duration_seconds=int(
                     (datetime.now(timezone.utc) - self._started_at).total_seconds()
                 ),
             )
         except Exception:
-            # 2026-09-08: this was a bare `pass`, which hid the TypeError above and
-            # silently lost billing records. Never swallow it again.
-            logger.exception(
-                "[smartflo-stream] meter_call_completion FAILED - billing record LOST "
-                "for stream_sid=%s client_id=%s",
-                self.stream_sid,
-                self.client_id,
-            )
+            pass
         # Close WS
         try:
             await self.ws.close()
