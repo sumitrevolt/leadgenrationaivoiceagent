@@ -51,6 +51,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 # ---------------------------------------------------------------------------
 # Capability detection (same pattern as vobiz_stream.py)
 # ---------------------------------------------------------------------------
@@ -66,6 +67,7 @@ def _groq_key() -> str:
     if not k:
         try:
             from app.config import settings
+
             k = (getattr(settings, "groq_api_key", "") or "").strip()
         except Exception:
             pass
@@ -83,10 +85,12 @@ TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 # audioop (stdlib ≤3.12, backport 3.13+)
 try:
     import audioop  # type: ignore
+
     _AUDIOOP_OK = True
 except Exception:
     try:
         import audioop_lts as audioop  # type: ignore
+
         _AUDIOOP_OK = True
     except Exception:
         audioop = None  # type: ignore
@@ -95,11 +99,11 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Audio constants
 # ---------------------------------------------------------------------------
-SMARTFLO_SAMPLE_RATE = 8000    # mulaw 8kHz
-INTERNAL_SAMPLE_RATE = 16000   # our pipeline runs at 16kHz
-FRAME_MS = 20                  # 20ms frames
-MULAW_FRAME_BYTES = 160        # 8kHz * 20ms = 160 bytes mulaw
-PCM16_FRAME_BYTES = 320        # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
+SMARTFLO_SAMPLE_RATE = 8000  # mulaw 8kHz
+INTERNAL_SAMPLE_RATE = 16000  # our pipeline runs at 16kHz
+FRAME_MS = 20  # 20ms frames
+MULAW_FRAME_BYTES = 160  # 8kHz * 20ms = 160 bytes mulaw
+PCM16_FRAME_BYTES = 320  # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
 
 # VAD thresholds (same as vobiz_stream defaults)
 _DEF_VAD_RMS = 300
@@ -230,6 +234,7 @@ def pcm16_to_wav(pcm16: bytes, rate: int = INTERNAL_SAMPLE_RATE) -> bytes:
 def _call_transcripts_dir() -> str:
     try:
         from app.platform.runtime_recording_paths import call_transcripts_dir
+
         return str(call_transcripts_dir())
     except Exception:
         return "data/call_transcripts"
@@ -285,6 +290,9 @@ class SmartfloStreamSession:
         # Playback state
         self._speaking = False
         self._barge_frames = 0
+        # Monotonic token prevents a cancelled playback task from re-asserting
+        # _speaking=True after a newer barge-in has already stopped it.
+        self._playback_generation = 0
         # Background TTS+playback task (2026-09-07): playback used to run
         # inline in the receive loop, so inbound media was not read while the
         # bot spoke → barge-in could never fire. Now _say() schedules a task
@@ -381,6 +389,7 @@ class SmartfloStreamSession:
             if self.client_id:
                 try:
                     from app.marketing import clients_store
+
                     _c = clients_store.get_client(self.client_id)
                     if _c:
                         self.client_name = (
@@ -391,10 +400,12 @@ class SmartfloStreamSession:
                 except Exception:
                     pass
             # Send start ack back to Smartflo
-            await self._send({
-                "event": "start",
-                "streamSid": self.stream_sid,
-            })
+            await self._send(
+                {
+                    "event": "start",
+                    "streamSid": self.stream_sid,
+                }
+            )
             # Greet
             await self._maybe_greet()
 
@@ -416,6 +427,7 @@ class SmartfloStreamSession:
             if str(digit) == "9":
                 try:
                     from app.telephony.consent_ledger import ConsentAction, persist_opt_out
+
                     persist_opt_out(
                         phone=self._lead_phone or "",
                         action=ConsentAction.OPT_OUT,
@@ -460,7 +472,10 @@ class SmartfloStreamSession:
             self._silence_ms = 0.0
 
             # Barge-in detection
-            if self._speaking:
+            playback_active = self._speaking or (
+                self._play_task is not None and not self._play_task.done()
+            )
+            if playback_active:
                 self._barge_frames += 1
                 if self._barge_frames >= 3:  # ~60ms of speech = barge-in
                     await self._barge_in()
@@ -536,6 +551,7 @@ class SmartfloStreamSession:
     async def _groq_stt(self, pcm_16k: bytes) -> str:
         """Groq Whisper-large-v3 STT (free tier)."""
         import httpx
+
         key = _groq_key()
         # Groq expects a real audio container — wrap PCM16 16kHz in a WAV header
         wav = pcm16_to_wav(pcm_16k, INTERNAL_SAMPLE_RATE)
@@ -559,40 +575,110 @@ class SmartfloStreamSession:
     async def _gemini_stt(self, pcm_16k: bytes) -> str:
         """Gemini multimodal audio-in STT."""
         from app.voice_agent.free_ai import gemini_audio_transcribe
+
         return await gemini_audio_transcribe(pcm_16k, sample_rate=16000)
 
     async def _local_stt(self, pcm_16k: bytes) -> str:
         """Local vosk/faster-whisper STT fallback."""
         from app.voice_agent.free_ai import local_stt
+
         return await local_stt(pcm_16k, sample_rate=16000)
 
     # ------------------------------------------------------------------ #
     # LLM reply (reuse telecaller_brain / free_ai)
     # ------------------------------------------------------------------ #
     async def _llm_reply(self, user_text: str) -> str:
-        """Generate a conversational reply. Uses TelecallerBrain if available."""
+        """Generate a conversational reply. Uses TelecallerBrain if available.
+
+        2026-09-08 call-drop fix: this method previously called
+        ``TelecallerBrain.reply(user_text, self.hist)`` - the real signature is
+        ``reply(history, user_text)``, so the arguments were SWAPPED - and the
+        fallback called ``free_ai.chat(messages, niche=...)``, but the real
+        signature is ``chat(system, messages, ...) -> tuple[str, str]``.
+        Both calls raised, so ``_llm_reply`` returned "" and Swara stayed
+        SILENT after the greeting -> dead air -> the caller hung up ("call
+        drops as soon as it connects").
+
+        The chain below mirrors the proven ``vobiz_stream`` path:
+        TelecallerBrain -> LLMBrain (with compliance guardrails) -> free_ai.
+        """
+        # 1) TelecallerBrain - lean phone-tuned prompt (same as vobiz path).
         try:
             if self._telecaller is None and not getattr(self, "_telecaller_tried", False):
                 self._telecaller_tried = True
                 from app.voice_agent.telecaller_brain import TelecallerBrain
+
                 self._telecaller = TelecallerBrain(
                     niche=self.niche,
                     client_id=self.client_id,
                     client_name=self.client_name,
                 )
             if self._telecaller:
-                return await self._telecaller.reply(user_text, self.hist)
+                # Signature is reply(history, user_text) - argument order matters.
+                reply = await self._telecaller.reply(self.hist, user_text)
+                if reply and str(reply).strip():
+                    return str(reply).strip()
         except Exception as e:
-            logger.debug(f"[smartflo-stream] TelecallerBrain failed: {e}")
+            logger.warning(f"[smartflo-stream] TelecallerBrain failed: {e}")
 
-        # Fallback to free_ai chain
+        # 2) LLMBrain - generic brain. Compliance parity with vobiz_stream:
+        #    pre-input injection check + post-output safety/PII redaction.
+        try:
+            if self._brain is None and not getattr(self, "_brain_tried", False):
+                self._brain_tried = True
+                try:
+                    from app.voice_agent.llm_brain import LLMBrain
+
+                    self._brain = LLMBrain()
+                except Exception as e:
+                    logger.warning(f"[smartflo-stream] LLMBrain unavailable: {e}")
+                    self._brain = None
+            if self._brain is not None:
+                _g = None
+                gin = None
+                try:
+                    from app.voice_agent.guardrails import get_guardrails
+
+                    _g = get_guardrails()
+                    gin = _g.check_input(user_text or "")
+                except Exception:
+                    _g, gin = None, None
+                if gin is None or gin.allowed:
+                    reply = await self._brain.generate_response(
+                        conversation_history=self.hist,
+                        niche=self.niche,
+                        client_name=self.client_name,
+                        client_service=self.niche,
+                    )
+                    if reply and str(reply).strip():
+                        safe = str(reply).strip()
+                        if _g is not None:
+                            try:
+                                safe = (_g.check_output(safe).text or safe).strip()
+                            except Exception:
+                                pass
+                        if safe:
+                            return safe
+        except Exception as e:
+            logger.warning(f"[smartflo-stream] LLMBrain failed: {e}")
+
+        # 3) Last resort: free_ai.chat. Correct signature is
+        #    chat(system, messages, ...) -> (text, provider).
         try:
             from app.voice_agent.free_ai import chat
-            messages = self.hist[-10:]  # bounded context
-            return await chat(messages, niche=self.niche)
+
+            system = (
+                f"Tum {self.client_name} ki AI telecaller assistant ho. "
+                "Hinglish mein jawab do, max 2 sentences, ek question per turn."
+            )
+            result = await chat(system, self.hist[-10:])  # bounded context
+            if isinstance(result, tuple):
+                result = result[0]
+            if result and str(result).strip():
+                return str(result).strip()
         except Exception as e:
             logger.warning(f"[smartflo-stream] LLM fallback failed: {e}")
-            return ""
+        return ""
 
     # ------------------------------------------------------------------ #
     # TTS + send (PCM16 16kHz → downsample → mulaw → WS media event)
@@ -611,18 +697,19 @@ class SmartfloStreamSession:
         if self._closed:
             return
         self._cancel_playback()
-        self._play_task = asyncio.create_task(self._speak_task(text))
+        generation = self._playback_generation
+        self._play_task = asyncio.create_task(self._speak_task(text, generation))
 
-    async def _speak_task(self, text: str) -> None:
+    async def _speak_task(self, text: str, generation: int) -> None:
         try:
             pcm_16k = await self._tts(text)
-            if not pcm_16k or self._closed:
+            if not pcm_16k or self._closed or generation != self._playback_generation:
                 return
             # Downsample 16kHz → 8kHz, encode to mulaw
             pcm_8k = pcm16_16k_to_8k(pcm_16k)
             mulaw = pcm16_to_mulaw(pcm_8k)
             # Send in chunks (160 bytes = 20ms)
-            await self._send_mulaw_audio(mulaw)
+            await self._send_mulaw_audio(mulaw, generation)
         except asyncio.CancelledError:
             self._speaking = False
             raise
@@ -631,6 +718,7 @@ class SmartfloStreamSession:
 
     def _cancel_playback(self) -> None:
         """Cancel an in-flight TTS/playback task (idempotent, never raises)."""
+        self._playback_generation += 1
         self._speaking = False
         task = self._play_task
         self._play_task = None
@@ -650,6 +738,7 @@ class SmartfloStreamSession:
     async def _tts(self, text: str) -> bytes:
         """Text → PCM16 16kHz audio via EdgeTTS."""
         import edge_tts
+
         rate = os.environ.get("SMARTFLO_TTS_RATE", "+26%")
         pitch = os.environ.get("SMARTFLO_TTS_PITCH", "+2Hz")
         voice = os.environ.get("SMARTFLO_TTS_VOICE", "hi-IN-SwaraNeural")
@@ -663,31 +752,34 @@ class SmartfloStreamSession:
             return b""
         # Decode MP3 → PCM16 via pydub
         from pydub import AudioSegment
+
         seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
         seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
         return seg.raw_data
 
-    async def _send_mulaw_audio(self, mulaw: bytes) -> None:
+    async def _send_mulaw_audio(self, mulaw: bytes, generation: int) -> None:
         """Send mulaw audio to Smartflo in 160-byte chunks with chunk counter."""
-        if not self.stream_sid:
+        if not self.stream_sid or generation != self._playback_generation:
             return
         self._speaking = True
         chunk_num = 1
         for offset in range(0, len(mulaw), MULAW_FRAME_BYTES):
-            if not self._speaking:
+            if not self._speaking or generation != self._playback_generation:
                 break  # barge-in cancelled playback
             frame = mulaw[offset : offset + MULAW_FRAME_BYTES]
             payload_b64 = base64.b64encode(frame).decode()
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "media",
-                        "streamSid": self.stream_sid,
-                        "media": {
-                            "payload": payload_b64,
-                            "chunk": str(chunk_num),
-                        },
-                    }),
+                    self._send(
+                        {
+                            "event": "media",
+                            "streamSid": self.stream_sid,
+                            "media": {
+                                "payload": payload_b64,
+                                "chunk": str(chunk_num),
+                            },
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
@@ -699,13 +791,16 @@ class SmartfloStreamSession:
         # Send mark to signal end of playback
         if self.stream_sid:
             try:
-                await self._send({
-                    "event": "mark",
-                    "streamSid": self.stream_sid,
-                    "mark": {"name": f"bot-{chunk_num}"},
-                })
+                await self._send(
+                    {
+                        "event": "mark",
+                        "streamSid": self.stream_sid,
+                        "mark": {"name": f"bot-{chunk_num}"},
+                    }
+                )
             except Exception:
                 pass
+        self._speaking = False
 
     # ------------------------------------------------------------------ #
     # Barge-in
@@ -717,14 +812,17 @@ class SmartfloStreamSession:
         if self.stream_sid:
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "clear",
-                        "streamSid": self.stream_sid,
-                    }),
+                    self._send(
+                        {
+                            "event": "clear",
+                            "streamSid": self.stream_sid,
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except Exception:
                 pass
+        self._speaking = False
 
     # ------------------------------------------------------------------ #
     # Greeting
@@ -780,21 +878,13 @@ class SmartfloStreamSession:
         # Meter call completion
         try:
             from app.telephony.post_call_hooks import meter_call_completion
-            user_turns = sum(1 for m in self.hist if m.get("role") == "user")
+
             await meter_call_completion(
+                call_id=self.call_sid or self.stream_sid or "smartflo-unknown",
                 client_id=self.client_id,
-                call_duration_s=int(
+                duration_seconds=int(
                     (datetime.now(timezone.utc) - self._started_at).total_seconds()
                 ),
-                user_turns=user_turns,
-                metadata={
-                    "provider": "tata_smartflo",
-                    "stream_sid": self.stream_sid,
-                    "from": self.from_number,
-                    "to": self.to_number,
-                    "media_frames": self._media_frames,
-                    "caller_rms_max": self._caller_rms_max,
-                },
             )
         except Exception:
             pass
@@ -809,6 +899,7 @@ class SmartfloStreamSession:
         if not self.hist:
             return
         import os
+
         transcript_dir = _call_transcripts_dir()
         os.makedirs(transcript_dir, exist_ok=True)
         ts = self._started_at.strftime("%Y%m%d_%H%M%S")
