@@ -35,8 +35,7 @@ def test_client_side_adapter_path_carries_dead_through():
     raw sub-fetches) must not drop q.dead like it used to."""
     t = _text()
     start = t.index("// queue / dlq")
-    end = t.index("
-    ", t.index("o.metrics.queue = {", start))
+    end = t.index("\n    ", t.index("o.metrics.queue = {", start))
     block = t[start:end]
     assert "q.dead" in block
 

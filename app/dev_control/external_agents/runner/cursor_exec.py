@@ -308,7 +308,6 @@ def invoke_cursor(
             try:
                 manifest = extract_result_manifest(result.stdout, mission.mission_id)
             except ProcessSafetyError as stdout_exc:
-                parse_error = f"{file_exc}
-                {stdout_exc}"
+                parse_error = f"{file_exc}\n{stdout_exc}"
                 manifest = None
     return result, manifest, parse_error

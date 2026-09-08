@@ -268,8 +268,7 @@ def test_delivery_cockpit_paying_kpi_matches_invoice_backed_revenue():
     contradictory live state "Paying 3 / MRR ₹0".
     """
     html = _page_html()
-    assert "var payingCustomers = Number(revenue.paying_customers)
-    " in html
+    assert "var payingCustomers = Number(revenue.paying_customers)\n" in html
     assert "paying_customers: payingCustomers" in html
     assert (
         'paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length'

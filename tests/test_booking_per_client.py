@@ -54,8 +54,7 @@ def test_same_slot_two_clients_both_succeed(monkeypatch, tmp_path):
     r1 = asyncio.run(cal.book_slot(when_iso=when, name="Jiya cust", phone="1", client_id="jiya"))
     r2 = asyncio.run(cal.book_slot(when_iso=when, name="Tattoo cust", phone="2", client_id="trend"))
     assert r1.ok, r1.error
-    assert r2.ok, f"different client must be able to hold the SAME slot
-    got: {r2.error}"
+    assert r2.ok, f"different client must be able to hold the SAME slot\n    got: {r2.error}"
     assert r1.booking_id != r2.booking_id
 
 

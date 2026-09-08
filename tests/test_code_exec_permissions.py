@@ -51,8 +51,7 @@ def test_execute_permission_denied_no_spawn(monkeypatch, tmp_path):
     monkeypatch.setenv("AGENT_PERMISSIONS", "1")
     monkeypatch.setattr(agent_permissions, "_DATA_FILE", str(tmp_path / "perms.json"))
     out = asyncio.run(
-        code_exec.execute("import os
-        os.system('echo SHOULD_NOT_RUN')", agent="vikram")
+        code_exec.execute("import os\n        os.system('echo SHOULD_NOT_RUN')", agent="vikram")
     )
     assert out["ok"] is False
     assert out["error"] == "permission_denied"

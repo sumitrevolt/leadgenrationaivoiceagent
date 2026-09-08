@@ -217,8 +217,8 @@ def main(argv: list[str]) -> int:
     print(f"  unchanged (no structural NDR) : {st.get('unchanged', 0)}")
     print(f"TO RECLASSIFY                   : {st.get('to_reclassify', 0)}")
     print("-" * 62)
-    print(f"Projected rates vs N={denom} sends (formula only
-    apply on prod for truth):")
+    print(f"Projected rates vs N={denom} sends (formula only "
+    "apply on prod for truth):")
     print(f"  hard_bounce_rate = {hard}/{denom} = {_rate(hard, denom)}")
     print(f"  soft_bounce_rate = {soft}/{denom} = {_rate(soft, denom)}")
     print(f"  complaint_rate   = {complaint}/{denom} = {_rate(complaint, denom)}")

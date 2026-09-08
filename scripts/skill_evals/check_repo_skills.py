@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""LeadGen changed-skill CI ratchet.
-
-The canonical catalog has pre-existing lint/security/routing debt. Running the
-upstream tools against every skill would make unrelated PRs permanently red.
-This runner keeps the checks strict for every added or modified skill and
-compares its description against the complete catalog.
-"""
+"""LeadGen changed-skill CI ratchet." "The canonical catalog has pre-existing lint/security/routing debt. Running the" "upstream tools against every skill would make unrelated PRs permanently red." "This runner keeps the checks strict for every added or modified skill and" "compares its description against the complete catalog." """"
 
 from __future__ import annotations
 
@@ -47,8 +41,7 @@ def changed_skill_names(repo: Path, skills_root: Path, base_ref: str) -> tuple[s
     verify = _git(repo, "rev-parse", "--verify", f"{base_ref}^{{commit}}")
     if verify.returncode != 0:
         raise RuntimeError(
-            f"base ref {base_ref!r} is unavailable
-            checkout history with fetch-depth: 0"
+            f"base ref {base_ref!r} is unavailable" "checkout history with fetch-depth: 0"
         )
 
     try:

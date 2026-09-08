@@ -715,18 +715,15 @@ try:
     from app.api.internal_media import public as content_public_router
     from app.api.internal_media import router as content_internal_router
 
-    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected
-    renderer webhooks)
+    app.include_router(content_internal_router)  # /internal/* (HMAC-protected renderer webhooks)
     app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentOS router not mounted: {_e}")
 try:
     from app.api.page_agent import router as page_agent_router
 
-    app.include_router(
-        page_agent_router, prefix="/api"
-    )  # /api/page-agent/* (admin copilot LLM proxy + boot.js
-    PAGE_AGENT gated)
+    # /api/page-agent/* (admin copilot LLM proxy + boot.js PAGE_AGENT gated)
+    app.include_router(page_agent_router, prefix="/api")
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Page-agent router not mounted: {_e}")
 try:
@@ -2271,8 +2268,7 @@ async def llms_txt():
     from app.marketing.ai_discovery import build_llms_txt
 
     return PlainTextResponse(
-        build_llms_txt(_seo_base_url()), media_type="text/plain
-        charset=utf-8"
+        build_llms_txt(_seo_base_url()), media_type="text/plain; charset=utf-8"
     )
 
 
@@ -2286,8 +2282,7 @@ async def pricing_md():
     from app.marketing.ai_discovery import build_pricing_md
 
     return PlainTextResponse(
-        build_pricing_md(_seo_base_url()), media_type="text/markdown
-        charset=utf-8"
+        build_pricing_md(_seo_base_url()), media_type="text/markdown; charset=utf-8"
     )
 
 

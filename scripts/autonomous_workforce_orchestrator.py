@@ -65,7 +65,7 @@ def _resolve_combo_key(combo_name: str) -> str:
     return fallback
 
 COMBO_KEYS: dict[str, str] = {}  # deprecated — use _resolve_combo_key()
-kept for compat
+# kept for compat
 
 
 # 31 Agents Roster with primary combo and designated peer helper

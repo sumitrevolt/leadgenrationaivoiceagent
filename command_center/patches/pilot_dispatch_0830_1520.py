@@ -2,7 +2,7 @@
 """PILOT 08-30 15:20 dispatch run — ledger + tasks.json sync. Evidence-first."""
 import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 IST = timezone(timedelta(hours=5, minutes=30))
 now = datetime.now(IST)
@@ -18,11 +18,11 @@ lines = [
     {"ts": ts, "from": "PILOT", "to": "engineering", "task_id": "ENG-002", "type": "UPDATE", "priority": "P0",
      "msg": f"{ts_short} — Spin-fix LIVE confirm (batches 14-16: FAIL x3 + RELEASED x3, skip=0). Ab: (1) canonicalize repo fire_calls.py FAIL branch, (2) provider-failover runbook (.env swap <10min, Jio/RMS/Vobiz templates), (3) Vobiz egress root-cause — api.vobiz.com 000 timeout VPS se (DNS? IPv6? route?). ACC: commit sha + runbook + egress verdict 16:30. ACK ENG-002."},
     {"ts": ts, "from": "PILOT", "to": "platform", "task_id": "PLT-003", "type": "ESCALATION", "priority": "P0",
-     "msg": f"PLT-003 STALE — 15:00 pehla hourly MISSED: /opt/leadgen/data/plt003_hourly.md exist nahi karta. LIVE 15:16: api.vobiz.com 000 10s timeout (3rd confirm). Ye ab GATE#2 hai — DID aake bhi dial fail hoga. ACC 15:30: root-cause (DNS/egress/Jio/RMS reachability test) + pehla hourly entry file me. ACK PLT-003."},
+     "msg": "PLT-003 STALE — 15:00 pehla hourly MISSED: /opt/leadgen/data/plt003_hourly.md exist nahi karta. LIVE 15:16: api.vobiz.com 000 10s timeout (3rd confirm). Ye ab GATE#2 hai — DID aake bhi dial fail hoga. ACC 15:30: root-cause (DNS/egress/Jio/RMS reachability test) + pehla hourly entry file me. ACK PLT-003."},
     {"ts": ts, "from": "PILOT", "to": "operations", "task_id": "OPS-005", "type": "UPDATE", "priority": "P0",
      "msg": f"{ts_short} — 15:00 hourly digest MISSED (stale since 08-29 08:20). AAJ evidence: batches 14-16 15:11-15:15 FAIL 'not owned' x3, ok=0; egress 000. Hourly digest ABHI post karo + 18:30 owner digest (calls/connects/convert + DID status). ACK OPS-005."},
     {"ts": ts, "from": "PILOT", "to": "hunter", "task_id": "HNT-003", "type": "REINFORCE", "priority": "P0",
-     "msg": f"HNT-003 — 16:00 deadline ~40min bacche, koi CSV artifact local/VPS nahi mila. LI-005 50 MOBILE DND-scrub leads CSV + DND-proof column ABHI bhejo. HNT-002 miss ho chuka, HNT-003 bhi miss hua to reassign. ACC: CSV path + count + DND column. ACK HNT-003."},
+     "msg": "HNT-003 — 16:00 deadline ~40min bacche, koi CSV artifact local/VPS nahi mila. LI-005 50 MOBILE DND-scrub leads CSV + DND-proof column ABHI bhejo. HNT-002 miss ho chuka, HNT-003 bhi miss hua to reassign. ACC: CSV path + count + DND column. ACK HNT-003."},
     {"ts": ts, "from": "PILOT", "to": "success", "task_id": "SUC-001", "type": "REINFORCE", "priority": "P0",
      "msg": f"REINFORCE #13 ({ts_short}) — Jiya email SENT proof STILL missing (/opt/leadgen/data koi .eml/artifact nahi). Jiya = sirf verified revenue ₹1,999, RED churn-risk. 16:00 ACC: SMTP log/screenshot + reply ya fallback offer (1 free top-up pack). DID-independent — koi excuse nahi. ACK SUC-001."},
     {"ts": ts, "from": "PILOT", "to": "guardian", "task_id": "GRD-002", "type": "UPDATE", "priority": "P1",

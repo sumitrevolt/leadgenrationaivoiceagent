@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Create / list / remove isolated git worktrees for Claude Code Agent Teams.
-
-ADR-172: teammates must not share the chronically dirty primary checkout.
-Allowlisted root mirrors external_agents (EXTERNAL_AGENT_WORKTREE_ROOT) with an
-optional AGENT_TEAM_WORKTREE_ROOT override.
-
-    python3 scripts/agent_team_worktree.py create --name docs-faq --teammate 1 --base origin/main
-    python3 scripts/agent_team_worktree.py create --name tests-contract --teammate 2 --base origin/main
-    python3 scripts/agent_team_worktree.py list
-    python3 scripts/agent_team_worktree.py remove --name docs-faq --teammate 1 --force
-
-Exit codes: 0 ok · 1 usage/error · 2 refused (path/policy).
-"""
+"""Create / list / remove isolated git worktrees for Claude Code Agent Teams." "ADR-172: teammates must not share the chronically dirty primary checkout." "Allowlisted root mirrors external_agents (EXTERNAL_AGENT_WORKTREE_ROOT) with an" "optional AGENT_TEAM_WORKTREE_ROOT override." "python3 scripts/agent_team_worktree.py create --name docs-faq --teammate 1 --base origin/main" "python3 scripts/agent_team_worktree.py create --name tests-contract --teammate 2 --base origin/main" "python3 scripts/agent_team_worktree.py list" "python3 scripts/agent_team_worktree.py remove --name docs-faq --teammate 1 --force" "Exit codes: 0 ok · 1 usage/error · 2 refused (path/policy)." """"
 
 from __future__ import annotations
 
@@ -163,14 +151,12 @@ def cmd_remove(args: argparse.Namespace) -> int:
         deleted = _run_git(["branch", flag, branch])
         if deleted.returncode != 0:
             print(
-                f"note: left branch {branch} (not deleted — unmerged or in use)
-                "
+                f"note: left branch {branch} (not deleted \u2014 unmerged or in use) "
                 "pass --delete-branch after merge, or delete manually",
                 file=sys.stderr,
             )
     elif branch and branch != "HEAD":
-        print(f"note: worktree removed
-        branch {branch} kept (use --delete-branch when safe)")
+        print(f"note: worktree removed" "branch {branch} kept (use --delete-branch when safe)")
     print(f"REMOVED worktree={wt} branch={branch}")
     return 0
 

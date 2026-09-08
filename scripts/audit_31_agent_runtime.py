@@ -63,8 +63,8 @@ def run_audit() -> dict[str, Any]:
             reason = f"Live mode + armed trigger ({', '.join(contract.trigger_types)})"
         elif contract.default_mode == LIVE and not is_primary_enabled:
             status = "READY_IDLE"
-            reason = f"GREEN lane / LIVE mode ready
-            flag '{contract.primary_flag}' currently un-flipped"
+            reason = f"GREEN lane / LIVE mode ready "
+            f"flag '{contract.primary_flag}' currently un-flipped"
 
         # Execution path mapping
         if agent_id in ("manager", "boss"):

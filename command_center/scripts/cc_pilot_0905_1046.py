@@ -79,7 +79,7 @@ msgs = [
              "Visualization ONLY — kisi bot ko command mat do.")},
 ]
 
-with open(f"{BASE}/messages.jsonl", "r", encoding="utf-8") as f:
+with open(f"{BASE}/messages.jsonl", encoding="utf-8") as f:
     log = f.read()
 if not log.endswith("\n"):
     log += "\n"
@@ -88,7 +88,7 @@ with open(f"{BASE}/messages.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(m, ensure_ascii=False) + "\n")
 print("messages appended:", len(msgs))
 
-with open(f"{BASE}/tasks.json", "r", encoding="utf-8") as f:
+with open(f"{BASE}/tasks.json", encoding="utf-8") as f:
     tasks = json.load(f)
 
 for t in tasks:

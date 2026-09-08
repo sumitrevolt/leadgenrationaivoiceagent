@@ -204,8 +204,7 @@ def reconcile_edges() -> dict[str, Any]:
         elif is_exact_duplicate:
             cls = "REVIEW_REQUIRED"
             reason = (
-                f"exact duplicate legacy literal (occurrence {occurrence})
-                "
+                f"exact duplicate legacy literal (occurrence {occurrence}) "
                 "first occurrence retained for accounting"
             )
         elif collision_id:

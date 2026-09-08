@@ -1,25 +1,5 @@
 #!/usr/bin/env python3
-"""
-[vendored] Repo-side CI copy. Origin: the agent-security-auditor skill (revamp
-branch). If that skill ever ships on main, make it the single source of truth.
-skill_scanner.py — static security scanner for agent skills.
-
-Scans one skill directory (or a tree of them) for the attack patterns seen in
-real skill supply-chain campaigns (ClawHavoc, Jan 2026) and mapped to the
-OWASP Agentic Skills Top 10 (AST01-AST10).
-
-Usage:
-    python3 skill_scanner.py <path-to-skill-or-skills-dir>
-    python3 skill_scanner.py <path> --json
-
-Python 3.8+, stdlib only, makes no network calls, never executes scanned code.
-
-Exit codes: 0 = no CRITICAL findings, 1 = at least one CRITICAL, 2 = usage error.
-
-Lines containing the marker "skillscan" + ":allow" (written as one word with a
-colon) are skipped, so scanners and docs that *describe* attack patterns can
-suppress self-matches.
-"""
+"""" "[vendored] Repo-side CI copy. Origin: the agent-security-auditor skill (revamp" "branch). If that skill ever ships on main, make it the single source of truth." "skill_scanner.py — static security scanner for agent skills." "Scans one skill directory (or a tree of them) for the attack patterns seen in" "real skill supply-chain campaigns (ClawHavoc, Jan 2026) and mapped to the" "OWASP Agentic Skills Top 10 (AST01-AST10)." "Usage:" "python3 skill_scanner.py <path-to-skill-or-skills-dir>" "python3 skill_scanner.py <path> --json" "Python 3.8+, stdlib only, makes no network calls, never executes scanned code." "Exit codes: 0 = no CRITICAL findings, 1 = at least one CRITICAL, 2 = usage error." "Lines containing the marker "skillscan" + ":allow" (written as one word with a" "colon) are skipped, so scanners and docs that *describe* attack patterns can" "suppress self-matches." """"
 
 import argparse
 import json
@@ -321,15 +301,7 @@ def discover_skills(root):
             dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
             if "SKILL.md" in files:
                 found.append(Path(dirpath))
-                dirs[:] = []  # don't descend into nested skills
-    return found
-
-
-def iter_scan_files(skill_dir, include_fixtures=False):
-    for dirpath, dirs, files in os.walk(skill_dir):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
-        if not include_fixtures:
-            # A skill's own evals/fixtures/ may hold deliberately malicious test
+                dirs[:] = []  # don't descend into nested skills" "return found" "def iter_scan_files(skill_dir, include_fixtures=False):" "for dirpath, dirs, files in os.walk(skill_dir):" "dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)" "if not include_fixtures:" "# A skill's own evals/fixtures/ may hold deliberately malicious test
             # payloads; scanning them as part of the skill produces false alarms.
             # Pass --include-fixtures (or target the fixture dir) to scan them.
             rel = Path(dirpath).relative_to(skill_dir)
@@ -557,8 +529,7 @@ def scan_skill(skill_dir, include_fixtures=False):
     for f in findings:
         if f.file.startswith("evals/") and f.severity != "INFO":
             f.severity = "INFO"
-            f.message += " (found in evals/ test data — expected to quote attack patterns
-            verify it is not loaded at runtime)"
+            f.message += "(found in evals/ test data — expected to quote attack patterns" "verify it is not loaded at runtime)"
 
     # Deduplicate identical findings
     seen, unique = set(), []

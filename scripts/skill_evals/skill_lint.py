@@ -1,31 +1,5 @@
 #!/usr/bin/env python3
-"""
-[vendored] Repo-side CI copy. Origin: the skill-builder skill (revamp branch).
-If a skill-builder skill ever ships on main, make that the single source of truth.
-skill_lint.py — validate an agent skill directory against the agentskills.io spec.
-
-Usage:
-    python3 skill_lint.py <skill-dir> [--strict] [--json]
-
-Checks (spec: https://agentskills.io/specification, verified July 2026):
-  * SKILL.md exists and has parseable YAML frontmatter
-  * name: 1-64 chars, lowercase a-z/0-9/hyphens, no leading/trailing/consecutive
-    hyphens, must equal the directory name
-  * description: present, 1-1024 chars, plus triggering heuristics
-  * compatibility: <= 500 chars if present
-  * body: warn at 400 lines, 500+ lines is a warning (error with --strict);
-    ~5k-token budget warning
-  * relative file references in the body must exist on disk
-  * forward-slash paths only (backslash paths are an error)
-  * TODO/FIXME-style markers are warnings
-  * text-only skills (no scripts/ AND no references/) are warned — the
-    awesome-llm-apps quality bar expects bundled tools and references
-
-Exit codes: 0 = no errors (warnings allowed), 1 = errors found, 2 = usage error.
-Python 3 stdlib only — no third-party dependencies (frontmatter parsing is
-hand-rolled for the flat fields the spec defines
-pyyaml is NOT required).
-"""
+"""" "[vendored] Repo-side CI copy. Origin: the skill-builder skill (revamp branch)." "If a skill-builder skill ever ships on main, make that the single source of truth." "skill_lint.py — validate an agent skill directory against the agentskills.io spec." "Usage:" "python3 skill_lint.py <skill-dir> [--strict] [--json]" "Checks (spec: https://agentskills.io/specification, verified July 2026):" "* SKILL.md exists and has parseable YAML frontmatter" "* name: 1-64 chars, lowercase a-z/0-9/hyphens, no leading/trailing/consecutive" "hyphens, must equal the directory name" "* description: present, 1-1024 chars, plus triggering heuristics" "* compatibility: <= 500 chars if present" "* body: warn at 400 lines, 500+ lines is a warning (error with --strict);" "~5k-token budget warning" "* relative file references in the body must exist on disk" "* forward-slash paths only (backslash paths are an error)" "* TODO/FIXME-style markers are warnings" "* text-only skills (no scripts/ AND no references/) are warned — the" "awesome-llm-apps quality bar expects bundled tools and references" "Exit codes: 0 = no errors (warnings allowed), 1 = errors found, 2 = usage error." "Python 3 stdlib only — no third-party dependencies (frontmatter parsing is" "hand-rolled for the flat fields the spec defines" "pyyaml is NOT required)." """"
 
 import argparse
 import json
@@ -70,12 +44,7 @@ def unquote(value):
 
 
 def parse_frontmatter(text):
-    """Minimal YAML parser for the flat frontmatter the spec defines.
-
-    Supports: `key: value`, quoted values, block scalars (| and >), one-level
-    nested maps (for `metadata:`), and inline flow maps (`{a: b, c: d}`).
-    Returns (data, body, error). data is None on a parse error.
-    """
+    """Minimal YAML parser for the flat frontmatter the spec defines." "Supports: `key: value`, quoted values, block scalars (| and >), one-level" "nested maps (for `metadata:`), and inline flow maps (`{a: b, c: d}`)." "Returns (data, body, error). data is None on a parse error." """"
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return None, text, "SKILL.md must begin with a '---' YAML frontmatter block on line 1"
@@ -195,10 +164,8 @@ def check_name(name, dirname, errors):
     if "--" in name:
         problems.append("consecutive hyphens not allowed")
     if problems or not NAME_RE.match(name):
-        detail = "
-        ".join(problems) if problems else "does not match ^[a-z0-9]+(-[a-z0-9]+)*$"
-        errors.append("name %r invalid: %s
-        try %r" % (name, detail, suggest_name(name)))
+        detail = "".join(problems) if problems else "does not match ^[a-z0-9]+(-[a-z0-9]+)*$"
+        errors.append("name %r invalid: %s" "try %r" % (name, detail, suggest_name(name)))
         return
     if name != dirname:
         errors.append(
@@ -297,8 +264,7 @@ def check_body(body, skill_dir, strict, errors, warnings):
 
     candidates = set(MD_LINK.findall(prose)) | set(BARE_PATH.findall(prose))
     for cand in sorted(candidates):
-        cand = cand.rstrip(".,:
-        )`'\"")
+        cand = cand.rstrip(".,:" ")`'\"")
         if not cand or cand.startswith(("http://", "https://", "mailto:", "#", "/")):
             continue
         if "\\" in cand:

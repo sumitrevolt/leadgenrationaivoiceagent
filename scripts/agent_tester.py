@@ -634,8 +634,8 @@ async def main() -> int:
         "--baseline",
         default="",
         metavar="FILE",
-        help="JSON report from a prior --json run
-        print a before/after latency+quality diff",
+        help="JSON report from a prior --json run "
+        "print a before/after latency+quality diff",
     )
     args = ap.parse_args()
     verbose = not args.json

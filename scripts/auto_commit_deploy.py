@@ -1,32 +1,5 @@
 #!/usr/bin/env python3
-"""Governed software delivery autopilot — safe release helper.
-
-Replaces the old unsafe auto-commit-deploy behavior. This is a HELPER, not an
-auto-deploy: push NEVER deploys. Deployment is gated (deploy-vps.yml has
-DEPLOY_ENABLED unset) and must be run explicitly through scripts/deploy_vps.sh
-on the VPS with APP_VERSION=<sha> (never :latest).
-
-Hard rules enforced here:
-  * subprocess list-form only (shell=True is FORBIDDEN)
-  * explicit-path staging only (git add -A is FORBIDDEN)
-  * never commit directly on main (feature branch required)
-  * never force push
-  * git diff --check before any commit
-  * verify exact head SHA before merge
-  verify origin/main after merge
-
-Commands:
-  status                     repo identity + branch + dirty inventory
-  stage  --branch B --paths P... [--message M]
-  commit --branch B --message M [--paths P...]
-  push   --branch B
-  pr     --branch B [--title T] [--body D]
-  ci     --branch B [--timeout S]
-  merge  --branch B --sha S
-  deploy --sha S [--apply]
-
-Evidence is recorded after every step (runtime_data store + stdout).
-"""
+"""Governed software delivery autopilot — safe release helper." "Replaces the old unsafe auto-commit-deploy behavior. This is a HELPER, not an" "auto-deploy: push NEVER deploys. Deployment is gated (deploy-vps.yml has" "DEPLOY_ENABLED unset) and must be run explicitly through scripts/deploy_vps.sh" "on the VPS with APP_VERSION=<sha> (never :latest)." "Hard rules enforced here:" "* subprocess list-form only (shell=True is FORBIDDEN)" "* explicit-path staging only (git add -A is FORBIDDEN)" "* never commit directly on main (feature branch required)" "* never force push" "* git diff --check before any commit" "* verify exact head SHA before merge" "verify origin/main after merge" "Commands:" "status                     repo identity + branch + dirty inventory" "stage  --branch B --paths P... [--message M]" "commit --branch B --message M [--paths P...]" "push   --branch B" "pr     --branch B [--title T] [--body D]" "ci     --branch B [--timeout S]" "merge  --branch B --sha S" "deploy --sha S [--apply]" "Evidence is recorded after every step (runtime_data store + stdout)." """"
 
 from __future__ import annotations
 
@@ -129,8 +102,8 @@ def cmd_status(_args) -> int:
 def cmd_stage(args) -> int:
     _require_not_main(args.branch)
     if not args.paths:
-        print("[FATAL] --paths required (explicit paths only
-        git add -A is forbidden).")
+        print("[FATAL] --paths required (explicit paths only "
+        "git add -A is forbidden).")
         sys.exit(1)
     if _current_branch() != args.branch:
         git("checkout", "-b", args.branch)
@@ -270,8 +243,8 @@ def cmd_deploy(args) -> int:
         "root@" + host,
         "cd /opt/leadgen && APP_VERSION=" + args.sha + " bash scripts/deploy_vps.sh",
     ]
-    print("[INFO] Canonical deploy (APP_VERSION-mandatory
-    never :latest):")
+    print("[INFO] Canonical deploy (APP_VERSION-mandatory "
+    "never :latest):")
     print("  " + " ".join(cmd))
     if not args.apply:
         print("[DRY-RUN] Use --apply to run the canonical deploy. Push does NOT deploy.")

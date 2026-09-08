@@ -40,8 +40,7 @@ def test_admin_token_prefills_from_localstorage():
     """The token field promises 'login se auto' — /app/admin-login stores
     `accessToken` in localStorage, so the page must prefill it on load."""
     html = HTML.read_text(encoding="utf-8")
-    assert "var t=tok()
-    if(t)$('tokin').value=t" in html
+    assert "var t=tok()\n    if(t)$('tokin').value=t" in html
 
 
 def test_empty_save_does_not_wipe_login_token():

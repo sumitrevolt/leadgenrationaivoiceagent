@@ -24,9 +24,11 @@ def _admin_user():
 
 
 def test_command_query_model_max_length():
+    from pydantic import ValidationError
+
     from app.api.ai import CommandIn
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         CommandIn(query="x" * 501)
 
 

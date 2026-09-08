@@ -196,8 +196,8 @@ def main(argv: list[str]) -> int:
         )
         return 0
 
-    print(f"\n[APPLIED] promoted {r['promoted']} lead(s)
-    wrote {r['history']} history row(s).")
+    print(f"\n[APPLIED] promoted {r['promoted']} lead(s) "
+    f"wrote {r['history']} history row(s).")
     return 0
 
 

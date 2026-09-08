@@ -8,8 +8,8 @@ Fix: on FAIL, release slot + idem so next batch actually attempts again (when DI
 retry hits PLACED OK). Compliance gates untouched.
 """
 import re
-import sys
 import shutil
+import sys
 
 path = "/opt/leadgen/scripts/fire_calls.py"
 src = open(path, encoding="utf-8").read()

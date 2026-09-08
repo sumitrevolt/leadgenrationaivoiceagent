@@ -108,8 +108,7 @@ def test_code_exec_disabled_by_default_runs_nothing(monkeypatch):
     monkeypatch.delenv("CODE_EXEC", raising=False)
     assert code_exec.enabled() is False
     # Even a script that WOULD have side-effects must NOT run — disabled returns early.
-    res = asyncio.run(code_exec.execute("import os
-    os.system('echo hi')"))
+    res = asyncio.run(code_exec.execute("import os\n    os.system('echo hi')"))
     assert res["ok"] is False
     assert res["error"] == "disabled"
     assert res["hint"] == "set CODE_EXEC=1"

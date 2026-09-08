@@ -148,8 +148,8 @@ def main() -> int:
         return 2
     print("  canonical Boss present in every target channel")
 
-    print("\nSTEP 3 — retire Boss#A (membership only
-    history untouched)")
+    print("\nSTEP 3 — retire Boss#A (membership only "
+    "history untouched)")
     for name in targets:
         rc, _, err = run(["channels", "remove-member", "--channel", ch[name], "--pubkey", BOSS_A])
         print(f"  #{name:9} remove A rc={rc} {'' if rc == 0 else err[:90]}")

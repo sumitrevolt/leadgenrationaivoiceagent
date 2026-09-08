@@ -1,8 +1,4 @@
-"""Live self-test of all new features (real env). Run on VPS:
-   cd /opt/leadgen && .venv/bin/python scripts/test_features.py
-Tests the actual module functions (LLM calls real), HTTP endpoint reachability,
-the Pollinations image, and prints a problems summary.
-"""
+"""Live self-test of all new features (real env). Run on VPS:" "cd /opt/leadgen && .venv/bin/python scripts/test_features.py" "Tests the actual module functions (LLM calls real), HTTP endpoint reachability," "the Pollinations image, and prints a problems summary." """"
 
 import asyncio
 import json
@@ -145,8 +141,7 @@ async def main():
 asyncio.run(main())
 
 # HTTP endpoint reachability (no auth -> 401/403 = registered+gated; 404 = missing; 500 = bug)
-print("\n=== HTTP endpoints (no auth
-expect 401/403) ===")
+print("\n=== HTTP endpoints (no auth" "expect 401/403) ===")
 
 
 def http_post(path, body):

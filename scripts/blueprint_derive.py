@@ -438,8 +438,8 @@ def derive() -> dict[str, Any]:
                 "MEDIUM",
                 (
                     f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
-                    f"current-source signals (has {corr['count']}
-                    reviewed ownership "
+                    f"current-source signals (has {corr['count']}) "
+                    "reviewed ownership "
                     "does not corroborate itself)"
                 ),
             )
@@ -474,8 +474,8 @@ def derive() -> dict[str, Any]:
             final = "REVIEW_REQUIRED"
             conf = "MEDIUM"
             why = (
-                f"{why}
-                but L2 detail has no verified same-domain group "
+                f"{why} "
+                "but L2 detail has no verified same-domain group "
                 "parent — needs manual grouping before import"
             )
 

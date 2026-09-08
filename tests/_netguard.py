@@ -198,4 +198,4 @@ def disable() -> None:
     except Exception as exc:
         import warnings
 
-        warnings.warn(f"[netguard] Could not restore originals: {exc!r}", RuntimeWarning)
+        warnings.warn(f"[netguard] Could not restore originals: {exc!r}", RuntimeWarning, stacklevel=2)

@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""Enable Safe Launch canary flags on VPS (.env) — simulation / lab only.
-
-Authorized scope (owner 2026-07-31):
-  - SALES_AUTOPILOT_ENABLED=1 with DRY_RUN=1 (zero real outbound)
-  - CREATIVE_OS_ENABLED=1 lab/canary generation only (no GPU/Comfy/auto-publish)
-  - AGENT_RUNTIME=1 GREEN-lane pilots only
-  - SELF_IMPROVE_LOOP=0 containment forced
-
-HARD OFF (forced + NEVER-list refuse to raise):
-  PLATFORM_DIAL_DAILY, WHATSAPP_AUTO_SEND, REPLY_AUTO_SEND,
-  AUTO_EMAIL_OUTREACH, UPI_AUTO_ACTIVATE, SALES_AUTOPILOT live channels,
-  CREATIVE GPU/Comfy, VIDEO social auto-publish, OPENCLAW_ALLOW_RED_ACTIONS
-
-Run ON the VPS:
-  python3 /opt/leadgen/scripts/vps_enable_safe_launch_canary.py
-  python3 /opt/leadgen/scripts/vps_enable_safe_launch_canary.py --dry-run
-
-Idempotent. Backs up .env. Recreate pins APP_VERSION (ADR-097, never :latest).
-"""
+"""Enable Safe Launch canary flags on VPS (.env) — simulation / lab only." "Authorized scope (owner 2026-07-31):" "- SALES_AUTOPILOT_ENABLED=1 with DRY_RUN=1 (zero real outbound)" "- CREATIVE_OS_ENABLED=1 lab/canary generation only (no GPU/Comfy/auto-publish)" "- AGENT_RUNTIME=1 GREEN-lane pilots only" "- SELF_IMPROVE_LOOP=0 containment forced" "HARD OFF (forced + NEVER-list refuse to raise):" "PLATFORM_DIAL_DAILY, WHATSAPP_AUTO_SEND, REPLY_AUTO_SEND," "AUTO_EMAIL_OUTREACH, UPI_AUTO_ACTIVATE, SALES_AUTOPILOT live channels," "CREATIVE GPU/Comfy, VIDEO social auto-publish, OPENCLAW_ALLOW_RED_ACTIONS" "Run ON the VPS:" "python3 /opt/leadgen/scripts/vps_enable_safe_launch_canary.py" "python3 /opt/leadgen/scripts/vps_enable_safe_launch_canary.py --dry-run" "Idempotent. Backs up .env. Recreate pins APP_VERSION (ADR-097, never :latest)." """"
 
 from __future__ import annotations
 
@@ -109,8 +91,7 @@ def main() -> int:
     ap.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print planned changes
-        do not write .env or recreate",
+        help="Print planned changes" "do not write .env or recreate",
     )
     ap.add_argument(
         "--no-recreate",
@@ -148,8 +129,7 @@ def main() -> int:
         f.write(text)
 
     if args.no_recreate:
-        print("Wrote .env
-        skipped recreate (--no-recreate)")
+        print("Wrote .env" "skipped recreate (--no-recreate)")
         return 0
 
     pin = resolve_app_version_pin()

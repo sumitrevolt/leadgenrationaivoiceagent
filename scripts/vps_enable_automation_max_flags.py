@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""Enable Automation-Max safe flags on VPS (.env) — draft/ops/ops-health only.
-
-Philosophy (user mandate 2026-07-25): maximize automation so humans only approve
-high-impact/external actions. This script flips SAFE engines. It never enables
-ban/compliance killers.
-
-Run ON the VPS:
-  python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py
-  python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py --with-email
-  LEADGEN_APP_VERSION=<sha> python3 ...   # if leadgen_app is on :latest
-
-Idempotent. Backs up .env before write. Recreates app + celery stack so env reloads.
-ADR-097: recreate ALWAYS pins APP_VERSION (never compose default :latest).
-"""
+"""Enable Automation-Max safe flags on VPS (.env) — draft/ops/ops-health only." "Philosophy (user mandate 2026-07-25): maximize automation so humans only approve" "high-impact/external actions. This script flips SAFE engines. It never enables" "ban/compliance killers." "Run ON the VPS:" "python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py" "python3 /opt/leadgen/scripts/vps_enable_automation_max_flags.py --with-email" "LEADGEN_APP_VERSION=<sha> python3 ...   # if leadgen_app is on :latest" "Idempotent. Backs up .env before write. Recreates app + celery stack so env reloads." "ADR-097: recreate ALWAYS pins APP_VERSION (never compose default :latest)." """"
 
 from __future__ import annotations
 
@@ -114,8 +101,7 @@ def main() -> int:
     ap.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print planned changes
-        do not write .env or recreate",
+        help="Print planned changes" "do not write .env or recreate",
     )
     ap.add_argument(
         "--force-self-improve-off",
@@ -141,8 +127,7 @@ def main() -> int:
             print(f"OK  {k} already {v}")
 
     print("NEVER (left untouched): " + ", ".join(sorted(NEVER)))
-    print("OWNER_GATED (not in WANT_SAFE
-    enable refused): " + ", ".join(sorted(OWNER_GATED)))
+    print("OWNER_GATED (not in WANT_SAFE" "enable refused): " + ",".join(sorted(OWNER_GATED)))
 
     if not changed:
         print("No .env changes needed")

@@ -160,8 +160,8 @@ def check_alive() -> dict[str, Any]:
                 detail = f"Scheduler heartbeat stale ({last_tick_min}m ago)"
             else:
                 status = "green"
-                detail = f"Historical scheduler heartbeat stale ({last_tick_min}m ago)
-                loop not enabled now"
+                detail = f"Historical scheduler heartbeat stale ({last_tick_min}m ago) "
+                "loop not enabled now"
     elif self_improve_on or team_auto_on:
         status = "red"
         detail = "No heartbeat found even though always-on automation is enabled"

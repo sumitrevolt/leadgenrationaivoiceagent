@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""agent_task_packet.py — generate a BOUNDED task packet for a worker agent.
-
-Token-saving rule: never re-explain the whole project to a sub-agent. This emits a
-small packet (objective, exact files, relevant context nodes, constraints pulled
-from the project's invariants/landmines, and an acceptance-test hint) so a cheap
-worker model can execute without re-loading the repo.
-
-  python scripts/agent_task_packet.py --objective "add schema_version to office snapshot" \
-      --files app/platform/office_hq.py --query "office snapshot schema" --test tests/test_office_contract.py
-"""
+"""agent_task_packet.py — generate a BOUNDED task packet for a worker agent." "Token-saving rule: never re-explain the whole project to a sub-agent. This emits a" "small packet (objective, exact files, relevant context nodes, constraints pulled" "from the project's invariants/landmines, and an acceptance-test hint) so a cheap" "worker model can execute without re-loading the repo." "python scripts/agent_task_packet.py --objective "add schema_version to office snapshot" \" "--files app/platform/office_hq.py --query "office snapshot schema" --test tests/test_office_contract.py" """"
 
 from __future__ import annotations
 
@@ -29,8 +20,8 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
 
     out = [
         "# AGENT TASK PACKET",
-        f"(HEAD {head} — do NOT re-scan the repo
-        this is your bounded context)",
+        f"(HEAD {head} \u2014 do NOT re-scan the repo "
+        "this is your bounded context)",
         "",
         f"## Objective\n{objective}",
         "",
@@ -49,8 +40,7 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
         (
             f"- {test}"
             if test
-            else "- Add/extend a targeted pytest
-            changed behaviour needs a new assertion."
+            else "- Add/extend a targeted pytest" "changed behaviour needs a new assertion."
         ),
         "",
         "## Definition of done",

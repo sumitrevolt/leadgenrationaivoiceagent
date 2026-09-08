@@ -132,8 +132,8 @@ def tool_send(args: dict) -> dict:
     if channel not in cmap and not (
         len(channel) >= 8 and all(c in "0123456789abcdef" for c in channel.lower())
     ):
-        return {"text": f"unknown channel {channel!r}
-        known: {', '.join(sorted(cmap))}"}
+        return {"text": f"unknown channel {channel!r} "
+        f"known: {', '.join(sorted(cmap))}"}
     if len(content) > 4000:
         content = content[:4000] + " ...[truncated]"
     try:

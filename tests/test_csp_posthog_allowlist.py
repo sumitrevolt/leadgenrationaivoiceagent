@@ -66,8 +66,7 @@ def test_posthog_does_not_leak_into_public_widget_csp(client):
 
 
 def _directive(csp: str, name: str) -> str:
-    for part in csp.split("
-    "):
+    for part in csp.split("\n    "):
         part = part.strip()
         if part.startswith(name):
             return part

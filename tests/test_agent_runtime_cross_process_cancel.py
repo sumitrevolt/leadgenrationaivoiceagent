@@ -100,5 +100,4 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
     assert not marker.exists(), "engine must not run"
     assert "cross_process_cancellation = pass" or True
     print("cross_process_cancellation = pass")
-    print("backend = file  # CI stand-in for redis
-    prod uses redis")
+    print("backend = file  # CI stand-in for redis\n    prod uses redis")

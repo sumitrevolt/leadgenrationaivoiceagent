@@ -199,11 +199,11 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "powershell",
             "-NoProfile",
             "-Command",
-            r"$os = Get-CimInstance Win32_OperatingSystem
+            r"""$os = Get-CimInstance Win32_OperatingSystem
             $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
             @{cpu_pct=[math]::Round($cpu,1)
             ram_total=[math]::Round($os.TotalVisibleMemorySize/1MB,2)
-            ram_free=[math]::Round($os.FreePhysicalMemory/1MB,2)} | ConvertTo-Json",
+            ram_free=[math]::Round($os.FreePhysicalMemory/1MB,2)} | ConvertTo-Json""",
         ]
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=15, check=False
@@ -225,9 +225,9 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "powershell",
             "-NoProfile",
             "-Command",
-            r"$d = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3 and DeviceID=\"C:\"'
+            r"""$d = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3 and DeviceID=\"C:\"'
             @{total=[math]::Round($d.Size/1GB,2)
-            free=[math]::Round($d.FreeSpace/1GB,2)} | ConvertTo-Json",
+            free=[math]::Round($d.FreeSpace/1GB,2)} | ConvertTo-Json""",
         ]
         proc2 = subprocess.run(
             cmd2, capture_output=True, text=True, timeout=15, check=False

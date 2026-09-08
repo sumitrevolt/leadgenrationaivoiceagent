@@ -149,8 +149,8 @@ async def run_saturday_hygiene() -> dict[str, Any]:
                 "kavya",
                 "hygiene_queue_alert",
                 f"⚠️ calling queue backlog {alerts} — NOT auto-trimmed (carries "
-                f"admin campaigns + callbacks)
-                review + run "
+                f"admin campaigns + callbacks) "
+                f"review + run "
                 f"scripts/vps_celery_trim.py manually if stale",
                 status="warn",
             )

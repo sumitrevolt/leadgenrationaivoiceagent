@@ -78,8 +78,8 @@ def ramp(url: str, concurrency: int, duration_s: float, timeout: float) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="https://leadsgenai.in")
-    ap.add_argument("--knee", action="store_true", help="5→20→50 ramp
-    default is 5/10s only")
+    ap.add_argument("--knee", action="store_true", help="5→20→50 ramp "
+    "default is 5/10s only")
     args = ap.parse_args()
     targets = [f"{args.base.rstrip('/')}/health", f"{args.base.rstrip('/')}/"]
     levels = [5, 20, 50] if args.knee else [5]

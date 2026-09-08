@@ -86,9 +86,10 @@ def test_jsonable():
 
 
 def test_enabled_and_guard(monkeypatch):
+    from fastapi import HTTPException
     monkeypatch.delenv("ADMIN_DB_EXPLORER", raising=False)
     assert dbx._enabled() is False
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         dbx._guard()
     monkeypatch.setenv("ADMIN_DB_EXPLORER", "1")
     assert dbx._enabled() is True
@@ -122,12 +123,10 @@ def test_read_table_unknown_returns_404(fake_engine):
 
 def test_read_table_injection_safe(fake_engine):
     # Malicious table name not in introspection list → 404, never executed.
-    res = dbx._read_table("users
-    DROP TABLE users", 10, 0, None, True, False)
+    res = dbx._read_table("users\n    DROP TABLE users", 10, 0, None, True, False)
     assert res.get("status") == 404
     # Bad order_by column ignored (not in col list) → query still safe.
-    res2 = dbx._read_table("users", 10, 0, "id
-    DROP TABLE users", False, False)
+    res2 = dbx._read_table("users", 10, 0, "id\n    DROP TABLE users", False, False)
     assert res2.get("status") is None
     # Table must still exist (no drop happened).
     res3 = dbx._read_table("users", 10, 0, None, True, True)
