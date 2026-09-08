@@ -249,14 +249,14 @@ fi
 # -----------------------------------------------------------------------------
 head_ "[6] Drop signature (1005 / WS error)"
 if [ -n "${APP_LOGS:-}" ]; then
-  DROP_1005="$(echo "$APP_LOGS" | grep -ac '1005' )"
+  DROP_1005="$(echo "$APP_LOGS" | grep -aE 'smartflo-stream.*1005|1005.*smartflo-stream|close code[^0-9]*1005|1005[^0-9]*close|abnormal[^0-9]*1005|1005[^0-9]*abnormal' | wc -l)"
   DROP_WSERR="$(echo "$APP_LOGS" | grep -ac 'WS error')"
   info "lines containing 1005 = ${DROP_1005}; 'WS error' lines = ${DROP_WSERR}"
   if [ "$DROP_1005" -eq 0 ] && [ "$DROP_WSERR" -eq 0 ]; then
     ok "no 1005 / WS-error lines in the last ${LOOKBACK_MIN}m"
   else
     bad "${DROP_WSERR} WS-error / ${DROP_1005} 1005 lines in the last ${LOOKBACK_MIN}m"
-    echo "$APP_LOGS" | grep -aE '1005|WS error' | grep -aoE '.{0,120}(1005|WS error).{0,60}' | tail -5 | sed 's/^/  /'
+    echo "$APP_LOGS" | grep -aE 'smartflo-stream.*1005|1005.*smartflo-stream|close code[^0-9]*1005|1005[^0-9]*close|abnormal[^0-9]*1005|1005[^0-9]*abnormal|WS error' | grep -aoE '.{0,120}(1005|WS error).{0,60}' | tail -5 | sed 's/^/  /'
   fi
 else
   warn "skipped (no logs)"
