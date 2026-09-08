@@ -520,20 +520,12 @@ def test_wss_host_has_no_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Known defect (documented, non-blocking): post-call metering is mis-wired
+# Regression guard: post-call metering must call the REAL meter_call_completion
+# signature. Fixed 2026-09-08 - it previously raised TypeError (wrong kwargs)
+# which `except Exception: pass` swallowed, so calls were never metered/billed.
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(
-    reason=(
-        "KNOWN BUG 2026-09-08: SmartfloStreamSession._cleanup() calls "
-        "meter_call_completion(client_id=..., call_duration_s=..., user_turns=..., "
-        "metadata=...) but the signature is "
-        "meter_call_completion(call_id, *, client_id, duration_seconds, ...) -> "
-        "TypeError, swallowed by 'except Exception: pass'. Calls are never metered."
-    ),
-    strict=False,
-)
 @pytest.mark.asyncio
 async def test_cleanup_meters_call_with_usable_duration(
     monkeypatch: pytest.MonkeyPatch, tmp_path

@@ -868,24 +868,31 @@ class SmartfloStreamSession:
         try:
             from app.telephony.post_call_hooks import meter_call_completion
 
-            user_turns = sum(1 for m in self.hist if m.get("role") == "user")
+            # 2026-09-08 revenue-leak fix. Real signature:
+            #   meter_call_completion(call_id, *, client_id="", client_name="",
+            #                         duration_seconds, campaign_id=None)
+            # The previous call sent call_duration_s / user_turns / metadata and no
+            # call_id at all -> TypeError -> swallowed by `except Exception: pass`
+            # -> every SmartFlo call completed with NO billing record.
+            # `call_id` is positional-or-keyword, so keyword form is used here to
+            # stay compatible with the contract test's **kwargs spy.
             await meter_call_completion(
-                client_id=self.client_id,
-                call_duration_s=int(
+                call_id=str(self.stream_sid or ""),
+                client_id=str(self.client_id or ""),
+                client_name=self.client_name or "",
+                duration_seconds=int(
                     (datetime.now(timezone.utc) - self._started_at).total_seconds()
                 ),
-                user_turns=user_turns,
-                metadata={
-                    "provider": "tata_smartflo",
-                    "stream_sid": self.stream_sid,
-                    "from": self.from_number,
-                    "to": self.to_number,
-                    "media_frames": self._media_frames,
-                    "caller_rms_max": self._caller_rms_max,
-                },
             )
         except Exception:
-            pass
+            # 2026-09-08: this was a bare `pass`, which hid the TypeError above and
+            # silently lost billing records. Never swallow it again.
+            logger.exception(
+                "[smartflo-stream] meter_call_completion FAILED - billing record LOST "
+                "for stream_sid=%s client_id=%s",
+                self.stream_sid,
+                self.client_id,
+            )
         # Close WS
         try:
             await self.ws.close()
