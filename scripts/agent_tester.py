@@ -11,7 +11,8 @@ What it checks per scenario (catalogue in app/voice_agent/voice_selftest.py):
     NO_REPLY / DOUBLE_REPLY / EMPTY / BANNED-phrase / SERVER_CLOSED / CRASH
   SOFT mechanical (gates only with --strict):
     TOO_LONG (>35w) / SLOW (>9s) / REPEAT
-  BEHAVIOURAL + GUARDRAIL + GOAL (advisory; --strict to gate):
+  BEHAVIOURAL + GUARDRAIL + GOAL (advisory
+  --strict to gate):
     pushy-after-soft-no / talk-listen-ratio / missing-permission /
     missing-AI-disclosure (TRAI/DPDP) / literal-translation /
     prompt-injection-obeyed / PII-leak / per-scenario goal misses
@@ -19,7 +20,8 @@ What it checks per scenario (catalogue in app/voice_agent/voice_selftest.py):
 Objective numbers in the scorecard:
   * latency P50/P95/P99 (distribution, not average)
   * quality_score = mean goal pass-rate (feeds eval_gate baseline when EVAL_GATE=1)
-  * roundtrip-WER/CER per Swara line (opt-in --audio; FREE via Groq-whisper) —
+  * roundtrip-WER/CER per Swara line (opt-in --audio
+  FREE via Groq-whisper) —
     DIAGNOSTIC only, never gates (Devanagari↔roman folded via hinglish_normalize).
 
 VOICE-ENGINE TESTER (2026-08-06): this script is ALSO the voice-engine tester —
@@ -114,7 +116,8 @@ _SCN_BY_NAME = {s.name: s for s in vs.SCENARIOS}
 async def _collect_replies(ws, first_timeout=12.0, settle=2.5):
     """Collect bot replies in a window. Returns (replies, ws_closed) where each
     reply is {"text", "audio_b64"}. Sentence-streamed replies (chunk_total>1)
-    count as ONE reply (text from full_text); their audio is per-chunk/partial so
+    count as ONE reply (text from full_text)
+    their audio is per-chunk/partial so
     we drop it for roundtrip (only clean single-message replies carry audio)."""
     replies: list[dict] = []
     while True:
@@ -522,7 +525,8 @@ def print_diff(diff: dict) -> None:
 
 def _maybe_eval_gate(quality_score) -> dict | None:
     """Record quality into the rolling baseline + return the verdict when
-    EVAL_GATE=1; INERT (None) otherwise."""
+    EVAL_GATE=1
+    INERT (None) otherwise."""
     if quality_score is None:
         return None
     try:
@@ -630,7 +634,8 @@ async def main() -> int:
         "--baseline",
         default="",
         metavar="FILE",
-        help="JSON report from a prior --json run; print a before/after latency+quality diff",
+        help="JSON report from a prior --json run
+        print a before/after latency+quality diff",
     )
     args = ap.parse_args()
     verbose = not args.json

@@ -58,7 +58,8 @@ def test_viewed_identity_invalidated_on_preview_failure():
 def test_approve_refuses_without_stored_identity():
     body = _fn("videoFeedback")
     assert "var viewed=viewedVideoIdentity[id]" in body
-    assert "return;" in body.split("var viewed=viewedVideoIdentity[id]")[1][:400]
+    assert "return
+    " in body.split("var viewed=viewedVideoIdentity[id]")[1][:400]
 
 
 def test_revision_change_invalidates_stored_identity():

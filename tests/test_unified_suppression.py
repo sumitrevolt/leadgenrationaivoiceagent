@@ -2,7 +2,8 @@
 
 Root cause this pins: `email_unsub.suppress()` had exactly ONE caller in all of
 `app/` — the one-click HTTP endpoint. Every outreach email says "reply REMOVE",
-but a REMOVE reply only marked the prospect row dead; the address stayed mailable
+but a REMOVE reply only marked the prospect row dead
+the address stayed mailable
 from any other row and WhatsApp was never touched. The advertised opt-out did not
 work at the list level.
 

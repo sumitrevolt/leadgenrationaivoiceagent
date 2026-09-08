@@ -2,7 +2,8 @@
 
 These lock the P0 properties the JSONL first cut could not provide:
   - concurrent claimers produce exactly ONE dispatch per row
-  - a handler failure retries and eventually goes dead; it never marks completion
+  - a handler failure retries and eventually goes dead
+  it never marks completion
   - an expired lease is recoverable (crashed worker)
   - tenant A can neither read, cancel nor purge tenant B
   - secrets are redacted before anything is persisted

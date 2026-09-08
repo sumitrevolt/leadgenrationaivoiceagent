@@ -4,7 +4,8 @@ sticker_pack.py — WhatsApp sticker pack (6 PNG, 512x512 transparent) per clien
 
 Chhote business WhatsApp pe hi chalte hain — apne brand-color Hinglish stickers
 ("Shukriya!", "Offer Hai!", ...) = roz free branding har chat me. PIL text-art
-(system fonts; emoji glyph dependency NAHI — shapes se accent), transparent
+(system fonts
+emoji glyph dependency NAHI — shapes se accent), transparent
 512x512 = WhatsApp sticker spec.
 
   generate_stickers(slug="", business_name="", niche="") ->
@@ -126,7 +127,8 @@ def _draw_sticker(big: str, small: str, brand_name: str, primary: str, accent: s
 def generate_stickers(slug: str = "", business_name: str = "", niche: str = "") -> dict[str, Any]:
     """6 WhatsApp stickers (512x512 transparent PNG) brand colors me banao.
 
-    slug se brand auto-resolve (clients_store/brand_kit); business_name override
+    slug se brand auto-resolve (clients_store/brand_kit)
+    business_name override
     bhi de sakte ho. Files data/stickers/<slug>/ me. Kabhi raise nahi.
     """
     try:

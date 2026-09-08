@@ -1,6 +1,7 @@
 """Structured response contract for Swara turns (validate / repair).
 
-Model may emit JSON; we always return a safe spoken Hinglish line.
+Model may emit JSON
+we always return a safe spoken Hinglish line.
 Server decides hangup / tools — model only suggests.
 """
 

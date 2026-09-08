@@ -6,7 +6,8 @@ Teeno already-deployed sprint actions (``app.agents.sprint_actions``) ko Agent
 Runtime ke under ek governed one-shot surface pe laata hai. Host = **kavya**
 (existing Wave-A GREEN L0 read-only pilot) — naya persona/agent nahi banta, isliye
 31-agent canonical invariant intact. Runtime gate = ``OPS_HEALTH_AGENT`` (kavya ka
-``primary_flag``, already in automation-flags registry); scheduler ka gate alag
+``primary_flag``, already in automation-flags registry)
+scheduler ka gate alag
 (``OPS_WATCHDOG``) — ye flag sirf RUNTIME dispatch unlock karta hai, koi scheduled
 work auto-start nahi hota.
 
@@ -19,7 +20,8 @@ actions inhe violate nahi karte (draft save / brief generate / job heartbeat
 re-dispatch = internal, bounded). ``counts_contact=False`` — koi customer touch
 nahi.
 
-Import-safe; ``ensure_sprint_registered()`` idempotent.
+Import-safe
+``ensure_sprint_registered()`` idempotent.
 """
 
 from __future__ import annotations

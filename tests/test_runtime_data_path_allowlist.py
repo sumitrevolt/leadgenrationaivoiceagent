@@ -64,7 +64,8 @@ def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
     dropped, if the entry drifts onto the audit file, or if the temp companion
     is mistaken for the durable authority.
 
-    A3 turned `_REQUESTS_FILE` into a per-call resolver function; the allowlist
+    A3 turned `_REQUESTS_FILE` into a per-call resolver function
+    the allowlist
     symbol name is unchanged, and REPLACE findings must still bind to the
     requests file (never the sibling audit log).
     """
@@ -389,7 +390,8 @@ def test_path_component_boundaries(declared: str, detected: str, expected: bool)
 def test_text_only_occurrence_does_not_bind(findings) -> None:
     """A basename that exists ONLY in prose must not satisfy a declaration.
 
-    The secondary source-text check would accept this; the finding binding is
+    The secondary source-text check would accept this
+    the finding binding is
     what refuses it.
     """
     prose_only = _entry(

@@ -7,11 +7,13 @@ content scheduler's ``run_due()`` pattern.
 Pieces
 ------
 1. **Template store** (``data/wa_templates.jsonl``) — register / list / update-status of
-   Meta message templates. Meta approves templates server-side; we only track
+   Meta message templates. Meta approves templates server-side
+   we only track
    name / language / category / body / status so the panel + runner know which
    approved templates exist. Only ``status="approved"`` templates are auto-sent.
 2. **Suppression list** (``data/wa_suppression.jsonl``) — opt-out / blocked / repeatedly
-   failing numbers. ``is_suppressed`` short-circuits every send; ``record_failure``
+   failing numbers. ``is_suppressed`` short-circuits every send
+   ``record_failure``
    auto-suppresses a number after N failures (bounce/block protection).
 3. **Campaign queue** (``data/wa_campaigns.jsonl``) — drip + reactivation jobs scheduled
    for a date, prepared/sent by :func:`run_due` (scheduler calls it hourly).
@@ -223,7 +225,8 @@ def is_suppressed(phone: str) -> bool:
     """True if this number must not be messaged.
 
     Returns True when the suppression store cannot be RESOLVED. The caller is
-    about to decide whether to send; without a trustworthy opt-out list the only
+    about to decide whether to send
+    without a trustworthy opt-out list the only
     safe answer is "do not". A missing or empty file still reads as
     not-suppressed — that is an answer, not an outage.
     """
@@ -344,7 +347,8 @@ def schedule_campaign(
 ) -> dict[str, Any]:
     """Queue a WhatsApp campaign for a date. Sent by :func:`run_due` when due.
 
-    recipients = [{"phone","name"?}]; if empty + client_id given, the client's
+    recipients = [{"phone","name"?}]
+    if empty + client_id given, the client's
     opted-in customers are resolved at run time.
     """
     k = (kind or "").strip().lower()

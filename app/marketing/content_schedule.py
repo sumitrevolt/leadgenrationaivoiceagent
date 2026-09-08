@@ -1,6 +1,7 @@
 """Content scheduler — schedule posts for specific future dates (Buffer/Hootsuite-style).
 
-`auto_content` daily content deta hai; yeh DATE-targeted scheduling deta hai — kisi khaas
+`auto_content` daily content deta hai
+yeh DATE-targeted scheduling deta hai — kisi khaas
 din ke liye post queue karo (Diwali, anniversary, sale day). Roz ka sweep due items ko
 auto-PREPARE karta hai (content generate → ready-to-post). Store: data/content_schedule.jsonl.
 

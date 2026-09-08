@@ -3,7 +3,8 @@
 
 The Buzz video quotes $200/day. This project runs a free/subscription-only stack,
 so the number that matters here is NOT dollars — it is **quota burn**. Codex
-reports a real `used_percent` against the subscription; Claude Code reports
+reports a real `used_percent` against the subscription
+Claude Code reports
 tokens. Both are read from local session logs. Nothing is estimated from
 guesswork and nothing is sent anywhere unless you pass --post.
 
@@ -15,7 +16,8 @@ guesswork and nothing is sent anywhere unless you pass --post.
 The USD column is a COUNTERFACTUAL: what these tokens would have cost on
 metered API pricing. On a subscription the marginal cost is zero — the column
 exists to show when a harness is burning enough to be worth re-tuning, not to
-claim money was spent. Per-MTok rates are Anthropic list prices; edit PRICES if
+claim money was spent. Per-MTok rates are Anthropic list prices
+edit PRICES if
 they move.
 
 Protocol: ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md
@@ -136,7 +138,8 @@ def scan_codex(cutoff: str) -> tuple[dict, dict | None]:
     """Per-day token totals + the newest subscription quota reading.
 
     Codex emits a cumulative `total_token_usage` and a per-turn
-    `last_token_usage`; summing the deltas is what gives a true per-day figure.
+    `last_token_usage`
+    summing the deltas is what gives a true per-day figure.
     """
     days: dict[str, dict] = defaultdict(_blank)
     quota: dict | None = None

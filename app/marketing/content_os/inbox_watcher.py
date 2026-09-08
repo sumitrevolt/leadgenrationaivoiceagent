@@ -4,7 +4,8 @@ content_os.inbox_watcher — VPS-side Celery task.
 Scans MEDIA_INBOX periodically. Anything sitting in a folder that has a
 brief.json + at least one .mp4 (per aspect) is registered as a MediaAsset
 and pushed to Postiz as a *draft* (NOT published). The owner bot then
-asks in Telegram for Approve/Recreate/Skip; only on Approve do we move
+asks in Telegram for Approve/Recreate/Skip
+only on Approve do we move
 the draft to scheduled.
 
 This keeps the GATING intent intact: nothing ever gets posted without
@@ -166,7 +167,8 @@ def approve(asset_id: str) -> dict:
             aspects=["9x16", "1x1", "16x9"],
         )
     except Exception as e:
-        logger.info("[content_os] Postiz unavailable (%s); staging local schedule", e)
+        logger.info("[content_os] Postiz unavailable (%s)
+        staging local schedule", e)
         schedule_p = media_dir / ".postiz_schedule.json"
         schedule_p.write_text(json.dumps({
             "title": asset["title"],

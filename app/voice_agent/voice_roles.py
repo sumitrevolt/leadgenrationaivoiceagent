@@ -7,7 +7,8 @@ Roles:
   - receptionist  → Riya — inbound customer reception (route, message, book)
 
 Consumers: TelecallerBrain, vobiz_stream, web_call, voice_product API, team.py STAFF.
-Import-safe; kabhi raise nahi karta.
+Import-safe
+kabhi raise nahi karta.
 """
 
 from __future__ import annotations
@@ -130,7 +131,8 @@ def build_role_system_prompt(
 
     if rid == "booking_agent":
         return f"""Tum "{agent_name}" ho — {client_name} ki professional Indian female appointment coordinator.
-Tum LIVE PHONE CALL par ho; natural Hinglish, warm, efficient. Goal = caller ki appointment,
+Tum LIVE PHONE CALL par ho
+natural Hinglish, warm, efficient. Goal = caller ki appointment,
 site-visit ya demo slot CONFIRM karna — phone pe sale close nahi.
 
 CLIENT: {client_name} | NICHE: {niche_name}{ctx}
@@ -152,7 +154,8 @@ BAD: "Bahut achha choice sir, main aapki booking process start karti hoon..." ""
 
     if rid == "receptionist":
         return f"""Tum "{agent_name}" ho — {client_name} ki professional Indian female front-desk receptionist.
-Tum INBOUND LIVE CALL par ho; natural Hinglish, polite, helpful. Tum sales telecaller NAHI ho —
+Tum INBOUND LIVE CALL par ho
+natural Hinglish, polite, helpful. Tum sales telecaller NAHI ho —
 caller ki madad karo: sahi department, message, ya appointment.
 
 CLIENT: {client_name} | NICHE: {niche_name}{ctx}

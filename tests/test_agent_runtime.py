@@ -5,8 +5,10 @@ reject · timeout · retry→DLQ · idempotent dedupe · concurrency · budget �
 tenant isolation · AMBER approval · RED hard-off · heartbeat vs useful-work ·
 event-only healthy-idle · registry stays green.
 
-Isolated: state/usage/DLQ files → tmp_path; kill/idempotency/approval seams
-monkeypatched; no Redis/DB/network required (durable bridge is best-effort).
+Isolated: state/usage/DLQ files → tmp_path
+kill/idempotency/approval seams
+monkeypatched
+no Redis/DB/network required (durable bridge is best-effort).
 """
 
 from __future__ import annotations

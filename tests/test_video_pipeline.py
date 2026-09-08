@@ -100,7 +100,8 @@ def test_logo_temp_file_decodes_data_uri():
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFBQIA"
         "X8jx0gAAAABJRU5ErkJggg=="
     )
-    uri = f"data:image/png;base64,{png_b64}"
+    uri = f"data:image/png
+    base64,{png_b64}"
     with tempfile.TemporaryDirectory() as tmp:
         path = video_pipeline._logo_temp_file(uri, tmp)
         assert path is not None

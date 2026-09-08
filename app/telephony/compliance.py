@@ -4,7 +4,8 @@ Compliance Gate — the ONE chokepoint every outbound call must pass (India TCCC
 
 India's TCCCPR (TRAI) rules for automated/commercial voice calls:
   * DND scrub        — promotional calls to NDNC/DND numbers are illegal.
-  * Calling window   — TRAI telemarketing window is 09:00–21:00 IST; we keep
+  * Calling window   — TRAI telemarketing window is 09:00–21:00 IST
+  we keep
                        promotional conservative at 09:00–19:00 IST (a safe subset)
                        and transactional/service wider (09:00–21:00).
   * 140-series + DLT — promotional calls need a registered 140 caller-id and a
@@ -33,7 +34,8 @@ Config (env, all optional with safe defaults):
                          DANGER: this turns the TRAI DND gate fail-OPEN. There is NO
                          legitimate prod use — keep UNSET (default = fail-CLOSED).
                          In PRODUCTION the flag is IGNORED at runtime (treated
-                         fail-CLOSED) with a one-time CRITICAL log; prod_check.py
+                         fail-CLOSED) with a one-time CRITICAL log
+                         prod_check.py
                          also emits a BLOCKER if it is set in production.
   COMPLIANCE_PROMO_START/END overrides are CLAMPED into TRAI's legal 09:00–21:00
                          IST ceiling (a bad value can never breach 21:00).
@@ -44,7 +46,8 @@ Usage:
 
     decision = await get_compliance_gate().check(phone, CallType.PROMOTIONAL)
     if not decision.allowed:
-        ...  # do NOT dial; decision.reasons explains why
+        ...  # do NOT dial
+        decision.reasons explains why
 """
 
 from __future__ import annotations
@@ -214,7 +217,8 @@ class ComplianceGate:
         out = set()
         # Split ONLY on , and ; — never on spaces (a number may contain spaces,
         # e.g. "+91 98765 43210"); _digits() then strips spaces/+/dashes.
-        for tok in raw.replace(";", ",").split(","):
+        for tok in raw.replace("
+        ", ",").split(","):
             d = _digits(tok)
             if len(d) >= 10:
                 out.add(d[-10:])  # compare on the last 10 digits (ignore +91/91)
@@ -444,7 +448,8 @@ class ComplianceGate:
         except Exception as e:
             # Fail SAFE: promo blocked, transactional allowed.
             logger.warning(
-                f"compliance: gate error ({e}); failing {'closed' if ct == CallType.PROMOTIONAL else 'open'}."
+                f"compliance: gate error ({e})
+                failing {'closed' if ct == CallType.PROMOTIONAL else 'open'}."
             )
             safe = ct != CallType.PROMOTIONAL
             return ComplianceDecision(safe, ct.value, phone, [f"gate_error:{e}"], checks)

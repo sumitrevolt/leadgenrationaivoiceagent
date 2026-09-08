@@ -7,16 +7,19 @@ image-gen, Vobiz, SMTP, Google Maps) have NO breaker — a dead 3rd-party endpoi
 every call waits the full httpx timeout, starving workers during an outage.
 
 Yeh ek chhota, free-stack, per-process breaker hai (CLOSED → OPEN → HALF_OPEN):
-  - CLOSED:    requests allow; consecutive failures count.
+  - CLOSED:    requests allow
+  consecutive failures count.
   - OPEN:      `fail_threshold` failures ke baad — `reset_after_s` tak FAST-FAIL
                (allow()=False) → caller turant fallback le (45s wait nahi).
-  - HALF_OPEN: cooldown ke baad ek trial allow; success → CLOSED, fail → OPEN again.
+  - HALF_OPEN: cooldown ke baad ek trial allow
+  success → CLOSED, fail → OPEN again.
 
 MASTER GATE: env `CIRCUIT_BREAKER` (default OFF). OFF hone pe `allow()` HAMESHA True
 return karta — ZERO behaviour change (record_* sirf counters update karte, kabhi trip
 nahi karte). Flag ON karne pe hi enforcement chalu hota. Instant rollback = `=0`.
 
-FAIL-SAFE: sab in-memory (per-process; multi-worker = independent breakers, acceptable),
+FAIL-SAFE: sab in-memory (per-process
+multi-worker = independent breakers, acceptable),
 import-safe, kabhi raise nahi karta. Koi naya dependency nahi.
 
 Use:
@@ -111,7 +114,8 @@ class CircuitBreaker:
     def record_failure(self) -> None:
         """A real call failed — count toward the threshold; trip to OPEN if exceeded.
         Counters update even when the gate is OFF (harmless), so enabling later starts
-        from a real picture; tripping only blocks when enabled() (see allow())."""
+        from a real picture
+        tripping only blocks when enabled() (see allow())."""
         self._fails += 1
         if self._state == "half_open" or self._fails >= self.fail_threshold:
             if self._state != "open":

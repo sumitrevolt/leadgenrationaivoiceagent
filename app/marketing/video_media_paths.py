@@ -9,9 +9,11 @@ process start and silently mis-resolve if the working directory differs. Every
 root here is therefore resolved **per call**, from:
 
   1. ``runtime_data_authority`` — the canonical store-path authority (same seam
-     ``runtime_recording_paths`` uses), when the store is declared there; else
+     ``runtime_recording_paths`` uses), when the store is declared there
+     else
   2. the renderer's own public accessor (``video_pipeline.output_root()``), so a
-     runtime or test override of the render directory is honoured; else
+     runtime or test override of the render directory is honoured
+     else
   3. a REPOSITORY-anchored default derived from this module's location — never
      ``Path.cwd()``.
 """
@@ -24,7 +26,8 @@ import stat
 from pathlib import Path
 from typing import Any
 
-_HASH_CHUNK = 1024 * 1024  # stream HD video; never read a whole render into RAM
+_HASH_CHUNK = 1024 * 1024  # stream HD video
+never read a whole render into RAM
 
 # app/marketing/video_media_paths.py -> repo root is three parents up.
 _REPO_ROOT = Path(__file__).resolve().parents[2]

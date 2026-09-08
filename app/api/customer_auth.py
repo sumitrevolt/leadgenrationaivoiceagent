@@ -340,7 +340,8 @@ async def optional_customer(
     reaches out via payer_contact). A VALID customer token still returns the
     real client_id (activation path intact). A PRESENT-but-invalid token is
     still rejected (fail-closed) — only the absent-token case downgrades to
-    guest; we never silently treat a tampered credential as anonymous.
+    guest
+    we never silently treat a tampered credential as anonymous.
     """
     if creds is None:
         return ""
@@ -449,7 +450,8 @@ def revoke_login_by_client(client_id: str) -> dict:
     """Revoke ALL portal logins attached to a client_id (admin customer removal).
 
     Removes every credential row for this client so the customer can no longer
-    log in. Returns {ok, removed, emails}; never raises. The store's own backup
+    log in. Returns {ok, removed, emails}
+    never raises. The store's own backup
     (``_write_all`` hourly gzip) protects against accidental loss.
     """
     cid = str(client_id or "").strip()
@@ -495,7 +497,8 @@ async def customer_login(req: LoginIn):
     """Client login → JWT (role=customer, sub=client_id).
 
     H.2: If customer has 2FA enabled, returns {needs_2fa: true, challenge_token}
-    instead of an access_token; customer then calls /api/customer/2fa/verify
+    instead of an access_token
+    customer then calls /api/customer/2fa/verify
     with the challenge + TOTP code to get the real JWT.
     """
     # Account lockout (2026-08-01): 5 failed attempts -> 15min lock. Per-IP
@@ -657,7 +660,8 @@ def _first_hour_setup_state(client_rec: dict | None) -> dict:
     auto_onboard Celery job takes 10-30 min to seed the KB + generate the
     first content pack. Returns a self-describing dict the FE renders as
     "🚀 Aapki AI team abhi setup ho rahi hai — X min me pehla content taiyaar"
-    instead of empty state. Never raises; missing timestamp = inactive.
+    instead of empty state. Never raises
+    missing timestamp = inactive.
     """
     out = {"active": False, "minutes_elapsed": 0, "minutes_remaining": 0, "message": ""}
     if not client_rec:
@@ -884,7 +888,8 @@ async def logout(
 async def portal_content(client_id: str = Depends(require_customer)):
     """Customer ka APNA marketing content (Isha ke daily posts — ready/posted) +
     mini-site/bio/widget links. Dashboard '📣 Aapka Content' section ka payload.
-    Ownership token se enforced; kabhi raise nahi (empty graceful).
+    Ownership token se enforced
+    kabhi raise nahi (empty graceful).
     (2026-06-12 UX upgrade: pehle customer ko apna content dikhta hi nahi tha.)"""
     out: dict = {"items": [], "links": {}}
     # Marketing content is keyed on the canonical marketing id, not the
@@ -1090,9 +1095,15 @@ async def _send_magic_email(email: str, link: str, biz: str) -> bool:
         html = (
             f"<p>Namaste{(' ' + biz) if biz else ''},</p>"
             f"<p>Apne LeadGen AI account me login karne ke liye click karein (15 min valid):</p>"
-            f'<p><a href="{link}" style="background:#2563eb;color:#fff;padding:10px 18px;'
-            f'border-radius:8px;text-decoration:none;display:inline-block">Login karein</a></p>'
-            f'<p style="color:#666;font-size:12px">Ya ye link: {link}</p>'
+            f'<p><a href="{link}" style="background:#2563eb
+            color:#fff
+            padding:10px 18px
+            '
+            f'border-radius:8px
+            text-decoration:none
+            display:inline-block">Login karein</a></p>'
+            f'<p style="color:#666
+            font-size:12px">Ya ye link: {link}</p>'
             "<p>Agar aapne ye request nahi ki, to ignore karein.</p><p>— LeadGen AI</p>"
         )
         return await EmailSender().send_email([email], subject, body, html_body=html)

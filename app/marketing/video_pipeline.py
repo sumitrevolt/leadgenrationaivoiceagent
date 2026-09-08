@@ -45,7 +45,8 @@ def _hex(c: str, default: tuple) -> tuple:
 def _logo_temp_file(logo_data_uri: str, tmp_dir: str) -> str | None:
     """brand_frames.resolve_brand()'s logo_data_uri (data:image/...;base64,...)
     ko ek disk file me decode karo — ffmpeg ko file path chahiye, data URI nahi.
-    Never raises; malformed/empty input = None."""
+    Never raises
+    malformed/empty input = None."""
     try:
         if not logo_data_uri or not logo_data_uri.startswith("data:image/"):
             return None
@@ -646,7 +647,8 @@ async def render_creative_video(
     ratio: str = "9:16",
 ) -> dict[str, Any]:
     """1 branded creative video banao. Returns {path,...} ya {error}.
-    Phase 1: only "generic" has a real implementation; other recipe names
+    Phase 1: only "generic" has a real implementation
+    other recipe names
     currently fall back to generic (Phase 2 adds real per-recipe behavior).
     ``ratio`` ∈ {9:16, 1:1, 16:9, 4:5} — default vertical reel."""
     t0 = time.time()

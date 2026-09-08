@@ -7,7 +7,8 @@ SMTP creds expire ho jayein ya koi API girne lage to hafton pata nahi chalta
 
 YEH MODULE: ultra-light counters — integrations apni failure/success
 `record_failure("smtp", note)` / `record_success("smtp")` se report karte
-(Redis hourly buckets, 26h TTL; Redis down = silent skip, hot-path pe ZERO
+(Redis hourly buckets, 26h TTL
+Redis down = silent skip, hot-path pe ZERO
 load). Watchdog (hourly) `run_watch()`: pichle ~1h me kisi integration ke
 fails >= threshold (env `INTEGRATION_FAIL_ALERT_N`, default 5) to email
 alert — gated `INTEGRATION_ALERTS=1` (off = sirf counters,

@@ -390,7 +390,8 @@ def get_script_preview(
 
     - ``opening`` = niche script ka asli opening (placeholders filled).
     - ``suggested_opening`` = services/offer se personalized opening (jo wizard UI
-      pre-fill karega; user edit kar sakta hai).
+      pre-fill karega
+      user edit kar sakta hai).
     """
     try:
         bt = str(business_type or "").strip().lower()

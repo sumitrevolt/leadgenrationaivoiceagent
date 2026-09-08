@@ -504,7 +504,8 @@ def record_opt_out(
 
 def is_suppressed(phone: str) -> bool:
     """True agar number opt-out suppression list par hai. Never raises.
-    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback.
+    CONSENT_DB=1 pe Postgres check (concurrent-safe)
+    warna JSONL fallback.
 
     Returns True when the suppression authority cannot be RESOLVED. "I cannot
     reach the opt-out list" must never be answered as "this person did not opt

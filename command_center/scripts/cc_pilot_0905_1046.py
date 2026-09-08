@@ -8,8 +8,11 @@ FRESH evidence (10:40-10:46 IST probe, SSH root@72.61.245.204):
 - wa_inbound latest = newsletter broadcast 05:16 UTC ('Trapped Underwater...') — SAL-006 reply STILL PENDING (0 genuine inbound).
 - reply_drafts auto_sent true=1 = SAL-006 MANUAL 3EB00CFC (sent_manual) — ENG-004 automation 0.
 - SIP 5 vars len=0 DID0, VOBIZ_CALLER_ID len13 REVOKED, egress api.vobiz.com timeout DAY6 (per 03:27Z probes).
-- leads/ ABSENT ammo0; rev VERIFIED Rs1,999 Jiya sole; GAP Rs4,98,001.
-- /health localhost curl empty (auth-gated); containers healthy Up7h per 03:05Z evidence.
+- leads/ ABSENT ammo0
+rev VERIFIED Rs1,999 Jiya sole
+GAP Rs4,98,001.
+- /health localhost curl empty (auth-gated)
+containers healthy Up7h per 03:05Z evidence.
 """
 import json
 import subprocess

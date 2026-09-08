@@ -13,7 +13,8 @@ pe inquiry → payment match karta hai (cid-based identities alag persons hote).
 
 Insight creation: ``ensure_insight()`` PostHog API se funnel insight banata hai
 (breakdown: business_type). RESTRICTION: insights/query endpoints PRIVATE hain —
-sirf personal API key (``phx_``) chalta hai; repo ka ``POSTHOG_API_KEY`` (``phc_``)
+sirf personal API key (``phx_``) chalta hai
+repo ka ``POSTHOG_API_KEY`` (``phc_``)
 ingestion-only hai. Isliye:
 
   ENV (optional — bina inke INERT, graceful):
@@ -21,7 +22,8 @@ ingestion-only hai. Isliye:
     POSTHOG_PROJECT_ID=12345           # optional — unset ho to /api/projects/ se resolve
 
 Never raises — har call graceful no-op/error-dict. Testable: insight_payload()
-pure hai; ensure_insight() HTTP path monkeypatch-able.
+pure hai
+ensure_insight() HTTP path monkeypatch-able.
 """
 
 from __future__ import annotations
@@ -148,7 +150,8 @@ def ensure_insight(create: bool = False) -> dict[str, Any]:
 
     Returns: {"status": inert|exists|created|error, "url"?, "note"?}
     - inert: POSTHOG_PERSONAL_API_KEY (phx_) nahi — phc_ key private endpoints
-      pe nahi chalta; owner personal key daale ya payload UI me paste kare.
+      pe nahi chalta
+      owner personal key daale ya payload UI me paste kare.
     - error: key hai par API call fail (401/network) — note me reason.
     """
     key = _personal_key()

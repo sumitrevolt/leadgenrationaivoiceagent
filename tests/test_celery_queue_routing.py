@@ -7,7 +7,8 @@ with no -Q only drains the DEFAULT queue ("celery"). task_routes sends
 scraping/calling/reporting/sync/brain_training tasks to their own named
 queues — without listing those queues on a worker's -Q, tasks enqueue
 successfully (send_task/beat succeed, status looks "queued"/"running") but
-NO worker ever picks them up; they sit in Redis forever. This silently
+NO worker ever picks them up
+they sit in Redis forever. This silently
 affected the pre-existing beat-scheduled process-call-queue task too, not
 just the new one. Fixed in docker-compose.vps.yml / .prod.yml / .yml.
 """
@@ -78,7 +79,8 @@ def test_statically_routed_queues_are_known():
 
 def test_vps_worker_consumes_every_routed_queue():
     """docker-compose.vps.yml = the LIVE deploy file. "heavy"/"video" are
-    router-fn queues with dedicated workers; "dsh" is a static route but
+    router-fn queues with dedicated workers
+    "dsh" is a static route but
     profile-gated to dsh-worker (INERT default) — main worker must still
     drain every classic static queue + the default celery queue."""
     cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
@@ -304,7 +306,8 @@ def test_worker_process_init_warmup_runs_when_flag_on(monkeypatch):
 def test_worker_process_init_warmup_never_raises_on_failure(monkeypatch):
     """Warm-up is best-effort — a broken Qdrant endpoint must never crash
     worker boot. Task-time fallback logic (knowledge_base.py's own
-    Qdrant->Chroma->keyword cascade) remains the real safety net; this
+    Qdrant->Chroma->keyword cascade) remains the real safety net
+    this
     warm-up is purely an optimization, never a dependency."""
     from app import worker
 
@@ -349,7 +352,8 @@ def test_heavy_worker_marker_is_exclusive_across_all_compose_files():
     incidents.md rule (2026-07-16): CELERY_HEAVY_QUEUE is a SEND-side routing flag
     shared by app/scheduler/worker/heavy — using it as process-role identity made
     every default-worker fork pay the ~1.2-1.4 GiB warm-up. The fix introduced the
-    exclusive CELERY_HEAVY_WORKER=1 marker on worker-heavy; this test proves the
+    exclusive CELERY_HEAVY_WORKER=1 marker on worker-heavy
+    this test proves the
     marker appears in EXACTLY ONE service across EVERY compose file, so a future
     file cannot silently re-introduce a duplicate warm-up path."""
     marked: list[tuple[str, str]] = []

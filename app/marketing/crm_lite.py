@@ -11,7 +11,8 @@ data/crm/{client_id}.jsonl — append-only, phone(10-digit) par dedupe.
         anniversary hain unke ready Hinglish wish messages + wa.me links.
 
 Template-based (LLM optional nahi chahiye — wishes personal/chhoti hoti hain).
-Pure stdlib; read/list/wishes kabhi raise nahi karte.
+Pure stdlib
+read/list/wishes kabhi raise nahi karte.
 """
 
 from __future__ import annotations

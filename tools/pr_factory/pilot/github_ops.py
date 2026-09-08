@@ -6,7 +6,8 @@ deliberately NO method for merging, auto-merge, deploying, or touching secrets.
 
 GitHub REST primitives are read via ``gh api`` (check-runs, refs) and the PR
 surface via ``gh pr`` (create --draft, comment). All responses are JSON-parsed
-and validated; an unparseable/non-zero result raises ``GitHubOpsError`` which
+and validated
+an unparseable/non-zero result raises ``GitHubOpsError`` which
 the orchestration layer converts into a fail-closed refusal.
 """
 

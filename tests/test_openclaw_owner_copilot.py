@@ -288,7 +288,8 @@ def test_sql_injection_chars_blocked(monkeypatch):
     _enable(monkeypatch)
     r = client.post(
         "/api/owner-copilot/command",
-        json={"command": "platform.status; DROP TABLE users"},
+        json={"command": "platform.status
+        DROP TABLE users"},
     )
     assert r.status_code == 400
 

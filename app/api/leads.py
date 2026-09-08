@@ -56,7 +56,8 @@ def _save_scraped_lead_to_db(lead_dict: dict) -> None:
 
     Mirrors app/api/public_site.py::_save_lead_db: a repeat phone appends to the
     existing lead's notes instead of creating a duplicate row. Fail-safe — any
-    DB error is logged and swallowed; the scrape job must never crash because of
+    DB error is logged and swallowed
+    the scrape job must never crash because of
     one bad lead row. Returns the lead id (new or existing) or None.
     """
     phone = (lead_dict.get("phone") or "").strip()

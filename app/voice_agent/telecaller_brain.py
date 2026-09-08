@@ -12,8 +12,10 @@ pattern as llm_brain), tuned with telecaller research (2025-26):
   * Gong (300M+ calls): permission-based openers hit ~11% success vs 2.3% avg.
   * Voice-AI prompting guides (Vapi/Smith.ai/Retell): 1-2 short sentences per
     turn, EXACTLY one question per turn, acknowledge-confirm-prompt structure.
-  * LARA objection handling (Listen-Acknowledge-Respond-Ask); "busy" → offer
-    two specific callback slots (alternative close); "not interested" → one
+  * LARA objection handling (Listen-Acknowledge-Respond-Ask)
+  "busy" → offer
+    two specific callback slots (alternative close)
+    "not interested" → one
     respectful value-line, then thank + end (respect the no).
   * BANT sequencing: need/pain first, money later — questions woven into
     conversation, never an interrogation checklist.
@@ -395,7 +397,8 @@ _CLOSE_HARD_RE = re.compile(
 
 def _is_close_intent(ut: str) -> bool:
     """True if the caller clearly signals 'proceed / close it now' (start it, do
-    it, le lo, final karo). Never raises; soft-yes/questions/refusals don't match."""
+    it, le lo, final karo). Never raises
+    soft-yes/questions/refusals don't match."""
     try:
         t = (to_roman(ut or "") or ut or "")[:_MAX_UTTERANCE_CHARS].lower()
         if not t:
@@ -730,7 +733,8 @@ def _short_hook(hook: str, max_len: int = 90) -> str:
     )
     if sum(1 for m in _en if m in _low) >= 2:
         return ""  # English B2B hook — greeting me mat daalo
-    for sep in ("—", " - ", ";"):
+    for sep in ("—", " - ", "
+    "):
         if sep in h:
             h = h.split(sep)[0].strip()
             break
@@ -857,7 +861,8 @@ class TelecallerBrain:
                 self._genai = _genai_mod.Client(api_key=first_key)
                 model = (settings.default_llm or "").strip()
                 if "gemini" not in model.lower() or "vertex" in model.lower():
-                    model = _voice_model  # env VOICE_LLM_MODEL; flash-lite = highest free quota
+                    model = _voice_model  # env VOICE_LLM_MODEL
+                    flash-lite = highest free quota
                 self.model = model
             except Exception as e:  # SDK/config issue — free providers carry on
                 logger.warning(f"[telecaller-brain] Gemini init skipped: {e}")
@@ -1193,7 +1198,8 @@ class TelecallerBrain:
         """Actual WhatsApp send for a voice-call close-signal. GATED by its OWN
         dedicated flag VOICE_CLOSE_WHATSAPP=1 (default OFF) — deliberately NOT
         the shared WHATSAPP_AUTO_SEND flag (that one is already ON for unrelated
-        campaign sends; reusing it would silently activate this NEW behaviour —
+        campaign sends
+        reusing it would silently activate this NEW behaviour —
         an AI-judged autonomous message to a real customer — without a distinct
         explicit opt-in). Needs BOTH flags: WHATSAPP_AUTO_SEND (existing global
         compliance gate) AND VOICE_CLOSE_WHATSAPP (this specific feature).
@@ -1264,7 +1270,8 @@ class TelecallerBrain:
             nums.append(f"typical deal/ticket size: {data['avg_ticket_inr']}")
         if data.get("avg_deal_value"):
             nums.append(f"average deal value: {data['avg_deal_value']}")
-        self.allowed_numbers = "; ".join(nums)
+        self.allowed_numbers = "
+        ".join(nums)
 
         # ── niche_database schema injection ──────────────────────────────────
         # NICHE_CALL_SCHEMA se script_context + collect_during questions inject
@@ -1334,7 +1341,8 @@ class TelecallerBrain:
         )
         script_block = (
             (f"Opening (permission-based): {opening}\n" if opening else "")
-            + f"Discovery questions (ISI ORDER me, ek turn me sirf EK; jo customer PEHLE bata chuka woh SKIP):\n{q_block}\n"
+            + f"Discovery questions (ISI ORDER me, ek turn me sirf EK
+            jo customer PEHLE bata chuka woh SKIP):\n{q_block}\n"
             + f"Value lines (jab pitch karni ho):\n{value_block}"
             + (
                 f"\nClosing (interest dikhe to appointment/visit/callback BOOK karo): {closing}"
@@ -1379,7 +1387,8 @@ SELF-PITCH MODE (ENTERPRISE) (tum apna hi LeadGen AI platform bech rahi ho — y
         except Exception:
             pass
 
-        return f"""Tum "Swara" ho — {self.client_name} ki senior, professional Indian female telecaller (5+ saal experience). Tum ek experienced business consultant ki tarah baat karti ho: pehle customer ko dhyaan se suno, uski situation samjho, phir uske hisaab se relevant aur confident baat karo — ratta-maar script nahi, robotic nahi. Har jawab specific, warm aur to-the-point. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi, tone professional aur bharosemand.
+        return f"""Tum "Swara" ho — {self.client_name} ki senior, professional Indian female telecaller (5+ saal experience). Tum ek experienced business consultant ki tarah baat karti ho: pehle customer ko dhyaan se suno, uski situation samjho, phir uske hisaab se relevant aur confident baat karo — ratta-maar script nahi, robotic nahi. Har jawab specific, warm aur to-the-point. Tum ek LIVE PHONE CALL par ho (text chat nahi)
+        bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi, tone professional aur bharosemand.
 
 CLIENT: {self.client_name} | NICHE: {self.niche_name}{niche_ctx_block}
 VALUE LINE (pitch hook): {hook}{platform_pitch_block}
@@ -1403,22 +1412,27 @@ HARD RULES (har turn, bina exception):
 8. Numbers/prices SIRF ALLOWED list ya neeche FACTS se. Apne se koi figure/discount/promise kabhi nahi.
 9. User ki bhasha mirror karo. "AI/bot ho?" poochhe to sach: haan AI assistant hoon — phir ek line value.
 10. Output me SIRF bola jaane wala text — koi "Swara:" prefix, emoji, markdown, bullet nahi.
-11. Customer ko respectfully 'aap' se address karo. Habitual fillers BANNED mid-speech: "ji", "sir", "madam", "haji", "haan ji", "achha ji" — beech-beech me mat bolo. Tone professional; KABHI 'tum', 'tu', 'yaar', 'bhai' mat karo.
+11. Customer ko respectfully 'aap' se address karo. Habitual fillers BANNED mid-speech: "ji", "sir", "madam", "haji", "haan ji", "achha ji" — beech-beech me mat bolo. Tone professional
+KABHI 'tum', 'tu', 'yaar', 'bhai' mat karo.
 12. "Zara dobara boliye" poori call me MAX ek baar — baar-baar mat bolo. User ne kuch bhi partial bola ho to usme se jo samjho use karo, seedha agla sawaal.
 13. Generic praise BANNED ("bahut achha sir", "great choice", "wonderful") — seedha relevant discovery ya value pe aao.
 14. User ke jawab pe SEEDHA aage badho — har turn "samajh gayi / haan ji / achha ji / theek ji / bilkul ji" jaise filler-acknowledge se shuru MAT karo (= robotic ratta). Direct agla clear jawab ya chhota sawaal.
-15. PEHLE JAWAB, PHIR SAWAAL: customer ne product/price/kaise-kaam poocha ho to APPROVED FACTS se seedha, clear jawab do (Main Rs 1,999 / Advanced Rs 5,999; posts+ads+Google; FREE trial) — discovery-checklist ke liye sawaal IGNORE mat karo. Invented pricing/offers BANNED.
+15. PEHLE JAWAB, PHIR SAWAAL: customer ne product/price/kaise-kaam poocha ho to APPROVED FACTS se seedha, clear jawab do (Main Rs 1,999 / Advanced Rs 5,999
+posts+ads+Google
+FREE trial) — discovery-checklist ke liye sawaal IGNORE mat karo. Invented pricing/offers BANNED.
 16. FEATURE NAHI, FAYDA: baat customer ke result/fayde me karo — "aapko khud post nahi banana, AI karta hai". Technical jargon mat thuno.
 17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial), guess kabhi nahi.
 18. DISCOVERY-DONE → CLOSE: jab 2-3 zaroori sawaal pooch liye ho, seedha next-step (FREE trial aaj/kal) pe le aao — circle mat ghumao.
-19. Pace clear: chhote vakya, natural Hinglish — rush mat karo, crawl mat karo; har shabd samajhne layak.
+19. Pace clear: chhote vakya, natural Hinglish — rush mat karo, crawl mat karo
+har shabd samajhne layak.
 20. GUARANTEE MAANGE → Seedha refusal mat karo ("Nahi dete"). Kaho ki result aapke offer aur market pe nirbhar hai, par hum technology ki puri reliability dete hain. "100% guarantee" shabd KABHI use mat karo (guardrail block karega).
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
 User: Aap exactly karte kya ho?
 BAD: Woh sab badiya hai sir, accha aapko abhi customers kahan se aate hain?
-GOOD: {hook_short} — aap jaise businesses ka kaam aasaan ho jaata hai; abhi yeh aap kaise manage karte ho?
+GOOD: {hook_short} — aap jaise businesses ka kaam aasaan ho jaata hai
+abhi yeh aap kaise manage karte ho?
 
 User: Haan leads aati hain par conversion bahut kam hai.
 BAD: Yeh detail maine abhi tak nahi suni thi, lekin aapne conversion ki baat ki jo thodi unclear hai, toh maaf kijiye main phir se poochti hoon...
@@ -1518,7 +1532,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         Purana version "Achha — bijli ka bill —" jaise user ke 3 shabd literally
         parrot karta tha (em-dash echo) — yeh ek classic robotic AI-tell hai jise
         market-leading agents avoid karte. Ab seedha ek varied, izzat-bhara
-        confirmer; agla sawaal _fast_path_reply jodta hai. Period MAT use karo —
+        confirmer
+        agla sawaal _fast_path_reply jodta hai. Period MAT use karo —
         _clean() pehle sentence pe cut karta, warna sawaal kat jaaye (em-dash
         ek hi sentence rehta)."""
         # De-templated for a PROFESSIONAL consultant feel: ~2/10 turns go straight
@@ -1785,7 +1800,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
             if _price_ask:
                 return self._clean(
-                    f"{_marketing_plan_price_line('starter')}; "
+                    f"{_marketing_plan_price_line('starter')}
+                    "
                     f"{_marketing_plan_price_line('advanced')}. "
                     "AI Voice Calling Agent ₹4,999/mahine se shuru hai. 7 din FREE trial bina card ke."
                 )
@@ -2114,8 +2130,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         """Returns stripped reply text, or "" on ANY failure (caller falls back).
 
         Pipeline: KB-grounding (niche + client facts) -> free_ai.chat (Cerebras ->
-        Groq -> OpenRouter; PRIMARY — free, fast, quota-proof; instant no-op jab
-        koi free key set na ho) -> Gemini-direct (multi-key rotation; fallback).
+        Groq -> OpenRouter
+        PRIMARY — free, fast, quota-proof
+        instant no-op jab
+        koi free key set na ho) -> Gemini-direct (multi-key rotation
+        fallback).
         Repeated-answer guard: bot pichhli line dohraye to ek nudged retry."""
         self.close_signal_fired = False
         try:
@@ -2747,7 +2766,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     def _injection_deflection(self, history: list[dict[str, str]]) -> str:
         """Safe, in-role line for an injection/role-switch turn — refuses the
         hijack and redirects to business. Rotates + avoids repeating the last bot
-        line. Never raises; always returns a non-empty spoken line."""
+        line. Never raises
+        always returns a non-empty spoken line."""
         try:
             client = getattr(self, "client_name", None) or "hamari company"
             agent = getattr(self, "agent_name", None) or "Swara"
@@ -2791,7 +2811,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     @staticmethod
     def _looks_like_greeting(text: str) -> bool:
         """Reply niche-opening jaisa hai? (Namaste + greeting-phrase). Non-first turn
-        pe ye re-greeting = bug; script discovery-question se replace karte."""
+        pe ye re-greeting = bug
+        script discovery-question se replace karte."""
         t = (text or "").lower()
         intro = (
             "namaste" in t
@@ -3149,7 +3170,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         semantic_cache (L1 exact + L2 semantic via Qdrant + Redis). Hit returns
         ~50ms instead of paying the 7-8s LLM round-trip for templated openers.
         Mid-conversation NEVER cached (context-bleed risk). Default OFF =
-        byte-identical; requires SEMANTIC_CACHE=1 too. Diagnosed 2026-06-26:
+        byte-identical
+        requires SEMANTIC_CACHE=1 too. Diagnosed 2026-06-26:
         SEMANTIC_CACHE=1 was already set in prod but Redis had 0 cache keys
         because the voice brain never called semantic_complete."""
         return (os.environ.get("VOICE_RESPONSE_CACHE", "0") or "0").strip().lower() in (
@@ -3265,7 +3287,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         """Fire Gemini and free_ai concurrently; first non-empty wins. Loser is
         cancelled. Inherits the outer _REPLY_TIMEOUT_S deadline from reply()'s
         asyncio.wait_for, so this never extends total latency — only shrinks it.
-        Never raises; returns ("","") on dual-fail (caller falls to script)."""
+        Never raises
+        returns ("","") on dual-fail (caller falls to script)."""
         g_task = asyncio.create_task(self._gemini_reply(prompt))
         f_task = asyncio.create_task(self._free_llm(prompt))
         labels = {g_task: "gemini", f_task: "free_ai"}
@@ -3576,7 +3599,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                                    the embedder or `_get_qdrant_client()`).
           3. cold-but-supported -> request ONE owned, deduplicated
                                     niche-refresh Celery task
-                                    (app.tasks.kb_niche_refresh); return
+                                    (app.tasks.kb_niche_refresh)
+                                    return
                                     immediately, KB-less this turn (honest
                                     degrade — the caller never sees internal
                                     KB state, only an empty facts list).
@@ -3586,7 +3610,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                                     query as before this fix.
 
         Runs in an executor with a short timeout so a slow/cold KB never
-        stalls the spoken reply. Returns [] on anything unusual; internal KB
+        stalls the spoken reply. Returns [] on anything unusual
+        internal KB
         state is logged (redacted) via `_kb_log_state`, never spoken."""
         ut = (user_text or "").strip()
         if len(ut) < 3:

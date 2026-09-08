@@ -26,7 +26,9 @@ logger = setup_logger(__name__)
 _CACHE_FILE = os.path.join("data", "brand_pulse_cache.jsonl")
 _RUNS_FILE = os.path.join("data", "brand_pulse_runs.jsonl")
 _CACHE_TTL = 6 * 3600  # 6 hours
-_UA = "Mozilla/5.0 (compatible; LeadsGenAI-pulse/1.0; +https://leadsgenai.in)"
+_UA = "Mozilla/5.0 (compatible
+LeadsGenAI-pulse/1.0
++https://leadsgenai.in)"
 
 _NEWS_URL = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 _REDDIT_URL = "https://www.reddit.com/search.json?q={q}&limit=10&sort=new"
@@ -158,7 +160,8 @@ def _label(text: str) -> str:
 def _reply_draft(business: str, mention: dict[str, str]) -> str:
     return (
         f"Namaste! {business} ki team se — aapki baat humne dekhi "
-        f'("{mention.get("title", "")[:80]}"). Hum sach me sudharna chahte hain; '
+        f'("{mention.get("title", "")[:80]}"). Hum sach me sudharna chahte hain
+        '
         "kya aap details share kar sakte hain? Hum personally resolve karenge. "
         "DM/call dono open hai — dhanyavaad ki aapne bataya. 🙏"
     )

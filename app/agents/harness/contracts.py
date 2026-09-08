@@ -55,7 +55,8 @@ class ToolCall(BaseModel):
     """A single validated action the model wants to take (a.k.a. ActionRequest).
 
     The model returns this (via app.llm.structured / instructor), never raw
-    text. ``name`` must resolve in the tool registry; ``args`` are validated
+    text. ``name`` must resolve in the tool registry
+    ``args`` are validated
     against that tool's declared Pydantic schema before execution (VA-01/VA-02).
 
     Carries the full governed-action field set required by the harness spec so
@@ -74,10 +75,12 @@ class ToolCall(BaseModel):
     # Governed-action metadata (spec field set).
     tool_version: str = Field("v1", description="Contract version of the target tool")
     risk_class: RiskClass | None = Field(
-        None, description="Optional model-declared risk; the registry's value is authoritative"
+        None, description="Optional model-declared risk
+        the registry's value is authoritative"
     )
     idempotency_key: str | None = Field(
-        None, description="Required for MUTATING actions; dedupes effects on replay"
+        None, description="Required for MUTATING actions
+        dedupes effects on replay"
     )
     budget_scope: str = Field("run", description="Which budget bucket this call charges")
     approval_reference: str | None = Field(

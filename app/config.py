@@ -55,10 +55,12 @@ class Settings(BaseSettings):
     openrouter_api_key_2: str = ""  # key 2 (rotation — 4x rate-limit headroom)
     openrouter_api_key_3: str = ""  # key 3
     openrouter_api_key_4: str = ""  # key 4
-    xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
+    xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company
+    credits-based)
     sambanova_api_key: str = ""  # cloud.sambanova.ai — 100% free, no card, Llama-3.3-70B
     mistral_api_key: str = ""  # console.mistral.ai — free tier La Plateforme, mistral-small
-    nvidia_api_key: str = ""  # build.nvidia.com — NVIDIA NIM (OpenAI-compatible); free tier 40 RPM + metered credits, deep-tail fallback
+    nvidia_api_key: str = ""  # build.nvidia.com — NVIDIA NIM (OpenAI-compatible)
+    free tier 40 RPM + metered credits, deep-tail fallback
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama

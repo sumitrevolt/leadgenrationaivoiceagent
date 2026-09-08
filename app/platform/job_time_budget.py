@@ -4,7 +4,8 @@ Celery soft_time_limit (~540s) pe SoftTimeLimitExceeded → DLQ. Mega-jobs
 (`content`, `onboard`, `prospect`) must finish *before* that kill, with a
 partial-but-ok summary — not burn retries on the same oversized workload.
 
-Env seconds are clamped; unset uses the safe default (below soft limit).
+Env seconds are clamped
+unset uses the safe default (below soft limit).
 """
 
 from __future__ import annotations

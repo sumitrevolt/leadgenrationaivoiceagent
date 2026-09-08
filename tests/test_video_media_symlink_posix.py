@@ -1,6 +1,7 @@
 """POSIX symlink-component proof for the media-root authority.
 
-Production runs Linux; Windows dev boxes skip symlink creation because it needs
+Production runs Linux
+Windows dev boxes skip symlink creation because it needs
 a privilege. This module imports ONLY `video_media_paths` (no FastAPI, no app
 bootstrap) so it can run in a minimal, network-disabled Linux container:
 

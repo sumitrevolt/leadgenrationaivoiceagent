@@ -15,14 +15,16 @@ Design:
   ONCE at creation.
 - **Per-key quota**: daily call budget (default 1000) + total cap (default
   None = unlimited). Quota tracked in data/mcp_keys_usage.jsonl as
-  (key_hash, ymd, count) appends; a fast in-memory cache reads tail and
+  (key_hash, ymd, count) appends
+  a fast in-memory cache reads tail and
   caches today's count per key. 429 + Retry-After when exceeded.
 - **Per-key scope**: capabilities list (subset of SUPPORTED_CAPABILITIES) the
   key is allowed to invoke. Default = all read-only capabilities.
 - **Admin-only management**: issue / list / revoke via /api/admin/mcp-keys.
 
 Flag MCP_PRODUCT=1 — OFF default. The PRODUCT routes (app/api/mcp_product.py)
-require this AND a valid key; with the flag off, every metered route returns
+require this AND a valid key
+with the flag off, every metered route returns
 503 so customers know the surface is paused.
 """
 

@@ -23,9 +23,11 @@ SAFETY CONTRACT (enforced by tests):
     ``clients_store.canonical_client_id`` (resolves billing/login alias ->
     marketing id, e.g. d79d690f61b3 -> jiya-makeover) so a customer is never
     mis-attributed or double-counted.
-  - NEVER RAISES. Every category + every record is best-effort; one bad record
+  - NEVER RAISES. Every category + every record is best-effort
+  one bad record
     or one failing reader cannot sink the scan.
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
+  strictly
     marketing content-publishing domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``isha`` (content

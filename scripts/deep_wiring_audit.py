@@ -127,7 +127,8 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
     html = path.read_text(encoding="utf-8", errors="ignore")
     onclicks: set[str] = set()
     for m in re.finditer(r'onclick="([^"]+)"', html):
-        expr = m.group(1).split(";")[0].strip()
+        expr = m.group(1).split("
+        ")[0].strip()
         if "(" in expr:
             onclicks.add(re.sub(r"\(.*", "", expr).strip())
     funcs = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", html))

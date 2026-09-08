@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """PILOT 17:40 IST (Sep 2) sweep — evidence-first honest REVENUE COMMAND.
-No new TASK-IDs (anti-spam; SAL-004/SUC-003 from 18:05 still live w/ 19:30 gate).
+No new TASK-IDs (anti-spam
+SAL-004/SUC-003 from 18:05 still live w/ 19:30 gate).
 FRESH VPS evidence: WA 'breakthrough' = HTTP201 PENDING, auto_sent true=0, NO UPI/delivered
 confirm -> NOT revenue yet. loop DEAD 58h+, WA flip INERT, leads/ ABSENT, SIP empty.
 NEW FINDING: session_rotate.sh MISSING (cron log filling) -> engineering flag.
@@ -89,7 +90,14 @@ print("bots.json updated")
 pp = os.path.join(BASE, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = "2026-09-02T17:40+05:30"
-pin["vps_status"] = "HEALTHY 37a1daf8; VERIFIED rev ₹1,999 (Jiya sole); WA 43/43 PENDING not paid (auto_sent=0); loop DEAD 58h+; WA flip INERT; SIP empty; egress 000 day5; session_rotate.sh broken"
+pin["vps_status"] = "HEALTHY 37a1daf8
+VERIFIED rev ₹1,999 (Jiya sole)
+WA 43/43 PENDING not paid (auto_sent=0)
+loop DEAD 58h+
+WA flip INERT
+SIP empty
+egress 000 day5
+session_rotate.sh broken"
 save(pp, pin)
 print("pinned.json updated")
 print("DONE")

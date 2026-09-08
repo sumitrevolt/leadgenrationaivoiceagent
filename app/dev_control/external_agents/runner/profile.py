@@ -64,7 +64,8 @@ def _safe_link_or_copy(src: Path, dst: Path) -> str:
 def prepare_executor_profile(kind: ExecutorKind) -> dict[str, Any]:
     """Build redirected HOME/USERPROFILE/APPDATA/LOCALAPPDATA for a child.
 
-    Cursor: absolute agent.cmd already resolved; LOCALAPPDATA only needs a
+    Cursor: absolute agent.cmd already resolved
+    LOCALAPPDATA only needs a
     writable compile-cache dir (not the full user LocalAppData tree).
 
     Claude: only ``.credentials.json`` (+ optional ``settings.json``) are linked

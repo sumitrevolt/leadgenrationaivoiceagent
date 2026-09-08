@@ -2,7 +2,8 @@
 
 Covers single-token (jti) revocation, revoke-all-for-user via the iat<epoch epoch bump,
 the fail-closed (admin-tier) vs fail-open (lower-tier) Redis-failure policy, and iat
-normalization. Uses an in-memory fake async Redis; no live Redis needed.
+normalization. Uses an in-memory fake async Redis
+no live Redis needed.
 """
 
 import asyncio

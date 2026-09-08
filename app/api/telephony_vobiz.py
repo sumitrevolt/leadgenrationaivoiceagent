@@ -2,7 +2,8 @@
 Vobiz Telephony API — outbound test calls via the Vobiz Direct Call REST API.
 
 Endpoints (mounted by main.py under /api → /api/telephony/vobiz/*):
-    POST /telephony/vobiz/test-call       (admin) — place a test call; speaks an
+    POST /telephony/vobiz/test-call       (admin) — place a test call
+    speaks an
                                           LLM-generated (or supplied) Hinglish
                                           greeting, then hangs up.
     GET|POST /telephony/vobiz/answer/{token}  (NO auth — Vobiz fetches this)
@@ -300,7 +301,8 @@ async def start_stream_call(
     """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
     Wahi token + _PENDING_STREAMS + answer-stream URL flow jo POST /stream-call
-    use karta hai; auto-callback (inquiry → AI call) jaise internal callers ke
+    use karta hai
+    auto-callback (inquiry → AI call) jaise internal callers ke
     liye. NEVER raises — fail pe {"placed": False, "error": ...} return.
 
     dry_run=True (verification smoke): pending store + answer_url poora banta
@@ -502,7 +504,8 @@ async def vobiz_stream_ws(
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
     conversation loop. niche/client/lead_phone/crm_lead_id come from query
-    params or the pending store (filled by /stream-call); customParameters in
+    params or the pending store (filled by /stream-call)
+    customParameters in
     the start event win."""
     from app.telephony.vobiz_stream import VobizStreamSession
 
@@ -616,6 +619,7 @@ async def vobiz_status(user: User = Depends(require_admin)) -> dict[str, Any]:
     if client.available():
         try:
             out["balance"] = await client.get_balance()
-        except Exception as e:  # belt-and-braces; client already never raises
+        except Exception as e:  # belt-and-braces
+        client already never raises
             out["balance"] = {"status_code": 0, "body": {"error": str(e)}}
     return out

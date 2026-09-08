@@ -204,7 +204,8 @@ def reconcile_edges() -> dict[str, Any]:
         elif is_exact_duplicate:
             cls = "REVIEW_REQUIRED"
             reason = (
-                f"exact duplicate legacy literal (occurrence {occurrence}); "
+                f"exact duplicate legacy literal (occurrence {occurrence})
+                "
                 "first occurrence retained for accounting"
             )
         elif collision_id:
@@ -221,7 +222,8 @@ def reconcile_edges() -> dict[str, Any]:
             reason = "both legacy endpoints now map to the same canonical node"
         elif cf and ct:
             cls = "ENDPOINTS_RESOLVED_REVIEW_REQUIRED"
-            reason = "endpoint mapping verified; edge runtime contract NOT verified"
+            reason = "endpoint mapping verified
+            edge runtime contract NOT verified"
         elif f_cls == "DEPRECATED" or t_cls == "DEPRECATED":
             cls = "DEPRECATED"
             reason = "an endpoint is a deprecated component"

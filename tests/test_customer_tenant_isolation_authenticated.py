@@ -183,7 +183,8 @@ async def test_require_customer_returns_jwt_sub_only():
 
 async def test_tenant_b_jwt_never_resolves_to_tenant_a():
     """Symmetric — tenant-b's JWT resolves to tenant-b. There is no request
-    state passed to `require_customer` other than the token itself; the
+    state passed to `require_customer` other than the token itself
+    the
     function's signature FORBIDS any tenant hint from query/body/path."""
     from app.api.customer_auth import require_customer
 

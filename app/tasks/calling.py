@@ -379,7 +379,8 @@ def _campaign_status_set(data: dict) -> None:
 def acquire_campaign_lock(ttl_s: int = 400) -> bool:
     """True if this caller now holds the single-flight campaign lock (SET NX EX).
     Never raises — a Redis outage fails OPEN (returns True) so a broken lock
-    can't permanently block campaign launches; the compliance gates below are
+    can't permanently block campaign launches
+    the compliance gates below are
     the real safety net, not this dedup."""
     try:
         r = _campaign_redis()

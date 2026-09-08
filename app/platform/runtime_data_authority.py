@@ -14,7 +14,8 @@ how a migration becomes split-brain nobody notices for a week:
 
     MIGRATION_VALIDATION   root configured, but the cutover is not active. The
                            canonical target may be created, copied to and
-                           inspected by tooling; live writers do NOT move. No
+                           inspected by tooling
+                           live writers do NOT move. No
                            automatic dual-write — two writers with no shared lock
                            is a corruption engine, not a safety net.
 

@@ -5,7 +5,8 @@ post_approved / post_published / post_failed. Three independent call sites:
   2. content_approval._decide() — customer's own portal-based approve (fresh
      queue item via enqueue_approved, doesn't go through mark_item)
   3. social_engine.engine.process_queue() — dormant automated publish path
-     (SOCIAL_ENGINE flag, currently gated off in prod); published->post_published,
+     (SOCIAL_ENGINE flag, currently gated off in prod)
+     published->post_published,
      retries-exhausted ("dead")->post_failed.
 
 Each site is hermetic (tmp-path file redirection or monkeypatched log_event),
@@ -85,7 +86,8 @@ class TestMarkItemLedgerWiring:
 
     def test_mark_draft_and_skipped_do_not_log(self, tmp_store, logged_events):
         """draft/skipped are intentionally NOT delivery-ledger events — drafts
-        already fire post_draft_created elsewhere; skip is a deliberate no-op."""
+        already fire post_draft_created elsewhere
+        skip is a deliberate no-op."""
         rec = clients_store.add_client("Mark Skip Biz", "general", phone="9000000033")
         _make_item(rec["id"], tmp_store)
         logged_events.clear()  # drop add_client's own customer_created log

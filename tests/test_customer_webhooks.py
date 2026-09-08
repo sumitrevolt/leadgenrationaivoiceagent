@@ -4,7 +4,8 @@ A paid feature gets a paid level of test discipline. The bars:
 - A customer MUST NOT be able to register a URL pointing at our infra.
 - A customer MUST NOT be able to read / delete another customer's webhook.
 - HMAC signature MUST verify with the registered secret.
-- Delivery retries MUST follow the schedule; failures MUST be logged.
+- Delivery retries MUST follow the schedule
+failures MUST be logged.
 - emit() MUST short-circuit when CUSTOMER_WEBHOOKS unset.
 """
 

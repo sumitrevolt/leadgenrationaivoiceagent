@@ -121,7 +121,8 @@ def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, st
     for name, value in fields.items():
         buf.write(f"--{boundary}".encode())
         buf.write(eol)
-        buf.write(f'Content-Disposition: form-data; name="{name}"'.encode())
+        buf.write(f'Content-Disposition: form-data
+        name="{name}"'.encode())
         buf.write(eol)
         buf.write(eol)
         buf.write(str(value).encode())
@@ -131,7 +132,9 @@ def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, st
     buf.write(f"--{boundary}".encode())
     buf.write(eol)
     buf.write(
-        f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"'.encode()
+        f'Content-Disposition: form-data
+        name="file"
+        filename="{file_path.name}"'.encode()
     )
     buf.write(eol)
     buf.write(f"Content-Type: {mimetype}".encode())

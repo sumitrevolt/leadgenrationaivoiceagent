@@ -7,7 +7,8 @@ hoga" maan ke baith jaate hain. Yeh module har job-run HEARTBEAT record karta
 expected cadence se compare karke OVERDUE jobs pakadta.
 
 `run_watch()` watchdog-job me wired: overdue mile to email alert (gated
-`AUTOMATION_HEALTH_ALERTS=1`; off = sirf log). Store: data/job_runs.jsonl
+`AUTOMATION_HEALTH_ALERTS=1`
+off = sirf log). Store: data/job_runs.jsonl
 (latest-per-job snapshot data/job_heartbeats.json). Import-safe, kabhi raise nahi.
 """
 
@@ -77,7 +78,8 @@ EXPECTED_GAP_MIN = {
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 24
-    * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
+    * 60,  # hourly 9am-7pm
+    overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
     "pipeline": 30 * 60,
     "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
@@ -88,7 +90,8 @@ EXPECTED_GAP_MIN = {
     "meter_watch": 180,  # hourly :55 (gated METER_ALERTS), 3h grace
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
     "obsidian_push": 30
-    * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily; job body no-ops unless OBSIDIAN_SYNC=1)
+    * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily
+    job body no-ops unless OBSIDIAN_SYNC=1)
     "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
     "gsc_rank": 30
     * 60,  # daily ~00:30 IST: Google Search Console rank snapshot (gated GSC_ENABLED)
@@ -100,7 +103,8 @@ EXPECTED_GAP_MIN = {
     "platform_dial": 30
     * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
     "daily_video": 30
-    * 60,  # daily 09:45 IST: per-client video producer (gated DAILY_VIDEO_ENABLED; beat heartbeats regardless)
+    * 60,  # daily 09:45 IST: per-client video producer (gated DAILY_VIDEO_ENABLED
+    beat heartbeats regardless)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
@@ -113,12 +117,15 @@ EXPECTED_GAP_MIN = {
     "daily_owner_brief": 30
     * 60,  # daily 08:10 owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
     "trial_nudge": 30
-    * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED; BLK-02)
+    * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED
+    BLK-02)
     "whatsapp_automation": 65
-    * 60,  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND; BLK-02 2026-08-23)
+    * 60,  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND
+    BLK-02 2026-08-23)
     "heartbeat": 10 * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
     "content_approval_notify": 65
-    * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
+    * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY
+    INERT off)
 }
 
 
@@ -173,7 +180,8 @@ OUTPUT_FRESHNESS: dict[str, dict[str, Any]] = {
 def stale_outputs() -> list[dict[str, Any]]:
     """Producers whose output store has not moved within its budget.
 
-    A missing store counts as stale ONLY if it was expected to exist; an
+    A missing store counts as stale ONLY if it was expected to exist
+    an
     unreadable/absent path yields `age_days: None` and is reported as
     `unknown` rather than raising a false alarm, because a fresh deployment
     legitimately has no file yet. Never raises.
@@ -507,7 +515,9 @@ _BEAT_REG_TTL_S = 600  # > poll interval (daily brief + manual MC loads)
 def _beat_registration_gaps() -> list[dict[str, Any]]:
     """Har beat entry ka task name REGISTERED Celery task hona chahiye.
 
-    Fail-open (kabhi raise nahi); TTL-cached; per-entry module import so ek
+    Fail-open (kabhi raise nahi)
+    TTL-cached
+    per-entry module import so ek
     broken module sirf apna gap banata hai, poora check nahi marti."""
     import time as _time
 

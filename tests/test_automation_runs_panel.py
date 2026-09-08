@@ -42,7 +42,8 @@ NEW_MARKERS = [
 def _inline_js() -> str:
     blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
     assert blocks, "no inline <script> block found"
-    return "\n;\n".join(blocks)
+    return "\n
+    \n".join(blocks)
 
 
 def test_inline_js_syntax_ok(tmp_path):
@@ -66,4 +67,5 @@ def test_automation_runs_panel_present():
 
 def test_automation_runs_loaded_in_loadall():
     # loadAutoRuns must be invoked by the initial cockpit load.
-    assert "loadAutoRuns();" in SRC
+    assert "loadAutoRuns()
+    " in SRC

@@ -27,7 +27,9 @@ PB["PB-SALES"] = """# PB-SALES — Sales Execution Playbook (P0)
 ## Strategy
 1. Hot Queue first: `/app/inbox` + daily 09:00 IST owner pack (CSV+MD+ntfy).
 2. Qualification by niche/ICP fit — only qualified leads enter outreach.
-3. Outreach via approved channels (WA 1-click human default; email ≤25/day; calling LIVE under gates).
+3. Outreach via approved channels (WA 1-click human default
+email ≤25/day
+calling LIVE under gates).
 4. Follow-up cadence until reply or 3-touch stop (consent-aware).
 5. Close: manual UPI (canonical) -> owner confirms bank credit -> ledger + invoice.
 
@@ -56,11 +58,16 @@ Lead surfaces
 
 ## KPIs
 - Verified collected revenue/day (only confirmed payments).
-- Hot Queue close rate; reply rate; qualified lead cost.
+- Hot Queue close rate
+reply rate
+qualified lead cost.
 
 ## Guardrails
-- Rate limits (email 25/day; calls in TRAI window 10-19 IST; concurrency=1 for dialer).
-- All automation owner-armed; manual recovery path always available.
+- Rate limits (email 25/day
+calls in TRAI window 10-19 IST
+concurrency=1 for dialer).
+- All automation owner-armed
+manual recovery path always available.
 
 ## Linked runbooks
 RB-SALES-001..007 (WA send / auth / email / dedupe / opt-out / payment / hot lead).
@@ -107,10 +114,14 @@ UPI proof
 - Invoice unpaid >48h -> owner via revenue digest.
 
 ## KPIs
-- Verified ₹/day; invoice-to-confirm cycle time; dunning recovery rate.
+- Verified ₹/day
+invoice-to-confirm cycle time
+dunning recovery rate.
 
 ## Guardrails
-- Ledger append-only; VOID markers not deletes; backups before reconciliation.
+- Ledger append-only
+VOID markers not deletes
+backups before reconciliation.
 
 ## Linked runbooks
 RB-SALES-006 (payment not verified), RUNBOOK_BILLING_INCIDENT.
@@ -133,7 +144,9 @@ PB["PB-VOICE-CALLING"] = """# PB-VOICE-CALLING — Voice Calling Playbook (P0)
 1. Feed: qualified leads from Hot Queue/prospect store (niche=all).
 2. Compliance spine BEFORE anything: DND fail-closed, phone-type gate, AI-disclosure at start, 10-19 IST window.
 3. Dial with Swara (Gemini voice LLM primary, EdgeTTS hi-IN, Groq STT) — free stack only.
-4. Outcome capture: interested -> owner hot queue; not interested -> suppress; callback -> schedule.
+4. Outcome capture: interested -> owner hot queue
+not interested -> suppress
+callback -> schedule.
 5. Post-call owner-armed WA send (WHATSAPP_AUTO_SEND + POST_CALL_WHATSAPP) if interested.
 
 ## Decision tree
@@ -149,7 +162,11 @@ Lead before dial
 - Dial within caps/window, log states, train pause (>30 failures), provider failover.
 
 ## Prohibited actions
-- Cold auto-calls without DLT; calling outside window; AI-disclosure removal; concurrency>1; paid providers.
+- Cold auto-calls without DLT
+calling outside window
+AI-disclosure removal
+concurrency>1
+paid providers.
 
 ## Escalation
 - Sustained high failure -> pause + RB-VOICE-008 (AMBER gate).
@@ -158,7 +175,10 @@ Lead before dial
 - Connect rate, qualified-interested rate, calls-to-close, ₹ per connected call.
 
 ## Guardrails
-- DND fail-closed (lookup fail = block); recording gate; learned IVR blocklist; circuit breaker.
+- DND fail-closed (lookup fail = block)
+recording gate
+learned IVR blocklist
+circuit breaker.
 
 ## Linked runbooks
 RB-VOICE-001..010 (trunk, busy, auth, balance, stuck, rejection, provider outage, failure rate, latency, webhook).
@@ -167,7 +187,8 @@ RB-VOICE-001..010 (trunk, busy, auth, balance, stuck, rejection, provider outage
 - Per call: session id, state, duration, outcome, audio (90-day retention rule).
 
 ## Owner approval conditions
-- Any change to DLT/window/cap/compliance spine; provider wallet recharge.
+- Any change to DLT/window/cap/compliance spine
+provider wallet recharge.
 """
 
 PB["PB-DEPLOYMENT"] = """# PB-DEPLOYMENT — Deployment Playbook (P0)
@@ -178,7 +199,8 @@ PB["PB-DEPLOYMENT"] = """# PB-DEPLOYMENT — Deployment Playbook (P0)
 - **Prereqs**: kill fence for voice (VOICE_LAUNCH_KILL TRUE_TOKEN), prod_check --deployment PASS, secrets scan clean.
 
 ## Strategy
-1. REPO TRUTH: fetch origin, confirm target sha on main (branch protection; PR-only).
+1. REPO TRUTH: fetch origin, confirm target sha on main (branch protection
+PR-only).
 2. CI green: pytest (targeted + billing truth), prod_check.py, check_secrets.py.
 3. Deploy via CANONICAL script only: `scripts/deploy_vps.sh` (sets APP_VERSION=<sha>, deploys all 5 app-image services, pipefail).
 4. Probe: /health .version == deployed sha, per-container skew = 0, smoke verify.
@@ -197,16 +219,23 @@ Deploy request
 - deploy_vps.sh (DRY_RUN=1 for plan), targeted pytest, probes, rollback via previous sha.
 
 ## Prohibited actions
-- Manual docker commands outside deploy script; reset --hard / blind rebuild on VPS; committing secrets; deploy without APP_VERSION.
+- Manual docker commands outside deploy script
+reset --hard / blind rebuild on VPS
+committing secrets
+deploy without APP_VERSION.
 
 ## Escalation
 - Deploy gate failure -> owner (kill fence missing/UNSET -> BLOCK).
 
 ## KPIs
-- Deploy success rate; mean time to green; rollback rate.
+- Deploy success rate
+mean time to green
+rollback rate.
 
 ## Guardrails
-- Kill fence BEFORE deploy; `-f docker-compose.vps.yml` explicit; never deploy during active incident.
+- Kill fence BEFORE deploy
+`-f docker-compose.vps.yml` explicit
+never deploy during active incident.
 
 ## Linked runbooks
 RB-INFRA-007 (regression), RB-INFRA-009 (rollback), RB-INFRA-008 (CI failed), RB-INFRA-010 (config mismatch).
@@ -244,16 +273,24 @@ Payment verified
 - Create customer-scoped records, deliver assets, log interactions, schedule follow-ups.
 
 ## Prohibited actions
-- Cross-tenant data access; contacting after opt-out; promising unagreed deliverables.
+- Cross-tenant data access
+contacting after opt-out
+promising unagreed deliverables.
 
 ## Escalation
-- Delivery blocker >24h -> owner; churn-risk signals -> nikhil dunning/nurture.
+- Delivery blocker >24h -> owner
+churn-risk signals -> nikhil dunning/nurture.
 
 ## KPIs
-- Time-to-first-delivery; activation rate; NPS/feedback; renewal likelihood.
+- Time-to-first-delivery
+activation rate
+NPS/feedback
+renewal likelihood.
 
 ## Guardrails
-- Customer isolation invariant; consent ledger; 90-day recording retention.
+- Customer isolation invariant
+consent ledger
+90-day recording retention.
 
 ## Linked runbooks
 RB-SALES-006 (payment), RB-VIDEO-004 (branding), RUNBOOK_BILLING_INCIDENT.
@@ -262,7 +299,8 @@ RB-SALES-006 (payment), RB-VIDEO-004 (branding), RUNBOOK_BILLING_INCIDENT.
 - Delivery record + customer-facing artifact + feedback log.
 
 ## Owner approval conditions
-- Custom-package commitments; anything outside the sold plan.
+- Custom-package commitments
+anything outside the sold plan.
 """
 
 PB["PB-PROVIDER-FAILOVER"] = """# PB-PROVIDER-FAILOVER — Provider Failover Playbook (P0)
@@ -273,17 +311,25 @@ PB["PB-PROVIDER-FAILOVER"] = """# PB-PROVIDER-FAILOVER — Provider Failover Pla
 - **Prereqs**: circuit-breaker chain live (free_ai.py), llm_metrics, provider status source.
 
 ## Strategy
-1. DETECT: llm_metrics ok-rate drop; circuit-breaker cooldowns; voice scorecard regression; Sentry burst.
-2. CONFIRM it's the provider, not the app (check breaker state; check error series END timestamp — ADR-097).
-3. FAILOVER is AUTOMATIC per-call: Mistral -> Groq -> Cerebras -> Gemini -> NVIDIA -> SambaNova -> OpenRouter; voice: Gemini 9-key rotation -> free chain; STT Groq -> Gemini -> local.
-4. RECOVER: key rotation/add keys (owner), or wait cooldown; never fight the breaker.
+1. DETECT: llm_metrics ok-rate drop
+circuit-breaker cooldowns
+voice scorecard regression
+Sentry burst.
+2. CONFIRM it's the provider, not the app (check breaker state
+check error series END timestamp — ADR-097).
+3. FAILOVER is AUTOMATIC per-call: Mistral -> Groq -> Cerebras -> Gemini -> NVIDIA -> SambaNova -> OpenRouter
+voice: Gemini 9-key rotation -> free chain
+STT Groq -> Gemini -> local.
+4. RECOVER: key rotation/add keys (owner), or wait cooldown
+never fight the breaker.
 5. RECORD: incident entry + prevention rule.
 
 ## Decision tree
 ```
 Provider degraded
 ├─ 429/quota -> breaker cooldown auto (60s..30min) — usually NO action
-├─ primary flapping -> chain routes around; watch ok-rate recover
+├─ primary flapping -> chain routes around
+watch ok-rate recover
 ├─ voice Gemini pool exhausted -> add keys via admin (AMBER)
 └─ all providers down (rare) -> owner + RB-VOICE-007
 ```
@@ -292,16 +338,23 @@ Provider degraded
 - Rotate keys (scripted), watch metrics, add Gemini keys via admin API, escalate.
 
 ## Prohibited actions
-- Adding PAID providers (free-stack mandate); disabling the breaker; claiming fix without error-series end timestamp.
+- Adding PAID providers (free-stack mandate)
+disabling the breaker
+claiming fix without error-series end timestamp.
 
 ## Escalation
 - Multi-provider outage or voice deaf/silent -> owner immediately (RB-VOICE-007/009).
 
 ## KPIs
-- Provider ok-rate; breaker recovery time; voice scorecard; cost per outcome.
+- Provider ok-rate
+breaker recovery time
+voice scorecard
+cost per outcome.
 
 ## Guardrails
-- Free providers ONLY; circuit-breaker never disabled; keys in env/data (never committed).
+- Free providers ONLY
+circuit-breaker never disabled
+keys in env/data (never committed).
 
 ## Linked runbooks
 RB-VOICE-007 (provider outage), RB-AGENT-005 (quota exhausted).
@@ -310,7 +363,8 @@ RB-VOICE-007 (provider outage), RB-AGENT-005 (quota exhausted).
 - Metrics window (before/during/after), breaker state, decision log.
 
 ## Owner approval conditions
-- Introducing ANY paid provider; manual intervention in a live call system.
+- Introducing ANY paid provider
+manual intervention in a live call system.
 """
 
 

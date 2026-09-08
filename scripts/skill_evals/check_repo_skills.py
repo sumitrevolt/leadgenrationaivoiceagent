@@ -47,7 +47,8 @@ def changed_skill_names(repo: Path, skills_root: Path, base_ref: str) -> tuple[s
     verify = _git(repo, "rev-parse", "--verify", f"{base_ref}^{{commit}}")
     if verify.returncode != 0:
         raise RuntimeError(
-            f"base ref {base_ref!r} is unavailable; checkout history with fetch-depth: 0"
+            f"base ref {base_ref!r} is unavailable
+            checkout history with fetch-depth: 0"
         )
 
     try:

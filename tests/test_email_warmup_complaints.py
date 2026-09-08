@@ -8,7 +8,8 @@ Covers the #1 2026 Gmail/Yahoo deliverability gate (<0.3% spam-complaint rate):
 ADR-103: an unsubscribe is NOT a spam complaint. Unsub reasons route to their own bucket
 with a much higher ceiling (UNSUB_PAUSE_PCT), because Gmail MANDATES one-click opt-out and
 0.2-2% unsub on cold outreach is healthy. The spam gate itself stays at 0.25% (not weakened
-— §5); these tests pin BOTH halves so the buckets can't silently re-merge.
+— §5)
+these tests pin BOTH halves so the buckets can't silently re-merge.
 
 No network/DB/LLM — state file redirected to a tmp path, alert email stubbed out.
 """

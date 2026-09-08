@@ -1,6 +1,7 @@
 """OpenTelemetry distributed tracing — import-safe, OFF by default.
 
-Sentry already errors capture karta; yeh module **end-to-end traces** deta
+Sentry already errors capture karta
+yeh module **end-to-end traces** deta
 (FastAPI request -> SQLAlchemy query -> Redis -> outbound httpx) taaki "slow/fail
 kahan aur kyun" dikhe. Grafana Tempo/LGTM stack me feed hota.
 

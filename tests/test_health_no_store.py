@@ -14,7 +14,8 @@ That is a *measurement* failure, not a cosmetic one. CLAUDE.md designates the
      prod ka code UNKNOWN hai."
 A drift detector that can be served from cache reports the wrong SHA with full
 confidence, which is precisely the ADR-097 failure mode one layer out: there the
-running image's provenance was unknown; here the provenance REPORT itself lied.
+running image's provenance was unknown
+here the provenance REPORT itself lied.
 
 Root enabler: these endpoints returned a bare dict with no cache directives, and
 a response with no Cache-Control/Expires is heuristically cacheable by browsers

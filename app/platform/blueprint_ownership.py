@@ -1,7 +1,8 @@
 """blueprint_ownership.py — reviewed, evidence-backed domain ownership rules.
 
 This is NOT a "package prefix equals domain" heuristic. Every prefix below was
-opened and read file-by-file; packages that turned out to mix domains are
+opened and read file-by-file
+packages that turned out to mix domains are
 either carved up with explicit ``exclude_prefixes`` / ``exclude_stems`` or
 REJECTED outright (see ``REJECTED_ROOTS``).
 

@@ -55,7 +55,8 @@ def check_stale_pycache() -> None:
     source file. Python normally recompiles these automatically, but clock
     skew (network mounts, VMs) can make a stale .pyc look "valid" and serve
     OLD bytecode for NEW source — a phantom-bug generator. Deleting is the
-    only safe option; they cost nothing to rebuild.
+    only safe option
+    they cost nothing to rebuild.
     """
     import importlib.util
     import struct
@@ -220,7 +221,8 @@ def check_frontend_wiring() -> None:
         for g in auto_gaps:
             PROBLEMS.append(f"AUTOMATION {g}")
         print(
-            f"[6/6] wiring checked ({len(PAGES)} pages {total} gaps; "
+            f"[6/6] wiring checked ({len(PAGES)} pages {total} gaps
+            "
             f"automation {len(auto_gaps)} gaps)"
         )
     except Exception as e:
@@ -295,7 +297,8 @@ def check_voice_launch_kill_env() -> dict[str, str]:
       * INVALID_TOKEN — the reader fails closed on it, but malformed config
                       must not reach production.
 
-    Classifies the ENV layer only; it never reads, writes or creates the kill file.
+    Classifies the ENV layer only
+    it never reads, writes or creates the kill file.
     """
     classification = classify_voice_launch_kill_env(os.environ.get("VOICE_LAUNCH_KILL"))
     reason = {
@@ -413,7 +416,8 @@ def main(argv: list[str] | None = None) -> int:
     # no gate because it reads as green.
     parser = argparse.ArgumentParser(
         prog="prod_check.py",
-        description="Repository readiness check; --deployment adds the pre-deploy gates.",
+        description="Repository readiness check
+        --deployment adds the pre-deploy gates.",
     )
     parser.add_argument(
         "--deployment",

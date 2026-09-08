@@ -147,7 +147,8 @@ def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
     2026-07-15 live-prod finding: refresh_niche_task loads its own fastembed
     model inside the fork on top of whatever the default queue's staff-job
     battery is doing concurrently — 3x observed SIGKILL/WorkerLostError in the
-    leadgen_worker container's 2GB memcg limit (host had 5.2GB free; this was
+    leadgen_worker container's 2GB memcg limit (host had 5.2GB free
+    this was
     a per-container cap collision, not host exhaustion). WorkerLostError
     bypasses this task's own max_retries entirely (broker-level redelivery of
     the same task id), so under sustained contention this could retry
@@ -169,7 +170,8 @@ def _route_self_improve_task(name, args, kwargs, options, task=None, **kw):
 
     2026-07-28 prod evidence: leadgen_worker (2g, concurrency=4) took 14
     memcg OOM/SIGKILL in 24h while SELF_IMPROVE_LOOP=1. worker_max_memory_per_child
-    only recycles *between* tasks; a single LLM-heavy tick can grow past the
+    only recycles *between* tasks
+    a single LLM-heavy tick can grow past the
     shared cgroup before recycle, and four forks amplify that. worker-heavy is
     concurrency=1 + 2500m — the right isolation for this continuous chain.
     Flag OFF keeps today's default-queue behaviour (local/dev without heavy).

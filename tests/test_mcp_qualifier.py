@@ -1,6 +1,7 @@
 """M.1 — MCP qualifier.run endpoint contract tests.
 
-The qualifier is a paid metered surface; its contract must be stable:
+The qualifier is a paid metered surface
+its contract must be stable:
 - Schema accepts the documented fields.
 - Returns total / grade / per-dimension / reasons / action / meter_remaining.
 - Auth + capability gating works (re-uses H.3 paths).

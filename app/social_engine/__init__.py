@@ -7,7 +7,10 @@ OFF — engine inert, video_ad_cycle current telegram+postiz inline path use kar
 Public API:
   enqueue_publish(client_id, caption, media_path/url, platforms, account_refs) -> [job_ids]
   process_queue(limit) -> drain (scheduler/worker)
-  enabled() ; registry() ; vault (token store) ; store (job queue)
+  enabled()
+  registry()
+  vault (token store)
+  store (job queue)
 """
 
 from __future__ import annotations

@@ -5,8 +5,10 @@ EdgeTTS mp3 → optional ffmpeg loudness-normalize (ffmpeg ho to). Output:
 data/jingles/jingle_<id>.mp3 — HUMAN use karta (WhatsApp status, reel audio,
 shop speaker). Ban-safe: sirf file banti hai.
 
-⚠️ HEAVY-ish (LLM + TTS network) — import time pe KUCH nahi chalta; sirf
-endpoint/worker se call karo. `available()` dep-check; missing = error dict,
+⚠️ HEAVY-ish (LLM + TTS network) — import time pe KUCH nahi chalta
+sirf
+endpoint/worker se call karo. `available()` dep-check
+missing = error dict,
 NEVER raises (reel_video.py pattern).
 """
 

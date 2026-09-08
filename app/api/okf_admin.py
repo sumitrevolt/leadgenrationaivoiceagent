@@ -24,7 +24,8 @@ router = APIRouter(prefix="/api/admin/okf", tags=["OKF"])
 class IngestIn(BaseModel):
     force: bool = Field(
         False,
-        description="Ignored in prod paths — kept for explicitness; flag must still be ON.",
+        description="Ignored in prod paths — kept for explicitness
+        flag must still be ON.",
     )
 
 

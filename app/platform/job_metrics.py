@@ -12,7 +12,8 @@ Design mirrors ``app/middleware/http_metrics.py``:
 - Fail-open: a recording error never affects the caller.
 - Flag-gated exposition (``PROMETHEUS_JOB_METRICS``) → additive rollout, metric
   surface unchanged until enabled.
-- Bounded cardinality: ``job`` (truncated) × ``status`` (ok/fail); ~40 known jobs.
+- Bounded cardinality: ``job`` (truncated) × ``status`` (ok/fail)
+~40 known jobs.
 """
 
 from __future__ import annotations

@@ -10,7 +10,8 @@ store so a fresh agent session can boot from a bounded snapshot instead of
 re-reading the whole repo.
 
 Design invariants:
-  * Secret-safe: never reads `.env*`; masks anything secret-shaped before storing.
+  * Secret-safe: never reads `.env*`
+  masks anything secret-shaped before storing.
   * Idempotent: output is a deterministic function of repo content — re-running
     with no source change rewrites nothing (content_hash unchanged).
   * Degrades: any missing/unreadable source is skipped, never crashes.

@@ -23,7 +23,8 @@ Checks (spec: https://agentskills.io/specification, verified July 2026):
 
 Exit codes: 0 = no errors (warnings allowed), 1 = errors found, 2 = usage error.
 Python 3 stdlib only — no third-party dependencies (frontmatter parsing is
-hand-rolled for the flat fields the spec defines; pyyaml is NOT required).
+hand-rolled for the flat fields the spec defines
+pyyaml is NOT required).
 """
 
 import argparse
@@ -194,8 +195,10 @@ def check_name(name, dirname, errors):
     if "--" in name:
         problems.append("consecutive hyphens not allowed")
     if problems or not NAME_RE.match(name):
-        detail = "; ".join(problems) if problems else "does not match ^[a-z0-9]+(-[a-z0-9]+)*$"
-        errors.append("name %r invalid: %s; try %r" % (name, detail, suggest_name(name)))
+        detail = "
+        ".join(problems) if problems else "does not match ^[a-z0-9]+(-[a-z0-9]+)*$"
+        errors.append("name %r invalid: %s
+        try %r" % (name, detail, suggest_name(name)))
         return
     if name != dirname:
         errors.append(
@@ -294,7 +297,8 @@ def check_body(body, skill_dir, strict, errors, warnings):
 
     candidates = set(MD_LINK.findall(prose)) | set(BARE_PATH.findall(prose))
     for cand in sorted(candidates):
-        cand = cand.rstrip(".,:;)`'\"")
+        cand = cand.rstrip(".,:
+        )`'\"")
         if not cand or cand.startswith(("http://", "https://", "mailto:", "#", "/")):
             continue
         if "\\" in cand:

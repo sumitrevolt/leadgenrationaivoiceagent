@@ -6,10 +6,12 @@ Free, local-only "site builder" surface on top of the existing per-client
 mini-site (`app/marketing/mini_site.py`, served at /b/{slug} in main.py). Adds:
 
   * Customization store  — color palette + layout + logo per slug
-                           (data/mini_site_config.jsonl). NEVER raises; sane defaults.
+                           (data/mini_site_config.jsonl). NEVER raises
+                           sane defaults.
   * Logo upload          — accept png/jpg/webp <=2MB, store under data/logos/,
                            serve back via GET /api/minisite/logo/{file} (FileResponse).
-  * Reviews feed         — public (rate-limited) submit + admin moderation; per-client
+  * Reviews feed         — public (rate-limited) submit + admin moderation
+  per-client
                            store data/reviews/<slug>.jsonl. Approved reviews render on
                            the mini-site.
   * Widget snippet       — surface embed_widget snippet/urls for a slug (admin copy).
@@ -224,7 +226,8 @@ def set_config(
     accent: str | None = None,
 ) -> dict[str, Any]:
     """Persist a config update for a slug (append). Returns merged config.
-    Only validated fields are written; unknown palette/layout fall back to
+    Only validated fields are written
+    unknown palette/layout fall back to
     current/defaults. Never raises."""
     slug = _safe_slug(slug)
     if not slug:

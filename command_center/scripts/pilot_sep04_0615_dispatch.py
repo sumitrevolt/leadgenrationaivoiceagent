@@ -20,7 +20,9 @@ def G(to, tid, typ, prio, msg):
     return {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
             "type": typ, "priority": prio, "msg": msg}
 
-FACT = ("LIVE 06:15 IST Sep4 (PILOT re-verified): /health 308 auth-gated (healthy); containers Up; "
+FACT = ("LIVE 06:15 IST Sep4 (PILOT re-verified): /health 308 auth-gated (healthy)
+containers Up
+"
         "SIP 5 vars ALL EMPTY (SIP_HOST=/SIP_DID= blank) DID NOT landed; VOBIZ_CALLER_ID REVOKED; "
         "call_loop mtime Aug31 batch211 = DIALER DEAD day5+ proc0; WA flip container =1 LIVE par "
         "auto_sent TRUE=0 (NO WAHA sendText msg-id day5+); leads/ EMPTY ammo 0; hot-queue last 09-03, "
@@ -134,7 +136,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-04T06:15+05:30"
-pin["vps_status"] = ("HEALTHY (/health 308 auth-gated, containers Up); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (/health 308 auth-gated, containers Up)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip container=1 LIVE par auto_sent 0/2298 NO msg-id (link-only day5+) -> 0 UPI; "
                      "hot-queue 09-04 NOT gen (date-lock broken); dialer DEAD day5+ (SIP 5 vars EMPTY, CLI "
                      "revoked, leads 0); GAP Rs4,98,001. GHANTI all 8 06:45 gates - fleet unresponsive ~51h "

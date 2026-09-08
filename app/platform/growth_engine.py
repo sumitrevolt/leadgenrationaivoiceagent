@@ -509,7 +509,8 @@ async def _self_heal(metrics: dict[str, Any]) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 async def pulse() -> dict[str, Any]:
     """Ek growth pulse: metrics collect → self-heal pipelines → pitch learning
-    → event log. Har step guarded; KABHI raise nahi karta. Returns the merged
+    → event log. Har step guarded
+    KABHI raise nahi karta. Returns the merged
     pulse dict (jo data/growth_pulse.json me bhi save hota hai)."""
     try:
         # (a) live snapshot (also persists growth_pulse.json + history line)

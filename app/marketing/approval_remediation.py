@@ -7,11 +7,13 @@ come. This module turns that detection into a SAFE remediation:
 
   - inactive-client stuck drafts -> EXPIRE  (content_approval.cancel -> 'cancelled':
     an internal state transition only — NO customer contact, NO publish, NO send).
-  - active-client stuck drafts   -> ESCALATE to admin (human decides; NEVER auto-publish, §5).
+  - active-client stuck drafts   -> ESCALATE to admin (human decides
+  NEVER auto-publish, §5).
   - publish failures             -> surfaced (own-brand fix is a separate human action).
 
 SAFETY CONTRACT (enforced by tests):
-  - Default DRY-RUN (`plan_remediation` is pure-read; `execute_remediation(dry_run=True)`
+  - Default DRY-RUN (`plan_remediation` is pure-read
+  `execute_remediation(dry_run=True)`
     changes nothing). Real execution requires BOTH `dry_run=False` AND the
     `APPROVAL_REMEDIATION` env flag, and writes a JSONL backup before any change.
   - NEVER cancels an ACTIVE client's draft (active = present in

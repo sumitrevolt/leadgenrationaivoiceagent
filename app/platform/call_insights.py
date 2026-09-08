@@ -9,7 +9,8 @@ pooche, AI call/lead data padh ke jawab de. Sources (sab best-effort, jo mile):
   - agent_events                    (team.recent_events helper, lazy/DB-optional)
 
 Design: quick_stats() = PURE-python counts (LLM-free, hamesha kaam). ask() =
-compact context (recent N=50, truncated) → free_ai Hinglish answer; LLM fail =
+compact context (recent N=50, truncated) → free_ai Hinglish answer
+LLM fail =
 stats-based fallback answer (phir bhi useful). Never raises. Koi flag nahi
 (read-only analytics — side-effect zero).
 """

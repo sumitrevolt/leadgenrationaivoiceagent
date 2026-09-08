@@ -2,10 +2,12 @@
 
 3 naye engineering capabilities (Kilo-Code "Review agent" + Hermes self-recall +
 Hermes/Kilo checkpoints) ko admin-gated API surface deta. Modules khud read-only,
-never-raise, flag-gated; yeh router unko expose karta verify + ad-hoc use ke liye.
+never-raise, flag-gated
+yeh router unko expose karta verify + ad-hoc use ke liye.
 
 Mount (main session wires it): app.include_router(eng_agents.router, prefix="/api/agents-ext")
-Routes (sab require_admin; rollback = require_super_admin RBAC design):
+Routes (sab require_admin
+rollback = require_super_admin RBAC design):
   - POST /code-review            → code_reviewer.review
   - POST /recall   GET /recall   → agent_recall.record / .recall
   - POST /checkpoint  GET /checkpoints  POST /rollback/{ckpt_id}
@@ -30,7 +32,8 @@ class CodeReviewIn(BaseModel):
 @router.post("/code-review")
 async def code_review(body: CodeReviewIn, _user=Depends(require_admin)):
     """Dedicated review-agent: code/diff ka multi-dimension structured review
-    (correctness/security/performance/style/tests). LLM-grounded; fail → static
+    (correctness/security/performance/style/tests). LLM-grounded
+    fail → static
     minimal result. Read-only, never-raise, flag-independent (admin-gated)."""
     from app.agents import code_reviewer
 

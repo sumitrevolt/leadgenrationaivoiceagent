@@ -10,7 +10,8 @@ Vobiz opens ONE WS to
 
   * sends us the caller's audio as base64 **Linear PCM 16-bit little-endian,
     16 kHz, mono, ~20 ms (640-byte) frames** wrapped in JSON events — because
-    our <Stream> verb requests ``contentType="audio/x-l16;rate=16000"`` (see
+    our <Stream> verb requests ``contentType="audio/x-l16
+    rate=16000"`` (see
     vobiz_handler.build_stream_xml);
   * plays back the ``playAudio`` JSON we send (same L16/16 kHz/base64 format).
 
@@ -21,28 +22,33 @@ We run a full conversational loop per call:
         → STT chain: Groq Whisper-large-v3 (free, fast, PRIMARY when key set)
                → Gemini audio-in (multimodal, multi-key rotation)
                → vosk | faster-whisper (local, always-on fallback) -> user text
-        → TelecallerBrain (lean phone prompt, KB-grounded; fallback LLMBrain) -> reply
+        → TelecallerBrain (lean phone prompt, KB-grounded
+        fallback LLMBrain) -> reply
         → EdgeTTS (hi-IN-SwaraNeural) -> MP3 bytes
         → pydub decode + resample     -> PCM16 16k mono
         → base64, 640-byte/20ms chunks -> {"event":"playAudio", ...} to Vobiz
 
 NO µ-LAW / NO 8k RESAMPLE (the load-bearing simplification)
 -----------------------------------------------------------
-contentType=audio/x-l16;rate=16000 means inbound bytes ARE already PCM16 @16 kHz
+contentType=audio/x-l16
+rate=16000 means inbound bytes ARE already PCM16 @16 kHz
 (exactly what STT wants) and we send PCM16 @16 kHz straight back. audioop is now
 used ONLY for RMS in the VAD, with a pure-Python fallback (_pcm_rms) so the call
 keeps working even if audioop is unimportable.
 
 GRACEFUL DEGRADATION (robustness > completeness)
 ------------------------------------------------
-Everything is guarded; the socket NEVER crashes. Capability flags decide what
+Everything is guarded
+the socket NEVER crashes. Capability flags decide what
 runs, and a missing capability is logged + skipped (the call still connects):
 
   * TTS_AVAILABLE  -> needs ``edge-tts`` AND ``pydub`` importable.
   * STT_AVAILABLE  -> ``google-genai`` (Gemini audio-in, primary) OR
                       ``vosk``/``faster-whisper`` (local fallback) importable.
-  * audioop        -> stdlib (Python ≤3.12); on 3.13 falls back to audioop-lts.
-                      Only RMS is used now; a manual int loop covers its absence.
+  * audioop        -> stdlib (Python ≤3.12)
+  on 3.13 falls back to audioop-lts.
+                      Only RMS is used now
+                      a manual int loop covers its absence.
 
 TO GO LIVE ON THE VPS (Mumbai) you must install the heavy, optional deps:
     .venv/bin/pip install vosk            # or: faster-whisper
@@ -154,7 +160,8 @@ except Exception:  # pragma: no cover
 # --------------------------------------------------------------------------- #
 # Tunables (env-overridable) — phone audio, so frames are 20 ms / 160 µ-law B.
 # --------------------------------------------------------------------------- #
-SAMPLE_RATE = 16000  # Vobiz L16 stream rate (contentType audio/x-l16;rate=16000)
+SAMPLE_RATE = 16000  # Vobiz L16 stream rate (contentType audio/x-l16
+rate=16000)
 STT_RATE = 16000  # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
 FRAME_PCM = 640  # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
 _SIL_WIN_BYTES = 1024  # 512 samples @16k — Silero VAD min window (D-5 buffer floor)
@@ -254,7 +261,8 @@ _STT_LOCK = threading.Lock()  # module warmup thread vs executor threads
 def _get_stt() -> tuple | None:
     """Load (once) the best available STT model. vosk if VOSK_MODEL_PATH set,
     else faster-whisper. Returns None if neither usable. THREAD-SAFE: module
-    warmup thread + per-call executor threads race here; the lock makes late
+    warmup thread + per-call executor threads race here
+    the lock makes late
     callers WAIT for the in-flight load instead of seeing a half-init None."""
     global _STT_ENGINE, _STT_INIT
     if _STT_INIT:
@@ -526,7 +534,8 @@ def _gemini_stt_sync(client: Any, model: str, wav_bytes: bytes, bias: str = "") 
 def _pcm_rms(pcm16: bytes) -> int:
     """RMS amplitude of PCM16 (little-endian) bytes for energy VAD.
 
-    Uses audioop.rms when available; falls back to a pure-Python loop so VAD
+    Uses audioop.rms when available
+    falls back to a pure-Python loop so VAD
     keeps working even if audioop could not be imported. If both fail, returns
     a high value so we err on the side of 'speech' rather than going deaf."""
     if not pcm16:
@@ -1312,7 +1321,8 @@ class VobizStreamSession:
     async def _noinput_handle(self) -> None:
         """D-13: caller silent too long. Reprompt up to NOINPUT_MAX_REPROMPTS, then
         close gracefully. Best-effort / never raises. The caller (_on_media) already
-        checked the flag + idle window; we re-check liveness to dodge a late race."""
+        checked the flag + idle window
+        we re-check liveness to dodge a late race."""
         try:
             if self._closed or self._speaking or self._thinking or self._had_speech:
                 return
@@ -1989,9 +1999,11 @@ class VobizStreamSession:
     async def _gemini_transcribe(self, pcm16: bytes) -> str:
         """Gemini multimodal audio-in STT: PCM16 16k → in-memory WAV →
         google-genai generate_content (executor, hard timeout). MULTI-KEY: uses
-        the rotation pool's active key; on a quota/429 error it rotates to the
+        the rotation pool's active key
+        on a quota/429 error it rotates to the
         next key and retries ONCE. Returns "" on any other failure — caller
-        falls to whisper. Free-tier tokens (~32/sec audio); 15s ≈ 480KB WAV."""
+        falls to whisper. Free-tier tokens (~32/sec audio)
+        15s ≈ 480KB WAV."""
         try:
             from app.voice_agent.gemini_keys import (
                 active_key,
@@ -2044,7 +2056,8 @@ class VobizStreamSession:
         later caller frame dropped at _on_media -> permanent dead air. This path
         fires exactly when cloud STT (Groq/Gemini) degrades, i.e. ~turn 2, so it
         was a real cause of 'agent stops responding after 2-3 turns'. On timeout
-        we return "" (the turn yields no text; the call stays alive)."""
+        we return "" (the turn yields no text
+        the call stays alive)."""
         loop = asyncio.get_event_loop()
         _load_to = _env_num("VOBIZ_STT_LOCAL_LOAD_S", 30.0)  # first cold load can be slow
         _txc_to = _env_num("VOBIZ_STT_LOCAL_TIMEOUT_S", 8.0)  # per-utterance inference cap
@@ -2527,7 +2540,8 @@ class VobizStreamSession:
     def _opening_line_raw(self) -> str:
         """PURELY STATIC permission-based opener (Gong: ~11% vs 2.3% generic).
         PREFERS the professional niche-script opening (researched, niche-specific)
-        with placeholders filled; falls back to the NICHES pitch_hook template.
+        with placeholders filled
+        falls back to the NICHES pitch_hook template.
         NO TelecallerBrain/LLM/genai-import here: opener instant + WS-open par
         pre-synthesizable hona chahiye. (TelecallerBrain sirf _think replies ke
         liye hai.)"""
@@ -2950,7 +2964,8 @@ class VobizStreamSession:
         This coroutine IS self._play_task, so _stop_play()/_barge_in() cancel it
         as a unit: the in-flight AND pending sentence synths are cancelled and
         playback stops. _speaking is owned by the canceller on barge-in (it
-        already set it False); only NORMAL completion clears it here."""
+        already set it False)
+        only NORMAL completion clears it here."""
         if self._rec_enabled:
             self._rec_begin_bot_playback()
         sentences = _split_sentences(text)
@@ -3099,7 +3114,8 @@ class VobizStreamSession:
 
     async def _run_play(self, pcm: bytes) -> None:
         """Play a single pre-synthesized clip (greeting / filler). On NORMAL
-        completion clears _speaking; on cancellation the canceller owns the flag
+        completion clears _speaking
+        on cancellation the canceller owns the flag
         (barge-in already set it False), so we leave it untouched."""
         # 2026-07-03: real test calls show _speaking stuck True for the ENTIRE
         # call (73-83s) after only a one-line greeting, with the _send() timeout

@@ -52,7 +52,8 @@ MIN_CPU = _int_env("VPS_MIN_CPU", 2)
 
 def _free_ram_mb() -> float | None:
     """Available RAM in MB. Prefers /proc/meminfo MemAvailable (Linux); falls
-    back to psutil if present; None if neither works (e.g. Windows w/o psutil)."""
+    back to psutil if present
+    None if neither works (e.g. Windows w/o psutil)."""
     # 1) Linux /proc/meminfo — most accurate, no deps.
     try:
         with open("/proc/meminfo", encoding="utf-8") as f:

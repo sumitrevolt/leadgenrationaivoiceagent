@@ -116,7 +116,8 @@ def _load_ux_evaluator():
                             wcag_criterion="2.4.7 Focus Visible",
                             user_impact="Keyboard-only users cannot navigate the dashboard",
                             evidence=Evidence(),
-                            remediation="Remove outline:none; add visible :focus styles",
+                            remediation="Remove outline:none
+                            add visible :focus styles",
                         )
                     )
 
@@ -655,7 +656,9 @@ if __name__ == "__main__":
         "--mode",
         choices=["full", "diff", "ci"],
         default="full",
-        help="full = run+save; diff = compare vs baseline; ci = exit code for CI",
+        help="full = run+save
+        diff = compare vs baseline
+        ci = exit code for CI",
     )
     parser.add_argument(
         "--baseline",

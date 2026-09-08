@@ -41,7 +41,8 @@ mid-sentence. Two opt-in pieces, both default OFF so prod is unchanged:
   TURN_BARGE_GUARD_MS     # sustained-speech window for the guard (default 280 ms)
 
 Shared turn-taking knobs (read by the stream files + pipeline so a single env
-controls every audio path; sane defaults keep prod identical until set):
+controls every audio path
+sane defaults keep prod identical until set):
   TURN_SILENCE_MS         # trailing silence that ends a turn (default 700 ms)
   TURN_VAD_RMS            # PCM16 RMS speech gate (default 300)
   TURN_BARGE_MIN_MS       # speech-over-bot before barge-in fires (default 100 ms)
@@ -220,7 +221,8 @@ class SmartTurnDetector:
         mid-sentence, None when disabled/unavailable/uncertain (silence-timer decides).
 
         Runs smart-turn-v3's ONNX endpoint head on the trailing audio. The model
-        wants mono float32 @ 16 kHz; 8 kHz phone audio is upsampled (cheap). ANY
+        wants mono float32 @ 16 kHz
+        8 kHz phone audio is upsampled (cheap). ANY
         failure degrades to None so a bad frame can never end/hold a turn wrongly.
         """
         if not self._ensure() or self._predict is None:
@@ -404,7 +406,8 @@ def text_end_of_turn(text: str) -> bool | None:
         # 2) Look at the last word (strip trailing non-word punctuation like
         #    comma/dash/ellipsis that don't terminate a sentence).
         last = t.split()[-1] if t.split() else ""
-        last_clean = last.strip(",;:-–—…\"'()[]{}").lower()
+        last_clean = last.strip(",
+        :-–—…\"'()[]{}").lower()
         if not last_clean:
             return None
         if last_clean in _INCOMPLETE_TAIL_WORDS:
@@ -516,7 +519,8 @@ def is_backchannel(text: str) -> bool:
       * at most ``_BACKCHANNEL_MAX_TOKENS`` tokens,
       * False for empty/None.
     The streams only ACT on this when the bot was actually speaking (a true
-    interruption); a bare "haan" answering the bot's yes/no question is handled
+    interruption)
+    a bare "haan" answering the bot's yes/no question is handled
     normally because the bot isn't speaking then. Never raises.
     """
     try:
@@ -526,7 +530,8 @@ def is_backchannel(text: str) -> bool:
         t = t.strip(".!?,।॥…\"'()[]{} ")
         if not t:
             return False
-        toks = [w.strip(".,!?;:-–—…\"'()[]{}") for w in t.split()]
+        toks = [w.strip(".,!?
+        :-–—…\"'()[]{}") for w in t.split()]
         toks = [w for w in toks if w]
         if not toks or len(toks) > _BACKCHANNEL_MAX_TOKENS:
             return False
@@ -546,7 +551,8 @@ def confirm_end_of_turn(
 
     ``silence_ended=False`` -> caller still talking, return False. ``silence_ended=True``
     -> Smart Turn (USE_SMART_TURN=1) se poochho: agar woh kahe turn ABHI complete nahi
-    (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko); complete
+    (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko)
+    complete
     ya uncertain/disabled (None) to silence-timer honor karo -> True.
 
     TEXT layer (USE_TEXT_ENDPOINT=1, default OFF): jab ``text`` partial transcript
@@ -585,21 +591,24 @@ def confirm_end_of_turn(
 # --------------------------------------------------------------------------- #
 def turn_silence_ms(default: float = 700.0) -> float:
     """Trailing silence (ms) that ends a user turn. Env: TURN_SILENCE_MS.
-    Lower = snappier (risk: clip a slow talker); higher = safer but laggier.
+    Lower = snappier (risk: clip a slow talker)
+    higher = safer but laggier.
     ~500-800 ms is the human-feeling sweet spot."""
     return _env_float("TURN_SILENCE_MS", default)
 
 
 def turn_vad_rms(default: int = 300) -> int:
     """PCM16 RMS above which a frame counts as speech. Env: TURN_VAD_RMS.
-    Higher on a noisy line (ignore hum); lower in a quiet studio."""
+    Higher on a noisy line (ignore hum)
+    lower in a quiet studio."""
     return _env_int("TURN_VAD_RMS", default)
 
 
 def barge_in_ms(default: float = 100.0) -> float:
     """How long the caller must talk over the bot before barge-in fires (ms).
     Env: TURN_BARGE_MIN_MS. Lower = more eager cut-in (risk: own echo stops the
-    bot); higher = bot less interruptible."""
+    bot)
+    higher = bot less interruptible."""
     return _env_float("TURN_BARGE_MIN_MS", default)
 
 
@@ -637,7 +646,8 @@ def barge_guard_ms(default: float = 280.0) -> float:
 
 def barge_guard_frames(frame_ms: float, default_ms: float = 280.0) -> int:
     """Frames of SUSTAINED speech needed to commit a barge-in when BARGE_GUARD
-    is ON; falls back to the snappy ``barge_in_frames`` (~100 ms) when OFF so
+    is ON
+    falls back to the snappy ``barge_in_frames`` (~100 ms) when OFF so
     prod is unchanged. Min 1. Callers tick per inbound frame."""
     if not barge_guard_enabled():
         return barge_in_frames(frame_ms)

@@ -29,7 +29,8 @@ import hmac
 import os
 import time
 
-_TTL_S = 3600  # signed token valid 1h — calls connect within minutes; a long
+_TTL_S = 3600  # signed token valid 1h — calls connect within minutes
+a long
 #                live call's reconnect still lands inside this window.
 _SIG_LEN = 16  # sig = first 16 hex chars of the HMAC-SHA256 digest.
 
@@ -50,7 +51,8 @@ def sign(raw: str, exp: int | None = None) -> str:
     Vobiz receives is then identical to today's uuid — zero behavior change).
     `exp` = unix seconds the signature stops being valid (default now+1h);
     exposed for tests. Never raises — on any error returns `raw` as-is (fail-open
-    minting; a call must never be dropped by a signing bug)."""
+    minting
+    a call must never be dropped by a signing bug)."""
     try:
         secret = _secret()
         if not secret:
@@ -67,7 +69,8 @@ def verify(token: str) -> bool:
 
     INERT: if `VOBIZ_STREAM_SECRET` is unset, returns True (verification is a
     no-op — every token is accepted, today's behavior). Also True for a token
-    that simply has no `.<exp>.<sig>` suffix ONLY when inert; when a secret IS
+    that simply has no `.<exp>.<sig>` suffix ONLY when inert
+    when a secret IS
     set, an unsigned/malformed/expired/tampered token returns False. Never raises."""
     try:
         secret = _secret()

@@ -85,7 +85,8 @@ async def bg_remove_endpoint(file: UploadFile = File(...), _user=Depends(require
     return Response(
         content=out,
         media_type="image/png",
-        headers={"Content-Disposition": 'inline; filename="cutout.png"'},
+        headers={"Content-Disposition": 'inline
+        filename="cutout.png"'},
     )
 
 

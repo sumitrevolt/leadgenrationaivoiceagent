@@ -25,7 +25,8 @@ _FREE_AI_PATH = Path(__file__).resolve().parents[1] / "app" / "voice_agent" / "f
 
 def _load_real_free_ai():
     """conftest globally stubs free_ai.chat (offline safety) — load a FRESH module
-    instance so the wiring test exercises the REAL chat(); its lazy `from
+    instance so the wiring test exercises the REAL chat()
+    its lazy `from
     app.platform import llm_metrics` still resolves to the shared module (spy works)."""
     spec = importlib.util.spec_from_file_location("free_ai_real_for_test", _FREE_AI_PATH)
     mod = importlib.util.module_from_spec(spec)

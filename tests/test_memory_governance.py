@@ -1,7 +1,8 @@
 """Memory governance — two redaction policies, do-not-remember, staleness/conflict.
 
 Review P0/P1: latency must not buy itself with privacy. Policy A (prompt-bound)
-keeps authorized lead data but removes secrets; Policy B (logs/audit/admin/UI)
+keeps authorized lead data but removes secrets
+Policy B (logs/audit/admin/UI)
 removes secrets AND PII. Plus the previously-missing controls: do-not-remember
 and deterministic stale-fact resolution.
 """
@@ -119,7 +120,8 @@ def test_rule_evaluation_error_is_deferred_not_suppressed(gov_env, monkeypatch):
 
     An outage is NOT a suppression (no fabrication of suppression audits / no
     destructive delete). `is_suppressed` reports only real matches (error =>
-    False = "unknown"); the fail-closed decision lives in `check_write`.
+    False = "unknown")
+    the fail-closed decision lives in `check_write`.
     """
 
     def boom(_tenant):

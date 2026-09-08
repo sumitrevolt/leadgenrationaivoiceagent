@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 09:00 IST sweep — evidence-first REVENUE COMMAND.
-FRESH LIVE (09:00): /health 036a4e4b healthy uptime6h40m; WA flip LIVE containers=1 CONFIRMED
-(both worker+app); auto_sent true=0/2262 (still link-only, no sendText); hot-queue 09-03 NOW PRESENT
-(44 rows — OPS-007 root-cause RESOLVED, scheduler back up); wa_conversations 435 last Sep2 17:06, 0 Sep3
-(43/43 09-02 sends still PENDING, dirty newsletter list, 0 genuine buyer); SIP 5 vars EMPTY, VOBIZ
+FRESH LIVE (09:00): /health 036a4e4b healthy uptime6h40m
+WA flip LIVE containers=1 CONFIRMED
+(both worker+app)
+auto_sent true=0/2262 (still link-only, no sendText)
+hot-queue 09-03 NOW PRESENT
+(44 rows — OPS-007 root-cause RESOLVED, scheduler back up)
+wa_conversations 435 last Sep2 17:06, 0 Sep3
+(43/43 09-02 sends still PENDING, dirty newsletter list, 0 genuine buyer)
+SIP 5 vars EMPTY, VOBIZ
 REVOKED CLI +911****6938 still in env, call_loop mtime Aug31 batch211, leads/ ABSENT (DID day4);
 revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001), GAP Rs4,98,001.
 KEY SHIFT THIS RUN: all 8 bots already own tasks (07:35 assign, 10:00 gates) — NO idle bot. So this is
@@ -78,7 +83,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T09:00+05:30"
-pin["vps_status"] = ("HEALTHY (036a4e4b, uptime6h40m); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (036a4e4b, uptime6h40m)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip LIVE containers=1 par auto_sent 0/2262 (link-only, no sendText) -> 0 UPI; "
                      "hot-queue 09-03 PRESENT (scheduler healed); dialer DEAD day4 (SIP empty, CLI revoked, leads abs); "
                      "GAP Rs4,98,001. Ghanti all 8 bots 10:00 gates.")

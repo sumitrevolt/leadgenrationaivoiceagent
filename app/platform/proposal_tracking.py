@@ -246,7 +246,8 @@ _SWEEP_CURSOR = os.path.join("data", "proposal_sweep_cursor.json")
 
 def sweep_new_opens() -> dict[str, Any]:
     """Naye proposal-opens ka sweep (watchdog-job se hourly) — "client ne proposal
-    khola — abhi call karo" team-event. Cursor se dedupe; sirf event log, NO send.
+    khola — abhi call karo" team-event. Cursor se dedupe
+    sirf event log, NO send.
     Never raises."""
     try:
         last_ts = ""

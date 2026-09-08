@@ -14,7 +14,8 @@ Design (matches the rest of the project):
   * **Isolated** — the agentic path is a SEPARATE code path
     (`TelecallerBrain.reply_with_tools`) so the delicately-tuned default reply
     is untouched. No brain prompt is changed unless the flag is on.
-  * **Defensive** — every helper is import-safe + never raises; a tool failure
+  * **Defensive** — every helper is import-safe + never raises
+  a tool failure
     degrades to a spoken fallback, never a dropped call.
 
 The brain, when this flag is on, is given a compact instruction telling it that
@@ -41,7 +42,8 @@ except Exception:  # pragma: no cover
 def voice_tools_enabled() -> bool:
     """True only when VOICE_TOOLS is explicitly enabled (default OFF).
 
-    Default OFF = zero behaviour change; the agentic path never executes."""
+    Default OFF = zero behaviour change
+    the agentic path never executes."""
     return (os.environ.get("VOICE_TOOLS", "0") or "0").strip().lower() in (
         "1",
         "true",
@@ -121,7 +123,8 @@ def tools_instruction(registry: object | None = None) -> str:
 
 def confirmation_line(name: str, result: object) -> str:
     """Short Hinglish line the agent SPEAKS after running a tool. Prefers the
-    tool's own confirmation_text / summary; else a safe per-action line. SHARED by
+    tool's own confirmation_text / summary
+    else a safe per-action line. SHARED by
     the phone (vobiz) + web-call paths so both speak identically. Never raises."""
     try:
         data = getattr(result, "data", None)

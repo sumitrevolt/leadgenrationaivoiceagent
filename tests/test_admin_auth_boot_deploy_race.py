@@ -1,7 +1,8 @@
 """adminAuthBoot must not wipe tokens on the first /api/admin/me 401.
 
 Deploy recreate races return a transient 401 while the new container is
-warming; wiping localStorage on that first 401 was the root cause of
+warming
+wiping localStorage on that first 401 was the root cause of
 \"deploy ke baad admin logout\" (JWT secret is stable across recreate).
 """
 

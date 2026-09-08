@@ -1,6 +1,7 @@
 """Automated client onboarding — client add hote hi poora setup KHUD (done-for-you).
 
-Manual agency onboarding 5-7 din leta hai; yeh minutes me karta hai. Jaise hum apne liye
+Manual agency onboarding 5-7 din leta hai
+yeh minutes me karta hai. Jaise hum apne liye
 karte hain, waise client ke liye. Pieces pehle se the (clients_store, content_pack,
 mini-site) — yeh unhe ek auto-flow me chain karta hai PLUS naya high-value step:
 
@@ -222,7 +223,8 @@ async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dic
     """Welcome message right after onboarding; if the website-KB-seed step found
     nothing (no website / thin site), ask for business info in the same message —
     the WhatsApp reply becomes the KB source instead (see try_capture_onboarding_reply).
-    Best-effort, never raises; no-op without a phone or a configured WA sender."""
+    Best-effort, never raises
+    no-op without a phone or a configured WA sender."""
     out: dict[str, Any] = {"sent": False}
     phone = str(client.get("phone") or "").strip()
     if not phone:
@@ -312,7 +314,8 @@ async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
 
     Called from BOTH whatsapp webhook handlers (selfhost + Meta Cloud) before they hand
     the message to reply_agent — returns True when handled, so the caller skips the
-    normal prospect-reply draft for this message. Never raises; False = not our message."""
+    normal prospect-reply draft for this message. Never raises
+    False = not our message."""
     txt = (text or "").strip()
     digits = "".join(ch for ch in str(from_number or "") if ch.isdigit())[-10:]
     if not digits or len(txt) < 5:

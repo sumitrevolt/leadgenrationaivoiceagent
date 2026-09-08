@@ -1,7 +1,8 @@
 """Voice-scoped OmniRoute wrapper for Swara live turns (ADR-108 extension).
 
 Gated by ``OMNIROUTE_VOICE=1`` (INERT default) + ``OMNIROUTE_ENABLED=1`` + key.
-Streaming first-token path uses the gateway OpenAI-compatible client; fail-open
+Streaming first-token path uses the gateway OpenAI-compatible client
+fail-open
 falls through to ``free_ai.chat_stream`` / ``free_ai.chat`` unchanged.
 
 Never logs API keys, raw prompts, or unmasked PII.

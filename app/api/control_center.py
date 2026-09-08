@@ -255,7 +255,8 @@ async def control_center_agents_metrics(_user=Depends(require_admin)) -> dict[st
     a single lifetime group_by(member) count over the agent_events table for
     `events_total`. `avg_ms` is ALWAYS null — AgentEvent has no duration column,
     so we never fabricate it. `ok_rate` is lifetime non-error / total (null if
-    no lifetime data). All DB work is in its own try/except; on any failure we
+    no lifetime data). All DB work is in its own try/except
+    on any failure we
     fall back to whatever team_status() already exposes per member.
     """
     out: dict[str, Any] = {"ok": True, "at": _now_iso(), "agents": []}
@@ -347,7 +348,8 @@ async def control_center_node_stats(_user=Depends(require_admin)) -> dict[str, A
     """Fold per-node ms over the last N flow runs → slowest nodes (p50/p95).
 
     dag_engine records `ms` directly on each `node_completed` event, so we read
-    that first; if absent we derive it from node_started.at ↔ node_completed.at
+    that first
+    if absent we derive it from node_started.at ↔ node_completed.at
     deltas. flow_dispatch.journal() keys the per-run file by run_id only (both
     engines share the same path) so it reads dag + linear runs alike. If no run
     timings exist yet we return empty lists + an honest note. Never raises.
@@ -538,7 +540,8 @@ async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, 
 
     Token data is captured by budget_guard.record() in free_ai — but ONLY when
     `LLM_BUDGET_GUARD=1` (off default → no counters). We READ those daily GLOBAL
-    counters via budget_guard.redis_stats(); `available` is True only when the
+    counters via budget_guard.redis_stats()
+    `available` is True only when the
     guard is enabled AND today's token total > 0. Per-provider CALL counts come
     from llm_metrics (calls ONLY — these are free providers, NEVER a $/₹ figure).
     All keys are initialised before the try blocks so a downstream raise still

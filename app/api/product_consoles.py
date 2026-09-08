@@ -12,11 +12,15 @@ Design contract (matches Archify + project conventions):
   - **Truth before spectacle.** Every count, node state and "connected" claim is
     derived from a real source (clients_store, KB stats, social token vault).
     Nothing is invented. Missing data returns honest zeros, never placeholders.
-  - **Never 500.** Every handler is guarded; failures degrade to a partial payload
+  - **Never 500.** Every handler is guarded
+  failures degrade to a partial payload
     with `ok:true` and a `degraded` note, or an explicit 4xx for bad input.
-  - **Reuse, don't rebuild.** Social OAuth -> app.api.social_oauth; credential
-    store -> app.social_engine.vault (Fernet at-rest); knowledge -> app.voice_agent
-    .knowledge_base (namespaced `client:<id>`); client record -> clients_store.
+  - **Reuse, don't rebuild.** Social OAuth -> app.api.social_oauth
+  credential
+    store -> app.social_engine.vault (Fernet at-rest)
+    knowledge -> app.voice_agent
+    .knowledge_base (namespaced `client:<id>`)
+    client record -> clients_store.
 
 Mounted from app/main.py inside a guarded try (see CHECK-MOUNT comment at EOF).
 """
@@ -1175,7 +1179,8 @@ async def automation_test_call(
     HERE — otherwise the console would be a path around every one of them
     (no daily cap, no per-tenant cap, no kill switch, no circuit breaker, no
     lead eligibility). Every gate below is the project's existing one, reused
-    via app.telephony.voice_launch; none is re-implemented or weakened.
+    via app.telephony.voice_launch
+    none is re-implemented or weakened.
 
     Chain runs in order and STOPS AT THE FIRST FAILURE — a later gate must never
     be reached (and never consume a counter slot) once an earlier one has
@@ -1405,7 +1410,8 @@ def _publishing_armed() -> dict[str, Any]:
 
     Two independent master gates must be on. Without SOCIAL_PREFS_HONOR the
     content engine never reads cadence/approval_mode at all
-    (auto_content._social_prefs returns {}); without SOCIAL_ENGINE nothing
+    (auto_content._social_prefs returns {})
+    without SOCIAL_ENGINE nothing
     drains the publish queue. Reported to the tenant rather than hidden —
     a "launched" state that cannot publish is worse than an honest one.
     """

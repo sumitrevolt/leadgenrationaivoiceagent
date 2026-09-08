@@ -1,11 +1,13 @@
 r"""OmniRoute agent-hook smoke (ADR-108) — synthetic/public prompt ONLY.
 
 Local dev-only verification: gates status + try_agent_chat() end-to-end via the
-REAL local gateway. Kabhi secret print nahi karta; kabhi customer data nahi bhejta.
+REAL local gateway. Kabhi secret print nahi karta
+kabhi customer data nahi bhejta.
 
 Run (flags process-only set karke, .env untouched):
   $env:OMNIROUTE_API_KEY=[Environment]::GetEnvironmentVariable('OMNIROUTE_API_KEY','User')
-  $env:OMNIROUTE_ENABLED='1'; $env:OMNIROUTE_AGENTS='1'
+  $env:OMNIROUTE_ENABLED='1'
+  $env:OMNIROUTE_AGENTS='1'
   .venv\Scripts\python.exe scripts\omniroute_agent_smoke.py
 """
 

@@ -120,7 +120,8 @@ def analyze_prompt(text: str) -> dict[str, Any]:
         score -= 30
 
     if word_count > _MAX_PROMPT_WORDS:
-        issues.append(f"Prompt is long ({word_count} words); spoken lines should be concise.")
+        issues.append(f"Prompt is long ({word_count} words)
+        spoken lines should be concise.")
         score -= 20
 
     lowered = {w.strip(".,!?").lower() for w in words}

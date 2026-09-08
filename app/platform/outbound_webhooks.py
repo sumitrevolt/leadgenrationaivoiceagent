@@ -6,7 +6,8 @@ Apps Script, n8n, Zapier, client ka CRM) bina humse pooche integrate ho jata.
 
 5s timeout, kabhi raise nahi. RELIABLE DELIVERY (outbox pattern — audit): transient
 fail pe event LOSE nahi hota — retry-queue me jaata, background `retry_pending()`
-exponential-backoff + jitter ke saath redeliver karta (at-least-once); max attempts
+exponential-backoff + jitter ke saath redeliver karta (at-least-once)
+max attempts
 ke baad DLQ. Consumer-side idempotency (idempotency.py) ke saath = reliable + dedupe.
 Store: outbound_webhooks.jsonl (configs) + webhook_deliveries.jsonl (last 500) +
 webhook_retry_queue.jsonl (pending) + webhook_dlq.jsonl (dead). Bina URL ke inert.
@@ -237,7 +238,8 @@ def _enqueue_retry(hook_id: str, event: str, body: str, err: str) -> None:
 
 async def retry_pending(max_items: int = 50) -> dict[str, Any]:
     """Outbox worker — due failed-deliveries ko backoff+jitter ke saath redeliver karo.
-    Delivered/hook-gone → queue se hata; max attempts ke baad → DLQ. Concurrency-safe
+    Delivered/hook-gone → queue se hata
+    max attempts ke baad → DLQ. Concurrency-safe
     (single-flight _FLUSH_LOCK + reconcile-by-id taaki flush ke dauraan aaye naye items
     na khoyein). Never raises. Returns {retried, delivered, dlq, pending}."""
     res = {"retried": 0, "delivered": 0, "dlq": 0, "pending": 0}

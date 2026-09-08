@@ -20,7 +20,8 @@ Two concrete additions:
    `code_upgrader` produces an artifact, the agent calls `score_and_gate()`
    with the metric value from a fresh eval run. The decision is logged into
    the agent's outcome record so the next iteration can prefer (or roll back)
-   accordingly. Activated by `EVAL_GATE=1`; hardened to actually BLOCK
+   accordingly. Activated by `EVAL_GATE=1`
+   hardened to actually BLOCK
    regression actions by `EVAL_GATE_HARD=1` (both OFF default = pure logging).
 
 Storage: a single jsonl file `data/eval_history.jsonl`. One line per
@@ -28,7 +29,8 @@ Storage: a single jsonl file `data/eval_history.jsonl`. One line per
 llm_metrics, consent_ledger, lead_usage. No DB dependency, no Redis required,
 survives container restart.
 
-Project ethos: INERT when EVAL_GATE unset (zero behaviour change); never
+Project ethos: INERT when EVAL_GATE unset (zero behaviour change)
+never
 raises on storage error (writes are best-effort).
 """
 

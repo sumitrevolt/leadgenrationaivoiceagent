@@ -17,7 +17,8 @@ recycling" / Buffer re-queue jaisa, 100% free stack).
 
 run_daily_content() me wire hota hai: kisi client ke aaj 0 naye items bane
 (dedupe ne sab block kiya) to recycle_for_client fallback — queue hamesha
-non-empty. Guarded optional-import; KABHI raise nahi karta.
+non-empty. Guarded optional-import
+KABHI raise nahi karta.
 """
 
 from __future__ import annotations

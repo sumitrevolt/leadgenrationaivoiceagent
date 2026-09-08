@@ -153,7 +153,8 @@ async def signup_health(response: Response) -> dict[str, Any]:
     account. Ops uptime monitors (Uptime/Gatus) can poll this instead of the
     generic /health so a broken signup surface is caught the moment it breaks —
     not after "why is nobody signing up" observation on the CRM. Returns 200 +
-    per-check status when all four probes pass; 503 with per-check failure
+    per-check status when all four probes pass
+    503 with per-check failure
     detail otherwise. Never raises.
     """
     _mark_no_store(response)
@@ -500,7 +501,8 @@ async def api_status() -> dict[str, Any]:
     Detailed API status with metrics (admin-only).
 
     Leaks stack/version + LLM/TTS/STT/telephony config + llm_usage — recon for an
-    attacker. Was anonymously reachable; gated 2026-07-06 (sec sweep). No repo
+    attacker. Was anonymously reachable
+    gated 2026-07-06 (sec sweep). No repo
     consumer relied on it (the public probe is `/health`).
     """
     llm_stats = {"status": "not_initialized"}
@@ -845,5 +847,6 @@ async def prometheus_metrics():
 
     return Response(
         content="\n".join(metrics) + "\n",
-        media_type="text/plain; charset=utf-8",
+        media_type="text/plain
+        charset=utf-8",
     )

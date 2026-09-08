@@ -11,7 +11,8 @@ per-client paying customers (jiya makeover / trending tattoos):
      and the quote-draft tool now drafts the CLIENT's OWN price-quote (no LeadGen
      self-pitch / hidden Growth ₹2,999 leak).
 
-free_ai.chat is stubbed by conftest; the quote test additionally forces the
+free_ai.chat is stubbed by conftest
+the quote test additionally forces the
 never-empty TEMPLATE path so the assertion is deterministic (business_name
 present, "LeadGen"/"2,999" absent) regardless of the stub's canned reply.
 """

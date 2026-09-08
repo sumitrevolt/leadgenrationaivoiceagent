@@ -1,5 +1,6 @@
 """POST /api/admin/clients/{client_id}/deliver-now — human-clicked single-customer
-delivery bypass. Never flips AUTO_DELIVER_VALUE; always calls
+delivery bypass. Never flips AUTO_DELIVER_VALUE
+always calls
 deliver_client_value(client, force=True), the existing operator bypass."""
 
 from fastapi.testclient import TestClient

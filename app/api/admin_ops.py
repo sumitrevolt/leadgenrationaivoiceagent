@@ -2,7 +2,8 @@
 Admin Ops API
 =============
 POST /api/admin/campaign/launch  → outbound call campaign (durable Celery task,
-                                    app.tasks.calling.run_campaign_task; falls back
+                                    app.tasks.calling.run_campaign_task
+                                    falls back
                                     to asyncio-subprocess fire_calls.py if broker down)
 GET  /api/admin/campaign/status  → last run status (Redis)
 GET  /api/admin/system/summary   → activation readiness + system snapshot
@@ -331,7 +332,8 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     truth in app/telephony/campaign_compliance.py, shared with scripts/fire_calls.py.
     Single-flight: a Redis lock refuses a second launch while one is already running
     (idempotency — prevents double-dialing the same lead batch from concurrent
-    admin clicks). Returns immediately; poll /api/admin/campaign/status for result.
+    admin clicks). Returns immediately
+    poll /api/admin/campaign/status for result.
     """
     if not 1 <= req.limit <= 200:
         raise HTTPException(status_code=400, detail="limit must be 1–200")
@@ -671,7 +673,8 @@ class _VoiceKillReq(BaseModel):
 @router.post("/voice-launch/kill", summary="Engage/release the voice-calling kill switch")
 async def voice_launch_kill(req: _VoiceKillReq, _user=Depends(require_admin)):
     """Global admin kill switch (data-file). kill=true => ALL outbound campaign calls
-    become ineligible (fail-safe); env VOICE_LAUNCH_KILL, if set, overrides this."""
+    become ineligible (fail-safe)
+    env VOICE_LAUNCH_KILL, if set, overrides this."""
     from app.telephony import voice_launch as _vl
 
     ok = _vl.set_kill(bool(req.kill))
@@ -700,7 +703,8 @@ async def voice_launch_session_status(_user=Depends(require_admin)):
 @router.post("/voice-launch/session", summary="Start a NEW voice-launch session (canonical reset)")
 async def voice_launch_session_create(req: _SessionCreateReq, _user=Depends(require_admin)):
     """CANONICAL session lifecycle — naya session (attempt counter 0). Isi single
-    explicit lifecycle se session count reset hota hai; worker/scheduler restart
+    explicit lifecycle se session count reset hota hai
+    worker/scheduler restart
     se KABHI nahi."""
     from app.telephony import voice_launch as _vl
 
@@ -960,7 +964,8 @@ def _admin_office() -> dict:
 @router.get("/office", summary="Admin Office — consolidated 'Sumit ke kaam' pending actions")
 async def admin_office(_user=Depends(require_admin)):
     """Admin-side virtual-office: the 4 pending approval/action queues in ONE place.
-    Read-only, never-500, gated ADMIN_OFFICE (default ON; '0' => disabled)."""
+    Read-only, never-500, gated ADMIN_OFFICE (default ON
+    '0' => disabled)."""
     import os
 
     if os.getenv("ADMIN_OFFICE", "1").strip().lower() in ("0", "false", "no", "off"):
@@ -1100,7 +1105,8 @@ async def voice_self_test(
       ka ek token jalega, isliye default OFF).
     * ``live``     — pichhli real calls ki quality (local transcripts).
 
-    Network-probes off-loop + bounded; poora call ek hard deadline me wrapped hai
+    Network-probes off-loop + bounded
+    poora call ek hard deadline me wrapped hai
     taaki ek dead provider bhi admin-request ko hang na kare. Read-only — koi
     side-effect nahi (sirf ek best-effort team-event log hota hai)."""
     try:
@@ -1478,7 +1484,8 @@ async def voice_latency(date: str = "", recent: int = 20, _user=Depends(require_
     prove (and let us tune) call speed vs the sub-700ms SOTA bar.
 
     ``TURN_METRICS`` (default ON) writes one line per real turn on every live
-    Vobiz/phone/web call. ``date`` = 'YYYY-MM-DD' (UTC; default today). ``recent``
+    Vobiz/phone/web call. ``date`` = 'YYYY-MM-DD' (UTC
+    default today). ``recent``
     = how many latest turns to return for drill-down (max 200). Never raises."""
     from app.voice_agent import turn_metrics
 

@@ -1,7 +1,8 @@
 """Apollo-style prospecting endpoints (search / saved-lists / import / email-finder).
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router(); paths unchanged (/api/growth/prospects/*).
+Mounted via growth.router.include_router()
+paths unchanged (/api/growth/prospects/*).
 """
 
 from __future__ import annotations

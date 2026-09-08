@@ -118,7 +118,8 @@ def _template_summary(stats: dict[str, Any]) -> list[str]:
     return [
         f"Is mahine total {total} marketing actions hue — system active hai.",
         (
-            f"Content: {h['posts']} posts + {h['posters']} posters bane; "
+            f"Content: {h['posts']} posts + {h['posters']} posters bane
+            "
             f"calls/demos: {h['calls']}, review kaam: {h['reviews']}."
         ),
         "Agle mahine review collection + drip follow-ups par focus karein — conversion wahin se badhti hai.",

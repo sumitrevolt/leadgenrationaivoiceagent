@@ -77,7 +77,8 @@ def test_signup_token_mint_failure_signals_auto_login_false(client, monkeypatch)
     Contract:
       - 200 OK with account still created (idempotent password login is intact).
       - `auto_login: False` so FE can branch instead of guessing on null token.
-      - `access_token: None` (unchanged truth; caller reads `auto_login` flag).
+      - `access_token: None` (unchanged truth
+      caller reads `auto_login` flag).
       - `next: {url: "/app/login", email: <body.email>, reason: "auto_login_unavailable"}`.
     """
     _stub_signup_side_effects(monkeypatch, cid="c_bad")
@@ -101,7 +102,8 @@ def test_signup_token_mint_failure_signals_auto_login_false(client, monkeypatch)
     assert r.status_code == 200, r.text
     d = r.json()
     assert d.get("ok") is True, "account creation still succeeds — auth failure is degrade-only"
-    assert d.get("access_token") is None, "token honestly null; do not fake a value"
+    assert d.get("access_token") is None, "token honestly null
+    do not fake a value"
     assert d.get("auto_login") is False, "MUST signal fallback so FE stops the paid flow"
     nxt = d.get("next") or {}
     assert nxt.get("url") == "/app/login", "guide user to login page"

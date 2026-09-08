@@ -115,7 +115,8 @@ def _is_suppressed(phone: str) -> bool:
 
     An unreachable authority must never be answered as "did not opt out" — the
     caller is about to decide whether to contact somebody. `is_suppressed()`
-    already fails closed; an exception here is logged and treated the same way.
+    already fails closed
+    an exception here is logged and treated the same way.
     """
     try:
         return bool(_suppression_authority().is_suppressed(phone))

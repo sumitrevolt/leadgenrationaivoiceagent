@@ -12,7 +12,8 @@ just_browsing/busy/already_have/think_about_it/too_expensive/not_interested)
 jo niche_knowledge ke synonym-resolver se resolve hote hain.
 
 Frame: end-customer-facing niches (patient/student/investor ki bhasha) — factual,
-warm, non-pushy; variable specifics pe "team exact detail confirm karwa degi".
+warm, non-pushy
+variable specifics pe "team exact detail confirm karwa degi".
 """
 
 from __future__ import annotations

@@ -2,10 +2,13 @@
 
 Covers (1) each of the 7 reachable states of
 `admin_dashboard_builders.delivery_health()` via synthetic client+summary+recent
-fixtures; (2) the at-risk 7d-value / 24h-failure branches; (3) the time-window
+fixtures
+(2) the at-risk 7d-value / 24h-failure branches
+(3) the time-window
 boundaries of `delivery_ledger.recent_counts()` (the additive windowed helper
 that feeds delivery_health) written as temp jsonl through the module's own
-`_LEDGER_DIR` call-time resolver (same monkeypatch style as the other ledger tests); (4) the
+`_LEDGER_DIR` call-time resolver (same monkeypatch style as the other ledger tests)
+(4) the
 _build_command_center wiring — new `at_risk_count`/`benefit_this_week` scalars +
 per-customer `health` — AND that every pre-existing response field is still
 present (frontends depend on them)."""

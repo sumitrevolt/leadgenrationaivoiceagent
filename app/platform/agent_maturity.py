@@ -6,7 +6,8 @@ factory, then enriched with:
 
 * an agent-private, tenant-scoped memory namespace;
 * an agent-private role/tenant knowledge namespace;
-* a shared SaaS engineering baseline plus role-specific competencies; and
+* a shared SaaS engineering baseline plus role-specific competencies
+and
 * the existing budgets, retries, idempotency, kills and escalation contract.
 
 ``setup_state`` describes whether the profile is complete.  It deliberately
@@ -327,7 +328,8 @@ def _role_document(agent_id: str) -> str:
         f"Role skills: {', '.join(p['skills']['role_specific'])}\n"
         f"Enterprise baseline: {', '.join(p['skills']['enterprise_baseline'])}\n"
         f"Autonomy: {g['autonomy']} lane={g['lane']} mode={g['default_mode']}\n"
-        f"Escalation: {g['escalation']}; prohibited actions remain governed by agent_registry."
+        f"Escalation: {g['escalation']}
+        prohibited actions remain governed by agent_registry."
     )
 
 

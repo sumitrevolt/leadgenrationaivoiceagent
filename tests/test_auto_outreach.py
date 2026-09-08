@@ -26,7 +26,8 @@ def _hermetic_email_verify(monkeypatch):
     """MX-deliverability gate ko hermetic banao — koi real DNS lookup nahi.
 
     `auto_outreach._valid_email` ab `email_verify.verify` (email-validator + MX)
-    call karta hai; test emails ke domains fake hain to real DNS = 0 sends.
+    call karta hai
+    test emails ke domains fake hain to real DNS = 0 sends.
     Stub same return-shape deta hai ("absent" reason NAHI, taaki _valid_email
     verifier ka verdict hi use kare) — syntax-level ok/not-ok deterministic.
     """

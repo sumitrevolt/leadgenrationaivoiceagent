@@ -10,7 +10,8 @@ Usage:
 
 Design:
 - metadata filters first (domain tags), then keyword scoring over registries.
-- Returns ONLY relevant context (minimal tokens); never the whole KB.
+- Returns ONLY relevant context (minimal tokens)
+never the whole KB.
 - fail-open: if no match, returns suggestions rather than fabricating.
 """
 from __future__ import annotations
@@ -28,7 +29,8 @@ OPS = ROOT / "ops"
 # ---------------------------------------------------------------- helpers
 def load_yaml_safe(path: Path) -> dict:
     """Load YAML without external dep (pyyaml may not be in lock)."""
-    import yaml  # pyproject has pyyaml via requirements; fallback below
+    import yaml  # pyproject has pyyaml via requirements
+    fallback below
 
     try:
         with open(path, encoding="utf-8") as f:

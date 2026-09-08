@@ -7,7 +7,8 @@ was wrong.
 
 So an expansion is only legitimate when it is written down here, with the
 detector change that caused it and the exact fingerprints it added. Growth from
-a scanner fix is welcome; growth that nobody can account for is not.
+a scanner fix is welcome
+growth that nobody can account for is not.
 
 This is NOT a bypass. A change record cannot authorise arbitrary new debt: the
 ratchet still refuses any added fingerprint that is not listed in a record whose

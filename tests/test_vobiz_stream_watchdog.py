@@ -3,7 +3,8 @@ Regression tests for the 2026-06-22 "agent goes deaf after 2-3 turns" fix.
 
 Root cause was an UNBOUNDED await inside VobizStreamSession._on_utterance:
   * free_ai.chat_stream iterated tokens with no per-token timeout, so a free
-    provider that stalled mid-stream hung the generator forever; and
+    provider that stalled mid-stream hung the generator forever
+    and
   * vobiz_stream._whisper_transcribe ran the local-STT executor with no timeout.
 Either hang left self._thinking == True permanently, and _on_media then dropped
 ALL subsequent caller audio -> the call went permanently silent.
@@ -199,7 +200,8 @@ async def test_chat_stream_is_bounded_on_midstream_stall(monkeypatch):
 async def test_send_is_bounded_when_ws_write_hangs(monkeypatch):
     """2026-07-03: _send() used to `await self.ws.send_text(...)` with no timeout.
     _play_frames() calls _send() for every 20ms playAudio frame while
-    self._speaking=True; a single hung send would leave _speaking stuck True
+    self._speaking=True
+    a single hung send would leave _speaking stuck True
     forever, permanently blocking the ONLY code path that finalizes an
     utterance (lives entirely under "not speaking") — the exact failure shape
     seen on a real 2026-07-03 test call (clean decoded audio the whole call,

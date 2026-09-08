@@ -284,36 +284,97 @@ async def status() -> dict:
 _PAGE_HTML = """<!doctype html>
 <html><head><meta charset="utf-8"><title>Model Cookbook — LeadGen</title>
 <style>
- body{font-family:system-ui,Segoe UI,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
- .wrap{max-width:1200px;margin:0 auto;padding:24px}
- h1{margin:0 0 6px 0;font-size:22px}
- .sub{color:#94a3b8;margin-bottom:20px;font-size:13px}
- .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:16px}
- label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 4px}
- input,select,textarea{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px;border-radius:6px;box-sizing:border-box}
- button{background:#3b82f6;color:#fff;border:0;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600}
- table{width:100%;border-collapse:collapse;font-size:13px}
- th,td{padding:8px 10px;border-bottom:1px solid #334155;text-align:left;vertical-align:top}
+ body{font-family:system-ui,Segoe UI,sans-serif
+ margin:0
+ background:#0f172a
+ color:#e2e8f0}
+ .wrap{max-width:1200px
+ margin:0 auto
+ padding:24px}
+ h1{margin:0 0 6px 0
+ font-size:22px}
+ .sub{color:#94a3b8
+ margin-bottom:20px
+ font-size:13px}
+ .card{background:#1e293b
+ border:1px solid #334155
+ border-radius:10px
+ padding:16px
+ margin-bottom:16px}
+ label{display:block
+ font-size:12px
+ color:#94a3b8
+ margin:8px 0 4px}
+ input,select,textarea{width:100%
+ background:#0f172a
+ border:1px solid #334155
+ color:#e2e8f0
+ padding:8px
+ border-radius:6px
+ box-sizing:border-box}
+ button{background:#3b82f6
+ color:#fff
+ border:0
+ padding:10px 16px
+ border-radius:6px
+ cursor:pointer
+ font-weight:600}
+ table{width:100%
+ border-collapse:collapse
+ font-size:13px}
+ th,td{padding:8px 10px
+ border-bottom:1px solid #334155
+ text-align:left
+ vertical-align:top}
  th{color:#94a3b8}
- .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:#334155;margin-right:4px}
- .pill.fast{background:#065f46;color:#a7f3d0}
- .pill.excellent{background:#1e40af;color:#bfdbfe}
- .pill.free{background:#065f46;color:#a7f3d0}
- .pill.metered{background:#7c2d12;color:#fed7aa}
- .badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;background:#065f46;color:#a7f3d0;margin-left:8px}
- .badge.off{background:#7f1d1d;color:#fecaca}
- .row{display:flex;gap:12px;flex-wrap:wrap}
- .row > *{flex:1;min-width:200px}
- .chain{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
- .chain .step{background:#0f172a;border:1px solid #334155;padding:6px 12px;border-radius:6px;font-family:ui-monospace,Menlo,monospace}
- .chain .step.live{border-color:#3b82f6;color:#3b82f6}
+ .pill{display:inline-block
+ padding:2px 8px
+ border-radius:12px
+ font-size:11px
+ background:#334155
+ margin-right:4px}
+ .pill.fast{background:#065f46
+ color:#a7f3d0}
+ .pill.excellent{background:#1e40af
+ color:#bfdbfe}
+ .pill.free{background:#065f46
+ color:#a7f3d0}
+ .pill.metered{background:#7c2d12
+ color:#fed7aa}
+ .badge{display:inline-block
+ padding:3px 8px
+ border-radius:4px
+ font-size:11px
+ font-weight:700
+ background:#065f46
+ color:#a7f3d0
+ margin-left:8px}
+ .badge.off{background:#7f1d1d
+ color:#fecaca}
+ .row{display:flex
+ gap:12px
+ flex-wrap:wrap}
+ .row > *{flex:1
+ min-width:200px}
+ .chain{display:flex
+ gap:8px
+ flex-wrap:wrap
+ margin-top:8px}
+ .chain .step{background:#0f172a
+ border:1px solid #334155
+ padding:6px 12px
+ border-radius:6px
+ font-family:ui-monospace,Menlo,monospace}
+ .chain .step.live{border-color:#3b82f6
+ color:#3b82f6}
 </style></head>
 <body><div class="wrap">
  <h1>Model Cookbook · Niche → LLM Recipe</h1>
  <div class="sub">Free-tier providers ka catalog + kaunsa niche/task pe kaun best.</div>
 
  <div class="card">
-  <h3 style="margin:0 0 12px 0;font-size:14px">Recommend a chain</h3>
+  <h3 style="margin:0 0 12px 0
+  font-size:14px">Recommend a chain</h3>
   <div class="row">
    <div><label>Niche</label><select id="niche"></select></div>
    <div><label>Task (optional)</label><select id="task"><option value="">(auto from niche)</option></select></div>
@@ -328,7 +389,8 @@ _PAGE_HTML = """<!doctype html>
  </div>
 
  <div class="card">
-  <h3 style="margin:0 0 12px 0;font-size:14px">Full catalog</h3>
+  <h3 style="margin:0 0 12px 0
+  font-size:14px">Full catalog</h3>
   <table id="cat"><thead><tr>
    <th>Provider</th><th>Model</th><th>Speed</th><th>Quality</th><th>Multi-lang</th>
    <th>Cost</th><th>Rate limit</th><th>Best for</th><th>Status</th>
@@ -338,19 +400,23 @@ _PAGE_HTML = """<!doctype html>
 <script>
 async function api(path, opts={}){ const r = await fetch('/api/cookbook'+path,{...opts,credentials:'include',
  headers:{'Content-Type':'application/json',...(opts.headers||{})}}); if(!r.ok) throw new Error(r.status);
- return r.json(); }
+ return r.json()
+ }
 
 async function loadCatalog(){
   const j = await api('/models');
   document.querySelector('#cat tbody').innerHTML = j.models.map(m=>`
     <tr>
      <td><strong>${m.provider}</strong></td>
-     <td style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#94a3b8">${m.model}</td>
+     <td style="font-family:ui-monospace,Menlo,monospace
+     font-size:12px
+     color:#94a3b8">${m.model}</td>
      <td><span class="pill ${m.speed}">${m.speed}</span></td>
      <td><span class="pill ${m.quality}">${m.quality}</span></td>
      <td><span class="pill">${m.multilingual}</span></td>
      <td><span class="pill ${m.cost.includes('free-un')?'free':(m.cost.includes('metered')?'metered':'')}">${m.cost}</span></td>
-     <td style="font-size:12px;color:#94a3b8">${m.rate_limit}</td>
+     <td style="font-size:12px
+     color:#94a3b8">${m.rate_limit}</td>
      <td style="font-size:12px">${(m.best_for||[]).map(t=>'<span class="pill">'+t+'</span>').join('')}</td>
      <td>${m.configured?'<span class="badge">CONFIGURED</span>':'<span class="badge off">no key</span>'}</td>
     </tr>`).join('');
@@ -373,7 +439,9 @@ document.getElementById('reco').onclick = async () => {
   })});
   document.getElementById('reco_out').innerHTML = `
     <div><strong>Top pick:</strong> <span class="badge">${j.top_pick||'—'}</span></div>
-    <div style="margin-top:8px;font-size:12px;color:#94a3b8">${j.reason}</div>
+    <div style="margin-top:8px
+    font-size:12px
+    color:#94a3b8">${j.reason}</div>
     <div style="margin-top:12px"><strong>Live chain (only configured):</strong>
      <div class="chain">${j.recommended_live_chain.map(p=>'<span class="step live">'+p+'</span>').join('')}</div>
     </div>

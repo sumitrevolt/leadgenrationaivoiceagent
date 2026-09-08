@@ -182,7 +182,8 @@ def load_niche_faqs(
         if qs:
             facts.append(
                 f"{name} leads qualify karte waqt hum aise sawaal poochhte hain: "
-                + "; ".join(q.strip() for q in qs if q and q.strip())
+                + "
+                ".join(q.strip() for q in qs if q and q.strip())
                 + "."
             )
 
@@ -308,14 +309,17 @@ def _html_to_text(html: str) -> str:
             tag.decompose()
         text = soup.get_text(separator="\n")
     except Exception as e:
-        logger.debug(f"BeautifulSoup unavailable/failed ({e}); regex strip.")
+        logger.debug(f"BeautifulSoup unavailable/failed ({e})
+        regex strip.")
         import re
 
         # drop scripts/styles, then tags
         text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", html)
         text = re.sub(r"(?s)<[^>]+>", " ", text)
-        text = re.sub(r"&nbsp;", " ", text)
-        text = re.sub(r"&amp;", "&", text)
+        text = re.sub(r"&nbsp
+        ", " ", text)
+        text = re.sub(r"&amp
+        ", "&", text)
 
     # normalize whitespace, keep paragraph breaks
     import re as _re

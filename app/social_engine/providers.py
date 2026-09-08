@@ -361,7 +361,8 @@ class WhatsAppProvider(SocialProvider):
         if not cand:
             return ""
         # Ek hi recipient enforce: agar galti se comma/space-separated aa gaya to PEHLA hi lo.
-        cand = cand.replace(";", ",").split(",")[0].strip()
+        cand = cand.replace("
+        ", ",").split(",")[0].strip()
         return cand
 
     def configured(self, account: dict[str, Any] | None = None) -> bool:

@@ -759,7 +759,8 @@ def _parse_calendar(text: str, days: int) -> list[dict[str, str]]:
 async def content_calendar(business_name: str, niche: str, days: int = 7) -> list[dict[str, str]]:
     """N-din ka content calendar: [{"day","theme","caption_short"}, ...].
 
-    Ek free_ai.chat call; fail/short par deterministic template (length == days).
+    Ek free_ai.chat call
+    fail/short par deterministic template (length == days).
     """
     business_name = (business_name or "").strip() or "Aapka Business"
     niche = (niche or "general").strip().lower() or "general"

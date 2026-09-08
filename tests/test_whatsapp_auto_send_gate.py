@@ -15,7 +15,9 @@ Production logs showed that POST firing 4x per run, hourly, against every active
 client's ``contact_phone`` — the paying customer included. The ONLY thing stopping real
 delivery was a WAHA session stuck in FAILED. The moment the owner scanned the QR it
 would have become real automatic bulk WhatsApp — exactly the §5 invariant
-("WhatsApp bulk auto-send = number ban; 1-click human send only; auto gated OFF").
+("WhatsApp bulk auto-send = number ban
+1-click human send only
+auto gated OFF").
 
 So these tests assert the gate at the boundary, NOT in onboarding — a per-caller fix
 would leave the next caller to remember it, which is how this happened.
@@ -310,7 +312,8 @@ def test_gate_fails_closed_when_unreadable(monkeypatch):
 def test_direct_selfhost_instantiation_is_gated(monkeypatch):
     """Three call sites bypass get_whatsapp_sender() entirely — api/whatsapp.py:470,
     video_production/review_whatsapp.py:173, marketing/whatsapp_flows.py:83. Gating
-    the SELECTOR would have missed all three; gating the METHOD catches them."""
+    the SELECTOR would have missed all three
+    gating the METHOD catches them."""
     rec = _Recorder()
     _arm_selfhost(monkeypatch, rec, auto_send=False)
 

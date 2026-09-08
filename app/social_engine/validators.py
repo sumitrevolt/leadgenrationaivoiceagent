@@ -11,7 +11,8 @@ adjust). Enforces:
   - missing_disclaimer     (paid promo / affiliate CTA needs a disclosure)
 
 `validate_post(platform, post, recent_captions=None)` returns list[dict] of
-issues (severity=warn|error). `error` = drain must fail-fast; `warn` = log +
+issues (severity=warn|error). `error` = drain must fail-fast
+`warn` = log +
 still publish (for now). Never raises. Empty list = clean.
 """
 
@@ -105,7 +106,8 @@ def validate_post(
                 _issue(
                     "caption_length",
                     "error",
-                    f"{p} caption cap {cap_limit} chars; got {len(caption)}",
+                    f"{p} caption cap {cap_limit} chars
+                    got {len(caption)}",
                     limit=cap_limit,
                     actual=len(caption),
                 )
@@ -118,7 +120,8 @@ def validate_post(
                 _issue(
                     "hashtag_limit",
                     "error",
-                    f"{p} allows up to {ht_limit} hashtags; got {len(hashtags)}",
+                    f"{p} allows up to {ht_limit} hashtags
+                    got {len(hashtags)}",
                     limit=ht_limit,
                     actual=len(hashtags),
                 )
@@ -131,7 +134,8 @@ def validate_post(
                 _issue(
                     "unsupported_media",
                     "error",
-                    f"{p} doesn't accept media_type={media_type}; allowed {sorted(supported)}",
+                    f"{p} doesn't accept media_type={media_type}
+                    allowed {sorted(supported)}",
                     media_type=media_type,
                     allowed=sorted(supported),
                 )

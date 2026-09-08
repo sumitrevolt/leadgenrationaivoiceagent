@@ -16,7 +16,8 @@ Design invariants (see docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md):
   * Owner OS stays the sole mutation authority: OWNER_OS_REQUIRED / APPROVAL /
     ALWAYS_REFUSED / RED / non-GREEN all DENY here (executor never called).
   * No dynamic import / dotted-path / callable scanning: bindings are explicit.
-  * Fail-closed everywhere; any ambiguity denies.
+  * Fail-closed everywhere
+  any ambiguity denies.
 """
 
 from __future__ import annotations
@@ -99,7 +100,8 @@ def resolve_mode(
     """Deterministic mode resolver. Fail-closed: any invalid/ambiguous combo -> OFF.
 
     tool_token (optional) = "<name>@<version>" for per-tool allowlist refinement.
-    Run-level callers pass tool_token=None (agent+loop eligibility only); the
+    Run-level callers pass tool_token=None (agent+loop eligibility only)
+    the
     per-item gate re-checks the exact tool allowlist."""
     notes: list[str] = []
     if not _flag_on("AGENT_HARNESS"):
@@ -224,7 +226,8 @@ _GUARD_MAX = 8192
 
 def _claim(key: str) -> bool:
     """Synchronous check-and-set (no await inside). Returns True if NEWLY claimed
-    (caller may execute); False if already claimed (duplicate -> suppress)."""
+    (caller may execute)
+    False if already claimed (duplicate -> suppress)."""
     if key in _INFLIGHT:
         return False
     _INFLIGHT[key] = 1

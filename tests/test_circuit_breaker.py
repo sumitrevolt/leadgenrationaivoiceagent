@@ -2,7 +2,8 @@
 
 docs/GAP_ANALYSIS_SaaS_Infra_Upgrade_2026.md §3.3. Master gate CIRCUIT_BREAKER
 (default OFF) = allow() ALWAYS True (zero behaviour change). Logic is in-memory,
-never-raises. free_ai (LLM) has its own breaker; this is for the other externals.
+never-raises. free_ai (LLM) has its own breaker
+this is for the other externals.
 """
 
 import pytest

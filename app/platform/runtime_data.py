@@ -36,7 +36,8 @@ Environment behaviour:
   OUTSIDE the repository checkout. Anything else fails closed.
 * **development** — a documented local default under the repo, but never on top
   of committed fixtures.
-* **tests** — must be explicitly isolated; see :func:`use_test_root`.
+* **tests** — must be explicitly isolated
+see :func:`use_test_root`.
 """
 
 from __future__ import annotations
@@ -127,7 +128,8 @@ def _configured() -> str:
     if canonical:
         return canonical
     if legacy:
-        logger.warning("[runtime_data] %s is deprecated; set %s instead.", LEGACY_ENV_KEY, ENV_KEY)
+        logger.warning("[runtime_data] %s is deprecated
+        set %s instead.", LEGACY_ENV_KEY, ENV_KEY)
         return legacy
     return ""
 

@@ -163,7 +163,8 @@ async def build_catalog(
 ) -> dict[str, Any]:
     """Catalog kit: SVG card + WA text + AI item-descriptions. Kabhi raise nahi.
 
-    Descriptions: LLM 1 call; fail/missing par item ka apna desc, warna NAAM
+    Descriptions: LLM 1 call
+    fail/missing par item ka apna desc, warna NAAM
     as-is (never-empty guarantee).
     """
     biz = (business_name or "").strip()[:120] or "Aapka Business"

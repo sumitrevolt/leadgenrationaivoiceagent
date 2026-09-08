@@ -3,7 +3,8 @@
 The Office snapshot was rich but purely point-in-time (next_best_actions, boss_brief,
 priority_actions… all "right now"). `build_trends` adds momentum — hot/warm/stuck vs the
 most recent prior day — so the founder sees direction, not just a number. Fully
-try-wrapped/fail-open (never blanks the page); derived-metrics history persisted like the
+try-wrapped/fail-open (never blanks the page)
+derived-metrics history persisted like the
 existing revenue_snapshots pattern.
 """
 

@@ -5,7 +5,8 @@ mailbox (NOTIFY_EMAIL) pe attach karke bhejta hai.
 KYU: saare backups abhi USI VPS ki disk pe the (VPS gaya = sab gaya). R2/B2
 creds abhi nahi hain — Hostinger mail ALAG infra hai, isliye yeh free+real
 offsite hai jab tak object-storage nahi aata. DB chhota hai (~75KB gz) to
-email attach bilkul theek; 18MB cap ke upar DB-only ya alert bhejta hai.
+email attach bilkul theek
+18MB cap ke upar DB-only ya alert bhejta hai.
 
 HOST pe chalao (stdlib-only, no deps):  python3 scripts/offsite_email_backup.py
 Cron (suggested):  0 23 * * *  → 04:30 IST daily (pg_backup 02:30 ke baad).
@@ -131,7 +132,8 @@ def main() -> int:
         f"DB dump: {dump or 'NONE'} ({len(dump_bytes) // 1024}KB)\n"
         f"data/ tarball: {len(data_bytes) // 1024}KB (media-cache excluded)\n"
         f"Attached: {[p[0] for p in parts] or 'NONE (size cap/missing) — CHECK BACKUPS!'}\n"
-        f"Restore: gunzip dump → pg_restore; tar -xzf data tarball.\n"
+        f"Restore: gunzip dump → pg_restore
+        tar -xzf data tarball.\n"
     )
     msg.set_content(body)
     for name, blob in parts:

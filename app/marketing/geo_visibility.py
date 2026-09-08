@@ -11,7 +11,8 @@ Design (project patterns):
 - Lazy imports (free_ai handler ke andar).
 - 1-hr cache (in-memory + jsonl log) keyed (name, city) — PUBLIC endpoint hai,
   abuse-safe: same business dobara check = pollen-free cache hit.
-- LLM call ASYNC hai; endpoint `asyncio.wait_for(..., 20)` se wrap karta
+- LLM call ASYNC hai
+endpoint `asyncio.wait_for(..., 20)` se wrap karta
   (prod-down lesson: event loop kabhi block nahi).
 - Deterministic fallback: LLM poori tarah down → ok=False "ai_unavailable"
   (galat 0-score report kabhi nahi dete — lead magnet ki credibility).

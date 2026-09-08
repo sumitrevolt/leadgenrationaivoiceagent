@@ -524,7 +524,8 @@ def sync_omniroute_sqlite():
             payload = json.loads(response.read().decode("utf-8", errors="replace"))
         model_ids = {str(item.get("id", "")) for item in payload.get("data", []) if isinstance(item, dict)}
         if set(CANONICAL_COMBO_IDS).issubset(model_ids):
-            print("[OK] OmniRoute live gateway already exposes all 14 canonical combos; SQLite seed skipped")
+            print("[OK] OmniRoute live gateway already exposes all 14 canonical combos
+            SQLite seed skipped")
             return
     except Exception:
         # Gateway unavailable or malformed: fall through to the recovery seed.

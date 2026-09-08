@@ -97,7 +97,8 @@ async def test_event_type_counts_track_every_event_kind():
 
 async def test_anomaly_logging_is_throttled_to_three(monkeypatch):
     """Long calls can have thousands of frames — don't spam the log if every
-    single one is an anomaly; only the first 3 raw-shape dumps are useful."""
+    single one is an anomaly
+    only the first 3 raw-shape dumps are useful."""
     s = _session()
     for _ in range(10):
         await s._on_event(json.dumps({"event": "media", "media": {}}))

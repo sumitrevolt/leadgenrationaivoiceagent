@@ -7,7 +7,8 @@ Stages (per production activation mandate):
   C. Publishing dry-run (simulate social queue)
   D. Full production (requires SOCIAL_ENGINE=1 + WhatsApp backend)
 
-This test covers A-C; stage D blocked by missing production env vars.
+This test covers A-C
+stage D blocked by missing production env vars.
 """
 
 import json

@@ -5,7 +5,8 @@ Completes the coordination loop:
 
 Design:
     - **Two-source discovery**: bus JSONL for event visibility + PostgreSQL ATQ for
-      authoritative state.  Bus events are the "discovery feed"; ATQ is the "claim gate".
+      authoritative state.  Bus events are the "discovery feed"
+      ATQ is the "claim gate".
     - **Fail-open**: bus read errors are logged and skipped — agent still tries claim_next().
     - **Idempotent**: tracks seen event_ids to avoid double-processing.
     - **Minimal**: ~100 lines, no new infrastructure, reuses existing ATQ + bus.

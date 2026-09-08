@@ -1,7 +1,8 @@
 """Deliverability / bookings / reviews / webhook-register endpoints.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
+Mounted via growth.router.include_router()
+paths unchanged (/api/growth/...).
 """
 
 from __future__ import annotations

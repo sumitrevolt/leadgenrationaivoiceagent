@@ -245,7 +245,8 @@ def _companion_of_primary(
 
     A companion literal never appears in code — it is built as
     `_STORE + '.lock'` or `target.with_suffix(...)`. So the binding cannot look
-    for the filename; it must prove the derivation:
+    for the filename
+    it must prove the derivation:
 
       1. the entry declares a `.tmp` / `.lock` companion,
       2. the detected expression is a suffix derivation, and
@@ -354,7 +355,8 @@ def _check_finding_binding(
             observed = sorted({_scan.normalized_path(f)[:70] for f in matched})
             problems.append(
                 f"{eid}: declared path {e['path_pattern']!r} does not match any detected "
-                f"path at {key}; detected {observed}"
+                f"path at {key}
+                detected {observed}"
             )
             continue
 

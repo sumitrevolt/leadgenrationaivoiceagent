@@ -145,7 +145,8 @@ async def main():
 asyncio.run(main())
 
 # HTTP endpoint reachability (no auth -> 401/403 = registered+gated; 404 = missing; 500 = bug)
-print("\n=== HTTP endpoints (no auth; expect 401/403) ===")
+print("\n=== HTTP endpoints (no auth
+expect 401/403) ===")
 
 
 def http_post(path, body):

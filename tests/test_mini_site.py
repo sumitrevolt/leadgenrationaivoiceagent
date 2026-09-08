@@ -128,7 +128,9 @@ class TestRenderSite:
         # XSS-y name is HTML-escaped (no raw <script> tag emitted)
         out = mini_site.render_site({"business_name": "<script>alert(1)</script>", "slug": "x-1"})
         assert "<script>alert(1)</script>" not in out
-        assert "&lt;script&gt;" in out
+        assert "&lt
+        script&gt
+        " in out
 
     def test_invalid_brand_color_falls_back(self, tmp_store):
         rec = clients_store.add_client(

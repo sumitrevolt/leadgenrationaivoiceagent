@@ -48,7 +48,8 @@ Kuch bhi scheduled/automatic is module se nahi chalta — sirf Owner OS
 operator-triggered runs (admin-auth) + tests. §5 gates kabhi weaken nahi hote:
 RED lane (swara/ananya) HAMESHA blocked — koi env flip isse live nahi karta.
 
-Import-safe; surface functions (runtime_status) kabhi raise nahi karte.
+Import-safe
+surface functions (runtime_status) kabhi raise nahi karte.
 """
 
 from __future__ import annotations
@@ -1403,7 +1404,8 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
 def _calling_badge_for_runtime() -> str:
     """Honest dial posture for runtime_status UI — never hard-code HARD OFF.
 
-    Agent Runtime still blocks Swara/Ananya RED dispatch; that is orthogonal to
+    Agent Runtime still blocks Swara/Ananya RED dispatch
+    that is orthogonal to
     whether the separately governed platform_dial / voice_launch campaign is live.
     """
     try:
@@ -1416,7 +1418,8 @@ def _calling_badge_for_runtime() -> str:
 
 def runtime_status() -> dict[str, Any]:
     """Owner OS panel rollup — 31 agents × mode/lane/hb/useful-work/budget/kill/DLQ.
-    Never raises; degraded sources surface as fields, not exceptions."""
+    Never raises
+    degraded sources surface as fields, not exceptions."""
     try:
         from app.platform import agent_registry as ar
 

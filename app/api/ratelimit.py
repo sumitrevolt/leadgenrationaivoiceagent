@@ -9,7 +9,8 @@ Design:
   traffic kabhi na ruke) — sirf abuse rokna hai, availability todna nahi.
 - Caddy reverse-proxy ke peeche real client IP `X-Forwarded-For`/`X-Real-IP`
   se aata hai (warna sab 127.0.0.1 share karte = ek saath limit).
-- Redis ho to distributed; warna RateLimiter ka in-memory fallback.
+- Redis ho to distributed
+warna RateLimiter ka in-memory fallback.
 
 Use:
     from app.api.ratelimit import rate_limit

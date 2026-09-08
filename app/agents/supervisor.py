@@ -79,7 +79,8 @@ def route_for_task(task: str) -> str:
     """
     Pure rule-based router — NO LLM call, NO langgraph dependency.
 
-    Data keywords pehle check hote hain, phir leads keywords; kuch match na ho
+    Data keywords pehle check hote hain, phir leads keywords
+    kuch match na ho
     to default "leads_agent". Substring match on the lowercased task —
     behavior exactly the same as the original inline supervisor logic.
     """
@@ -131,7 +132,8 @@ async def semantic_route_for_task(task: str) -> str:
         if "lead" in low and "data" not in low:
             return "leads_agent"
     except Exception as e:
-        logger.debug(f"semantic router LLM failed ({e}); keyword fallback.")
+        logger.debug(f"semantic router LLM failed ({e})
+        keyword fallback.")
     return route_for_task(task)
 
 
@@ -249,7 +251,8 @@ async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
                 graph = _WORKFLOW.compile(checkpointer=saver)
                 return await graph.ainvoke(state, config=config)
         except Exception as e:
-            logger.warning(f"async sqlite checkpointer failed ({e}); retrying without persistence")
+            logger.warning(f"async sqlite checkpointer failed ({e})
+            retrying without persistence")
     # 2) Sync SqliteSaver — works only if this langgraph version bridges async;
     #    NotImplementedError surfaces immediately (first checkpoint read).
     elif _SYNC_SAVER_CLS is not None:
@@ -268,7 +271,8 @@ async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
                 "sync SqliteSaver does not support async graphs; running without persistence"
             )
         except Exception as e:
-            logger.warning(f"sqlite checkpointer failed ({e}); retrying without persistence")
+            logger.warning(f"sqlite checkpointer failed ({e})
+            retrying without persistence")
     # 3) No persistence.
     graph = _WORKFLOW.compile()
     return await graph.ainvoke(state, config=config)

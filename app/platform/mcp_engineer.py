@@ -11,7 +11,8 @@ Arya yeh gap bhare. PATTERN match `engineer_agents.py` (Pranav/Vidya/Arnav):
 - KPI sub-scores: expose_reachable, product_armed, keys_active, quota_pressure,
   auth_failures_24h, a2a_card_valid, dependency_present
 - INERT default: MCP_ENGINEER unset -> _disabled_result()
-- Pure-Python; uses sqlite/httpx/json only (no new deps)
+- Pure-Python
+uses sqlite/httpx/json only (no new deps)
 - log_event() into agent_events (team dashboard auto-picks)
 - ntfy alert on critical (auth_failure spike, key abuse)
 

@@ -47,8 +47,10 @@ class CallRow(BaseModel):
 
 
 class LeadRow(BaseModel):
-    id: str = ""  # B4: stable inquiry UUID; used by inline status edit
-    status: str = ""  # B4: customer-editable status (defaults to AI tier `score`); kept SEPARATE from score so tier charts/filters stay intact
+    id: str = ""  # B4: stable inquiry UUID
+    used by inline status edit
+    status: str = ""  # B4: customer-editable status (defaults to AI tier `score`)
+    kept SEPARATE from score so tier charts/filters stay intact
     business: str
     contact: str
     phone: str  # full number (client owns this lead)

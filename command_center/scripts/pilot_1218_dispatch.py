@@ -6,7 +6,8 @@ SIP grep '^SIP_HOST=.' = 0 lines -> DID NAHI landed (SIP 5 vars empty);
 container env WAENV=0 (leadgen_worker) = WA flip INERT (disk .env=1, containers unbooted);
 auto_sent true=0 (ZERO WA sends); hot-queue 09-02 PRESENT (44 rows/43 leads);
 leads/ ABSENT (ammo ZERO); egress api.vobiz.com 000@6s DAY5; WAHA no-key 401 expected gate;
-FLEET ACK 0 since 00:12Z (~48h); NO bot evidence since 11:37 rebump
+FLEET ACK 0 since 00:12Z (~48h)
+NO bot evidence since 11:37 rebump
 (no digest/verdict/CSV/SMTP/sendText proof anywhere on VPS).
 SINGLE EXECUTABLE REVENUE RAIL = SAL-003 WA sendText (WAHA OPEN, hot-queue 09-02 43 UPI).
 """
@@ -101,14 +102,29 @@ print("BOTS: statuses refreshed")
 pp = os.path.join(base, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pin["vps_status"] = "UP (/health 37a1daf8 healthy uptime18h14m); loop DEAD 50h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars EMPTY (DID NAHI); container WAENV=0 INERT; auto_sent 0; hot-queue 09-02 PRESENT 43 UPI; leads/ ABSENT; egress 000 DAY5; WAHA with-key 200 OPEN"
+pin["vps_status"] = "UP (/health 37a1daf8 healthy uptime18h14m)
+loop DEAD 50h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars EMPTY (DID NAHI)
+container WAENV=0 INERT
+auto_sent 0
+hot-queue 09-02 PRESENT 43 UPI
+leads/ ABSENT
+egress 000 DAY5
+WAHA with-key 200 OPEN"
 pin["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pin["target"] = "₹5,00,000"
 pin["gap"] = "₹4,98,001"
-pin["bottleneck"] = "DID NAHI (SIP vars empty; Jio order in-flight) → dialer dead; WA flip INERT (container WAENV=0); fleet ACK 0 ~48h"
+pin["bottleneck"] = "DID NAHI (SIP vars empty
+Jio order in-flight) → dialer dead
+WA flip INERT (container WAENV=0)
+fleet ACK 0 ~48h"
 pin["pipeline"] = "86 HOT UPI deep-links (queues 09-01+09-02), 0 WA sends, 0 dialer connects, Jiya P0"
 pin["hot"] = "hot-queue 09-02 43 UPI warm + WAHA sendText OPEN (SAL-003 ABHI, ACC 13:00) + Jiya retention (SUC-002)"
-pin["action"] = "SAL-003 >=10 sendText proof 13:00; PLT-004 egress+template 12:30 + restart owner-approve; GRD verdicts; owner: WA restart approval + Jio DID follow-up"
+pin["action"] = "SAL-003 >=10 sendText proof 13:00
+PLT-004 egress+template 12:30 + restart owner-approve
+GRD verdicts
+owner: WA restart approval + Jio DID follow-up"
 pin["next_expected_payment"] = "WA sendText reply → UPI close ya Jiya retention — evidence ke saath"
 save(pp, pin)
 print("PINNED: refreshed")

@@ -4,18 +4,22 @@ winback.py — inactive prospects/customers ko wapas lao (re-engagement drafts).
 
 "2 mahine ho gaye!" — jo prospects/customers lambe time se chup hain, unke
 liye Hinglish WA + email win-back DRAFTS ready karo. KABHI auto-send nahi
-(WA bulk auto = number ban; email bhi yahan draft-only — human 1-click).
+(WA bulk auto = number ban
+email bhi yahan draft-only — human 1-click).
 
 Sources (sab lazy + best-effort, koi bhi fail = skip):
   - prospector store (data/prospects.jsonl) — last touch = emailed_at /
-    updated_at / created_at; status dead/client/replied skip
+    updated_at / created_at
+    status dead/client/replied skip
   - customer_crm (crm_lite store) — per marketing-client end-customers
-    (added_at se age; date missing = skip, guess nahi karte)
+    (added_at se age
+    date missing = skip, guess nahi karte)
 
 Public API (sab never-raise):
   - find_inactive(days=60, limit=200)  -> [{type, name, phone, email, ...}]
   - draft(entity)                      -> Hinglish WA msg + email subject/body + wa.me
-  - run_due_if_enabled()               -> async; GATED `WINBACK_ENGINE=1`:
+  - run_due_if_enabled()               -> async
+  GATED `WINBACK_ENGINE=1`:
                                           drafts -> data/winback_drafts.jsonl
                                           (30-din dedupe per phone/email) + team event
   - list_drafts(limit=100)             -> saved drafts (newest last)

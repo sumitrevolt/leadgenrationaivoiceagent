@@ -32,7 +32,8 @@ def registry() -> dict[str, Any]:
 def enabled() -> bool:
     """Master gate. OFF = video_ad_cycle current inline path use karta (engine inert).
 
-    Env explicit = final (0 = hard kill-switch); env UNSET par bind-mounted
+    Env explicit = final (0 = hard kill-switch)
+    env UNSET par bind-mounted
     data/social_engine.json {"enabled": true} bhi chalega — running containers
     docker-cp drift carry karte (recreate = hotfix loss), isliye naya env var
     recreate ke bina inject nahi hota (same pattern: platform_dial/upi_config)."""
@@ -292,7 +293,8 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
 
 def _log_delivery(client_id: str, event: str, job: dict[str, Any], detail: str = "") -> None:
     """Best-effort delivery_ledger log for an automated publish outcome. Never
-    raises; no-op if client_id is blank (job data malformed)."""
+    raises
+    no-op if client_id is blank (job data malformed)."""
     if not client_id:
         return
     try:

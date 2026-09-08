@@ -28,7 +28,8 @@ def _isolate(monkeypatch, tmp_path):
     TelecallerBrain refuses to construct without an LLM provider, and that check
     reads state captured at IMPORT time - so setting an env var here would be too
     late and the test would depend on the developer's .env (R4). Declare the
-    provider directly instead; nothing in this file exercises the LLM.
+    provider directly instead
+    nothing in this file exercises the LLM.
     """
     from app.voice_agent import free_ai as _free_ai
 

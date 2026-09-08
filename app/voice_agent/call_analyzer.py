@@ -191,7 +191,8 @@ class CallAnalyzer:
         """
         Args:
             brain: (optional) LLMBrain-like object with extract_qualification_data()
-                   aur _generate(). Na do to lazy build hoga; vo bhi fail ho to
+                   aur _generate(). Na do to lazy build hoga
+                   vo bhi fail ho to
                    sirf heuristic.
         """
         self._brain = brain
@@ -483,13 +484,15 @@ class CallAnalyzer:
         if outcome == "qualified":
             return "Lead ko CRM me 'hot' mark karo aur demo/appointment confirm karo."
         if outcome == "callback":
-            return "Scheduled time par callback karo; lead warm hai."
+            return "Scheduled time par callback karo
+            lead warm hai."
         if outcome == "voicemail":
             return "Voicemail mila — alag time par dobara try karo, ya WhatsApp follow-up bhejo."
         if outcome == "no_answer":
             return "No answer — 2-3 alag time slots par retry karo."
         if outcome == "not_interested":
-            return "Do-not-call respect karo; nurture list me daal ke 1-2 mahine baad WhatsApp."
+            return "Do-not-call respect karo
+            nurture list me daal ke 1-2 mahine baad WhatsApp."
         if "price" in objections:
             return "Pricing concern tha — per-lead model wala ROI case email/WhatsApp karo."
         return "Warm follow-up bhejo aur ek callback time fix karne ki koshish karo."
@@ -555,7 +558,8 @@ class CallAnalyzer:
     def _normalize(conversation_history: list[dict[str, str]] | None) -> list[dict[str, str]]:
         """Mixed role labels ko {agent|customer} me normalize karo.
 
-        Accepts: assistant/agent/bot -> agent ; user/customer/human -> customer.
+        Accepts: assistant/agent/bot -> agent
+        user/customer/human -> customer.
         """
         out: list[dict[str, str]] = []
         for turn in conversation_history or []:

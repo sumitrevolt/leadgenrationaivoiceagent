@@ -10,7 +10,8 @@ dekhta hai aur strategy-level self-heal karta:
    → multi-agent STRATEGY pass (coordinator.coordinate_advanced: Reflexion+critic+memory)
    → naye free/legal channel ideas (free-LLM brainstorm → data/growth_ideas.jsonl)
 
-Sab free-stack + ban-safe (drafts/own-site only; auto-send apne channel-gates pe).
+Sab free-stack + ban-safe (drafts/own-site only
+auto-send apne channel-gates pe).
 GATED `GROWTH_OPTIMIZER=1` (default OFF = optimize() no-op). Voice secondary —
 saare actions marketing-first. Store: data/growth_optimizer_runs.jsonl.
 Import-safe, kabhi raise nahi.
@@ -147,7 +148,8 @@ def weakest_stage(snap: dict[str, Any]) -> dict[str, Any]:
 
 async def _direct_actions(stage: str) -> list[str]:
     """Stage-specific DIRECT corrective actions (LLM nahi — real engines). Har
-    action apne try/except me; jo chala uska naam list me."""
+    action apne try/except me
+    jo chala uska naam list me."""
     done: list[str] = []
     try:
         if stage == "lead_supply":

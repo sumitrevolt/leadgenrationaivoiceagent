@@ -6,7 +6,8 @@ OR — when ``UPI_AUTO_ACTIVATE=1`` — the plan auto-activates instantly on sub
 
 Patterned on ``app.platform.upi_config`` (json data-file store, never raises).
 ADDITIVE + defensive: every function wraps work in try/except and returns a safe
-default; nothing here ever lets an exception escape into a request path.
+default
+nothing here ever lets an exception escape into a request path.
 """
 
 from __future__ import annotations
@@ -271,12 +272,14 @@ def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
     Stripe path (``billing._provision_usage`` → ``gst_invoice.on_payment_success``).
     Without this a UPI-paying customer got NO invoice record (audit 2026-07-05:
     real paying client had a live plan but zero downloadable bill). Record hamesha
-    banta; email sirf ``AUTO_INVOICE=1`` pe (that gate lives inside on_payment_success).
+    banta
+    email sirf ``AUTO_INVOICE=1`` pe (that gate lives inside on_payment_success).
 
     ``payment_ref`` = client + plan + month so monthly renewals each get one invoice
     and a double-approve/re-activate of the SAME month dedupes (``_already_invoiced``).
 
-    on_payment_success is ``async``; this helper runs from SYNC callers (submit auto-
+    on_payment_success is ``async``
+    this helper runs from SYNC callers (submit auto-
     activate + admin decide), so we prefer scheduling on a running loop when one
     exists and otherwise run it to completion. NEVER raises — a billing hiccup must
     never break the activation/onboarding that already succeeded.
@@ -314,7 +317,8 @@ def _credit_referral(record: dict) -> None:
 
     Revenue sprint (2026-08-23): affiliate referrals signup par record hote the
     par payment hone par kabhi 'paid' nahi hote the — commission ledger dead
-    tha. Match payer_contact (ya client ka email) se; idempotent, never raises.
+    tha. Match payer_contact (ya client ka email) se
+    idempotent, never raises.
     """
     try:
         from app.marketing import affiliate
@@ -729,7 +733,8 @@ def bind_client(payment_id: str, client_id: str, decided_by: str = "admin") -> d
     """Bind a marketing client to an UPI submission that has no client_id.
 
     Guest "maine pay kiya" submissions land with ``client_id=""`` +
-    ``needs_client_bind=True``; approving one without a client fails closed
+    ``needs_client_bind=True``
+    approving one without a client fails closed
     (``approved_but_unbound``, #304). This is the operator queue action that
     resolves it: bind the verified client, then Approve activates.
 

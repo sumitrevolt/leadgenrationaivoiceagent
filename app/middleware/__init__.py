@@ -94,8 +94,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         if not embeddable:
             response.headers["X-Frame-Options"] = "SAMEORIGIN" if same_origin_embeddable else "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-XSS-Protection"] = "1
+        mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000
+        includeSubDomains"
         # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr/cdnjs and
         # Google Fonts, use inline <script>/<style>, talk to the API over
         # fetch/WebSocket, and play mic-recorded audio from blobs.
@@ -112,9 +114,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "" if embeddable else " https://*.i.posthog.com https://us-assets.i.posthog.com"
         )
         if embeddable:
-            _frame = "frame-ancestors *; "
+            _frame = "frame-ancestors *
+            "
         elif same_origin_embeddable:
-            _frame = "frame-ancestors 'self'; "
+            _frame = "frame-ancestors 'self'
+            "
         else:
             _frame = ""
         response.headers["Content-Security-Policy"] = (
@@ -122,7 +126,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             + _frame
             + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
             + _posthog_src
-            + "; "
+            + "
+            "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
@@ -381,7 +386,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Production-ready rate limiter using Redis
     Falls back to in-memory if Redis is unavailable
 
-    Policy (2026-07-30 — platform-blocker 429 lane; P1 harden):
+    Policy (2026-07-30 — platform-blocker 429 lane
+    P1 harden):
     - Flat anon/customer API budget stays (abuse shield).
     - Static assets use a SEPARATE higher bucket (not an exemption).
     - Human HTML page navigation (GET/HEAD on /app/*, /pricing, /start,
@@ -435,7 +441,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """Valid admin/super_admin JWT → raised READ ceiling (still capped).
 
         Only consulted for safe GET/HEAD dashboard paths via ``_bucket_for``.
-        Default 600 rpm (~10 req/s); override via RATE_LIMIT_ADMIN_RPM.
+        Default 600 rpm (~10 req/s)
+        override via RATE_LIMIT_ADMIN_RPM.
         Invalid/missing token → None (anon/default budget).
         """
         auth = (request.headers.get("authorization") or "").strip()
@@ -670,7 +677,8 @@ _INFLIGHT = 0
 class RequestGuardMiddleware(BaseHTTPMiddleware):
     """Inbound reliability guard (audit): per-request hard TIMEOUT (slow handler worker ko
     indefinitely hold na kare → 504, upstream-proxy 504 se pehle) + LOAD-SHED (per-worker
-    in-flight cap → 503 + Retry-After; overload-collapse se bachao, mid-flight cut nahi).
+    in-flight cap → 503 + Retry-After
+    overload-collapse se bachao, mid-flight cut nahi).
 
     GATED `REQUEST_GUARD=1` (default OFF = zero change). Long/streaming/ws paths SKIP
     (warna voice/LLM/SSE cut ho jate). FAIL-OPEN: koi bhi guard-error pe normal process

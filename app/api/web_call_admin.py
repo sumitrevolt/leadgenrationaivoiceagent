@@ -102,7 +102,8 @@ async def list_voice_proposals(
 @router.post("/proposals/{proposal_id}/promote", summary="Promote a proposal (GATED)")
 async def promote_voice_proposal(proposal_id: str, _user=Depends(require_admin)) -> dict:
     """Promote ONLY if the promotion-gate passes (candidate out-scores the bad reply +
-    obeys telecaller rules). Flips status to 'promoted'; never blind-writes prod prompts."""
+    obeys telecaller rules). Flips status to 'promoted'
+    never blind-writes prod prompts."""
     try:
         from app.voice_agent.voice_self_improve import (
             list_proposals,

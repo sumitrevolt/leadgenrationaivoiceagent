@@ -16,7 +16,8 @@ Use:
         ...read-modify-write...
 
 Timeout pe bhi block NAHI karte — lock na mile to bina lock aage badh jaate
-(defensive: store-write kabhi automation ko hang nahi karna chahiye; warna
+(defensive: store-write kabhi automation ko hang nahi karna chahiye
+warna
 lock-file leak/crash pe sab ruk jata). KABHI raise nahi.
 """
 

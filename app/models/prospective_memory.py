@@ -3,7 +3,8 @@
 WHY A TABLE (review P0): the first cut kept these rows in JSONL. A JSONL
 read-modify-write is NOT exactly-once — two workers, an overlapping scheduler
 tick, or a container restart mid-write can each dispatch the same row twice.
-This table is the AUTHORITY; the same optimistic-lock pattern as `AgentTask`
+This table is the AUTHORITY
+the same optimistic-lock pattern as `AgentTask`
 (`checkout_version`) is used so a claim is a single atomic UPDATE.
 
 State machine (see app/platform/prospective_store.py):

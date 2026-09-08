@@ -258,7 +258,8 @@ def _sync_plans_from_packages() -> None:
     """PUBLIC pricing truth = app/marketing/packages.py — yahan ke legacy Cloud-Run-era
     prices (₹15k/25k/50k) ko LIVE marketing prices (999/2499/5999) se OVERRIDE karo aur
     missing 'advanced' plan add karo. (BUG FIX 2026-06-10: /pricing page ₹999 dikhata
-    tha par checkout billing_manager se ₹15,000+GST charge karta; 'advanced' checkout
+    tha par checkout billing_manager se ₹15,000+GST charge karta
+    'advanced' checkout
     404 deta.) Yearly discount = 1/6 => 12mo*(5/6) = 10mo = packages price_inr_year
     ("2 mahine free"). Defensive: packages import fail => legacy as-is (kabhi raise nahi).
     """
@@ -802,7 +803,8 @@ class BillingManager:
         # (admin UPI verify / Stripe webhook) performs the actual activation.
         logger.warning(
             f"process_payment() called on the legacy in-memory SubscriptionManager "
-            f"for invoice {invoice_id} — no real gateway wired here; refusing to fake "
+            f"for invoice {invoice_id} — no real gateway wired here
+            refusing to fake "
             f"a paid status. Use the UPI/Stripe billing path."
         )
         return {

@@ -105,7 +105,8 @@ def validate(envelope: dict[str, Any]) -> dict[str, Any]:
         if tone is False:
             return {"status": OWNER_EXCEPTION_REQUIRED, "reasons": ["tone_flagged"], "tone": False}
         return {"status": AUTO_APPROVED, "reasons": [], "tone": tone}
-    except Exception as e:  # pragma: no cover - defensive; fail-closed
+    except Exception as e:  # pragma: no cover - defensive
+    fail-closed
         logger.warning("[sales_autopilot.safety] validate failed: %s", e)
         return {"status": OWNER_EXCEPTION_REQUIRED, "reasons": ["validator_error"], "tone": None}
 

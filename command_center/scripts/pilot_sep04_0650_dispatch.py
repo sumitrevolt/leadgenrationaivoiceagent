@@ -34,7 +34,12 @@ print("appended REVENUE_COMMAND refresh")
 # ---------- 2) tasks.json evidence_tail timestamp (no status churn) ----------
 with open(os.path.join(BASE, "tasks.json"), encoding="utf-8") as f:
     tasks = json.load(f)
-EV = "PILOT 06:50 IST Sep4 (LIVE re-verify 06:50: state frozen — WA flip=1 but auto_sent/msgid=0 of 2298, ENG-004 not shipped; hot-queue 09-04 ABSENT 2nd day; SIP 5 vars EMPTY DID not landed, dialer DEAD day5 mtime Aug31 batch211 proc0; leads 0 ammo; rev ₹1,999 Jiya sole GAP ₹4,98,001; fleet 0-ACK ~52h -> 07:30 OWNER-ESC)"
+EV = "PILOT 06:50 IST Sep4 (LIVE re-verify 06:50: state frozen — WA flip=1 but auto_sent/msgid=0 of 2298, ENG-004 not shipped
+hot-queue 09-04 ABSENT 2nd day
+SIP 5 vars EMPTY DID not landed, dialer DEAD day5 mtime Aug31 batch211 proc0
+leads 0 ammo
+rev ₹1,999 Jiya sole GAP ₹4,98,001
+fleet 0-ACK ~52h -> 07:30 OWNER-ESC)"
 
 for t in tasks:
     if t["id"] in {"ENG-004","HNT-005","PLT-005","SAL-005","SUC-004","GRD-004","OPS-007","BRD-003"}:
@@ -68,13 +73,25 @@ print("bots.json updated")
 with open(os.path.join(BASE, "pinned.json"), encoding="utf-8") as f:
     pin = json.load(f)
 pin["last_updated"] = "2026-09-04T06:50+05:30"
-pin["vps_status"] = ("VPS UP /health 37a1daf8 healthy uptime10h50m; containers WA flip=1 PAR auto_sent=0 + msgid=0 of 2298 "
+pin["vps_status"] = ("VPS UP /health 37a1daf8 healthy uptime10h50m
+containers WA flip=1 PAR auto_sent=0 + msgid=0 of 2298 "
                      "(ENG-004 sendText NOT shipped day5+); hot-queue 09-04 ABSENT (date-lock 2nd day, last 09-03); "
                      "SIP 5 vars EMPTY DID not landed (CLI 911171366938 REVOKED), dialer DEAD day5, leads 0; "
                      "VERIFIED rev ₹1,999 (Jiya INV/0001 SOLE), GAP ₹4,98,001. Fleet 0-ACK ~52h -> 07:30 OWNER-ESC.")
 pin["bottleneck"] = "#1 WA auto_send 0 msg-id (ENG-004 link-only->sendText NOT shipped) | #1b qualified+WA-reachable lead 0 (HNT-005) | #2 DID not landed->dialer dead (CLI REVOKED) | #3 no close-kit buyer"
-pin["pipeline"] = "reply_drafts 2298 (auto_sent=0, msgid=0); hot-queue 09-04 ABSENT (last 09-03 dirty); dialer 0 connects; genuine WA inbound 1258806323 warm; Jiya P0 retention"
-pin["action"] = "07:30 IST gates STAND: ENG-004 ship sendText+msgid+reachability; HNT-005 50 qualified WA-reachable CSV; SAL reachable-only->UPI + genuine inbound; PLT DID-land+restart; SUC Jiya proof; GRD verdicts; OPS 09-04 date-lock; BRD mirror. 0 proof = OWNER-ESC."
+pin["pipeline"] = "reply_drafts 2298 (auto_sent=0, msgid=0)
+hot-queue 09-04 ABSENT (last 09-03 dirty)
+dialer 0 connects
+genuine WA inbound 1258806323 warm
+Jiya P0 retention"
+pin["action"] = "07:30 IST gates STAND: ENG-004 ship sendText+msgid+reachability
+HNT-005 50 qualified WA-reachable CSV
+SAL reachable-only->UPI + genuine inbound
+PLT DID-land+restart
+SUC Jiya proof
+GRD verdicts
+OPS 09-04 date-lock
+BRD mirror. 0 proof = OWNER-ESC."
 with open(os.path.join(BASE, "pinned.json"), "w", encoding="utf-8") as f:
     json.dump(pin, f, ensure_ascii=False, indent=1)
 print("pinned.json updated")

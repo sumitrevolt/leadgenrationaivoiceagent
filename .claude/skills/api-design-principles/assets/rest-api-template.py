@@ -199,6 +199,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         app,
-        host="0.0.0.0",  # nosec B104  # doc template dev server; local demos only
+        host="0.0.0.0",  # nosec B104  # doc template dev server
+        local demos only
         port=8000,
     )

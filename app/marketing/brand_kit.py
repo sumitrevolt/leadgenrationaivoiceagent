@@ -47,7 +47,8 @@ def _clean_color(value: Any) -> str:
 def save_brand(client_id: Any, data: dict[str, Any] | None) -> dict[str, Any]:
     """Brand profile save karo (data/brand_kits/{id}.json). Saved dict lautata hai.
 
-    Unknown/extra keys ignore; colors invalid hon to "" (kabhi raw inject nahi).
+    Unknown/extra keys ignore
+    colors invalid hon to "" (kabhi raw inject nahi).
     """
     data = data if isinstance(data, dict) else {}
     colors = data.get("colors") if isinstance(data.get("colors"), dict) else {}
@@ -86,7 +87,8 @@ def get_brand(client_id: Any) -> dict[str, Any] | None:
 
 def delete_brand(client_id: Any) -> bool:
     """Delete saved brand profile file (admin customer removal). Returns True
-    if a file was removed; never raises.
+    if a file was removed
+    never raises.
 
     The path is built from _BRAND_DIR at the call site rather than via _path()
     so the runtime-data scanner can prove WHICH store this DELETE touches. A

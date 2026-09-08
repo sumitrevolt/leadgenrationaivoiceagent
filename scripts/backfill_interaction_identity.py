@@ -19,13 +19,15 @@ SCOPE — deliberately linkage only
 This sets ``lead_id`` / ``contact_id`` on existing rows. It does NOT change
 ``leads.status`` and does NOT write ``lead_status_history``: deciding that a
 reply means "contacted" or "interested" is a business-state judgement and
-belongs in its own reviewed change. Linking is a statement of fact; status is
+belongs in its own reviewed change. Linking is a statement of fact
+status is
 an opinion.
 
 SAFETY
 ------
 * dry-run by DEFAULT — ``--apply`` is required to write
-* only ever fills a NULL ``lead_id`` / ``contact_id``; never overwrites
+* only ever fills a NULL ``lead_id`` / ``contact_id``
+never overwrites
 * never invents an id: an unmatched email is left alone and counted
 * no PII printed — counts and domains only
 

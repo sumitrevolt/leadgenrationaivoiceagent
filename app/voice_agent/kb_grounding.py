@@ -17,7 +17,8 @@ prose ki galti nahi.
 
 Design constraints (jaan-boojh kar):
   - **Frozen voice surface ko chhua NAHI gaya.** Ye module `knowledge_base.py` ko
-    edit nahi karta; sirf uske PUBLIC `retrieve()` ke upar compose karta hai aur
+    edit nahi karta
+    sirf uske PUBLIC `retrieve()` ke upar compose karta hai aur
     uske constants import karta hai (taaki wording/threshold kabhi drift na ho).
   - **INERT — koi caller nahi.** Reply path wiring owner approval ka kaam hai
     (Swara/voice = FROZEN). Ye file aa jaane se prod behaviour badalta NAHI.
@@ -40,7 +41,8 @@ Usage:
 Env:
     VOICE_KB_MIN_GROUND_SCORE  float  — refusal threshold override (default = KB ka apna)
     VOICE_KB_STRICT_GROUNDING  bool   — ON: jo citation apne chunk me verbatim
-                                        verify na ho wo DROP; sab drop ho gaye to
+                                        verify na ho wo DROP
+                                        sab drop ho gaye to
                                         refusal. OFF (default): warn-only log.
 """
 
@@ -68,7 +70,8 @@ try:
     from app.voice_agent.knowledge_base import _SAFE_FALLBACK as _KB_SAFE_FALLBACK
     from app.voice_agent.knowledge_base import _trim_sentence as _kb_trim_sentence
 except Exception as _e:  # pragma: no cover - import-safety only
-    logger.debug(f"kb_grounding: KB constants unavailable ({_e}); using local copies")
+    logger.debug(f"kb_grounding: KB constants unavailable ({_e})
+    using local copies")
     _KB_MIN_GROUND_SCORE = 0.04
     _KB_SAFE_FALLBACK = (
         "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
@@ -165,7 +168,8 @@ class GroundedAnswer(BaseModel):
     namespace: str = "default"
     top_score: float = Field(default=0.0, ge=0.0, le=1.0)
     reason: str | None = Field(
-        default=None, description="Refusal reason (bounded enum-ish string); None jab answered"
+        default=None, description="Refusal reason (bounded enum-ish string)
+        None jab answered"
     )
 
     @field_validator("text")
@@ -253,11 +257,13 @@ def grounded_answer_typed(
         query: user ka sawaal.
         namespace: client/niche scope.
         k: top-k.
-        min_score: threshold override; `None` = env/KB default.
+        min_score: threshold override
+        `None` = env/KB default.
         strict: `None` = `VOICE_KB_STRICT_GROUNDING` env se.
 
     Returns:
-        `GroundedAnswer` — kabhi raise nahi karta retrieval failure pe; refusal
+        `GroundedAnswer` — kabhi raise nahi karta retrieval failure pe
+        refusal
         deta hai (voice path pe exception = dead air).
     """
     ns = namespace or "default"

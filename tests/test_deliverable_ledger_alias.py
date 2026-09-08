@@ -10,7 +10,8 @@ Two independent exact-match failures in `sync_customer_deliverable_status`:
    `jiya-makeover`). `customer_deliverables.client_id` is an FK to Postgres
    `clients.id`, so rows are seeded under the BILLING id — while every writer
    that advances them passes the MARKETING id. Every other marketing-domain
-   consumer got the canonicalisation retrofit; this writer was missed.
+   consumer got the canonicalisation retrofit
+   this writer was missed.
 
 2. **deliverable_type.** `_LEGACY_DB_DELIVERABLE_TYPES` only renames in-place
    when the seeder re-runs for the same client+cycle. Rows seeded before the
@@ -181,7 +182,8 @@ def _patch(monkeypatch, session):
 
 def test_sync_advances_row_stored_under_billing_id_and_legacy_type(monkeypatch):
     """End-to-end shape of the production bug: writer says
-    (jiya-makeover, social_posts); row says (d79d690f61b3, social_post_draft)."""
+    (jiya-makeover, social_posts)
+    row says (d79d690f61b3, social_post_draft)."""
     from app.marketing import clients_store
     from app.models.customer_deliverable import DeliverableStatus
 

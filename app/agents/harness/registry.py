@@ -2,18 +2,22 @@
 
 This is the ONE authoritative store of executable tool identity, version, schema,
 risk lane, authority, permissions and execution requirements. Adapters may
-*describe* actions; they may not redefine registry policy. Owner OS remains the
+*describe* actions
+they may not redefine registry policy. Owner OS remains the
 sole mutation authority — a definition can require OWNER_OS_REQUIRED but the
 registry never executes anything.
 
 Shadow-only in this phase: `evaluate_action` returns what enforcement WOULD
 decide (registry_comparison + would_allow/deny/require_approval). Nothing is
-enforced; nothing is executed here.
+enforced
+nothing is executed here.
 
 Reconciliation (Graphify):
 - app/agents/harness/tool_registry.py  = per-RUN lightweight registry used by the
-  observe() throwaway path (kept; unchanged).
-- app/dev_control/registry.py          = MODEL/provider catalog (not tools; kept).
+  observe() throwaway path (kept
+  unchanged).
+- app/dev_control/registry.py          = MODEL/provider catalog (not tools
+kept).
 - app/integrations/openclaw/policies.py= OpenClaw COMMAND lanes (kept).
 - THIS module                          = canonical TOOL registry (new, additive).
 """

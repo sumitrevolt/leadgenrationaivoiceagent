@@ -487,7 +487,8 @@ async def _send_tcbrain_sentence_chunks(
     chunk 0 uska audio ready hote hi SEEDHA bhej deta — pehle `gather()` SAARE
     sentences ka wait karta tha to first-word SABSE SLOW sentence ke synth pe atak
     jaata (5-6s "noob" gap ka ek bada root). Ab chunk 0 = sirf apne synth (~1.5s)
-    ka wait; baaki sentences background me synth hote rehte (client unhe sequence
+    ka wait
+    baaki sentences background me synth hote rehte (client unhe sequence
     me bajata, koi drop nahi). Per-synth `wait_for` cap intact (bounded await).
     """
     total = len(sentences)
@@ -854,7 +855,8 @@ try:
 except Exception:  # pragma: no cover
     _REC_LIMITER = None
 
-_REC_MAX_BYTES = 12_000_000  # ~12MB — test calls are short; bigger = reject
+_REC_MAX_BYTES = 12_000_000  # ~12MB — test calls are short
+bigger = reject
 
 
 def _rec_ext(blob: bytes) -> str:
@@ -871,7 +873,8 @@ def _rec_ext(blob: bytes) -> str:
 
 def _write_recording_sync(rec_dir: str, out_path: str, blob: bytes) -> None:
     """Blocking mkdir+write — MUST run via asyncio.to_thread (12MB write on the
-    Docker overlay-fs can block a worker; project's #1 prod-down class)."""
+    Docker overlay-fs can block a worker
+    project's #1 prod-down class)."""
     os.makedirs(rec_dir, exist_ok=True)
     with open(out_path, "wb") as f:
         f.write(blob)
@@ -960,7 +963,8 @@ def _normalize_session_id_safe(session_id: str | None) -> str | None:
 @router.websocket("/ws")
 async def web_call_ws(websocket: WebSocket) -> None:
     """
-    Browser test session. The browser sends user text (or audio chunks); the
+    Browser test session. The browser sends user text (or audio chunks)
+    the
     server runs the VoicePipeline (or LLM/echo fallback) and streams back bot
     replies. Clearly flagged as TEST MODE — no real phone call.
     """
@@ -1026,7 +1030,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
     def _get_tcbrain(niche: str) -> Any | None:
         """
         Lazy, per-session TelecallerBrain — niche + voice_role (flow) aware.
-        Cached so each (niche, role) builds once; failed build cached as None.
+        Cached so each (niche, role) builds once
+        failed build cached as None.
         """
         niche = niche or "general"
         flow = session.get("flow", "qualify")

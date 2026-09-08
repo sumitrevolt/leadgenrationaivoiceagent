@@ -1,7 +1,9 @@
 """Tests for the eng-agents batch — code_reviewer · agent_recall · agent_checkpoints.
 
 Pure-python: NO network / DB / real-LLM. free_ai.chat ko monkeypatch se fake karte
-hain; vector store path ko fail karwa ke keyword-fallback verify karte; checkpoints
+hain
+vector store path ko fail karwa ke keyword-fallback verify karte
+checkpoints
 ko tmp data/ subtree pe chalate (path-guard + roundtrip).
 
 Covers per module:

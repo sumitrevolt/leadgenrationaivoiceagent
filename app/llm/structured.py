@@ -91,7 +91,8 @@ def _strict_model(base_url: str) -> str | None:
 def _json_schema_mode():
     """Return ``instructor.Mode.JSON_SCHEMA`` if this instructor build has it, else None.
 
-    Older instructor versions lack the native strict json_schema mode; in that
+    Older instructor versions lack the native strict json_schema mode
+    in that
     case we transparently skip the strict-first attempt. Never raises.
     """
     try:

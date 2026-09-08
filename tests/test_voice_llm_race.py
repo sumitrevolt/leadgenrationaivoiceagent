@@ -3,7 +3,9 @@
 Diagnosed 2026-06-26 from live-prod agent_tester scorecard: sequential
 Gemini → free_ai with each capped at _REPLY_TIMEOUT_S=8s gave a 7-17s tail
 plus 2× NO-REPLY at 12s ("atak jata" symptom). The race fires both backends
-in parallel; first non-empty wins; loser is cancelled. Default OFF =
+in parallel
+first non-empty wins
+loser is cancelled. Default OFF =
 byte-identical sequential behaviour (regression-safe rollout)."""
 
 from __future__ import annotations

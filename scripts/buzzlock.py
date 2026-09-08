@@ -16,7 +16,8 @@ Check the exit code — a refused claim is not a warning, it means stop.
 
 Buzz posting is best-effort: if buzz.exe or the owner credential is missing the
 lock file is still authoritative and the command still succeeds. LOCKS.json is the
-contract; the chat post is the human-readable mirror.
+contract
+the chat post is the human-readable mirror.
 
 Protocol: ~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md
 """

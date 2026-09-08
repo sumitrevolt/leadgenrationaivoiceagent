@@ -56,16 +56,23 @@ docker exec leadgen_redis redis-cli llen dsh
 docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 docker exec leadgen_redis redis-cli llen dlq:dead
 echo '---REDISMEM---'
-docker exec leadgen_redis redis-cli info memory | awk -F: '/^(used_memory_human|maxmemory_human|evicted_keys)/{gsub(/\r/,""); print}'
+docker exec leadgen_redis redis-cli info memory | awk -F: '/^(used_memory_human|maxmemory_human|evicted_keys)/{gsub(/\r/,"")
+print}'
 echo '---FLAGS---'
 docker exec leadgen_app python -c 'import os; ks="DSH_RUNTIME_ENABLED DSH_SHADOW_ENABLED COORDINATION_HUB_ENABLED GSC_ENABLED HARNESS_SESSION_EVENTS SALES_AUTOPILOT_WHATSAPP_ENABLED CELERY_ONBOARD_QUEUE WEB_CONCURRENCY VOICE_LAUNCH_KILL AUTO_ONBOARD SIGNUP_AUTO_ONBOARD REPLY_AGENT JOURNEY_ENGINE CADENCE_ENGINE SALES_ENGINE OPS_WATCHDOG AUTO_EMAIL_OUTREACH HOT_QUEUE_BRIEF_DAILY UPI_AUTO_ACTIVATE DUNNING_ENGINE".split();
 [print("%s=%s"%(k,"UNSET" if os.environ.get(k) is None else ((os.environ.get(k) or "").strip()[:8] if k=="WEB_CONCURRENCY" else ("1" if (os.environ.get(k) or "").strip().lower() in ("1","true","yes","on") else "0")))) for k in ks]'
 echo '---PG---'
 docker exec leadgen_db psql -U postgres -d leadgen -tAc "select count(*) from pg_stat_activity" 2>/dev/null || echo skipped
 echo '---DBHOST---'
-docker exec leadgen_app python -c 'import os; u=os.environ.get("DATABASE_URL") or ""; host=u.split("@")[-1].split("/")[0].lower() if "@" in u else ""; print("via_pgbouncer", "pgbouncer" in host and ":6432" in host); print("direct_db_5432", "db:5432" in host or "@db:" in host)'
+docker exec leadgen_app python -c 'import os
+u=os.environ.get("DATABASE_URL") or ""
+host=u.split("@")[-1].split("/")[0].lower() if "@" in u else ""
+print("via_pgbouncer", "pgbouncer" in host and ":6432" in host)
+print("direct_db_5432", "db:5432" in host or "@db:" in host)'
 echo '---CODE---'
-docker exec leadgen_app python -c 'from app.platform import office_briefing, upi_payments; print("notify_owner_once", hasattr(office_briefing, "_notify_owner_once")); print("list_actionable", hasattr(upi_payments, "list_actionable"))'
+docker exec leadgen_app python -c 'from app.platform import office_briefing, upi_payments
+print("notify_owner_once", hasattr(office_briefing, "_notify_owner_once"))
+print("list_actionable", hasattr(upi_payments, "list_actionable"))'
 echo '---HOST---'
 free -m | awk "NR==2{print \"mem_used_mb=\" \$3 \" mem_total_mb=\" \$2}"
 uptime
@@ -76,7 +83,9 @@ echo '---ACTIVATION---'
 curl -fsS http://127.0.0.1:8000/api/activation/summary
 echo
 echo '---BLOCKERS---'
-docker exec leadgen_app python -c 'from app.api.activation import _PROBES; items=[p() for p in _PROBES]; print(",".join(it["key"] for it in items if it.get("status")=="BLOCKER") or "none")'
+docker exec leadgen_app python -c 'from app.api.activation import _PROBES
+items=[p() for p in _PROBES]
+print(",".join(it["key"] for it in items if it.get("status")=="BLOCKER") or "none")'
 """
 
 

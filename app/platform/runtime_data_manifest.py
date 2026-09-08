@@ -96,7 +96,8 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="25 lines; Rule-46 sequential numbering is a legal requirement",
+        evidence="25 lines
+        Rule-46 sequential numbering is a legal requirement",
     ),
     _e(
         store_id="billing.upi_payments",
@@ -116,7 +117,8 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="UPI is the primary payment path (Stripe intl-only); "
+        evidence="UPI is the primary payment path (Stripe intl-only)
+        "
         "platform_upi.json is the sibling VPA config under the same store id",
     ),
     _e(
@@ -138,7 +140,8 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="PR #144 canonical authority; lock MUST colocate with ledger",
+        evidence="PR #144 canonical authority
+        lock MUST colocate with ledger",
     ),
     _e(
         store_id="compliance.wa_suppression",
@@ -155,7 +158,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_0,
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="read by unified eligibility; caused a PR #144 CI pollution incident",
+        evidence="read by unified eligibility
+        caused a PR #144 CI pollution incident",
     ),
     _e(
         store_id="compliance.consent_ledger",
@@ -189,7 +193,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_0,
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="currently EMPTY (0 bytes) — empty is not the same as absent; "
+        evidence="currently EMPTY (0 bytes) — empty is not the same as absent
+        "
         "the file is the authority and must survive cutover",
     ),
     _e(
@@ -232,7 +237,9 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="8 JSONL rows vs 1 DB row; written TODAY; known read-time-rewrite defect",
+        evidence="8 JSONL rows vs 1 DB row
+        written TODAY
+        known read-time-rewrite defect",
     ),
     # ---------------------------------------------------------------- TIER 1
     _e(
@@ -253,7 +260,8 @@ STORES: list[dict[str, Any]] = [
         # Host cutover is a SEPARATE PR; this wave is code-only.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="18,100 records; whole-file rewrite on update",
+        evidence="18,100 records
+        whole-file rewrite on update",
     ),
     _e(
         store_id="automation.autopilot_tick",
@@ -277,7 +285,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         migration_state=LEGACY_IN_CHECKOUT,
         deployment_blocker=False,
-        blocker_reason="resumable tick marker; engine INERT (SALES_AUTOPILOT_ENABLED unset)",
+        blocker_reason="resumable tick marker
+        engine INERT (SALES_AUTOPILOT_ENABLED unset)",
         evidence="production `ls` 2026-07-26 shows the directory holds exactly ONE file, "
         "last_tick.json (120 bytes). The prospects/attempts/policy stores this entry "
         "previously assumed do not exist as files in production — the directory is not "
@@ -303,8 +312,11 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         migration_state=LEGACY_IN_CHECKOUT,
         deployment_blocker=False,
-        blocker_reason="append-only masked canary ledger; safe to lose (re-run one-shot)",
-        evidence="new store 2026-07-30; resolve_store_path wired; recipient never stored cleartext",
+        blocker_reason="append-only masked canary ledger
+        safe to lose (re-run one-shot)",
+        evidence="new store 2026-07-30
+        resolve_store_path wired
+        recipient never stored cleartext",
     ),
     _e(
         store_id="ops.office_briefing",
@@ -421,8 +433,10 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         migration_state=LEGACY_IN_CHECKOUT,
         deployment_blocker=False,
-        blocker_reason="Owner OS mission packets; safe to re-create (chat is not authority)",
-        evidence="new store 2026-07-31; durable idempotency index + append-only ledger under file_lock",
+        blocker_reason="Owner OS mission packets
+        safe to re-create (chat is not authority)",
+        evidence="new store 2026-07-31
+        durable idempotency index + append-only ledger under file_lock",
     ),
     _e(
         store_id="owner_os.coordination_hub",
@@ -452,7 +466,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_2,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        blocker_reason="Hub projection only; safe to lose (tools re-heartbeat)",
+        blocker_reason="Hub projection only
+        safe to lose (tools re-heartbeat)",
         evidence=(
             "ADR-150 thin Owner OS projection; flag COORDINATION_HUB_ENABLED default OFF. "
             "Not a mission ledger or STAFF registry."
@@ -484,7 +499,9 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="agents",
         durability_class="rebuildable",
-        concurrency_model="append-mostly JSONL per agent; equipments.json rewrite; no lock",
+        concurrency_model="append-mostly JSONL per agent
+        equipments.json rewrite
+        no lock",
         tenant_scope="per-STAFF-agent directory (not customer tenant)",
         target_runtime_subpath="platform/workforce_memory/",
         migration_tier=TIER_2,
@@ -511,7 +528,8 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="agents",
         durability_class="authoritative",
-        concurrency_model="append-only JSONL; atomic rewrite for rules file",
+        concurrency_model="append-only JSONL
+        atomic rewrite for rules file",
         tenant_scope="tenant-scoped rows inside shared files",
         target_runtime_subpath="platform/memory_governance/",
         migration_tier=TIER_2,
@@ -613,8 +631,10 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="growth",
         durability_class="rebuildable",
-        concurrency_model="append for registrations; locked atomic rewrite for lead→paid flip",
-        tenant_scope="platform-global (referral partners; contact keys only)",
+        concurrency_model="append for registrations
+        locked atomic rewrite for lead→paid flip",
+        tenant_scope="platform-global (referral partners
+        contact keys only)",
         target_runtime_subpath="marketing/affiliates/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
@@ -643,7 +663,8 @@ STORES: list[dict[str, Any]] = [
         business_category="platform",
         durability_class="rebuildable",
         concurrency_model="single-process file append under STAFF_BUS_ENABLED gate",
-        tenant_scope="platform-global (internal STAFF coordination; not customer leads)",
+        tenant_scope="platform-global (internal STAFF coordination
+        not customer leads)",
         target_runtime_subpath="platform/staff_bus/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
@@ -712,7 +733,8 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="marketing",
         durability_class="rebuildable",
-        concurrency_model="single-process JSONL append; admin-gated",
+        concurrency_model="single-process JSONL append
+        admin-gated",
         tenant_scope="per-client_id rows in one file",
         target_runtime_subpath="marketing/email_drips/",
         migration_tier=TIER_3,
@@ -779,7 +801,8 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="marketing",
         durability_class="rebuildable",
-        concurrency_model="single-process JSONL append; daily cap in module",
+        concurrency_model="single-process JSONL append
+        daily cap in module",
         tenant_scope="per-client_id rows in one file",
         target_runtime_subpath="marketing/review_sequences/",
         migration_tier=TIER_3,
@@ -801,12 +824,14 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="content",
         durability_class="rebuildable",
-        concurrency_model="single-process; offline only",
+        concurrency_model="single-process
+        offline only",
         target_runtime_subpath="marketing/content_gen/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        evidence="Offline content generation tooling; rebuildable from topic prompts.",
+        evidence="Offline content generation tooling
+        rebuildable from topic prompts.",
     ),
     _e(
         store_id="marketing.content_pipeline",
@@ -818,12 +843,14 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="content",
         durability_class="rebuildable",
-        concurrency_model="single-process; offline only",
+        concurrency_model="single-process
+        offline only",
         target_runtime_subpath="marketing/content_pipeline/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        evidence="Offline content pipeline; rebuildable from source.",
+        evidence="Offline content pipeline
+        rebuildable from source.",
     ),
     _e(
         store_id="marketing.content_os",
@@ -835,12 +862,14 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="content",
         durability_class="rebuildable",
-        concurrency_model="single-process; offline only",
+        concurrency_model="single-process
+        offline only",
         target_runtime_subpath="marketing/content_os/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        evidence="Offline content OS engine; queue/ledger/lock files, rebuildable.",
+        evidence="Offline content OS engine
+        queue/ledger/lock files, rebuildable.",
     ),
     _e(
         store_id="command_center.pilot_tasks",
@@ -857,12 +886,14 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="operations",
         durability_class="rebuildable",
-        concurrency_model="single-process; offline admin tooling only",
+        concurrency_model="single-process
+        offline admin tooling only",
         target_runtime_subpath="command_center/data/",
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        evidence="Offline admin tooling; not production app code.",
+        evidence="Offline admin tooling
+        not production app code.",
     ),
     _e(
         store_id="content.queue",
@@ -880,7 +911,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="concurrency redesign is a SEPARATE PR; this entry is path-only",
+        evidence="concurrency redesign is a SEPARATE PR
+        this entry is path-only",
     ),
     _e(
         store_id="delivery.ledger",
@@ -916,7 +948,8 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="27.9 MB and growing daily; needs a retention decision, not just relocation",
+        evidence="27.9 MB and growing daily
+        needs a retention decision, not just relocation",
     ),
     _e(
         store_id="automation.cadence_runs",
@@ -980,7 +1013,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_NONE,
         migration_state=FALLBACK_ONLY,
         deployment_blocker=False,
-        evidence="422 owner_os_audit_events rows in production; all three JSONL files "
+        evidence="422 owner_os_audit_events rows in production
+        all three JSONL files "
         "ABSENT on the VPS — the file paths are a fallback that production never uses",
     ),
     _e(
@@ -1268,7 +1302,8 @@ def derived_blocker(store: dict[str, Any]) -> bool:
 
     This exists so `deployment_blocker` cannot be *understated* by hand. A
     rebuildable cache or a documented-safe loss may sit inside the checkout
-    without blocking; an UNKNOWN active mutable store may not.
+    without blocking
+    an UNKNOWN active mutable store may not.
     """
     state = store.get("migration_state")
     if state in (

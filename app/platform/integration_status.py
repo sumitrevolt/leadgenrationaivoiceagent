@@ -3,7 +3,8 @@
 Single source of truth for integration/webhook expiry honesty. The classifier is a
 PURE function over an *evidence* dict — it never invents evidence. Real evidence
 comes from the social-token vault (`app/social_engine/vault.py`: authoritative
-`expires_at` for facebook/instagram/linkedin; soft-`deleted`) and, where present,
+`expires_at` for facebook/instagram/linkedin
+soft-`deleted`) and, where present,
 operational failure signals. When configuration exists but there is no trustworthy
 verification evidence, the status is `unknown` — NOT `healthy`. Env-var presence
 alone is never `healthy`.
@@ -64,7 +65,8 @@ _ADMIN_ACTION = {
     REVOKED: "Access revoked provider-side — reconnect required.",
     UNAUTHORIZED: "Auth failing (401/403) — re-authorize credentials.",
     EXPIRING_SOON: "Schedule a proactive reconnect before expiry.",
-    TRANSIENT_FAILURE: "Transient provider/server failure — monitor; auto-retry.",
+    TRANSIENT_FAILURE: "Transient provider/server failure — monitor
+    auto-retry.",
     UNREACHABLE: "Provider unreachable within timeout — check network/provider status.",
     NEVER_CONFIGURED: "Not configured for this client.",
     UNKNOWN: "Configured but unverified — no trustworthy health evidence.",

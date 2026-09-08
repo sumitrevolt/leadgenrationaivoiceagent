@@ -552,7 +552,8 @@ def _compute_plugin_health(m: Any) -> PluginHealthEntry:
         probe_healthy=probe_healthy,
         queue_depth=queue_depth,
         dlq_count=dlq_count,
-        reason="; ".join(reasons),
+        reason="
+        ".join(reasons),
     )
 
 

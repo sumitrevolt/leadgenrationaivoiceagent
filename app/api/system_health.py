@@ -3,7 +3,8 @@
 HOT-PATH RULE: O(1) reads only - psutil resource probes (same lib /health
 uses), one guarded redis ping, and the automation_health snapshot (a
 heartbeat-file read + one queue-depth read). NO live DB query, no KB/ML/
-network-heavy work. Never raises; missing data degrades to -1 / "unknown".
+network-heavy work. Never raises
+missing data degrades to -1 / "unknown".
 """
 
 from __future__ import annotations

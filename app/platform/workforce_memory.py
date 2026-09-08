@@ -4,7 +4,8 @@ LEARNED (NOT vendored) from https://github.com/TencentCloud/TencentDB-Agent-Memo
 
   1. Four reusable **assets**: chat · skill · wiki · code
   2. Long-term **pyramid**: L0 conversation → L1 atom → L2 scenario → L3 persona
-  3. **Progressive disclosure**: inject structure first; drill to evidence via node_id
+  3. **Progressive disclosure**: inject structure first
+  drill to evidence via node_id
   4. **Context offload**: bulky tool/raw text → refs/{node_id}.md, keep index in JSONL
   5. **Fixed binding + ACL**: each of the 31 STAFF agents may only use allowed assets
 
@@ -18,7 +19,8 @@ Maps:
   chat  → this store + voice agent_memory (lead facts) + coordinator Reflexion
   skill → this store + skill_library lessons
   wiki  → this store + memory_vault markdown
-  code  → this store + Graphify (dev-only; never customer data)
+  code  → this store + Graphify (dev-only
+  never customer data)
 
 INVARIANTS: flag-gated (`WORKFORCE_MEMORY`, OFF default) · never-raise ·
 tenant/agent scoped · no paid AI · no prompt auto-mutation · DPDP purge API.

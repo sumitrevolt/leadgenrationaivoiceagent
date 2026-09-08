@@ -7,7 +7,8 @@ faisla dhoondo" recall-helper nahi tha.
 
 Yeh module woh deta (append-only jsonl + semantic-if-available, keyword-fallback):
   - `record(kind, text, meta)` → data/agent_recall.jsonl me ek line append.
-  - `recall(query, k)` → pehle project VectorStore try (semantic); kisi bhi failure pe
+  - `recall(query, k)` → pehle project VectorStore try (semantic)
+  kisi bhi failure pe
     case-insensitive token-overlap scoring jsonl pe (deterministic fallback).
   - Admin POST/GET /api/agents-ext/recall.
 
@@ -16,7 +17,8 @@ Design (project patterns):
   - `enabled()` sirf AUTOMATIC background recall-write ko gate karta — default OFF =
     zero behaviour change. record()/recall() khud hamesha safe-callable (admin + direct).
   - VectorStore LAZY import (heavy ChromaDB) — function ke andar.
-  - jsonl = source-of-truth; vector store best-effort overlay. Live business-KB se alag.
+  - jsonl = source-of-truth
+  vector store best-effort overlay. Live business-KB se alag.
 
 Flag: AGENT_RECALL=1
 """
@@ -95,7 +97,8 @@ def _index_vector(row: dict[str, Any]) -> None:
     from app.ml.vector_store import VectorStore
 
     vs = VectorStore(persist_directory=_VS_DIR, collection_name=_VS_COLLECTION)
-    coll = vs.collection  # property; raises if chroma truly dead → caller swallows
+    coll = vs.collection  # property
+    raises if chroma truly dead → caller swallows
     emb = vs._generate_embedding(row["text"])
     rid = f"r-{int(row['at'] * 1000)}"
     coll.add(
@@ -205,7 +208,8 @@ def _semantic_recall(query: str, k: int) -> list[dict[str, Any]] | None:
 async def recall(query: str, k: int = 6) -> list[dict[str, Any]]:
     """Agent ke apne past runs/decisions search karo. Never raises.
 
-    Pehle project vector store (semantic); kisi bhi failure/empty pe deterministic
+    Pehle project vector store (semantic)
+    kisi bhi failure/empty pe deterministic
     keyword (token-overlap + substring) fallback over data/agent_recall.jsonl.
     Returns [{kind, text, score, at, meta}].
     """

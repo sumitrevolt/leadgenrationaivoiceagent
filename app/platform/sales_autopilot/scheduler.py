@@ -7,12 +7,14 @@
     fan-out across worker + in-process scheduler),
   - selects at most ``canary_batch_size`` (default 1) new-outreach + follow-up targets —
     NO catch-up flood: a backlog is processed one small batch per tick,
-  - routes every target through :func:`send.send` (dry-run default; live only when all
+  - routes every target through :func:`send.send` (dry-run default
+  live only when all
     gates pass), and
   - releases the lock in a finally block.
 
 Never raises. Designed to be wired into the existing Celery/staff-jobs beat as an INERT
-job (see the lane doc); until then it is safely callable/observable via the admin API.
+job (see the lane doc)
+until then it is safely callable/observable via the admin API.
 """
 
 from __future__ import annotations
@@ -105,7 +107,8 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
     """One scheduler tick. INERT when master flag off. Never raises.
 
     ``force_dry_run=True`` makes EVERY send on this tick a simulation, regardless
-    of stored policy. The canary endpoint documents "never sends live"; before
+    of stored policy. The canary endpoint documents "never sends live"
+    before
     this parameter existed that promise rested entirely on ``policy.dry_run``
     being set correctly, so a policy misconfiguration silently turned the canary
     into a live sender. A safety promise must be structural, not configural.

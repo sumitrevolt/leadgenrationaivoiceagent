@@ -29,7 +29,8 @@ def _read_marker(path: str) -> dict:
 def _marker_fresh(marker: dict, max_age_s: int = 7200) -> bool:
     """A verify marker only describes the session that just ran /verify. Treat
     a marker with no/old `ts` as stale so we don't misattribute one verify
-    result to many session-ends. No ts (back-compat) = assume fresh; consume-once
+    result to many session-ends. No ts (back-compat) = assume fresh
+    consume-once
     is the real guard."""
     ts = marker.get("ts")
     if not ts:

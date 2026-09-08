@@ -274,7 +274,8 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Qdrant configured hai; next KB coverage aur retrieval eval badhao."
                 if qdrant_configured
-                else "QDRANT_URL set nahi; local fallback chalega, production semantic KB ke liye Qdrant arm karo."
+                else "QDRANT_URL set nahi
+                local fallback chalega, production semantic KB ke liye Qdrant arm karo."
             ),
         },
         {
@@ -285,7 +286,8 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Eval gate ON hai; baselines build hone do."
                 if (eval_gate and eval_gate.enabled())
-                else "EVAL_GATE=1 se observability mode ON karo; hard mode baad me."
+                else "EVAL_GATE=1 se observability mode ON karo
+                hard mode baad me."
             ),
         },
         {
@@ -303,7 +305,8 @@ async def get_agent_improvement_plan():
             "next_action": (
                 "Dataset export experiment Colab/Kaggle/Lightning pe chala sakte ho."
                 if enough_for_lora
-                else "Abhi LoRA mat chalao; pehle accepted examples aur eval history collect karo."
+                else "Abhi LoRA mat chalao
+                pehle accepted examples aur eval history collect karo."
             ),
         },
     ]

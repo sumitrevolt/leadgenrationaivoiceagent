@@ -4,7 +4,8 @@ magic_resize.py — ek creative → saare social sizes (Canva "Magic Resize" lit
 
 Ek poster/photo do → square (IG), story (IG/FB), banner (FB/link preview),
 wa_status — sab ek shot me. Raster input PIL se smart-letterbox hota hai
-(brand primary color background — brand_kit se); SVG input ko letterboxed
+(brand primary color background — brand_kit se)
+SVG input ko letterboxed
 SVG wrapper milta hai (no rasterizer dep).
 
   resize_pack(image_path=None, svg=None, sizes=None, slug="")

@@ -119,7 +119,8 @@ def _sensitive_name_re_alternation() -> str:
 _MESSAGE_KV_REDACT_RE = _re.compile(
     r"\b("
     + _sensitive_name_re_alternation()
-    + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,;\)\]\}"]{1,4096})',
+    + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,
+    \)\]\}"]{1,4096})',
     _re.IGNORECASE,
 )
 
@@ -145,7 +146,8 @@ _MESSAGE_BEARER_RE = _re.compile(
 _MESSAGE_ENVVAR_REDACT_RE = _re.compile(
     r"\b([A-Z0-9]+(?:_[A-Z0-9]+)*_(?:PASS|PASSWORD|PWD|SECRET|TOKEN|KEY|APIKEY|CREDENTIAL|CREDENTIALS))"
     r"""["']?\s*[=:]\s*"""
-    r"""("[^"]{1,4096}"|'[^']{1,4096}'|[^\s&,;\)\]\}"]{1,4096})""",
+    r"""("[^"]{1,4096}"|'[^']{1,4096}'|[^\s&,
+    \)\]\}"]{1,4096})""",
 )
 
 

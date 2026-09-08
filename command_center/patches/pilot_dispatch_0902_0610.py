@@ -4,7 +4,8 @@
 SIP_HOST/USERNAME/PASSWORD/DID/PROVIDER len=0 (DID NOT landed); VOBIZ_CALLER_ID len=13 REVOKED;
 containers leadgen_worker+leadgen_app SALES_AUTOPILOT_WHATSAPP_ENABLED=0 INERT (disk .env=1);
 reply_drafts auto_sent true=0/false=378; leads/ ABSENT; hot_queue 09-01 43 present (09-02 ABSENT);
-egress api.vobiz.com 000 @6.0s (day5); WAHA no-key 401 expected gate.
+egress api.vobiz.com 000 @6.0s (day5)
+WAHA no-key 401 expected gate.
 FLEET still 0 ACK. All 8 active UPDATE, no new TASK-ID (anti-spam)."""
 import json
 import os
@@ -76,11 +77,22 @@ print(f"TASKS: {n} evidence-updated")
 # ---------- 3) BOTS.JSON ----------
 bots_path = os.path.join(base, "bots.json")
 bots = load(bots_path)
-bots["Pilot"]["status"] = (f"{ts_short} IST SWEEP: state UNCHANGED — loop DEAD 48h+ (batch211, proc0, cron0); "
-                           f"SIP 5 vars len=0 (DID NOT landed); VOBIZ_CALLER_ID REVOKED len13; WA flip INERT "
-                           f"(containers=0 disk=1); WA-sent 0/378; leads/ ABSENT; egress 000 d5; /health 200; "
+bots["Pilot"]["status"] = (f"{ts_short} IST SWEEP: state UNCHANGED — loop DEAD 48h+ (batch211, proc0, cron0)
+"
+                           f"SIP 5 vars len=0 (DID NOT landed)
+                           VOBIZ_CALLER_ID REVOKED len13
+                           WA flip INERT "
+                           f"(containers=0 disk=1)
+                           WA-sent 0/378
+                           leads/ ABSENT
+                           egress 000 d5
+                           /health 200
+                           "
                            f"hot-queue 09-01 43/43. FLEET 0 ACK — REINFORCE {ts_short} sent. Gates 09:00-12:00 IST.")
-bots["sales"]["status"] = f"SAL-003 P0: WA manual-send ABHI (WAHA with-key 200; hot-queue 43 UPI; auto_sent 0); vendor DID 09:00. ACK missing."
+bots["sales"]["status"] = f"SAL-003 P0: WA manual-send ABHI (WAHA with-key 200
+hot-queue 43 UPI
+auto_sent 0)
+vendor DID 09:00. ACK missing."
 save(bots_path, bots)
 print("BOTS: Pilot+sales refreshed")
 
@@ -88,7 +100,16 @@ print("BOTS: Pilot+sales refreshed")
 pinned_path = os.path.join(base, "pinned.json")
 pinned = load(pinned_path)
 pinned["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pinned["vps_status"] = "HEALTHY (/health 200); loop DEAD 48h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars EMPTY; VOBIZ_CALLER_ID REVOKED; egress 000 day5; WA container flip INERT (disk=1 containers=0); WA-sent 0/378; leads/ ABSENT; hot-queue 09-01 43 present"
+pinned["vps_status"] = "HEALTHY (/health 200)
+loop DEAD 48h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars EMPTY
+VOBIZ_CALLER_ID REVOKED
+egress 000 day5
+WA container flip INERT (disk=1 containers=0)
+WA-sent 0/378
+leads/ ABSENT
+hot-queue 09-01 43 present"
 pinned["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pinned["gap"] = "₹4,98,001"
 pinned["pipeline"] = "43 HOT WA closes (blocked), 0 dialer connects, 0 WA sends, Jiya P0"

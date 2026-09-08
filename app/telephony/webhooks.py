@@ -49,13 +49,15 @@ def _get_call_manager():
 async def vobiz_status_webhook(request: Request):
     """Vobiz status callback — marks a completed call done (minute-metering +
     qualified-lead billing run via CallManager.handle_call_completed). Idempotent
-    on call_id. Best-effort; never raises a 500.
+    on call_id. Best-effort
+    never raises a 500.
 
     Security note: Vobiz does not sign this callback, and the status-callback URL
     is configured account-wide (not per-call), so it cannot carry a per-call HMAC
     token the way /vobiz/answer does. The real defenses are: (1) call_id is a
     random UUID (128-bit, unguessable) and handle_call_completed() no-ops if it
-    isn't a call WE placed and is still tracked in active_calls; (2) the duration
+    isn't a call WE placed and is still tracked in active_calls
+    (2) the duration
     clamp below bounds how much a forged/replayed POST can inflate billed minutes
     even if an attacker did learn a live call_id.
     """
@@ -241,8 +243,10 @@ async def vobiz_inbound_webhook(request: Request):
     ALWAYS, and — when MISSED_CALL_CALLBACK=1 + a Vobiz DID is configured —
     triggers a transactional AI callback (caller rang us first, so ban-safe).
 
-    Lead capture works NOW (no DID needed); the callback leg is flag-gated and
-    inert without a DID. Best-effort; never raises a 500. Public (Vobiz does not
+    Lead capture works NOW (no DID needed)
+    the callback leg is flag-gated and
+    inert without a DID. Best-effort
+    never raises a 500. Public (Vobiz does not
     sign callbacks). Mirrors the existing admin test route
     POST /api/growth/missed-call → missed_call.handle_missed_call.
     """

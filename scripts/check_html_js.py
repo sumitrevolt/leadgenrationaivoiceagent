@@ -16,7 +16,8 @@ scripts = re.findall(
     html,
     re.S | re.I,
 )
-js = "\n;\n".join(scripts)
+js = "\n
+\n".join(scripts)
 if not js.strip():
     print(f"{path}: NO_INLINE_JS")
     sys.exit(0)

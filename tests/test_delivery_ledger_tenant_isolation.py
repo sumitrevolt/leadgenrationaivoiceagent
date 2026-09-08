@@ -13,7 +13,8 @@ not only on the write side:
             A cross-tenant read leak, forbidden by CLAUDE.md section 5.
 
 The guard REFUSES (raises) rather than coercing. `auto_content._safe_id`
-rewrites offending characters instead; that also stops the escape, but files
+rewrites offending characters instead
+that also stops the escape, but files
 the rows under a silently different name. For a paying customer's delivery
 history, quiet misplacement is the failure mode we are trying to prevent.
 """

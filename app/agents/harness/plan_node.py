@@ -7,14 +7,17 @@ cycle over a typed output schema:
 
     compile  -> caller builds strict system/user prompts (kept in coordinator)
     fill     -> first LLM call
-    review   -> validate against the pydantic schema; on failure build a review
+    review   -> validate against the pydantic schema
+    on failure build a review
                 prompt carrying the concrete validation error + bad output
     revise   -> bounded regeneration with the review feedback
-    adopt    -> valid plan wins; else return None so the caller falls back to
+    adopt    -> valid plan wins
+    else return None so the caller falls back to
                 legacy `_extract_list` + its hardcoded chain
 
 INERT by default: this module never runs unless a caller arms it. The single
-canary caller is `coordinator.plan()` under the COORD_PLAN_NODE flag; the legacy
+canary caller is `coordinator.plan()` under the COORD_PLAN_NODE flag
+the legacy
 parse path stays authoritative as the fallback.
 
 No app.* imports at module top and no default LLM surface — `llm_fn` is injected

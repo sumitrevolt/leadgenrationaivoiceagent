@@ -69,7 +69,8 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
             rec = (
                 f"Gate PASS — '{winner}' proven. Flip USE_RERANKER/USE_HYBRID_SEARCH per winner."
                 if report.get("passed")
-                else "Gate FAIL — retrieval flags OFF rakho; ColBERT/crossencoder mat bake karo abhi."
+                else "Gate FAIL — retrieval flags OFF rakho
+                ColBERT/crossencoder mat bake karo abhi."
             )
             return {
                 "ok": True,

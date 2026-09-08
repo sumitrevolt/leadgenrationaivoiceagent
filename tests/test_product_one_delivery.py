@@ -193,7 +193,8 @@ def test_manual_publish_action_records_proof(monkeypatch, tmp_path):
         product_one_delivery.record_manual_action(
             "c1",
             "publish_manual",
-            note="Instagram par manually upload ho gaya; screenshot saved.",
+            note="Instagram par manually upload ho gaya
+            screenshot saved.",
             owner="Sumit",
         )
     )

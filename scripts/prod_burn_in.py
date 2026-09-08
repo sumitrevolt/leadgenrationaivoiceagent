@@ -2,7 +2,8 @@
 """Bounded 20-minute production burn-in — replaces 24h soak as launch gate.
 
 Read-only probes. Never mutates flags, never dials, never sends.
-Exit 0 = burn-in PASS; non-zero = FAIL (do not GO).
+Exit 0 = burn-in PASS
+non-zero = FAIL (do not GO).
 
   python3 scripts/prod_burn_in.py --minutes 20 --base-url https://leadsgenai.in
   python3 scripts/prod_burn_in.py --minutes 1 --once   # single sample (CI/local)

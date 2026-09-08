@@ -8,8 +8,10 @@ Lifecycle (data/video_ads.jsonl, append-on-update latest-line-wins):
            (max revisions ke baad changes_requested = held, agency ko ping)
 
 Design rules (CLAUDE.md):
-  * build_reel HEAVY CPU -> sirf scheduler/worker se (run_cycle); web request me NAHI.
-  * approve-hook (web) sirf FAST file-mark karta (on_approved); actual publish
+  * build_reel HEAVY CPU -> sirf scheduler/worker se (run_cycle)
+  web request me NAHI.
+  * approve-hook (web) sirf FAST file-mark karta (on_approved)
+  actual publish
     scheduler `publish_due()` karta -- web process heavy job nahi chalata.
   * GATED `VIDEO_AD_CYCLE=1` (scheduler tick). Manual/admin generate isse alag.
   * Sab additive, free-stack, NEVER raises (error dicts).
@@ -761,7 +763,8 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
 
     Stage 3C (descriptor-bound) contract:
       * gate must be finalized + snapshot-bound
-      * ``open_verified_snapshot`` opens once (O_NOFOLLOW); provider streams that fd
+      * ``open_verified_snapshot`` opens once (O_NOFOLLOW)
+      provider streams that fd
       * mutable ``video_path`` is never opened for upload
       * local states: publish_reserved → provider_inflight → published
         (or publish_outcome_unknown / publish_refused / publish_failed)

@@ -1,5 +1,6 @@
 """social_engine.tasks — Celery (Redis) drain task. Worker isse import kare to register
-hota; warna scheduler `process_queue()` direct drain karta (guaranteed). NEVER breaks import."""
+hota
+warna scheduler `process_queue()` direct drain karta (guaranteed). NEVER breaks import."""
 
 from __future__ import annotations
 

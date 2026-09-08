@@ -100,7 +100,8 @@ def _audit(entry: dict) -> None:
 
 def _tag_prospect(phone10: str, reason: str) -> bool:
     """Prospect store me matching phone par dial_block tag (status untouched —
-    email path zinda rehta). Best-effort; store absent => False."""
+    email path zinda rehta). Best-effort
+    store absent => False."""
     try:
         from app.platform import prospector
 
@@ -121,7 +122,8 @@ def record_ivr_confirmed(
     """IVR/bot CONFIRMED on this number — learn it. Returns summary dict.
 
     source: "in_call_ivr" (IVR-strike hangup, ADR-025) | "post_call_bot"
-    (call_qualifier bot-gate). Never raises; disabled => {"ok": False}.
+    (call_qualifier bot-gate). Never raises
+    disabled => {"ok": False}.
     """
     out: dict = {"ok": False, "phone": "", "prefix_hits": 0, "prefix_active": False}
     try:

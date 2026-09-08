@@ -3,7 +3,8 @@ posters, WhatsApp/page kits, competitor, report, reactivation, drip, brand kit,
 CRM-lite, UPI kit/QR, catalog, ads/reels, lead-scoring, content pack, blog, referral.
 
 Extracted from app/api/marketing.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via marketing.router.include_router(); paths unchanged (/api/marketing/...).
+Mounted via marketing.router.include_router()
+paths unchanged (/api/marketing/...).
 """
 
 from __future__ import annotations
@@ -206,7 +207,8 @@ async def generate_svg_poster(
     """Inline SVG poster banao (browser render / PNG convert ready).
 
     client_id set ho to saved brand (naam/tagline/phone/colors) auto-merge
-    hota hai; explicit request values hamesha jeet-ti hain.
+    hota hai
+    explicit request values hamesha jeet-ti hain.
     """
     try:
         args = {

@@ -5,7 +5,8 @@ Usage:
     python scripts/production_ready.py
     python scripts/production_ready.py --json
 
-Exit 0 = zero BLOCKERs (marketing launch green; UPI armed = paid-customer ready).
+Exit 0 = zero BLOCKERs (marketing launch green
+UPI armed = paid-customer ready).
 Exit 1 = one or more BLOCKERs remain.
 """
 

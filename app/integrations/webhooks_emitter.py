@@ -8,7 +8,8 @@ har subscribed URL par ek signed JSON envelope POST kar deta hai.
 
 Design (lead_delivery.py jaisa defensive):
   - httpx LAZILY import hota hai (import-safe) — agar httpx installed na ho to
-    module import phir bhi nahi todhta; emit gracefully fail (logs) ho jata hai.
+    module import phir bhi nahi todhta
+    emit gracefully fail (logs) ho jata hai.
   - emit() KABHI raise nahi karta — har failure log hoke EmitResult me aa jata hai.
   - Zero config (koi URL nahi) => no-op, sirf log. Bilkul safe.
   - Har request retry hota hai exponential backoff ke saath (max 3 attempts).

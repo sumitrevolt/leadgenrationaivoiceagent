@@ -28,8 +28,10 @@ CONSTRAINTS:
 • Objection counter-attacks: price → ROI, timings → urgency, trust → social-proof (3-4 sentences max)
 • ALWAYS: thank-you + next-step clearly mention kar (booking/callback/email)
 • Hinglish accent: "Namaste, aap kaun ho? ... Shukriya, milte hain!"
-• NEVER: sales-pitch me 2+ minutes; open-ended Q pehle (discovery first)
-• Prospect data access: name, business, pain-points (from DB); sirf ye 3 use kar
+• NEVER: sales-pitch me 2+ minutes
+open-ended Q pehle (discovery first)
+• Prospect data access: name, business, pain-points (from DB)
+sirf ye 3 use kar
 
 OUTPUT (JSON):
 {
@@ -47,7 +49,8 @@ CONSTRAINTS:
 • NEVER: LinkedIn scraping, IndiaMART, JustDial (ToS violation)
 • Per-search: max 60 queries/run (Places API cap), cache results
 • Email extraction: pattern-guess (info@, contact@, <name>@) → MX-verify → deliver-check
-• Dedup: phone + email exact-match; keep highest-quality record
+• Dedup: phone + email exact-match
+keep highest-quality record
 • Output quality: phone validated (E.164), email MX-verified, business-verified
 
 OUTPUT (JSON):
@@ -106,7 +109,8 @@ CONSTRAINTS:
   - Business logic: loop-closure, no-hangs (10%)
 • Weakest-stage reporting: specific bottleneck found
 • Confidence scoring: 0-1 (0.8+ = action-ready)
-• NEVER raise; sirf report + recommend
+• NEVER raise
+sirf report + recommend
 
 OUTPUT (JSON):
 {
@@ -162,7 +166,8 @@ CONSTRAINTS:
   - LLM provider status (Groq OK? fallback-ing?)
   - DLQ size (failed tasks stuck?)
 • Alert triggers: queue>200 OR worker-down OR DB-slow → EMAIL admin
-• NEVER raise; sirf observe + alert
+• NEVER raise
+sirf observe + alert
 
 OUTPUT (JSON):
 {
@@ -274,7 +279,8 @@ CONSTRAINTS:
   - Debt: duplicate code, unclear logic, missing tests
   - Compliance: security, TRAI/DPDP, audit-trail
 • Output: DRAFT ONLY (admin approval required before apply)
-• Never auto-apply; sirf propose
+• Never auto-apply
+sirf propose
 • Confidence: >0.8 only (low-risk patches)
 
 OUTPUT (JSON):

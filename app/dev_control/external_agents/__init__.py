@@ -12,7 +12,8 @@ This package EXTENDS the existing Claude-managed engineering control plane
 HARD GATES (never relaxed here):
   * INERT unless `EXTERNAL_AGENT_ORCHESTRATOR=1` (default OFF).
   * The orchestrator NEVER executes shell, git, deploy, calling, billing or
-    customer sends. It records missions, leases, evidence and verdicts; the
+    customer sends. It records missions, leases, evidence and verdicts
+    the
     human/agent executor performs work in its own bounded session.
   * RED missions are refused at creation and can never be resurrected.
   * AMBER missions can be fully prepared but stop at `OWNER_DECISION_REQUIRED`.

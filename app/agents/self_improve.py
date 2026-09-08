@@ -3,7 +3,8 @@
 DESIGN (2026 self-improving agent pattern, free-stack):
   pick task (queue ya auto-generate from weakest funnel stage + skill_library)
   → execute (SAB existing engines reuse — rebuild nahi)
-  → learn (skill_library.record_use; har N runs pe LLM reflection → lesson)
+  → learn (skill_library.record_use
+  har N runs pe LLM reflection → lesson)
   → agla task turant queue (Celery self-requeue, countdown=gap) → repeat forever.
 
 SAFETY (prod-down + Groq-TPD lessons baked-in):
@@ -12,7 +13,8 @@ SAFETY (prod-down + Groq-TPD lessons baked-in):
   - Guards: SELF_IMPROVE_GAP_S (default 180s min gap, token safety),
     SELF_IMPROVE_MAX_PER_DAY (default 60), per-iteration hard timeout 240s,
     LLM-heavy actions skip jab providers degraded (llm_metrics ok-rate).
-  - Loop kabhi marta nahi: exception pe bhi requeue; watchdog `ensure_alive()`
+  - Loop kabhi marta nahi: exception pe bhi requeue
+  watchdog `ensure_alive()`
     stale heartbeat pe revive karta (dead-man safe).
 
 Ban-safe: koi auto-send/post nahi — sirf wahi engines jo khud gated/draft-only.
@@ -1197,7 +1199,8 @@ class CostTracker:
 
     Spent counter persists to `data/self_improve_cost.json` so worker restart
     mid-day does not reset the advisory budget. max_per_day() run-count remains
-    the hard durable gate; this tracker is estimated $/task (not measured tokens).
+    the hard durable gate
+    this tracker is estimated $/task (not measured tokens).
     """
 
     def __init__(self, daily_cap: float = 50.0):
@@ -1334,7 +1337,8 @@ class ApprovalQueue:
     invisible across that boundary (a task queued by the worker would never
     be visible to, or approvable from, the app process). `data/self_improve_
     approvals.jsonl` (bind-mounted, shared by both containers) is the single
-    source of truth; state is folded to the latest record per task id, same
+    source of truth
+    state is folded to the latest record per task id, same
     reconciliation pattern already used by app/marketing/content_approval.py.
     """
 
@@ -1365,7 +1369,8 @@ class ApprovalQueue:
         action NOW — either auto-approved, or a previously-approved request
         for this same action is being consumed — else "" if it's still
         waiting/newly queued. `is_approved()` used to be dead code (nothing
-        ever re-ran an approved task); consuming here is what makes approval
+        ever re-ran an approved task)
+        consuming here is what makes approval
         actually resume execution.
         """
         if not self.approval_required:

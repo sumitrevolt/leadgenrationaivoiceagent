@@ -191,8 +191,11 @@ def test_render_bio_html_escapes_and_tracking(stores):
     assert res["ok"] is True
     html_out = res["html"]
     assert "<script>alert(1)</script>" not in html_out
-    assert "&lt;script&gt;" in html_out
-    assert "Sharma &amp; Sons" in html_out
+    assert "&lt
+    script&gt
+    " in html_out
+    assert "Sharma &amp
+    Sons" in html_out
     assert "/api/widgets/bio/sharma-solar/c/wa" in html_out  # tracking redirect href
     assert "#16a34a" in html_out  # brand color
     # config na ho par CLIENT ho → default blocks (WA/call/website) auto-render

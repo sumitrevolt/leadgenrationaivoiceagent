@@ -35,7 +35,8 @@ def test_client_side_adapter_path_carries_dead_through():
     raw sub-fetches) must not drop q.dead like it used to."""
     t = _text()
     start = t.index("// queue / dlq")
-    end = t.index(";", t.index("o.metrics.queue = {", start))
+    end = t.index("
+    ", t.index("o.metrics.queue = {", start))
     block = t[start:end]
     assert "q.dead" in block
 
@@ -64,5 +65,6 @@ def test_header_tile_reflects_dead_count_in_status_and_label():
     assert "qDead" in block
     assert "m.queue.dead" in block
     # status class must go 'bad' when dead alone is nonzero, not just dlq.
-    qcls_line = block[block.index("var qcls") : block.index(";", block.index("var qcls"))]
+    qcls_line = block[block.index("var qcls") : block.index("
+    ", block.index("var qcls"))]
     assert "qDead > 0" in qcls_line

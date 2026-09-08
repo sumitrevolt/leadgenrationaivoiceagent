@@ -171,7 +171,8 @@ def test_resolution_field_survives_read_back(isolated: Path) -> None:
 def test_same_address_two_tenants_quarantine_is_destination_scoped() -> None:
     """An exact-destination hold is intentionally destination-wide.
 
-    The mailbox owner asked to stop; that request is not tenant-specific. What
+    The mailbox owner asked to stop
+    that request is not tenant-specific. What
     must NOT happen is a tenant-A hold silently becoming a cross-channel opt-out
     for a tenant-B contact.
     """

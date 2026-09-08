@@ -8,7 +8,8 @@ mandatory — tab tak GSTIN unset rakho aur invoice BINA tax-lines banta hai
 GST invoice fields per CGST Rule-46 (statutory mandatory fields — public-domain schema, clean-room implementation).
 
 Design:
-  - Store: data/invoices.jsonl (append; numbering = FY-count+1, file_lock atomic).
+  - Store: data/invoices.jsonl (append
+  numbering = FY-count+1, file_lock atomic).
   - Amount: charged plan price = GROSS (inclusive). Registered mode me taxable
     back-calculate hota hai (gross/1.18) — jo actually pay hua wahi invoice total.
   - Place of supply: client `state_code` (clients_store, optional) vs supplier
@@ -147,10 +148,12 @@ def _void_map(rows: list[dict[str, Any]] | None = None) -> dict[str, dict[str, A
 def next_number(fy: str | None = None) -> str:
     """Sequential per-FY number, Rule 46 compliant (<=16 chars): INV/2026-27/0001.
 
-    NOTE: count-based; MUST be called inside ``_reserve_number_and_append`` so the
+    NOTE: count-based
+    MUST be called inside ``_reserve_number_and_append`` so the
     read-count and the append are atomic — otherwise two concurrent invoices compute
     the same number (duplicate Rule-46 number = GST violation). Void markers carry
-    no ``fy`` key, so they never inflate the count; voided invoices DO keep their
+    no ``fy`` key, so they never inflate the count
+    voided invoices DO keep their
     number consumed (no reuse)."""
     fy = fy or fy_label()
     n = sum(1 for r in _read() if r.get("fy") == fy) + 1
@@ -163,7 +166,9 @@ _LOCK = threading.Lock()
 def _reserve_number_and_append(inv: dict[str, Any], fy: str) -> None:
     """Atomically assign the next per-FY number and append the record. Cross-process
     safe via an flock on a sidecar lock file (Linux/prod, e.g. Celery prefork + uvicorn
-    workers); the threading.Lock covers in-process; both degrade gracefully where flock
+    workers)
+    the threading.Lock covers in-process
+    both degrade gracefully where flock
     is unavailable (Windows dev)."""
     # Resolver at each I/O site — do not bind to a local (A3 allowlist lesson).
     with _LOCK:
@@ -317,34 +322,51 @@ def invoice_html(inv: dict[str, Any]) -> str:
         elif inv.get("tax_mode") == "inter":
             tax_rows = f'<tr><td>IGST @ 18%</td><td style="text-align:right">₹{inv.get("igst", 0):,.2f}</td></tr>'
         note = (
-            f'<p style="color:#777;font-size:12px">{e(str(inv.get("note", "")))}</p>'
+            f'<p style="color:#777
+            font-size:12px">{e(str(inv.get("note", "")))}</p>'
             if inv.get("note")
             else ""
         )
         gstin_line = f"GSTIN: {e(sup.get('gstin', ''))}<br>" if sup.get("gstin") else ""
         rec_gstin = f"GSTIN: {e(rec.get('gstin', ''))}<br>" if rec.get("gstin") else ""
         void_banner = (
-            f'<div style="border:2px solid #c00;color:#c00;text-align:center;'
-            f'font-weight:bold;padding:8px;margin:8px 0">VOIDED — '
+            f'<div style="border:2px solid #c00
+            color:#c00
+            text-align:center
+            '
+            f'font-weight:bold
+            padding:8px
+            margin:8px 0">VOIDED — '
             f"{e(str(inv.get('void_reason', '') or 'cancelled'))} "
             f"({e(str(inv.get('voided_at', ''))[:10])})</div>"
             if inv.get("voided")
             else ""
         )
         return f"""<!doctype html><html><head><meta charset="utf-8"><title>{e(str(inv.get("number", "")))}</title>
-<style>body{{font-family:Arial,sans-serif;max-width:720px;margin:24px auto;color:#222}}
-table{{width:100%;border-collapse:collapse;margin:12px 0}}td,th{{border:1px solid #ddd;padding:8px}}
-.h{{display:flex;justify-content:space-between}}.tot{{font-weight:bold;background:#f7f7f7}}</style></head><body>
+<style>body{{font-family:Arial,sans-serif
+max-width:720px
+margin:24px auto
+color:#222}}
+table{{width:100%
+border-collapse:collapse
+margin:12px 0}}td,th{{border:1px solid #ddd
+padding:8px}}
+.h{{display:flex
+justify-content:space-between}}.tot{{font-weight:bold
+background:#f7f7f7}}</style></head><body>
 {void_banner}
-<div class="h"><div><h2 style="margin:0;color:#e85d04">{e(sup.get("name", ""))}</h2>
+<div class="h"><div><h2 style="margin:0
+color:#e85d04">{e(sup.get("name", ""))}</h2>
 {gstin_line}{e(sup.get("address", ""))}<br>{e(sup.get("email", ""))}</div>
 <div style="text-align:right"><h3 style="margin:0">{"TAX INVOICE" if inv.get("tax_mode") != "unregistered" else "INVOICE"}</h3>
 <b>{e(str(inv.get("number", "")))}</b><br>Date: {e(str(inv.get("date", "")))}<br>
 Place of supply: {e(str(inv.get("place_of_supply", "")))}<br>Reverse charge: No</div></div>
 <p><b>Bill to:</b><br>{e(rec.get("name", ""))}<br>{rec_gstin}{e(rec.get("address", ""))}</p>
-<table><tr><th>Description</th><th style="width:160px;text-align:right">Amount</th></tr>{rows}{tax_rows}
+<table><tr><th>Description</th><th style="width:160px
+text-align:right">Amount</th></tr>{rows}{tax_rows}
 <tr class="tot"><td>Total</td><td style="text-align:right">₹{inv.get("gross_inr", 0):,.2f}</td></tr></table>
-{note}<p style="color:#777;font-size:12px">Payment ref: {e(str(inv.get("payment_ref", "") or "—"))} ({e(str(inv.get("gateway", "") or "online"))})
+{note}<p style="color:#777
+font-size:12px">Payment ref: {e(str(inv.get("payment_ref", "") or "—"))} ({e(str(inv.get("gateway", "") or "online"))})
 · Computer-generated invoice. · leadsgenai.in</p></body></html>"""
     except Exception as e:
         logger.warning(f"[invoice] html failed: {e}")

@@ -128,17 +128,35 @@ async def _polish_intro(business: str, total: int) -> str:
 
 def _render_html(business: str, primary: str, intro: str, lines: list[str], period: str) -> str:
     lis = "".join(
-        f"<li style='padding:8px 0;border-bottom:1px solid #eee;font-size:15px'>{ln}</li>"
+        f"<li style='padding:8px 0
+        border-bottom:1px solid #eee
+        font-size:15px'>{ln}</li>"
         for ln in lines
     )
-    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f7fb;margin:0;padding:24px">
-<div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)">
-<div style="background:{primary};color:#fff;padding:22px 24px">
+    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif
+    background:#f6f7fb
+    margin:0
+    padding:24px">
+<div style="max-width:560px
+margin:auto
+background:#fff
+border-radius:12px
+overflow:hidden
+box-shadow:0 2px 10px rgba(0,0,0,.07)">
+<div style="background:{primary}
+color:#fff
+padding:22px 24px">
 <h2 style="margin:0">🤖 Aapki AI Team — Weekly Report</h2>
 <div style="opacity:.9">{business} · {period}</div></div>
-<div style="padding:18px 24px;color:#333;font-size:15px">{intro}</div>
-<ul style="list-style:none;margin:0;padding:0 24px 12px">{lis}</ul>
-<div style="padding:14px 24px 20px;color:#555;font-size:13px">Yeh sab aapki AI staff (Isha, Rohan, Swara & team)
+<div style="padding:18px 24px
+color:#333
+font-size:15px">{intro}</div>
+<ul style="list-style:none
+margin:0
+padding:0 24px 12px">{lis}</ul>
+<div style="padding:14px 24px 20px
+color:#555
+font-size:13px">Yeh sab aapki AI staff (Isha, Rohan, Swara & team)
 ne automatically kiya — aap business pe focus karo, marketing hum sambhalte hain. 💪<br><br>
 — Team LeadsGenAI · leadsgenai.in</div></div></body></html>"""
 

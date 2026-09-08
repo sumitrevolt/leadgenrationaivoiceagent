@@ -4,7 +4,8 @@ Interested lead → AI ek ready proposal banata: problem → solution → plan+p
 ROI (missed-revenue calc) → demo-link + payment-link. 1-click send / self-serve close.
 
 Reuse: packages (pricing), lead_tools (ROI), free_ai (polish). Ban-safe (content +
-links; payment self-serve via /pricing). Import-safe, kabhi raise nahi.
+links
+payment self-serve via /pricing). Import-safe, kabhi raise nahi.
 """
 
 from __future__ import annotations

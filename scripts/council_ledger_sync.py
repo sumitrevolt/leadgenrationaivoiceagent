@@ -758,7 +758,8 @@ def normalize_overdue_tasks(
         task["status"] = "STALE"
         task["updated_at"] = observed_at.isoformat(timespec="seconds")
         task["stale_reason"] = (
-            f"Deadline passed and no ledger evidence update within {int(STALE_GRACE.total_seconds() // 3600)}h; "
+            f"Deadline passed and no ledger evidence update within {int(STALE_GRACE.total_seconds() // 3600)}h
+            "
             "owner/task/evidence retained for reassignment or verification."
         )
         log.append(f"STALE {task.get('id')}: overdue active row normalized")

@@ -1,7 +1,9 @@
 """Security test — code_exec permission guardrail (defense-in-depth on armed RCE).
 
-Confirms: trusted human identity always allowed; named automation agents need an
-explicit execute_code grant (HIGH_RISK, fail-safe); permission_denied short-circuits
+Confirms: trusted human identity always allowed
+named automation agents need an
+explicit execute_code grant (HIGH_RISK, fail-safe)
+permission_denied short-circuits
 BEFORE any subprocess spawn. Pure-python, no real code execution.
 """
 
@@ -49,7 +51,8 @@ def test_execute_permission_denied_no_spawn(monkeypatch, tmp_path):
     monkeypatch.setenv("AGENT_PERMISSIONS", "1")
     monkeypatch.setattr(agent_permissions, "_DATA_FILE", str(tmp_path / "perms.json"))
     out = asyncio.run(
-        code_exec.execute("import os; os.system('echo SHOULD_NOT_RUN')", agent="vikram")
+        code_exec.execute("import os
+        os.system('echo SHOULD_NOT_RUN')", agent="vikram")
     )
     assert out["ok"] is False
     assert out["error"] == "permission_denied"

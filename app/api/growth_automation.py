@@ -2,7 +2,8 @@
 upgrader, social drafts, lead harvester, approval cockpit, self-improve gates.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
+Mounted via growth.router.include_router()
+paths unchanged (/api/growth/...).
 Also (transitively) mounts the /process/* sub-router.
 """
 
@@ -182,7 +183,8 @@ async def upgrader_patch_status(
 async def upgrader_code_search(q: str, k: int = 6, _user=Depends(require_admin)):
     """Semantic codebase search (Kilo-Code "codebase_search" parity) — engineering
     agents (Vikram) isi se relevant code dhoondte hain. Index daily training job se
-    banta; khaali / deps missing → []. Read-only, flag-independent (admin-gated)."""
+    banta
+    khaali / deps missing → []. Read-only, flag-independent (admin-gated)."""
     from app.agents import code_search
 
     hits = await code_search.search(q, k=k)
@@ -262,9 +264,12 @@ async def social_batch(body: SocialBatchIn, _user=Depends(require_admin)):
 
 # ------------- Postiz auto-posting config (no-restart, vault-backed) ------------- #
 class PostizConfigIn(BaseModel):
-    api_key: str = ""  # Postiz Settings -> API se; khali = existing key rakho
-    api_url: str = ""  # self-host = https://postiz.<domain>/api; khali = cloud default
-    integrations: str = ""  # channel ids csv (Postiz UI se); khali = existing rakho
+    api_key: str = ""  # Postiz Settings -> API se
+    khali = existing key rakho
+    api_url: str = ""  # self-host = https://postiz.<domain>/api
+    khali = cloud default
+    integrations: str = ""  # channel ids csv (Postiz UI se)
+    khali = existing rakho
     enable_engine: bool | None = None  # true/false = data/social_engine.json toggle
 
 
@@ -387,7 +392,8 @@ async def admin_social_jobs(
     _user=Depends(require_admin),
 ):
     """List social-engine publish jobs for admin triage. Filters (all optional):
-    `client_id` / `platform` / `status`. Never-500; empty on error."""
+    `client_id` / `platform` / `status`. Never-500
+    empty on error."""
     try:
         from app.social_engine import store
 
@@ -775,7 +781,8 @@ async def approvals_drafts(include_decided: bool = False, _user=Depends(require_
 
     Bridge-first V1: surfaces the orphan agentic outputs that otherwise rot in
     data/*.jsonl. code_upgrader/process-breakpoint/self_improve keep their own
-    endpoints. Read-only; inert if no drafts exist."""
+    endpoints. Read-only
+    inert if no drafts exist."""
     from app.platform import approvals_bridge
 
     return approvals_bridge.list_drafts(include_decided=include_decided)

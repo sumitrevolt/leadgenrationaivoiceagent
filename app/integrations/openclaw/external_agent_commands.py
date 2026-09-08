@@ -2,7 +2,8 @@
 
 Owner Copilot can SEE Cursor/Claude missions. It cannot create, claim, advance,
 approve, merge or deploy them — those stay on the admin API behind Owner OS.
-No new STAFF persona is invented; these are observation commands only.
+No new STAFF persona is invented
+these are observation commands only.
 """
 
 from __future__ import annotations

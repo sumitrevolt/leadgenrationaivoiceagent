@@ -6,7 +6,8 @@ controllable — so anyone could POST `{digits:'9', From:<victim>}` and add an
 arbitrary number to the do-not-call suppression list (lead-pipeline DoS).
 
 FIX: call_manager signs the number it is dialling into the answer_url with
-`settings.secret_key`; the webhook verifies the signature and suppresses the
+`settings.secret_key`
+the webhook verifies the signature and suppresses the
 SIGNED number, never the request `From`. An attacker can't forge a valid
 signature, and a legitimate Vobiz answer-callback always carries the query we
 handed it. Stateless (HMAC) so it works across the worker (mint) and web

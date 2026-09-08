@@ -1,5 +1,6 @@
 """Risk-scored auto-approve — OpenCode/Hermes spirit. LOW-risk self-improve actions skip
-the human approval gate by policy; risky ones still queue. Wired into
+the human approval gate by policy
+risky ones still queue. Wired into
 `self_improve.ApprovalQueue.queue_task` (gated RISK_AUTO_APPROVE, default OFF = every
 queued task waits for a human, i.e. zero behaviour change).
 

@@ -26,10 +26,12 @@ def post_prospect_harvest_timeout(remain_s: float) -> float | None:
     still died under a hard ``min(remain-20, 120)`` outer wait_for while
     ``run_harvest_loop_safe`` independently defaulted ``HARVEST_LOOP_TIMEOUT_S``
     to 120 — websearch/opendata (the bulk of 08-05 lead yield) never finished.
-    Midday/evening harvest jobs still run; this only fixes the morning nest.
+    Midday/evening harvest jobs still run
+    this only fixes the morning nest.
 
     Env:
-      PROSPECT_INLINE_HARVEST — default ON; set 0 to skip (midday covers).
+      PROSPECT_INLINE_HARVEST — default ON
+      set 0 to skip (midday covers).
       PROSPECT_POST_HARVEST_BUDGET_S — default 240, clamped 30..300.
     """
     if os.environ.get("PROSPECT_INLINE_HARVEST", "1").strip().lower() in (
@@ -514,7 +516,8 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
 async def _run_content_engine(name: str, coro, budget=None) -> bool:
     """W1.3: `content` mega-job ke har engine ko isolate karo. Pehle 12 engines ek
     hi try me chain the — pehla throw (e.g. auto_content) baaki engines ko silently
-    skip kar deta tha. Ab har engine ka failure logged + contained; cycle aage chalta.
+    skip kar deta tha. Ab har engine ka failure logged + contained
+    cycle aage chalta.
     Optional ``budget`` / contextvar: SoftTimeLimit se pehle remaining engines skip."""
     try:
         b = budget if budget is not None else _active_job_budget.get()
@@ -557,7 +560,8 @@ def _recover_due_jobs() -> dict[str, Any]:
     """Bounded, safe scheduler recovery used by the hourly watchdog.
 
     ``scheduler_config.run_due`` owns the eligibility and side-effect exclusion
-    policy; this wrapper only keeps a recovery-path fault from breaking the
+    policy
+    this wrapper only keeps a recovery-path fault from breaking the
     rest of the watchdog safety checks.
     """
     try:
@@ -833,7 +837,8 @@ async def _run_job_inner(job: str) -> bool:
 
                 await (
                     brand_pulse.run_weekly_if_enabled()
-                )  # brand mention scan + drafts (gated BRAND_PULSE; LLM-free scan)
+                )  # brand mention scan + drafts (gated BRAND_PULSE
+                LLM-free scan)
             except Exception:
                 pass
             try:
@@ -885,7 +890,8 @@ async def _run_job_inner(job: str) -> bool:
 
                 await _run_content_engine(
                     "cadence", cadence.run_due()
-                )  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
+                )  # omnichannel cadence advance (gated CADENCE_ENGINE
+                inert off)
                 from app.marketing import sales_pipeline
 
                 await _run_content_engine(
@@ -895,17 +901,20 @@ async def _run_job_inner(job: str) -> bool:
 
                 await _run_content_engine(
                     "dunning", dunning.run_due()
-                )  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
+                )  # payment-recovery sweep (gated DUNNING_ENGINE
+                inert off)
                 from app.marketing import lifecycle_nurture
 
                 await _run_content_engine(
                     "lifecycle_nurture", lifecycle_nurture.run_due()
-                )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
+                )  # signup->paid nurture (gated LIFECYCLE_NURTURE
+                inert off)
                 from app.telephony import voice_followup
 
                 await _run_content_engine(
                     "voice_followup", voice_followup.run_due()
-                )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP; inert off)
+                )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP
+                inert off)
                 from app.marketing import channel_experiments
 
                 await _run_content_engine(
@@ -945,7 +954,8 @@ async def _run_job_inner(job: str) -> bool:
                     if _content_budget.ok():
                         await (
                             newsletter.run_due_if_enabled()
-                        )  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
+                        )  # monthly client-newsletter (gated NEWSLETTER_ENGINE
+                        month-dedupe)
                 except Exception:
                     pass
                 try:
@@ -1235,22 +1245,26 @@ async def _run_job_inner(job: str) -> bool:
 
             await _run_content_engine(
                 "infra_handler_watch", infra_handler.run_watch()
-            )  # Hermes: full infra score+actions (alert gated INFRA_HANDLER; off = no-op)
+            )  # Hermes: full infra score+actions (alert gated INFRA_HANDLER
+            off = no-op)
             from app.platform import llm_metrics
 
             await _run_content_engine(
                 "llm_capacity_watch", llm_metrics.run_capacity_watch()
-            )  # LLM gateway capacity/fallback alert (gated LLM_CAPACITY_ALERTS; #1 bottleneck self-flag)
+            )  # LLM gateway capacity/fallback alert (gated LLM_CAPACITY_ALERTS
+            #1 bottleneck self-flag)
             from app.platform import dlq_retry
 
             await _run_content_engine(
                 "dlq_retry_sweep", dlq_retry.run_sweep()
-            )  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)
+            )  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY
+            off = no-op)
             from app.platform import integration_health
 
             await _run_content_engine(
                 "integration_health_watch", integration_health.run_watch()
-            )  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
+            )  # integration silent-failure alert (gated INTEGRATION_ALERTS
+            off = sirf counters)
             try:
                 # Product 1 Integration Health Agent (2026-07-08): maps the SAME
                 # integration failures + automation_health.health()'s overdue-job/
@@ -1266,7 +1280,8 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.agents import self_improve
 
-                self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
+                self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP
+                sirf Celery enqueue, inline kabhi nahi)
             except Exception as _si_e:
                 # SYNC call — _run_content_engine (await) nahi chalega. Loud warn (pass NAHI):
                 # revive safety-net ka failure chhupana nahi chahiye.
@@ -1296,13 +1311,15 @@ async def _run_job_inner(job: str) -> bool:
 
                 await (
                     code_upgrader.run_if_enabled()
-                )  # Vikram: code-upgrade proposals (gated CODE_UPGRADER; off = no-op)
+                )  # Vikram: code-upgrade proposals (gated CODE_UPGRADER
+                off = no-op)
             except Exception:
                 pass
             try:
                 from app.telephony import consent_ledger
 
-                consent_ledger.retention_sweep()  # 90-din recording retention (delete gated RECORDING_RETENTION; off = report-only, dir absent = no-op)
+                consent_ledger.retention_sweep()  # 90-din recording retention (delete gated RECORDING_RETENTION
+                off = report-only, dir absent = no-op)
             except Exception:
                 pass
         elif job == "engineer_sre":
@@ -1457,7 +1474,8 @@ async def _run_job_inner(job: str) -> bool:
         elif job == "meter_watch":
             from app.billing import meter_watch
 
-            meter_watch.check_meter_failures()  # sync, never raises; gated METER_ALERTS
+            meter_watch.check_meter_failures()  # sync, never raises
+            gated METER_ALERTS
         elif job == "product_one_health":
             from app.marketing import product_one_delivery
 
@@ -1568,11 +1586,13 @@ async def _run_job_inner(job: str) -> bool:
 
             _obs.compact_folder("Leads")
             _obs.compact_folder("Agents")
-            _obs.push_to_git()  # sync, never raises; no-op if OBSIDIAN_SYNC unset
+            _obs.push_to_git()  # sync, never raises
+            no-op if OBSIDIAN_SYNC unset
         elif job == "process_autostart":
             from app.platform import process_autostart
 
-            await process_autostart.run_due()  # gated PROCESS_AUTOSTART; idempotent
+            await process_autostart.run_due()  # gated PROCESS_AUTOSTART
+            idempotent
         elif job == "flow_cron":
             from app.automation import flow_triggers
 

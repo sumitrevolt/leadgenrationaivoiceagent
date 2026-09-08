@@ -8,7 +8,8 @@ LEGALLY automate ho sakta hai — scraped business ki website se email nikla
 auto-jaata hai. Yeh Rohan (Leads Manager) ka kaam hai.
 
 Public API (sab import-safe, KABHI raise nahi karte):
-  - run_email_outreach(limit=None) -> dict   (async; bhejta hai, marks "emailed")
+  - run_email_outreach(limit=None) -> dict   (async
+  bhejta hai, marks "emailed")
   - outreach_stats() -> dict                 (counts: total/with_email/emailed/pending)
   - _email_subject_body(prospect) -> (subject, text, html)
 
@@ -354,12 +355,20 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "<p>Namaste,</p>"
             f"<p>{e(opener)} Ek sawaal — {e(hook)}?</p>"
             f"<p>Maine {e(city or 'aapke area')} ke businesses ke liye kuch ideas nikali hain — "
-            f'<a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
+            f'<a href="{e(_audit_url_tracked())}" style="color:#4f46e5
+            font-weight:600
+            ">'
             "2 min free audit yahan lo</a>.</p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-            f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
-            f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
-            f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
+            f'<p style="color:#999
+            font-size:12px
+            margin-top:24px
+            ">{e(_UNSUB_LINE)}</p>'
+            f'<p style="color:#555
+            font-size:13px
+            ">— {e(from_name)}, '
+            f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5
+            ">LeadGen AI</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
@@ -419,14 +428,29 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 'font-size:15px;line-height:1.6;color:#222;max-width:560px;margin:0 auto;">'
                 "<p>Namaste,</p>"
                 f"<p>Pichle email ka follow-up — {e(name)} ke liye {e(niche_hook)}?</p>"
-                f'<p style="background:#f0f4ff;border-left:3px solid #4f46e5;padding:12px 16px;'
-                f'border-radius:0 6px 6px 0;">{e(sp_line)}</p>'
-                f'<p><a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
-                f"2 min audit yahan lo</a> &nbsp;·&nbsp; "
-                f'<a href="{e(_WA_LINK)}" style="color:#4f46e5;">WhatsApp</a></p>'
-                f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
-                f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
-                f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
+                f'<p style="background:#f0f4ff
+                border-left:3px solid #4f46e5
+                padding:12px 16px
+                '
+                f'border-radius:0 6px 6px 0
+                ">{e(sp_line)}</p>'
+                f'<p><a href="{e(_audit_url_tracked())}" style="color:#4f46e5
+                font-weight:600
+                ">'
+                f"2 min audit yahan lo</a> &nbsp
+                ·&nbsp
+                "
+                f'<a href="{e(_WA_LINK)}" style="color:#4f46e5
+                ">WhatsApp</a></p>'
+                f'<p style="color:#999
+                font-size:12px
+                margin-top:24px
+                ">{e(_UNSUB_LINE)}</p>'
+                f'<p style="color:#555
+                font-size:13px
+                ">— {e(from_name)}, '
+                f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5
+                ">LeadGen AI</a></p>'
                 "</body></html>"
             )
             return _pick_spintax(subject), text, html_body
@@ -463,14 +487,20 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             f"<p>{e(name)} ji, yeh mera <b>aakhri reminder</b> hai — uske baad "
             "aapko pareshan nahi karunga.</p>"
             "<p>Ek chhota idea jo aapke kaam aa sakta hai:</p>"
-            f'<p style="background:#f4f4ff;border-left:3px solid #4f46e5;'
-            f'padding:10px 14px;border-radius:4px;">{e(idea)}</p>'
+            f'<p style="background:#f4f4ff
+            border-left:3px solid #4f46e5
+            '
+            f'padding:10px 14px
+            border-radius:4px
+            ">{e(idea)}</p>'
             f'<p><a href="{e(_audit_url_tracked())}" '
             'style="background:#4f46e5;color:#fff;padding:10px 18px;'
             'border-radius:6px;text-decoration:none;display:inline-block;">'
             "Free sample + audit dekhein</a></p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-            f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
+            f'<p style="color:#888
+            font-size:12px
+            ">{e(_UNSUB_LINE)}</p>'
             f"<p>Shukriya,<br>{e(from_name)}<br>"
             f'LeadGen AI — <a href="{e(_site_url_tracked())}">{e(_site_url_tracked())}</a></p>'
             "</body></html>"
@@ -689,7 +719,8 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
-        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP
+        OFF = base cap unchanged)
             from app.platform import email_warmup
 
             daily_cap = email_warmup.effective_cap(daily_cap)
@@ -767,7 +798,8 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                             variant_id = str(picked.get("id") or "")
                 except Exception:
                     pass
-                try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
+                try:  # A/B spintax subject (GATED OUTREACH_AB=1
+                OFF = zero change)
                     import os as _os
 
                     if (_os.getenv("OUTREACH_AB") or "").strip().lower() in {
@@ -781,7 +813,8 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         subject, text, html_body = apply_ab(p, subject, text, html_body)
                 except Exception:
                     pass
-                try:  # email open/click tracking (GATED EMAIL_TRACKING=1; OFF = zero change)
+                try:  # email open/click tracking (GATED EMAIL_TRACKING=1
+                OFF = zero change)
                     from app.marketing import email_tracking
 
                     if email_tracking.enabled():
@@ -790,7 +823,8 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         )
                 except Exception:
                     pass
-                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON
+                absent = no-op)
                     from app.marketing.outreach_variants import rotate_sender
 
                     rotate_sender(sender)
@@ -992,7 +1026,8 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
-        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP
+        OFF = base cap unchanged)
             from app.platform import email_warmup
 
             daily_cap = email_warmup.effective_cap(daily_cap)
@@ -1040,7 +1075,8 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                 pass
             try:
                 subject, text, html_body = _followup_subject_body(p, step)
-                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON
+                absent = no-op)
                     from app.marketing.outreach_variants import rotate_sender
 
                     rotate_sender(sender)
@@ -1877,7 +1913,8 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
     if s.get("warmup_attention"):
         state = "PAUSED" if s.get("warmup_paused") else "ATTENTION"
         out["headline"] = (
-            f"Email warmup {state}: {s.get('paused_reason') or 'deliverability gate red'}; "
+            f"Email warmup {state}: {s.get('paused_reason') or 'deliverability gate red'}
+            "
             f"complaint rate (7d) {s.get('complaint_rate_7d_pct', 0.0)}% "
             f"({s.get('complaints_7d', 0)} complaints), "
             f"{s.get('pending', 0)} sendable pending, {s.get('suppressed', 0)} suppressed"

@@ -85,7 +85,8 @@ class TelephonyService:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:
                 logger.error(
-                    f"Failed to init '{self.provider}' handler ({e}); falling back to simulation."
+                    f"Failed to init '{self.provider}' handler ({e})
+                    falling back to simulation."
                 )
                 self.provider = "simulation"
 
@@ -158,11 +159,13 @@ class TelephonyService:
             to_number:       Destination phone number.
             from_number:     Optional caller-id override.
             script_callback: Optional async callback to drive the conversation
-                             once answered (passed through to SIP; for
+                             once answered (passed through to SIP
+                             for
                              Vobiz the conversation is webhook-driven).
             call_type:       'promotional' (strict TCCCPR gate) or 'transactional'
                              (consented/known — lenient). REAL provider calls pass
-                             the ComplianceGate; simulation is exempt (dev).
+                             the ComplianceGate
+                             simulation is exempt (dev).
         """
         if self.provider == "simulation":
             return await self._simulate_call(to_number, from_number)
@@ -185,7 +188,8 @@ class TelephonyService:
                     status="blocked_compliance",
                     duration=0,
                     provider=self.provider,
-                    error="; ".join(decision.reasons),
+                    error="
+                    ".join(decision.reasons),
                 )
         except Exception as e:
             if (call_type or "").lower() == "promotional":

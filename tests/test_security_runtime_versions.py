@@ -35,7 +35,8 @@ def _version_tuple(v: str) -> tuple[int, ...]:
 def test_starlette_runtime_version_fixed() -> None:
     installed = _version_tuple(starlette.__version__)
     assert installed >= MIN_STARLETTE, (
-        f"starlette {starlette.__version__} reintroduces reachable advisories; "
+        f"starlette {starlette.__version__} reintroduces reachable advisories
+        "
         f"requirements.lock.txt must stay >= {'.'.join(map(str, MIN_STARLETTE))}"
     )
 
@@ -44,7 +45,8 @@ def test_cryptography_runtime_version_fixed() -> None:
     installed = _version_tuple(cryptography.__version__)
     assert installed >= MIN_CRYPTOGRAPHY, (
         f"cryptography {cryptography.__version__} reintroduces OpenSSL-wheel "
-        f"advisories; requirements.lock.txt must stay >= {'.'.join(map(str, MIN_CRYPTOGRAPHY))}"
+        f"advisories
+        requirements.lock.txt must stay >= {'.'.join(map(str, MIN_CRYPTOGRAPHY))}"
     )
 
 

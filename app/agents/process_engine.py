@@ -11,7 +11,8 @@ CORE IDEA (deterministic, hallucination-free orchestration):
     se pehle run PAUSE hota, admin `approve` kare tabhi aage. Drafts-only
     philosophy ka structured version.
   - **Event-sourced journal** — har event immutable JSONL me
-    (`data/process_runs/<run_id>.jsonl`); state HAMESHA journal replay se derive
+    (`data/process_runs/<run_id>.jsonl`)
+    state HAMESHA journal replay se derive
     hota → crash/restart pe exact resume, full audit trail.
 
 Execution Celery worker me (`staff_jobs.process_tick`) — web process kabhi

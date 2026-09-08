@@ -1,6 +1,7 @@
 """CLI for the bounded PR-orchestration pilot.
 
-Usage (all fail-closed; exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
+Usage (all fail-closed
+exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
 
     python -m tools.pr_factory.pilot.cli validate <manifest.json>
     python -m tools.pr_factory.pilot.cli diagnose <manifest.json> [--pr N]

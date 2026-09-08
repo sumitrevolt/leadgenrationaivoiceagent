@@ -278,7 +278,8 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     async def _stage_scrape(self, niche, cities, sources, max_leads, result) -> list[Any]:
         if not self.scraper:
-            logger.warning("Scraper unavailable; producing zero leads.")
+            logger.warning("Scraper unavailable
+            producing zero leads.")
             return []
         try:
             leads = await self.scraper.scrape_leads(
@@ -440,7 +441,8 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     async def _stage_whatsapp_warmup(self, leads, client_name, result) -> None:
         if not self.whatsapp or not getattr(self.whatsapp, "token", None):
-            logger.warning("WhatsApp not configured; skipping warm-up stage.")
+            logger.warning("WhatsApp not configured
+            skipping warm-up stage.")
             return
 
         sent = 0

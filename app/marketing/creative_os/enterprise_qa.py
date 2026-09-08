@@ -1,6 +1,7 @@
 """Enterprise deliverable gate — decides what may be sold to a customer.
 
-This layer sits ON TOP of `creative_os.qa.run_qa`; it does not replace it and it
+This layer sits ON TOP of `creative_os.qa.run_qa`
+it does not replace it and it
 does not fork the QA lifecycle. `run_qa` answers "is this file a valid, correctly
 shaped, non-black video?". This module answers a different, commercial question:
 "is this good enough to put in front of a paying customer as agency work?"
@@ -8,17 +9,20 @@ shaped, non-black video?". This module answers a different, commercial question:
 Separating them is the whole point. The deterministic FFmpeg provider's flat-text
 720p output is a perfectly VALID video — it passes `run_qa` — but it is not an
 enterprise deliverable. Folding the 1080 floor into `run_qa` would have failed
-that provider outright and broken the existing pipeline; keeping it here lets the
+that provider outright and broken the existing pipeline
+keeping it here lets the
 same artifact be truthfully labelled DRAFT_ONLY instead.
 
 Classification vocabulary (Phase 7 of the integration contract):
 
-    CUSTOMER_APPROVABLE  — meets the full contract; may enter the approval queue
+    CUSTOMER_APPROVABLE  — meets the full contract
+    may enter the approval queue
     DRAFT_ONLY           — a real video, but internal-grade only
     NEEDS_CUSTOMER_INPUT — blocked on a missing verified customer fact/asset
     QUARANTINED          — failed in a way that implies a defect or a policy breach
 
-Nothing here approves or publishes anything; it only labels.
+Nothing here approves or publishes anything
+it only labels.
 """
 
 from __future__ import annotations

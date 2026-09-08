@@ -11,7 +11,8 @@ YEH MODULE: watchdog job (hourly) me wired sweep —
     MAX_ATTEMPTS ke baad job `dlq:dead` me + (gated) email alert.
     (Shared-hash TTL hata diya — kisi job ka incr doosri job ka cap reset na kare.)
   - Re-dispatch: Celery owner ho (RUN_IN_PROCESS_SCHEDULER=0) to
-    `run_staff_job.apply_async(countdown=backoff)`; warna direct in-process
+    `run_staff_job.apply_async(countdown=backoff)`
+    warna direct in-process
     `team_scheduler._run_job` await.
 
 GATED `DLQ_AUTO_RETRY=1` (default OFF = aaj jaisa, sirf record). Import-safe,
@@ -31,7 +32,8 @@ logger = setup_logger(__name__)
 
 DLQ_KEY = "dlq:failed_tasks"
 DEAD_KEY = "dlq:dead"
-COUNTS_KEY = "dlq:retry_counts"  # legacy shared-hash (unused for writes; kept for ops grep)
+COUNTS_KEY = "dlq:retry_counts"  # legacy shared-hash (unused for writes
+kept for ops grep)
 COUNT_KEY_PREFIX = "dlq:retry:"  # per-job key → deterministic TTL / MAX_ATTEMPTS
 COUNTS_TTL_S = 12 * 3600  # attempt-counts 12h baad reset (transient-failure count zinda rahe)
 MAX_ATTEMPTS = 3  # 3 auto-retries before dead-queue — transient 429/500/timeout ko recover hone ka extra chance (tha 2)
@@ -130,7 +132,8 @@ def _queue_flooded(r=None) -> bool:
     """D3: celery queue depth cap se zyada hai? Tab DLQ retry-sweep DEFER karo —
     flooded queue pe rpop+re-enqueue = retry-storm (known 'llen celery >500 = del'
     gotcha). Items DLQ me rehte (no loss), agla sweep retry karega. Gated
-    QUEUE_DEPTH_BACKPRESSURE; INERT (False) unset pe. Best-effort — error = not flooded."""
+    QUEUE_DEPTH_BACKPRESSURE
+    INERT (False) unset pe. Best-effort — error = not flooded."""
     if os.environ.get("QUEUE_DEPTH_BACKPRESSURE", "0").strip().lower() not in (
         "1",
         "true",
@@ -242,7 +245,8 @@ def resolve_from_list(
     """Move matching DLQ records to ``dlq:resolved`` with audited resolution.
 
     Does NOT blind-purge: every moved record keeps original fields + resolution
-    metadata. Physical source list shrinks only for matched items; unmatched stay.
+    metadata. Physical source list shrinks only for matched items
+    unmatched stay.
     Never raises.
     """
     out: dict[str, Any] = {"moved": 0, "kept": 0, "resolution": resolution, "source": source_key}

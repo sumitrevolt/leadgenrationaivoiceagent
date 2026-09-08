@@ -4,7 +4,8 @@ festivals.py — Indian festival calendar (Jun 2026 → Dec 2027) + festival pos
 
 Static curated list (approx dates — lunar festivals +/- 1-2 din ho sakte
 hain, marketing ke liye kaafi). `upcoming(days)` aaj se aage ke festivals
-deta hai; `festival_posts()` nearest 3 ke liye LLM captions (1 call) —
+deta hai
+`festival_posts()` nearest 3 ke liye LLM captions (1 call) —
 template fallback ke saath. KABHI empty nahi, KABHI raise nahi.
 """
 
@@ -384,7 +385,8 @@ async def fetch_public_holidays(year: int, country: str = "IN") -> list[dict[str
 
     Priority:
       1. Calendarific (when CALENDARIFIC_API_KEY set) — best India coverage.
-      2. Nager.Date (keyless) — good for non-IN; India returns [] (unsupported).
+      2. Nager.Date (keyless) — good for non-IN
+      India returns [] (unsupported).
     Per-year cached, 5-8s timeout, NEVER raises (network/parse fail -> []).
     """
     if year in _HOLIDAY_CACHE:

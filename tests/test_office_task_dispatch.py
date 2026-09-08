@@ -5,7 +5,8 @@ Bars:
 - run_agent_task() is DRAFT-SAFE: team scope calls coordinator.coordinate with
   execute=False (never a real side-effect), solo scope calls fan_out for that
   single member only.
-- Goal validation: empty -> ok:False; >500 chars capped (not rejected).
+- Goal validation: empty -> ok:False
+>500 chars capped (not rejected).
 - Failure path: coordinator raising -> ok:False, HTTP still 200 (never-raise).
 - Timeout path: primitive hitting the budget -> ok:True, status:"timeout" with
   an honest note (coroutine cancelled, NOT backgrounded).

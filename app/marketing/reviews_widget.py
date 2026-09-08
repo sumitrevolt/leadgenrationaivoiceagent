@@ -118,16 +118,40 @@ def reviews_widget_html(slug: str) -> str:
 <title>{biz} — Reviews</title>
 <style>
  *{{box-sizing:border-box}}
- body{{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:transparent;color:#111}}
+ body{{margin:0
+ font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif
+ background:transparent
+ color:#111}}
  .wrap{{padding:10px 6px}}
- .hd{{font-size:15px;margin:0 4px 10px}}
- .avg{{font-weight:700;margin-left:6px}}
- .row{{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}}
- .rv{{flex:0 0 240px;scroll-snap-align:start;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}}
- .st{{font-size:15px;letter-spacing:2px}}
- .tx{{font-size:13.5px;line-height:1.45;margin:8px 0;color:#374151}}
- .nm{{font-size:12.5px;font-weight:600;color:#6b7280}}
- .pw{{text-align:center;font-size:11px;color:#9ca3af;margin-top:8px}}
+ .hd{{font-size:15px
+ margin:0 4px 10px}}
+ .avg{{font-weight:700
+ margin-left:6px}}
+ .row{{display:flex
+ gap:10px
+ overflow-x:auto
+ padding-bottom:8px
+ scroll-snap-type:x mandatory}}
+ .rv{{flex:0 0 240px
+ scroll-snap-align:start
+ background:#fff
+ border:1px solid #e5e7eb
+ border-radius:14px
+ padding:14px
+ box-shadow:0 2px 8px rgba(0,0,0,.05)}}
+ .st{{font-size:15px
+ letter-spacing:2px}}
+ .tx{{font-size:13.5px
+ line-height:1.45
+ margin:8px 0
+ color:#374151}}
+ .nm{{font-size:12.5px
+ font-weight:600
+ color:#6b7280}}
+ .pw{{text-align:center
+ font-size:11px
+ color:#9ca3af
+ margin-top:8px}}
  .pw a{{color:#9ca3af}}
 </style></head><body>
 <div class="wrap">
@@ -154,10 +178,13 @@ def widget_js(slug: str) -> str:
     f.src="{src}";
     f.loading="lazy"; f.title="Customer reviews";
     f.style.cssText="border:0;width:100%;height:230px;display:block;overflow:hidden";
-    if(cs&&cs.parentNode){{ cs.parentNode.insertBefore(f,cs.nextSibling); }}
-    else{{ document.body&&document.body.appendChild(f); }}
+    if(cs&&cs.parentNode){{ cs.parentNode.insertBefore(f,cs.nextSibling)
+    }}
+    else{{ document.body&&document.body.appendChild(f)
+    }}
   }}catch(e){{}}
-}})();"""
+}})()
+"""
 
 
 def snippet(slug: str) -> str:

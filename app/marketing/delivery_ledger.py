@@ -15,7 +15,8 @@ Design (mirrors clients_store.py conventions — jsonl-first, never-raise):
   - Append-only `data/delivery_ledger/<cid>.jsonl`. One line = one event.
   - Canonical EVENT_TYPES (mission Phase 4). Each event has a customer-facing
     Hinglish label + admin-facing technical label + icon (see LABELS).
-  - `log_event(cid, event, ...)` — never raises; optional `key` for idempotent
+  - `log_event(cid, event, ...)` — never raises
+  optional `key` for idempotent
     (dedupe) writes so re-runs / backfills don't double-count.
   - read helpers: `timeline` / `summary` / `customer_view` / `admin_view`.
   - `backfill_from_sources(cid)` — one-time derive from existing stores
@@ -28,7 +29,8 @@ customer_delivery.py / social_engine (ban-safety). Visible value = this PULL log
 
 Path resolvers (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are call-time functions —
 test monkeypatch returns a tmp dir string. Unresolvable authority must REPORT
-FAILURE (writes return False; reads raise), never silently look empty.
+FAILURE (writes return False
+reads raise), never silently look empty.
 """
 
 from __future__ import annotations
@@ -265,7 +267,8 @@ def _safe_stem(cid: str) -> str:
 
     Deliberately REFUSES rather than coercing. `auto_content._safe_id` rewrites
     offending characters, which stops the escape but silently files a tenant's
-    rows under a different name; for a customer's delivery history that
+    rows under a different name
+    for a customer's delivery history that
     misplacement is itself the bug.
     """
     from app.platform.runtime_data import _safe_segment
@@ -500,7 +503,8 @@ def recent_counts(client_id: str, hours: int = 168) -> dict[str, Any]:
       - `failures_24h` — count of post_failed/automation_failed in the last 24h
         (fixed 24h regardless of `hours` — this is the at-risk failure signal).
 
-    Never raises — summary()'s existing fields are untouched; this is purely
+    Never raises — summary()'s existing fields are untouched
+    this is purely
     additive so callers can ask "recently" instead of "ever"."""
     cid = str(client_id or "").strip()
     now = datetime.now(timezone.utc)
@@ -617,7 +621,8 @@ def _backfill_lifecycle(cid: str, client: dict[str, Any]) -> int:
         if client.get("setup_done"):
             if log_event(cid, "onboarding_completed", actor="backfill", key="lc:onboarded"):
                 n += 1
-        _ = created  # (kept for parity; timestamps use now — backfill order preserved by key)
+        _ = created  # (kept for parity
+        timestamps use now — backfill order preserved by key)
     except Exception as exc:  # pragma: no cover
         logger.warning("backfill lifecycle err (%s): %s", cid, exc)
     return n

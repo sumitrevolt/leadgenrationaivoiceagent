@@ -1,7 +1,8 @@
 """Staged promotion + human production-approval gate (Phase 5).
 
 This module NEVER executes a deployment. Production deploys on this project are
-MANUAL (Hostinger runbook; CI is gate-only). Here we only:
+MANUAL (Hostinger runbook
+CI is gate-only). Here we only:
   * drive the legal state progression review -> tests -> staging,
   * require an explicit human approval carrying a fail-closed token before a task
     may enter PRODUCTION_DEPLOYED, and

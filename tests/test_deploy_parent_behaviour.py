@@ -109,35 +109,45 @@ def _git_stub(path: pathlib.Path, log: pathlib.Path, state: pathlib.Path) -> Non
         #!/usr/bin/env bash
         echo "git $*" >> {log.as_posix()!r}
         dir="."
-        if [ "${{1:-}}" = "-C" ]; then dir="$2"; shift 2; fi
-        cmd="${{1:-}}"; shift || true
+        if [ "${{1:-}}" = "-C" ]
+        then dir="$2"
+        shift 2
+        fi
+        cmd="${{1:-}}"
+        shift || true
         case "$cmd" in
           fetch) exit "${{GIT_FETCH_EXIT:-0}}" ;;
           worktree)
-            if [ "${{1:-}}" = "add" ]; then
+            if [ "${{1:-}}" = "add" ]
+            then
               for a in "$@"; do case "$a" in /*) mkdir -p "$a" ;; esac; done
               exit "${{GIT_WORKTREE_EXIT:-0}}"
             fi
             exit 0 ;;
           pull)
             rc="${{GIT_PULL_EXIT:-0}}"
-            if [ "$rc" = "0" ]; then
+            if [ "$rc" = "0" ]
+            then
               printf '%s' "${{LIVE_AFTER_PULL:-{FAKE_SHA}}}" > {state.as_posix()!r}
             fi
             exit "$rc" ;;
           rev-parse)
             short=0
-            for a in "$@"; do [ "$a" = "--short" ] && short=1; done
+            for a in "$@"
+            do [ "$a" = "--short" ] && short=1
+            done
             case "$dir" in
               *candidates*) sha="${{CANDIDATE_HEAD:-{FAKE_SHA}}}" ;;
               *)
                 sha="$(cat {state.as_posix()!r} 2>/dev/null)"
-                for a in "$@"; do
+                for a in "$@"
+                do
                   case "$a" in --verify|--short|HEAD) ;; *) sha="{FAKE_SHA}" ;; esac
                 done
                 ;;
             esac
-            if [ "$short" = "1" ]; then
+            if [ "$short" = "1" ]
+            then
               printf '%s\\n' "${{sha:0:7}}"
             else
               printf '%s\\n' "$sha"
@@ -253,7 +263,8 @@ def _env(tmp_path: pathlib.Path, **extra: str) -> dict[str, str]:
     """Build the child environment with a POSIX PATH.
 
     Using `os.pathsep` here was wrong: Git-bash parses PATH with ':', so a
-    Windows ';'-joined value collapses into one nonsense entry and even
+    Windows '
+    '-joined value collapses into one nonsense entry and even
     `dirname` disappears. That is not cosmetic — it is what exposed the
     fail-open, because the guard's `.` source then failed and the script
     carried on regardless.
@@ -570,7 +581,8 @@ def test_guard_has_no_bypass_at_runtime(tmp_path: pathlib.Path) -> None:
 def test_guard_denial_and_helper_absence_are_distinguishable(tmp_path: pathlib.Path) -> None:
     """90 and 91 must not collapse into one code.
 
-    An operator seeing 90 should look at the blocker list; seeing 91 they should
+    An operator seeing 90 should look at the blocker list
+    seeing 91 they should
     look for a missing file. Collapsing them would send them to the wrong runbook.
     """
     denied_script, _, _ = _sandbox(tmp_path / "a")

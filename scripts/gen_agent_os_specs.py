@@ -139,7 +139,9 @@ TEMPLATE = """# 🆕 NEW AGENT TEMPLATE — naya AI staff agent add karne ka SOP
 1. **Roster entry:** `app/platform/team.py` STAFF me key add karo — `product` (voice/marketing/platform), `name`, `emoji`, `title`, `duties` (KPI naam ke saath), `schedule`.
 2. **Feature gate:** naya env flag (e.g. `MY_AGENT=1`), INERT default, `AUTOMATION_FLAGS` registry me register.
 3. **Routing policy:** `app/platform/agent_os_routing.py` me `_AGENT_OVERRIDES` entry — category, OmniRoute task (ya NONE), privacy class, contact/publish/write flags, retries/timeout/queue.
-4. **Engine module:** `app/agents/<name>.py` — padosi copy karo (lazy `from app.voice_agent import free_ai` FUNCTION ke andar, module-top pe nahi; try/except + graceful degradation; `log_event()` attribution).
+4. **Engine module:** `app/agents/<name>.py` — padosi copy karo (lazy `from app.voice_agent import free_ai` FUNCTION ke andar, module-top pe nahi
+try/except + graceful degradation
+`log_event()` attribution).
 5. **Scheduler wiring:** `team_scheduler.py` me job (boot-grace respect karo) — heavy kaam Celery only, web process me nahi.
 6. **Spec regenerate:** `python scripts/gen_agent_os_specs.py` — agent-os/agents/<key>.md auto-banega (routing block included).
 7. **Test + verify:** targeted pytest + `prod_check.py` + duplicate-route grep. Evidence ke bina done nahi.
@@ -168,12 +170,15 @@ TEMPLATE = """# 🆕 NEW AGENT TEMPLATE — naya AI staff agent add karne ka SOP
 | Success metric | post_id non-empty |
 | Health check | SOCIAL_ENGINE + queue depth |
 | Disable switch | `SOCIAL_ENGINE=0` / Office pause |
-| Rollback | unset gate; restore prior job status |
+| Rollback | unset gate
+restore prior job status |
 
 ## Standards jo HAR agent pe lagte hai
 
 - `agent-os/standards/global/config.md` · `global/logging.md` · `global/feature-flags.md`
-- Product-specific: voice → `voice/*`; marketing → `backend/error-handling`, `backend/lazy-imports`; platform → `backend/*`
+- Product-specific: voice → `voice/*`
+marketing → `backend/error-handling`, `backend/lazy-imports`
+platform → `backend/*`
 - Billing touch → `billing/billing-truth.md` (packages.py = single source)
 
 ## OmniRoute (optional, double-gated)

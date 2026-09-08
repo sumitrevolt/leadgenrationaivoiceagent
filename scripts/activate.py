@@ -13,9 +13,11 @@ Usage:
 
 Design rules:
 - **Never destroys data**: backup .env to .env.bak_<timestamp> BEFORE any write.
-- **Idempotent**: re-running after activation only re-checks; no duplicates.
+- **Idempotent**: re-running after activation only re-checks
+no duplicates.
 - **Read-only by default**: `--status` flag is a pure inspection.
-- **Never assumes prod**: hits `http://127.0.0.1:8000` (in-network); operator
+- **Never assumes prod**: hits `http://127.0.0.1:8000` (in-network)
+operator
   runs this on the VPS over SSH or via `docker exec`.
 - **No external dep**: stdlib only (urllib for the verify hit).
 

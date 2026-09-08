@@ -90,7 +90,8 @@ async def test_run_member_honors_pause_for_manual_run_path(monkeypatch, tmp_path
 async def test_scheduled_job_path_bypasses_run_member_entirely(monkeypatch, tmp_path):
     """team_scheduler.py's _run_job_inner calls staff.run_qa() DIRECTLY, never
     through run_member() — so pausing arjun must NOT block a direct run_qa()
-    call. This is the documented safety boundary; regress-guard it."""
+    call. This is the documented safety boundary
+    regress-guard it."""
     from app.agents import staff
 
     _isolate(monkeypatch, tmp_path)

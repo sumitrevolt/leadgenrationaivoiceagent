@@ -1,6 +1,7 @@
 """Migrate data/custom_niches.json: pricing_inr -> lead_band (ADR-009).
 
-Purane custom-niche records me per-lead `pricing_inr` tha; ADR-009 ke baad sirf
+Purane custom-niche records me per-lead `pricing_inr` tha
+ADR-009 ke baad sirf
 `lead_band` (A/B/C). Band = qualified_lead range ke midpoint se (builtin transform
 jaisa hi): mid < 800 => A, 800-2500 => B, > 2500 => C. pricing_inr DROP.
 
@@ -40,7 +41,8 @@ def main() -> int:
         if not isinstance(cfg, dict):
             continue
         if "lead_band" not in cfg:
-            mid = 1000.0  # default => B-adjacent; pricing_inr ho to usse derive
+            mid = 1000.0  # default => B-adjacent
+            pricing_inr ho to usse derive
             pr = cfg.get("pricing_inr") or {}
             ql = pr.get("qualified_lead") or []
             try:

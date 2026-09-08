@@ -23,7 +23,8 @@ that is deliberate, because the per-caller version of this rule is what let the 
 onboarding job send ungated. A send needs WHATSAPP_AUTO_SEND=1 AND the recipient on
 WHATSAPP_SEND_ALLOWLIST AND not opted-out/suppressed, all fail-CLOSED, plus official
 creds and (for business-initiated Cloud sends) an approved template.
-NOTE: this module's routes REPORT gate state; they do not enforce it.
+NOTE: this module's routes REPORT gate state
+they do not enforce it.
 Admin routes require an admin JWT. Webhook routes are public (Meta calls them) but the
 POST is App-Secret signature-verified. Handlers never raise unhandled errors.
 """
@@ -270,7 +271,8 @@ async def mark_draft_sent(
 ) -> dict[str, Any]:
     """Mark a draft as sent by hand. Idempotent — a repeat call is a 200 no-op.
 
-    Records only that the human sent it; nothing is transmitted from here.
+    Records only that the human sent it
+    nothing is transmitted from here.
     """
     from app.integrations import whatsapp as wa_int
 

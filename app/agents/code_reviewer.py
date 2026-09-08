@@ -125,11 +125,13 @@ def _clean_findings(obj: dict[str, Any]) -> list[dict[str, Any]]:
 async def review(code: str, dimensions: list[str] | None = None) -> dict[str, Any]:
     """Code/diff ka structured multi-dimension review.
 
-    `code` = raw source YA unified-diff string (pass-through; LLM dono samajh leta).
+    `code` = raw source YA unified-diff string (pass-through
+    LLM dono samajh leta).
     `dimensions` default = correctness/security/performance/style/tests.
 
     Returns {ok, summary, dimensions, findings:[{dimension,severity,line,message}]}.
-    Never raises; LLM fail/garbage → static minimal result (never empty).
+    Never raises
+    LLM fail/garbage → static minimal result (never empty).
     """
     dims = _normalize_dimensions(dimensions)
     src = (code or "").strip()

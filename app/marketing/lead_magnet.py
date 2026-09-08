@@ -9,7 +9,8 @@ free audit). File: data/lead_magnets/<slug>-<niche>.html (regex-safe name,
 public serve route ke liye).
 
 Capture/gating: NAYA form NAHI banaya — EXISTING embed widget
-(`/b/{slug}/widget.js`) hi capture form hai; guide me uska note + link daala
+(`/b/{slug}/widget.js`) hi capture form hai
+guide me uska note + link daala
 jata hai (reuse, rebuild nahi).
 
 PDF: agar `weasyprint` ya `pdfkit` installed ho to PDF bhi banti hai
@@ -17,7 +18,8 @@ PDF: agar `weasyprint` ya `pdfkit` installed ho to PDF bhi banti hai
 
 Public API (never-raise):
   - available()                                    -> {"weasyprint": bool, "pdfkit": bool}
-  - generate(niche, city, business_name, slug="")  -> async; {ok, name, file, url, pdf, points}
+  - generate(niche, city, business_name, slug="")  -> async
+  {ok, name, file, url, pdf, points}
   - safe_file_path(name)                           -> serve helper (regex-locked, traversal-proof)
 """
 
@@ -180,22 +182,32 @@ def _render_html(
     if len(wa_digits) == 10:
         wa_digits = "91" + wa_digits
     wa_url = f"https://wa.me/{wa_digits}" if wa_digits else ""
-    items = "".join(f"<li style='margin:0 0 14px;padding-left:6px;'>{e(p)}</li>" for p in points)
+    items = "".join(f"<li style='margin:0 0 14px
+    padding-left:6px
+    '>{e(p)}</li>" for p in points)
     ctas = []
     if minisite:
         ctas.append(
-            f"<a href='{e(minisite)}' style='background:{e(primary)};color:#fff;padding:12px 22px;"
+            f"<a href='{e(minisite)}' style='background:{e(primary)}
+            color:#fff
+            padding:12px 22px
+            "
             "border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
             "🌐 Book / Visit karein</a>"
         )
     if wa_url:
         ctas.append(
-            f"<a href='{e(wa_url)}' style='background:#25D366;color:#fff;padding:12px 22px;"
+            f"<a href='{e(wa_url)}' style='background:#25D366
+            color:#fff
+            padding:12px 22px
+            "
             "border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
             "💬 WhatsApp karein</a>"
         )
     ctas.append(
-        f"<a href='{e(_SITE_URL)}/audit?utm_source=lead_magnet' style='background:#222;color:#fff;"
+        f"<a href='{e(_SITE_URL)}/audit?utm_source=lead_magnet' style='background:#222
+        color:#fff
+        "
         "padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block;margin:4px;'>"
         "🔍 Free Google Audit</a>"
     )
@@ -205,21 +217,43 @@ def _render_html(
         f"<title>{e(title)}</title></head>"
         "<body style='font-family:Arial,Helvetica,sans-serif;margin:0;background:#f7f7fb;color:#222;'>"
         # cover
-        f"<div style='background:{e(primary)};color:#fff;padding:56px 24px;text-align:center;'>"
-        f"<div style='font-size:13px;letter-spacing:2px;opacity:.85;'>FREE GUIDE</div>"
-        f"<h1 style='margin:10px 0 6px;font-size:28px;line-height:1.25;'>{e(title)}</h1>"
-        f"<div style='font-size:15px;opacity:.9;'>by {e(business_name)}"
+        f"<div style='background:{e(primary)}
+        color:#fff
+        padding:56px 24px
+        text-align:center
+        '>"
+        f"<div style='font-size:13px
+        letter-spacing:2px
+        opacity:.85
+        '>FREE GUIDE</div>"
+        f"<h1 style='margin:10px 0 6px
+        font-size:28px
+        line-height:1.25
+        '>{e(title)}</h1>"
+        f"<div style='font-size:15px
+        opacity:.9
+        '>by {e(business_name)}"
         f"{(' · ' + e(city)) if city else ''}</div></div>"
         # checklist
         "<div style='max-width:640px;margin:0 auto;padding:30px 22px;'>"
         "<div style='background:#fff;border-radius:12px;padding:26px 28px;"
         "box-shadow:0 2px 10px rgba(0,0,0,.05);'>"
-        f"<ol style='margin:0;padding-left:22px;font-size:15px;line-height:1.55;'>{items}</ol>"
+        f"<ol style='margin:0
+        padding-left:22px
+        font-size:15px
+        line-height:1.55
+        '>{items}</ol>"
         "</div>"
         # CTA
-        f"<div style='text-align:center;margin:26px 0;'>{''.join(ctas)}</div>"
-        f"<p style='text-align:center;color:#888;font-size:12px;'>Guide by {e(business_name)} "
-        f"· Powered by <a href='{e(_SITE_URL)}' style='color:#888;'>LeadGen AI</a></p>"
+        f"<div style='text-align:center
+        margin:26px 0
+        '>{''.join(ctas)}</div>"
+        f"<p style='text-align:center
+        color:#888
+        font-size:12px
+        '>Guide by {e(business_name)} "
+        f"· Powered by <a href='{e(_SITE_URL)}' style='color:#888
+        '>LeadGen AI</a></p>"
         "</div></body></html>"
     )
 

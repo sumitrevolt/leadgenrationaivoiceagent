@@ -234,7 +234,8 @@ def parse_tool_call(llm_output: Any) -> dict[str, Any] | None:
 
     2. Simple inline convention inside free text:
            CALL book_appointment {"when_iso": "2026-06-10T15:00", "name": "Rahul"}
-       (args JSON optional; missing -> {}).
+       (args JSON optional
+       missing -> {}).
 
     Returns {"name": str, "args": dict} or None if no tool call is present.
     Never raises — bad JSON just yields None.
@@ -452,7 +453,8 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 data={"date": date_str, "slots": slots[:8], "total": len(slots)},
             )
         except Exception as e:
-            logger.error(f"check_availability: calendar unavailable ({e}); offering standard hours")
+            logger.error(f"check_availability: calendar unavailable ({e})
+            offering standard hours")
             return ToolResult(
                 ok=True,
                 data={

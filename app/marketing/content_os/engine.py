@@ -8,11 +8,13 @@ Public entry points:
 
 Design principles:
   * INERT by default. Enabled when CONTENT_OS_ENABLED=1 in env.
-  * Failures in this module NEVER break the calling stack; we always log and
+  * Failures in this module NEVER break the calling stack
+  we always log and
     return a {"error": str} so beat stays happy.
   * HMAC-signs everything that talks to the local renderer PC.
   * Reuses existing brand_kit, content_pack, reel_video, jingle, video_pipeline
-    whenever possible; we only orchestrate around them.
+    whenever possible
+    we only orchestrate around them.
 """
 from __future__ import annotations
 
@@ -163,7 +165,8 @@ def _pick_customer_briefs() -> list[RenderBrief]:
         from app.marketing.brand_kit import list_active_clients  # type: ignore
         from app.marketing.niche_pack import next_pack_item  # type: ignore
     except Exception as e:
-        logger.info("[content_os] leadgen marketing deps unavailable (%s); skipping customer queue", e)
+        logger.info("[content_os] leadgen marketing deps unavailable (%s)
+        skipping customer queue", e)
         return out
 
     try:
@@ -224,7 +227,8 @@ def dispatch_to_renderer(brief: RenderBrief) -> dict:
             return r.json()
         logger.warning("[content_os] renderer HTTP %s: %s", r.status_code, r.text[:120])
     except requests.RequestException as e:
-        logger.info("[content_os] renderer offline (%s); falling back to inbox-push", e)
+        logger.info("[content_os] renderer offline (%s)
+        falling back to inbox-push", e)
 
     # 2) Fall back: write manifest + placeholders to MEDIA_INBOX so VPS-side
     #    watcher can pick them up and produce locally via ffmpeg/image-gen path.

@@ -261,7 +261,8 @@ def test_automation_health_audit_optout_check_uses_real_ledger_not_dead_file(tmp
     """The old check watched data/dnd_cache.json — a file no code path ever
     writes — so it always false-flagged opt-out enforcement as stale. It must
     now check the real store (app.telephony.consent_ledger.suppression_path())
-    is writable; a quiet day with zero new opt-outs is healthy, not stale."""
+    is writable
+    a quiet day with zero new opt-outs is healthy, not stale."""
     aha = _load_automation_health_audit()
     data_dir = tmp_path / "data"
     data_dir.mkdir()

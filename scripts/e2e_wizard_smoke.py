@@ -5,7 +5,8 @@ Deploy se PEHLE prove karta hai ki full wizard chain kaam karta hai:
   knowledge seed persisted + services/offer/opening_line saved → brain opening
   override live → cleanup (client + snapshot files delete).
 
-Disposable = unique phone (dev/test number range) + client id; har case ke baad
+Disposable = unique phone (dev/test number range) + client id
+har case ke baad
 delete_client + snapshot files clean. Sab checks print + exit 0/1. Never touches
 prod data (sirf data/ me files, jo bhi test client id se delete hote hain).
 

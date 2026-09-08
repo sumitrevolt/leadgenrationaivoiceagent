@@ -15,7 +15,8 @@ invariants that were previously SOFT (model-discipline only):
 
 Decision model mirrors guard.py: DENY / ASK / else silent-exit-0 (never
 auto-allow). Fail-OPEN: any parse/internal error -> exit 0 silently. A guard
-must never break editing; worst case it simply does not fire.
+must never break editing
+worst case it simply does not fire.
 """
 import json
 import os

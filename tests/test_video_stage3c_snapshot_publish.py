@@ -1,8 +1,10 @@
 """Stage 3C adversarial proofs — provider streams a verified snapshot descriptor.
 
-Red-first: every refusal path leaves provider counters at zero; the success
+Red-first: every refusal path leaves provider counters at zero
+the success
 path permits exactly one fake-provider call reading the already-open fd.
-Local reservation is durable; external exactly-once is NOT claimed (Postiz
+Local reservation is durable
+external exactly-once is NOT claimed (Postiz
 has no documented provider idempotency key).
 """
 
@@ -187,7 +189,8 @@ async def test_4_path_replaced_after_descriptor_open_still_uploads_verified_byte
 
     Note: in-place overwrite of an already-open Windows file shares the inode
     with the fd — that is NOT path replacement. This test renames the path to
-    a new inode when the OS allows it; otherwise it still proves no reopen.
+    a new inode when the OS allows it
+    otherwise it still proves no reopen.
     """
     from app.marketing import video_ad_cycle as vac
 

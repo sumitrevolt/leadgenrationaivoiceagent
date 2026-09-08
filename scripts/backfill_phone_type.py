@@ -3,7 +3,8 @@
 KYU (council 2026-07-06): store me 649 FIXED_LINE cloud-IVR DIDs (Livspace/HDFC
 DID-blocks) "ready" the — 05-Jul batch ne unhe dial kiya (IVR paisa-burn). Naye
 records ab ingest par `phone_type` ke saath likhe jaate hain (prospector) aur
-dial_gate FIXED_LINE promotional-dial block karta hai; yeh script PURANE rows
+dial_gate FIXED_LINE promotional-dial block karta hai
+yeh script PURANE rows
 ko wahi tag deta hai taaki dashboards/email-routing/audit sab consistent ho.
 
 Kya karta hai:

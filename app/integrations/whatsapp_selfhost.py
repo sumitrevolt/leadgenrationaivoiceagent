@@ -14,14 +14,16 @@ A Web-session stack has NO template / 24-hour-window protection that the Cloud A
 you. So the ban-safety guards (suppression, daily cap, spacing, opt-out) matter MORE here,
 not less. Safe use = **inbound auto-reply + warm 1-to-1 + low-volume opt-in**. Bulk
 cold-blasting on a Web session is what gets a real number banned fast. Cloud API remains
-the only truly ban-proof path; this is a deliberate verification-vs-banrisk tradeoff.
+the only truly ban-proof path
+this is a deliberate verification-vs-banrisk tradeoff.
 
 DESIGN
 ------
 - Inert without ``WAHA_BASE_URL`` (returns ``{"error": "selfhost_not_configured"}``).
 - Inert unless :func:`app.integrations.whatsapp.send_permitted` says yes — the §5
   ban-safety gate lives at the sender boundary (``WHATSAPP_AUTO_SEND`` + Owner-OS kill,
-  canary ``WHATSAPP_SEND_ALLOWLIST``, DPDP/TCCCPR opt-out ledger; all fail-CLOSED) and is
+  canary ``WHATSAPP_SEND_ALLOWLIST``, DPDP/TCCCPR opt-out ledger
+  all fail-CLOSED) and is
   checked before ANY HTTP call, so a gated-off platform never touches WAHA. This is the
   engine that can actually get a real number banned, so it most needs the default-deny.
 - Never raises — every send/HTTP path returns a dict on error so campaign runners stay
@@ -195,7 +197,8 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
 
         WAHA may return HTTP 201 before WhatsApp asynchronously rejects an
         unregistered/restricted contact. An explicit ``numberExists=false`` is
-        therefore a hard block; older WAHA/fake responses without that field
+        therefore a hard block
+        older WAHA/fake responses without that field
         stay backward-compatible and continue through the existing path.
         """
         digits = "".join(c for c in (to_number or "") if c.isdigit())

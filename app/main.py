@@ -89,9 +89,11 @@ def _safe_transaction_name_from_router(scope):
     Guarded drop-in keeps the same contract - first FULL match wins, return
     its `.path` - and for a lazy route, recurses into its wrapped
     `original_router.routes` to resolve the concrete route's path (bounded
-    depth; missing internals degrade to None, never raise). Applied as a
+    depth
+    missing internals degrade to None, never raise). Applied as a
     runtime monkeypatch only when the 1.x function is present (2.x fixed
-    upstream; then no-op).
+    upstream
+    then no-op).
     """
     router = scope.get("router") if isinstance(scope, dict) else None
     if not router:
@@ -565,7 +567,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp; Advanced tier me AI voice agent jo inquiries ko call kare)",
+    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp
+    Advanced tier me AI voice agent jo inquiries ko call kare)",
     version=os.environ.get("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
     docs_url="/docs" if settings.app_env != "production" else None,  # Disable in production
@@ -713,7 +716,8 @@ try:
     from app.api.internal_media import public as content_public_router
     from app.api.internal_media import router as content_internal_router
 
-    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
+    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected
+    renderer webhooks)
     app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentOS router not mounted: {_e}")
@@ -722,7 +726,8 @@ try:
 
     app.include_router(
         page_agent_router, prefix="/api"
-    )  # /api/page-agent/* (admin copilot LLM proxy + boot.js; PAGE_AGENT gated)
+    )  # /api/page-agent/* (admin copilot LLM proxy + boot.js
+    PAGE_AGENT gated)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Page-agent router not mounted: {_e}")
 try:
@@ -1881,7 +1886,8 @@ async def customer_office_page(mode: str | None = None):
     """Customer Blueprint Office shell (Milestone E).
 
     mode=3d + UNITY_CUSTOMER_OFFICE_ENABLED=1 → office_customer_blueprint.html
-    (tenant-scoped shell; data sirf /api/customer/* se). Flag OFF ya koi aur mode →
+    (tenant-scoped shell
+    data sirf /api/customer/* se). Flag OFF ya koi aur mode →
     existing customer dashboard pe redirect (safe default, fully INERT).
     Docs: docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md §2.
     """
@@ -2066,7 +2072,8 @@ async def agent_tools_page():
     """Agent Tools admin cockpit - UI for the 17 /api/agents-ext capabilities
     (Kilo/OpenCode/Ruflo/Hermes): codebase-search, diagnostics, code-review, recall,
     trajectories, consensus, permissions, hooks, custom-agents, capacity, checkpoints,
-    batch, code-exec, browser. Admin token from localStorage; super-admin gates honored."""
+    batch, code-exec, browser. Admin token from localStorage
+    super-admin gates honored."""
     return FileResponse(str(FRONTEND_DIR / "agent_tools.html"))
 
 
@@ -2090,7 +2097,8 @@ async def affiliates_page():
 async def pay_page(order_ref: str):
     """Hosted pay-page - order-ref se amount-prefilled UPI intent + QR +
     'maine pay kar diya' submit (revenue sprint 2026-08-23). Data /api/public/
-    offers/{ref} se fetch hota hai; ref unknown/expired ho to page khud
+    offers/{ref} se fetch hota hai
+    ref unknown/expired ho to page khud
     fail-closed message dikhata hai."""
     return FileResponse(str(FRONTEND_DIR / "pay.html"))
 
@@ -2099,7 +2107,8 @@ async def pay_page(order_ref: str):
 async def revenue_kit_page():
     """Owner revenue console - pay-link issue + WhatsApp close text, launch
     promo create (pricing-page countdown), orders/redemptions ledger. Admin
-    token localStorage se; APIs /api/admin/revenue|promo (revenue sprint)."""
+    token localStorage se
+    APIs /api/admin/revenue|promo (revenue sprint)."""
     return FileResponse(str(FRONTEND_DIR / "revenue_kit.html"))
 
 
@@ -2113,7 +2122,8 @@ async def dialer_page():
 async def battlecard_page():
     """Internal sales battlecard - LeadGen AI vs Dhanda / AdBanao / MyOperator /
     Vodex.ai / GoHighLevel. Static competitive-intel asset (comparison matrix +
-    talk tracks + landmine questions). Admin/sales internal; no API/secrets."""
+    talk tracks + landmine questions). Admin/sales internal
+    no API/secrets."""
     return FileResponse(str(FRONTEND_DIR / "battlecard.html"))
 
 
@@ -2198,7 +2208,8 @@ async def public_compare_page():
     """PUBLIC: competitor comparison page (dono products ALAG sections) - SEO + conversion.
 
     Marketing: vs Dhanda/Predis/AdBanao/Practina/GHL. Voice: vs SquadStack/Vodex/
-    Exotel/Knowlarity/CallHippo. Data June 2026 public sources; bundle framing NAHI.
+    Exotel/Knowlarity/CallHippo. Data June 2026 public sources
+    bundle framing NAHI.
     """
     return FileResponse(str(_website_dir / "compare.html"))
 
@@ -2261,7 +2272,8 @@ async def llms_txt():
     from app.marketing.ai_discovery import build_llms_txt
 
     return PlainTextResponse(
-        build_llms_txt(_seo_base_url()), media_type="text/plain; charset=utf-8"
+        build_llms_txt(_seo_base_url()), media_type="text/plain
+        charset=utf-8"
     )
 
 
@@ -2275,7 +2287,8 @@ async def pricing_md():
     from app.marketing.ai_discovery import build_pricing_md
 
     return PlainTextResponse(
-        build_pricing_md(_seo_base_url()), media_type="text/markdown; charset=utf-8"
+        build_pricing_md(_seo_base_url()), media_type="text/markdown
+        charset=utf-8"
     )
 
 

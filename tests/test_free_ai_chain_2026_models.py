@@ -8,7 +8,8 @@ hit when the primaries exhaust, and BEFORE the weaker gemini/openrouter-:free
 tail.
 
 Updated 2026-08-01 from Claude web-research: Groq is decommissioning
-llama-3.1-8b-instant + llama-3.3-70b-versatile on 2026-08-16; qwen3-32b and
+llama-3.1-8b-instant + llama-3.3-70b-versatile on 2026-08-16
+qwen3-32b and
 kimi-k2-instruct are already dead and must not appear in the chain.
 """
 

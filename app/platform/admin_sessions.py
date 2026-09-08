@@ -5,7 +5,8 @@ Redis revocation mechanisms so a token can be killed before its natural expiry:
 
   * ``revoke_jti(jti, ttl)``         — blacklist ONE token (single-session logout /
                                        suspected-compromise of a specific token).
-  * ``revoke_all_for_user(user_id)`` — bump ``authrev:user:{id}`` to now; every token
+  * ``revoke_all_for_user(user_id)`` — bump ``authrev:user:{id}`` to now
+  every token
                                        with ``iat < epoch`` is then rejected
                                        (password reset, disable, role change, 2FA reset).
 

@@ -7,9 +7,11 @@ the FREE LLM chain (`free_ai.chat`), then renders Swara's voice (EdgeTTS
 `hi-IN-SwaraNeural`) to an mp3.
 
 Hard rules (match office_hq.py):
-  - READ-ONLY. Every number is a direct read of an existing store/builder; no
+  - READ-ONLY. Every number is a direct read of an existing store/builder
+  no
     new DB models. Never fabricated — a source that fails contributes 0/None.
-  - Never raises. Each collector is try/except with a safe default; the compose
+  - Never raises. Each collector is try/except with a safe default
+  the compose
     step degrades LLM-fail -> deterministic template, TTS-fail -> text-only.
   - One LLM + one TTS call per IST-day: results cached to
     data/office_briefing/{date}.json + {date}.mp3 (force=True regenerates).
@@ -545,7 +547,8 @@ async def run_scheduled() -> dict[str, Any]:
     """Build today's draft-only revenue brief when the control plane is safe.
 
     The existing daily cache is the idempotency ledger. Health collection runs
-    off-loop and is bounded; degraded/unknown health fails closed before any
+    off-loop and is bounded
+    degraded/unknown health fails closed before any
     LLM or TTS work. The result stays inside Office HQ and `/app/inbox` remains
     the human-only action surface.
     """

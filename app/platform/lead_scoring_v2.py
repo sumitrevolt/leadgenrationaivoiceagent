@@ -16,16 +16,19 @@ side-effects. Pure, deterministic, idempotent, import-safe, never raises.
 Design rules (mission §3):
 - additive features, each → deterministic int, breakdown sum == total;
 - quality-approval stays MANDATORY upstream (`prospector.is_quality_approved`);
-- V1 read path untouched (this module is a new additive scorer; wiring behind
+- V1 read path untouched (this module is a new additive scorer
+wiring behind
   a feature flag with V1 default — backward-compatible);
 - no consent claim derived from score (score is qualification signal only);
-- no automatic send / call; `counts_contact` stays False in the runtime.
+- no automatic send / call
+`counts_contact` stays False in the runtime.
 
 Range: bounded 0-100. Missing field => 0 for that feature (never positive).
 Negative signals: missing_phone (-18), low_reviews (-4), missing_email (-5),
 missing_website (-5). Junk/test/QA names = HARD disqualifier (score 0,
 fail-closed). India mobile = 10-digit starting 6-9 with 91/0 prefix
-normalization; toll-free (1800/1860) + landline rejected.
+normalization
+toll-free (1800/1860) + landline rejected.
 """
 
 from __future__ import annotations

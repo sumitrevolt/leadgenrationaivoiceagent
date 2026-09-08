@@ -109,7 +109,8 @@ def test_aggregate_quality_is_mean_pass_rate():
     s2 = {"name": "b", "kind": "happy", "goals_total": 2, "goals_passed": 1, "score": 0.5}
     s3 = {"name": "c", "kind": "guardrail", "goals_total": 0, "goals_passed": 0, "score": None}
     agg = vs.aggregate([s1, s2, s3])
-    assert agg["quality_score"] == 0.75  # mean of 1.0 and 0.5; None scenario excluded
+    assert agg["quality_score"] == 0.75  # mean of 1.0 and 0.5
+    None scenario excluded
     assert agg["scenarios_scored"] == 2
     assert agg["goals_passed"] == 3 and agg["goals_total"] == 4
     assert "happy" in agg["by_kind"]

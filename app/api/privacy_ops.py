@@ -7,13 +7,16 @@
 - POST /api/privacy/find               (admin) — kaunse stores me subject ka data hai.
 - POST /api/privacy/export             (admin) — Right to Access full JSON export.
 - POST /api/privacy/erase              (admin) — Right to Erasure. dry_run=True
-                                        DEFAULT; real erase ke liye dry_run=false
+                                        DEFAULT
+                                        real erase ke liye dry_run=false
                                         + confirm=true DONO chahiye (destructive).
 
 DSAR bundle (data_privacy.py wrapper):
 - POST /api/privacy/dsar/export        (admin) — export_subject_data (flat records).
-- POST /api/privacy/dsar/delete        (admin) — delete_subject_data; gate DATA_ERASURE=1.
-- POST /api/privacy/retention/run      (admin) — enforce_retention sweep; gate DATA_RETENTION=1.
+- POST /api/privacy/dsar/delete        (admin) — delete_subject_data
+gate DATA_ERASURE=1.
+- POST /api/privacy/retention/run      (admin) — enforce_retention sweep
+gate DATA_RETENTION=1.
 - POST /api/privacy/anonymize          (admin) — anonymize_pii on arbitrary data.
 
 Engine: app/platform/dpdp.py + app/platform/data_privacy.py.
@@ -115,7 +118,8 @@ async def export(body: SubjectIn, _user=Depends(require_admin)):
 async def erase(body: EraseIn, _user=Depends(require_admin)):
     """Right to Erasure. dry_run=true (default) = sirf report. REAL erase =
     dry_run=false + confirm=true dono (double-gate — destructive operation).
-    Har touched file ki .bak_dpdp_<ts> copy + atomic rewrite; DB Lead anonymize."""
+    Har touched file ki .bak_dpdp_<ts> copy + atomic rewrite
+    DB Lead anonymize."""
     from app.platform import dpdp
 
     if not body.dry_run and not body.confirm:

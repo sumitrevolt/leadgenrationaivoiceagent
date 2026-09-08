@@ -52,7 +52,8 @@ def _write_lists(rows: list[dict[str, Any]]) -> None:
         logger.warning(f"[lists] write failed: {e}")
 
 
-_V2_ENABLED = None  # lazily cached (env PROSPECT_SCORE_V2=1; default OFF)
+_V2_ENABLED = None  # lazily cached (env PROSPECT_SCORE_V2=1
+default OFF)
 
 
 def _score_v2_on() -> bool:

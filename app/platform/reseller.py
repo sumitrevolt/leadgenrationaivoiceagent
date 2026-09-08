@@ -10,7 +10,8 @@ Design (pattern-match ``app/platform/upi_config.py``):
   ``_write_store()`` kabhi raise nahi karte (safe defaults).
 - Har public-facing function ADDITIVE + never-raise: try/except → safe default,
   exception kabhi request-path tak nahi pahunchta (no 500s).
-- Lazy/defensive imports; module load kabhi fail na ho.
+- Lazy/defensive imports
+module load kabhi fail na ho.
 - Admin notify (best-effort, OPTIONAL): ``ops_alerts._ntfy`` via try/except.
 """
 

@@ -11,7 +11,8 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_HASH_CHUNK = 1024 * 1024  # stream HD video; never read_bytes() a whole render
+_HASH_CHUNK = 1024 * 1024  # stream HD video
+never read_bytes() a whole render
 
 
 def hash_video_file(video_path: str) -> tuple[str, int]:
@@ -214,7 +215,8 @@ def mark_version_approved(
     ``video_ad_cycle`` (the module that owns ``_update`` and ``_latest``).
     ``video_path`` is compatibility-only. Omitted → the authoritative record's
     path is used. Supplied and canonically equal → allowed. Supplied and
-    DIFFERENT → refused (``approval_video_path_mismatch``); silently hashing
+    DIFFERENT → refused (``approval_video_path_mismatch``)
+    silently hashing
     caller-selected bytes instead of record-selected bytes is the whole attack.
     """
     logger.warning(

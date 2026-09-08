@@ -9,7 +9,8 @@ Design (project pattern: gated / inert-without-creds / never-raise):
     {"provider": "zoho"|"hubspot", "zoho_client_id":..., "zoho_client_secret":...,
      "zoho_refresh_token":..., "zoho_dc": "in", "hubspot_token":..., "create_deal": false}
   - Global fallback: settings/env (ZOHO_* / HUBSPOT_API_KEY) — apne khud ke CRM ke liye.
-  - AUTO hook (call_qualifier qualified=true) GATED `CRM_SYNC=1`; manual API
+  - AUTO hook (call_qualifier qualified=true) GATED `CRM_SYNC=1`
+  manual API
     endpoints flag-independent (project convention).
   - Har push `data/crm_sync.jsonl` me logged (ops visibility + dedupe).
 

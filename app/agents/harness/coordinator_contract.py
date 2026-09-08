@@ -5,7 +5,8 @@ strict, versioned structured language: CoordinatorPlanV1 / CoordinatorActionV1.
 Raw model prose is NEVER an executable contract. Legacy heuristic parsing stays
 available for compatibility and is explicitly marked heuristic (never
 "structured_native"). Nothing here executes — it validates, normalizes and
-compares; the legacy coordinator executor stays authoritative.
+compares
+the legacy coordinator executor stays authoritative.
 """
 
 from __future__ import annotations

@@ -2,7 +2,8 @@
 
 Filesystem only: no approval ledger, video record, queue, provider or UI is
 touched. A hardlink would share the source inode, so the snapshot must be a NEW
-inode; every failure path must leave nothing installed and no temp behind.
+inode
+every failure path must leave nothing installed and no temp behind.
 """
 
 from __future__ import annotations
@@ -226,7 +227,8 @@ def test_projected_free_crossing_threshold_refuses(env, monkeypatch):
     monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "10")
     size = env["source"].stat().st_size
     total = size * 100
-    free = int(total * 0.105)  # 10.5% now; the copy costs 1% -> 9.5% after
+    free = int(total * 0.105)  # 10.5% now
+    the copy costs 1% -> 9.5% after
     monkeypatch.setattr(S, "_disk_free_total", lambda p: (free, total))
     assert free / total * 100.0 > S.min_free_percent()  # admissible right now
     out = _prepare(env)

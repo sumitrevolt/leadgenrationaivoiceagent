@@ -51,7 +51,8 @@ def main() -> int:
 
         m = usage_alerts.build_message(80, "Smoke Biz", 400, 500)
         assert "80%" in m["subject"]
-        print("USAGE_ALERTS: build_message ok; recent:", len(usage_alerts.recent(5)))
+        print("USAGE_ALERTS: build_message ok
+        recent:", len(usage_alerts.recent(5)))
     except Exception as e:
         ok = False
         print("USAGE_ALERTS FAIL:", e)

@@ -3,7 +3,8 @@
 Workflow audit 2026-06-26 found `app/api/campaigns.py` mounted at /api/campaigns
 with ZERO auth on all 9 endpoints — unauthenticated attacker could list /
 create / start / pause / resume campaigns. Fix added Depends(require_admin) to
-every route; these tests lock the fix so a regression CAN'T silently re-open
+every route
+these tests lock the fix so a regression CAN'T silently re-open
 the hole."""
 
 from __future__ import annotations

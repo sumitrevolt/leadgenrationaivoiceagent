@@ -403,7 +403,8 @@ def _safe_name(name: str) -> str:
 #     prefix CHAHIYE hota hai — yahan handle hota hai.
 #   - settings.qdrant_url empty => backend disabled (default; zero behavior change).
 _QDRANT_COLLECTION = "kb_main"
-_QDRANT_VECTOR_SIZE = 384  # default; auto-updated to the chosen model's REAL dim
+_QDRANT_VECTOR_SIZE = 384  # default
+auto-updated to the chosen model's REAL dim
 # fastembed versions drop/rename models — try several, first that initializes wins.
 # Prefer 384-dim multilingual (matches existing collection); e5-large is last resort.
 _EMBED_CANDIDATES = [
@@ -442,7 +443,8 @@ def _get_qdrant_embedder():
     SYNC call dono uvicorn workers ke event loop pe atki -> poora prod down.
     Isliye ab load ek helper THREAD me hota hai with hard deadline
     (KB_EMBED_LOAD_TIMEOUT_S, default 20s). Deadline cross hote hi is process
-    me Qdrant DISABLE (callers Chroma/keyword par fall back); orphan thread
+    me Qdrant DISABLE (callers Chroma/keyword par fall back)
+    orphan thread
     baad me complete ho jaye to singleton set ho jata hai (agla use semantic).
     """
     global _QDRANT_EMBEDDER, _QDRANT_DISABLED
@@ -598,7 +600,8 @@ def _kb_search_params(limit: int):
     path where limit=3 -> ef stays 128):
       KB_HNSW_EF        — floor for hnsw_ef (default 128). Raise for more recall.
       KB_EXACT_SEARCH=1 — brute-force exact search (recall@k ground-truth
-                          baseline for scripts/rag_retrieval_ab.py; EVAL ONLY —
+                          baseline for scripts/rag_retrieval_ab.py
+                          EVAL ONLY —
                           bypasses the HNSW index, never leave on in prod).
     """
     from qdrant_client import models as qmodels
@@ -617,7 +620,8 @@ class _QdrantIndex:
     """
     Qdrant retriever — same internal interface as _ChromaIndex/_KeywordIndex
     (add / search / size). Sab namespaces EK shared "kb_main" collection me
-    jaate hain; isolation payload filter (namespace ==) se hota hai.
+    jaate hain
+    isolation payload filter (namespace ==) se hota hai.
 
     Namespace examples: "solar_residential", "client:abc123", "_global".
     """
@@ -857,7 +861,8 @@ class KnowledgeBase:
                     "for reliable grounding."
                 )
             except Exception as e:
-                logger.info(f"KB: Chroma unavailable ({e}); using keyword fallback.")
+                logger.info(f"KB: Chroma unavailable ({e})
+                using keyword fallback.")
         return _KeywordIndex(), "keyword"
 
     @staticmethod
@@ -881,7 +886,8 @@ class KnowledgeBase:
                 record_failure("qdrant", str(e)[:80])
             except Exception:
                 pass
-            logger.info(f"KB: Qdrant unavailable ({e}); falling back to Chroma/keyword.")
+            logger.info(f"KB: Qdrant unavailable ({e})
+            falling back to Chroma/keyword.")
             return None
 
     def backend(self, namespace: str = "default") -> str:
@@ -1077,7 +1083,8 @@ class KnowledgeBase:
     def staging_namespace(self, session_id: str, base_ns: str = "default") -> str:
         """Staging namespace for speculative agent writes: staging:<session_id>:<base_ns>.
         Use add_documents(..., namespace=kb.staging_namespace(session_id, niche)) to write
-        speculatively; call promote_staging() to merge into main KB or discard_staging() to drop."""
+        speculatively
+        call promote_staging() to merge into main KB or discard_staging() to drop."""
         return f"staging:{_safe_name(session_id or 'tmp')}:{_safe_name(base_ns or 'default')}"
 
     def promote_staging(self, session_id: str, target_ns: str = "default") -> int:

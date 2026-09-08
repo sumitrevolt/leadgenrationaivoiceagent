@@ -14,7 +14,8 @@ What is under test is therefore the GOVERNANCE, not the plumbing:
   * dry_run is reported as "nothing was dialled", not as a success
 
 No real call, no real Redis, no LLM. Redis and every governance predicate are
-monkeypatched; ``start_stream_call`` is always a spy.
+monkeypatched
+``start_stream_call`` is always a spy.
 """
 
 import asyncio

@@ -240,7 +240,8 @@ def cmd_check() -> int:
         parts.append("no Whisper API key (GROQ_API_KEY or OPENAI_API_KEY)")
     installer = Path(__file__).resolve()
     sys.stderr.write(
-        f"[watch] setup incomplete ({'; '.join(parts)}). "
+        f"[watch] setup incomplete ({'
+        '.join(parts)}). "
         f"Run: python3 {installer}\n"
     )
     sys.stderr.flush()
@@ -297,15 +298,18 @@ def cmd_install() -> int:
         _write_setup_complete()
         print(f"[setup] ready. whisper backend: {backend}")
         if installed_deps:
-            print("[setup] installed dependencies; /watch is fully set up.")
+            print("[setup] installed dependencies
+            /watch is fully set up.")
         return 0
 
     print("")
     print("[setup] one step left: add a Whisper API key.")
     print("")
     print(f"  Edit {CONFIG_FILE} and set either:")
-    print("    GROQ_API_KEY=...    (preferred — cheaper, faster; get one at console.groq.com/keys)")
-    print("    OPENAI_API_KEY=...  (fallback; get one at platform.openai.com/api-keys)")
+    print("    GROQ_API_KEY=...    (preferred — cheaper, faster
+    get one at console.groq.com/keys)")
+    print("    OPENAI_API_KEY=...  (fallback
+    get one at platform.openai.com/api-keys)")
     print("")
     print("  Without a key, /watch still works but videos without captions come back frames-only.")
     return 3

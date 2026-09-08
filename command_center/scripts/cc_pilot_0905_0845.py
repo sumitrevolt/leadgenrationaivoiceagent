@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """PILOT 08:45 IST (Sep5 CRON) — FRESH LIVE probe evidence + REVENUE COMMAND + GHANTI dispatch + kanban + mirror push.
-Fresh evidence: SSH probe 03:05Z — /health empty curl (auth-gated?) but containers healthy Up7h; call_loop DEAD unchanged
+Fresh evidence: SSH probe 03:05Z — /health empty curl (auth-gated?) but containers healthy Up7h
+call_loop DEAD unchanged
 (mtime Aug31 08:39:55Z batch211 ok=0/fail=3 NOT-OWNED proc0); SIP_HS=0 SIP_DID=0 SIP_PROV=0 (DID NOT landed);
 VOBIZ_CALLER_ID len13 REVOKED; leads/ ABSENT ammo0; hot-queue 09-05 ABSENT (due 03:30 UTC — gen job still missing day2);
 reply_drafts auto_sent=true count = 0 (manual 3EB00... was sent but file-count probe = 0); wa_inbound 0;
-rev VERIFIED Rs1,999 Jiya sole; GAP Rs4,98,001.
+rev VERIFIED Rs1,999 Jiya sole
+GAP Rs4,98,001.
 """
 import json
 import subprocess

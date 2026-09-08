@@ -6,7 +6,8 @@ client ke APNE connected accounts pe legitimate post karta (SMM-standard, ban-sa
 kyunki client ka apna account/token). Self-host ya cloud dono.
 
 GATED: `POSTIZ_API_KEY` (Postiz settings → API). Optional `POSTIZ_API_URL`
-(default cloud https://api.postiz.com; self-host = https://<your-host>).
+(default cloud https://api.postiz.com
+self-host = https://<your-host>).
 Channel ids: client record `postiz_integrations` (list/csv) ya env
 `POSTIZ_INTEGRATIONS` (csv) fallback. Key unset = inert ({"sent": False}).
 NEVER raises. Heavy upload = worker/scheduler se hi call karo.
@@ -28,7 +29,8 @@ def _vault_cfg() -> dict[str, Any]:
 
     Env vars still win (below) — this fallback exists so the key can be set at
     RUNTIME via the admin configure endpoint without a container recreate
-    (running containers carry docker-cp drift; recreate = hotfix loss).
+    (running containers carry docker-cp drift
+    recreate = hotfix loss).
     Never raises."""
     try:
         from app.social_engine import vault
@@ -191,8 +193,10 @@ def _publish_max_channels() -> int | None:
     """Channel cap for one create-post call.
 
     Semantics:
-    - unset → ``None`` (no cap; legacy multi-channel fan-out)
-    - ``0`` / negative → ``0`` (zero targets; publish blocked, no API call)
+    - unset → ``None`` (no cap
+    legacy multi-channel fan-out)
+    - ``0`` / negative → ``0`` (zero targets
+    publish blocked, no API call)
     - invalid string → ``None`` with warning (preserve prior uncapped behavior)
     - ``N`` > ceiling → clamped to ``_PUBLISH_MAX_CHANNELS_CEILING``
     """
@@ -202,7 +206,8 @@ def _publish_max_channels() -> int | None:
     try:
         n = int(raw)
     except ValueError:
-        logger.warning("[postiz] POSTIZ_PUBLISH_MAX_CHANNELS invalid; treating as unset (uncapped)")
+        logger.warning("[postiz] POSTIZ_PUBLISH_MAX_CHANNELS invalid
+        treating as unset (uncapped)")
         return None
     if n <= 0:
         return 0
@@ -446,7 +451,8 @@ async def publish_video(
     """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
     Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
     Returns {sent, channels, post_id, post_ids, post_url, reason}.  Postiz's
-    create-post API returns one ``postId`` per integration; preserving those
+    create-post API returns one ``postId`` per integration
+    preserving those
     ids is mandatory launch evidence (``sent=True`` alone only proves that the
     request was accepted, not which provider records were created).
 

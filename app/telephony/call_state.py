@@ -77,7 +77,8 @@ class RedisCallStore:
             else:
                 logger.info("📞 RedisCallStore: Redis unavailable — local in-memory call state")
         except Exception as e:  # pragma: no cover - defensive
-            logger.warning(f"RedisCallStore init failed ({e}); using local state.")
+            logger.warning(f"RedisCallStore init failed ({e})
+            using local state.")
         return self._client if self._is_redis else None
 
     # ------------------------------ queue ------------------------------ #
@@ -92,7 +93,8 @@ class RedisCallStore:
                 await r.zadd(_QUEUE_KEY, {json.dumps(item, default=str): score})
                 return
             except Exception as e:
-                logger.warning(f"call_queue zadd failed ({e}); local fallback.")
+                logger.warning(f"call_queue zadd failed ({e})
+                local fallback.")
         await self._local_queue.put((priority, item["ts"], call_id, payload))
 
     async def dequeue(self) -> tuple[int, str, dict] | None:
@@ -110,7 +112,8 @@ class RedisCallStore:
                 priority = int(float(score) // 1e12)
                 return priority, item["call_id"], item["payload"]
             except Exception as e:
-                logger.warning(f"call_queue zpopmin failed ({e}); local fallback.")
+                logger.warning(f"call_queue zpopmin failed ({e})
+                local fallback.")
         if self._local_queue.empty():
             return None
         try:
@@ -137,7 +140,8 @@ class RedisCallStore:
                 await r.hset(_ACTIVE_KEY, call_id, json.dumps(meta, default=str))
                 return
             except Exception as e:
-                logger.warning(f"active hset failed ({e}); local fallback.")
+                logger.warning(f"active hset failed ({e})
+                local fallback.")
         self._local_active[call_id] = meta
 
     async def unregister(self, call_id: str) -> None:
@@ -147,7 +151,8 @@ class RedisCallStore:
                 await r.hdel(_ACTIVE_KEY, call_id)
                 return
             except Exception as e:
-                logger.warning(f"active hdel failed ({e}); local fallback.")
+                logger.warning(f"active hdel failed ({e})
+                local fallback.")
         self._local_active.pop(call_id, None)
 
     # -- sid ↔ call_id reverse mapping (2026-07-10: Vobiz status webhook fix) -- #
@@ -162,7 +167,8 @@ class RedisCallStore:
                 await r.hset(_SID_KEY, sid, call_id)
                 return
             except Exception as e:
-                logger.warning(f"sid_map hset failed ({e}); local fallback.")
+                logger.warning(f"sid_map hset failed ({e})
+                local fallback.")
         self._local_sid_map = getattr(self, "_local_sid_map", {}) or {}
         self._local_sid_map[sid] = call_id
 
@@ -182,7 +188,8 @@ class RedisCallStore:
                     else None
                 )
             except Exception as e:
-                logger.warning(f"sid_map hget failed ({e}); local fallback.")
+                logger.warning(f"sid_map hget failed ({e})
+                local fallback.")
         lm = getattr(self, "_local_sid_map", {}) or {}
         return lm.get(sid)
 
@@ -195,7 +202,8 @@ class RedisCallStore:
                 await r.hdel(_SID_KEY, sid)
                 return
             except Exception as e:
-                logger.warning(f"sid_map hdel failed ({e}); local fallback.")
+                logger.warning(f"sid_map hdel failed ({e})
+                local fallback.")
         lm = getattr(self, "_local_sid_map", {}) or {}
         lm.pop(sid, None)
 

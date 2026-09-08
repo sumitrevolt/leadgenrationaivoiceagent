@@ -17,7 +17,8 @@ bhasha me likhe hain, factual rakhe hain — jahan exact number/scheme vary kart
 hai wahan "team exact detail confirm karwa degi" pe defer karte hain.
 
 Keys EXACTLY app.niches.NICHES jaise hain. Naya niche add karte waqt yahan bhi
-ek pack add karo; lookups `.get()` + generic fallback se safe hain.
+ek pack add karo
+lookups `.get()` + generic fallback se safe hain.
 
 Usage:
     from app.niche_knowledge import knowledge_facts, objection_response

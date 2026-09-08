@@ -442,7 +442,8 @@ def test_retry_attempts_distinct(monkeypatch):
 def test_repeated_observe_no_execution(monkeypatch):
     _env(monkeypatch)
     a = _obs()
-    b = _obs()  # record-only; neither executes the tool
+    b = _obs()  # record-only
+    neither executes the tool
     assert a["registry_comparison"] == "REGISTRY_MATCH"
     assert b["registry_comparison"] == "REGISTRY_MATCH"  # no crash, record-only
 

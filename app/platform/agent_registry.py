@@ -17,7 +17,8 @@ This module is that single canonical layer. It is DERIVE-not-DUPLICATE:
   - governance (autonomy/lane/flag/kill/budget/…)     ← _GOVERNANCE table below
     (the only hand-authored data — none of it existed as data anywhere before)
 
-⚠️  **LOAD-BEARING — NOT INERT.** (Corrected 2026-07-21; the previous docstring
+⚠️  **LOAD-BEARING — NOT INERT.** (Corrected 2026-07-21
+the previous docstring
 claimed "nothing in the running app imports this yet", which is FALSE and was
 dangerous to rely on.) This module is imported at runtime by:
 
@@ -59,9 +60,11 @@ Autonomy taxonomy (prompt spec):
 Policy lanes (ceiling — the *max* the agent may ever do):
   GREEN  internal / draft / reconcile — safe to run when flag+budget+kill healthy
   AMBER  customer outreach — caps + shadow/draft/approval, starts non-live
-  RED    calling / bulk / irreversible — never a simple .env flip; mandate only
+  RED    calling / bulk / irreversible — never a simple .env flip
+  mandate only
 
-Nothing here ever raises at import; ``build_registry`` degrades gracefully if an
+Nothing here ever raises at import
+``build_registry`` degrades gracefully if an
 upstream source is unavailable (import-safe, same contract as the rest of app).
 """
 
@@ -213,7 +216,8 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         # Runtime-only gate (Agent Runtime ops_health_check). Scheduler watchdog
         # stays on OPS_WATCHDOG — never OR these together for eligibility.
         primary_flag="OPS_HEALTH_AGENT",
-        scheduler_flag="OPS_WATCHDOG",  # purpose=scheduler; agent_runtime_gate=false
+        scheduler_flag="OPS_WATCHDOG",  # purpose=scheduler
+        agent_runtime_gate=false
         prohibited=("mutate_infra", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=120,
@@ -369,7 +373,8 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         # Runtime-only gate (Agent Runtime run_security core). Daily scheduler
         # stays on SECURITY_AGENT — never OR these together for eligibility.
         primary_flag="SECURITY_POSTURE_AGENT",
-        scheduler_flag="SECURITY_AGENT",  # purpose=scheduler; agent_runtime_gate=false
+        scheduler_flag="SECURITY_AGENT",  # purpose=scheduler
+        agent_runtime_gate=false
         prohibited=("disable_compliance_gate", "rotate_secrets_autonomously", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=180,

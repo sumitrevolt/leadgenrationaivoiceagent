@@ -45,7 +45,8 @@ LOCK FILES ARE NOT COPIED
 -------------------------
 `compliance.email_suppression` declares `data/email_suppression.jsonl.lock`
 alongside its ledger. A lock is a statement about a process that is running
-right now; copying a stale one to a new root would hand the new location a lock
+right now
+copying a stale one to a new root would hand the new location a lock
 nobody holds. The lock is recreated beside the ledger on first write — which is
 exactly why the manifest says it must colocate. Locks are skipped and reported.
 """

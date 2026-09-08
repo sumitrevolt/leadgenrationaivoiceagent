@@ -366,11 +366,29 @@ def render_proposal_html(proposal: dict[str, Any]) -> str:
     <meta charset="UTF-8">
     <title>Proposal - {proposal.get("business_name", "")}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; }}
-        h1 {{ color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 10px; }}
-        h2 {{ color: #16213e; margin-top: 30px; }}
-        .section {{ margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; }}
-        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }}
+        body {{ font-family: Arial, sans-serif
+        max-width: 800px
+        margin: 0 auto
+        padding: 40px
+        }}
+        h1 {{ color: #1a1a2e
+        border-bottom: 3px solid #e94560
+        padding-bottom: 10px
+        }}
+        h2 {{ color: #16213e
+        margin-top: 30px
+        }}
+        .section {{ margin: 20px 0
+        padding: 15px
+        background: #f8f9fa
+        border-radius: 8px
+        }}
+        .footer {{ margin-top: 40px
+        padding-top: 20px
+        border-top: 1px solid #ddd
+        color: #666
+        font-size: 12px
+        }}
     </style>
 </head>
 <body>

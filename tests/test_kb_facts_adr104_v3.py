@@ -7,7 +7,8 @@ and fakes only at the `app.tasks.kb_niche_refresh` / `app.voice_agent.knowledge_
 boundary. Runs directly against the shipped files (no verification shim needed
 when run from a real filesystem -- an earlier draft of this file imported a
 throwaway byte-copy module because a different execution environment used
-during initial development had a stale view of the edited original file; that
+during initial development had a stale view of the edited original file
+that
 workaround is no longer needed here).
 
 Critically, none of these tests may ever import or call `_get_qdrant_client`,
@@ -175,7 +176,8 @@ def test_kb_facts_readiness_timeout_degrades_gracefully(monkeypatch):
     def _slow_count(n, client=None):
         import time
 
-        time.sleep(0.05)  # tiny sleep; we drop _KB_TIMEOUT_S to make this "slow"
+        time.sleep(0.05)  # tiny sleep
+        we drop _KB_TIMEOUT_S to make this "slow"
         return _FakeReadiness(kb_readiness.STATE_READY, count=5)
 
     monkeypatch.setattr(kb_readiness, "count_niche_catalog_points", _slow_count)

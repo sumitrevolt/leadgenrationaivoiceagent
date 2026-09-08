@@ -42,12 +42,15 @@ def _timeout_ms(timeout_s: int) -> int:
 
 def _url_is_safe(url: str) -> bool:
     """SSRF guard — block a headless nav to internal/private/metadata hosts before
-    launching the browser (defense-in-depth; these tools are super-admin +
+    launching the browser (defense-in-depth
+    these tools are super-admin +
     BROWSER_TOOLS-gated, but a compromised admin could otherwise pivot to
     127.0.0.1:6333 Qdrant / 169.254.169.254 metadata / the Docker net). http(s)
-    only; hostname MUST resolve to a PUBLIC IP. Fail-CLOSED (unresolvable/unknown
+    only
+    hostname MUST resolve to a PUBLIC IP. Fail-CLOSED (unresolvable/unknown
     => unsafe). NOTE: a headless browser can still follow a REDIRECT to a private
-    IP — full coverage needs route interception; this closes the direct case."""
+    IP — full coverage needs route interception
+    this closes the direct case."""
     try:
         import ipaddress
         import socket

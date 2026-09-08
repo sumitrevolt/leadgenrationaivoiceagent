@@ -3,7 +3,8 @@ Vobiz Telephony Handler
 =======================
 
 Vobiz (vobiz.ai) — India-native SIP trunk + voice REST API (Plivo-style).
-Used as the primary P3 trunk (₹0.45/min raw SIP; this module covers the
+Used as the primary P3 trunk (₹0.45/min raw SIP
+this module covers the
 Direct Call REST API so calls can be tested without FreeSWITCH).
 
 API notes (IMPORTANT — discovered the hard way):
@@ -15,7 +16,8 @@ API notes (IMPORTANT — discovered the hard way):
   field names may evolve, so extra kwargs are forwarded as-is.
 - answer_url must return VobizXML: <Response><Speak>...</Speak><Hangup/></Response>.
 
-Import-safe: no network at import time; httpx is imported lazily inside methods.
+Import-safe: no network at import time
+httpx is imported lazily inside methods.
 """
 
 import os
@@ -71,7 +73,8 @@ class VobizClient:
         """POST {base}/Call/ — place an outbound call (capital C + trailing slash).
 
         COMPLIANCE: every call first passes the ComplianceGate (DND + calling
-        hours + DLT/140 for promotional; lenient for transactional). A blocked
+        hours + DLT/140 for promotional
+        lenient for transactional). A blocked
         call is NEVER dialled — it returns ``{"status_code": 0, "blocked": True,
         "compliance": {...}}`` so the caller can surface the reason. Pass
         ``skip_compliance=True`` only for internal/non-dialing flows.
@@ -214,7 +217,8 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
     Format (per docs.vobiz.ai/xml/stream + /xml/stream/play-audio):
         <Response>[<Speak>greeting</Speak>]<Stream bidirectional="true"
             keepCallAlive="true" audioTrack="inbound"
-            contentType="audio/x-l16;rate=16000">wss://...</Stream></Response>
+            contentType="audio/x-l16
+            rate=16000">wss://...</Stream></Response>
 
     CRITICAL <Stream> attributes (root cause of the old "call connects then
     instantly hangs up" bug — a bare <Stream> defaults to keepCallAlive=false
@@ -224,12 +228,14 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
         (this is the instant-hangup fix).
       * bidirectional="true"  — lets us send audio BACK (playAudio) over the WS.
       * audioTrack="inbound"   — stream the caller's audio to us.
-      * contentType="audio/x-l16;rate=16000" — Linear PCM 16-bit LE @16 kHz,
+      * contentType="audio/x-l16
+      rate=16000" — Linear PCM 16-bit LE @16 kHz,
         chosen so NO µ-law conversion is needed on EITHER leg (STT already
         wants 16 kHz, and we send L16 straight back).
 
     The optional leading <Speak> plays a one-shot greeting BEFORE the stream
-    opens; normally left empty because the bot greets over the socket itself.
+    opens
+    normally left empty because the bot greets over the socket itself.
     """
     speak = f"<Speak>{escape(greeting.strip())}</Speak>" if (greeting and greeting.strip()) else ""
     # audioTrack env-overridable (VOBIZ_AUDIO_TRACK): "inbound" = caller's audio only
@@ -257,6 +263,7 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
         '<?xml version="1.0" encoding="UTF-8"?>'
         f"<Response>{speak}"
         '<Stream bidirectional="true" keepCallAlive="true" '
-        f'audioTrack="{escape(track)}" contentType="audio/x-l16;rate=16000">'
+        f'audioTrack="{escape(track)}" contentType="audio/x-l16
+        rate=16000">'
         f"{escape(ws_url or '')}</Stream></Response>"
     )

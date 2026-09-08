@@ -224,7 +224,8 @@ def summary(days: int = 30) -> dict[str, Any]:
         else:
             verdict = (
                 f"Aap avg {avg_min:.1f} min me jawab dete ho — 2-min target hai. "
-                f"Sirf {under_pct}% leads ko 2 min me touch mila; auto-callback/alert "
+                f"Sirf {under_pct}% leads ko 2 min me touch mila
+                auto-callback/alert "
                 f"on karke yeh number badhao (5 min baad lead thanda)."
             )
         sla_ok = bool(n) and (median <= 300)
@@ -361,7 +362,8 @@ def summary_for_client(
             verdict = f"Theek — avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
         else:
             verdict = (
-                f"Avg {avg_min:.1f} min me jawab — 2-min target rakho; "
+                f"Avg {avg_min:.1f} min me jawab — 2-min target rakho
+                "
                 f"auto-callback/alert se yeh number badhega."
             )
         return {

@@ -126,7 +126,8 @@ def _ensure_forced_submit_tool_call(value: Any) -> None:
 
     The scoped submission endpoint ignores model-supplied arguments and re-checks
     the run token's dsh_capability_submit:<capability> binding, so synthesising
-    the generic tool call here does not grant any new authority; it only repairs
+    the generic tool call here does not grant any new authority
+    it only repairs
     provider protocol non-compliance where finish_reason='stop' arrives with no
     tool_calls despite an explicit required dsh_capability_submit tool_choice.
     """

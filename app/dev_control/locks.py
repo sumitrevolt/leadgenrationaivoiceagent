@@ -1,8 +1,10 @@
 """File-ownership locks for the engineering control plane (Phase 3).
 
 Two workers must never edit the same files concurrently. ``overlapping`` is a
-pure conflict check; the backend classes provide TTL-bounded acquire/release.
-A Redis backend is used when reachable (cross-process safety); otherwise an
+pure conflict check
+the backend classes provide TTL-bounded acquire/release.
+A Redis backend is used when reachable (cross-process safety)
+otherwise an
 in-memory backend keeps a single-process worker correct and tests hermetic.
 """
 

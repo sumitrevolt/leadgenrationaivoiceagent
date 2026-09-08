@@ -194,7 +194,8 @@ async def test_run_due_places_transactional_call(vf_store, monkeypatch):
 @pytest.mark.asyncio
 async def test_run_due_passes_wizard_opening_for_aware_lead(vf_store, monkeypatch):
     """Business-type-aware followup (wizard niche + name) → start_stream_call ko
-    wizard opening_line milta hai; generic lead pe "" (fallback intact)."""
+    wizard opening_line milta hai
+    generic lead pe "" (fallback intact)."""
     from app.telephony import voice_followup as vf
 
     past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()

@@ -9,7 +9,8 @@ Until now, adding a new paying customer required the operator to:
 That's friction at the moment that matters most — the first paying customer.
 This module is the single admin endpoint that does the first three steps
 atomically and returns a ready-to-share dashboard URL + plaintext password
-(shown ONCE; same pattern as MCP-key / webhook-secret issuance).
+(shown ONCE
+same pattern as MCP-key / webhook-secret issuance).
 """
 
 from __future__ import annotations

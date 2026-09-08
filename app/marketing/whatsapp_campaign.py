@@ -167,7 +167,8 @@ async def send_one(phone: str, message: str) -> dict:
                 phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
             )
     except Exception as e:
-        logger.warning(f"whatsapp auto-send failed ({e}); falling back to 1-click link.")
+        logger.warning(f"whatsapp auto-send failed ({e})
+        falling back to 1-click link.")
         out["mode"] = "link_error"
         _record_failure(phone, str(e))
     return out
@@ -182,7 +183,8 @@ async def send_template(
 ) -> dict:
     """Send a Meta-APPROVED TEMPLATE message (the compliant way to initiate a chat).
 
-    Auto-sends only when enabled+configured AND the number isn't suppressed; otherwise
+    Auto-sends only when enabled+configured AND the number isn't suppressed
+    otherwise
     returns a ban-safe 1-click link (using ``fallback_text``). Never raises.
     """
     params = [str(p) for p in (params or [])]
@@ -225,7 +227,8 @@ async def send_template(
                 phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
             )
     except Exception as e:
-        logger.warning(f"whatsapp template send failed ({e}); falling back to 1-click link.")
+        logger.warning(f"whatsapp template send failed ({e})
+        falling back to 1-click link.")
         out["mode"] = "link_error"
         _record_failure(phone, str(e))
     return out

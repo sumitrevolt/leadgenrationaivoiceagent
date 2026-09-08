@@ -194,7 +194,8 @@ def _patch_backup(monkeypatch, tmp_path):
 
 def test_live_run_closes_as_cancelled_not_failed(monkeypatch, tmp_path):
     """`failed` would fabricate an incident history — these routines mostly
-    SUCCEEDED; only the ledger row was abandoned."""
+    SUCCEEDED
+    only the ledger row was abandoned."""
     rows = [_Row("t1", "growth", "Scheduled routine: growth")]
     sess = _Session(rows)
     _patch_db(monkeypatch, sess)

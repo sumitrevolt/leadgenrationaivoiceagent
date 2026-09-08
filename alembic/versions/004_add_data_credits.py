@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), default=sa.func.now(), onupdate=sa.func.now()),
     )
     op.create_index('ix_data_credits_client', 'data_credits', ['client_id'])
-    
+
     # Create credit_transactions table
     op.create_table(
         'credit_transactions',
@@ -52,7 +52,7 @@ def upgrade() -> None:
     op.create_index('ix_credit_tx_client', 'credit_transactions', ['client_id'])
     op.create_index('ix_credit_tx_type', 'credit_transactions', ['transaction_type'])
     op.create_index('ix_credit_tx_created', 'credit_transactions', ['created_at'])
-    
+
     # Create api_keys table
     op.create_table(
         'api_keys',
@@ -71,7 +71,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_api_keys_client', 'api_keys', ['client_id'])
     op.create_index('ix_api_keys_key_hash', 'api_keys', ['key_hash'])
-    
+
     # Create api_usage_logs table
     op.create_table(
         'api_usage_logs',

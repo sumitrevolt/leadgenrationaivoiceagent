@@ -2,7 +2,8 @@
 
 Pins the aggregation contract (success_rate = ok/total, last_run = max) and the
 graceful no-DB path. Uses a fake DB so no real Postgres/AgentEvent rows needed —
-the SQL GROUP BY tuples are simulated; we test the Python aggregation that turns
+the SQL GROUP BY tuples are simulated
+we test the Python aggregation that turns
 (member, status, count, last) rows into per-agent KPIs.
 """
 

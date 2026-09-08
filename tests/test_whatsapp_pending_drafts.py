@@ -3,7 +3,8 @@
 Why this exists: `_record_block` counted every gate-denied send but threw the
 would-send away. 1829 real customer intents produced a counter and nothing clickable
 — no queue, and the count was lost on restart. `auto_send_blocked` now persists the
-draft; these tests pin that contract.
+draft
+these tests pin that contract.
 
 The most important property here is #6: persistence sits on a hot outbound path, so a
 storage failure must leave `auto_send_blocked`'s return value byte-for-byte identical.

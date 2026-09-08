@@ -2,7 +2,8 @@
 """Start a Buzz ACP harness for an agent whose key this machine holds.
 
 !! NEVER EXECUTED PAST --dry-run !!
-`--dry-run` runs and prints the correct plan; it returns before any key is read.
+`--dry-run` runs and prints the correct plan
+it returns before any key is read.
 The real start has never run: the authoring session's sandbox classifier refuses
 it even with a matching permission rule, because the capability — read an agent
 private key from Windows Credential Manager, then spawn a long-running process

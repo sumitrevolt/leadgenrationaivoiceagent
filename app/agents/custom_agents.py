@@ -21,7 +21,8 @@ Design (project patterns):
     main-session wire karega — yeh module sirf load/validate/register deta hai).
   - mtime-cached load (skill_pack jaisa), pure-python, path-escape blocked.
   - `merged_roster()` ek hardcoded NOTE + custom agents return karta — team.py ko
-    HEAVY import NAHI karta (sirf data dir read); actual STAFF-dict merge main
+    HEAVY import NAHI karta (sirf data dir read)
+    actual STAFF-dict merge main
     session app/platform/team.py me wire karega (owned-file boundary respect).
   - KABHI raise nahi karta.
 

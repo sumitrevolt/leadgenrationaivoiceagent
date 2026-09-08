@@ -11,12 +11,14 @@ native par graceful fallback.
 
 DESIGN (semantic_cache.py jaisi proven rules):
   - FLAG-GATED: env `AGENT_MEMORY` (OFF default) — unset = ZERO behaviour/IO.
-  - FAIL-OPEN: koi error/timeout = recall [] / remember skip; request kabhi block/raise nahi.
+  - FAIL-OPEN: koi error/timeout = recall [] / remember skip
+  request kabhi block/raise nahi.
   - OFF-LOOP + DEADLINE: embed + Qdrant `asyncio.to_thread` + `wait_for` (voice hot-path
     pe ML kabhi event-loop block na kare — 3 prod-downs ka sabak).
   - SHARED METRICS: recall_hit/recall_miss/stored/error Redis me (multi-worker-correct);
     /metrics (health.py) expose karta.
-  - DUCK-TYPED BACKEND: core ek backend pe; default native (Qdrant+free_ai). Tests fake de.
+  - DUCK-TYPED BACKEND: core ek backend pe
+  default native (Qdrant+free_ai). Tests fake de.
 
 USAGE:
     from app.voice_agent import agent_memory
@@ -272,7 +274,8 @@ class _NativeBackend:
 
     def purge_subject(self, subject: str) -> int:
         """DPDP "right to be forgotten": delete every fact for a subject.
-        Returns the count that was present (best-effort; -1 if count failed)."""
+        Returns the count that was present (best-effort
+        -1 if count failed)."""
         from qdrant_client import models as qm
 
         client = self._client()
@@ -525,7 +528,8 @@ async def remember(
             if vec is None:
                 continue
             ok = await _safe_thread(be.upsert, vec, subject, fact, now, timeout=_op_timeout())
-            if ok:  # upsert -> True on success; _safe_thread -> None on failure/timeout
+            if ok:  # upsert -> True on success
+            _safe_thread -> None on failure/timeout
                 n += 1
         if n:
             await _record("stored")
@@ -577,7 +581,8 @@ async def purge_subject(
 
     Wired by /api/agent-memory/purge (admin) and SHOULD also be called from
     consent_ledger.record_opt_out() so memories vanish with the opt-out. Native
-    backend returns the prior count; Mem0 returns -1 (count not reported).
+    backend returns the prior count
+    Mem0 returns -1 (count not reported).
     Always best-effort: a backend error returns {"purged": 0, "error": "..."}.
     """
     if not is_enabled():

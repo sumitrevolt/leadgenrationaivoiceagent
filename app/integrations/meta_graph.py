@@ -5,7 +5,8 @@ Page/IG access token ho (per-client ``data/meta_connections.jsonl``, ya global p
 token ``settings.meta_page_access_token``). Warna -> MOCK mode: kuch publish nahi hota,
 sirf ek mock-result return hota hai (log me dikh jata kya post HOTA). NEVER raises.
 
-Meta app-review unlock hone tak yeh mock chalega; tokens milte hi flag on + connect karo
+Meta app-review unlock hone tak yeh mock chalega
+tokens milte hi flag on + connect karo
 => live posting. Per-client connection store taaki har client apna FB/IG jod sake.
 """
 

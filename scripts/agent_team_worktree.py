@@ -163,12 +163,14 @@ def cmd_remove(args: argparse.Namespace) -> int:
         deleted = _run_git(["branch", flag, branch])
         if deleted.returncode != 0:
             print(
-                f"note: left branch {branch} (not deleted — unmerged or in use); "
+                f"note: left branch {branch} (not deleted — unmerged or in use)
+                "
                 "pass --delete-branch after merge, or delete manually",
                 file=sys.stderr,
             )
     elif branch and branch != "HEAD":
-        print(f"note: worktree removed; branch {branch} kept (use --delete-branch when safe)")
+        print(f"note: worktree removed
+        branch {branch} kept (use --delete-branch when safe)")
     print(f"REMOVED worktree={wt} branch={branch}")
     return 0
 

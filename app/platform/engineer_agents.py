@@ -15,14 +15,16 @@ Project ethos applied:
 - FAIL-OPEN on missing dependencies / signals — a missing data source becomes
   "unknown" in the KPIs and contributes a neutral 50 to the score rather than
   zeroing it out (an absent signal is not the same as a failing one).
-- Pure-Python; no new dependency. Uses psutil only if already importable
+- Pure-Python
+no new dependency. Uses psutil only if already importable
   (it's in the project requirements but the probe degrades gracefully).
 - log_event() into the existing agent_events table so /app/team picks it up
   without any extra wiring.
 
 Hooks for callers:
     from app.platform import engineer_agents as ea
-    ea.run("sre")        # -> dict; also logs event
+    ea.run("sre")        # -> dict
+    also logs event
     ea.run("finops")
     ea.run("security")
     ea.run_all()         # -> {"sre": ..., "finops": ..., "vidya": ...}
@@ -580,7 +582,8 @@ def run_deps() -> dict[str, Any]:
         actions.append("No requirements lock/txt found — pin dependencies for reproducible builds")
     else:
         kpis["lock_age_days"] = round(age / 24.0, 1)
-        sub_scores.append(100.0)  # presence is good; staleness alone is not a failure
+        sub_scores.append(100.0)  # presence is good
+        staleness alone is not a failure
 
     # 2) Known CVEs via pip-audit (read-only subprocess; bounded; fail-open).
     try:

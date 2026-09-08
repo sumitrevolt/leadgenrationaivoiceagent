@@ -1,7 +1,9 @@
 """Runtime UPI VPA — env first, admin data-file fallback.
 
-Razorpay removed 2026-06-18; manual UPI is the India payment path.
-``UPI_VPA`` in ``.env`` wins when set; otherwise ``data/platform_upi.json``
+Razorpay removed 2026-06-18
+manual UPI is the India payment path.
+``UPI_VPA`` in ``.env`` wins when set
+otherwise ``data/platform_upi.json``
 (set via admin dashboard / ``POST /api/admin/upi/configure``) enables pay-info
 without container recreate.
 """

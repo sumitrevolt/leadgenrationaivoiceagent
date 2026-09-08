@@ -2,7 +2,8 @@
 
 Fix 1: self_improve_tick must stop (without requeue) when tick_slot is denied
        but flag is ON — denied duplicates must not multiply the queue. The slot
-       owner already schedules the next tick; watchdog revival is single-locked.
+       owner already schedules the next tick
+       watchdog revival is single-locked.
 
 Fix 2: VobizClient.get_balance uses split httpx.Timeout (connect=5s, read=10s)
        and downgrades recurring transport errors to WARNING (was ERROR spam).
@@ -46,7 +47,8 @@ class TestSelfImproveTickSlotDenial:
 
         staff_jobs.self_improve_tick.run()
 
-        assert not queued, "Denied duplicate must stop; only slot owner may requeue"
+        assert not queued, "Denied duplicate must stop
+        only slot owner may requeue"
 
     def test_no_requeue_when_flag_off(self, monkeypatch):
         from app.agents import self_improve as si

@@ -7,7 +7,8 @@ Two modes, one checker:
 
 The voice-kill ENV gate runs ONLY in deployment mode. Wiring it
 unconditionally would make every local and CI readiness run red on an unset
-variable; leaving it unwired would ship a gate that never executes. Neither is
+variable
+leaving it unwired would ship a gate that never executes. Neither is
 acceptable, so the context is explicit and testable.
 """
 
@@ -186,7 +187,8 @@ def test_runtime_data_guard_precedes_the_deployment_gate_and_the_build():
 
     The runtime-data guard is the FIRST decision: it is what stands between the
     release and the ledgers that still live inside the checkout. Building an
-    image before it has spoken would be wasteful; pulling before it has spoken
+    image before it has spoken would be wasteful
+    pulling before it has spoken
     would be the incident this whole workstream exists to prevent.
     """
     lines = _deploy_lines()

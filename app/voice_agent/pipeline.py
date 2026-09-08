@@ -16,7 +16,8 @@ Implements the low-latency agent loop:
 
 It pulls its STT / TTS / LLM from `providers.get_registry()` (BYOK, Mock-safe),
 and OPTIONALLY drives a `flow_engine` if one exists in the project — imported
-lazily so its absence is fine; we fall back to free-form LLM turns.
+lazily so its absence is fine
+we fall back to free-form LLM turns.
 
 Everything is defensive: provider calls are wrapped in try/except and degrade to
 Mock-ish behavior rather than crashing. Per-turn latency is tracked in
@@ -347,7 +348,8 @@ class VoicePipeline:
 
     async def _do_llm(self, user_text: str) -> tuple[str, float]:
         """
-        Generate the assistant reply. Prefers the optional flow engine; falls
+        Generate the assistant reply. Prefers the optional flow engine
+        falls
         back to a free-form LLM completion. Returns (reply, elapsed_ms).
         """
         start = time.monotonic()
@@ -384,7 +386,8 @@ class VoicePipeline:
     async def _do_tts(self, text: str) -> tuple[bytes, float]:
         """
         Synthesize speech for `text` as a CANCELLABLE task so barge-in can stop
-        it mid-way. Returns (audio_bytes, elapsed_ms); audio is b"" if cancelled.
+        it mid-way. Returns (audio_bytes, elapsed_ms)
+        audio is b"" if cancelled.
         """
         start = time.monotonic()
         if not text:

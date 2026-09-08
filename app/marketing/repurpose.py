@@ -27,7 +27,9 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _URL_RE = re.compile(r"^https?://", re.I)
-_UA = "Mozilla/5.0 (compatible; LeadsGenAI-content/1.0; +https://leadsgenai.in)"
+_UA = "Mozilla/5.0 (compatible
+LeadsGenAI-content/1.0
++https://leadsgenai.in)"
 
 
 def _is_url(s: str) -> bool:

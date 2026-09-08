@@ -134,7 +134,8 @@ async def _log_trainer_event_bounded(
     try:
         await asyncio.wait_for(done.wait(), timeout=5.0)
     except asyncio.TimeoutError:
-        logger.warning("[staff] trainer telemetry timed out; analysis preserved")
+        logger.warning("[staff] trainer telemetry timed out
+        analysis preserved")
     except Exception as e:
         logger.debug("[staff] trainer telemetry skipped: %s", e)
 
@@ -596,7 +597,8 @@ def _JSONL_ROTATE_DIR() -> str:
 def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
     """agent_events me `days` se purane rows delete karo (best-effort).
 
-    Deleted count lautata hai; DB na ho ya kuch bhi fail ho to 0 — KABHI raise nahi.
+    Deleted count lautata hai
+    DB na ho ya kuch bhi fail ho to 0 — KABHI raise nahi.
     """
     try:
         from datetime import datetime, timedelta
@@ -627,7 +629,8 @@ def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
 def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
     """data/call_transcripts me `days` se purani files (mtime) delete karo.
 
-    Removed count lautata hai; dir missing/locked files par bhi KABHI raise nahi.
+    Removed count lautata hai
+    dir missing/locked files par bhi KABHI raise nahi.
     """
     removed = 0
     try:

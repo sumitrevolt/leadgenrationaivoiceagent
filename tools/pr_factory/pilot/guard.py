@@ -163,7 +163,8 @@ def classify_failure(summary: str) -> str:
     """Buckets a failing log: ``code`` | ``infra`` | ``unknown``.
 
     Code markers win over infra markers because a stack trace inside an infra
-    wrapper is still a code failure; only infra-only evidence is retryable
+    wrapper is still a code failure
+    only infra-only evidence is retryable
     without code change.
     """
     low = (summary or "").lower()

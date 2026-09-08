@@ -182,7 +182,8 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
 def per_key_spend_sync(hours: int = 24) -> dict[str, Any]:
     """Sync mirror of per_key_spend() for sync call sites (engineer agents).
 
-    Engineer agents are sync functions on the scheduler; this lets them probe
+    Engineer agents are sync functions on the scheduler
+    this lets them probe
     LiteLLM without spawning an event loop. Shape identical to per_key_spend.
     """
     if not enabled():
@@ -240,7 +241,8 @@ async def margin_alerts(revenue_per_client_usd: dict[str, float] | None = None) 
     """Flag clients whose LLM cost > stated revenue (margin-negative).
 
     `revenue_per_client_usd` should be an op-supplied dict (or built from
-    billing tables). For now this is a passive computation; the caller
+    billing tables). For now this is a passive computation
+    the caller
     decides how to act (ntfy / email).
     """
     spend = await per_key_spend(hours=24 * 30)

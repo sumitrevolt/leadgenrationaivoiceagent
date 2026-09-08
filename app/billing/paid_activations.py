@@ -44,7 +44,8 @@ _INVOICE_WINDOW = 500
 def _ist_day(raw: Any) -> str:
     """ISO/date string → ``YYYY-MM-DD`` in IST. Blank/garbage → ``""``.
 
-    Ledger timestamps UTC me likhe jaate hain; IST day boundary 05:30 UTC pe
+    Ledger timestamps UTC me likhe jaate hain
+    IST day boundary 05:30 UTC pe
     shift hota hai, isliye din ka faisla convert karke hi lena hai (raw string
     slice galat din de dega raat ke invoices pe).
     """
@@ -78,7 +79,8 @@ def marketing_plan_keys() -> set[str]:
     future catalogue merge chupke se Marketing KPI ko inflate na kar de.
 
     Fail-CLOSED: packages padha hi na jaye to empty set → count 0. Ek metric ke
-    liye under-report safe hai; guess karke paid count banana NAHI.
+    liye under-report safe hai
+    guess karke paid count banana NAHI.
     """
     keys: set[str] = set()
     try:
@@ -180,7 +182,8 @@ def daily_paid_activations(
 
     Dedupe ``client_id`` + din pe hota hai: ek hi UPI approve ek invoice bhi fire
     karta hai, aur dono ledger me alag row banti hai — bina dedupe ke ek customer
-    do baar ginta. Never raises; kuch bhi tootne pe zeroes.
+    do baar ginta. Never raises
+    kuch bhi tootne pe zeroes.
     """
     target = str(day or "").strip() or today_ist()
     out: dict[str, Any] = {

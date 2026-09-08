@@ -18,7 +18,8 @@ Public API (sab never-raise, pure stdlib):
         slice (e.g. 5) to canary-test before widening (council rec 2026-07-04).
   - next_mailbox() / rotate_sender(sender)  -> MAILBOX ROTATION: env
         `OUTREACH_MAILBOXES` = JSON list [{email,password,host?,port?}] ho to
-        round-robin SMTP creds (cursor data/mailbox_cursor.json); absent = None
+        round-robin SMTP creds (cursor data/mailbox_cursor.json)
+        absent = None
         (existing single-SMTP path bilkul untouched).
 
 Wiring (auto_outreach.py, additive + gated, default OFF = zero change):
@@ -65,7 +66,8 @@ DEFAULT_SUBJECT_VARIANTS: list[str] = [
 # --------------------------------------------------------------------------- #
 def render(template: str, seed: Any = 0) -> str:
     """Spintax `{Hi|Hello|Namaste}` resolve karo — SAME seed = SAME output
-    (deterministic; recipient email seed banao to har baar wahi mile).
+    (deterministic
+    recipient email seed banao to har baar wahi mile).
     Non-spintax braces ({name} jaise) untouched. Never raises."""
     try:
         out = str(template or "")

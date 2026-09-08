@@ -14,7 +14,8 @@ def test_setup_review_cta_has_explicit_seed_button_contract():
 
 def test_customer_identity_never_uses_url_client_id_fallback():
     assert 'qparam("client_id")' not in CUSTOMER
-    assert 'return localStorage.getItem("lgai_cid") || "demo";' not in CUSTOMER
+    assert 'return localStorage.getItem("lgai_cid") || "demo"
+    ' not in CUSTOMER
     assert 'window.location.replace("/app/login?next="' in CUSTOMER
 
 

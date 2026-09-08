@@ -3,7 +3,8 @@
 Nikhil composite (revenue_digest + client_health + usage_alerts) is honestly
 AMBER / EXTERNAL_SEND / APPROVAL_REQUIRED because usage_alerts can send
 customer upsell emails. REGISTRY_MATCH on identity; would_require_approval;
-enforcement OFF; legacy run_nikhil authoritative.
+enforcement OFF
+legacy run_nikhil authoritative.
 """
 
 from __future__ import annotations

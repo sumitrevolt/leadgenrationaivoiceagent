@@ -27,7 +27,8 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _STORE = os.path.join("data", "review_requests.jsonl")
-HAPPY_THRESHOLD = 4  # 1-5 scale: >= => Google review; warna private feedback
+HAPPY_THRESHOLD = 4  # 1-5 scale: >= => Google review
+warna private feedback
 
 
 def _now() -> str:

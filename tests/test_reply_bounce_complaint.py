@@ -39,7 +39,8 @@ def test_hard_bounce_mailer_daemon_with_dsn_5xx():
     )
     kind = classify_delivery_report(
         "mailer-daemon@hostinger.com",
-        _msg({"Content-Type": "multipart/report; report-type=delivery-status"}),
+        _msg({"Content-Type": "multipart/report
+        report-type=delivery-status"}),
         "Undelivered Mail Returned to Sender",
         body,
     )
@@ -75,7 +76,8 @@ def test_soft_bounce_dsn_4xx():
     )
     kind = classify_delivery_report(
         "mailer-daemon@mx.example.com",
-        _msg({"Content-Type": "multipart/report; report-type=delivery-status"}),
+        _msg({"Content-Type": "multipart/report
+        report-type=delivery-status"}),
         "Delayed Mail",
         body,
     )
@@ -172,7 +174,8 @@ def test_delivery_outcomes_vocab():
 
 
 def test_auto_submitted_plus_dsn_body_is_structural():
-    body = "Final-Recipient: rfc822; x@y.com\nStatus: 5.7.1\n"
+    body = "Final-Recipient: rfc822
+    x@y.com\nStatus: 5.7.1\n"
     kind = classify_delivery_report(
         "noreply@mx.example",
         _msg({"Auto-Submitted": "auto-generated"}),

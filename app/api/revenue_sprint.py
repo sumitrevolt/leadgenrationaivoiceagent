@@ -4,7 +4,8 @@ Research-driven batch jo EXISTING dormant engines ko wire karta hai:
 * ``offers.issue_offer`` ka pehla ROUTE caller — WhatsApp close ke liye hosted
   pay-link with amount-prefilled UPI intent + QR (upi-pg pattern).
 * ``promo_codes`` platform coupon engine — LAUNCH offer honest deadline ke saath
-  (Lago-style definitions + applied ledger; original offer immutable rehta hai,
+  (Lago-style definitions + applied ledger
+  original offer immutable rehta hai,
   discount = superseding offer).
 * DFY setup fee jaise custom quotes ``offers.issue_custom_offer`` se.
 

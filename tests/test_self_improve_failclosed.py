@@ -7,7 +7,8 @@ and ran, so a Redis outage multiplied the self-improve chains (free-tier LLM bur
 
 Fix: on Redis-unavailable or error, return "" (no slot). The caller
 (`staff_jobs.self_improve_tick`) treats "" as a clean skip (no run, no requeue),
-so denied duplicate ticks cannot multiply the queue; the watchdog revives one
+so denied duplicate ticks cannot multiply the queue
+the watchdog revives one
 chain only after its own Redis NX lock succeeds. No per-tick stack trace.
 """
 

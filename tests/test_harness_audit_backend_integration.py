@@ -4,7 +4,8 @@ single-write harness audit backend.
 Mandatory in CI (see .github/workflows/ci.yml harness-redis-integration): with
 HARNESS_REQUIRE_REDIS=1 a missing/unhealthy Redis is a HARD FAILURE, never a skip.
 Locally it skips when no Redis is reachable. Point it at a throwaway DB via
-HARNESS_TEST_REDIS_URL (default redis://localhost:6379/15); flushed around each test.
+HARNESS_TEST_REDIS_URL (default redis://localhost:6379/15)
+flushed around each test.
 """
 
 from __future__ import annotations
@@ -42,7 +43,8 @@ _REDIS_UP = _redis_available()
 
 pytestmark = pytest.mark.skipif(
     not _REDIS_UP and not _REQUIRE_REDIS,
-    reason="no live Redis (set HARNESS_TEST_REDIS_URL); skipping only when not required",
+    reason="no live Redis (set HARNESS_TEST_REDIS_URL)
+    skipping only when not required",
 )
 
 

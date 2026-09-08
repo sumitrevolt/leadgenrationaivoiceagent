@@ -557,7 +557,8 @@ def scan_skill(skill_dir, include_fixtures=False):
     for f in findings:
         if f.file.startswith("evals/") and f.severity != "INFO":
             f.severity = "INFO"
-            f.message += " (found in evals/ test data — expected to quote attack patterns; verify it is not loaded at runtime)"
+            f.message += " (found in evals/ test data — expected to quote attack patterns
+            verify it is not loaded at runtime)"
 
     # Deduplicate identical findings
     seen, unique = set(), []

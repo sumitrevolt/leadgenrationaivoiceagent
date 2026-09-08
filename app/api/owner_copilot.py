@@ -110,7 +110,8 @@ async def copilot_command(
 ) -> dict[str, Any]:
     _require_enabled()
     cmd = (body.command or "").strip()
-    if any(x in cmd for x in (";", "|", "`", "$(", "\n", "DROP ", "DELETE FROM")):
+    if any(x in cmd for x in ("
+    ", "|", "`", "$(", "\n", "DROP ", "DELETE FROM")):
         raise HTTPException(status_code=400, detail="invalid command characters")
     return execute_typed_command(
         cmd,

@@ -4,7 +4,8 @@ Boss samajh aaye → khud Approve/Done.
 Samajh na aaye → multi-model council (opinions → peer rank → Chairman) ACTION nikaale.
 
 Side-effects FAIL-SAFE:
-  - Hot Queue: done | park_admin | keep (CALL = keep + hint; WA auto-send KABHI nahi)
+  - Hot Queue: done | park_admin | keep (CALL = keep + hint
+  WA auto-send KABHI nahi)
   - Content approval: approve | park_admin | keep
 Gated by LLM_COUNCIL (reuse existing flag). Never raises from public helpers.
 """
@@ -239,7 +240,8 @@ def _gbp_question(client: dict[str, Any], heuristic: dict[str, Any]) -> str:
     socials = c.get("socials") if isinstance(c.get("socials"), dict) else {}
     lines = []
     for q in gbp_audit.AUDIT_QUESTIONS:
-        opts = "; ".join(f"{i}={o.get('label')}" for i, o in enumerate(q.get("options") or []))
+        opts = "
+        ".join(f"{i}={o.get('label')}" for i, o in enumerate(q.get("options") or []))
         lines.append(f"- {q['id']}: {q['q']} | options: {opts}")
     heur = heuristic.get("answers") or {}
     try:

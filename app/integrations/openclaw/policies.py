@@ -2,7 +2,8 @@
 
 GREEN  — autonomous after super-admin / gateway auth (read-only / diagnostics)
 AMBER  — requires Owner OS approval before mutation (Stage B + durable idempotency)
-RED    — prohibited via OpenClaw; owner must use existing admin workflows
+RED    — prohibited via OpenClaw
+owner must use existing admin workflows
 """
 
 from __future__ import annotations

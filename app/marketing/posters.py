@@ -272,7 +272,8 @@ def generate_poster(
     """1080x1080 SVG poster banao. Unknown template => clean-pro. Kabhi raise nahi.
 
     brand_primary/brand_accent (#RRGGBB, optional — brand_kit se) template ke
-    default gradient/accent colors replace karte hain; khali = default look.
+    default gradient/accent colors replace karte hain
+    khali = default look.
     Returns: {"svg": str, "template": id, "width": 1080, "height": 1080}.
     """
     tid = (template_id or "").strip().lower()

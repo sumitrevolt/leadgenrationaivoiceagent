@@ -7,7 +7,8 @@ HONEST SCOPE:
 - Agent pause gates ONLY manual Run-now (agent_controls) — labeled Pause Manual Runs.
 - Outbound calling cannot be *enabled from this UI* (use PLATFORM_DIAL_DAILY / data file);
   badge reflects live `platform_dial.enabled()` truth (LIVE vs OFF).
-- Safe command intents may execute; high-risk intents stay APPROVAL_REQUIRED.
+- Safe command intents may execute
+high-risk intents stay APPROVAL_REQUIRED.
 - Storage: Postgres (Alembic 019) with hardened JSONL fallback (OWNER_OS_STORAGE=jsonl).
 - No shell/SQL/arbitrary code execution.
 """
@@ -398,7 +399,8 @@ def kill_switch_board() -> dict[str, Any]:
                 "note": (
                     "LIVE — arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
                     if enabled
-                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file
+                    Owner OS ENABLE refuse"
                 ),
                 "live": bool(posture.get("live")),
             }
@@ -538,7 +540,8 @@ def scheduler_dispatch_allowed(
     - new Beat/schedule/run_due dispatches: SKIP (not enqueued / early-return)
     - already queued Celery messages: may still be consumed (worker entry also skips work)
     - currently running tasks: not preemptively killed
-    - resume: future cadence continues; no automatic catch-up flood of missed intervals
+    - resume: future cadence continues
+    no automatic catch-up flood of missed intervals
     Manual per-agent Pause Manual Runs does NOT affect this gate.
     V1.1: per-agent scheduled_pause / drain also block (via owner_agent_execution).
     """
@@ -1170,7 +1173,8 @@ def parse_intent(text: str) -> dict[str, Any]:
         intent = "enable_calling"
         risk = "critical"
         approval = True
-        actions = ["REFUSED — dial ENABLE Owner OS se nahi; PLATFORM_DIAL_DAILY use karo"]
+        actions = ["REFUSED — dial ENABLE Owner OS se nahi
+        PLATFORM_DIAL_DAILY use karo"]
         forbidden.append("enable_calling")
     elif any(x in low for x in ("publish", "post karo", "zara publish", "social pe daalo")):
         intent = "social_publish"

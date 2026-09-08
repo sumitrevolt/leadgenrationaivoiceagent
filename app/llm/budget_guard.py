@@ -15,7 +15,8 @@ DESIGN (prod-rules ke according — semantic_cache.py jaisa):
     by design — admin ne manually daala hai).
   - DURABLE COUNTERS: main redis (noeviction) — LRU cache redis nahi (evict = undercount).
   - SHARED: multi-worker-correct (redis), /metrics expose karta hai.
-  - DECOUPLED: core duck-typed; default backend lazily app.cache redis use karta.
+  - DECOUPLED: core duck-typed
+  default backend lazily app.cache redis use karta.
 
 USAGE (free_ai.chat opt-in karta):
     from app.llm import budget_guard

@@ -9,7 +9,8 @@ nahi marta — har item never-raise wrapper me chalta.
 Design (project patterns):
   - `enabled()` sirf info-flag (BATCH_HARNESS) — run_batch khud hamesha safe-callable
     (programmatic callers + admin demo endpoint dono use karte). Flag default OFF.
-  - Concurrency [1,16] me bound (resource-safety; asyncio.Semaphore).
+  - Concurrency [1,16] me bound (resource-safety
+  asyncio.Semaphore).
   - Per-item hard never-raise: exception → {ok:False} record, batch continue.
   - Checkpoint = append-only jsonl (one line per completed index). Resume = read
     done-indices, skip. Crash-safe (har item ke baad flush).
@@ -107,9 +108,11 @@ async def run_batch(
 ) -> dict[str, Any]:
     """`fn` (async def fn(item)->dict) ko `items` pe bounded-parallel chalao.
 
-    - concurrency [1,16] me clamp; asyncio.Semaphore se gate.
+    - concurrency [1,16] me clamp
+    asyncio.Semaphore se gate.
     - Har item never-raise wrapper me — ek failure batch ko nahi marti.
-    - ckpt_id diya → progress data/batch_runs/<ckpt_id>.jsonl me; same ckpt_id pe
+    - ckpt_id diya → progress data/batch_runs/<ckpt_id>.jsonl me
+    same ckpt_id pe
       dobara call = already-done indices SKIP (resume).
     Returns {ok, total, done, failed, skipped, ckpt_id, label}.
     """

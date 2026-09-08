@@ -232,7 +232,8 @@ def check_talk_listen_ratio(
     if ratio > max_ratio and avg_bot_words > min_avg_bot_words:
         return (
             f"TALK_LISTEN_RATIO: bot spoke {ratio:.0%} of words "
-            f"(>{max_ratio:.0%} cap; {avg_bot_words:.0f} words/turn)"
+            f"(>{max_ratio:.0%} cap
+            {avg_bot_words:.0f} words/turn)"
         )
     return None
 
@@ -256,7 +257,8 @@ def check_missing_permission(transcript: list[dict], within_bot_turns: int = 2) 
 def check_literal_translation(text: str) -> str | None:
     """Flag robotic Sanskritised translationese in a single bot line — a natural
     Hinglish telecaller would not say 'sahayata/uplabdh/pradan'. Heuristic
-    (recall-tuned); returns a finding string or None."""
+    (recall-tuned)
+    returns a finding string or None."""
     t = _norm(text)
     hits = [tok for tok in _TRANSLATIONESE_TOKENS if tok in t]
     if hits:
@@ -293,7 +295,8 @@ def check_missing_ai_disclosure(transcript: list[dict], within_bot_turns: int = 
 def check_pii_leak(transcript: list[dict]) -> list[str]:
     """Flag any bot turn that emits a raw mobile/email or reveals its own
     system-prompt/instructions — the failure mode a PII-probe scenario hunts.
-    Recall-tuned heuristic; advisory (a bot may legitimately quote a callback
+    Recall-tuned heuristic
+    advisory (a bot may legitimately quote a callback
     number, so the self-test never gates the build on this — it surfaces it)."""
     findings: list[str] = []
     for turn in _turns(transcript):

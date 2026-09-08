@@ -208,7 +208,8 @@ async def _read_stats() -> list[dict[str, Any]]:
 class CompareRunIn(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=8000)
     providers: list[str] = Field(
-        default_factory=list, description="Provider IDs; empty = all available"
+        default_factory=list, description="Provider IDs
+        empty = all available"
     )
     system: str = Field(default="", max_length=4000)
     max_tokens: int = Field(default=512, ge=32, le=4096)
@@ -356,34 +357,111 @@ async def status(request: Request) -> dict:
 _PAGE_HTML = """<!doctype html>
 <html><head><meta charset="utf-8"><title>LLM Compare — Blind Arena</title>
 <style>
- body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
- .wrap{max-width:1200px;margin:0 auto;padding:24px}
- h1{margin:0 0 6px 0;font-size:22px}
- .sub{color:#94a3b8;margin-bottom:20px;font-size:13px}
- .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:16px}
- label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 4px}
- textarea,input,select{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px;border-radius:6px;font-family:inherit;box-sizing:border-box}
- textarea{min-height:120px;resize:vertical;font-family:ui-monospace,Menlo,monospace}
- button{background:#3b82f6;color:#fff;border:0;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600}
- button:disabled{background:#475569;cursor:not-allowed}
- button.ghost{background:transparent;border:1px solid #475569;color:#e2e8f0}
- .row{display:flex;gap:12px;flex-wrap:wrap}
- .col{flex:1;min-width:280px}
- .arena{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
- .entry{background:#0f172a;border:2px solid #334155;border-radius:8px;padding:12px;display:flex;flex-direction:column}
- .entry .label{font-size:28px;font-weight:800;color:#3b82f6;margin-bottom:6px}
- .entry .meta{font-size:11px;color:#64748b;margin-bottom:8px}
- .entry .text{white-space:pre-wrap;font-size:13px;line-height:1.5;flex:1;overflow:auto;max-height:400px}
- .entry.winner{border-color:#10b981;background:#052e1a}
- .entry .reveal{font-size:12px;color:#10b981;margin-top:8px;font-weight:700}
- .provs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
- .prov{background:#334155;padding:4px 10px;border-radius:14px;font-size:12px;cursor:pointer;user-select:none}
+ body{font-family:system-ui,Segoe UI,Roboto,sans-serif
+ margin:0
+ background:#0f172a
+ color:#e2e8f0}
+ .wrap{max-width:1200px
+ margin:0 auto
+ padding:24px}
+ h1{margin:0 0 6px 0
+ font-size:22px}
+ .sub{color:#94a3b8
+ margin-bottom:20px
+ font-size:13px}
+ .card{background:#1e293b
+ border:1px solid #334155
+ border-radius:10px
+ padding:16px
+ margin-bottom:16px}
+ label{display:block
+ font-size:12px
+ color:#94a3b8
+ margin:8px 0 4px}
+ textarea,input,select{width:100%
+ background:#0f172a
+ border:1px solid #334155
+ color:#e2e8f0
+ padding:8px
+ border-radius:6px
+ font-family:inherit
+ box-sizing:border-box}
+ textarea{min-height:120px
+ resize:vertical
+ font-family:ui-monospace,Menlo,monospace}
+ button{background:#3b82f6
+ color:#fff
+ border:0
+ padding:10px 16px
+ border-radius:6px
+ cursor:pointer
+ font-weight:600}
+ button:disabled{background:#475569
+ cursor:not-allowed}
+ button.ghost{background:transparent
+ border:1px solid #475569
+ color:#e2e8f0}
+ .row{display:flex
+ gap:12px
+ flex-wrap:wrap}
+ .col{flex:1
+ min-width:280px}
+ .arena{display:grid
+ grid-template-columns:repeat(auto-fit,minmax(360px,1fr))
+ gap:12px}
+ .entry{background:#0f172a
+ border:2px solid #334155
+ border-radius:8px
+ padding:12px
+ display:flex
+ flex-direction:column}
+ .entry .label{font-size:28px
+ font-weight:800
+ color:#3b82f6
+ margin-bottom:6px}
+ .entry .meta{font-size:11px
+ color:#64748b
+ margin-bottom:8px}
+ .entry .text{white-space:pre-wrap
+ font-size:13px
+ line-height:1.5
+ flex:1
+ overflow:auto
+ max-height:400px}
+ .entry.winner{border-color:#10b981
+ background:#052e1a}
+ .entry .reveal{font-size:12px
+ color:#10b981
+ margin-top:8px
+ font-weight:700}
+ .provs{display:flex
+ flex-wrap:wrap
+ gap:6px
+ margin-top:6px}
+ .prov{background:#334155
+ padding:4px 10px
+ border-radius:14px
+ font-size:12px
+ cursor:pointer
+ user-select:none}
  .prov.on{background:#3b82f6}
- .prov.off{opacity:.5;text-decoration:line-through;cursor:not-allowed}
- table{width:100%;border-collapse:collapse;font-size:13px}
- th,td{padding:6px 8px;border-bottom:1px solid #334155;text-align:left}
- th{color:#94a3b8;font-weight:600}
- .warn{background:#7c2d12;color:#fed7aa;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:13px}
+ .prov.off{opacity:.5
+ text-decoration:line-through
+ cursor:not-allowed}
+ table{width:100%
+ border-collapse:collapse
+ font-size:13px}
+ th,td{padding:6px 8px
+ border-bottom:1px solid #334155
+ text-align:left}
+ th{color:#94a3b8
+ font-weight:600}
+ .warn{background:#7c2d12
+ color:#fed7aa
+ padding:8px 12px
+ border-radius:6px
+ margin-bottom:12px
+ font-size:13px}
 </style></head>
 <body><div class="wrap">
  <h1>LLM Compare · Blind Arena</h1>
@@ -403,17 +481,23 @@ _PAGE_HTML = """<!doctype html>
   </div>
   <label>Providers</label>
   <div id="provs" class="provs"></div>
-  <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+  <div style="margin-top:12px
+  display:flex
+  gap:8px
+  align-items:center">
    <button id="run">Run Compare</button>
    <button id="refresh" class="ghost">Refresh Stats</button>
-   <span id="msg" style="color:#94a3b8;font-size:12px"></span>
+   <span id="msg" style="color:#94a3b8
+   font-size:12px"></span>
   </div>
  </div>
 
  <div id="arena" class="arena"></div>
 
  <div class="card">
-  <h3 style="margin:0 0 8px 0;font-size:14px;color:#94a3b8">Leaderboard (session-wide, Redis-backed)</h3>
+  <h3 style="margin:0 0 8px 0
+  font-size:14px
+  color:#94a3b8">Leaderboard (session-wide, Redis-backed)</h3>
   <table id="board"><thead><tr><th>Provider</th><th>Model</th><th>Runs</th><th>Wins</th><th>Win rate</th></tr></thead><tbody></tbody></table>
  </div>
 </div>
@@ -426,7 +510,9 @@ let CURRENT = null;
 async function api(path, opts={}){
   const r = await fetch('/api/llm/compare'+path, {...opts, credentials:'include',
     headers:{'Content-Type':'application/json', ...(opts.headers||{})}});
-  if(!r.ok){ const t = await r.text(); throw new Error(r.status+': '+t); }
+  if(!r.ok){ const t = await r.text()
+  throw new Error(r.status+': '+t)
+  }
   return r.json();
 }
 
@@ -458,8 +544,12 @@ function renderProvs(){
 
 $('run').onclick = async () => {
   const prompt = $('prompt').value.trim();
-  if(!prompt){ $('msg').textContent = 'Prompt zaroori hai.'; return; }
-  if(SEL.size < 2){ $('msg').textContent = 'Kam se kam 2 providers chuno.'; return; }
+  if(!prompt){ $('msg').textContent = 'Prompt zaroori hai.'
+  return
+  }
+  if(SEL.size < 2){ $('msg').textContent = 'Kam se kam 2 providers chuno.'
+  return
+  }
   $('run').disabled = true;
   $('msg').textContent = 'Running ('+SEL.size+' providers, parallel)...';
   $('arena').innerHTML = '';
@@ -474,7 +564,8 @@ $('run').onclick = async () => {
     $('msg').textContent = 'Vote karo — winner reveal karega.';
   }catch(e){
     $('msg').textContent = 'Fail: '+e.message;
-  }finally{ $('run').disabled = false; }
+  }finally{ $('run').disabled = false
+  }
 };
 
 function renderArena(entries){
@@ -482,7 +573,10 @@ function renderArena(entries){
     <div class="entry" data-label="${e.label}">
       <div class="label">${e.label}</div>
       <div class="meta">${e.latency_ms} ms ${e.empty ? '· <span style="color:#f87171">EMPTY</span>' : ''}</div>
-      <div class="text">${(e.text||'(no response)').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</div>
+      <div class="text">${(e.text||'(no response)').replace(/[<>&]/g, c => ({'<':'&lt
+      ','>':'&gt
+      ','&':'&amp
+      '}[c]))}</div>
       <button class="vote-btn" style="margin-top:10px">Vote ${e.label} as winner</button>
     </div>`).join('');
   $('arena').querySelectorAll('.vote-btn').forEach((btn,i)=>{
@@ -509,7 +603,8 @@ async function vote(label){
     });
     $('msg').textContent = 'Winner: '+j.winner_provider;
     loadStats();
-  }catch(e){ $('msg').textContent = 'Vote fail: '+e.message; }
+  }catch(e){ $('msg').textContent = 'Vote fail: '+e.message
+  }
 }
 
 async function loadStats(){
@@ -517,7 +612,8 @@ async function loadStats(){
     const j = await api('/stats');
     const tb = $('board').querySelector('tbody');
     tb.innerHTML = (j.leaderboard||[]).map(r=>`
-      <tr><td>${r.provider}</td><td style="color:#64748b;font-size:12px">${r.model}</td>
+      <tr><td>${r.provider}</td><td style="color:#64748b
+      font-size:12px">${r.model}</td>
        <td>${r.runs}</td><td>${r.wins}</td><td>${(r.win_rate*100).toFixed(1)}%</td></tr>`).join('');
   }catch(e){}
 }

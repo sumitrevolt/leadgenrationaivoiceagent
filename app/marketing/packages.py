@@ -8,8 +8,10 @@ Positioning (June 2026, merged marketing plan):
      lead capture, reactivation, CRM sync, aur automation. Public pricing me yahi
      single marketing plan dikhata hai.
   2. **AI Voice Calling Agent** (ALAG standalone product) — full AI telecaller
-     (outbound/DLT-gated); iski pricing **`voice_packages.py`** me (page /voice-agent),
-     model = flat-monthly per niche-band A/B/C (ADR-009; updated 2026-06-12). Yahan NAHI.
+     (outbound/DLT-gated)
+     iski pricing **`voice_packages.py`** me (page /voice-agent),
+     model = flat-monthly per niche-band A/B/C (ADR-009
+     updated 2026-06-12). Yahan NAHI.
 
 Prices (research-revised 2026-06-25): Marketing Automation ₹1,999 · Growth
 (legacy/internal hidden) ₹2,999 · Advanced Voice Agent ₹5,999 (anchors: local SMB

@@ -273,7 +273,8 @@ async def _exec_http_request(inputs: dict) -> dict:
 
 async def _exec_internal_calculation(inputs: dict) -> dict:
     """Deterministic internal read-only calculation — no I/O, no network, no
-    mutation, no external effect. Isolated from business behaviour; the canonical
+    mutation, no external effect. Isolated from business behaviour
+    the canonical
     registry-backed DAG step (workflow.dag.internal_calculation@1.0.0). Legacy
     executor stays authoritative — the harness observes this in shadow only."""
     try:

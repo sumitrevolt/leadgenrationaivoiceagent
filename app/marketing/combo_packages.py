@@ -12,7 +12,8 @@ PRICING MODEL:
   - Free Pilot    : 7 din / 50 voice calls (marketing features full, zero payment)
 
 USP: India me koi aur competitor yeh bundle nahi deta.
-     Marketing content warm audience banata hai; AI voice us audience ko convert karta hai.
+     Marketing content warm audience banata hai
+     AI voice us audience ko convert karta hai.
      Alag-alag lene se ~₹2,000–4,000/mo zyada lagta hai.
 
 Plan IDs:

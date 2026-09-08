@@ -3,7 +3,8 @@
 Covers the spec scenarios: double-click (replay), concurrent duplicate (in-progress
 reject), key reuse with a different payload (fail-safe conflict), expired key
 (re-execute), and the documented Redis-failure policy (fail-open default vs
-fail-closed flag). Uses an in-memory fake Redis; no live Redis needed.
+fail-closed flag). Uses an in-memory fake Redis
+no live Redis needed.
 """
 
 import pytest

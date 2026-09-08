@@ -2,7 +2,8 @@
 
 Prospect ka message → objection classify (price/trust/works/timing/info/ready) →
 confident Hinglish reply + sahi CTA (demo / pricing / booking). Self-serve close ko
-push karta. free-LLM (template fallback). Ban-safe (replies; auto-send channel pe).
+push karta. free-LLM (template fallback). Ban-safe (replies
+auto-send channel pe).
 """
 
 from __future__ import annotations

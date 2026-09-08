@@ -18,7 +18,8 @@ Project ethos:
     2. `cf-turnstile-response` form field (Cloudflare's default)
     3. `_turnstile_token` JSON field
 
-httpx async, 5s hard timeout. Tokens are single-use per Turnstile API; no
+httpx async, 5s hard timeout. Tokens are single-use per Turnstile API
+no
 client-side cache.
 """
 

@@ -3,7 +3,8 @@
 `BillingRecord` has no balance column — it's a ledger — so we meter USAGE: each
 finished call writes a TELEPHONY line (quantity = whole minutes), and remaining =
 plan minutes - minutes used this period. Only the Advanced tier includes calling
-(500 min/mo); other plans have no metered minutes so enforcement is fail-OPEN here
+(500 min/mo)
+other plans have no metered minutes so enforcement is fail-OPEN here
 (their calling is governed by compliance/plan gating elsewhere).
 
 Everything is best-effort and NEVER raises — a billing hiccup must not break a call.
@@ -90,7 +91,8 @@ def resolve_client_id(client_name: str) -> str:
     BillingRecord.client_id is an FK to SQL `clients.id`, while Product-1
     ledgers often use JSON marketing-client ids (for example `leadgenai-self`).
     Prefer SQL ids so minute metering does not create FK failures for own-brand
-    platform calls; fall back to the legacy JSON lookup for older no-DB callers.
+    platform calls
+    fall back to the legacy JSON lookup for older no-DB callers.
     """
     name = (client_name or "").strip().lower()
     if not name:
@@ -177,7 +179,8 @@ def record_call_usage(
     """Post-call hook: write a TELEPHONY ledger line for this call's minutes. Best-effort.
 
     J.4: Also fans out a `call.completed` event to customer-registered webhooks
-    (H.1). INERT when CUSTOMER_WEBHOOKS unset; NEVER blocks the billing path.
+    (H.1). INERT when CUSTOMER_WEBHOOKS unset
+    NEVER blocks the billing path.
     """
     try:
         cid = _billing_client_id(client_id, client_name)
@@ -451,7 +454,8 @@ def _ensure_db_client(db, cid: str) -> bool:
 
     Self-serve signup clients live only in clients_store jsonl — mirror the
     minimum NOT-NULL fields into Postgres. Returns True when the row exists
-    (already or created); False when it can't be safely created (e.g. the
+    (already or created)
+    False when it can't be safely created (e.g. the
     contact email is already taken by a DIFFERENT client id — fail-open,
     caller skips subscription creation rather than corrupt tenancy)."""
     from app.models.client import Client, ClientStatus
@@ -660,7 +664,8 @@ def reset_usage_period(client_id: str, at: datetime | None = None) -> bool:
 
     Stored in the latest Subscription row's extra_data['usage_period_start'] (ISO ts).
     minutes_used_this_period() then ignores ledger lines created before the watermark
-    within the current month. Best-effort; returns True if the watermark was written.
+    within the current month. Best-effort
+    returns True if the watermark was written.
     """
     cid = (client_id or "").strip()
     if not cid:

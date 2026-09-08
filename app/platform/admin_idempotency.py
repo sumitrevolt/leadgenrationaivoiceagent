@@ -1,9 +1,12 @@
 """Tier-1 governance — Idempotency-Key protection for mutating admin commands.
 
 Cross-worker (Redis) dedup so the same *actor + endpoint scope + normalized payload +
-Idempotency-Key* executes at most once. A duplicate replays the stored result; a
-concurrent duplicate is rejected while the first is in-flight; reusing a key with a
-different payload fails safely; keys expire on a bounded TTL.
+Idempotency-Key* executes at most once. A duplicate replays the stored result
+a
+concurrent duplicate is rejected while the first is in-flight
+reusing a key with a
+different payload fails safely
+keys expire on a bounded TTL.
 
 REDIS-FAILURE POLICY (explicit, per Tier-1 spec):
   Default is **FAIL-OPEN-BUT-LOUD** — if Redis is unreachable we log a warning and let
@@ -13,7 +16,8 @@ REDIS-FAILURE POLICY (explicit, per Tier-1 spec):
   ``ADMIN_IDEMPOTENCY_FAIL_CLOSED=1`` to flip to fail-closed (HTTP 503) for stricter
   environments. Both behaviours are regression-tested.
 
-Server-side only. The Idempotency-Key itself is never persisted as a secret; only the
+Server-side only. The Idempotency-Key itself is never persisted as a secret
+only the
 payload *hash* is stored, never the raw payload.
 """
 
@@ -94,8 +98,10 @@ def begin(*, request: Any, actor_id: Any, scope: str, payload: Any):
 
     Returns:
       - ``None``   → no Idempotency-Key sent (or Redis down + fail-open): execute normally.
-      - ``_Owner`` → caller owns execution; run the action then ``store(token, response)``.
-      - ``Replay`` → a stored result exists; caller must return ``.response`` unchanged.
+      - ``_Owner`` → caller owns execution
+      run the action then ``store(token, response)``.
+      - ``Replay`` → a stored result exists
+      caller must return ``.response`` unchanged.
     Raises ``HTTPException`` 409 (payload mismatch / concurrent in-progress) or 503
     (Redis down + fail-closed).
     """

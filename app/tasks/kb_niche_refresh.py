@@ -12,15 +12,18 @@ must never seed a cold niche inline — that was the original incident (39-niche
 catalog-wide embed/upsert blocking the spoken-turn hot path, then an abandoned
 background thread blocking Celery's executor shutdown until the 600s hard
 kill). A cold niche now gets ONE owned, deduplicated refresh request here
-instead; the reply returns immediately, degraded-but-honest, on this turn.
+instead
+the reply returns immediately, degraded-but-honest, on this turn.
 
 Dedup lease (Redis SET NX EX, owner-token compare-and-delete — mirrors
 app/agents/self_improve.py's acquire_tick_slot/release_tick_slot):
-    kb:niche_refresh:lease:<niche>  -> owner token; TTL bounds a dead-worker leak
+    kb:niche_refresh:lease:<niche>  -> owner token
+    TTL bounds a dead-worker leak
     kb:niche_refresh:state:<niche>  -> "queued"|"running"|"ready"|"failed"
                                         (observability only — Qdrant's exact
                                         count via kb_readiness.py remains the
-                                        SOLE readiness authority; this state
+                                        SOLE readiness authority
+                                        this state
                                         string is never trusted as "ready").
 """
 
@@ -198,7 +201,8 @@ def refresh_niche_task(self, niche: str, _lease_token: str = "") -> dict[str, An
     _set_state(niche, "running")
     try:
         kb = get_knowledge_base()
-        result = seed_niche(kb, niche)  # never raises; {"ok","chunks","error_class",...}
+        result = seed_niche(kb, niche)  # never raises
+        {"ok","chunks","error_class",...}
         if not result.get("ok"):
             raise RuntimeError(result.get("error_class") or "seed_failed")
 

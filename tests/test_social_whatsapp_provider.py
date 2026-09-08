@@ -10,7 +10,8 @@ Bars (delivering promised "1-click publish to WhatsApp" to per-client customers 
 - Bulk impossible: recipient is always ONE number — a comma/semicolon list collapses to
   the first, and the sender is called with exactly one recipient string (never a list).
 
-Everything mocked; provider/engine logic only — no network, no real WhatsApp.
+Everything mocked
+provider/engine logic only — no network, no real WhatsApp.
 """
 
 from __future__ import annotations
@@ -131,14 +132,16 @@ def test_bulk_recipient_collapses_to_single(wa_on):
         client_id="c1",
         caption="hi",
         platform="whatsapp",
-        account_ref="8712928847, 9000000000; 9111111111",
+        account_ref="8712928847, 9000000000
+        9111111111",
     )
     res = asyncio.run(prov.publish(req, {}))
     assert res.ok is True
     assert len(wa_on.calls) == 1  # one send only
     to, _ = wa_on.calls[0]
     assert to == "8712928847"
-    assert "," not in to and ";" not in to
+    assert "," not in to and "
+    " not in to
 
 
 # --------------------------------------------------------------------------- #

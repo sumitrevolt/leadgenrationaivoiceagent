@@ -4,9 +4,11 @@ Live prod builds its schema with ``create_all()`` (see app.models.base). This mo
 keeps the Alembic version history CONSISTENT on boot WITHOUT ever breaking that:
 
   - Fresh / create_all-built DB with no ``alembic_version``  -> STAMP head (mark the
-    current schema as up-to-date; do NOT try to re-create existing tables).
+    current schema as up-to-date
+    do NOT try to re-create existing tables).
   - DB already under Alembic control                         -> UPGRADE head (apply any
-    new migrations; migration 005 is idempotent so it's safe either way).
+    new migrations
+    migration 005 is idempotent so it's safe either way).
   - Truly empty DB                                           -> UPGRADE from base.
 
 NEVER raises — a migration hiccup must not stop the app from booting. Disable entirely

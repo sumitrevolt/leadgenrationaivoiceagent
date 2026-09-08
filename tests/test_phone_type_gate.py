@@ -8,9 +8,14 @@ dial_gate.check('+918047759152','promotional') == (True,'test_mode_off').
 Layers under test:
 1. dial_gate.phone_quality — libphonenumber IN-plan mapping (numbers prod-verified).
 2. dial_gate.check — promotional par fixed/tollfree/invalid BLOCK; mobile/flom pass;
-   allowlist = owner override; transactional kabhi gated nahi; flag rollback.
-3. call_feedback.record_ivr_confirmed — number-block turant; prefix-block sirf
-   >= 3 DISTINCT confirmed numbers (over-block guard); audit trail; prospect tag.
+   allowlist = owner override
+   transactional kabhi gated nahi
+   flag rollback.
+3. call_feedback.record_ivr_confirmed — number-block turant
+prefix-block sirf
+   >= 3 DISTINCT confirmed numbers (over-block guard)
+   audit trail
+   prospect tag.
 4. lead_harvester._valid_phone — ab sach me MOBILE enforce karta hai.
 """
 

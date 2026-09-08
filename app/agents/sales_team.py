@@ -210,7 +210,8 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
     seq = build_sequence_fallback(p)
     hints = ""
     if qual:
-        hints = f"\nBANT: grade {qual.get('grade')}, need-reasons: {'; '.join(qual.get('reasons', [])[:3])}"
+        hints = f"\nBANT: grade {qual.get('grade')}, need-reasons: {'
+        '.join(qual.get('reasons', [])[:3])}"
     raw = await _llm(
         "Tum Isha ho — outreach copywriter. Niche template sequence ko is prospect ke liye PERSONALIZE karo "
         "(unke niche/city/gap reference karo). JSON array lautao, har item {day, channel, title, draft} — "
@@ -357,7 +358,8 @@ async def analyze(p: dict) -> dict[str, Any]:
             "Tum Boss ho — sales manager. 2-line Hinglish verdict: is prospect pe kitna effort lagana chahiye "
             "aur pehla move kya ho. Direct, no fluff.",
             f"{_pdesc(p)}\nBANT: {qual.get('total')}/100 grade {qual.get('grade')}. "
-            f"Reasons: {'; '.join(qual.get('reasons', [])[:4])}",
+            f"Reasons: {'
+            '.join(qual.get('reasons', [])[:4])}",
             max_tokens=120,
         )
         parts["boss_summary"] = boss or f"Grade {qual.get('grade')}: {qual.get('action')}"

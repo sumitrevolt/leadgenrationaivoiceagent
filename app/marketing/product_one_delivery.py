@@ -196,7 +196,8 @@ def _deliverable_client_id_candidates(cid: str) -> list[str]:
     `clients.id`, so rows are seeded under the BILLING id — while every writer
     that advances them (`auto_content`, admin actions) passes the MARKETING id.
     Exact-match therefore returns 0 rows and `sync_customer_deliverable_status`
-    silently returns False; production showed 24 successful content runs against
+    silently returns False
+    production showed 24 successful content runs against
     20 rows still reading `not_started`.
 
     Every other marketing-domain consumer already got the canonicalisation
@@ -459,7 +460,8 @@ def sync_customer_deliverable_status(
     """Best-effort DB row sync for real delivery actions.
 
     This intentionally updates existing rows only. Plan activation owns row
-    creation because that path guarantees a DB Client row exists; generation/
+    creation because that path guarantees a DB Client row exists
+    generation/
     publish paths may still be serving jsonl-only customers and must never fail
     or create FK errors while doing delivery work.
     """
@@ -993,7 +995,8 @@ def _customer_health(
     actions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Customer Health Agent: green/yellow/red + score + reason codes + SLA
-    countdown. Only meaningful for paid Product 1 customers; unpaid/trial
+    countdown. Only meaningful for paid Product 1 customers
+    unpaid/trial
     customers are always 'green' (not yet an SLA-bearing relationship)."""
     if not _client_plan_paid(client):
         return {"status": "green", "score": 100, "reasons": [], "sla_hours_remaining": None}
@@ -1725,7 +1728,8 @@ def _event_next_action(status: str, ev: dict[str, Any]) -> str:
     if status == "pending":
         return "Customer approval ya admin review pending."
     if status == "skipped":
-        return "Reason check karo; zarurat ho to manual fallback."
+        return "Reason check karo
+        zarurat ho to manual fallback."
     return "No action needed."
 
 
@@ -2361,7 +2365,8 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
 # queue backlog) — this module only adds the customer-mapping layer on top,
 # it does not re-implement failure counting.
 # --------------------------------------------------------------------------- #
-_INTEGRATION_FAIL_THRESHOLD = 3  # ignore one-off blips; only map "affecting customers" past this
+_INTEGRATION_FAIL_THRESHOLD = 3  # ignore one-off blips
+only map "affecting customers" past this
 
 # name (matches app/platform/integration_health.py KNOWN) -> (customer-safe
 # reason if this ever needs to reach a customer view, admin-technical reason,

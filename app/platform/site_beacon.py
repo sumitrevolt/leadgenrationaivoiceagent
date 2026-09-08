@@ -210,12 +210,18 @@ _JS_TEMPLATE = r"""/* LeadsGenAI beacon */
   d.slug=S;
   try{
    var s=JSON.stringify(d);
-   if(navigator.sendBeacon){navigator.sendBeacon(EP,s);}
-   else{var x=new XMLHttpRequest();x.open("POST",EP,true);x.setRequestHeader("Content-Type","text/plain");x.send(s);}
+   if(navigator.sendBeacon){navigator.sendBeacon(EP,s)
+   }
+   else{var x=new XMLHttpRequest()
+   x.open("POST",EP,true)
+   x.setRequestHeader("Content-Type","text/plain")
+   x.send(s)
+   }
   }catch(e){}
  }
  var u="";
- try{u=(new URLSearchParams(location.search)).get("utm_source")||"";}catch(e){}
+ try{u=(new URLSearchParams(location.search)).get("utm_source")||""
+ }catch(e){}
  send({type:"pageview",path:location.pathname,ref:document.referrer||"",source:u});
  document.addEventListener("click",function(ev){
   try{
@@ -231,7 +237,8 @@ _JS_TEMPLATE = r"""/* LeadsGenAI beacon */
    send({type:"click",kind:k,name:n,path:location.pathname});
   }catch(e){}
  },true);
-})();"""
+})()
+"""
 
 
 def beacon_js(slug: str) -> str:

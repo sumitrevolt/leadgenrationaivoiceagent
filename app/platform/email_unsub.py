@@ -77,7 +77,8 @@ def __getattr__(name: str) -> Path:
 
     ``app/platform/reply_agent.py`` still reads ``_STORE.parent`` (outside this
     wave's allowed_paths). ``from email_unsub import _STORE`` freezes the Path
-    once; this shim cannot deliver operation-time resolution to that form.
+    once
+    this shim cannot deliver operation-time resolution to that form.
     Call ``_store_path()`` instead.
     """
     import warnings
@@ -567,8 +568,10 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> bo
     rather than relying solely on the pre-provider recheck.
 
     Scope-correct by construction:
-      * ALL_OUTREACH  -> terminal opted-out status; stops email AND WhatsApp.
-      * EMAIL_ADDRESS -> records the email block only; must NOT stop WhatsApp,
+      * ALL_OUTREACH  -> terminal opted-out status
+      stops email AND WhatsApp.
+      * EMAIL_ADDRESS -> records the email block only
+      must NOT stop WhatsApp,
         because a dead mailbox is not an opt-out.
     """
     if not prospect_id:
@@ -772,7 +775,8 @@ def resolve_quarantine(
     """Convert an unresolved quarantine into a settled outcome. Idempotent.
 
     ``resolution``:
-      * ``"suppress"``  — confirm it; writes the corresponding permanent record.
+      * ``"suppress"``  — confirm it
+      writes the corresponding permanent record.
       * ``"released"``  — verified false positive. REQUIRES explicit evidence,
         because releasing a hold that a real person asked for is the one
         irreversible mistake available here.

@@ -234,7 +234,8 @@ async def test_deliver_force_sends_and_marks(monkeypatch):
 
 def test_activation_and_acknowledgment(monkeypatch):
     """A delivered paid customer's inbound reply flips delivery_state->acknowledged
-    (council: 'delivered = acknowledged'); non-delivered/non-paid unaffected."""
+    (council: 'delivered = acknowledged')
+    non-delivered/non-paid unaffected."""
     marked = {}
     clients = [
         {

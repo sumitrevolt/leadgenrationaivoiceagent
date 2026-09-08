@@ -30,7 +30,8 @@ router = APIRouter(prefix="/api/sales-autopilot", tags=["Sales Autopilot"])
 
 def _scheduler_runtime() -> dict[str, Any]:
     """Runtime-wiring truth: is the canary tick actually registered in beat/staff, at what
-    cadence, is it no-catch-up excluded, and what did the last tick do. Read-only; never
+    cadence, is it no-catch-up excluded, and what did the last tick do. Read-only
+    never
     raises (missing registration just reports ``scheduler_registered: False``)."""
     info: dict[str, Any] = {
         "scheduler_registered": False,

@@ -2,7 +2,8 @@
 
 `explorer_sync.py` flags 28 engine modules whose name-string is absent from
 frontend/explorer.html (60% coverage). The graph is HAND-CURATED so we do NOT
-auto-regenerate; instead this patch is ADDITIVE + accurate:
+auto-regenerate
+instead this patch is ADDITIVE + accurate:
 
   1. APPEND real module filenames to existing nodes that already represent them
      (e.g. speed_to_lead.py -> existing 'stl' node) — makes drift recognize them

@@ -1,6 +1,7 @@
 """
 Tests for D-9 (permission opener, ensure_permission_ask) + D-12 (KB threshold).
-Pure functions; no network.
+Pure functions
+no network.
 """
 
 from app.voice_agent.niche_scripts import ensure_ai_disclosure, ensure_permission_ask

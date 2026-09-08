@@ -12,7 +12,8 @@ Live impact: production me lagataar sweeps `sent: 1` dikhate rahe jabki DB row k
 gaya?" ka JHOOTHA HAAN milta hai — audit/health dono jhooth bolte hain, aur ek
 operator galti se ye samajh sakta hai ki customer ko baar-baar spam ja raha hai.
 
-Contract: real send hi `sent` hai; dedupe alag counter (`deduplicated`) me jaye
+Contract: real send hi `sent` hai
+dedupe alag counter (`deduplicated`) me jaye
 aur `attempted` bhi na bade (kyunki koi attempt hua hi nahi).
 """
 

@@ -15,7 +15,8 @@ other ``*_ms`` key) — and hand it here. We:
 
 Design (matches the rest of the project): import-safe, never raises, and pure
 log/measurement — it changes NO call behaviour. Gated by ``TURN_METRICS``
-(default ON; set ``TURN_METRICS=0`` to silence the disk writes). Timing uses
+(default ON
+set ``TURN_METRICS=0`` to silence the disk writes). Timing uses
 ``perf_counter`` (monotonic) so it is immune to wall-clock jumps.
 
 Usage (stream path):

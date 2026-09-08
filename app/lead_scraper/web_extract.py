@@ -6,7 +6,8 @@ contacts from their website — better competitor analysis and prospect enrichme
 current crude regex-on-raw-HTML. Free, CPU.
 
 No env flag: if trafilatura isn't installed, ``clean_text`` falls back to a crude tag
-strip; ``find_contacts`` is pure-regex and always works. Never raises.
+strip
+``find_contacts`` is pure-regex and always works. Never raises.
 
 Use:
   from app.lead_scraper import web_extract

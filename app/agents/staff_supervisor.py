@@ -8,7 +8,8 @@ member automatically adds an agent — no rewiring.
 
 Why additive + opt-in: the existing rule-based ``app/agents/supervisor.py`` and the
 scheduled ``team_scheduler`` keep running unchanged. This module is NOT imported by
-the app at startup; nothing happens until you enable it. Every path is defensive —
+the app at startup
+nothing happens until you enable it. Every path is defensive —
 missing package / LLM key / any error returns a graceful dict, never raises.
 
 Enable:
@@ -90,7 +91,8 @@ class StaffSupervisor:
                 prompt = (
                     f"You are {name}, the {role} at LeadGen AI (AI marketing + AI voice agent "
                     f"for Indian small businesses). Your duties: {duties}. Only handle tasks that "
-                    f"fit your role; otherwise say so briefly. Reply concisely in Hinglish (Roman script)."
+                    f"fit your role
+                    otherwise say so briefly. Reply concisely in Hinglish (Roman script)."
                 )
                 agents.append(create_react_agent(model=model, tools=[], name=key, prompt=prompt))
 

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 10:06 IST sweep — evidence-first REVENUE COMMAND GHANTI.
-FRESH LIVE (10:06): /health 036a4e4b healthy uptime7h8m production; WA flip LIVE containers=1 BOTH
+FRESH LIVE (10:06): /health 036a4e4b healthy uptime7h8m production
+WA flip LIVE containers=1 BOTH
 (restart took, auto_sent still 0); auto_sent TRUE=0 (None:1828, False:437, NO msg-id anywhere);
-hot-queue 09-03 PRESENT 32KB (Sep3 03:30 job ran, scheduler healed); SIP 5 vars ALL len=0 (DID NOT
+hot-queue 09-03 PRESENT 32KB (Sep3 03:30 job ran, scheduler healed)
+SIP 5 vars ALL len=0 (DID NOT
 landed), VOBIZ REVOKED CLI, call_loop mtime Aug31 batch211 ok=0/fail=3 proc0 cron0 (dialer DEAD day4);
-leads/ 0 (ammo 0); revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001), GAP Rs4,98,001.
+leads/ 0 (ammo 0)
+revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001), GAP Rs4,98,001.
 All 8 bots OWN tasks (07:35 assign, 10:00 gates) — NO idle bot. GHANTI/UPDATE bump only, no new TASK-ID.
 Aaj ka SABSE critical: WA-rail auto_send=0 (flip LIVE abhi bhi 0 sends) -> 0 UPI. Vote #1 = ENG-004 sendText
-fix; #2 = SAL-005 genuine-intent WA close (not dirty 43); #3 = PLT-005 DID-land; Jiya protect (SUC-004).
+fix
+#2 = SAL-005 genuine-intent WA close (not dirty 43)
+#3 = PLT-005 DID-land
+Jiya protect (SUC-004).
 Appends messages.jsonl, updates tasks/bots/pinned."""
 import json
 import os
@@ -98,7 +104,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T10:06+05:30"
-pin["vps_status"] = ("HEALTHY (036a4e4b uptime7h8m); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (036a4e4b uptime7h8m)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip LIVE containers BOTH=1 par auto_sent 0/2265 (NO msg-id, link-only day5) -> 0 UPI; "
                      "hot-queue 09-03 PRESENT (scheduler healed); dialer DEAD day4 (SIP empty, CLI revoked, leads 0); "
                      "GAP Rs4,98,001. GHANTI all 8 10:30 gates.")

@@ -331,7 +331,8 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     plan ke liye condition karta (Reflexion). Canary flag ON ho to yeh hint ke
     saath memory-stack ka budgeted block bhi jodta hai (fallback = legacy).
     """
-    roster_desc = "; ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
+    roster_desc = "
+    ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
     sys = (
         "Tum LeadGenAI ke Manager (Boss) ho. Goal ko 2-4 ORDERED sub-tasks me todo, har ek "
         "ek STAFF agent ko assign. SIRF JSON array lautao: "
@@ -929,7 +930,8 @@ async def _assign_teams(goal: str) -> dict[str, str]:
     """Boss decides which sub-team(s) handle the goal + each team's objective."""
     topology = coordination_topology()
     teams = _coordination_teams()
-    catalog = "; ".join(
+    catalog = "
+    ".join(
         f"{row.get('id')}({row.get('purpose')})" for row in (topology.get("teams") or [])
     )
     sys = (
@@ -1254,7 +1256,8 @@ async def coordinate_agentverse(
         if score >= quality_bar:
             break
         # EVALUATE → feedback se team RE-COMPOSE (AgentVerse ka core loop)
-        fb = "; ".join(critique.get("fixes", []) or critique.get("weak", []))
+        fb = "
+        ".join(critique.get("fixes", []) or critique.get("weak", []))
         feedback = (feedback + " | " + fb)[:800] if feedback else fb
         if fb:
             _remember(goal, fb, score)

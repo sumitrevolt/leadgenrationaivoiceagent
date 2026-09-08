@@ -139,7 +139,8 @@ class QdrantCodeIndex:
 
         embedder = (
             kb._get_qdrant_embedder()
-        )  # daemon-thread load + hard timeout; raises if disabled
+        )  # daemon-thread load + hard timeout
+        raises if disabled
         client = kb._get_qdrant_client()
         dim = int(getattr(kb, "_QDRANT_VECTOR_SIZE", 0) or 0)
         if dim <= 0:
@@ -272,7 +273,8 @@ class CodebaseIndexer:
         self.chunk_overlap = chunk_overlap
 
         self._vector_store = vector_store
-        self._qdrant_index = None  # prod stack (fastembed+Qdrant); None → ChromaDB fallback
+        self._qdrant_index = None  # prod stack (fastembed+Qdrant)
+        None → ChromaDB fallback
 
         # Track indexed files (path -> hash)
         self.index_cache: dict[str, str] = {}

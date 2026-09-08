@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 10:40 IST sweep — FRESH LIVE-verification + 11:00 escalation gate.
-Evidence-first re-verify (10:40): /health 200 UP; WA flip LIVE containers BOTH=1 par
-auto_sent TRUE=0 (NO msg-id — WA rail 0 real send day5); SIP 5 vars ALL len=0 (SIP_HOST/
+Evidence-first re-verify (10:40): /health 200 UP
+WA flip LIVE containers BOTH=1 par
+auto_sent TRUE=0 (NO msg-id — WA rail 0 real send day5)
+SIP 5 vars ALL len=0 (SIP_HOST/
 USERNAME/PASSWORD/DID/PROVIDER) -> DID NOT landed, VOBIZ_CALLER_ID len13 REVOKED CLI still;
-call_loop proc0 mtime Aug31 08:39Z (dialer DEAD day5); leads/ =0 (ammo 0); hot-queue 09-03
-PRESENT (scheduler healed). Rev VERIFIED Rs1,999 Jiya sole; GAP Rs4,98,001.
+call_loop proc0 mtime Aug31 08:39Z (dialer DEAD day5)
+leads/ =0 (ammo 0)
+hot-queue 09-03
+PRESENT (scheduler healed). Rev VERIFIED Rs1,999 Jiya sole
+GAP Rs4,98,001.
 10:30 FINAL GHANTI all 8 already fired (10:45 gates). This run = FRESH proof + 11:00 gate.
 NO new TASK-ID (anti-spam, max 1/bot/run already honoured at 10:30).
 Apex bottleneck #1 WA-rail auto_send=0 (ENG-004); #2 genuine-intent close (SAL-005);
@@ -83,7 +88,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T10:40+05:30"
-pin["vps_status"] = ("HEALTHY (200, 10:40 FRESH-LIVE); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (200, 10:40 FRESH-LIVE)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "GAP Rs4,98,001; WA flip LIVE=1 par auto_sent 0/2270 NO msg-id (link-only day5) -> 0 UPI; "
                      "hot-queue 09-03 PRESENT (scheduler healed); dialer DEAD day5 (SIP 5 vars ALL len=0 DID NOT landed, "
                      "CLI revoked, leads 0); 10:30 FINAL GHANTI 10:45 gates MISSED -> 11:00 OWNER ESCALATION.")

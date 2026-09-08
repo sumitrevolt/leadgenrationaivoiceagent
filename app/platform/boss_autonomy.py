@@ -2,15 +2,18 @@
 
 Thin, flag-gated orchestration over "app.platform.boss_decision_governance"
 (imported as "bdg"). This module is the ONLY runtime owner of the "Boss runs
-without a human" decision loop; it uses public bdg API exclusively.
+without a human" decision loop
+it uses public bdg API exclusively.
 
 Hard rules (no monkey-patching, no private catalog access):
   * Canonical Boss identity is "manager" (workforce registry), never "hermes".
-  * Advisory (Second Brain / LLM Council) is advisory-only; its absence NEVER
+  * Advisory (Second Brain / LLM Council) is advisory-only
+  its absence NEVER
     defaults to execution — empty/low-confidence advice defers.
   * Unknown decision types fail closed (never default GREEN).
   * OWNER_ONLY (UPI/payment) + RED lanes are non-delegable (authority class C).
-  * Every decision is hash-bound; every execution is single-use (bdg CAS).
+  * Every decision is hash-bound
+  every execution is single-use (bdg CAS).
   * Every transition is audited by bdg.
 
 Flags (both must be ON for any governance write):
@@ -42,7 +45,8 @@ FLAG = "BOSS_FULL_AUTONOMY"
 AUTHORITY_KEY_ENV = "BOSS_GOV_AUTHORITY_KEY"
 CONFIDENCE_ENV = "BOSS_AUTONOMY_CONFIDENCE"
 DEFAULT_CONFIDENCE = 0.65
-BOSS_ID = "manager"  # canonical Boss (workforce registry); never "hermes"
+BOSS_ID = "manager"  # canonical Boss (workforce registry)
+never "hermes"
 _MAX_STEPS = 20
 
 

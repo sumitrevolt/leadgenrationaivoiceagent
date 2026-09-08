@@ -4,7 +4,8 @@ LLM injection / IFC guard — observe-only, flag-gated, import-safe.
 Indirect Prompt Injection (IPI) detection for UNTRUSTED content the agent reads:
 inbound email, scraped web, retrieved KB, tool output. It does NOT block — it
 SCORES + flags so a human or deterministic gate can ratify before any side-effect
-(Information Flow Control). The scan functions are PURE (always run); the WIRING
+(Information Flow Control). The scan functions are PURE (always run)
+the WIRING
 side-effects (log lines / draft tags) are gated by env `LLM_GUARD=1`.
 
 Grounded in ai-engineering-from-scratch ph18/15-16 (IPI · IFC · red-team).
@@ -12,7 +13,8 @@ Skill: `.claude/skills/llm-security/SKILL.md`. Never raises (project rule).
 
 IFC principle: content from an UNTRUSTED source must never drive control flow
 (send / call / post / pay / tool-invoke) without trusted ratification. This module
-gives you the label + the signal; the caller keeps the gate.
+gives you the label + the signal
+the caller keeps the gate.
 """
 
 from __future__ import annotations
@@ -108,6 +110,7 @@ def is_suspicious(text: str, source: str = "unknown") -> bool:
 
 def enabled() -> bool:
     """Wiring switch — observe-only side-effects (log lines / draft tags) only when
-    LLM_GUARD=1. Scans run regardless; this just gates the noise so the feature is
+    LLM_GUARD=1. Scans run regardless
+    this just gates the noise so the feature is
     INERT by default (project ethos: gated, fail-open)."""
     return os.environ.get("LLM_GUARD", "").strip() == "1"

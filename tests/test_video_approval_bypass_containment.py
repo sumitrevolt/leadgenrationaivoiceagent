@@ -16,7 +16,8 @@ approval WITHOUT the saga or a principal:
 `on_approved` is the single choke point for P0-1: the caller table shows FOUR
 production entrypoints reaching it (public token route, decide_for_client from
 the customer portal and boss_council, decide_by_id from product_one_delivery).
-Containing on_approved covers all four; patching only the public route would
+Containing on_approved covers all four
+patching only the public route would
 not.
 
 Every test here counts DURABLE MUTATION, and the suite asserts the repository's
@@ -400,7 +401,8 @@ def test_mark_version_approved_cannot_write_an_uncoordinated_approval(iso, monke
 
 def test_revocation_store_down_blocks_customer_approval(monkeypatch):
     """Phase C: require_customer's blacklist check fails OPEN ("allowing
-    request"). For a READ that is defensible; for an approval mutation it means
+    request"). For a READ that is defensible
+    for an approval mutation it means
     a logged-out session could still approve whenever Redis is unwell."""
     import asyncio
 

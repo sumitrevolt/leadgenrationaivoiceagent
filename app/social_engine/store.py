@@ -180,7 +180,8 @@ def _norm_hashtags(raw: Any) -> list[str]:
         if p and p not in seen:
             seen.add(p)
             out.append(p)
-    return out[:60]  # sane upper bound; platform validators enforce per-platform
+    return out[:60]  # sane upper bound
+    platform validators enforce per-platform
 
 
 def enqueue(job: dict[str, Any]) -> str:
@@ -189,7 +190,8 @@ def enqueue(job: dict[str, Any]) -> str:
     pre-Loop-9 API continue to work verbatim. New fields:
       campaign_id, language, hashtags (list), cta, scheduled_time, timezone,
       created_by, reviewed_by, delivery_event_id, content_type.
-    (retry_count is aliased to `attempts` — already tracked; last_error already
+    (retry_count is aliased to `attempts` — already tracked
+    last_error already
     written by drain.)"""
     try:
         jid = uuid.uuid4().hex[:16]

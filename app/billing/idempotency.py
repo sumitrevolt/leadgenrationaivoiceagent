@@ -114,7 +114,8 @@ def seen_before_sync(key: str, ttl_s: int | None = None) -> bool:
     False = naya (process karo). Atomic SET NX EX. Redis err = FAIL-OPEN (process)
     via per-process memory. Never raises. Empty key = False (dedupe possible nahi).
 
-    KYUN: app/billing/idempotency.seen_before async hai; Celery task body sync.
+    KYUN: app/billing/idempotency.seen_before async hai
+    Celery task body sync.
     Isliye external-side-effect tasks (CRM push, etc.) ko retry pe dedupe karne
     ka koi primitive nahi tha (audit: "Queue idempotency 0% coverage"). Yeh wahi
     gap bharta — sync redis + same memory fallback.

@@ -3,7 +3,8 @@
   POST /api/contentplus/service-cycle        (admin)  repeat-service cycle add
   GET  /api/contentplus/service-due          (admin)  due reminders (?days_ahead=3)
   POST /api/contentplus/service-run          (admin)  due → WA reminder DRAFTS (1-click, no auto-send)
-  POST /api/contentplus/clips                (admin)  long video → short clips (BACKGROUND job; multipart: file|path)
+  POST /api/contentplus/clips                (admin)  long video → short clips (BACKGROUND job
+  multipart: file|path)
   GET  /api/contentplus/clips/{job_id}       (admin)  clip job status + files
   GET  /api/contentplus/clip-file/{job}/{name}   (public, rate-limited, regex-locked) mp4 serve
   POST /api/contentplus/gif                  (admin)  animated text GIF (PIL, to_thread)
@@ -17,7 +18,9 @@ Mount (main.py):
     app.include_router(contentplus_router, prefix="/api")   # /api/contentplus/*
 
 PROD-DOWN LESSONS baked in: ffmpeg = background daemon thread + jsonl status
-(KABHI inline nahi); PIL = asyncio.to_thread + wait_for; LLM = wait_for.
+(KABHI inline nahi)
+PIL = asyncio.to_thread + wait_for
+LLM = wait_for.
 Sab modules never-raise (error dicts). Free stack.
 """
 

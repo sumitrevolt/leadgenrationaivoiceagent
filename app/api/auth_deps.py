@@ -168,7 +168,8 @@ async def require_admin_or_ops_readonly(
 ):
     """Admin (JWT) OR the read-only ops API key.
 
-    Ops key is honoured ONLY for OPS_READONLY_ALLOWLIST GET endpoints; every
+    Ops key is honoured ONLY for OPS_READONLY_ALLOWLIST GET endpoints
+    every
     other path/method falls through to the unchanged admin path. Returns the
     admin User, or None when the read-only key was used.
     """

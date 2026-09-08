@@ -4,7 +4,8 @@ Finds "dead buttons" — UI fetch() calls to endpoints that don't exist (404).
 
 Run: python scripts/audit_frontend_links.py
 Exit 0 always (report-only). Heuristic — concatenated dynamic paths may be
-flagged as candidates; verify each before "fixing".
+flagged as candidates
+verify each before "fixing".
 """
 
 from __future__ import annotations

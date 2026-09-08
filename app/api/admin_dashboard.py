@@ -53,7 +53,8 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
     async route blocks this event-loop worker for that long — which races
     past the admin dashboard's 8s client-side AbortController and falls back
     to the zero-filled DEMO payload (clients showing 0 despite real rows,
-    2026-07-04). Run off-loop with a hard deadline; degrade to {} on
+    2026-07-04). Run off-loop with a hard deadline
+    degrade to {} on
     timeout/failure rather than blocking or 500ing."""
     try:
         return await asyncio.wait_for(asyncio.to_thread(_collect_live_stats), timeout=timeout)
@@ -200,7 +201,8 @@ async def admin_trial_nudge_status(_user=Depends(require_admin)) -> dict:
     """Trial-nudge admin surface: flag snapshot + dry-run eligible preview.
 
     Preview = run_trial_nudge(dry_run=True) — NO emails sent, NO stamps
-    written; ENABLED gate bypassed for preview (arming decision helper) but
+    written
+    ENABLED gate bypassed for preview (arming decision helper) but
     HARD_OFF still blocks. BLK-02 UI-tab rule: admin feature = UI tab SAATH.
     """
     out: dict = {}
@@ -230,7 +232,8 @@ async def admin_trial_nudge_status(_user=Depends(require_admin)) -> dict:
 @router.post("/trial-nudge/run")
 async def admin_trial_nudge_run(request: Request, admin=Depends(require_admin)) -> dict:
     """Manual trial-nudge run (admin). ALL internal gates still apply —
-    HARD_OFF blocks; TRIAL_NUDGE_ENABLED off => skip result returned so the
+    HARD_OFF blocks
+    TRIAL_NUDGE_ENABLED off => skip result returned so the
     admin sees exactly why nothing was sent. Real emails go out only when
     the job's own gates pass."""
     try:
@@ -375,7 +378,8 @@ def _build_client_timeline(
 
 def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
     """Best-effort sync read of AuditLog rows whose resource_id == client_id.
-    Never raises; returns [] if DB unreachable."""
+    Never raises
+    returns [] if DB unreachable."""
     try:
         from app.models.user import AuditLog
         from app.platform.team import _db
@@ -453,7 +457,8 @@ async def get_client_timeline(
 async def admin_command_center(_user=Depends(require_admin)) -> dict:
     """Customer Delivery OS Phase 2 — business-outcome admin front door: total/
     paying/stuck-in-setup/receiving-value/failed-automation customers, pending
-    approvals, revenue. Read-only rollup; never mutates state."""
+    approvals, revenue. Read-only rollup
+    never mutates state."""
     try:
         return await asyncio.to_thread(_build_command_center)
     except Exception as e:
@@ -472,7 +477,8 @@ async def admin_delivery_cockpit(_user=Depends(require_admin)) -> dict:
     """Delivery-first cockpit for Product One operations.
 
     Shows pipeline, per-customer next action, deliverable completion, failures,
-    approvals, and renewal readiness. Reuses existing delivery stores; never
+    approvals, and renewal readiness. Reuses existing delivery stores
+    never
     creates a new disconnected dashboard data source."""
     try:
         from app.marketing import product_one_delivery
@@ -1377,8 +1383,10 @@ async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
 async def get_boss_autopilot(_user=Depends(require_admin)) -> dict:
     """Boss autonomy observability — flag, status, decisions, rollout (read-only).
 
-    Real values only: enabled/ready reflect the live env flags; boss_rollout is
-    the current rollout lane (held until the mutating canary); never fabricated.
+    Real values only: enabled/ready reflect the live env flags
+    boss_rollout is
+    the current rollout lane (held until the mutating canary)
+    never fabricated.
     """
     out: dict = {"ok": True, "source": "app.platform.boss_autonomy"}
     try:

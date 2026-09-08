@@ -489,7 +489,8 @@ def _kill_tree(proc: subprocess.Popen[bytes]) -> None:
 
     Chrome is a grandchild of the CLI, so killing only the direct child orphans
     it and leaks memory until the container dies. POSIX gets a process-group
-    signal; Windows has no killpg, so taskkill /T walks the tree instead
+    signal
+    Windows has no killpg, so taskkill /T walks the tree instead
     (os.kill on Windows sends CTRL_C and is unreliable here).
     """
     if proc.poll() is not None:

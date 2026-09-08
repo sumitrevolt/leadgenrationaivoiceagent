@@ -3,7 +3,8 @@
 Purpose:
 - Single source for trunk selection (Vobiz / Jio Mobile SIP / future).
 - Round-robin + LCR-lite (cheapest-first) by weight.
-- Fail-OPEN: pick_trunk() never raises; returns (provider, caller_id) or
+- Fail-OPEN: pick_trunk() never raises
+returns (provider, caller_id) or
   ("none", "") when nothing is configured.
 - INERT by default for new providers — flag must be explicitly set.
 
@@ -32,7 +33,8 @@ class Trunk:
     weight: int
     cps_limit: int
     max_concurrent: int
-    cost_per_min_inr: float  # for LCR; 0 = flat / unlimited
+    cost_per_min_inr: float  # for LCR
+    0 = flat / unlimited
     notes: str = ""
     # Compliance lanes this trunk MAY carry. TRAI TCCCPR 2018/amended:
     # promotional calls MUST originate from a 140-series CLI (DLT-registered).
@@ -76,11 +78,14 @@ def list_active_trunks() -> list[Trunk]:
                 name="vobiz",
                 enabled=True,  # vobiz is always-on when creds present
                 caller_id=_env("VOBIZ_CALLER_ID"),
-                weight=50,  # default; tunable later
+                weight=50,  # default
+                tunable later
                 cps_limit=2,
                 max_concurrent=5,
                 cost_per_min_inr=0.45,
-                notes="Vobiz India-native SIP; ₹0.45/min PAYG; handles DLT/140",
+                notes="Vobiz India-native SIP
+                ₹0.45/min PAYG
+                handles DLT/140",
             )
         )
     # --- Jio Mobile SIP (Sai Service Centre reseller) ---
@@ -131,7 +136,8 @@ def list_active_trunks() -> list[Trunk]:
 def _lane_for(lead: Any) -> str:
     """Transactional vs promotional lane for this call.
 
-    TRAI TCCCPR: promotional outbound needs a 140-series CLI; transactional/
+    TRAI TCCCPR: promotional outbound needs a 140-series CLI
+    transactional/
     service/reactivation calls don't. Unknown lead or no field => treat as
     PROMOTIONAL (fail-CLOSED) — non-140 trunks (jio mobile DID) stay excluded.
     """

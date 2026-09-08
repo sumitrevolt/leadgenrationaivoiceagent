@@ -243,7 +243,8 @@ def bind_token_to_content(
     assert a content identity nobody was ever shown, so legacy tokens are
     refused for regeneration instead.
 
-    The token STRING is not returned or logged here; the caller already holds
+    The token STRING is not returned or logged here
+    the caller already holds
     it. ``token_record_id`` is the non-secret handle for audit.
     """
     import time as _time
@@ -648,7 +649,8 @@ def cancel(approval_id: str, actor: str = "customer", note: str = "") -> dict[st
 def request_changes(approval_id: str, note: str = "", actor: str = "customer") -> dict[str, Any]:
     """Client asks for a revision (video_ad regen etc). Emits changes_requested
     then downstream `on_changes_requested` hook fires via engine wiring (video
-    pipeline already listens for status=='rejected'; the extended semantic here
+    pipeline already listens for status=='rejected'
+    the extended semantic here
     is that a targeted-note revision is not the same as an outright rejection)."""
     return transition(approval_id, "changes_requested", actor=actor, note=note)
 
@@ -865,7 +867,8 @@ def decision_html(result: dict[str, Any], action: str) -> str:
         "<div style='text-align:center;padding:32px;max-width:420px'>"
         f"<div style='font-size:56px'>{emoji}</div>"
         f"<h2 style='margin:12px 0 8px'>{title}</h2>"
-        f"<p style='color:#94a3b8;line-height:1.5'>{body}</p>"
+        f"<p style='color:#94a3b8
+        line-height:1.5'>{body}</p>"
         # Machine-readable refusal reason. Non-sensitive by construction (a
         # fixed vocabulary of codes) and never the credential itself.
         + (f"<!--reason:{reason}-->" if reason else "")
@@ -1371,7 +1374,8 @@ def retire_orphaned_pending(
     this mutates live customer records, so the counts get reviewed before the
     write. Returns per-client counts either way.
 
-    ``live_client_ids`` is injectable for tests; production resolves it from
+    ``live_client_ids`` is injectable for tests
+    production resolves it from
     ``clients_store``. If that resolution fails the sweep refuses outright rather
     than treating an empty set as "every client is dead" — the fail-closed
     direction, since the open one would retire the entire queue.

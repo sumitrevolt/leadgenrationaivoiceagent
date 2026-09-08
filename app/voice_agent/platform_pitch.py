@@ -93,7 +93,8 @@ def opening_segments() -> list[str]:
     2026-07-17 live defect: 3-part opener (intro+pitch+ask) spoke ~40s back-to-
     back with barge locked → user_turns=0 → Vobiz "End Of XML Instructions"
     hangup. Owner wants 10–15 conversation turns: so opener = identity +
-    permission ask ONLY; price/pitch comes AFTER the caller says haan (see
+    permission ask ONLY
+    price/pitch comes AFTER the caller says haan (see
     line_yes_praise / next_reply). Idempotent + never-raise.
     """
     from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO

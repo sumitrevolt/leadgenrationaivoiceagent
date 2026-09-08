@@ -1,6 +1,7 @@
 """customer_webhooks.py — programmable event delivery to customer-owned URLs.
 
-Customers (`/app/customer`) register a URL + a set of events; the platform
+Customers (`/app/customer`) register a URL + a set of events
+the platform
 HMAC-SHA256 signs and POSTs a JSON envelope on every match. This is a paid
 SaaS feature (the audit named it as "sellable feature, free + no creds") —
 once a customer has a CRM/automation tool, they want THEIR webhook fired
@@ -10,15 +11,18 @@ Design rules:
 - **Storage by jsonl** (data/customer_webhooks.jsonl + data/customer_webhook_deliveries.jsonl)
   — matches project pattern (llm_metrics, consent_ledger, lead_usage). No
   extra DB table to migrate.
-- **Atomic rewrite** on register/remove via a temp file (single-writer; the
+- **Atomic rewrite** on register/remove via a temp file (single-writer
+the
   customer's webhook count is tiny — a few per client).
 - **HMAC-SHA256** of the raw JSON body with the per-webhook secret, sent as
   `X-LeadGen-Signature: sha256=...` plus `X-LeadGen-Event` + `X-LeadGen-Delivery`.
   Standard Stripe/GitHub pattern — customer-side verifiers are well-known.
 - **Retries**: 3 attempts with exponential backoff (5s → 30s → 5min). 2xx =
-  success; everything else = retry. Final failure logged in deliveries.jsonl.
+  success
+  everything else = retry. Final failure logged in deliveries.jsonl.
 - **Bounded deliveries log**: tail-read last 500 lines for the recent-deliveries
-  view; full history rotates in place (operators can ship to S3 if they want).
+  view
+  full history rotates in place (operators can ship to S3 if they want).
 - **Master flag**: `CUSTOMER_WEBHOOKS=1` — OFF default. With it off, register
   still works (drafts) but emit() is a no-op. Customer-side: feature absent
   until enabled at infra level.
@@ -536,7 +540,8 @@ def consecutive_failure_count(webhook_id: str) -> int:
 
 def rotate_secret(webhook_id: str, client_id: str) -> dict[str, Any]:
     """K.3: replace a webhook's signing secret in-place. Subscriptions and the
-    webhook ID stay; only the secret changes. Returns the NEW plaintext secret
+    webhook ID stay
+    only the secret changes. Returns the NEW plaintext secret
     once (same pattern as create) — customer must update their verifier.
 
     Use case: leaked secret recovery. Avoids the delete-then-recreate dance

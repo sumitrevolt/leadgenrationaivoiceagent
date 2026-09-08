@@ -5,7 +5,8 @@ Bug: `self_improve_runs.jsonl`, `content_feedback.jsonl`, `reply_drafts.jsonl` a
 DB events + transcript files) → unbounded disk growth on the 16GB VPS.
 
 Fix: `_trim_jsonl` keeps the newest `max_lines` (atomic rewrite, best-effort) and
-`_prune_jsonl_stores` trims all four stores; `run_ops` calls it alongside the existing
+`_prune_jsonl_stores` trims all four stores
+`run_ops` calls it alongside the existing
 prunes.
 """
 

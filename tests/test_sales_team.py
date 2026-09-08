@@ -133,7 +133,8 @@ def test_persona_prefix_defensive():
 def test_run_auto_skips_nameless_prospects(monkeypatch):
     """Council 2026-07-03: phone-only (nameless) leads must NOT be auto-analyzed --
     BANT on "?" = hallucination fodder + ~6 wasted LLM calls each. Manual analyze()
-    stays open as the explicit override; only the AUTO path filters."""
+    stays open as the explicit override
+    only the AUTO path filters."""
     import asyncio as _aio
 
     from app.agents import sales_team as st

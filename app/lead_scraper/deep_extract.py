@@ -9,7 +9,8 @@ httpx fetch + trafilatura main-text extraction, so callers always get *something
 Both paths are defensive and never raise. Returns a dict:
   {"ok": bool, "url": str, "markdown": str, "text": str, "emails": [...], "phones": [...], "engine": str}
 
-Crawl4AI is heavier (needs a one-time `crawl4ai-setup` to install Chromium); it is
+Crawl4AI is heavier (needs a one-time `crawl4ai-setup` to install Chromium)
+it is
 OPTIONAL and OFF unless installed. The trafilatura fallback covers the common case.
 
 Use:

@@ -136,7 +136,8 @@ def get_customer_office(client_id: str = Depends(require_customer)):
     counts, aur (c) **customer ko khud kya manual karna hai** with automation-impact
     ("website do → behtar content", "X post approve → auto-publish"). Product-aware
     (marketing/voice/combo). client_id JWT se (require_customer) => IDOR-safe.
-    Read-only, never-500, gated by CUSTOMER_OFFICE (default ON; '0' => disabled)."""
+    Read-only, never-500, gated by CUSTOMER_OFFICE (default ON
+    '0' => disabled)."""
     if os.getenv("CUSTOMER_OFFICE", "1").strip().lower() in ("0", "false", "no", "off"):
         return {"ok": True, "enabled": False, "your_tasks": [], "activity": [], "summary": {}}
     from app.api.customer_dashboard_builders import _build_office
@@ -721,7 +722,8 @@ async def customer_voice_call_queue(
     simply NOT queued — this route bypasses nothing. NO REPEAT-DIAL: skips leads that
     have a CallLog row AND an in-flight Redis set (`voice_inflight:{cid}`, TTL) so the
     same person isn't re-queued in the queue→dial→log window (2026-07-06 sec-audit
-    fix); plus a per-client daily cap (`VOICE_SELFSERVE_DAILY_CAP`, default 200) and a
+    fix)
+    plus a per-client daily cap (`VOICE_SELFSERVE_DAILY_CAP`, default 200) and a
     per-IP rate limit. client_id forced from JWT (IDOR-safe). Gated
     CUSTOMER_VOICE_SELFSERVE (default OFF => 503). Enable only after a live test call."""
     if not _voice_selfserve_enabled():
@@ -907,12 +909,14 @@ _REPORT_CACHE: dict[str, tuple[float, dict]] = {}
 
 @router.get("/report")
 async def customer_monthly_report(
-    month: str = Query("", description="YYYY-MM; blank => current month"),
+    month: str = Query("", description="YYYY-MM
+    blank => current month"),
     client_id: str = Depends(require_customer),
 ) -> dict:
     """Customer-facing monthly marketing report (read-only deliverable) — kya
     kaam hua is mahine. build_report team events se banta hai + 1 free-LLM
-    Hinglish summary; result short-TTL cache hota hai (cost guard)."""
+    Hinglish summary
+    result short-TTL cache hota hai (cost guard)."""
     import time
 
     client_rec = _client_record(client_id)
@@ -956,7 +960,8 @@ def _client_owns_lead(client_id: str, lead_id: str) -> tuple[bool, bool]:
       infra_error=True -> a lookup backend errored, so ownership is UNKNOWN
                           (caller must fail-CLOSED: refuse the write).
     Never raises. Cheap: file path is an in-memory scan of this client's
-    inquiries; DB path is a single indexed lookup and only runs when the
+    inquiries
+    DB path is a single indexed lookup and only runs when the
     inquiry path did not already confirm ownership."""
     lid = str(lead_id or "").strip()
     if not lid:
@@ -1280,7 +1285,8 @@ def customer_update_profile(
 ) -> dict:
     """Setup Wizard write path — business profile/social/WhatsApp/brand-tone,
     Customer Delivery OS mission's 4 wizard dimensions. IDOR-safe (client_id
-    from JWT); only the fields named on ProfileUpdateIn can ever be set — no
+    from JWT)
+    only the fields named on ProfileUpdateIn can ever be set — no
     plan/status/trial/niche path exists here even though clients_store.update_client
     itself would allow them. Never-500."""
     try:
@@ -1755,7 +1761,8 @@ def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict
     only presence + masked account_ref + updated_at + meta.source. IDOR-safe
     (client_id from JWT). Never raises. States:
         connected            → row exists + token stored + not deleted
-        provider_review_pending → platform requires app-review; will publish only
+        provider_review_pending → platform requires app-review
+        will publish only
                                   once SOCIAL_ENGINE + Meta app-review both pass
         not_connected        → nothing stored for this platform yet"""
     try:
@@ -1944,7 +1951,8 @@ def customer_social_accounts_disconnect(
     Loop 27 (2026-07-11): now accepts either `account_ref` (legacy — full ref)
     OR `account_id` (opaque sha1 hash returned by GET /social/accounts). Frontend
     only ever sees masked `…tail` for privacy, so `account_id` is the reliable
-    handle for DELETE; `account_ref` retained for backwards compat + admin tools.
+    handle for DELETE
+    `account_ref` retained for backwards compat + admin tools.
     """
     try:
         from app.social_engine import vault
@@ -2002,7 +2010,8 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
     into a single completeness score + missing-piece list so the wizard shows
     "80% ready — 2 items pending" and the customer never leaves setup blindly.
 
-    Never raises; empty client → all-required."""
+    Never raises
+    empty client → all-required."""
     try:
         from app.marketing import clients_store
         from app.social_engine import client_config as _cc
@@ -2139,7 +2148,8 @@ async def customer_branded_feed(client_id: str = Depends(require_customer)):
 def customer_delivery_timeline(client_id: str = Depends(require_customer), limit: int = 30) -> dict:
     """'AI ne aapke liye kya kiya' — customer's own delivery-ledger timeline.
     client_id JWT (require_customer) se aata hai => customer sirf apni hi
-    timeline dekhta hai. Never raises; empty list on any error."""
+    timeline dekhta hai. Never raises
+    empty list on any error."""
     try:
         from app.marketing import clients_store
         from app.marketing.delivery_ledger import ensure_backfilled, timeline
@@ -2465,7 +2475,8 @@ def customer_video_media(
         raise HTTPException(status_code=404, detail="video not found")
     current_revision = int(rec.get("revision") or 0)
     if current_revision != revision:
-        raise HTTPException(status_code=409, detail="video version changed; refresh review")
+        raise HTTPException(status_code=409, detail="video version changed
+        refresh review")
     media_path = _resolve_customer_video_path(rec)
     if media_path is None:
         logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
@@ -2658,7 +2669,8 @@ async def customer_video_feedback(
         raise HTTPException(status_code=404, detail="video nahi mila")
     current_revision = int(rec.get("revision") or 0)
     if current_revision != body.expected_revision:
-        raise HTTPException(status_code=409, detail="video version changed; refresh review")
+        raise HTTPException(status_code=409, detail="video version changed
+        refresh review")
     action = (body.action or "changes").strip().lower()
     if action not in {"approve", "changes", "reject"}:
         raise HTTPException(status_code=422, detail="invalid video feedback action")
@@ -2688,7 +2700,8 @@ async def customer_video_feedback(
                     detail=f"approval_not_finalized:{txn_state}",
                 )
         if current_status != "pending":
-            raise HTTPException(status_code=409, detail="video review already decided; refresh")
+            raise HTTPException(status_code=409, detail="video review already decided
+            refresh")
     if action == "approve":
         # Bind the approval to the bytes the customer actually previewed. Every
         # refusal below happens BEFORE any ledger write, record update, snapshot
@@ -2748,7 +2761,8 @@ async def customer_video_feedback(
     note = text[:300] or action
     approval = content_approval.get_by_token(tok)
     if not approval or str(approval.get("status") or "").strip().lower() != "pending":
-        raise HTTPException(status_code=409, detail="approval already decided; refresh review")
+        raise HTTPException(status_code=409, detail="approval already decided
+        refresh review")
     if action == "reject":
         # Terminal first: the generic rejection hook only converts pending videos
         # to changes_requested, so a hard reject can never enter the regen queue.
@@ -2763,7 +2777,8 @@ async def customer_video_feedback(
         )
     out = content_approval.reject(tok, note=note)
     if not out.get("ok") or out.get("already_decided"):
-        raise HTTPException(status_code=409, detail="approval already decided; refresh review")
+        raise HTTPException(status_code=409, detail="approval already decided
+        refresh review")
     video_ad_cycle._update(
         str(video_ad_id),
         revision_tasks=classified.get("tasks") or [],
@@ -2823,7 +2838,8 @@ def customer_creative_os_media(
     rec = got["record"]
     current_revision = int(rec.get("approval_revision") or 0)
     if current_revision != revision:
-        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+        raise HTTPException(status_code=409, detail="creative version changed
+        refresh")
     resolved = resolve_output_path(mcid, creative_id)
     if not resolved.get("ok"):
         raise HTTPException(status_code=404, detail="creative not found")
@@ -2855,7 +2871,8 @@ def customer_creative_os_feedback(
     rec = got["record"]
     current_revision = int(rec.get("approval_revision") or 0)
     if current_revision != body.expected_revision:
-        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+        raise HTTPException(status_code=409, detail="creative version changed
+        refresh")
     action = (body.action or "changes").strip().lower()
     if action not in {"approve", "changes"}:
         raise HTTPException(status_code=422, detail="invalid creative feedback action")

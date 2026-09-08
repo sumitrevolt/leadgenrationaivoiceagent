@@ -218,7 +218,8 @@ def emit_call_report(
     carries the FULL report (score/summary/next_action) so a customer's CRM or
     automation can act without polling. Fires for EVERY call that produced a
     report (qualified or not) — the customer opted in by subscribing to this
-    event; the subscription model does the filtering.
+    event
+    the subscription model does the filtering.
 
     INERT without CUSTOMER_WEBHOOKS + a matching subscription. Never raises.
     """
@@ -559,7 +560,8 @@ def build_call_log(
     testable. Returns None when CALL_LOG_DB is off or the model is unavailable.
 
     ``lead_id`` (2026-08-06) is the CRM ``leads.id`` threaded down from the
-    dialer. Set optimistically here; ``persist_call_log`` re-checks the row
+    dialer. Set optimistically here
+    ``persist_call_log`` re-checks the row
     actually exists before committing the FK, same as ``client_id``.
 
     ``q`` is the ``call_qualifier.qualify_transcript`` dict (interest_score 1-5,

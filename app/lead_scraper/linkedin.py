@@ -127,7 +127,8 @@ class LinkedInScraper:
         (email/phone stay None) — only public company listing metadata.
         """
         if BeautifulSoup is None:
-            logger.error("beautifulsoup4 not installed; cannot run LinkedIn search")
+            logger.error("beautifulsoup4 not installed
+            cannot run LinkedIn search")
             return []
 
         query = f"site:linkedin.com/company {industry} {location}".strip()

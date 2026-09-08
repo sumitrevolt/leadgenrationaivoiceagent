@@ -10,7 +10,8 @@ Design (mirrors the code_upgrader gold-pattern):
 - File-backed status sidecar data/approval_decisions.jsonl, read-on-each-call
   (NEVER an in-memory singleton — that is the verified self_improve
   ApprovalQueue bug where web vs worker process state diverged).
-- Source files are NOT mutated; status lives only in the sidecar (collapse-to-
+- Source files are NOT mutated
+status lives only in the sidecar (collapse-to-
   latest by (source, item_id)).
 - decide() stamps status + fires a BOUNDED SAFE next-action per source:
     sales       -> mark-reviewed (the real send stays 1-click manual / draft-only)
@@ -334,7 +335,8 @@ def _drafts_fde(smap: dict) -> list[dict[str, Any]]:
                 continue
             client = r.get("client") or {}
             steps = r.get("steps") or []
-            summ = "; ".join(
+            summ = "
+            ".join(
                 f"{s.get('title')}: {s.get('summary', '')}" for s in steps if isinstance(s, dict)
             )[:2000]
             out.append(
@@ -379,10 +381,12 @@ def list_drafts(include_decided: bool = False) -> dict[str, Any]:
 
 def recent_decisions(limit: int = 8) -> list[dict[str, Any]]:
     """Audit-trail strip for the Office HQ Approvals panel — "who decided what,
-    when". Reads the same append-only sidecar `decide()` writes to; latest
+    when". Reads the same append-only sidecar `decide()` writes to
+    latest
     (source, item_id) wins, newest-first. Draft titles are re-resolved from
     `list_drafts(include_decided=True)` (source files are the title's source of
-    truth); patch/self-improve titles are left blank in this v1 — those kinds
+    truth)
+    patch/self-improve titles are left blank in this v1 — those kinds
     keep their own status stores and aren't wired here yet. Never raises."""
     out: list[dict[str, Any]] = []
     try:

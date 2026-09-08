@@ -250,7 +250,8 @@ def test_real_repo_canonical_usage_is_detected() -> None:
     # `path.mkdir()`), so it is resolved during classify(), not at discovery.
     classes = {s.classify(x, {}) for x in f}
     assert s.CANONICAL_RUNTIME_PATH in classes, (
-        f"canonical resolver usage in runtime_data.py not detected; got {sorted(classes)}"
+        f"canonical resolver usage in runtime_data.py not detected
+        got {sorted(classes)}"
     )
 
 

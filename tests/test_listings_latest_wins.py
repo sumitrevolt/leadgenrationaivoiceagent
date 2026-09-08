@@ -1,7 +1,8 @@
 """listings_presence.get_status must return the NEWEST save even when two saves
 share an updated_at timestamp (coarse-clock tie — e.g. Windows ~15ms tick).
 
-Regression: get_status used sort(updated_at, reverse=True)[0]; on a timestamp tie
+Regression: get_status used sort(updated_at, reverse=True)[0]
+on a timestamp tie
 the stable sort kept append order and returned the OLDER record, so two rapid
 status saves could surface a STALE status (real correctness bug, surfaced as a
 full-suite test flake). Fix: ascending sort + last row (append order is

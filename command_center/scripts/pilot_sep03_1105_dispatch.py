@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 11:05 IST sweep — FRESH LIVE-verification + OWNER ESCALATION (11:00 gate).
 FRESH LIVE (11:01): /health 200 healthy (version 036a4e4b, uptime 1h53m). auto_sent true=0/2270
-(NO msg-id anywhere — WA rail ZERO real send day5); SIP 5 vars ALL len=0 (SIP_HOST/USERNAME/PASSWORD/
-DID/PROVIDER) -> DID NOT landed, VOBIZ_CALLER_ID len13 REVOKED CLI; call_loop proc0 mtime Aug31 08:39Z
-(dialer DEAD day5 batch211 ok0/fail3); leads/ ABSENT (ammo 0); hot-queue 09-03 PRESENT (scheduler healed).
-Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001); GAP Rs4,98,001.
+(NO msg-id anywhere — WA rail ZERO real send day5)
+SIP 5 vars ALL len=0 (SIP_HOST/USERNAME/PASSWORD/
+DID/PROVIDER) -> DID NOT landed, VOBIZ_CALLER_ID len13 REVOKED CLI
+call_loop proc0 mtime Aug31 08:39Z
+(dialer DEAD day5 batch211 ok0/fail3)
+leads/ ABSENT (ammo 0)
+hot-queue 09-03 PRESENT (scheduler healed).
+Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001)
+GAP Rs4,98,001.
 FLEET 0-ACK ~54h — ALL 8 bots own tasks (07:35 assign, 10:00/10:45/11:00 gates ALL MISSED, 0 evidence).
 11:00 OWNER ESCALATION GATE ARRIVED. No new TASK-ID (anti-spam, max 1/bot/run honoured since 07:35).
 Apex bottleneck #1 WA-rail auto_send=0 (ENG-004); #2 genuine-intent close (SAL-005); #3 DID-land (PLT-005);
@@ -101,7 +106,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T11:05+05:30"
-pin["vps_status"] = ("HEALTHY (200 ver 036a4e4b); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (200 ver 036a4e4b)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip LIVE=1 par auto_sent 0/2270 NO msg-id day5 -> 0 UPI; hot-queue 09-03 PRESENT (dirty); "
                      "dialer DEAD day5 (SIP 5 vars ALL EMPTY, CLI revoked, leads0); GAP Rs4,98,001. "
                      "FLEET 0-ACK ~54h -> 11:00 OWNER ESCALATION FIRED. Decision due 12:00.")

@@ -182,7 +182,8 @@ class JWTKeyManager:
         Revoke a secondary key (e.g., after compromise).
         """
         if key_id == self.primary_key["id"]:
-            raise ValueError("Cannot revoke the primary key; rotate first")
+            raise ValueError("Cannot revoke the primary key
+            rotate first")
 
         if key_id in self.secondary_keys:
             del self.secondary_keys[key_id]

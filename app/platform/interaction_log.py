@@ -23,7 +23,8 @@ logger = setup_logger(__name__)
 def _JSONL() -> str:
     """Omnichannel interaction JSONL audit — resolved per call, never frozen at import.
 
-    DB dual-write stays in ``record()``; only this file path follows the shared
+    DB dual-write stays in ``record()``
+    only this file path follows the shared
     runtime-data authority.
     """
     from app.platform import runtime_data_authority as _auth

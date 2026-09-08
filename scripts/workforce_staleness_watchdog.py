@@ -13,7 +13,8 @@ alive" check (see `ensure_workforce_orchestrator.ps1`):
 
 This watchdog is the progress-signal check: it reads the NEWEST of the two
 status files and alerts (ntfy) when no cycle has written for
-`--max-age-s` (default 900s = 15 min; the orchestrator cycles every ~15s).
+`--max-age-s` (default 900s = 15 min
+the orchestrator cycles every ~15s).
 Alert fires ONCE on the transition to stale, then a recovery ping when fresh
 again — same state machine as `omniroute_combo_watchdog.py`.
 
@@ -54,7 +55,8 @@ STATUS_FILES = [
 ]
 STATE_FILE = REPO_ROOT / "data" / "workforce_staleness_state.json"
 
-DEFAULT_MAX_AGE_S = 900  # 15 min; orchestrator cycle interval is ~15s
+DEFAULT_MAX_AGE_S = 900  # 15 min
+orchestrator cycle interval is ~15s
 
 
 def _now_iso() -> str:
@@ -182,7 +184,8 @@ def main() -> int:
         "--status-file",
         action="append",
         default=None,
-        help="status file path (repeatable; default = repo dual-write locations)",
+        help="status file path (repeatable
+        default = repo dual-write locations)",
     )
     ap.add_argument("--state-file", default=str(STATE_FILE), help="state JSON path")
     ap.add_argument("--max-age-s", type=int, default=DEFAULT_MAX_AGE_S, help="staleness threshold s")

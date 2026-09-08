@@ -1,6 +1,7 @@
 """W1.1 — scheduler single-instance lock must FAIL-CLOSED on a lock-fs error.
 
-Old behaviour (bug): `_acquire_lock()` outer `except` set `_have_lock=True; return
+Old behaviour (bug): `_acquire_lock()` outer `except` set `_have_lock=True
+return
 True`. `_acquire_lock()` runs boot-once (single call site, `start_scheduler`), so if
 BOTH uvicorn workers hit the same filesystem error (same disk) they BOTH started the
 scheduler loop → every job double-fired (double emails/content/spend + ban risk).

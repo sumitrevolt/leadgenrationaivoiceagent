@@ -119,7 +119,8 @@ def vaqi_summary(
     ``missed_count`` = turns where the agent produced zero reply (NO_REPLY).
     Interruption fields are optional and stay ``None`` until a caller has real
     barge-in telemetry (our text-mode self-test harness has no overlapping
-    audio, so it can only ever report latency + missed-response; live-call
+    audio, so it can only ever report latency + missed-response
+    live-call
     telemetry — once wired via Tracer.record_interruption — fills these in)."""
     latency = latency_summary(latencies_ms)
     missed_rate = round(missed_count / turns_total, 3) if turns_total else None

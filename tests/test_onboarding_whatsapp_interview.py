@@ -1,5 +1,6 @@
 """WhatsApp onboarding-interview: clients without a website get a business-info
-request via WhatsApp right after onboarding; the reply becomes the KB source
+request via WhatsApp right after onboarding
+the reply becomes the KB source
 instead of a website scrape.
 
 Pins the contract:

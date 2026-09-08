@@ -3,7 +3,8 @@
 engine_for(run_id) peeks run_started.engine in the shared journal. start()
 compiles the flow to learn its kind BEFORE routing. The API + process_tick call
 THROUGH this shim so neither knows which engine a run uses. Linear runs (incl.
-pre-Phase-2 runs with no 'engine' key) -> process_engine; dag runs -> dag_engine.
+pre-Phase-2 runs with no 'engine' key) -> process_engine
+dag runs -> dag_engine.
 Never raises.
 """
 

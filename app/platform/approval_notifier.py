@@ -2,7 +2,8 @@
 
 Design (Phase-1 customer-delivery, 2026-07-12):
 - Env-gated by APPROVAL_EMAIL_NOTIFY (default OFF) so nothing sends by accident.
-- Client allowlist is mandatory (`APPROVAL_EMAIL_CLIENT_ALLOWLIST`); empty means
+- Client allowlist is mandatory (`APPROVAL_EMAIL_CLIENT_ALLOWLIST`)
+empty means
   zero recipients even when the main flag is accidentally enabled.
 - A sweep selects at most one pending approval per client, so a backlog cannot
   produce an email blast to one customer.
@@ -12,7 +13,8 @@ Design (Phase-1 customer-delivery, 2026-07-12):
   and repeated scheduler runs (DB-backed — survives a Redis flush).
 - ``version`` is a hash of the approval's mutable state, so a CHANGED approval
   produces a new key and is allowed to notify again.
-- A row is only marked ``sent`` when the email provider returns success; a failed
+- A row is only marked ``sent`` when the email provider returns success
+a failed
   send stays retryable. Consent (promotional suppression) + a per-client email
   setting are honoured before sending.
 - Recipient / consent / send are module-level seams so tests can inject them.
@@ -89,7 +91,8 @@ async def _notification_scope(feature_service=None) -> tuple[bool, set[str]]:
 
     Legacy env flag + env allowlist remain compatible. Without that env flag,
     the audited runtime feature flag may arm only ``enabled_tenants``. Broad
-    ``enabled_all`` still needs the legacy explicit allowlist; percentage mode
+    ``enabled_all`` still needs the legacy explicit allowlist
+    percentage mode
     is refused because an email recipient set must be deterministic/auditable.
     """
     if os.getenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", "0").strip().lower() in (
@@ -183,7 +186,8 @@ def _backlog_text(backlog: dict, link: str) -> str:
 
 
 def _backlog_html(backlog: dict, link: str) -> str:
-    return f'<p>{_backlog_phrase(backlog)}</p><p><a href="{link}">Review &amp; approve</a></p>'
+    return f'<p>{_backlog_phrase(backlog)}</p><p><a href="{link}">Review &amp
+    approve</a></p>'
 
 
 def deep_link(approval_id: str = "") -> str:
@@ -443,7 +447,8 @@ async def notify_pending_approvals(
 ) -> dict:
     """Scoped sweep over pending approvals. Inert unless env/runtime gate is on.
 
-    - Explicit client allowlist is mandatory; empty means no recipients.
+    - Explicit client allowlist is mandatory
+    empty means no recipients.
     - At most one reminder per client per sweep (newest pending item wins).
     - Bounded client batch (``limit``) and bounded per-item timeout.
     - One client's failure/timeout NEVER stops the sweep (each item is isolated).

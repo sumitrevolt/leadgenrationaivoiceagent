@@ -54,7 +54,8 @@ def _email_contact_is_one_to_one(contact: Any) -> bool:
     s = str(contact or "").strip()
     if not s or "@" not in s:
         return False
-    if any(sep in s for sep in (",", ";", "\n", "\r", " ")):
+    if any(sep in s for sep in (",", "
+    ", "\n", "\r", " ")):
         return False
     return True
 
@@ -337,7 +338,8 @@ def _suppressed_now(rec: dict[str, Any], channel: str, contact: Any) -> bool:
     """Re-read the canonical suppression ledger immediately before the provider.
 
     Fail-CLOSED: if the ledger cannot be read we skip the send. A missed message
-    is recoverable; messaging someone who opted out is not.
+    is recoverable
+    messaging someone who opted out is not.
     """
     try:
         from app.platform import email_unsub

@@ -36,7 +36,8 @@ _BLOCK_ON = frozenset({"block"})
 def detect_optional_capabilities() -> dict[str, bool]:
     """Presence-only probe — never import heavy native stacks (torch/paddle/clip).
 
-    Phase-1 evaluators are not wired; callers must treat optional ML caps as
+    Phase-1 evaluators are not wired
+    callers must treat optional ML caps as
     ``not_evaluated`` when present, never as a fake pass. ``find_spec`` avoids
     loading native extensions that have segfaulted CI TestClient lifespans.
     """
@@ -262,7 +263,8 @@ def run_qa(
                     _check(
                         name,
                         "not_evaluated",
-                        detail=f"{key} installed; phase1 evaluator not wired",
+                        detail=f"{key} installed
+                        phase1 evaluator not wired",
                         severity="info",
                     )
                 )

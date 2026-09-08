@@ -15,9 +15,12 @@ Safety:
   * Super-admin only (raw DB = highest privilege).
   * READ-ONLY — koi INSERT/UPDATE/DELETE endpoint nahi.
   * SQL-injection-safe: table/column identifiers DB-introspection list ke against
-    validate + dialect quote; LIMIT/OFFSET integer-clamped; params bind.
+    validate + dialect quote
+    LIMIT/OFFSET integer-clamped
+    params bind.
   * Sensitive columns (password/hash/secret/token/key…) auto-redact.
-  * Never raises raw — clean errors; blocking DB work ``asyncio.to_thread`` me.
+  * Never raises raw — clean errors
+  blocking DB work ``asyncio.to_thread`` me.
 """
 
 from __future__ import annotations
@@ -281,5 +284,6 @@ async def export_table(
     return Response(
         content=res.get("csv", ""),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
+        headers={"Content-Disposition": f'attachment
+        filename="{safe_name}.csv"'},
     )

@@ -3,7 +3,8 @@
 store (app/graphify-out/project_context.json) + human snapshot CONTEXT_SNAPSHOT.md.
 
 Idempotent: re-running with no source change writes nothing. Never ingests
-secrets; never reads .env*. Degrades over missing sources.
+secrets
+never reads .env*. Degrades over missing sources.
 
   python scripts/sync_project_context.py --dry-run
   python scripts/sync_project_context.py

@@ -155,7 +155,8 @@ _GROQ_QWEN3_MODEL = (
 )  # Groq recommended multilingual / strict-adjacent replacement
 _GROQ_LLAMA70B_MODEL = (
     _os.environ.get("GROQ_LLAMA70B_MODEL", "").strip() or "openai/gpt-oss-120b"
-)  # name kept for callers; id is gpt-oss-120b (not Llama)
+)  # name kept for callers
+id is gpt-oss-120b (not Llama)
 # OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404;
 # 2026-07-05: llama-3.1-8b-instruct:free / deepseek-r1:free / gemma-2-9b-it:free ALL
 # deprecated too → 404 on every openrouter_1..4 account, live-verified via
@@ -240,10 +241,12 @@ _RACE_FIRST_TOKEN_S = _stream_num("LLM_RACE_FIRST_TOKEN_S", 2.5)  # race: 1st de
 def _realtime_race_enabled(profile: str) -> bool:
     """Owner directive 2026-08-23 ("enterprise grade chat, 1s bhi dead-air nahi"):
     realtime turns apne top-2 providers ko SIMULTANEOUSLY race karte hain — jo
-    pehla content token de wahi jeeta; loser cancel. Slow/429-ing primary ab turn
+    pehla content token de wahi jeeta
+    loser cancel. Slow/429-ing primary ab turn
     ko block nahi karta (pehle sequential ladder me ek stalled primary poora
     _CALL_TIMEOUT_S=8s kha sakta tha — live call me llm_first 6.8s naapa gaya).
-    Sirf realtime/voice profile; bulk untouched. Kill-switch: LLM_REALTIME_RACE=0."""
+    Sirf realtime/voice profile
+    bulk untouched. Kill-switch: LLM_REALTIME_RACE=0."""
     if profile != "realtime":
         return False
     return os.getenv("LLM_REALTIME_RACE", "1").strip().lower() not in (
@@ -477,7 +480,8 @@ async def transcribe_audio(
 ) -> tuple[str, str]:
     """Groq whisper-large-v3 se audio bytes transcribe karo.
 
-    Default WAV (phone paths unchanged); web-call webm/ogg bhi bhej sakta hai
+    Default WAV (phone paths unchanged)
+    web-call webm/ogg bhi bhej sakta hai
     (`filename`/`mime` se format batao — Groq extension se pehchanta hai).
     `prompt` (D-11, optional): niche/brand bias string — Whisper isse domain
     entities + Hinglish register ki taraf bias hota hai (default "" = unchanged).
@@ -524,7 +528,8 @@ _LLM_CACHE_MAX = 500
 
 def _llm_cache_on(prof: str = "") -> bool:
     """W1.10: bulk/content profile DEFAULT-ON (identical content/blog/SEO prompts cache
-    → duplicate free-provider API calls + 429 bacho); realtime/voice OFF (dynamic replies
+    → duplicate free-provider API calls + 429 bacho)
+    realtime/voice OFF (dynamic replies
     pe asar na ho). Global `LLM_CACHE` env override: =1 force-on (saare profiles), =0
     force-off (sab). Unset → profile-based default."""
     env = _os.environ.get("LLM_CACHE", "").strip().lower()
@@ -561,7 +566,8 @@ def _llm_cache_get(key: str):
 
 def _llm_cache_evict() -> None:
     """W1.11: bound pe poora `.clear()` (saara cache nuke, hit-rate→0) ki jagah
-    TTL+LRU-ish — pehle expired entries drop; phir bhi full ho to oldest-by-timestamp
+    TTL+LRU-ish — pehle expired entries drop
+    phir bhi full ho to oldest-by-timestamp
     ~20% nikalo. Hot entries survive. Never-raise (caller guarded bhi hai)."""
     now = time.time()
     for k in [k for k, (ts, _) in list(_LLM_CACHE.items()) if now - ts > _LLM_CACHE_TTL_S]:
@@ -732,7 +738,8 @@ async def chat_provider(
 ) -> tuple[str, str]:
     """Single forced provider+model call — LLM Council diversity ke liye.
 
-    Chain fallback NAHI; provider down/missing ho to ("", provider). Never raises.
+    Chain fallback NAHI
+    provider down/missing ho to ("", provider). Never raises.
     """
     if not _OPENAI_OK:
         return "", provider or "none"
@@ -1086,7 +1093,8 @@ async def _race_open_first(
 ):
     """Race leg: open one provider's stream and capture its FIRST content delta.
     Returns (provider, model, stream, iterator, first_delta). Raises on
-    timeout/error; closes its own stream on any failure/cancel. Never yields."""
+    timeout/error
+    closes its own stream on any failure/cancel. Never yields."""
     stream = None
     try:
         client = _client(provider)
@@ -1177,7 +1185,8 @@ async def chat_stream(
 ):
     """Async token deltas from the first working free provider (stream=True).
 
-    Yields str fragments. Empty stream = no provider; caller falls back to chat().
+    Yields str fragments. Empty stream = no provider
+    caller falls back to chat().
     Never raises."""
     msgs: list[dict[str, str]] = []
     if system and system.strip():

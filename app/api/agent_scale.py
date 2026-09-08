@@ -7,7 +7,8 @@ Paths is module me prefix-LESS likhe (mount-time prefix lagega → /api/agents-e
 
 Flags: BATCH_HARNESS · CODE_EXEC (super-admin) · BROWSER_TOOLS (super-admin).
 All modules lazy-imported (import-safe). Endpoints never-raise pe bharosa nahi —
-underlying agents khud never-raise; yahan sirf gate + thin wrap.
+underlying agents khud never-raise
+yahan sirf gate + thin wrap.
 """
 
 from __future__ import annotations
@@ -29,7 +30,8 @@ class BatchIn(BaseModel):
 
 async def _demo_echo(item) -> dict:
     """SAFE built-in demo fn — sirf echo (no side-effects). HTTP pe arbitrary fn
-    nahi aa sakta, isliye endpoint yeh use karta; programmatic callers run_batch ko
+    nahi aa sakta, isliye endpoint yeh use karta
+    programmatic callers run_batch ko
     apna real `async def fn(item)` pass karte (see app.agents.batch_harness)."""
     return {"ok": True, "summary": f"echo:{str(item)[:120]}"}
 

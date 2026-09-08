@@ -56,7 +56,8 @@ def test_dnd_fail_closed_missing_checker():
     leads = [_Lead("9876543210"), _Lead("9123456780"), _Lead(None)]
     kept = asyncio.run(pipe._stage_dnd_scrub(leads, res))
     assert kept == []  # §5: cannot prove non-DND => promotional contact blocked
-    assert res.skipped_dnd == 2  # 2 phone-bearing leads blocked; phoneless not counted
+    assert res.skipped_dnd == 2  # 2 phone-bearing leads blocked
+    phoneless not counted
 
 
 def test_dnd_fail_closed_on_lookup_error():

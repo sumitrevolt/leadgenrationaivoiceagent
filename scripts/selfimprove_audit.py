@@ -297,7 +297,8 @@ def anomalies():
     if not found:
         print("\n✅ No anomalies detected. Loop looks healthy.\n")
     else:
-        print("\n⚠️ Review above; consider pausing SELF_IMPROVE_LOOP if cost/failures spike.\n")
+        print("\n⚠️ Review above
+        consider pausing SELF_IMPROVE_LOOP if cost/failures spike.\n")
 
 
 def main():

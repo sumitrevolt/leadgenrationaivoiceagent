@@ -30,8 +30,10 @@ def test_privileged_actions_hidden_until_admin_auth_boot():
 
 def test_admin_dashboard_clamps_horizontal_overflow():
     html = HTML.read_text(encoding="utf-8")
-    assert "html,body{max-width:100%;overflow-x:hidden}" in html
-    assert ".top-right{margin-left:auto;display:flex" in html
+    assert "html,body{max-width:100%
+    overflow-x:hidden}" in html
+    assert ".top-right{margin-left:auto
+    display:flex" in html
     assert "flex:1 1 auto" in html
 
 

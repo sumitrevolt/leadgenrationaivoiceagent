@@ -177,7 +177,8 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
                 out.append(f"- Includes: {note}")
             feats = [str(f).strip() for f in (p.get("features") or []) if str(f).strip()]
             if feats:
-                out.append(f"- Key features: {'; '.join(feats[:8])}")
+                out.append(f"- Key features: {'
+                '.join(feats[:8])}")
             out.append("")
     except Exception:
         out.append("_Marketing pricing temporarily unavailable — see /pricing._")

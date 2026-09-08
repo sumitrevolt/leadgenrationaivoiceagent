@@ -2,7 +2,8 @@
 
 OPS-012b. Opt-outs used to live ONLY in an in-process dict with a 7-day expiry
 and `add_to_local_dnd()` had ZERO callers, so a STOP was forgotten on restart
-and after 7 days. TCCCPR 2018 requires opt-outs to be honoured; a lost opt-out
+and after 7 days. TCCCPR 2018 requires opt-outs to be honoured
+a lost opt-out
 is the one failure mode that turns a compliant sender into a repeat offender.
 
 DESIGN (cycle 6): this does NOT add a new store. There is exactly ONE canonical

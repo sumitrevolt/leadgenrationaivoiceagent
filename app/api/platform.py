@@ -98,7 +98,8 @@ async def start_platform_api(
 async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     """
     Mark scheduler flag off (informational — Docker-managed processes need
-    container stop; this endpoint is kept for API compatibility).
+    container stop
+    this endpoint is kept for API compatibility).
     """
     global _scheduler_running
     _scheduler_running = False

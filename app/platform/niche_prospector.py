@@ -70,7 +70,8 @@ def city_rotation(window: int = _CITY_WINDOW, day_ordinal: int | None = None) ->
 def _all_niche_keys(tier: str | None = None, leadgen_only: bool = True) -> list[str]:
     """NICHES keys (optional tier filter). leadgen_only=True → marketing-only skip
     (un businesses ko hum scrape nahi karte jinko sirf marketing bechni hai? nahi —
-    leadgen+both dono prospect-worthy; pure 'marketing' category bhi business hai).
+    leadgen+both dono prospect-worthy
+    pure 'marketing' category bhi business hai).
     """
     try:
         from app.niches import NICHES
@@ -146,7 +147,8 @@ async def run(
     advance=True → cursor aage badhao (agla run agle niches karega).
 
     Post-scrape rescore/cadence are HARD-BOUNDED — 2026-07-20: dlq:dead SoftTimeLimit
-    on prospect while NICHE_ROTATION=1; scrape itself had wall-clock budget but
+    on prospect while NICHE_ROTATION=1
+    scrape itself had wall-clock budget but
     ``rescore_db(2000)`` after it blew past Celery soft 540s.
     """
     import asyncio

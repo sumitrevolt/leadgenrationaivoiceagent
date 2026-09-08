@@ -42,7 +42,8 @@ INTENTIONAL_EXCEPTIONS: tuple[RegistryException, ...] = (
             "not a STAFF_JOBS / JOB_META cron job. Dead-man still watches it."
         ),
         owner="boss",
-        safety="Chain has own slot + daily cap; exclude from staff beat parity",
+        safety="Chain has own slot + daily cap
+        exclude from staff beat parity",
     ),
     RegistryException(
         job_id="whatsapp_automation",
@@ -54,7 +55,8 @@ INTENTIONAL_EXCEPTIONS: tuple[RegistryException, ...] = (
             "staff-whatsapp-automation-hourly handles dispatch."
         ),
         owner="marketing",
-        safety="Separate beat entry dispatches it; parity exception logged for audit",
+        safety="Separate beat entry dispatches it
+        parity exception logged for audit",
     ),
 )
 

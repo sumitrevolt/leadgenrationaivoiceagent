@@ -224,7 +224,8 @@ def agent_health(agent_id: str) -> dict[str, Any] | None:
 def fleet_health(include_voice: bool = False) -> dict[str, Any]:
     """Honest health rollup for the non-voice workforce. Admin-consumable.
 
-    include_voice=False (default) reports the 23 platform+marketing agents; voice
+    include_voice=False (default) reports the 23 platform+marketing agents
+    voice
     is out-of-scope (managed separately). Never raises.
     """
     result: dict[str, Any] = {

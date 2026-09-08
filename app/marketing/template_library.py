@@ -1,6 +1,7 @@
 """Curated template library — AdBanao-style ready prompts (niche × occasion).
 
-Studio gallery ke liye; har template ek proven image-gen prompt + caption-seed.
+Studio gallery ke liye
+har template ek proven image-gen prompt + caption-seed.
 Pure data, no deps. `list_templates(niche, occasion)` filter karta."""
 
 from __future__ import annotations

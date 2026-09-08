@@ -1,7 +1,8 @@
 """OKF (Open Knowledge Format) bundle helpers — ADR-119 curated layer.
 
 Reads repo-root ``knowledge/`` Markdown + YAML frontmatter. Not a vector DB.
-Secrets never belong here; ingest refuses obvious credential patterns.
+Secrets never belong here
+ingest refuses obvious credential patterns.
 
 Live customer/ledger truth stays PostgreSQL. Large-scale retrieval stays Qdrant.
 """

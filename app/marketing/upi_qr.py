@@ -134,7 +134,8 @@ def build_upi_uri(vpa: str, name: str, amount: Any | None = None, note: str | No
 def qr_image_url(data: str, size: int = 400) -> str:
     """Free no-key QR image URL (api.qrserver.com — docs/Free_APIs_Curated.md).
 
-    PNG chahiye (WhatsApp share/print) to yeh; SVG embed ke liye review_kit.qr_svg.
+    PNG chahiye (WhatsApp share/print) to yeh
+    SVG embed ke liye review_kit.qr_svg.
     """
     try:
         size = max(100, min(int(size or 400), 1000))

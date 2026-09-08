@@ -1,6 +1,7 @@
 """Dunning / Revenue-Recovery Engine — involuntary churn ka free-stack ilaaj.
 
-2026 research: SaaS ~9% MRR failed payments me khota hai; automated dunning
+2026 research: SaaS ~9% MRR failed payments me khota hai
+automated dunning
 40-70% recover karta (Baremetrics/Churn Buster pattern). Razorpay/Stripe webhook
 PAST_DUE sirf mark karte the — yeh engine us par RECOVERY sequence chalata:
 

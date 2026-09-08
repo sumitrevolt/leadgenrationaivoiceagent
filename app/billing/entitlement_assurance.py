@@ -26,9 +26,11 @@ SAFETY CONTRACT (enforced by tests):
     marketing id, e.g. d79d690f61b3 -> jiya-makeover) so an invoice under a
     legacy/recreated billing id still credits the right tenant and a customer is
     never mis-attributed or double-counted.
-  - NEVER RAISES. Every client is best-effort; one bad record cannot sink the
+  - NEVER RAISES. Every client is best-effort
+  one bad record cannot sink the
     scan. Any failure degrades to a shaped result (``status='error'``).
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
+  strictly
     billing + marketing-domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``nikhil`` (Revenue Ops)

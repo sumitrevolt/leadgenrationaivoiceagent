@@ -55,7 +55,8 @@ async def translate_post(caption: str, langs: list[str] | None = None) -> dict[s
         from app.voice_agent.free_ai import chat
 
         spec = ", ".join(f'"{lg}"' for lg in want)
-        script_spec = "; ".join(f"{lg} = {LANGS[lg]}" for lg in want)
+        script_spec = "
+        ".join(f"{lg} = {LANGS[lg]}" for lg in want)
         raw, _ = await chat(
             (
                 "Tu social media translator hai. Caption ko naturally translate kar — "

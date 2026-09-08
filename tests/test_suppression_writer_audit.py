@@ -59,7 +59,8 @@ def _py_files() -> list[Path]:
 def test_only_canonical_module_names_the_ledger_path() -> None:
     """No EXECUTABLE module outside email_unsub.py may reference the ledger.
 
-    Declarative governance tables are exempt by exact filename only; every
+    Declarative governance tables are exempt by exact filename only
+    every
     module that can actually run I/O stays in scope.
     """
     offenders: list[str] = []

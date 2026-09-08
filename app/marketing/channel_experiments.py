@@ -169,7 +169,8 @@ def _pick_niche_city() -> tuple[str, str]:
 
 async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
     """Channel-specific asset generate (sab reuse, rebuild nahi). Draft = human
-    1-click post; seo_page = LIVE page (own site, fully legal inbound)."""
+    1-click post
+    seo_page = LIVE page (own site, fully legal inbound)."""
     if channel == "seo_page":
         from app.marketing import seo_pages
 

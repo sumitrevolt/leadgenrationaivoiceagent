@@ -11,7 +11,8 @@ NIP-23 note (the full runbook, readable by any member on any machine).
 
 `canvas set` REPLACES the document, so --show prints what is there now and
 --apply refuses to clobber a canvas it did not author unless you pass --force.
-Read before you overwrite; that rule applies to shared workspaces too.
+Read before you overwrite
+that rule applies to shared workspaces too.
 
 Runbook source of truth stays ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md — this
 publishes a copy so the workspace is not dependent on one laptop.
@@ -45,10 +46,13 @@ BUILD_CANVAS = """# #build — Coding Agent Bridge
 |--------|------|-------------|
 | `[CURSOR]` | Cursor | IDE-side edits, refactors, inline fixes |
 | `[CLAUDE]` | Claude Code / Cowork | Multi-file changes, audits, loop-engineer runs |
-| `[CODEX]` | Codex | Independent review of a Claude-authored diff; scripted patches |
-| `[GOOSE]` | Goose | Block's harness; spikes and one-off automation |
+| `[CODEX]` | Codex | Independent review of a Claude-authored diff
+scripted patches |
+| `[GOOSE]` | Goose | Block's harness
+spikes and one-off automation |
 | `[OPENCODE]` | OpenCode | Terminal-driven patches, scripted edits |
-| `[FREEBUFF]` | Freebuff | Desktop-app sessions (Electron; no headless mode) |
+| `[FREEBUFF]` | Freebuff | Desktop-app sessions (Electron
+no headless mode) |
 | `[MONKEY]` | Monkey Code | Experiments, throwaway spikes |
 
 Every message MUST start with the prefix. No prefix = untraceable = ignore it.
@@ -56,7 +60,8 @@ Every message MUST start with the prefix. No prefix = untraceable = ignore it.
 `[CODEX]` is the keyboard-side Codex CLI. The Buzz agent **Comb** also runs on
 Codex and uses the same prefix and the same locks — one identity per harness, so
 a line reads the same whoever drove it. Freebuff and OpenCode cannot be Buzz
-agents (Electron app / no binary on PATH); prefix + handoff is their complete
+agents (Electron app / no binary on PATH)
+prefix + handoff is their complete
 integration, not a placeholder.
 
 ## Claim-before-edit (hard rule)
@@ -86,7 +91,8 @@ python scripts/buzzlock.py release <paths> --tool <TOOL> --evidence "<proof>"
 Exit 1 = usage error, exit 0 = ok. Branch on 2 and only 2.
 (Until 2026-08-09 argparse also exited 2 on a typo'd flag, so a bad `--tool` read
 as a refusal — fixed, and pinned by tests.)
-`LOCKS.json` is gitignored and per-checkout; the CLI creates it on first use.
+`LOCKS.json` is gitignored and per-checkout
+the CLI creates it on first use.
 
 A claim is only refused if the holder is a **different** tool **and** the lock is
 not stale (`stale_after_minutes`, default 240) — a stale lock is taken silently
@@ -196,7 +202,8 @@ correlate their mistakes, so a same-harness "review" is theatre. Comb fails
 differently, which is the entire point.
 
 Route work as: `@Fizz` builds -> `@Comb` reviews -> you decide. Agents do not
-mention each other; owner-only respond policy is deliberate and stays.
+mention each other
+owner-only respond policy is deliberate and stays.
 """
 
 NOTE_NAME = "buzz-end-to-end-runbook"
@@ -250,7 +257,8 @@ def _dropped_lines(current: str | None, new: str) -> list[str]:
 
     `canvas set` replaces the whole document, so the only honest safety check is
     "does my replacement still say everything the old one said". Whitespace is
-    normalised because reflowing a paragraph is not data loss; a missing rule is.
+    normalised because reflowing a paragraph is not data loss
+    a missing rule is.
     """
     if not (current or "").strip():
         return []

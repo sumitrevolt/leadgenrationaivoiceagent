@@ -314,7 +314,8 @@ def test_skill_sweep_action_executes_round_robin(tmp_path, monkeypatch):
 def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypatch):
     """_reflect() ab (a) loop ke apne purane self_improve lessons aur (b) best trajectory
     replay-hints ko reflection digest me feed karta — dono pehle dormant loops the
-    (replay_hint 0-caller; self_improve lessons write-only). free_ai.chat mock se digest
+    (replay_hint 0-caller
+    self_improve lessons write-only). free_ai.chat mock se digest
     capture karke verify + flag OFF pe replay inert."""
     si = _patch_stores(monkeypatch, tmp_path)
     from app.agents import trajectory as traj
@@ -505,7 +506,8 @@ def test_bandit_includes_new_channels():
 def test_approval_queue_visible_across_separate_instances(tmp_path):
     """Prod runs ticks in the Celery worker container and serves the approve/
     reject API + Office HQ UI from the app container — two different
-    processes. An in-memory queue is invisible across that boundary; state
+    processes. An in-memory queue is invisible across that boundary
+    state
     must flow through the shared approvals file instead. Simulate that split
     with two independent ApprovalQueue instances pointed at the same file."""
     from app.agents.self_improve import ApprovalQueue

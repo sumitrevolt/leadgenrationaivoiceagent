@@ -205,7 +205,8 @@ def seed_defaults() -> int:
 def ensure_active_defaults() -> int:
     """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON — warna emit empty loop.
 
-    Pehle seed (disabled) jab store khali; phir inquiry rule enable ya naya add.
+    Pehle seed (disabled) jab store khali
+    phir inquiry rule enable ya naya add.
     Returns count enabled/added (0 ya 1). Kabhi raise nahi.
 
     IMPORTANT: sirf *kisi* enabled rule ka hona kaafi NAHI — enabled rule

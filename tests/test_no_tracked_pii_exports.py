@@ -15,7 +15,8 @@ every tracked `.csv` and fails when personal-data columns appear. Renaming the
 file does not evade it.
 
 **If this test is RED, the exposure is live.** Remediation is in the failure
-message; it is an owner decision because it requires rewriting published history.
+message
+it is an owner decision because it requires rewriting published history.
 """
 
 from __future__ import annotations

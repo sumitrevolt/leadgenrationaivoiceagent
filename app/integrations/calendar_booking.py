@@ -127,7 +127,8 @@ class CalendarBooking:
     """
     Calendar service facade for the voice agent.
 
-    Uses Google Calendar when credentials exist; otherwise an in-memory slot
+    Uses Google Calendar when credentials exist
+    otherwise an in-memory slot
     book that mimics a real calendar so the whole pipeline works key-free.
     """
 
@@ -147,7 +148,8 @@ class CalendarBooking:
                 if self._gcal is None:
                     self.provider = "internal"
             except Exception as e:
-                logger.error(f"Google Calendar init failed ({e}); using internal store.")
+                logger.error(f"Google Calendar init failed ({e})
+                using internal store.")
                 self.provider = "internal"
 
         if self.provider == "internal":
@@ -231,7 +233,8 @@ class CalendarBooking:
             try:
                 return await self._google_free_slots(day, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Google availability failed ({e}); simulating.")
+                logger.error(f"Google availability failed ({e})
+                simulating.")
 
         return self._sim_free_slots(day, duration_min, client_id)
 
@@ -270,12 +273,14 @@ class CalendarBooking:
             try:
                 result = await self._calcom_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Cal.com booking failed ({e}); using internal ledger.")
+                logger.error(f"Cal.com booking failed ({e})
+                using internal ledger.")
         elif self.provider == "google" and self._gcal is not None:
             try:
                 result = await self._google_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
-                logger.error(f"Google booking failed ({e}); using internal ledger.")
+                logger.error(f"Google booking failed ({e})
+                using internal ledger.")
 
         if result is None:
             result = self._internal_book(when, name, phone, notes, duration_min, client_id)
@@ -326,7 +331,8 @@ class CalendarBooking:
                     .execute
                 )
             except Exception as e:
-                logger.error(f"Google cancel failed ({e}); removing local mirror.")
+                logger.error(f"Google cancel failed ({e})
+                removing local mirror.")
 
         if record:
             self._taken.discard(
@@ -705,7 +711,8 @@ class CalendarBooking:
     def _notify_owner(self, rec: dict[str, Any]) -> None:
         """Best-effort ntfy push + email so the business owner is told a meeting was
         booked. Routes email to the client owner (client_id) else NOTIFY_EMAIL.
-        Never raises; inert when no target is configured."""
+        Never raises
+        inert when no target is configured."""
         when = rec.get("when") or ""
         name = rec.get("name") or "lead"
         phone = rec.get("phone") or ""

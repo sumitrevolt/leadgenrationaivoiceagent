@@ -126,7 +126,8 @@ def outreach_reward(event: dict[str, Any]) -> float:
 
 def dev_reward(record: dict[str, Any]) -> float:
     """Map a Claude dev-session outcome to [-1,1]. Single source of truth for
-    the dev reward (the Stop hook stores only raw signals; this scores on read)."""
+    the dev reward (the Stop hook stores only raw signals
+    this scores on read)."""
     if not isinstance(record, dict):
         return 0.0
     r = 0.0

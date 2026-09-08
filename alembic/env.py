@@ -3,7 +3,8 @@ Alembic Migrations Environment
 LeadGen AI Voice Agent
 
 Migrations run on a SYNCHRONOUS engine (works for BOTH SQLite — the default app DB —
-and Postgres). The async pool in app.models.base is for the running app; one-shot
+and Postgres). The async pool in app.models.base is for the running app
+one-shot
 migrations don't need it and a sync engine avoids the aiosqlite/asyncpg driver dance.
 
 `target_metadata` is the FULL app model set: importing the `app.models` package

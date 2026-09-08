@@ -69,7 +69,8 @@ def test_dry_run_exits_zero_before_any_build_or_up_command():
     assert dry_run_exit_idx < up_idx
     # the DRY_RUN preview block itself (between the disk-guard block and this
     # exit line) must not contain any mutating docker subcommand
-    guard_start = t.index('if [ "$DRY_RUN" = "1" ]; then\n  echo "=== BUILD CACHE')
+    guard_start = t.index('if [ "$DRY_RUN" = "1" ]
+    then\n  echo "=== BUILD CACHE')
     preview_block = t[guard_start:dry_run_exit_idx]
     for mutating in (
         "docker rmi",
@@ -142,7 +143,8 @@ def test_planner_refusal_skips_image_and_build_cache_prune():
     retention_to_deployed = t[
         t.index("=== RETENTION (lineage-aware") : t.index('echo "=== DEPLOYED $VER OK ===')
     ]
-    assert 'if [ "$_CLEANUP_OK" -eq 1 ]; then' in retention_to_deployed
+    assert 'if [ "$_CLEANUP_OK" -eq 1 ]
+    then' in retention_to_deployed
     assert "zero destructive cleanup executed" in retention_to_deployed
     prune_lines = [
         ln
@@ -159,13 +161,15 @@ def test_planner_refusal_skips_image_and_build_cache_prune():
     )
     assert (
         "docker builder prune"
-        in retention_to_deployed[retention_to_deployed.index('if [ "$_CLEANUP_OK" -eq 1 ]; then') :]
+        in retention_to_deployed[retention_to_deployed.index('if [ "$_CLEANUP_OK" -eq 1 ]
+        then') :]
     )
 
 
 def test_lineage_state_write_only_after_health_verification():
     t = _text()
-    health_fail_idx = t.index('if [ "$LIVE_VER" != "$VER" ]; then')
+    health_fail_idx = t.index('if [ "$LIVE_VER" != "$VER" ]
+    then')
     exit3_idx = t.index("exit 3", health_fail_idx)
     write_idx = t.index("--write-lineage")
     retention_idx = t.index("=== RETENTION (lineage-aware")
@@ -257,7 +261,8 @@ def test_health_verification_retries_during_bounded_cold_start_window():
     assert 'HEALTH_MAX_ATTEMPTS="${HEALTH_MAX_ATTEMPTS:-12}"' in t
     assert 'HEALTH_RETRY_SECONDS="${HEALTH_RETRY_SECONDS:-5}"' in t
     assert 'while [ "$HEALTH_ATTEMPT" -le "$HEALTH_MAX_ATTEMPTS" ]' in t
-    assert 'if [ "$LIVE_VER" = "$VER" ]; then' in t
+    assert 'if [ "$LIVE_VER" = "$VER" ]
+    then' in t
     assert 'sleep "$HEALTH_RETRY_SECONDS"' in t
     assert "after $HEALTH_MAX_ATTEMPTS attempts" in t
 

@@ -6,7 +6,8 @@ ek hi process, app restart pe job miss/double ho sakta. Yeh module wahi jobs
 Celery beat ke through **durable** chalata hai: dedicated worker, restart-safe
 schedule, retry, aur dead-letter (worker.py `on_task_failure` -> Redis DLQ).
 
-ACTIVATION — module import-safe always; beat entries fire only when `celery beat` runs:
+ACTIVATION — module import-safe always
+beat entries fire only when `celery beat` runs:
   - LIVE VPS (2026-06-10 se): durable path ON — RUN_IN_PROCESS_SCHEDULER=0 +
     leadgen_worker + leadgen_scheduler (beat) containers chal rahe.
   - Beat band ho to in-process APScheduler (RUN_IN_PROCESS_SCHEDULER=1) = rollback fallback.
@@ -229,7 +230,8 @@ def self_improve_tick(self):
         elif self_improve.enabled() and not slot_token:
             # Slot denied = duplicate or Redis guard unavailable. The owner (if
             # any) already owns the next requeue; this tick must terminate.
-            logger.debug("[self-improve] tick skipped: slot denied; no requeue")
+            logger.debug("[self-improve] tick skipped: slot denied
+            no requeue")
         elif slot_token:
             self_improve.release_tick_slot(slot_token)
     except Exception as e:
@@ -509,7 +511,8 @@ def boss_autonomy_sweep(self):
       - idempotent_task SETNX dedup + retry-safe (distributed lock)
       - bounded batch (run_once limit) + one-step-per-decision
       - flag-gated inert: BOSS_FULL_AUTONOMY=1 AND BOSS_DECISION_GOVERNANCE=1
-      - boot-grace guard (no-op for non-heavy jobs; defense-in-depth)
+      - boot-grace guard (no-op for non-heavy jobs
+      defense-in-depth)
     """
     try:
         from app.platform import boot_grace, boss_autonomy

@@ -34,7 +34,8 @@ a bare `Column(Enum(SomeEnum), ...)` with no `values_callable` makes SQLAlchemy
 store the Python enum member's **NAME** in the native Postgres type (e.g.
 "QUALIFIED"), not its `.value` ("qualified") — confirmed via `pg_enum` on a
 `create_all()`-bootstrapped DB. Only `UserRole`/`UserStatus` already store
-lowercase values (user.py explicitly sets `values_callable`); the other 13
+lowercase values (user.py explicitly sets `values_callable`)
+the other 13
 enum classes across `leads`/`clients`/`agents`/`call_logs`/`campaigns`/
 `billing_records`/`credit_transactions`/`api_usage_logs` do not, so their
 columns hold uppercase names today. A migration that only changed the column

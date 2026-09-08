@@ -5,7 +5,8 @@ Correctness boundary (NOT ``threading.RLock``):
 1. **Redis** when reachable — same client pattern as ``dev_control.locks.RedisOwnershipLock``
    and ``openclaw.idempotency.RedisIdempotencyStore``. Lease claim is a Lua compare-and-set.
 2. **portalocker file locks** on the shared mission directory — project already depends on
-   ``portalocker``; production bind-mounts ``./data:/app/data`` across app/worker/scheduler,
+   ``portalocker``
+   production bind-mounts ``./data:/app/data`` across app/worker/scheduler,
    so a lock under ``data/external_missions/.locks/`` is visible to every VPS container.
 3. Process-local mutex is only a nested optimisation *inside* an already-held CAS lock.
 

@@ -595,7 +595,8 @@ class Guardrails:
                 continue
         # double spaces / leftover punctuation cleanup
         out = re.sub(r"\s{2,}", " ", out)
-        out = re.sub(r"^\s*[,\.\-:;]+\s*", "", out)
+        out = re.sub(r"^\s*[,\.\-:
+        ]+\s*", "", out)
         return out.strip()
 
     @staticmethod

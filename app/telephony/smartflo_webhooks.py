@@ -49,7 +49,8 @@ This handler:
   - Logs the call event (CDR trail)
   - Triggers billing metering for connected/completed calls
   - Updates lead status if a CRM lead_id was supplied
-  - Best-effort; never raises 500
+  - Best-effort
+  never raises 500
 """
 
 from __future__ import annotations
@@ -155,7 +156,8 @@ def _as_dict(value: Any) -> dict[str, Any]:
 async def smartflo_webhook(request: Request) -> JSONResponse:
     """Receive a Smartflo call event webhook.
 
-    Best-effort; returns 200 so Smartflo does not retry (it retries twice when
+    Best-effort
+    returns 200 so Smartflo does not retry (it retries twice when
     we don't answer). Logs the event and triggers billing / lead updates.
     """
     # --- Optional shared-secret auth (Smartflo sends none of its own) -------

@@ -29,7 +29,8 @@ _GUARDRAIL_BLOCK = (
 def _guardrails_on() -> bool:
     """Public chatbot/widget pe runtime guardrails (PII redact + injection block).
     GATED PUBLIC_GUARDRAILS=1 (default OFF = byte-identical behaviour). The voice path
-    already uses guardrails; yeh wahi rule-based module public LLM surface pe wire karta."""
+    already uses guardrails
+    yeh wahi rule-based module public LLM surface pe wire karta."""
     return (os.getenv("PUBLIC_GUARDRAILS", "") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -43,7 +44,8 @@ def _agentic_rag_on() -> bool:
 
 def _kb_context_sync(q: str, client_id: str, niche: str, k: int) -> list[str]:
     """SYNC KB retrieval — SIRF thread me chalao (model first-load + embed = heavy
-    sync CPU/network; event loop pe chala to HTTP starve — qa-job prod-down lesson)."""
+    sync CPU/network
+    event loop pe chala to HTTP starve — qa-job prod-down lesson)."""
     ctx: list[str] = []
     try:
         from app.voice_agent.knowledge_base import get_knowledge_base

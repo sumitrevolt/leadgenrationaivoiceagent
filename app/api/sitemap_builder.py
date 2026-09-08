@@ -17,7 +17,8 @@ Priority / changefreq table (Google best-practices):
   Niche×city pages  0.5  monthly
   Legal             0.3  yearly
 
-lastmod = today's date (ISO 8601) — used as a proxy; dynamic content pages like
+lastmod = today's date (ISO 8601) — used as a proxy
+dynamic content pages like
 blog articles ideally carry their real publish date but that requires per-slug
 lookup which would slow sitemap generation. Today-date is widely accepted.
 """

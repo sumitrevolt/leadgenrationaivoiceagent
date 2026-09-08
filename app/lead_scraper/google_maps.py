@@ -80,7 +80,8 @@ class GoogleMapsScraper:
             except Exception:
                 remaining = 0
             if remaining:
-                logger.warning("Places quota cooldown active (%ss); search skipped", remaining)
+                logger.warning("Places quota cooldown active (%ss)
+                search skipped", remaining)
                 return []
             # Places API (New) pehle — legacy textsearch ab REQUEST_DENIED deta hai
             # (Google ne naye projects pe legacy band kar di). New fail ho to
@@ -94,7 +95,8 @@ class GoogleMapsScraper:
             try:
                 return await self._search_with_api(query, location, radius_km, max_results)
             except Exception as e:
-                logger.warning(f"legacy Places API failed ({e}); scraping fallback")
+                logger.warning(f"legacy Places API failed ({e})
+                scraping fallback")
                 return await self._search_with_scraping(query, location, max_results)
         else:
             return await self._search_with_scraping(query, location, max_results)
@@ -377,7 +379,8 @@ class GoogleMapsScraper:
         Fetch a business website and extract the first non-junk email address.
 
         Prefers the centralized extractor (app.lead_scraper.web_extract —
-        trafilatura-backed, de-duplicated + validated); falls back to the inline
+        trafilatura-backed, de-duplicated + validated)
+        falls back to the inline
         regex. Filters out placeholder/asset-embedded addresses. Returns None if
         the site is unreachable or no usable email is found.
         """

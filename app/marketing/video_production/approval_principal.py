@@ -18,7 +18,8 @@ What this module deliberately does NOT do:
   shape is not provenance — a string with no ``@`` can still be untrusted or
   PII. Trust comes from WHICH resolver built the principal.
 * It does not hash an email or phone to manufacture a "non-PII" id. A hash of
-  PII is still PII; it is a pseudonym, not an internal identity.
+  PII is still PII
+  it is a pseudonym, not an internal identity.
 * It does not invent individual-human attribution where the auth system has
   none. Customer sessions carry only a tenant, so they yield an explicitly
   tenant-scoped principal.
@@ -164,7 +165,8 @@ def from_customer_session(
     ``revocation_verified``
         ``require_customer``'s logout-blacklist check fails OPEN when Redis is
         unavailable (it logs "allowing request"). Fail-open is defensible for a
-        read; it is not defensible for an approval mutation, so approval
+        read
+        it is not defensible for an approval mutation, so approval
         requires a POSITIVE revocation check.
     """
     cid = str(client_id or "").strip()
@@ -194,7 +196,8 @@ def _has_on_behalf_capability(user: Any) -> bool:
 
     ``require_admin`` proves the caller may use the admin surface — that is
     AUTHENTICATION plus surface access, not authority over a specific tenant's
-    content. Today only ``super_admin`` carries the capability; an ordinary
+    content. Today only ``super_admin`` carries the capability
+    an ordinary
     ``admin`` refuses until a permission model grants it explicitly.
 
     Deliberately role-based, never person-based: no email, display name or
@@ -254,7 +257,8 @@ def from_system_automation(client_id: str) -> ApprovalPrincipal:
     (leadgenai-self / leadgen-ai), never on a customer's behalf. The caller
     must already have verified (a) the own-brand flag is ON and (b) the client
     id is in the own-brand allowlist — this resolver only turns a trusted server
-    decision into a principal; it does not itself perform that check.
+    decision into a principal
+    it does not itself perform that check.
     """
     cid = str(client_id or "").strip()
     if not cid:
@@ -284,7 +288,8 @@ REQUIRED_TOKEN_BINDINGS = (
 def from_approval_token(record: dict[str, Any], *, observed_sha256: str) -> ApprovalPrincipal:
     """The bearer token is CREDENTIAL EVIDENCE, never identity.
 
-    The actor is the tenant the token authorizes; the token's non-secret record
+    The actor is the tenant the token authorizes
+    the token's non-secret record
     id is retained as evidence. Legacy tokens carry none of the required
     bindings and are refused for regeneration — they are not backfilled, because
     inventing a binding after the fact would assert a content identity nobody

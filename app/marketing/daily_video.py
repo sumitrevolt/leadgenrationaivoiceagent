@@ -6,7 +6,8 @@ WHY a dedicated producer instead of another engine on the `content` chain
 a single ``CONTENT_TIME_BUDGET_S`` (default 420s) wall-clock budget, and
 ``auto_content.run_daily_content()`` runs FIRST. When that eats the budget every
 later engine — ``video_ad_cycle`` included — is skipped *silently*
-(``_run_content_engine`` closes the coro and returns False; no exception, no
+(``_run_content_engine`` closes the coro and returns False
+no exception, no
 log line that names the video engine).
 
 Prod evidence that this starvation really happens (2026-08-09, live `job_runs`):
@@ -19,11 +20,13 @@ was a DEAD GATE — commit `1664811e` (2026-08-05) taught `video_ad_cycle.enable
 to honour the `VIDEO_DAILY_SCHEDULER_ENABLED` alias, prod having had the cell flag
 ON while `VIDEO_AD_CYCLE` was OFF, so `run_cycle` was fully inert. The prod
 `delivery_ledger` holds exactly 6 `video_*` events, all dated 2026-08-06, i.e. no
-render was even attempted during the window. Two separate problems; see ADR-166.
+render was even attempted during the window. Two separate problems
+see ADR-166.
 
 So this module:
   * gets its OWN beat entry (`staff-daily-video-daily`), never rides the content chain
-  * stays LIGHT — it only ENQUEUES; ffmpeg/HyperFrames never run in this process
+  * stays LIGHT — it only ENQUEUES
+  ffmpeg/HyperFrames never run in this process
   * generates at most once per client per DAY (state file + Celery idempotency)
   * applies REVIEW BACKPRESSURE — the same prod snapshot showed 32/39 records
     stuck at `pending` customer review. Daily generation without a pending cap
@@ -49,7 +52,8 @@ Engine selection
   * ``classic`` — the proven deterministic ffmpeg path via
     ``video_ad_cycle.generate_for_client`` (approval + publish gate already wired).
   * ``auto`` — advanced when the gate allows AND the tenant's recent advanced
-    attempts are not all failing; otherwise classic. This is the safety net for
+    attempts are not all failing
+    otherwise classic. This is the safety net for
     the real prod gap: the HyperFrames toolchain lives in the opt-in
     ``Dockerfile.video`` image (`deploy/compose/docker-compose.video.yml`) which
     `docker-compose.vps.yml` does not apply, so `worker-video` currently runs the

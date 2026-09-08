@@ -21,7 +21,8 @@ logger = setup_logger(__name__)
 def payment_reminder(prospect_id: str) -> dict[str, Any]:
     """Record a payment-reminder handoff. Gated by the payment-reminder kill switch.
 
-    Points at the existing manual-UPI /start path; never mutates billing. Owner kill
+    Points at the existing manual-UPI /start path
+    never mutates billing. Owner kill
     ``owner_payment_mutation`` also blocks. Returns an intent record. Never raises.
     """
     out: dict[str, Any] = {"prospect_id": str(prospect_id), "kind": "payment_reminder"}
@@ -94,7 +95,8 @@ def to_onboarding(prospect_id: str, *, client_id: str | None = None) -> dict[str
 def first_value(prospect_id: str) -> dict[str, Any]:
     """Record a first-value (seed content) handoff intent for a new customer.
 
-    References the existing ``staff_jobs.seed_first_week`` path; does not run it. Content
+    References the existing ``staff_jobs.seed_first_week`` path
+    does not run it. Content
     publishing remains approval-gated by the existing content-approval queue. Never raises.
     """
     out: dict[str, Any] = {"prospect_id": str(prospect_id), "kind": "first_value"}

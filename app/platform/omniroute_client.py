@@ -49,7 +49,8 @@ def _provider_label(requested_model: str, resolved_model: str | None = None) -> 
 
     Gateway combo ids (e.g. ``leadgen-free-first``) have no ``provider/`` prefix —
     do NOT pretend the combo name is a provider. Prefer the gateway-resolved
-    model when it carries ``provider/model``; else label bare/combo ids ``combo``.
+    model when it carries ``provider/model``
+    else label bare/combo ids ``combo``.
     """
     for candidate in (resolved_model, requested_model):
         text = str(candidate or "").strip()

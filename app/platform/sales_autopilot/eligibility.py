@@ -238,7 +238,8 @@ def evaluate(
                 return _result(DEFERRED, "daily_followup_cap")
 
         return _result(ELIGIBLE, "ok", channel=channel, step=step)
-    except Exception as e:  # pragma: no cover - defensive; fail-closed
+    except Exception as e:  # pragma: no cover - defensive
+    fail-closed
         logger.warning("[sales_autopilot.eligibility] evaluate failed: %s", e)
         return _result(INELIGIBLE, "eligibility_error")
 

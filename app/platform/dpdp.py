@@ -19,7 +19,8 @@ SAFETY (destructive operation hai):
   - Atomic rewrite: tmp file + os.replace (minisite_builder._rewrite_jsonl
     pattern) — half-written file kabhi nahi.
   - Raw lines preserve hote hain (re-serialize NAHI) — jo line parse nahi hui
-    woh untouched rehti hai; jo FILE read nahi hui woh skip+report hoti hai.
+    woh untouched rehti hai
+    jo FILE read nahi hui woh skip+report hoti hai.
   - DB Lead rows DELETE nahi hote — anonymize (phone/email/name -> ERASED),
     row billing/audit integrity ke liye rehti hai. Core UPDATE (validators
     bypass — 'ERASED' phone-format validator pass nahi karta, karna bhi nahi).
@@ -93,7 +94,8 @@ def _AUDIT_FILE() -> str:
 def _REQUESTS_FILE() -> str:
     """DPDP request intake — sibling of the audit log under the same store id.
 
-    One manifest row covers both files; they stay two resolvers so a cutover
+    One manifest row covers both files
+    they stay two resolvers so a cutover
     cannot collapse requests into the audit path. The requests file lives
     beside the audit target (`compliance/dpdp_requests.jsonl`).
     """
@@ -516,7 +518,8 @@ async def erase_subject(
     actor: str = "admin",
 ) -> dict[str, Any]:
     """Right to Erasure. dry_run=True (DEFAULT) = sirf dikhao kya hatega.
-    Real run: har touched jsonl ki .bak copy + atomic rewrite; DB anonymize.
+    Real run: har touched jsonl ki .bak copy + atomic rewrite
+    DB anonymize.
     KABHI scheduler se mat chalana — sirf admin-confirmed API call."""
     phone10, em = _norm_phone(phone), _norm_email(email)
     if not (phone10 or em):

@@ -11,7 +11,8 @@ Public API (sab never-raise):
     snippet_for(topic, max_chars=1200) -> prompt-injectable text ("" agar kuch nahi)
     author(name, text) -> Tier-1 safe write into data/skills_extra/ (validated)
     ingest_to_kb() -> Qdrant/KB namespace "skills" me chunks (semantic recall)
-    enabled() -> SKILL_PACK flag (wiring gates; manual API flag-independent)
+    enabled() -> SKILL_PACK flag (wiring gates
+    manual API flag-independent)
 
 Design: mtime-cached load, pure-python scoring (zero dep/latency), markdown-only,
 path-escape blocked. Flag OFF = prompt-injection wiring inert (zero behaviour change).

@@ -62,7 +62,8 @@ def max_snapshot_bytes() -> int:
     if requested > ceiling:
         raise MediaLimitConfigError(
             f"VIDEO_SNAPSHOT_MAX_MB ({mb} MB) exceeds the canonical upload "
-            f"ceiling ({ceiling // (1024 * 1024)} MB); snapshot may only tighten"
+            f"ceiling ({ceiling // (1024 * 1024)} MB)
+            snapshot may only tighten"
         )
     return requested
 

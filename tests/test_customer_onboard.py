@@ -1,6 +1,7 @@
 """S.1 admin customer-onboard endpoint — profile + login in one call.
 
-This is the operator's primary "add new customer" action; tests pin the
+This is the operator's primary "add new customer" action
+tests pin the
 contract so a future refactor can't silently break it:
 - Returns client_id always
 - When email passed: password is returned ONCE in plaintext
@@ -174,7 +175,8 @@ def test_login_actually_works_after_onboard(
 # --------------------------------------------------------------------------- #
 def test_repeat_onboard_returns_existing_client_id() -> None:
     """Re-onboarding the same phone+business should not create a duplicate
-    profile (clients_store dedupes); returns the existing client_id but
+    profile (clients_store dedupes)
+    returns the existing client_id but
     issues a fresh password — operator can use it as a manual password reset."""
     c = _client()
     r1 = c.post(

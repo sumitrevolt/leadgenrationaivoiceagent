@@ -7,7 +7,8 @@ free-LLM 1-para Hinglish digest. Content/sales agents in notes ko padh ke
 fresh angle uthate.
 
 Files: data/memory/topics/<slug>.md (memory_vault ka topics dir — format yahan
-dated `## YYYY-MM-DD` sections, latest TOP; cap 40KB, purane trim).
+dated `## YYYY-MM-DD` sections, latest TOP
+cap 40KB, purane trim).
 Registry: data/live_topics.jsonl. Gated `LIVE_NOTES=1` (default OFF).
 Max 5 topics/run, 1 refresh/topic/day. Import-safe, kabhi raise nahi.
 """

@@ -351,7 +351,8 @@ def context_snippet(
             if mem.get("summary"):
                 seg.append("Summary: " + mem["summary"][:400])
             if mem.get("profile"):
-                seg.append("Facts: " + "; ".join(mem["profile"][:10]))
+                seg.append("Facts: " + "
+                ".join(mem["profile"][:10]))
             if mem.get("timeline"):
                 seg.append("Recent: " + " | ".join(mem["timeline"][-10:]))
             if seg:

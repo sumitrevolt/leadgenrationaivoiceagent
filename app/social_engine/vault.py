@@ -2,7 +2,8 @@
 
 Fernet (cryptography==48 stack me hai). Key: env `SOCIAL_TOKEN_KEY` (urlsafe-b64 32B
 Fernet key) warna `SECRET_KEY` se derive. Key unset = plaintext store + loud warning
-(dev-only; prod me key set karo). Store: data/social_tokens.jsonl (latest (client,
+(dev-only
+prod me key set karo). Store: data/social_tokens.jsonl (latest (client,
 platform,account_ref) wins). NEVER raises.
 
   put(client_id, platform, token, account_ref="", meta=None) -> bool

@@ -4,19 +4,25 @@
 FRESH live evidence 08:00 IST (this run, in-window SSH):
   - VPS UP /health 200 prod 719dbbd6 uptime 1h48m (02:30Z probe), containers all healthy.
   - Wa inbound: 197126499872961 count=1 ONLY (Sep4 18:21Z original 'Hi! AI Voice Calling Agent
-    ke baare me baat karni hai.') => SAL-006 reply STILL PENDING; deep link + proposal +
+    ke baare me baat karni hai.') => SAL-006 reply STILL PENDING
+    deep link + proposal +
     followup SENT (3EB00... 3EB076...) — hot-close rail live but awaiting human reply.
-  - call_loop.log mtime Aug31 08:39:55Z batch211 (ok=0 fail=3 'not owned'); proc0 cron0 =>
+  - call_loop.log mtime Aug31 08:39:55Z batch211 (ok=0 fail=3 'not owned')
+  proc0 cron0 =>
     dialer DEAD day5+.
   - Egress api.vobiz.com 000/000@8s DAY6 (both probes empty this window).
-  - SIP 5 vars len=0 DID0; VOBIZ_CALLER_ID len13=911171366938 REVOKED ('not owned').
+  - SIP 5 vars len=0 DID0
+  VOBIZ_CALLER_ID len13=911171366938 REVOKED ('not owned').
   - leads/ EMPTY (count 0) => ammo 0.
   - hot-queue 09-05 ABSENT (due 03:30 UTC, abhi 02:32 UTC = expected).
-  - reply_drafts.jsonl = jsonl (834KB, mtime 01:31 UTC); auto_sent true=1 = SAL-006 MANUAL.
-  - Verified revenue Rs1,999 (Jiya INV/2026-27/0001 SOLE); GAP Rs4,98,001.
+  - reply_drafts.jsonl = jsonl (834KB, mtime 01:31 UTC)
+  auto_sent true=1 = SAL-006 MANUAL.
+  - Verified revenue Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+  GAP Rs4,98,001.
   - Fleet ACK count in messages.jsonl = 0 since 07:55 (0 specialist ACK ~6 days).
 
-One TASK-ID/bot/run — hunt-idle discipline; no new IDs except sales escalation.
+One TASK-ID/bot/run — hunt-idle discipline
+no new IDs except sales escalation.
 """
 import json
 import os
@@ -67,15 +73,18 @@ for t in tasks:
         t["status"] = "UPDATE"
         t["evidence_tail"] = t.get("evidence", "")[:300]
         t["updated_at"] = TS
-        t["notes"] = "08:00 IST: wa_inbound count=1 (sirf Sep4 original). Proposal 3EB00... + followup 3EB076... SENT, reply PENDING. 09:00 gate reply monitor; 0 reply => follow-up #2 + owner-route nudge."
+        t["notes"] = "08:00 IST: wa_inbound count=1 (sirf Sep4 original). Proposal 3EB00... + followup 3EB076... SENT, reply PENDING. 09:00 gate reply monitor
+        0 reply => follow-up #2 + owner-route nudge."
     if tid == "HNT-005":
         t["status"] = "BLOCKED"
         t["updated_at"] = TS
-        t["notes"] = t.get("notes", "") + " | 08:00 ghanti re-issued; 08:30 gate, leads/ STILL 0"
+        t["notes"] = t.get("notes", "") + " | 08:00 ghanti re-issued
+        08:30 gate, leads/ STILL 0"
     if tid == "PLT-005":
         t["status"] = "BLOCKED"
         t["updated_at"] = TS
-        t["notes"] = t.get("notes", "") + " | 08:00 ghanti re-issued; DID0 + egress DAY6, vendor silent"
+        t["notes"] = t.get("notes", "") + " | 08:00 ghanti re-issued
+        DID0 + egress DAY6, vendor silent"
     if tid == "SUC-004":
         t["status"] = "RUNNING"
         t["updated_at"] = TS
@@ -123,16 +132,20 @@ pin["bottleneck"] = ("#1 SAL-006 reply->UPI close | #2 ENG-004 real sendText=0 (
                      "#3 DID0+CLI REVOKED+egress day6 (vendor-gated) | #4 qualified CSV ammo 0")
 pin["pipeline"] = ("SAL-006 proposal+followup SENT reply PENDING + SAL-007 warm 86 nudge unlocked + "
                    "hot-queue 09-05 due 03:30 UTC + prospects 2350")
-pin["action"] = ("08:00 REVENUE COMMAND broadcast; gates 08:30 (PLT/HNT/SUC/ENG/GRD) 09:00 (SAL/BRD) "
+pin["action"] = ("08:00 REVENUE COMMAND broadcast
+gates 08:30 (PLT/HNT/SUC/ENG/GRD) 09:00 (SAL/BRD) "
                  "09:15 (OPS 09-05 verify); 0 proof 09:30 = REASSIGN+OWNER-ESC")
-pin["next_expected_payment"] = "SAL-006 UPI close (reply pending) / SAL-007 nudge replies / Jiya renewal; DID aane par dial track"
+pin["next_expected_payment"] = "SAL-006 UPI close (reply pending) / SAL-007 nudge replies / Jiya renewal
+DID aane par dial track"
 with open(os.path.join(BASE, "pinned.json"), "w", encoding="utf-8") as f:
     json.dump(pin, f, ensure_ascii=False, indent=1)
 print("pinned.json refreshed")
 
 with open(os.path.join(BASE, "bots.json"), encoding="utf-8") as f:
     bots = json.load(f)
-bots["Pilot"]["status"] = ("08:00 IST Sep5 (LIVE 02:32Z): /health 200 prod 719dbbd6; SAL-006 reply PENDING (inbound count=1); "
+bots["Pilot"]["status"] = ("08:00 IST Sep5 (LIVE 02:32Z): /health 200 prod 719dbbd6
+SAL-006 reply PENDING (inbound count=1)
+"
                            "call_loop DEAD day5+ (DID0 egress day6); ENG-004 unshipped (auto_sent 1 = manual); leads/ 0; "
                            "hot-queue 09-05 due 03:30 UTC; SAL-007 created (warm 86 nudge). rev Rs1,999 GAP Rs4,98,001. "
                            "Gates 08:30/09:00/09:15; 0 proof 09:30 = REASSIGN+ESC.")

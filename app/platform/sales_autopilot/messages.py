@@ -6,7 +6,8 @@ social proof, or unverifiable guarantees. Product truth: the entry Marketing pla
 **Starter at ₹1,999/mo** (single billing source). Every generated message carries a
 content hash + template version + validation status for audit + idempotency keys.
 
-Never raises; on any error returns a minimal safe opt-out-friendly message.
+Never raises
+on any error returns a minimal safe opt-out-friendly message.
 """
 
 from __future__ import annotations

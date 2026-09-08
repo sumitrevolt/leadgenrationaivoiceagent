@@ -6,10 +6,12 @@ hain = Claude/Hermes/Buzz MCP clients inhe direct tools ki tarah call kar
 sakte hain.
 
 Safety rails (Enterprise Control Plane contract, t_97ecbdac):
-- **dry_run MANDATORY param** — default True; True pe input validation +
+- **dry_run MANDATORY param** — default True
+True pe input validation +
   suppression check chalte hain par KOI real send nahi hota.
 - **Deterministic idempotency** — ``AgentRuntimeIdempotency`` sha256(tool,
-  target, payload) key se Redis SETNX lock (24h TTL) rakhta hai; retried
+  target, payload) key se Redis SETNX lock (24h TTL) rakhta hai
+  retried
   call duplicate send produce NAHI karti, structured ``duplicate`` reply
   deti hai.
 - **Per-channel rate limits** — voice 10/hour, WhatsApp 15/min, email

@@ -2,7 +2,8 @@
 
 Hermetic: probes and ntfy are stubbed — no gateway, no network, no real state.
 The live gateway path (real /v1/responses per combo) is exercised manually via
-the script; these tests pin the state machine: 3 consecutive failures alert
+the script
+these tests pin the state machine: 3 consecutive failures alert
 exactly once, recovery clears state and sends a recovery ping, and a single
 blip never alerts.
 """

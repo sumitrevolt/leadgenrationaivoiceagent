@@ -10,7 +10,8 @@ SECURITY (non-negotiable):
   - SHORT-LIVED token (default 30 min) — blast-radius bounded.
   - HAR start/stop `log_audit` (AuditLog, severity=warning) me — kisne kis client ko,
     kab, kis IP se. Tamper-record.
-  - Token me `imp=true` + `imp_by` claim — portal banner dikha sake; password kabhi
+  - Token me `imp=true` + `imp_by` claim — portal banner dikha sake
+  password kabhi
     read/return nahi hota.
 
 Customer portal `require_customer` sirf role=="customer" check karta — yeh token

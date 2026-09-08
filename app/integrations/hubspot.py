@@ -432,7 +432,8 @@ class ZohoCRMIntegration:
     """
     Zoho CRM Integration — delegates to the real implementation in
     app.integrations.zoho_crm.ZohoCRM (which uses proper OAuth + upsert).
-    Kept for backward-compat imports; real usage via crm_sync.push_lead().
+    Kept for backward-compat imports
+    real usage via crm_sync.push_lead().
     """
 
     def __init__(self):

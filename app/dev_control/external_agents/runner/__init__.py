@@ -3,7 +3,8 @@
 Extends the External Agent Orchestrator. Does NOT replace Owner OS, OpenClaw,
 or the mission store. Defaults OFF via ``EXTERNAL_AGENT_RUNNER``.
 
-The orchestrator records missions; this package may *invoke* allowlisted
+The orchestrator records missions
+this package may *invoke* allowlisted
 executors (Cursor Agent CLI / Claude Code CLI) when both flags are ON in an
 isolated environment. Production stays OFF until a separate owner gate.
 """

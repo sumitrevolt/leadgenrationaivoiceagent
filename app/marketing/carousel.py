@@ -40,8 +40,10 @@ def _valid_hex(value: str) -> str | None:
 def client_cta(slug: str = "", phone: str = "") -> str:
     """CUSTOMER carousel CTA — apni mini-site URL (/b/<slug>) ya phone.
 
-    slug diya = "leadsgenai.in/b/<slug>" (client ki apni booking page); warna
-    phone; dono khali = "" (caller default use kare). CTA slot chhota hai to
+    slug diya = "leadsgenai.in/b/<slug>" (client ki apni booking page)
+    warna
+    phone
+    dono khali = "" (caller default use kare). CTA slot chhota hai to
     "https://" strip karke sirf host+path dikhate hain (readable, brand-clean).
     """
     s = (slug or "").strip().strip("/")
@@ -58,7 +60,8 @@ def _slide_svg(
 ) -> str:
     """Ek slide ka self-contained square SVG (1080-style 540 viewBox).
 
-    cta = footer button ka text (customer = apni mini-site URL/phone; khali =
+    cta = footer button ka text (customer = apni mini-site URL/phone
+    khali =
     default leadsgenai.in/audit lead-magnet). fg_override (#RRGGBB) = client
     brand-primary color (accent-rotation ki jagah), invalid/khali = palette.
     """

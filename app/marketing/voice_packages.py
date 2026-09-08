@@ -283,7 +283,8 @@ def plan_lead_quota(plan_id: str | None) -> int:
 
 
 # Legacy aliases — koi bhi old import toot na jaye
-PACK_SIZE = 1  # no longer meaningful; kept for import compat
+PACK_SIZE = 1  # no longer meaningful
+kept for import compat
 PLAN_LEADS: dict[str, int] = (
     {info["plan_monthly"]: UNLIMITED_QUOTA for info in BANDS.values()}
     | {info["plan_annual"]: UNLIMITED_QUOTA for info in BANDS.values()}

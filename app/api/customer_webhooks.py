@@ -1,7 +1,8 @@
 """Customer-facing webhooks API — register, list, delete, test, deliveries.
 
 Mounted under /api/customer/webhooks. Each route requires a customer JWT
-(role=customer); the client_id is derived from the token, never accepted
+(role=customer)
+the client_id is derived from the token, never accepted
 from query/body (defends against the same IDOR class as the C1 billing fix).
 """
 
@@ -64,7 +65,8 @@ def verify(body: bytes, signature_header: str) -> bool:
 
 _VERIFIER_NODE = """// Node.js (Express) — verify a LeadsGenAI webhook
 const crypto = require("crypto");
-const WEBHOOK_SECRET = "whsec_xxxxxxxx";   // value shown ONCE at registration
+const WEBHOOK_SECRET = "whsec_xxxxxxxx"
+// value shown ONCE at registration
 
 function verify(rawBody, signatureHeader) {
   if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
@@ -189,7 +191,8 @@ async def retry_delivery(
     client_id: str = Depends(require_customer),
 ) -> dict:
     """K.2: re-fire a prior failed delivery. The new attempt is logged with a
-    fresh delivery_id; the original failure record stays intact for audit."""
+    fresh delivery_id
+    the original failure record stays intact for audit."""
     out = await cw.retry_delivery(webhook_id, client_id, delivery_id)
     if not out.get("delivered") and out.get("error") in (
         "webhook_not_found",

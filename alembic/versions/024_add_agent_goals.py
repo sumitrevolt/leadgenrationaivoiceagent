@@ -6,7 +6,8 @@ Revises: 023_add_prospective_memory
 Additive + idempotent (023/021 ka same pattern). Rollback drops the table if
 present. Table is INERT until goals are created via /api/goals — creating it
 changes no running behaviour. Column set mirrors app/models/agent_goal.py
-(create_all for DB_CREATE_ALL=1 envs; this migration serves Alembic-only envs).
+(create_all for DB_CREATE_ALL=1 envs
+this migration serves Alembic-only envs).
 """
 
 import sqlalchemy as sa

@@ -151,7 +151,8 @@ _BEEP_RE = re.compile(r"[\(\[\*]?\s*bee+p+\s*[\)\]\*]?|<\s*tone\s*>", re.IGNOREC
 class AnsweringMachineDetector:
     """Voicemail / answering-machine detector.
 
-    Pure-python heuristics; koi external call nahi. Do tareeke:
+    Pure-python heuristics
+    koi external call nahi. Do tareeke:
       1. detect_from_transcript(text, timing_ms) — primary, fast, accurate.
       2. detect_from_audio_energy(samples)       — best-effort, optional/defensive.
 

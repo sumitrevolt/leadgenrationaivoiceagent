@@ -48,7 +48,8 @@ def sweep_armed(monkeypatch):
 @pytest.fixture(autouse=True)
 def _gates_pass(monkeypatch):
     """Local env has no prod creds — real check_gates() returns open gates.
-    Default: all gates pass; the gates-skip test overrides in its body."""
+    Default: all gates pass
+    the gates-skip test overrides in its body."""
     monkeypatch.setattr(dsp, "check_gates", lambda: {})
 
 

@@ -17,7 +17,8 @@ Guarantees / guards:
   version are all present and the source file matches (checksum, row count,
   family breakdown);
 * an idempotency marker (from source checksum + source app version + target schema
-  + namespace) makes re-apply a no-op; a different checksum under the same marker
+  + namespace) makes re-apply a no-op
+  a different checksum under the same marker
   is refused;
 * the source JSONL is never modified, renamed, truncated, or appended to;
 * it NEVER changes .env, restarts containers, sets HARNESS_AUDIT_BACKEND, or
@@ -138,7 +139,8 @@ def apply(
     pv = preview(source, source_app_version, backend=be)
     errs = _validate_source(pv, expected_checksum)
     if errs:
-        raise SystemExit("refused: source validation failed: " + "; ".join(errs))
+        raise SystemExit("refused: source validation failed: " + "
+        ".join(errs))
     mig_id = _migration_identity(pv["source_checksum"], source_app_version)
     marker_key = ab._MIGRATION_PREFIX + mig_id
     marker_val = json.dumps(

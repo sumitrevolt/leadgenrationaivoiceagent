@@ -3,7 +3,8 @@
 Single source of truth for the ``/app/explorer`` **Master Blueprint** mode,
 served read-only by :mod:`app.api.blueprint` (``GET /api/blueprint/graph``).
 The legacy hand-curated graph inside ``frontend/explorer.html`` is preserved
-untouched; this module is the *additive* canonical contract the mission asked
+untouched
+this module is the *additive* canonical contract the mission asked
 for so the frontend stops hard-coding its own architecture truth.
 
 Design discipline (Agent Harness Engineering Standard v0.1, 2026-07-22,
@@ -11,7 +12,8 @@ Design discipline (Agent Harness Engineering Standard v0.1, 2026-07-22,
 owner-declared authoritative):
   * **Schema-validated contract** — every node/edge/flow has required fields and
     :func:`validate_graph` is the pass/fail gate (the M2 tool-contract analogue).
-  * **Evidence artifacts** — every implemented node names real repo files; the
+  * **Evidence artifacts** — every implemented node names real repo files
+  the
     validator refuses an "implemented" node with no evidence.
   * **Honest status** — unverified runtime is ``UNKNOWN``, never a fabricated
     "healthy"; roadmap items are ``PLANNED``; retired items ``LEGACY`` /
@@ -1210,12 +1212,14 @@ def normalize_edge(e: dict[str, Any]) -> dict[str, Any]:
 def build_graph(*, check_files: bool = False) -> dict[str, Any]:
     """Return the FULL canonical graph payload (ADMIN-only — carries repo file
     paths, flags, runtime keys, tech_refs). ``check_files`` adds a per-node
-    ``file_ok`` marker for the drift HUD; off by default (hot path)."""
+    ``file_ok`` marker for the drift HUD
+    off by default (hot path)."""
     wf = _workforce()
     nodes = [dict(x) for x in NODES]
     for n in nodes:
         if n["id"] == "team_roster":
-            n["workforce"] = wf  # registry-derived; never a hard-coded drift number
+            n["workforce"] = wf  # registry-derived
+            never a hard-coded drift number
         if check_files:
             n["file_ok"] = all((_ROOT / f).exists() for f in n["files"])
     return {
@@ -1509,7 +1513,8 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             if n.get("depth_level", 0) >= 2 and parent.get("depth_level", 0) != 1:
                 errors.append(
                     f"{n['id']}: L2 node parented on depth-"
-                    f"{parent.get('depth_level')} node {p}; an L2 node needs an L1 "
+                    f"{parent.get('depth_level')} node {p}
+                    an L2 node needs an L1 "
                     "group parent (or a flow parent)"
                 )
             # node-parented children must agree on domain

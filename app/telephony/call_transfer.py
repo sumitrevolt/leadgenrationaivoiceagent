@@ -12,7 +12,8 @@ HUMAN handoff with context (owner ko blind call nahi milti). Flow:
     (a) gate: CALL_TRANSFER=1 flag (default OFF = inert, {"ok": False, "reason": "disabled"})
     (b) Hinglish context summary (free_ai, template fallback — LLM down pe bhi kaam)
     (c) Vobiz connect-leg owner↔caller (VobizClient.place_call reuse, lazy
-        import; creds nahi = draft-only, raise nahi)
+        import
+        creds nahi = draft-only, raise nahi)
     (d) owner ke liye WhatsApp 1-click summary link (wa.me, draft) + email DRAFT
         (send NAHI — ban-safe)
     (e) log data/call_transfers.jsonl

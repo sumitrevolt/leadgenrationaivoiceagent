@@ -2,19 +2,22 @@
 
 Does NOT turn on ``AUTO_EMAIL_OUTREACH`` or Sales Autopilot schedulers. Uses a
 canary-specific ONE-SHOT transport (never ``EmailSender``'s Resend→Brevo→SMTP
-cascade). Super-admin API is the sole entry; this module never accepts a
+cascade). Super-admin API is the sole entry
+this module never accepts a
 prospect list.
 
 Safety:
   - one recipient only (bulk-shaped addresses refused)
   - suppression fail-closed via ONE strict validated snapshot (canary-local;
-    never a second fail-open ``email_unsub`` reader; does not change globals)
+    never a second fail-open ``email_unsub`` reader
+    does not change globals)
   - attempt ledger read/parse/structural/authority failures block BEFORE provider I/O
   - attempt claimed under file-lock BEFORE provider (lock released before I/O)
   - idempotency key ⇒ duplicate request does not re-send
   - hard daily provider-attempt cap of 1 (pending claims count)
   - missing SMTP/API ⇒ FAILED, provider_called=false (does not consume cap)
-  - exactly ONE transport/provider network attempt; timeout/error/ambiguous
+  - exactly ONE transport/provider network attempt
+  timeout/error/ambiguous
     ⇒ UNKNOWN_REQUIRES_REVIEW (never fallback, never blind-retry)
   - recipient never logged in cleartext (masked only)
   - CANONICAL runtime-data: RuntimeDataError surfaces (no checkout fallback)
@@ -104,7 +107,8 @@ def is_one_to_one(email: str) -> bool:
     s = str(email or "").strip()
     if not s or "@" not in s:
         return False
-    if any(sep in s for sep in (",", ";", "\n", "\r", " ")):
+    if any(sep in s for sep in (",", "
+    ", "\n", "\r", " ")):
         return False
     local, _, domain = s.partition("@")
     if not local or not domain or "." not in domain:

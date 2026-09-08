@@ -2,7 +2,8 @@
 
 - insight_payload() — FUNNELS filters shape (pure).
 - client_business_type() — client record se niche + wizard label.
-- ensure_insight() — INERT bina phx_ key; created/exists path via mocked HTTP.
+- ensure_insight() — INERT bina phx_ key
+created/exists path via mocked HTTP.
 - Event plumbing — lead_captured + payment_activated dono business_type/niche
   carry karte hain (isliye funnel split ho sakta hai).
 """

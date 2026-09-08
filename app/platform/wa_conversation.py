@@ -16,7 +16,8 @@ DESIGN
 - Har row: ``{"from": <digits>, "dir": "in"|"out", "text": ..., "at": iso, "mid": ...}``.
 - Per-number thread bounded (``_MAX_TURNS_PER_NUMBER``) taaki file na phoole.
 - NEVER raises — memory ek best-effort context layer hai, kabhi reply-path crash na kare.
-- Koi PII/secret nahi (numbers already inbound-webhook me aate hain; check_secrets clean).
+- Koi PII/secret nahi (numbers already inbound-webhook me aate hain
+check_secrets clean).
 """
 
 from __future__ import annotations
@@ -221,7 +222,8 @@ def context_for(from_number: str, limit: int = _DEFAULT_CONTEXT_TURNS) -> str:
 
 def compact() -> dict[str, Any]:
     """Per-number turns ko ``_MAX_TURNS_PER_NUMBER`` tak trim karo (file-wide rewrite,
-    atomic tmp+replace). Scheduler/daily se call ho sakta; never raises."""
+    atomic tmp+replace). Scheduler/daily se call ho sakta
+    never raises."""
     res = {"numbers": 0, "kept": 0, "dropped": 0}
     try:
         rows = _all_rows()

@@ -9,7 +9,8 @@ data/prospects.jsonl me queue karo — phir /app/outreach page se user ek-ek
 ko "📲 WhatsApp bhejo" karta hai.
 
 Public API:
-  - run_prospecting(limit_per_query=10) -> dict   (async; NEVER raises)
+  - run_prospecting(limit_per_query=10) -> dict   (async
+  NEVER raises)
   - list_prospects(status=None, limit=100) -> list (newest first)
   - mark_prospect(pid, status) -> bool             (ready→sent/replied/client/dead)
 
@@ -39,7 +40,8 @@ logger = setup_logger(__name__)
 def _PROSPECTS_FILE() -> str:
     """Prospect JSONL store — resolved per call, never frozen at import.
 
-    ~20MB / 18k records; whole-file rewrite on update. Bytes stay in-checkout
+    ~20MB / 18k records
+    whole-file rewrite on update. Bytes stay in-checkout
     until a separate host cutover — this resolver only makes the CODE follow
     LEADGEN_RUNTIME_DATA_ROOT when cutover is later activated.
     """
@@ -218,7 +220,8 @@ def _phone_type(phone10: str) -> str:
 
     dial_gate.phone_quality (libphonenumber IN plan) se — FIXED_LINE cloud-IVR
     DIDs record me hi visible ho jate (dial_gate inhe promotional-dial pe waise
-    bhi block karta; yeh tag dashboards/backfill/email-routing ke liye)."""
+    bhi block karta
+    yeh tag dashboards/backfill/email-routing ke liye)."""
     if not phone10:
         return ""
     try:
@@ -423,13 +426,18 @@ def _osm_search(query: str, city: str, limit: int) -> list[dict[str, Any]]:
         stmts: list[str] = []
         for f in filters:
             for elem in ("node", "way", "relation"):
-                stmts.append(f"{elem}(area.searchArea)[{f}];")
+                stmts.append(f"{elem}(area.searchArea)[{f}]
+                ")
         body = "".join(stmts)
         ql = (
-            f"[out:json][timeout:25];"
-            f'area["name"="{city_esc}"]->.searchArea;'
-            f"({body});"
-            f"out tags center {cap * 4};"
+            f"[out:json][timeout:25]
+            "
+            f'area["name"="{city_esc}"]->.searchArea
+            '
+            f"({body})
+            "
+            f"out tags center {cap * 4}
+            "
         )
 
         data = urllib.parse.urlencode({"data": ql}).encode("utf-8")
@@ -667,7 +675,8 @@ def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
     """Ek prospect par arbitrary fields set karo (e.g. emailed_at) — poora file
     rewrite (chhota hai). status VALID_STATUSES wala constraint yahan NAHI lagta
     (auto-outreach `emailed_at` jaisa custom marker set kar sake). KABHI raise
-    nahi karta. True = mila + likha; missing id / write-fail = False."""
+    nahi karta. True = mila + likha
+    missing id / write-fail = False."""
     try:
         if not isinstance(fields, dict) or not fields:
             return False
@@ -1089,7 +1098,8 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             log_event(
                 "rohan",
                 "prospects_found",
-                f"{summary['new']} naye prospects ({summary['queries_run']} queries; "
+                f"{summary['new']} naye prospects ({summary['queries_run']} queries
+                "
                 f"{summary['duplicates']} dup, {summary['no_phone']} bina-phone)",
                 status="ok" if summary["queries_failed"] == 0 else "warn",
                 meta={

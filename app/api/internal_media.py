@@ -36,7 +36,8 @@ async def _hmac_check(request: Request, x_render_signature: str | None = Header(
         return
     if not HMAC_KEY:
         # In dev where no key set, accept and log warning.
-        logger.warning("[content_os] no HMAC key set; internal endpoints UNPROTECTED")
+        logger.warning("[content_os] no HMAC key set
+        internal endpoints UNPROTECTED")
         return
     body = await request.body()
     sig = x_render_signature or ""

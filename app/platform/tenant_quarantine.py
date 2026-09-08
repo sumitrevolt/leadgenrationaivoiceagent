@@ -3,7 +3,8 @@
 `scripts/seed_demo_data.py` creates 10 Postgres `clients` with
 `contact{i}@{company}.example.com` and `status = ACTIVE if i % 4 else
 choice(ACTIVE, PAUSED)` — which is exactly the 7-active / 3-paused split found in
-production on 2026-08-06. It has no teardown; its own `--force` is a blanket
+production on 2026-08-06. It has no teardown
+its own `--force` is a blanket
 `delete()` across CallLog/Lead/BillingRecord/Campaign/Agent/Client that would
 take real data with it. `scripts/setup_smoke.py` does the same to the JSONL store
 via `clients_store.add_client("Sharma Solar", ...)` against the real file.
@@ -12,7 +13,8 @@ Ongoing harm while they stay active:
   * `app/tasks/reporting.py:100` collects `Client.status == ACTIVE` as scheduled
     report recipients — the fixture `@example.com` addresses are in that list.
     (`admin_dashboard.py` and `approval_notifier.py` both blocklist
-    `@example.com` defensively; `reporting.py` does not.)
+    `@example.com` defensively
+    `reporting.py` does not.)
   * MRR rollups keyed on active status count their fake `monthly_amount`
     (up to 3_500_000) against a real MRR of ₹1,999.
 

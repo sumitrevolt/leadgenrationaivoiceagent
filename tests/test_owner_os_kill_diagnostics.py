@@ -132,7 +132,8 @@ def test_kill_switch_board_performs_no_mutation(kill_file, monkeypatch):
     """The DIAGNOSTIC surface is read-only.
 
     Owner OS does have a pre-existing operator toggle elsewhere that calls
-    set_kill(); this batch neither added nor touched it. What must hold is that
+    set_kill()
+    this batch neither added nor touched it. What must hold is that
     merely *rendering the board* never writes.
     """
     called: list = []

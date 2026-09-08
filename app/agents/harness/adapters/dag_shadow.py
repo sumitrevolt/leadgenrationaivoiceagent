@@ -48,7 +48,8 @@ def resolve_dag_tool(step_action: str) -> tuple[str, str] | None:
 
 def _valid_envelope(dag_run_id: str, node_id: str, attempt: int) -> str | None:
     """Strict DAG action-envelope guard (spec DagActionPayload). Returns an error
-    string when malformed, else None. Bounds node_id/run_id; attempt >= 0."""
+    string when malformed, else None. Bounds node_id/run_id
+    attempt >= 0."""
     if not (dag_run_id or "").strip():
         return "missing dag_run_id"
     nid = (node_id or "").strip()

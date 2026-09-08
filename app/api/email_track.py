@@ -11,7 +11,8 @@ Design rules (match project conventions):
   - **NEVER raise / never 500** on the pixel: a broken token must STILL return
     the 1x1 GIF (a broken image in an inbox looks like spam-bait).
   - **Open-redirect / SSRF safe**: /t/c only redirects to http/https URLs decoded
-    from the HMAC-signed token (verify_click_token validates scheme); invalid
+    from the HMAC-signed token (verify_click_token validates scheme)
+    invalid
     token → safe fallback to the public base URL.
   - **Rate-limited** via the project's per-IP ``rate_limit`` dependency.
   - Flag-gated upstream (EMAIL_TRACKING): when OFF nothing emits these tokens, so
@@ -37,7 +38,8 @@ router = APIRouter(tags=["Email Tracking"])
 _PIXEL_GIF = (
     b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00"
     b"!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01"
-    b"\x00\x00\x02\x02D\x01\x00;"
+    b"\x00\x00\x02\x02D\x01\x00
+    "
 )
 _PIXEL_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate, private"}
 

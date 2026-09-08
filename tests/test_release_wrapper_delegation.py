@@ -270,7 +270,8 @@ def test_delegate_helper_is_not_a_second_guard() -> None:
 
     If the helper grew its own preflight call, there would be two places to
     keep correct and two places to weaken. It is allowed to check that the
-    parent exists; it is not allowed to decide whether a deploy may proceed.
+    parent exists
+    it is not allowed to decide whether a deploy may proceed.
     """
     text = (_SCRIPTS / _DELEGATE).read_text(encoding="utf-8")
     executable = [

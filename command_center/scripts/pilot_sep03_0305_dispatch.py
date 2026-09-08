@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 03:05 IST sweep — evidence-first REVENUE COMMAND.
 KEY NEW FINDING: WA flip is now LIVE in containers (SALES_AUTOPILOT_WHATSAPP_ENABLED=1
-in BOTH worker+app; sales_autopilot hourly tick 07:25 succeeded). Restart happened.
+in BOTH worker+app
+sales_autopilot hourly tick 07:25 succeeded). Restart happened.
 BUT auto_sent=true STILL 0/2262 — new design generates WA LINKS (wa_links_generated:25,
 calling_flagged:25) for manual/owner click, NOT auto sendText. Dialer still DEAD
 (SIP 5 vars empty, no leads/, call_loop mtime Aug 31). No 09-03 hot queue. Revenue ₹1,999 sole.
@@ -74,7 +75,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T03:05+05:30"
-pin["vps_status"] = ("HEALTHY (036a4e4b); VERIFIED rev ₹1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (036a4e4b)
+VERIFIED rev ₹1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip LIVE containers=1 par auto_sent=0/2262 (link-only no sendText) → 0 UPI; "
                      "hot-queue 09-03 MISSING; dialer DEAD day4 (SIP empty, leads abs, call_loop mtime Aug31); "
                      "GAP ₹4,98,001. Dispatch all 8 bots 06:30 gates.")

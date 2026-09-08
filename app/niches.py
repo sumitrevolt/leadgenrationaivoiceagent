@@ -89,7 +89,8 @@ def add_custom_niche(
 ) -> tuple:
     """
     Naya niche register karo. Returns (key, config).
-    Sensible defaults — sirf `name` zaroori hai; baaki business ke hisab se.
+    Sensible defaults — sirf `name` zaroori hai
+    baaki business ke hisab se.
     """
     nkey = _slugify(key or name)
     refresh_custom_niches()

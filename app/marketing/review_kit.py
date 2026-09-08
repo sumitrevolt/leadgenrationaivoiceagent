@@ -12,7 +12,8 @@ Chhote business ke liye Google-review maangne ka poora kit:
   - full_kit(business_name, place_query): sab assemble (QR card me embedded),
     wa_message LLM-polish optional (free_ai), template fallback NEVER-empty.
 
-Pure stdlib; generator functions kabhi raise nahi karte.
+Pure stdlib
+generator functions kabhi raise nahi karte.
 """
 
 from __future__ import annotations

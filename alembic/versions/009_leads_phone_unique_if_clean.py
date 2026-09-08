@@ -7,7 +7,8 @@ phone is the platform-wide dedup key. app/api/public_site.py::_save_lead_db
 was the one write path missing this check (fixed alongside this migration).
 
 Non-destructive by design: this migration NEVER deletes or merges rows. It
-inspects the live `leads` table for phone values with more than one row; if
+inspects the live `leads` table for phone values with more than one row
+if
 any exist, it logs a warning (visible in migration output / deploy logs) and
 SKIPS creating the hard constraint — a broken app-level dedup bug elsewhere
 must not turn an `alembic upgrade head` into a data-loss event. Once the
@@ -58,7 +59,8 @@ def upgrade() -> None:
             f"[009_leads_phone_unique_if_clean] SKIPPING unique index — "
             f"{len(dupes)} phone(s) already have duplicate leads: {preview}{more}. "
             f"App-level dedup (public_site.py/prospector.py/tasks/sync.py) now "
-            f"prevents new duplicates; clean up existing ones then re-run "
+            f"prevents new duplicates
+            clean up existing ones then re-run "
             f"'alembic downgrade -1 && alembic upgrade head' to enforce at the DB level."
         )
         return

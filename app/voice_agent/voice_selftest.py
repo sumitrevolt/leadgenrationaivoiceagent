@@ -9,13 +9,15 @@ a verdict: which findings gate CI vs which are advisory, what the per-scenario
 
 Design (matches the project's existing test architecture):
   * Pure + import-safe + never-raises — like ``qa_checks`` / ``voice_metrics``.
-    The orchestrator needs a live WS to run; this half is fully unit-testable.
+    The orchestrator needs a live WS to run
+    this half is fully unit-testable.
   * ``qa_checks`` stays the SINGLE judge vocabulary — every goal here composes a
     ``qa_checks`` function, never re-implements one.
   * Gate split mirrors ``eval_suite.EXTENDED_PERSONAS``: only MECHANICAL breakage
     (no-reply, double-reply, crash, banned-phrase…) drives ``exit 1``. Behavioural
     + guardrail findings are ADVISORY by default ("some FAIL against today's bot —
-    that is the signal, not a red build"); ``--strict`` promotes them to gating.
+    that is the signal, not a red build")
+    ``--strict`` promotes them to gating.
 
 Public surface:
     SCENARIOS                       -> list[Scenario]  (happy + adversarial + guardrail)

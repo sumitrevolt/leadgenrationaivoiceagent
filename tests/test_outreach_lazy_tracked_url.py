@@ -2,7 +2,8 @@
 
 Bug: `_AUDIT_URL_TRACKED = _track_url(_AUDIT_URL)` (+ the site one) ran at MODULE
 IMPORT time, firing a live is.gd/tracked-link network call just to import
-`auto_outreach` (slow / hang-prone import; runs in prod_check too).
+`auto_outreach` (slow / hang-prone import
+runs in prod_check too).
 
 Fix: a lazy, memoized accessor computes the tracked URL on first use and caches it.
 This test proves the accessor is lazy + cached (one `_track_url` call across many uses).

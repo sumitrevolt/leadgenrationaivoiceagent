@@ -306,5 +306,6 @@ def redact(payload: Any) -> Any:
         from app.integrations.openclaw.policies import redact_secrets
 
         return redact_secrets(payload)
-    except Exception:  # pragma: no cover - defensive; redaction must never crash
+    except Exception:  # pragma: no cover - defensive
+    redaction must never crash
         return payload

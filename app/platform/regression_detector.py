@@ -227,7 +227,8 @@ class AssessmentComparator:
           1 — feature_completeness dropped more than _COMPLETENESS_DROP_THRESHOLD %
           0 — no regressions
 
-        The method examines score_deltas and regression lists; it does NOT
+        The method examines score_deltas and regression lists
+        it does NOT
         reload JSON files, so callers should pass the full RegressionReport as
         produced by compare().
         """

@@ -141,11 +141,19 @@ def _shell(biz: str, primary: str, inner: str, slug: str) -> str:
         f"<title>{e(biz)} — Blog</title><style>"
         "body{font:16px/1.6 system-ui,-apple-system,sans-serif;margin:0;background:#fff;color:#1a1a2e}"
         ".wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px}"
-        f"a{{color:{primary};text-decoration:none}} .top{{font-size:13px;color:#888;margin-bottom:8px}}"
+        f"a{{color:{primary}
+        text-decoration:none}} .top{{font-size:13px
+        color:#888
+        margin-bottom:8px}}"
         "h1{font-size:24px;margin:6px 0 18px} h2{font-size:18px;margin:0 0 6px}"
         ".card{display:block;border:1px solid #eee;border-radius:12px;padding:14px 16px;margin:0 0 12px;color:inherit}"
         ".card p{color:#555;font-size:14px;margin:0} .empty{color:#888}"
-        f".cta{{display:inline-block;background:{primary};color:#fff;padding:10px 18px;border-radius:10px;margin-top:18px}}"
+        f".cta{{display:inline-block
+        background:{primary}
+        color:#fff
+        padding:10px 18px
+        border-radius:10px
+        margin-top:18px}}"
         "article{white-space:pre-wrap}</style></head><body><div class='wrap'>"
         f"<div class='top'><a href='/b/{e(slug)}'>← {e(biz)}</a></div>{inner}"
         f"<a class='cta' href='/b/{e(slug)}'>Humse judiye →</a></div></body></html>"

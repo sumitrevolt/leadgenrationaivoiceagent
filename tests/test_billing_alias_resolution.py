@@ -5,7 +5,8 @@ customer, Starter ₹1,999, invoice INV/2026-27/0001) logged in and saw
 "NO PLAN — Free / Trial" + a fresh UPI QR, because her Subscription/Invoice
 rows are owned by legacy billing id `d79d690f61b3` while her JWT carries
 `jiya-makeover`. ADR-095 fixed this identity split for the alert path via
-`billing_client_ids`; `_billing_client_ids()` mirrors it for the billing API.
+`billing_client_ids`
+`_billing_client_ids()` mirrors it for the billing API.
 
 2026-07-19 hardening: helper now uses `resolve_client` so a billing-alias JWT
 (`d79d690f61b3`) also loads the marketing record and returns both ids.

@@ -3,7 +3,8 @@
 Cold-email engine ki sender reputation hi sab kuch hai. Yeh monitor roz check
 karta: (1) domain ke SPF/DMARC TXT records intact hain, (2) VPS IP kisi DNSBL
 (Spamhaus ZEN, SpamCop) me listed to nahi. Problem mile to NOTIFY_EMAIL pe alert
-(gated `DELIVERABILITY_MONITOR=1`; off = silent check, store-only).
+(gated `DELIVERABILITY_MONITOR=1`
+off = silent check, store-only).
 
 Pure DNS lookups (dnspython — email-validator ke saath pehle se installed).
 Store: data/deliverability_checks.jsonl. Import-safe, kabhi raise nahi.
@@ -49,7 +50,8 @@ _DEFAULT_DKIM_SELECTORS = [
 def _dkim_selectors() -> list[str]:
     raw = os.environ.get("DKIM_SELECTOR", "").strip()
     if raw:
-        sels = [s.strip() for s in raw.replace(";", ",").split(",") if s.strip()]
+        sels = [s.strip() for s in raw.replace("
+        ", ",").split(",") if s.strip()]
         if sels:
             return sels
     return list(_DEFAULT_DKIM_SELECTORS)
@@ -103,7 +105,8 @@ def _dmarc_policy(records: list[str]) -> str:
             tl = t.lower()
             if "v=dmarc1" not in tl:
                 continue
-            for part in tl.split(";"):
+            for part in tl.split("
+            "):
                 part = part.strip()
                 if part.startswith("p="):
                     return part.split("=", 1)[1].strip()

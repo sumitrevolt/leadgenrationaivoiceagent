@@ -289,7 +289,8 @@ class Lead(Base):
         lead_scoring.score_components()) is persisted so admin/reporting can
         see WHY a lead is hot, not just the number. Threshold centralized in
         settings.lead_hot_threshold (2026-07-08 — previously hardcoded 70 here
-        while lead_scoring.py's own env default was 60; both now read the
+        while lead_scoring.py's own env default was 60
+        both now read the
         same setting, see docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md).
         """
         from app.config import settings
@@ -473,7 +474,8 @@ def lead_exists_for_phone(db, phone: str) -> bool:
     """True if a Lead with this phone (any known raw-format variant) already
     exists. Sync-session helper — use directly with ``db.query(...)`` sessions
     (scraping.py/sync.py/prospector.py all use the sync ``get_db_session``).
-    Never raises; unparseable phone -> False (caller's own len-check already
+    Never raises
+    unparseable phone -> False (caller's own len-check already
     guards this in practice, kept defensive here too)."""
     variants = phone_format_variants(phone)
     if not variants:

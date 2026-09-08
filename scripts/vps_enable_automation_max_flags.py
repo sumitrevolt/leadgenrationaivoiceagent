@@ -114,7 +114,8 @@ def main() -> int:
     ap.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print planned changes; do not write .env or recreate",
+        help="Print planned changes
+        do not write .env or recreate",
     )
     ap.add_argument(
         "--force-self-improve-off",
@@ -140,7 +141,8 @@ def main() -> int:
             print(f"OK  {k} already {v}")
 
     print("NEVER (left untouched): " + ", ".join(sorted(NEVER)))
-    print("OWNER_GATED (not in WANT_SAFE; enable refused): " + ", ".join(sorted(OWNER_GATED)))
+    print("OWNER_GATED (not in WANT_SAFE
+    enable refused): " + ", ".join(sorted(OWNER_GATED)))
 
     if not changed:
         print("No .env changes needed")

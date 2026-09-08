@@ -109,7 +109,8 @@ def main() -> int:
     ap.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print planned changes; do not write .env or recreate",
+        help="Print planned changes
+        do not write .env or recreate",
     )
     ap.add_argument(
         "--no-recreate",
@@ -147,7 +148,8 @@ def main() -> int:
         f.write(text)
 
     if args.no_recreate:
-        print("Wrote .env; skipped recreate (--no-recreate)")
+        print("Wrote .env
+        skipped recreate (--no-recreate)")
         return 0
 
     pin = resolve_app_version_pin()

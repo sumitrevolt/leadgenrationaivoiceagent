@@ -76,7 +76,8 @@ def _reg(defs):
 def _subprocess_hash(seed):
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = str(seed)
-    code = "from app.agents.harness.registry import REGISTRY; print(REGISTRY.manifest_hash())"
+    code = "from app.agents.harness.registry import REGISTRY
+    print(REGISTRY.manifest_hash())"
     out = subprocess.check_output([sys.executable, "-c", code], env=env, text=True)
     return out.strip()
 
@@ -267,4 +268,5 @@ def test_batch_green_readonly():
 
 def test_manifest_view_exposes_no_callables():
     for t in REGISTRY.list_tools():
-        json.dumps(t)  # must be pure JSON-native; raises if a callable leaked
+        json.dumps(t)  # must be pure JSON-native
+        raises if a callable leaked

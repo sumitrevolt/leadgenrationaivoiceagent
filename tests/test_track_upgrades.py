@@ -5,7 +5,8 @@
   Track 3 — social auto-poster (Meta Graph API + mock fallback)
   Track 4 — Alembic: new-model registration, migration 005, graceful startup migrations
 
-Every feature is fail-open/defensive; these assert BOTH the happy path AND that the safe
+Every feature is fail-open/defensive
+these assert BOTH the happy path AND that the safe
 fallbacks (mock mode, bad-signature reject, never-raise) behave correctly.
 
 NOTE: we use a *lifespan-free* TestClient (``TestClient(app)`` WITHOUT the ``with`` block)

@@ -16,7 +16,8 @@ Flow (per saved test-call):
      applying a fact to the niche KB is a separate, explicit admin action — prompts/
      scripts are never blind-written (matches code_upgrader's "never auto-apply core").
 
-Flag VOICE_SELF_IMPROVE (default ON = propose+store; promotion stays manual/gated).
+Flag VOICE_SELF_IMPROVE (default ON = propose+store
+promotion stays manual/gated).
 Import-safe, never raises.
 """
 

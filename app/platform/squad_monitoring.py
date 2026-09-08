@@ -22,7 +22,8 @@ def prometheus_metrics():
 def sentry_alerts():
     """Check Sentry for recent errors + gate-related issues."""
     result = subprocess.run(
-        ["bash", "-c", "python3 -c \"import sentry_sdk; print('Sentry initialized')\" 2>/dev/null || echo 'Sentry not available'"],
+        ["bash", "-c", "python3 -c \"import sentry_sdk
+        print('Sentry initialized')\" 2>/dev/null || echo 'Sentry not available'"],
         capture_output=True, text=True
     )
     return {"status": "sentry_check", "output": result.stdout}

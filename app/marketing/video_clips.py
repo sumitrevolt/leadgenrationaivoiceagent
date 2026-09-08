@@ -18,7 +18,8 @@ Public API (sab never-raise):
 
 Output: data/clips/<job_id>/clip_1.mp4 ... (serve: /api/contentplus/clip-file).
 NOTE: STT/auto-subtitles jaan-bujhke SKIP (Groq whisper optional — alag pass).
-Free stack: sirf ffmpeg/ffprobe binaries (VPS pe installed; missing = graceful
+Free stack: sirf ffmpeg/ffprobe binaries (VPS pe installed
+missing = graceful
 error dict, available() short-circuit).
 """
 

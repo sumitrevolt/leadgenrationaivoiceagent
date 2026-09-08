@@ -312,20 +312,35 @@ _PAGE_TEMPLATE = """<!doctype html><html lang="hi"><head>
  *{box-sizing:border-box}
  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   background:linear-gradient(160deg,__PRIMARY__ 0%,__PRIMARYSOFT__ 40%,#111827 130%);
-  min-height:100vh;color:#fff;padding:34px 16px 50px}
- .card{max-width:430px;margin:0 auto;text-align:center}
+  min-height:100vh
+  color:#fff
+  padding:34px 16px 50px}
+ .card{max-width:430px
+ margin:0 auto
+ text-align:center}
  .avatar{width:84px;height:84px;border-radius:50%;background:#fff;color:__PRIMARY__;
-  font-size:36px;font-weight:800;line-height:84px;margin:0 auto 12px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
- h1{margin:0 0 4px;font-size:22px}
- .sub{opacity:.85;font-size:14px;margin-bottom:22px}
+  font-size:36px
+  font-weight:800
+  line-height:84px
+  margin:0 auto 12px
+  box-shadow:0 8px 30px rgba(0,0,0,.3)}
+ h1{margin:0 0 4px
+ font-size:22px}
+ .sub{opacity:.85
+ font-size:14px
+ margin-bottom:22px}
  a.blk{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.96);color:#111;
   text-decoration:none;border-radius:14px;padding:15px 16px;margin:11px 0;font-weight:700;font-size:15px;
-  box-shadow:0 4px 16px rgba(0,0,0,.18);transition:transform .12s}
+  box-shadow:0 4px 16px rgba(0,0,0,.18)
+  transition:transform .12s}
  a.blk:active{transform:scale(.98)}
  a.blk .em{font-size:20px}
- a.blk .lb{flex:1;text-align:left}
+ a.blk .lb{flex:1
+ text-align:left}
  a.blk .ar{opacity:.4}
- .pw{margin-top:26px;font-size:12px;opacity:.7}
+ .pw{margin-top:26px
+ font-size:12px
+ opacity:.7}
  .pw a{color:#fff}
 </style></head><body>
 <div class="card">

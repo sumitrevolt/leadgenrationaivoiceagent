@@ -356,7 +356,8 @@ async def run_wishes(execute: bool = False) -> dict[str, Any]:
     wa.me 1-click prefilled link → `data/customer_wish_drafts.jsonl`.
 
     `execute` flag SIRF signature-compat ke liye hai — yeh function KABHI
-    auto-send nahi karta (WhatsApp auto-send = number ban; policy: human
+    auto-send nahi karta (WhatsApp auto-send = number ban
+    policy: human
     1-click). Same-day duplicate drafts skip hote hain. Never raises.
     """
     try:

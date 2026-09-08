@@ -1,6 +1,7 @@
 """K.2 + K.3 — webhook rotate_secret + retry_delivery.
 
-Operationally critical: rotation must NOT lose subscriptions; retry must NOT
+Operationally critical: rotation must NOT lose subscriptions
+retry must NOT
 succeed if the underlying delivery already succeeded (idempotency).
 """
 

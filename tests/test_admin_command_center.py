@@ -1,9 +1,12 @@
 """Admin Command Center (Customer Delivery OS Phase 2) — business-outcome
 front door. Covers: (1) _build_command_center's bucket definitions using real
 fixture data (not just presence-checking — this is pure Python aggregation,
-so real logic can be verified); (2) the _plan_price("trial") regression found
+so real logic can be verified)
+(2) the _plan_price("trial") regression found
 while building this (was silently attributing full Starter MRR to free-trial
-signups); (3) the GET /api/admin/command-center endpoint; (4) static-HTML
+signups)
+(3) the GET /api/admin/command-center endpoint
+(4) static-HTML
 presence for the new page + its main.py route."""
 
 from fastapi.testclient import TestClient
@@ -260,11 +263,13 @@ def test_page_calls_real_endpoint_and_reuses_localstorage_auth_pattern():
 def test_delivery_cockpit_paying_kpi_matches_invoice_backed_revenue():
     """The live cockpit must not count a selected non-trial plan as paid.
 
-    Revenue is invoice-backed; using a plan-count KPI beside it produced the
+    Revenue is invoice-backed
+    using a plan-count KPI beside it produced the
     contradictory live state "Paying 3 / MRR ₹0".
     """
     html = _page_html()
-    assert "var payingCustomers = Number(revenue.paying_customers);" in html
+    assert "var payingCustomers = Number(revenue.paying_customers)
+    " in html
     assert "paying_customers: payingCustomers" in html
     assert (
         'paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length'

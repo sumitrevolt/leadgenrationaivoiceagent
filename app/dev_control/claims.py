@@ -4,7 +4,8 @@ The API-layer claim (read -> validate -> write) had a lost-update race: two
 workers could both read state=queued, both pass the transition check, and both
 commit -- the second silently overwriting the first worker's lease. These
 helpers replace that with a single conditional UPDATE whose rowcount proves
-exactly one winner (works on Postgres and SQLite alike; no advisory locks
+exactly one winner (works on Postgres and SQLite alike
+no advisory locks
 needed). tmux/worker memory is never the source of truth -- the DB row is.
 
 Design rules (mirrors reconcile.py):
@@ -89,7 +90,8 @@ async def claim_next(
 ) -> dict[str, Any] | None:
     """Atomically claim the highest-priority QUEUED task; None when idle.
 
-    Candidates are scanned oldest-first within descending priority; each
+    Candidates are scanned oldest-first within descending priority
+    each
     candidate is claimed with the same conditional UPDATE, so a concurrent
     worker taking a row just moves us to the next candidate.
     """

@@ -1,6 +1,7 @@
 """
 Tests for app.voice_agent.qa_checks — the D-13 conversation QA judge half.
-Pure functions; fixtures prove each check fires on a bad transcript and stays
+Pure functions
+fixtures prove each check fires on a bad transcript and stays
 silent on a good one.
 """
 

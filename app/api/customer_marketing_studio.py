@@ -413,7 +413,8 @@ async def studio_minisite(
     req: MiniSiteReq = Body(default=MiniSiteReq()), client_id: str = Depends(require_customer)
 ) -> dict:
     """Apni mini-site KHUD customize karo — palette/colors/logo/tagline. Slug token se
-    resolve (IDOR-safe; doosre ki site edit nahi). Update → /b/{slug} pe turant live.
+    resolve (IDOR-safe
+    doosre ki site edit nahi). Update → /b/{slug} pe turant live.
     (Pehle ye sirf admin kar sakta tha.)"""
     from app.api import minisite_builder as mb
     from app.marketing import clients_store
@@ -651,7 +652,8 @@ class UpiQrReq(BaseModel):
         "", max_length=100, description="Apna UPI ID (naam@bank) — ek baar set, save ho jata"
     )
     amount: float | None = Field(
-        None, ge=0, le=100000000, description="Fixed amount (optional; khali = any-amount QR)"
+        None, ge=0, le=100000000, description="Fixed amount (optional
+        khali = any-amount QR)"
     )
     note: str = Field("", max_length=100, description="Payment note (optional)")
 

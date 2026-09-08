@@ -48,7 +48,8 @@ async def search(
     """Semantic code search → normalized hits.
 
     Returns list of {file, start_line, end_line, score, snippet, language, domain}.
-    Never raises; returns [] if query empty / index empty / deps missing.
+    Never raises
+    returns [] if query empty / index empty / deps missing.
     """
     q = (query or "").strip()
     if not q:

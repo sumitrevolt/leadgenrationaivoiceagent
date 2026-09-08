@@ -1,6 +1,7 @@
 """Ops MCP tools (/api/ops/*) — contract + auth tests.
 
-conftest.py globally require_admin ko mock-user se override karta hai; auth
+conftest.py globally require_admin ko mock-user se override karta hai
+auth
 proof ke liye hum override POP karte hain (test_blueprint_api_auth pattern).
 """
 

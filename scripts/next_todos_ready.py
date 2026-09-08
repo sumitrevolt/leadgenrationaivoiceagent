@@ -169,13 +169,16 @@ def render_md(row: dict[str, Any]) -> str:
         "|---|---|---|",
         "| 1 Hot Queue blitz | OWNER-WAIT | inbox HTTP "
         + str((row.get("http") or {}).get("inbox"))
-        + " shell; token-paste `#tok`; cards need admin token |",
+        + " shell
+        token-paste `#tok`
+        cards need admin token |",
         "| 2 UPI Bind → Re-Approve | OWNER-WAIT | `/app/admin#sec-upi-selfserve`; named blocker `upi_pending_unactioned`; `payments_ready=true` |",
         "| 3 Bank-credit confirm | OWNER-WAIT | `owner_confirmed_upi` only; do not fake `paid_today` |",
         "| 4 Phase 0 exit | GATED | Jiya + 1 not on ledger |",
         "| 5 Boss harness canary | OWNER-WAIT | `--dry-run` rc="
         + str(row.get("boss_dry_run_rc"))
-        + "; real start owner Desktop/sandbox |",
+        + "
+        real start owner Desktop/sandbox |",
         "| 6 Comb Desktop Save | GATED | after todo 5 reply |",
         "| 7 Live flag mismatches | OWNER-WAIT | observe hub/dunning/UPI_AUTO/DSH_RUNTIME=1; ENG must not flip |",
         "| 8 Stay behind origin | READY | `git fetch` done; no `reset --hard`; no deploy |",

@@ -23,7 +23,8 @@ SIGNALS (all evidence-derived, never filename similarity)
   registration, scheduler job membership, agent-registry membership,
   feature-flag gate.
 
-AST evidence alone can prove a code dependency; it cannot prove production
+AST evidence alone can prove a code dependency
+it cannot prove production
 activation, scheduling, queue consumption, flag state or business ownership.
 So critical domains (outreach, calling, billing, tenancy, auth, Owner OS,
 deployment, queues, consent, PII) can never reach HIGH on AST votes alone.
@@ -437,7 +438,8 @@ def derive() -> dict[str, Any]:
                 "MEDIUM",
                 (
                     f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
-                    f"current-source signals (has {corr['count']}; reviewed ownership "
+                    f"current-source signals (has {corr['count']}
+                    reviewed ownership "
                     "does not corroborate itself)"
                 ),
             )
@@ -472,7 +474,8 @@ def derive() -> dict[str, Any]:
             final = "REVIEW_REQUIRED"
             conf = "MEDIUM"
             why = (
-                f"{why}; but L2 detail has no verified same-domain group "
+                f"{why}
+                but L2 detail has no verified same-domain group "
                 "parent — needs manual grouping before import"
             )
 

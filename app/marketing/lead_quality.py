@@ -21,8 +21,10 @@ SAFETY CONTRACT (enforced by tests):
   - TENANT-SAFE. Duplicate detection is scoped per canonical tenant via
     ``clients_store.canonical_client_id`` so the SAME phone under two different
     tenants is never mis-flagged as one duplicate lead.
-  - NEVER RAISES. Every lead is best-effort; one bad record cannot sink the scan.
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
+  - NEVER RAISES. Every lead is best-effort
+  one bad record cannot sink the scan.
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
+  strictly
     marketing-domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``rohan`` (Leads Manager) —

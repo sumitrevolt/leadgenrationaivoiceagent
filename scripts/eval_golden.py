@@ -12,10 +12,12 @@ Layers:
      judge key unless EVAL_GOLDEN_REQUIRE_JUDGE=1.
 
 Exit codes:
-  0 — all deterministic asserts pass; judge layer pass-or-skipped
+  0 — all deterministic asserts pass
+  judge layer pass-or-skipped
   1 — golden regression (deterministic fail, or judge fail when required/available)
 
-CI: wire non-blocking first (continue-on-error) in deploy-vps.yml; flip to
+CI: wire non-blocking first (continue-on-error) in deploy-vps.yml
+flip to
 blocking only after the suite is stable.
 
 Run:  .venv\\Scripts\\python.exe scripts\\eval_golden.py

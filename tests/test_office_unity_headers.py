@@ -3,7 +3,8 @@
 Unity build uses decompressionFallback=false → the browser MUST receive
 `Content-Encoding: br` on the `.br` artifacts, otherwise the loader receives raw
 brotli bytes and the office fails to load with a corrupt/compression error. Plain
-StaticFiles omits this header; app.main serves /static/office-unity via a
+StaticFiles omits this header
+app.main serves /static/office-unity via a
 precompressed-aware handler that also fixes the Content-Type for wasm/js/data.
 
 Skips when the build isn't deployed (frontend/office_unity/Build absent) so CI

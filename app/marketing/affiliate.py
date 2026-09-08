@@ -118,7 +118,8 @@ def mark_referral_paid_by_contact(
     (koi caller hi nahi) — commission_earned hamesha ₹0 dikhta tha aur payout
     loop dead tha. Match normalized contact se (email lowercase ya phone ke
     last 10 digits). Idempotent: already-paid rows skip. Locked atomic rewrite
-    (offers.py convention). Returns flipped count; never raises.
+    (offers.py convention). Returns flipped count
+    never raises.
     """
     try:
         em = (email or contact or "").strip().lower()

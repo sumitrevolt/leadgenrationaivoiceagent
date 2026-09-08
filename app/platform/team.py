@@ -321,7 +321,8 @@ def staff_for_product(product: str) -> dict[str, dict[str, Any]]:
     """ADR-009 two-product split: dono products ke AI agents ALAG.
 
     product='marketing' -> marketing staff + shared 'platform' staff;
-    product='voice' -> voice staff + shared; aur kuch bhi -> poora roster.
+    product='voice' -> voice staff + shared
+    aur kuch bhi -> poora roster.
     """
     p = (product or "").strip().lower()
     if p not in ("marketing", "voice"):
@@ -579,8 +580,10 @@ def _ev_dict(r: Any) -> dict[str, Any]:
 
 def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
     """Per-agent KPI aggregate over last N days — success-rate + last-run, taaki
-    operator dekh sake kaunsa agent DEGRADE ho raha (recent_events = raw feed; yeh
-    = rollup). SQL GROUP BY (member,status); window-cap 90d. KABHI raise nahi —
+    operator dekh sake kaunsa agent DEGRADE ho raha (recent_events = raw feed
+    yeh
+    = rollup). SQL GROUP BY (member,status)
+    window-cap 90d. KABHI raise nahi —
     failure pe empty. Observability-only, koi side-effect nahi."""
     out: dict[str, Any] = {"window_days": int(days), "agents": [], "overall": {}}
     try:

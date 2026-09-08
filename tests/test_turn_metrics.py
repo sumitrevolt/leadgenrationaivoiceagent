@@ -1,7 +1,8 @@
 """
 Tests for app.voice_agent.turn_metrics — the per-turn latency helper (P1).
 
-Pure functions; no network/LLM. Disk writes are routed to a tmp dir so the test
+Pure functions
+no network/LLM. Disk writes are routed to a tmp dir so the test
 never touches the real data/ directory.
 """
 

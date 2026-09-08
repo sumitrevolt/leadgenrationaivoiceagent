@@ -2,19 +2,27 @@
 """PILOT Sep-03 13:45 IST sweep — FRESH LIVE re-verify (evidence-first).
 
 LIVE VERIFIED 13:43 IST (positional grep of values):
-  - /health 200 (VPS internal, uptime ~11h after 12:58 check); containers Up 18h healthy.
+  - /health 200 (VPS internal, uptime ~11h after 12:58 check)
+  containers Up 18h healthy.
   -KRITIKAL NEW ROOT-CAUSE: .env has `WHATSAPP_BUSINESS_TOKEN=your-whatsapp-token` and
     `WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id` = PLACEHOLDER creds. WA flip LIVE=1 AND
     WHATSAPP_AUTO_SEND=1 par auto_sent true count = **0** -> send is CONFIG-DEAD (Meta API rejects
     placeholder token). This is the ROOT-CAUSE for day5 WA-rail zero sends. OWNER-GATED: real
     Meta WhatsApp Business API token+phone-id chahiye (bots ke paas nahi hai).
-  - SIP 5 vars (HOST/USERNAME/PASSWORD/DID/PROVIDER) ALL empty -> DID NOT landed; VOBIZ_CALLER_ID
+  - SIP 5 vars (HOST/USERNAME/PASSWORD/DID/PROVIDER) ALL empty -> DID NOT landed
+  VOBIZ_CALLER_ID
     revoked CLI -> dialer DEAD day5 (proc0 mtime Aug31 batch211 ok0/fail3).
-  - leads/ ammo 0; hot-queue 09-03 44 rows present (dirty, 0 genuine buyer proven).
-  - Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001); GAP Rs4,98,001.
-Apex #1 = WA-rail CONFIG-DEAD (owner-gated: real creds) -> unblock by OWNER; #2 genuine close
-(SAL-005 MANUAL message, WAHA meets/remote-gate); #3 DID (PLT-005 vendor); Jiya protect (SUC-004).
-Bots ke paas jo EXECUTABLE hai wo karo. Rebump only (07:35 set owns; max 1/bot/run)."""
+  - leads/ ammo 0
+  hot-queue 09-03 44 rows present (dirty, 0 genuine buyer proven).
+  - Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001)
+  GAP Rs4,98,001.
+Apex #1 = WA-rail CONFIG-DEAD (owner-gated: real creds) -> unblock by OWNER
+#2 genuine close
+(SAL-005 MANUAL message, WAHA meets/remote-gate)
+#3 DID (PLT-005 vendor)
+Jiya protect (SUC-004).
+Bots ke paas jo EXECUTABLE hai wo karo. Rebump only (07:35 set owns
+max 1/bot/run)."""
 import json
 import os
 
@@ -99,7 +107,8 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T13:45+05:30"
-pin["vps_status"] = ("/health 200; WA flip AUTO_SEND=1 par auto_sent=0 — ROOT: placeholder token "
+pin["vps_status"] = ("/health 200
+WA flip AUTO_SEND=1 par auto_sent=0 — ROOT: placeholder token "
                      "your-whatsapp-token CONFIG-DEAD (owner-gated real Meta creds); SIP 5 vars EMPTY "
                      "DID not landed (CLI revoked); dialer DEAD day5; hot-queue 09-03 44 dirty; VERIFIED "
                      "rev Rs1,999 (Jiya sole); GAP Rs4,98,001. FLEET 0-ACK ~55h -> 14:30 owner gate.")

@@ -223,7 +223,8 @@ def delivery_health(
       * at_risk is scoped to `setup_done AND posts_created>0`. The literal
         "active+paid AND no-value-7d" would swallow not_started/blocked/setup_ready
         (they all lack recent value) since at_risk trumps everything below.
-      * `live` uses ONLY `posts_approved > posts_published`; the spec's
+      * `live` uses ONLY `posts_approved > posts_published`
+      the spec's
         "OR value in 7d" alternative is dropped because it is identical to
         `delivered` and, checked first, would make `delivered` unreachable.
       Consequence: for a setup_done+posts>0 customer, "not at_risk" implies value
@@ -351,7 +352,8 @@ def _build_command_center() -> dict[str, Any]:
     pending approvals + revenue. Composes list_clients + delivery_ledger.summary
     + content_approval.pending + _client_mrr — deliberately NOT a new
     independent aggregator (2026-07-07 backlog flagged 3 duplicate ones
-    already; this reuses, it doesn't add a 4th). Never raises."""
+    already
+    this reuses, it doesn't add a 4th). Never raises."""
     from app.marketing import clients_store, content_approval, delivery_ledger, product_one_delivery
 
     try:

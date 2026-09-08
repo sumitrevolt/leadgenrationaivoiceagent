@@ -68,7 +68,8 @@ def _load_models_metadata() -> MetaData:
     try:
         import app.main  # noqa: F401
     except Exception as exc:
-        print(f"[warn] could not import app.main ({exc}); relying on app.models only")
+        print(f"[warn] could not import app.main ({exc})
+        relying on app.models only")
     return Base.metadata
 
 
@@ -101,7 +102,8 @@ def _coerce(value, col_type):
                 else dt
             )
         except ValueError:
-            return raw  # let the driver try; surfaces as an error if truly bad
+            return raw  # let the driver try
+            surfaces as an error if truly bad
     return value
 
 

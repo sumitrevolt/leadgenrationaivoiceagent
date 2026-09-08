@@ -22,7 +22,9 @@ ADMIN:
                                     custom fields (data/widget_forms.jsonl via
                                     embed_widget helpers).
 
-Never-raise pattern: sab heavy imports lazy; store-write best-effort; module import
+Never-raise pattern: sab heavy imports lazy
+store-write best-effort
+module import
 kabhi fail nahi hota. Koi naya env flag nahi (kuch SEND nahi karta — drafts/records).
 """
 

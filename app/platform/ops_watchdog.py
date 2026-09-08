@@ -6,7 +6,8 @@ loop — **sense → reason → alert** (2026 best practice): collect health sig
 anomalies by rules, let free_ai diagnose them in Hinglish, and EMAIL Sumit when something
 needs a human. Throttled per-issue so it never spams.
 
-Heartbeat pattern: the scheduler already touches `data/.scheduler.lock` every tick; a stale
+Heartbeat pattern: the scheduler already touches `data/.scheduler.lock` every tick
+a stale
 lock means jobs have stopped. Output-file freshness (digest) tells us dailies ran.
 
 OFF by default + never-crash. Enable `OPS_WATCHDOG=1`. Alerts need `notify_email` + SMTP

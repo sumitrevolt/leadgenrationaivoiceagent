@@ -4,7 +4,8 @@ Prod evidence 2026-08-09: `content_approval.pending()` held **422** rows.
 - 321 belonged to client ids absent from `clients_store` — nobody can ever
   decide them, yet they inflated every backlog number.
 - 101 belonged to live clients and were still perfectly completable from the
-  authenticated dashboard (which does NOT enforce the 7-day token TTL; only the
+  authenticated dashboard (which does NOT enforce the 7-day token TTL
+  only the
   public token link does).
 - The single paying customer had received **36** approval mails, all delivered,
   and still had 20 items open — each mail said "you have content awaiting your

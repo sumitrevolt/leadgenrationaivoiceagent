@@ -3,7 +3,8 @@
 Closes the loop from an approved dev-task to a customer-visible delivery record.
 Two ban-safety / attribution rules hold here:
   * The customer notification is a DRAFT only. Nothing is auto-sent (WhatsApp bulk
-    auto-send = number ban; §5). A human sends it via the existing 1-click surface.
+    auto-send = number ban
+    §5). A human sends it via the existing 1-click surface.
   * If the task carries a customer_id, a per-customer AutomationLog row is written
     (via the canonical automation_log_service) so the admin cockpit's customer
     filter attributes the work — mirroring ADR-065/066.

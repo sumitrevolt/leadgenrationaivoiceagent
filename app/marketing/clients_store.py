@@ -184,7 +184,8 @@ def _read_all() -> list[dict[str, Any]]:
     if changed:
         try:
             _rewrite(rows)
-        except Exception as e:  # pragma: no cover - file lock etc.; in-mem slug kaafi hai
+        except Exception as e:  # pragma: no cover - file lock etc.
+        in-mem slug kaafi hai
             logger.debug(f"[clients_store] slug backfill rewrite skip: {e}")
     return rows
 
@@ -197,7 +198,8 @@ def _file_lock(path: str):
     2026-07-01, F-DB5: closes the _append/_rewrite race, doesn't guarantee zero-race).
 
     Lock colocates with the ACTIVE ledger via ``resolve_lock_path`` when ``path``
-    is the authority path; monkeypatched test paths keep ``path + ".lock"``.
+    is the authority path
+    monkeypatched test paths keep ``path + ".lock"``.
     """
     try:
         from filelock import FileLock
@@ -605,7 +607,8 @@ _ALLOWED_FIELDS = {
 
 def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
     """Client ke fields update karo (whitelist). Updated dict ya None. Kabhi
-    raise nahi. Brand/socials dict-merge hote hain; brand change brand_kit me
+    raise nahi. Brand/socials dict-merge hote hain
+    brand change brand_kit me
     bhi mirror hota hai."""
     try:
         key = (cid or "").strip()

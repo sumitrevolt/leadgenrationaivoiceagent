@@ -58,7 +58,8 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
 
     client_id is derived from the customer's JWT when logged in — a client CANNOT
     submit for someone else's account. Guests (no token) submit a pending record
-    keyed by payer_contact; admin reaches out + activates (frontend home-page pay
+    keyed by payer_contact
+    admin reaches out + activates (frontend home-page pay
     modal path). Guests NEVER auto-activate: submit_payment only auto-activates
     when client_id is non-empty AND on the UPI_AUTO_ACTIVATE_CLIENTS allowlist.
     """
@@ -133,7 +134,8 @@ async def upi_approve(pid: str, _user=Depends(require_admin)):
 async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
     """Admin-only — resolve a guest (unbound) submission (#304).
 
-    Guest "maine pay kiya" submissions carry no client_id; approving one fails
+    Guest "maine pay kiya" submissions carry no client_id
+    approving one fails
     closed with ``approved_but_unbound``. This operator queue action binds the
     verified marketing client (fail-closed: unknown client / cross-tenant
     re-point refused), then Approve activates — the owner's Approve stays the

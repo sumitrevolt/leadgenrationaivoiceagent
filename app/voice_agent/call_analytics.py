@@ -147,7 +147,8 @@ def run_daily_digest() -> dict[str, Any]:
     """Lekha's daily call-KPI digest — the missing piece that makes her show
     'working' on the office map. compute_call_kpis() itself is only called
     on-demand from the admin dashboard today (app/api/web_call_admin.py) and
-    never logs a team event; this wrapper is what a scheduled job calls.
+    never logs a team event
+    this wrapper is what a scheduled job calls.
     Never raises — degrades to {} on any failure so a scheduler tick can't
     break on this job."""
     try:

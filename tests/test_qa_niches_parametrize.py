@@ -3,7 +3,8 @@
 `run_qa()` (no args, how the scheduler calls it) tested only `SCRIPTS.keys()` — solar /
 real_estate / insurance — so QA coverage of the actual client niches never widened
 without a code change. Fix: `_qa_default_niches()` reads a comma-separated `QA_NICHES`
-env (falling back to the 3 defaults); niches without a script already fall back to
+env (falling back to the 3 defaults)
+niches without a script already fall back to
 `_GENERIC_TURNS`, so any niche is testable.
 """
 

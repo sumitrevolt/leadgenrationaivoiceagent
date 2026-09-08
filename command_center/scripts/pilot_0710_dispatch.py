@@ -86,7 +86,19 @@ print("BOTS: statuses refreshed")
 pp = os.path.join(base, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pin["vps_status"] = "UP (/health 308 auth-gated; containers Up 41h healthy; DB ok); loop DEAD 48h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars EMPTY; VOBIZ_CALLER_ID REVOKED; egress 000 day5; WA flip INERT (disk=1 containers=0, owner-restart); WA-sent 0/380; leads/ ABSENT; hot-queue 09-01 43/43 present; snap STALE (GRD-003 scope)"
+pin["vps_status"] = "UP (/health 308 auth-gated
+containers Up 41h healthy
+DB ok)
+loop DEAD 48h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars EMPTY
+VOBIZ_CALLER_ID REVOKED
+egress 000 day5
+WA flip INERT (disk=1 containers=0, owner-restart)
+WA-sent 0/380
+leads/ ABSENT
+hot-queue 09-01 43/43 present
+snap STALE (GRD-003 scope)"
 pin["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pin["gap"] = "₹4,98,001"
 pin["pipeline"] = "43 HOT WA closes (blocked on execution), 0 dialer connects, 0 WA sends, Jiya P0"

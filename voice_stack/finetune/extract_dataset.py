@@ -22,11 +22,13 @@ Run:
 NOTE on tracks:
   - phone "caller" track = customer-only audio = BEST for STT training.
   - phone "merged" + web "mixed" contain bot audio too → ideally diarize/segment per
-    turn before training (that is a later refinement; captured here so nothing is lost).
+    turn before training (that is a later refinement
+    captured here so nothing is lost).
   - "bot" tracks are skipped (synthetic TTS output, known text — not useful STT supervision).
 
 CONSENT/COMPLIANCE: only consented recordings should ever be exported for training.
-The app's consent ledger + 90-day retention govern what exists on disk; this tool does
+The app's consent ledger + 90-day retention govern what exists on disk
+this tool does
 not bypass them — it just lists what is already there.
 """
 from __future__ import annotations

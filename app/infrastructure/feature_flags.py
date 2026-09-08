@@ -10,7 +10,8 @@ redeploy ke.
 
 MASTER GATE: env `FEATURE_FLAGS` (default OFF). OFF hone pe `is_enabled()` seedha False
 return karta — ZERO Redis traffic, ZERO behaviour change. Admin flags pehle se configure
-kar sakta; woh tabhi asar karte jab `FEATURE_FLAGS=1`. (Registry: AUTOMATION_FLAGS.)
+kar sakta
+woh tabhi asar karte jab `FEATURE_FLAGS=1`. (Registry: AUTOMATION_FLAGS.)
 
 STORAGE: ek single Redis key `feature_flags:store` = JSON {key: flag_dict}. Isse
 InMemoryCache fallback (Redis down) ke saath bhi same code chalta — koi SCAN/KEYS nahi

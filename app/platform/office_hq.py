@@ -1104,7 +1104,8 @@ async def build_pipeline(
 async def warm_lead_sla_nudge() -> dict[str, Any]:
     """W4.1: pipeline me stuck (>24h — build_pipeline ke existing per-stage stuckCount) +
     warm (40-69) leads → FOUNDER ko ntfy nudge (founder-only, koi customer-send NAHI =
-    zero §5 ban/deliverability surface). Gated WARM_SLA_NUDGE (default OFF); threshold
+    zero §5 ban/deliverability surface). Gated WARM_SLA_NUDGE (default OFF)
+    threshold
     WARM_SLA_MIN (default 3). build_pipeline modify nahi karta — sirf uske counts reuse."""
     import os as _os
 
@@ -1264,7 +1265,8 @@ async def build_approvals() -> dict[str, Any]:
     next_best_actions). ADDITIVE `queue` key = the UNIFIED actionable list the
     Approvals panel renders: bridge drafts + code-upgrader patch proposals +
     self-improve approval gates — every entry decided via its EXISTING admin API
-    (documented per-kind in `decide` hints below); nothing new is stored here."""
+    (documented per-kind in `decide` hints below)
+    nothing new is stored here."""
     out: dict[str, Any] = {"drafts": [], "counts": {"by_source": {}, "pending": 0}}
     try:
         from app.platform import approvals_bridge
@@ -1303,7 +1305,8 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
       - patch       -> POST  /api/growth/upgrader/patches/{id}/status  (SUPER_ADMIN)
       - selfimprove -> PATCH /api/growth/selfimprove/approval/{id}/approve|reject
 
-    Read-only aggregation; each source degrades to [] independently. Never raises."""
+    Read-only aggregation
+    each source degrades to [] independently. Never raises."""
     queue: list[dict[str, Any]] = []
     # 1) approvals_bridge drafts (sales/coordinator/fde)
     try:
@@ -1368,7 +1371,8 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
 def build_coordination(limit: int = 5) -> list[dict[str, Any]]:
     """Last N coordinator/council runs (read-only) from the EXISTING persisted
     run history data/coordination_runs.jsonl (same file approvals_bridge reads).
-    Never raises; [] when the file is absent/empty."""
+    Never raises
+    [] when the file is absent/empty."""
     out: list[dict[str, Any]] = []
     try:
         from app.platform import approvals_bridge
@@ -1448,7 +1452,8 @@ def _parse_boss_reply(text: str) -> tuple[str, str]:
 
 async def boss_review(max_items: int = 10, per_item_timeout: float = 20.0) -> dict[str, Any]:
     """Verdict + reason for each pending approval item (cap `max_items`).
-    Read-only, never raises; a failed/timed-out LLM call yields verdict="skip"."""
+    Read-only, never raises
+    a failed/timed-out LLM call yields verdict="skip"."""
     items = build_approval_queue()[: max(1, min(10, max_items))]
     if not items:
         return {"ok": True, "verdicts": [], "reviewed": 0, "note": "koi pending approval nahi"}
@@ -2181,7 +2186,8 @@ _TRENDS_PATH = os.path.join("data", "office_trends.json")
 def build_trends(snapshot: dict[str, Any]) -> dict[str, Any]:
     """W4.2 (advanced Office): pipeline momentum — hot/warm/stuck ka day-over-day delta
     (sabse recent prior-din se aaj). Point-in-time snapshot ko trend-aware banata.
-    Derived-metrics history `data/office_trends.json` me (~7 din; revenue_snapshots jaisa
+    Derived-metrics history `data/office_trends.json` me (~7 din
+    revenue_snapshots jaisa
     precedent — koi business-data mutation nahi). FULLY fail-open: kisi bhi error pe {} —
     page kabhi blank nahi (module ka never-raise contract)."""
     try:
@@ -2701,13 +2707,15 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
         parts: list[str] = []
         m = snap.get("metrics") or {}
         if m:
-            parts.append("Metrics: " + "; ".join(f"{k}={v}" for k, v in list(m.items())[:12]))
+            parts.append("Metrics: " + "
+            ".join(f"{k}={v}" for k, v in list(m.items())[:12]))
         ap = dict((snap.get("approvals") or {}).get("counts") or {})
         if ap:
             # total pehle — taaki Boss ka jawab Priority-stack ke total se match kare
             tot = ap.pop("total_pending", ap.pop("pending", None))
             items = ([("TOTAL pending", tot)] if tot is not None else []) + list(ap.items())[:7]
-            parts.append("Pending approvals: " + "; ".join(f"{k}={v}" for k, v in items))
+            parts.append("Pending approvals: " + "
+            ".join(f"{k}={v}" for k, v in items))
         nba = snap.get("next_best_actions") or []
         if nba:
             parts.append(
@@ -2715,7 +2723,8 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
             )
         sh = snap.get("system_health") or {}
         if sh:
-            parts.append("System: " + "; ".join(f"{k}={v}" for k, v in list(sh.items())[:6]))
+            parts.append("System: " + "
+            ".join(f"{k}={v}" for k, v in list(sh.items())[:6]))
         agents = snap.get("agents") or []
         if agents:
             active = [
@@ -2879,7 +2888,8 @@ async def improvement_council(
     """Snapshot-grounded AgentVerse discussion on what to improve next.
 
     Always draft-only (execute=False — a discussion, not an action run).
-    Never raises; degrades to {ok:False, error} / {ok:True, status:"timeout"}."""
+    Never raises
+    degrades to {ok:False, error} / {ok:True, status:"timeout"}."""
     topic = (topic or "").strip()[:_COUNCIL_TOPIC_MAX] or _DEFAULT_COUNCIL_TOPIC
     try:
         team_size = max(2, min(4, int(team_size or 4)))

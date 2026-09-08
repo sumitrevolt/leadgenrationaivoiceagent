@@ -72,7 +72,8 @@ def load_config() -> dict[str, str]:
     return cfg
 
 
-_ANSI_RE = __import__("re").compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_ANSI_RE = __import__("re").compile(r"\x1b\[[0-9
+]*[A-Za-z]")
 
 
 def _strip_ansi(s: str) -> str:

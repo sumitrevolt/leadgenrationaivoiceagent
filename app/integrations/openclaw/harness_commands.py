@@ -1,6 +1,7 @@
 """Kavach harness command surface for OpenClaw.
 
-Read-only (GREEN) handlers report real harness state; control (AMBER) handlers
+Read-only (GREEN) handlers report real harness state
+control (AMBER) handlers
 park through Owner OS exactly like the existing agent.* AMBER stubs. Kavach
 NEVER mutates directly — Owner OS remains sole authority. RED is impossible here
 (no harness command mutates production, calling, billing, WhatsApp or secrets).

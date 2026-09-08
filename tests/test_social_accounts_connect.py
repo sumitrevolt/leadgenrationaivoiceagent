@@ -7,13 +7,15 @@ status in wizard), and G4 (no admin triage for social publish queue).
 
 Contract:
 - GET  /api/customer/social/accounts       → list vault accounts (token NEVER
-  leaked; only presence + masked account_ref + updated_at + meta.source).
+  leaked
+  only presence + masked account_ref + updated_at + meta.source).
 - POST /api/customer/social/accounts/connect → Fernet-encrypt + store a per-client
   per-platform token (interim provider-mediated fallback until FB/IG/LI/GBP OAuth
   app-review completes). IDOR-safe: client_id from JWT, never body.
 - DELETE /api/customer/social/accounts/{platform}?account_ref=… → soft-delete via
   vault.delete (append-only latest-wins).
-- GET  /api/growth/social/jobs             → admin cockpit; filters + rollup
+- GET  /api/growth/social/jobs             → admin cockpit
+filters + rollup
   counts, read-only over `social_engine.store.list_jobs()`.
 - POST /api/growth/social/jobs/{id}/retry  → admin idempotent re-queue.
 

@@ -7,7 +7,8 @@ existing sources (memory/, docs/, code, APIs) instead of duplicating them
 (master prompt: "Do not duplicate authoritative docs unnecessarily. Prefer
 indexing and normalization.").
 
-Run: python scripts/gen_knowledge_domains.py   (idempotent; refreshes indexes)
+Run: python scripts/gen_knowledge_domains.py   (idempotent
+refreshes indexes)
 """
 
 from pathlib import Path
@@ -178,7 +179,9 @@ INDEX_TEMPLATE = """# {title} — Knowledge Domain Index
 
 > LAYER B Agentic Notebook. This index is a **normalized pointer layer**: it maps
 > the domain to authoritative existing sources. Live truth lives in code/APIs/DB
-> (see Owner Truth); deep archives live in `memory/`; dated docs in `docs/`.
+> (see Owner Truth)
+deep archives live in `memory/`
+dated docs in `docs/`.
 > Updated: {updated}
 
 ## What this domain covers

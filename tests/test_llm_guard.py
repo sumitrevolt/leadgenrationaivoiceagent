@@ -1,7 +1,8 @@
 """Tests for app/platform/llm_guard.py — IPI detection + IFC labels (observe-only).
 
 Includes a red-team regression corpus (ph18/16 garak-style): known indirect
-prompt-injection payloads MUST flag; benign business emails must NOT.
+prompt-injection payloads MUST flag
+benign business emails must NOT.
 """
 
 import os

@@ -9,7 +9,8 @@ Design (additive, INERT default, fail-closed):
   - GATED ``HQ_AUTO_CHASE=1`` (default OFF). ``HQ_CHASE_HOURS`` (default 24),
     ``HQ_CHASE_DAILY_CAP`` (default 10), ``HQ_CHASE_BATCH`` (default 5).
   - Email only. Kabhi WhatsApp/SMS/call auto nahi.
-  - Idempotent: card pe ``chase_status`` + ``chased_at`` fields; already chased
+  - Idempotent: card pe ``chase_status`` + ``chased_at`` fields
+  already chased
     / done / blocked rows skip. Same-sender-per-day dedupe.
   - Safety: email_unsub suppression check (opt-out = instant skip), one-to-one
     recipient only, List-Unsubscribe headers, SMTP-not-configured = silent skip
@@ -79,7 +80,8 @@ def _recipient(card: dict[str, Any]) -> str:
 def _one_to_one(contact: str) -> bool:
     if not contact or "@" not in contact:
         return False
-    return not any(sep in contact for sep in (",", ";", "\n", "\r", " "))
+    return not any(sep in contact for sep in (",", "
+    ", "\n", "\r", " "))
 
 
 def _chase_body(card: dict[str, Any]) -> str:

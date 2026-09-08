@@ -6,11 +6,13 @@ Harvested from DeepSeek Harness ideas — NOT the TypeScript runtime:
 * append-only hash chain (prev_hash -> event_hash) so replay can detect splice
 
 No ``app.*`` imports (same invariant as ``contracts.py``). The env flag
-``HARNESS_SESSION_EVENTS`` is read at call-time here; the audit/loop layers
+``HARNESS_SESSION_EVENTS`` is read at call-time here
+the audit/loop layers
 decide whether to stamp. Default OFF keeps historical JSONL byte-compatible.
 
 Chain is process-local (one dict keyed by run_id). Multi-worker WORM is out of
-scope until a durable backend stores the tip hash; do not arm this in prod.
+scope until a durable backend stores the tip hash
+do not arm this in prod.
 """
 
 from __future__ import annotations

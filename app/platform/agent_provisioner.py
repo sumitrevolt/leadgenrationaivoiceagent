@@ -6,7 +6,8 @@ auto-provision hote hain:
 
   1. DATA AGENT  (role="data")  — client ke business ka data sambhalta hai:
      business profile + niche facts knowledge-base me load karta hai taaki
-     voice agent grounded jawab de sake; aage enrichment/scraping isi ke
+     voice agent grounded jawab de sake
+     aage enrichment/scraping isi ke
      naam pe chalta hai.
 
   2. LEADS AGENT (role="leads") — client ke END CUSTOMERS ko call karke

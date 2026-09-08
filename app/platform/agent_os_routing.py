@@ -81,7 +81,8 @@ _PRODUCT_DEFAULTS: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=45,
         queue="celery",
-        notes="Bulk LLM may try OmniRoute when double-gated; publish still needs approval.",
+        notes="Bulk LLM may try OmniRoute when double-gated
+        publish still needs approval.",
     ),
     "platform": AgentRoutePolicy(
         category="admin_operations",
@@ -95,7 +96,8 @@ _PRODUCT_DEFAULTS: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=45,
         queue="celery",
-        notes="Ops digests/sanitized analysis only; no customer PII to OmniRoute.",
+        notes="Ops digests/sanitized analysis only
+        no customer PII to OmniRoute.",
     ),
 }
 
@@ -113,7 +115,8 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=30,
         queue="celery",
-        notes="Supervisor dispatch; OmniRoute optional for bulk reasoning only.",
+        notes="Supervisor dispatch
+        OmniRoute optional for bulk reasoning only.",
     ),
     "swara": _PRODUCT_DEFAULTS["voice"],
     "ananya": AgentRoutePolicy(
@@ -128,7 +131,8 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=30,
         queue="celery",
-        notes="Booking writes CRM state; OmniRoute forbidden.",
+        notes="Booking writes CRM state
+        OmniRoute forbidden.",
     ),
     "riya": _PRODUCT_DEFAULTS["voice"],
     "arjun": AgentRoutePolicy(
@@ -358,7 +362,8 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=45,
         queue="celery",
-        notes="Infra watchdog; repo_analysis route if OmniRoute agents enabled.",
+        notes="Infra watchdog
+        repo_analysis route if OmniRoute agents enabled.",
     ),
     "nikhil": AgentRoutePolicy(
         category="billing",
@@ -386,7 +391,8 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=60,
         queue="celery",
-        notes="Code upgrader gated; human review before any apply.",
+        notes="Code upgrader gated
+        human review before any apply.",
     ),
     "guru": AgentRoutePolicy(
         category="training",
@@ -454,7 +460,8 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=45,
         queue="celery",
-        notes="DBRE — schema/ops sensitive; no OmniRoute.",
+        notes="DBRE — schema/ops sensitive
+        no OmniRoute.",
     ),
     "diya": AgentRoutePolicy(
         category="testing_qa",

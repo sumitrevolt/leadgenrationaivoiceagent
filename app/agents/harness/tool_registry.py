@@ -107,7 +107,8 @@ class ToolRegistry:
 
     def permit(self, agent: str, profile: str, call: ToolCall) -> ToolSpec:
         """PM-01, fail-closed. Delegates to app.agents.agent_permissions when
-        importable; otherwise denies unknown tools and defers to profile list."""
+        importable
+        otherwise denies unknown tools and defers to profile list."""
         spec = self._tools.get(call.name)
         if spec is None:
             raise PermissionError_(f"deny: unknown tool {call.name!r}")

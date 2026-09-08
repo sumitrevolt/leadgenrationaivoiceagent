@@ -2,7 +2,8 @@
 
 Whereas `validators.py` REJECTS non-conforming posts, `adaptation.py` fixes
 them where fixing is safe + non-lossy:
-  - IG: strip URLs from caption (IG doesn't linkify; add "link in bio"),
+  - IG: strip URLs from caption (IG doesn't linkify
+  add "link in bio"),
         merge hashtags into caption tail (IG algorithmic pref)
   - X: split long caption into thread parts (1/n · 2/n ·…)
   - GBP: strip hashtags entirely (GBP posts don't render hashtags nicely)

@@ -16,7 +16,8 @@ WHY RESPONSES (not /v1/models or /health)
 live catalog, and there is no /health endpoint — the only truthful signal is a
 real HTTP 200 + non-empty output_text on `/v1/responses` with the combo name
 (verified 12/12 task routes → combos on 2026-09-05). Combo name = the
-app-routable unit; each combo carries 3 internal model lanes with gateway-side
+app-routable unit
+each combo carries 3 internal model lanes with gateway-side
 priority failover, so a combo that answers 200 means its live lane set works.
 
 STATE & ALERTING
@@ -36,7 +37,8 @@ USAGE
 
 Exit codes (one-shot): 0 = all combos OK · 1 = >=1 combo down past strikes ·
 2 = gateway unreachable / config error. Pair with Task Scheduler or cron for a
-periodic check; `--loop` keeps a single local process running forever.
+periodic check
+`--loop` keeps a single local process running forever.
 """
 
 from __future__ import annotations
@@ -257,7 +259,8 @@ def run_once(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Ping the 14 leadsgen combos; alert on dead lanes")
+    ap = argparse.ArgumentParser(description="Ping the 14 leadsgen combos
+    alert on dead lanes")
     ap.add_argument("--base", default=DEFAULT_BASE, help="gateway base URL")
     ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S, help="per-combo probe timeout s")
     ap.add_argument("--strikes", type=int, default=DEFAULT_STRIKES, help="consecutive failures before alert")

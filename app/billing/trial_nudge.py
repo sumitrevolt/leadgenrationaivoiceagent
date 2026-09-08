@@ -18,9 +18,11 @@ billing/dunning:
   - Idempotent: client record pe ``trial_nudge_stage/at/count`` stamps
     (clients_store whitelist) — koi naya data-file store NAHI.
   - Safety: email_unsub suppression = instant skip; one-to-one recipient;
-    List-Unsubscribe headers; SMTP-missing = silent skip. Never raises.
+    List-Unsubscribe headers
+    SMTP-missing = silent skip. Never raises.
   - Scheduler: daily job ``trial_nudge`` in team_scheduler + Celery beat
-    (staff-trial-nudge-daily 09:50 IST); RUN_DUE_EXCLUDE (no catch-up flood).
+    (staff-trial-nudge-daily 09:50 IST)
+    RUN_DUE_EXCLUDE (no catch-up flood).
 
 Price single source = marketing/packages.py (get_starter_price_inr / PACKAGES)
 — billing truth contract, portal banner jaisa hi.
@@ -165,7 +167,8 @@ async def _ensure_pay_link(biz: str, amount: int) -> str:
 def _one_to_one(contact: str) -> bool:
     if not contact or "@" not in contact:
         return False
-    return not any(sep in contact for sep in (",", ";", "\n", "\r", " "))
+    return not any(sep in contact for sep in (",", "
+    ", "\n", "\r", " "))
 
 
 async def _send_nudge_email(to_email: str, subject: str, body: str) -> bool:
@@ -374,7 +377,8 @@ async def run_trial_nudge(*, limit: int | None = None, send_fn=None, dry_run: bo
                     "nikhil",
                     "trial_nudge",
                     f"{out['sent']} trial nudges sent "
-                    f"(expired/expiring; cap={batch}, max/client={max_per})",
+                    f"(expired/expiring
+                    cap={batch}, max/client={max_per})",
                 )
             except Exception:
                 pass

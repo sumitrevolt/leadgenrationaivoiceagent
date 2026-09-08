@@ -51,9 +51,11 @@ class GeoCheckIn(BaseModel):
 async def geo_check(body: GeoCheckIn):
     """PUBLIC: 'AI search me aapka business dikh raha hai?' — score+verdict+tips.
 
-    Cache-first (1 hr); LLM probes hard 20s timeout me (event loop safe). Turnstile-
+    Cache-first (1 hr)
+    LLM probes hard 20s timeout me (event loop safe). Turnstile-
     gated (2026-07-01) — this fans out multiple free-LLM calls per request, same
-    abuse class as /api/public/ai-demo; INERT when TURNSTILE_SECRET_KEY unset."""
+    abuse class as /api/public/ai-demo
+    INERT when TURNSTILE_SECRET_KEY unset."""
     from app.marketing import geo_visibility
 
     try:

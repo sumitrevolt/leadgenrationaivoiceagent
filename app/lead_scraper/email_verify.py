@@ -7,7 +7,8 @@ emails and must NOT send to dead addresses. This gate keeps bounces low and prot
 `admin@leadsgenai.in`'s reputation — for our own outreach AND for client campaigns.
 
 `check_mx=True` does a DNS MX lookup (real "can this domain receive mail?") via
-python-email-validator's `check_deliverability` parameter; we do NOT do
+python-email-validator's `check_deliverability` parameter
+we do NOT do
 SMTP probing (unreliable, often blocked, can hurt reputation). Defensive: if the library
 is missing, falls back to a basic syntax check. Never raises.
 

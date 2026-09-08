@@ -2,7 +2,8 @@
 
 Per-client stats best-effort collect (inquiries by source_slug, content packs, bookings,
 review requests, coupons) → brand-colored HTML data/client_reports/<id>_<YYYY-MM>.html
-→ email (gated `CLIENT_REPORTS=1`; OFF = sirf file banti). NEVER raises.
+→ email (gated `CLIENT_REPORTS=1`
+OFF = sirf file banti). NEVER raises.
 """
 
 from __future__ import annotations
@@ -185,8 +186,12 @@ def _render_html(
         ("📱 Content pack ready", "Haan" if s["content_pack"] else "—"),
     ]
     trs = "".join(
-        f"<tr><td style='padding:10px 14px;border-bottom:1px solid #eee'>{k}</td>"
-        f"<td style='padding:10px 14px;border-bottom:1px solid #eee;font-weight:700;text-align:right'>{v}</td></tr>"
+        f"<tr><td style='padding:10px 14px
+        border-bottom:1px solid #eee'>{k}</td>"
+        f"<td style='padding:10px 14px
+        border-bottom:1px solid #eee
+        font-weight:700
+        text-align:right'>{v}</td></tr>"
         for k, v in rows
     )
     delivery = delivery or {}
@@ -208,36 +213,63 @@ def _render_html(
         ("Pending approvals", delivery.get("approvals_pending", 0)),
     ]
     d_trs = "".join(
-        f"<tr><td style='padding:10px 14px;border-bottom:1px solid #eee'>{k}</td>"
-        f"<td style='padding:10px 14px;border-bottom:1px solid #eee;font-weight:700;text-align:right'>{v}</td></tr>"
+        f"<tr><td style='padding:10px 14px
+        border-bottom:1px solid #eee'>{k}</td>"
+        f"<td style='padding:10px 14px
+        border-bottom:1px solid #eee
+        font-weight:700
+        text-align:right'>{v}</td></tr>"
         for k, v in d_rows
     )
     summary_hi = str(delivery.get("summary_hi") or "")
     summary_block = (
-        f"<div style='padding:14px 24px;background:#f0f7ff;color:#064e3b;font-size:14px;font-weight:600'>{summary_hi}</div>"
+        f"<div style='padding:14px 24px
+        background:#f0f7ff
+        color:#064e3b
+        font-size:14px
+        font-weight:600'>{summary_hi}</div>"
         if summary_hi
         else ""
     )
     delivery_block = (
         "<div style='padding:14px 24px 4px;color:#333;font-weight:700;font-size:14px'>"
-        f"AI team ne is mahine kya kiya</div><table style='width:100%;border-collapse:collapse;font-size:15px'>{d_trs}</table>"
+        f"AI team ne is mahine kya kiya</div><table style='width:100%
+        border-collapse:collapse
+        font-size:15px'>{d_trs}</table>"
     )
     na_items = "".join(f"<li style='margin:4px 0'>{a}</li>" for a in next_actions)
     next_block = (
         "<div style='padding:14px 24px 4px;color:#333;font-weight:700;font-size:14px'>Agle steps</div>"
-        f"<ul style='margin:0 0 8px;padding:0 24px 0 40px;color:#444;font-size:14px'>{na_items}</ul>"
+        f"<ul style='margin:0 0 8px
+        padding:0 24px 0 40px
+        color:#444
+        font-size:14px'>{na_items}</ul>"
         if na_items
         else ""
     )
-    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f7fb;margin:0;padding:24px">
-<div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)">
-<div style="background:{primary};color:#fff;padding:22px 24px">
+    return f"""<!doctype html><html><body style="font-family:Arial,sans-serif
+    background:#f6f7fb
+    margin:0
+    padding:24px">
+<div style="max-width:560px
+margin:auto
+background:#fff
+border-radius:12px
+overflow:hidden
+box-shadow:0 2px 10px rgba(0,0,0,.07)">
+<div style="background:{primary}
+color:#fff
+padding:22px 24px">
 <h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report — {s["month"]}</div></div>
 {summary_block}
-<table style="width:100%;border-collapse:collapse;font-size:15px">{trs}</table>
+<table style="width:100%
+border-collapse:collapse
+font-size:15px">{trs}</table>
 {delivery_block}
 {next_block}
-<div style="padding:18px 24px;color:#555;font-size:13px">Aapki AI marketing team ne yeh sab automate kiya 🤖 —
+<div style="padding:18px 24px
+color:#555
+font-size:13px">Aapki AI marketing team ne yeh sab automate kiya 🤖 —
 posts, follow-ups, reviews aur leads. Sawal ho to reply karo.<br><br>— Team LeadsGenAI · leadsgenai.in</div>
 </div></body></html>"""
 

@@ -82,20 +82,87 @@ Mandatory review areas (cite file:line or symbol for each real finding):
       extract_review_manifest) on run_mission_once / invoke_claude_review.
    2) No ``runner_auto_review`` synthetic citation backfill; empty evidence stays MISSING;
       PASS requires concrete citations.
-   3) Redis coordination is fail-closed (EXTERNAL_AGENT_COORDINATION_BACKEND); no silent
-      FileLock fallback when Redis is required; backend identity on leases.
+   3) Redis coordination is fail-closed (EXTERNAL_AGENT_COORDINATION_BACKEND)
+   no silent
+      FileLock fallback when Redis is required
+      backend identity on leases.
    4) Heartbeat interval <= lease_ttl/3 via lease_contract.derive_lease_and_interval.
    5) AMBER advance requires Owner OS ``approval_decision_id`` binding — boolean alone refused.
-1) Authority/gating: Owner OS auth real vs bypassable; GREEN-only unattended; AMBER parks; RED refuse; runner requires orchestrator; both flags default OFF; API cannot bypass eligibility.
-2) Command construction: executable allowlist; no user-controlled exe; no shell concatenation; argv arrays; Windows quoting; prompt file safety; env allowlist; PATH hijack; cwd/worktree root validation.
-3) Cursor invocation: no agent.cmd; --trust decision; workspace; file+envelope JSON parsing; allowed-path containment; auth/availability.
-4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; canonical review_parse; auth-before-run; timeout/kill; token/cost budget (cache-read excluded).
-5) Process lifecycle: heartbeat vs lease TTL contract; cancel race; lease-loss; child cleanup; Windows process-tree kill; timeout; stdout/stderr deadlock; output cap; encoding; late/stale result rejection.
-6) Concurrency: dual claim; CAS; worktree/branch conflict; executor/reviewer overlap; Redis/FileLock explicit modes; crash between process end and submit_result.
-7) Security: prompt injection; hostile repo/test output; secret redaction; log leakage; Windows junction/symlink escape; UNC/drive traversal; env secret inheritance; destructive git prevention.
-8) Dogfood validity: real Cursor+Claude CLIs; no manual copy-paste; lease/heartbeats; manifest validation; dogfood worktree not merged; reproducibility caveats.
-9) API/UI: require_admin; runner endpoint exposure; status leakage; disabled-state; cancellation controls; AMBER approval_decision_id.
-10) Tests: unit vs integration; mocks hiding subprocess defects; cancel/timeout; Redis; Windows process; overflow; malformed JSON; injection; symlink; auth/binary unavailable.
+1) Authority/gating: Owner OS auth real vs bypassable
+GREEN-only unattended
+AMBER parks
+RED refuse
+runner requires orchestrator
+both flags default OFF
+API cannot bypass eligibility.
+2) Command construction: executable allowlist
+no user-controlled exe
+no shell concatenation
+argv arrays
+Windows quoting
+prompt file safety
+env allowlist
+PATH hijack
+cwd/worktree root validation.
+3) Cursor invocation: no agent.cmd
+--trust decision
+workspace
+file+envelope JSON parsing
+allowed-path containment
+auth/availability.
+4) Claude invocation: non-interactive
+plan/read-only
+disallowed tools including Bash
+canonical review_parse
+auth-before-run
+timeout/kill
+token/cost budget (cache-read excluded).
+5) Process lifecycle: heartbeat vs lease TTL contract
+cancel race
+lease-loss
+child cleanup
+Windows process-tree kill
+timeout
+stdout/stderr deadlock
+output cap
+encoding
+late/stale result rejection.
+6) Concurrency: dual claim
+CAS
+worktree/branch conflict
+executor/reviewer overlap
+Redis/FileLock explicit modes
+crash between process end and submit_result.
+7) Security: prompt injection
+hostile repo/test output
+secret redaction
+log leakage
+Windows junction/symlink escape
+UNC/drive traversal
+env secret inheritance
+destructive git prevention.
+8) Dogfood validity: real Cursor+Claude CLIs
+no manual copy-paste
+lease/heartbeats
+manifest validation
+dogfood worktree not merged
+reproducibility caveats.
+9) API/UI: require_admin
+runner endpoint exposure
+status leakage
+disabled-state
+cancellation controls
+AMBER approval_decision_id.
+10) Tests: unit vs integration
+mocks hiding subprocess defects
+cancel/timeout
+Redis
+Windows process
+overflow
+malformed JSON
+injection
+symlink
+auth/binary unavailable.
 
 Also read the unified diff file at: {diff_path}
 Changed files:
@@ -144,8 +211,11 @@ Verdict rules:
 - CRITICAL/HIGH safety defect => CHANGES_REQUIRED (or BLOCKED if unfixable here)
 - MEDIUM safety uncertainty that is unproven => CHANGES_REQUIRED (blocks ready_for_review)
 - ready_for_review true ONLY if verdict PASS and no CRITICAL/HIGH/MEDIUM findings
-- Do not invent findings; if area is unproven, add MEDIUM finding saying unproven
-- Keep the JSON compact: at most 12 findings; evidence strings <= 400 chars each; no full file dumps
+- Do not invent findings
+if area is unproven, add MEDIUM finding saying unproven
+- Keep the JSON compact: at most 12 findings
+evidence strings <= 400 chars each
+no full file dumps
 """
 
 
@@ -180,7 +250,8 @@ def _sanitize_for_comment(rich: dict) -> str:
     # Drop any accidental secret-shaped values; keep structure small.
     blob = json.dumps(rich, indent=2, ensure_ascii=False, default=str)
     if any(tok in blob.lower() for tok in ("sk-", "api_key", "password=", "begin private")):
-        return "Review persisted locally; comment suppressed due to secret-shaped content."
+        return "Review persisted locally
+        comment suppressed due to secret-shaped content."
     if len(blob) > 55000:
         blob = blob[:55000] + "\n…[truncated]"
     return (
@@ -273,7 +344,8 @@ def main() -> int:
             "Citations to real file:line evidence",
         ],
         required_tests=[],
-        rollback_plan="Cancel mission; delete temporary review artifacts",
+        rollback_plan="Cancel mission
+        delete temporary review artifacts",
     )
     if not created.get("ok"):
         print(json.dumps({"ok": False, "create": created}, indent=2, default=str))

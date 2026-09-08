@@ -249,7 +249,8 @@ def test_close_signal_fired_flag_stays_false_without_phone():
 async def test_close_signal_fired_resets_on_next_turn(monkeypatch):
     """close_signal_fired must reflect ONLY the just-completed reply() turn --
     web_call.py checks it once per turn to decide whether to emit a WS
-    close_signal event; a stale True would re-fire the overlay forever."""
+    close_signal event
+    a stale True would re-fire the overlay forever."""
     monkeypatch.setenv("CLOSE_DETECT", "1")
     brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     brain.set_caller_phone("9876543210")

@@ -14,7 +14,8 @@ nikhil delivery-assurance READ-ONLY scan. Customer-touch AMBER (rohan/priya/…)
 capability register hote hain par pilot allowlist se bahar = intentionally
 disabled until owner expands rollout.
 
-Import-safe; ``ensure_workforce_registered()`` idempotent.
+Import-safe
+``ensure_workforce_registered()`` idempotent.
 """
 
 from __future__ import annotations
@@ -78,7 +79,8 @@ def _flag_skip(flag: str) -> None:
 async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
     """Swara/Ananya OpenClaw transfer package — NO voice execution.
 
-    Policy blocks RED before this runs; kept for capability inventory + tests
+    Policy blocks RED before this runs
+    kept for capability inventory + tests
     that bypass lane only in unit isolation. Production path = blocked.
     """
     aid = ctx.task.agent_id

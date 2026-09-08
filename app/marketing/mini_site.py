@@ -74,7 +74,8 @@ def _digits_intl(phone: Any) -> str:
 
 def _load_config(slug: str) -> dict[str, Any]:
     """Mini-site builder config (palette/layout/logo) for a slug. Lazy import so
-    there is no circular dependency at module load; never raises. Returns safe
+    there is no circular dependency at module load
+    never raises. Returns safe
     defaults if the builder module / store is unavailable."""
     try:
         from app.api.minisite_builder import get_config  # lazy (avoid cycle)
@@ -273,7 +274,8 @@ def _calendar_section() -> str:
 def _reviews_section(name: str, gbp: str, place_query: str, slug: str = "") -> str:
     """Customer-feedback reviews FEED (approved reviews + submit form) PLUS the
     existing Google-review QR + GBP map link (optional). Feed data is fetched
-    client-side from /api/minisite/reviews/public; submit posts (rate-limited,
+    client-side from /api/minisite/reviews/public
+    submit posts (rate-limited,
     moderated) to /api/minisite/reviews/submit."""
     feed = (
         '<div class="rvavg" id="rvAvg"></div>'
@@ -526,13 +528,15 @@ _CATALOG_CSS = (
 
 def _booking_js(slug: str) -> str:
     """Booking form ko /api/public/inquiry par POST karta hai (business_name +
-    source_slug auto). Pure vanilla JS; slug JSON-safe inject."""
+    source_slug auto). Pure vanilla JS
+    slug JSON-safe inject."""
     import json
 
     slug_js = json.dumps(str(slug or ""))
     biz_js = json.dumps(
         ""
-    )  # business_name page se nahi — server slug se resolve karta; safe default
+    )  # business_name page se nahi — server slug se resolve karta
+    safe default
     return (
         "<script>(function(){"
         "var f=document.getElementById('bform');if(!f)return;"
@@ -804,7 +808,8 @@ def render_site(client: dict[str, Any] | None) -> str:
         return (
             '<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-            f"<title>{safe}</title></head><body style='font-family:sans-serif;"
+            f"<title>{safe}</title></head><body style='font-family:sans-serif
+            "
             "text-align:center;padding:60px 20px'>"
             f"<h1>{safe}</h1><p>Enquiry ke liye call karein.</p>"
             '<p style="color:#888;font-size:13px;margin-top:40px">'

@@ -10,7 +10,8 @@ Hybrid autonomy (user decision 2026-06-11, docs/AUTONOMOUS_INFRA_DESIGN.md):
 
 Scan signals (sab existing, READ-only): llm_metrics provider errors · automation_health failing/
 overdue jobs · skill_library worst actions. Dedupe per issue/day. Gated `CODE_UPGRADER=1`
-(scheduler wiring); manual API flag-independent. Never-raise, import-safe.
+(scheduler wiring)
+manual API flag-independent. Never-raise, import-safe.
 """
 
 from __future__ import annotations

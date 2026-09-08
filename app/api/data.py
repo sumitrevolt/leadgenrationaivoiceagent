@@ -339,7 +339,8 @@ async def _niches_cache_gen(cache) -> int:
 async def _invalidate_niches_cache() -> None:
     """Bust the cached niches listing after a create/delete so the new/removed niche
     shows up immediately (else stale up to TTL — and stale across tests in a shared
-    process). Bumps the generation token; old keys orphan + TTL-expire. Never raises.
+    process). Bumps the generation token
+    old keys orphan + TTL-expire. Never raises.
     The real Cache exposes only get/set/delete (no keys/flush), so we can't prefix-scan
     — generation bump is the portable invalidation."""
     cache = _get_niches_cache()
@@ -421,7 +422,8 @@ class NicheCreate(BaseModel):
     pitch_hook: str = ""
     keywords: list[str] | None = None
     qualification_questions: list[str] | None = None
-    lead_band: str = "A"  # voice-product band A|B|C (ADR-009; per-lead pricing removed)
+    lead_band: str = "A"  # voice-product band A|B|C (ADR-009
+    per-lead pricing removed)
 
 
 @router.post("/niches")

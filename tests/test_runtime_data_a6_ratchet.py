@@ -5,7 +5,8 @@ billing. A6 applies it to the three ops-telemetry stores:
 
   * automation.cadence_runs — cadence_leads.jsonl + cadence_runs.jsonl
   * automation.job_runs — job_runs.jsonl + job_heartbeats.json
-  * communications.interactions — interactions.jsonl (JSONL path only; DB dual-write stays)
+  * communications.interactions — interactions.jsonl (JSONL path only
+  DB dual-write stays)
 
 Two properties the repo-wide debt ratchet cannot give:
 
@@ -140,7 +141,8 @@ def test_manifest_still_validates():
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
     """Migrated stores, and the count is still 21 — that is the honest answer.
 
-    Writers can now follow a cutover; authoritative bytes are still inside the
+    Writers can now follow a cutover
+    authoritative bytes are still inside the
     checkout. A count that fell here would be a false green.
     """
     blocking = manifest.blocking_stores()

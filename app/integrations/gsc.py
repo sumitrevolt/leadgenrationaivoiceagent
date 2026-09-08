@@ -12,7 +12,8 @@ INERT by design:
       GSC_SERVICE_ACCOUNT_JSON env (path) → google_sheets_credentials settings
       (wahi service-account file, calendar_booking.py jaisa reuse) → off.
   - GSC_SITE_URL (default "sc-domain:leadsgenai.in" — domain property,
-    saare subdomains cover karta hai; Search Console me property add karna
+    saare subdomains cover karta hai
+    Search Console me property add karna
     hoga + DNS TXT verify — runbook memory/playbooks.md me).
   - Google libs installed nahi hain to graceful no-op (ImportError caught).
 
@@ -84,7 +85,8 @@ def _build_service():
 
 def _fetch(service, site: str, days: int) -> dict[str, Any]:
     """Search Console searchanalytics query — 3 calls (date series, top queries,
-    top pages). Sync API; caller ko to_thread me chalaana chahiye."""
+    top pages). Sync API
+    caller ko to_thread me chalaana chahiye."""
     end = datetime.now(timezone.utc).date()
     start = end - timedelta(days=max(1, int(days) - 1))
     body = {

@@ -70,7 +70,8 @@ async def transfer_call(body: TransferIn, _user: User = Depends(require_admin)):
         )
     except asyncio.TimeoutError:
         return {"ok": False, "reason": "timeout — dobara try karo"}
-    except Exception as e:  # request_transfer never raises; belt-and-braces
+    except Exception as e:  # request_transfer never raises
+    belt-and-braces
         logger.warning(f"[voiceai] transfer failed: {e}")
         return {"ok": False, "reason": str(e)[:200]}
 

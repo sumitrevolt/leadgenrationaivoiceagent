@@ -2,7 +2,8 @@
 """buzz_mcp.py — stdio MCP server: Buzz workspace access for opencode (and any MCP client).
 
 Exposes a small, read-mostly surface on the Buzz coordination plane (owner
-policy 2026-08-10: Buzz = interface, never a control plane; production commands
+policy 2026-08-10: Buzz = interface, never a control plane
+production commands
 route through Owner OS/OpenClaw -> 31 runtime STAFF only):
 
     buzz_channels   : list known channels (name -> id) from ~/.buzz/GUIDES/CHANNEL_IDS.json
@@ -131,7 +132,8 @@ def tool_send(args: dict) -> dict:
     if channel not in cmap and not (
         len(channel) >= 8 and all(c in "0123456789abcdef" for c in channel.lower())
     ):
-        return {"text": f"unknown channel {channel!r}; known: {', '.join(sorted(cmap))}"}
+        return {"text": f"unknown channel {channel!r}
+        known: {', '.join(sorted(cmap))}"}
     if len(content) > 4000:
         content = content[:4000] + " ...[truncated]"
     try:

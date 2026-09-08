@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """PILOT Sep-03 10:30 IST sweep — evidence-first REVENUE COMMAND GHANTI.
-FRESH LIVE (10:30): /health 200 UP; WA flip LIVE containers=1 (worker+app Up14h); auto_sent TRUE=0
-(NO msg-id — WA rail 0 real send day5); SIP 5 vars ALL EMPTY (SIP_HOST/USERNAME/PASSWORD/DID/len=0,
-VOBIZ_CALLER_ID +911****6938 REVOKED CLI still) -> DID NOT landed; call_loop proc0 cron0 mtime Aug31
-batch211 ok0/fail3 (dialer DEAD day5); leads/ dir ABSENT (ammo 0); .env mtime Sep2 12:42Z (no resize).
-Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001); GAP Rs4,98,001.
+FRESH LIVE (10:30): /health 200 UP
+WA flip LIVE containers=1 (worker+app Up14h)
+auto_sent TRUE=0
+(NO msg-id — WA rail 0 real send day5)
+SIP 5 vars ALL EMPTY (SIP_HOST/USERNAME/PASSWORD/DID/len=0,
+VOBIZ_CALLER_ID +911****6938 REVOKED CLI still) -> DID NOT landed
+call_loop proc0 cron0 mtime Aug31
+batch211 ok0/fail3 (dialer DEAD day5)
+leads/ dir ABSENT (ammo 0)
+.env mtime Sep2 12:42Z (no resize).
+Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001)
+GAP Rs4,98,001.
 All 8 bots own tasks (07:35 assign, 10:00 gates MISSED ~30min, fleet ACK 0 ~53h).
 GHANTI + ESCALATION bump only — no new TASK-ID (anti-spam, max 1/bot/run).
 Apex bottleneck = WA-rail auto_send=0 (ENG-004); #2 genuine-intent close (SAL-005); #3 DID-land (PLT-005);
@@ -100,7 +107,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T10:30+05:30"
-pin["vps_status"] = ("HEALTHY (200, worker+app Up14h); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
+pin["vps_status"] = ("HEALTHY (200, worker+app Up14h)
+VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+"
                      "WA flip LIVE containers=1 par auto_sent 0/2265 (NO msg-id, link-only day5) -> 0 UPI; "
                      "hot-queue 09-03 PRESENT (scheduler healed); dialer DEAD day5 (SIP 5 vars EMPTY, CLI revoked, leads 0); "
                      "GAP Rs4,98,001. FINAL GHANTI all 8 10:45 gates — 10:00 MISSED ACK 0 ~53h.")

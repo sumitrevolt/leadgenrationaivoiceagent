@@ -16,7 +16,8 @@ Design:
 - **Pure passthrough** for already-roman text (zero Devanagari → returns unchanged).
 - Import-safe, never raises.
 
-Only gate-MATCHING uses `to_roman(...)`; the LLM + display always get the original.
+Only gate-MATCHING uses `to_roman(...)`
+the LLM + display always get the original.
 """
 
 from __future__ import annotations
@@ -154,7 +155,8 @@ _WORD_MAP: dict[str, str] = {
 }
 
 _DEV_RE = re.compile(r"[ऀ-ॿ]")
-_STRIP = "।?!.,;:—-\"')(॥"
+_STRIP = "।?!.,
+:—-\"')(॥"
 
 
 def to_roman(text: str) -> str:

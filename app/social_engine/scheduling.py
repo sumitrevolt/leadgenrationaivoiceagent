@@ -7,7 +7,8 @@
   - `recover_stale_processing(store, older_than_min=15)` → reset stuck rows
 
 Backoff pattern: 30s → 60s → 120s → 300s → 900s → cap 3600s. Small enough
-that transient provider blips clear quickly; big enough to let 429s cool.
+that transient provider blips clear quickly
+big enough to let 429s cool.
 All timings are UTC epoch seconds. NEVER raises.
 """
 

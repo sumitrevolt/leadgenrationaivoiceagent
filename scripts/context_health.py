@@ -7,7 +7,8 @@ Checks (all read-only, no network):
   3. project_context.json present + valid + head_sha matches current HEAD.
   4. memory/ fallback files present (safe degradation target).
 
-Exit code: 0 if usable (context available OR memory fallback present); 1 only on
+Exit code: 0 if usable (context available OR memory fallback present)
+1 only on
 hard failure (store unreadable/corrupt AND memory fallback also missing).
 """
 
@@ -47,7 +48,8 @@ def check() -> dict:
     results["code_graph"] = {
         "ok": graph_present,
         "detail": (
-            f"graph.json present; report_sha={grpt or '?'} head={head[:8]} "
+            f"graph.json present
+            report_sha={grpt or '?'} head={head[:8]} "
             f"{'FRESH' if grpt and head.startswith(grpt) else 'STALE/unknown'}"
             if graph_present
             else "FAIL-LOUD: app/graphify-out/graph.json MISSING — Graphify MCP cold. "

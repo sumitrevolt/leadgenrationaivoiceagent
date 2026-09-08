@@ -10,7 +10,10 @@ sw.js me push listener MAIN SESSION add karega (yeh module sw.js NAHI chhoota).
 NEVER raises, sab imports lazy.
 
 VAPID keys generate (one-time, free):
-    python -c "from py_vapid import Vapid01 as V; v=V(); v.generate_keys(); ..."
+    python -c "from py_vapid import Vapid01 as V
+    v=V()
+    v.generate_keys()
+    ..."
     ya: npx web-push generate-vapid-keys
 """
 
@@ -244,7 +247,8 @@ def subscribe_js(slug: str) -> str:
     pub = vapid_public()
     return (
         "(function(){\n"
-        f"  var SLUG={json.dumps(slug)}, VAPID={json.dumps(pub)};\n"
+        f"  var SLUG={json.dumps(slug)}, VAPID={json.dumps(pub)}
+        \n"
         "  if(!VAPID||!('serviceWorker' in navigator)||!('PushManager' in window))return;\n"
         "  function b64ToU8(s){var p='='.repeat((4-s.length%4)%4);"
         "var b=(s+p).replace(/-/g,'+').replace(/_/g,'/');var r=atob(b);"

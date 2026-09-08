@@ -1,14 +1,16 @@
 """AI image/video generation — Pollinations NEW API (gen.pollinations.ai).
 
 API migrate (2026-06): old image.pollinations.ai → `https://gen.pollinations.ai/image/{prompt}`.
-Key enter.pollinations.ai se (env `POLLINATIONS_API_KEY`; legacy `POLLINATIONS_TOKEN` fallback).
+Key enter.pollinations.ai se (env `POLLINATIONS_API_KEY`
+legacy `POLLINATIONS_TOKEN` fallback).
 
 KEY SAFETY (important):
 - `pk_` (publishable) = client-safe by design → direct URL me `?key=` embed OK.
 - `sk_` (secret) = KABHI client URL me nahi → marketing_image() proxy URL deta hai
   (`/api/marketing/ai-image-proxy`), server Authorization header se fetch + disk-cache
   (data/ai_images/) karta — repeat loads pollen nahi jalate.
-- Koi key nahi → direct URL (upstream 402 dega; frontend __imgErr graceful msg pehle se).
+- Koi key nahi → direct URL (upstream 402 dega
+frontend __imgErr graceful msg pehle se).
 
 Use:
   from app.marketing.ai_image import image_url, marketing_image, video_url

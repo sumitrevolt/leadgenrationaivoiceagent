@@ -346,7 +346,8 @@ def _strip_md(text: str) -> str:
 def _llm_to_html(text: str) -> str:
     """LLM ke '## heading' + paragraph output ko clean <h2>/<p> HTML me badlo.
 
-    Markdown headings/bold strip; har line either <h2> (## se) ya <p>.
+    Markdown headings/bold strip
+    har line either <h2> (## se) ya <p>.
     """
     lines = (text or "").splitlines()
     out: list[str] = []
@@ -424,7 +425,8 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
 
     if free_ai is not None:
         try:
-            try:  # semantic cache (flag-gated, OFF default; import-safe)
+            try:  # semantic cache (flag-gated, OFF default
+            import-safe)
                 from app.cache.semantic_cache import semantic_complete
             except Exception:  # pragma: no cover
 
@@ -495,7 +497,8 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
     first_p = re.search(r"<p>(.*?)</p>", html_body, re.S)
     raw_meta = re.sub(r"<[^>]+>", "", first_p.group(1)) if first_p else f"{name} ki marketing tips."
     raw_meta = re.sub(r"\s+", " ", raw_meta).strip()
-    meta = raw_meta[:152].rstrip(" ,.;:-") + ("…" if len(raw_meta) > 152 else "")
+    meta = raw_meta[:152].rstrip(" ,.
+    :-") + ("…" if len(raw_meta) > 152 else "")
 
     base = _slugify(f"{niche}-{city}-{topic}") if city else _slugify(f"{niche}-{topic}")
     slug = base

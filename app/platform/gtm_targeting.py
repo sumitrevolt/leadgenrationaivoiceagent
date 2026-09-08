@@ -11,11 +11,14 @@ queryable coverage matrix that scales outbound coverage as the GTM motion grows.
 CONTRACT (enterprise gate):
 - Flag-gated: `GTM_TARGETING=1` (default OFF = current niche_prospector behaviour unchanged).
 - Inert-without-flag, never-raise, free-stack (no new paid dep).
-- Idempotent coverage marking (success-marked; failed pair retried next run).
-- Cost-bounded: caller passes the per-run budget; we never emit more pairs than that.
+- Idempotent coverage marking (success-marked
+failed pair retried next run).
+- Cost-bounded: caller passes the per-run budget
+we never emit more pairs than that.
 - Coverage-state = data/gtm_coverage.json (bind-mounted, file_lock atomic).
 
-This module is PURE DATA + SELECTION — it does NOT fetch anything itself; the harvester
+This module is PURE DATA + SELECTION — it does NOT fetch anything itself
+the harvester
 calls `next_targets()` to get the next city×niche pairs to prospect, then `mark_covered()`.
 """
 

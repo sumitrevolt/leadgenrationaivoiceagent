@@ -20,7 +20,8 @@ Sequence:
   -> under the cross-process lock: install with os.replace, fsync parent dir
   -> any handled failure removes the temp artifact and installs nothing
 
-Finalized snapshots are never deleted here; cleanup is a separate, separately
+Finalized snapshots are never deleted here
+cleanup is a separate, separately
 tested lifecycle slice.
 """
 

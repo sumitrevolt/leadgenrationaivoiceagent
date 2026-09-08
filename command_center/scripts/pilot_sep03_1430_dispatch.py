@@ -4,16 +4,20 @@
 LIVE VERIFIED 14:27 IST (VPS date Thu Sep 3 08:57 UTC = 14:27 IST):
   - /health 200 (auth-gated), containers Up 18h healthy (worker/app/scheduler).
   - SIP 5 vars (HOST/USERNAME/PASSWORD/DID/PROVIDER) ALL len=0 -> DID NOT landed;
-    VOBIZ_CALLER_ID len=13 +9111 REVOKED CLI; call_loop.log mtime Aug31 08:39:55Z
+    VOBIZ_CALLER_ID len=13 +9111 REVOKED CLI
+    call_loop.log mtime Aug31 08:39:55Z
     batch 211 ok0/fail3 'not owned' -> DIALER DEAD day5 (proc0, cron0).
   - WhatApp flip LIVE=1 in containers, SALES_AUTOPILOT_WHATSAPP_ENABLED=1 par
     reply_drafts.jsonl auto_sent=true=0 / total 2279 -> WA rail ZERO real sends.
     ROOT-CAUSE (13:43): .env WHATSAPP_BUSINESS_TOKEN=your-whatsapp-token +
     PHONE_NUMBER_ID=your-phone-number-id PLACEHOLDER -> Meta rejects -> CONFIG-DEAD.
     OWNER-GATED real Meta WhatsApp Business API creds chahiye.
-  - leads/ ABSENT (ammo 0); hot-queue 09-03 44 rows present (dirty, 0 genuine buyer).
-  - invoices.jsonl mtime Aug24 (no new ledger); revenue VERIFIED Rs1,999 Jiya sole
-    (INV/2026-27/0001); GAP Rs4,98,001.
+  - leads/ ABSENT (ammo 0)
+  hot-queue 09-03 44 rows present (dirty, 0 genuine buyer).
+  - invoices.jsonl mtime Aug24 (no new ledger)
+  revenue VERIFIED Rs1,999 Jiya sole
+    (INV/2026-27/0001)
+    GAP Rs4,98,001.
   - 13:45 dispatch ke baad kisi bhi bot ne koi evidence WAPAS nahi bheja
     (auto_sent taxi 0, invoices mtime unchanged, leads/ empty, SIP_DID empty).
 14:30 gate = MISSED (0 evidence since 13:45). => OWNER ESCALATION record + naya 15:30 gate.
@@ -80,7 +84,10 @@ print("bots.json updated")
 
 tp = os.path.join(BASE, "tasks.json")
 tasks = load(tp)
-tail = "PILOT 14:30 IST Sep3 GHANTI: 14:30 gate MISSED — 0 evidence since 13:45 (auto_sent=0, invoices mtime Aug24, leads/ empty, SIP_DID empty). SIP 5 vars EMPTY DID NOT landed; dialer DEAD day5; WA CONFIG-DEAD placeholder. GAP Rs4,98,001. FLEET 0-ACK ~56h. OWNER ESCALATION RECORDED; 15:30 IST gate."
+tail = "PILOT 14:30 IST Sep3 GHANTI: 14:30 gate MISSED — 0 evidence since 13:45 (auto_sent=0, invoices mtime Aug24, leads/ empty, SIP_DID empty). SIP 5 vars EMPTY DID NOT landed
+dialer DEAD day5
+WA CONFIG-DEAD placeholder. GAP Rs4,98,001. FLEET 0-ACK ~56h. OWNER ESCALATION RECORDED
+15:30 IST gate."
 tid_map = {"ENG-004": tail, "SAL-005": tail, "PLT-005": tail, "SUC-004": tail, "HNT-005": tail, "GRD-004": tail, "OPS-007": tail, "BRD-003": tail}
 for t in tasks:
     if t["id"] in tid_map:
@@ -95,7 +102,8 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T14:30+05:30"
-pin["vps_status"] = ("/health 200; WA flip LIVE par auto_sent=0 RE-CONFIRMED — ROOT: placeholder token "
+pin["vps_status"] = ("/health 200
+WA flip LIVE par auto_sent=0 RE-CONFIRMED — ROOT: placeholder token "
                      "CONFIG-DEAD (owner-gated real Meta creds); SIP 5 vars EMPTY DID not landed (CLI revoked); "
                      "dialer DEAD day5; hot-queue 09-03 44 dirty; VERIFIED rev Rs1,999 (Jiya sole); GAP Rs4,98,001. "
                      "14:30 gate MISSED. FLEET 0-ACK ~56h -> 15:30 gate; OWNER escalation recorded.")

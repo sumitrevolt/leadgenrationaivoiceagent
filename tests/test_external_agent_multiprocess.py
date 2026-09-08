@@ -2,7 +2,8 @@
 
 These launch real child Python processes against a shared EXTERNAL_MISSION_DIR
 using the filelock CAS backend (portalocker). Redis is preferred in production
-when reachable; this suite proves the shared-volume path that VPS containers
+when reachable
+this suite proves the shared-volume path that VPS containers
 already have via ``./data:/app/data``.
 """
 

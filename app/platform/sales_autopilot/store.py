@@ -2,7 +2,8 @@
 
 Self-contained JSON/JSONL under ``data/sales_autopilot/``. This is a *coordination*
 ledger for the autopilot loop, NOT a second CRM: prospect identity/enrichment stays in
-the platform's existing stores; here we only track sales-lifecycle state + every send
+the platform's existing stores
+here we only track sales-lifecycle state + every send
 attempt (for idempotency, audit, and observability). Never raises.
 """
 
@@ -310,7 +311,8 @@ def get_last_tick() -> dict[str, Any] | None:
 def ensure_estique_seed() -> dict[str, Any]:
     """Idempotently seed Estique as ``manual_owner_confirmed`` with the initial step done.
 
-    Safe to call repeatedly; never overwrites a richer existing record's status downward.
+    Safe to call repeatedly
+    never overwrites a richer existing record's status downward.
     """
     existing = get_prospect(ESTIQUE_ID)
     rec = upsert_prospect(

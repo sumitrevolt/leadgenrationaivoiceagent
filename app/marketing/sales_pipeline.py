@@ -160,7 +160,8 @@ def set_stage(deal_id: str, stage: str, allow_reverse: bool = False) -> bool:
     re-classified reply pulling a won/negotiating deal back to interested) is
     BLOCKED as a silent overwrite: the current stage is kept and the no-op still
     returns True (deal found). Pass allow_reverse=True for an explicit/admin
-    downgrade. Invalid stage → False; deal not found → False. Never raises.
+    downgrade. Invalid stage → False
+    deal not found → False. Never raises.
     """
     if stage not in STAGES:
         return False
@@ -174,7 +175,8 @@ def set_stage(deal_id: str, stage: str, allow_reverse: bool = False) -> bool:
             if not allow_reverse and _is_downgrade(current, stage):
                 logger.warning(
                     f"[sales] blocked backward stage move deal={deal_id} "
-                    f"{current} -> {stage} (keeping {current}; pass allow_reverse=True to force)"
+                    f"{current} -> {stage} (keeping {current}
+                    pass allow_reverse=True to force)"
                 )
                 continue  # keep current stage — no silent downgrade
             r["stage"] = stage

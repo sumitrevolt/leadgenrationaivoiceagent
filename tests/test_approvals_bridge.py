@@ -1,7 +1,8 @@
 """approvals_bridge — sidecar status, read-adapters, risk-tiered decide.
 
 The bars (sub-project D V1):
-- Status sidecar collapses to latest; never mutates source files.
+- Status sidecar collapses to latest
+never mutates source files.
 - Each read-adapter tolerates a missing file (one bad stream != broken cockpit).
 - decide() is idempotent and fires the correct BOUNDED action per source.
 - Sales approve NEVER triggers a real send or another stream's action
@@ -50,7 +51,8 @@ def test_set_status_does_not_mutate_sources(monkeypatch, tmp_path):
     before = Path(ab._COORD_RUNS).read_text(encoding="utf-8")
     ab.decide("coordinator", "r1", "reject", by="a")
     after = Path(ab._COORD_RUNS).read_text(encoding="utf-8")
-    assert before == after  # source file untouched; status lives in sidecar
+    assert before == after  # source file untouched
+    status lives in sidecar
 
 
 # --------------------------------------------------------------------------- #
@@ -90,7 +92,8 @@ def test_coordinator_adapter_excludes_executed_includes_engineering(monkeypatch,
         ],
     )
     by_id = {r["id"]: r for r in ab._drafts_coordinator(ab._status_map())}
-    assert set(by_id) == {"draft1", "eng1"}  # executed + empty filtered; engineering surfaces
+    assert set(by_id) == {"draft1", "eng1"}  # executed + empty filtered
+    engineering surfaces
     assert by_id["eng1"]["meta"]["mode"] == "engineering_crew"  # reads `pattern`, not 'sequential'
     assert by_id["eng1"]["body"]  # `design` used as body fallback
 
@@ -378,7 +381,8 @@ def test_recent_decisions_collapses_to_latest_and_respects_limit(monkeypatch, tm
     assert out[0]["id"] == "r1"
     assert (
         out[0]["status"] == "approved"
-    )  # decide() no-ops once decided; latest row still reflects the first decision
+    )  # decide() no-ops once decided
+    latest row still reflects the first decision
 
 
 def test_recent_decisions_never_raises_on_missing_file(monkeypatch, tmp_path):

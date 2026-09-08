@@ -23,7 +23,8 @@ commercial terms that did not exist when it was sent.
 So the send path must pin ``(policy_id, policy_version)`` onto the outbound
 record, and reply processing must use :func:`resolve_exact` — which returns the
 exact historical row regardless of later versions or retirement. Retirement
-blocks NEW sends; it never rewrites what an old message meant.
+blocks NEW sends
+it never rewrites what an old message meant.
 
 Prospects with no pinned stamp (all historical generic cold email) are
 ``HISTORICAL_DISCOVERY``: qualify, never quote.
@@ -602,7 +603,8 @@ def resolve_for_prospect(prospect: dict[str, Any] | None) -> tuple[dict[str, Any
 def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) -> dict[str, Any]:
     """Deterministically turn (policy, structured facts) into a package outcome.
 
-    Facts may be LLM-extracted; the decision is not. Anything unresolved is a
+    Facts may be LLM-extracted
+    the decision is not. Anything unresolved is a
     question or an exception — never a fallback price.
     """
     f = {k: v for k, v in (facts or {}).items() if v not in (None, "")}

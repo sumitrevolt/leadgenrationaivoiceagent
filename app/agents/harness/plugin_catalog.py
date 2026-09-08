@@ -489,7 +489,8 @@ def bootstrap_catalog() -> None:
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,
             owner="Boss",
-            business_outcome="Auto-reply to known prospects; guarded, fail-closed",
+            business_outcome="Auto-reply to known prospects
+            guarded, fail-closed",
             risk_class=RiskClass.AMBER,
             tenant_scope=PluginScope.PLATFORM,
             privacy_class=PrivacyClass.CONFIDENTIAL,

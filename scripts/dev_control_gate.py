@@ -16,7 +16,8 @@ Invariants enforced:
   8. OmniRoute worktree creation stays refused and packets stay bounded.
   9. Both control-plane migrations (015 dev_tasks, 016 usage) exist.
  10. Unsigned governor rows cannot approve and the submitter stays loopback-only.
- 11. Automated Claude review disables tools/customizations; unsafe Codex review refuses.
+ 11. Automated Claude review disables tools/customizations
+ unsafe Codex review refuses.
 """
 
 from __future__ import annotations
@@ -163,7 +164,8 @@ def main() -> int:
         for x in violations:
             print("  -", x)
         return 1
-    print("[OK] dev-control gate: governed packets only; no provider worktree/auto-apply/deploy")
+    print("[OK] dev-control gate: governed packets only
+    no provider worktree/auto-apply/deploy")
     return 0
 
 

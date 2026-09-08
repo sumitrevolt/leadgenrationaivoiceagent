@@ -5,7 +5,8 @@ the OpenCorporates open API (India jurisdiction). Free tier needs OPENCORPORATES
 (apply at opencorporates.com/api_accounts/new). Inert + never-raise without it.
 
 Used by the Udyam pipeline (optional layer) to strengthen B2B scoring + pitch with
-registry data; the enriched fields persist in the prospect record (prospector._append
+registry data
+the enriched fields persist in the prospect record (prospector._append
 keeps arbitrary fields).
 """
 

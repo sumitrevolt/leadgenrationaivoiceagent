@@ -280,7 +280,8 @@ def check_gates() -> dict[str, str]:
       * ``kill_fence``    — admin kill engaged? (`voice_launch.admin_kill_engaged`)
       * ``recording_ok``  — recording gate green? (`voice_launch.recording_gate_ok`)
       * ``campaign_on``   — campaign enabled flag? (`voice_launch.campaign_enabled`)
-      * ``voice_window``  — TRAI 09:00–21:00 IST? (local-time math; pure)
+      * ``voice_window``  — TRAI 09:00–21:00 IST? (local-time math
+      pure)
       * ``emergency_stop``— `EMERGENCY_STOP=1`? (env, hard halt)
       * ``whatsapp_auto`` — WA auto-send gate (env, off by default)
 
@@ -321,7 +322,8 @@ def check_gates() -> dict[str, str]:
 
     # ---- 4. Voice window (TRAI 09:00–21:00 IST, local time) ----
     try:
-        hh = datetime.now().hour  # naive local; container TZ = IST on VPS
+        hh = datetime.now().hour  # naive local
+        container TZ = IST on VPS
         in_window = 9 <= hh < 21
         gates["voice_window"] = "pass" if in_window else f"outside_ist_window(hour={hh})"
     except Exception as exc:  # noqa: BLE001

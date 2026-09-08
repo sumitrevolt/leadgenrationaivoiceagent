@@ -16,7 +16,9 @@ reported EVERY live lease as expired, which is an invitation for a second runner
 to claim a mission that is still executing.
 
 The assertions below are deliberately about the observable contract (expiry is
-after the heartbeat; a fresh lease is active; a live mission is not recoverable)
+after the heartbeat
+a fresh lease is active
+a live mission is not recoverable)
 rather than about epoch arithmetic, because the arithmetic is what was wrong and
 a test written in its terms would have agreed with it.
 """

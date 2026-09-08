@@ -12,14 +12,16 @@ Agent Runtime — Phase-B pilot capabilities (kavya / isha / zara).
               deterministic fallback) — kabhi publish nahi karta.
   3. zara   — AMBER L2, approval-controlled: sirf ALREADY-APPROVED content ko
               existing social_engine queue me hand-off karta hai. Approval gate
-              runtime enforce karta hai (requires_approval=True); engine flag
+              runtime enforce karta hai (requires_approval=True)
+              engine flag
               off ho to honest SkipTask — fake publish kabhi nahi.
 
 Voice-specific code yahan NAHI hai (STT/TTS/streaming/barge-in/DND-window =
 sirf voice agents ke module). RED agents (swara/ananya) yahan register hi
 nahi hote — runtime unhe lane-level pe block karta hai.
 
-Import-safe; ensure_pilots_registered() idempotent.
+Import-safe
+ensure_pilots_registered() idempotent.
 """
 
 from __future__ import annotations
@@ -125,7 +127,8 @@ async def zara_publish_approved_content(ctx: AgentExecutionContext) -> dict[str,
     """Sirf ALREADY-APPROVED content_approval record ko existing social_engine
     queue me daalta hai. Approval verification runtime gate pe ho chuki hoti
     hai (requires_approval=True → approval_ref approved). Engine off = honest
-    skip; executor = existing social_drain (koi duplicate publisher nahi)."""
+    skip
+    executor = existing social_drain (koi duplicate publisher nahi)."""
     from app.marketing import content_approval
 
     approval_id = str(ctx.task.approval_ref or "").strip()

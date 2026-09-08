@@ -6,7 +6,8 @@ Enforcement points:
   - scheduled_pause / drain → scheduler_dispatch_allowed(job→agent) + apply_async
   - stop_claims / drain → run_staff_job + team_scheduler._run_job claim gate
   - cancel queued → Celery revoke(terminate=False) only when not started
-  - request cancel running → cooperative Redis flag; unsupported if job ignores it
+  - request cancel running → cooperative Redis flag
+  unsupported if job ignores it
 
 Fail-closed on ambiguous control state for NEW dispatch/claims.
 """

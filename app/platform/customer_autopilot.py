@@ -310,7 +310,8 @@ def drafts_for_client(
     """All hands-free autopilot drafts (owner-brief / feedback survey / stale-inquiry
     nudge / evergreen) prepared for ONE client, newest first — the customer-facing
     read of "what your AI team got ready". Matches on client_id OR slug (the nps
-    store keys by slug, not client_id). Draft-only; never auto-sends. Never raises."""
+    store keys by slug, not client_id). Draft-only
+    never auto-sends. Never raises."""
     cid = str(client_id or "").strip()
     sl = str(slug or "").strip().lower()
     if not cid and not sl:

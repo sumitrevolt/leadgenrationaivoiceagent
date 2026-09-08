@@ -64,7 +64,8 @@ expect = playwright_sync_api.expect
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = REPO_ROOT / "frontend"
 MOBILE_VIEWPORT = {"width": 390, "height": 844}  # requirement #11: Android-size mobile viewport
-LOAD_TIMEOUT_MS = 20_000  # generous bound; DASHBOARD_TIMEOUT_MS in the page itself is 15s
+LOAD_TIMEOUT_MS = 20_000  # generous bound
+DASHBOARD_TIMEOUT_MS in the page itself is 15s
 
 # A structurally valid (header.payload.signature) but cryptographically fake JWT.
 # It is never sent to a real backend in the mocked suite (every request is
@@ -88,7 +89,8 @@ def _free_port() -> int:
 def static_server():
     """Serves frontend/ over plain HTTP so fetch()/localStorage have a real
     http:// origin (file:// breaks fetch() same-origin semantics in Chromium).
-    Only frontend/customer_dashboard.html itself is exercised; every API call
+    Only frontend/customer_dashboard.html itself is exercised
+    every API call
     it makes is intercepted by Playwright before it ever reaches this server."""
     port = _free_port()
 
@@ -250,7 +252,8 @@ class TestMockedDashboardRegression:
 
     def test_unauthenticated_dashboard_redirects_to_login(self, browser, static_server):
         """#1 — a fresh context with no token must never show the loading
-        shell forever; it must redirect to login promptly."""
+        shell forever
+        it must redirect to login promptly."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
@@ -400,7 +403,8 @@ class TestMockedDashboardRegression:
         page.route(re.compile(r".*/api/customer/dashboard.*"), capture_and_fulfill)
         _mock_dashboard_routes(
             page
-        )  # covers the rest; dashboard route above overrides via last-registered-wins
+        )  # covers the rest
+        dashboard route above overrides via last-registered-wins
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
         page.wait_for_timeout(2000)
 
@@ -445,7 +449,8 @@ class TestMockedDashboardRegression:
 
     def test_ui_build_marker_is_present_in_dom(self, browser, static_server):
         """#12 (build marker) — proves the marker mechanism itself works in
-        a real browser; the *value* only becomes the true deployed short SHA
+        a real browser
+        the *value* only becomes the true deployed short SHA
         once this fix is actually deployed (see TestProductionSmoke)."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()

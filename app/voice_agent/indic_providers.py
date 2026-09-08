@@ -89,7 +89,8 @@ _SARVAM_BASE_URL = "https://api.sarvam.ai"
 _SARVAM_AUTH_HEADER = "api-subscription-key"
 _SARVAM_STT_MODEL = "saaras:v3"  # Saaras v3 — speech-to-text-translate / STT
 _SARVAM_TTS_MODEL = "bulbul:v3"  # Bulbul v3 — streaming TTS
-_SARVAM_DEFAULT_SPEAKER = "anushka"  # safe default voice; overridable via voice_id
+_SARVAM_DEFAULT_SPEAKER = "anushka"  # safe default voice
+overridable via voice_id
 
 
 def _sarvam_key() -> str:
@@ -128,7 +129,8 @@ def detect_language(text: str) -> str:
     Quick heuristic language detection from unicode script ranges.
 
     Returns a BCP-47 "<lang>-IN" code from INDIAN_LANGUAGES. Devanagari maps to
-    Hindi (covers the most common case); pure-Latin text maps to en-IN. On any
+    Hindi (covers the most common case)
+    pure-Latin text maps to en-IN. On any
     issue, falls back to the configured default language. Never raises.
     """
     if not text:
@@ -188,7 +190,8 @@ class SarvamSTT(STTProvider):
         Transcribe call audio to text via Sarvam Saaras v3.
 
         Args:
-            audio: raw audio bytes (wav/pcm/mp3; call audio typically 8 kHz wav).
+            audio: raw audio bytes (wav/pcm/mp3
+            call audio typically 8 kHz wav).
             language: BCP-47 code, e.g. "hi-IN". None => auto-detect by Sarvam
                       (Saaras supports language auto-detection / code-switching).
 
@@ -206,7 +209,8 @@ class SarvamSTT(STTProvider):
         try:
             import httpx
         except Exception as e:
-            logger.warning(f"SarvamSTT: httpx not available ({e}); returning ''.")
+            logger.warning(f"SarvamSTT: httpx not available ({e})
+            returning ''.")
             return ""
 
         url = f"{_SARVAM_BASE_URL}/speech-to-text"
@@ -227,7 +231,8 @@ class SarvamSTT(STTProvider):
                 return ""
             payload = resp.json()
         except Exception as e:
-            logger.warning(f"SarvamSTT request failed ({e}); returning ''.")
+            logger.warning(f"SarvamSTT request failed ({e})
+            returning ''.")
             return ""
 
         return self._extract_transcript(payload)
@@ -290,7 +295,8 @@ class SarvamTTS(TTSProvider):
 
         Args:
             text: text to speak (may contain Hindi-English code-switching).
-            voice_id: Sarvam speaker name (e.g. "anushka"); defaults to a safe one.
+            voice_id: Sarvam speaker name (e.g. "anushka")
+            defaults to a safe one.
             language: target BCP-47 code, e.g. "hi-IN". None => auto-detect from
                       the text via detect_language(), else DEFAULT_LANGUAGE.
 
@@ -311,7 +317,8 @@ class SarvamTTS(TTSProvider):
         try:
             import httpx
         except Exception as e:
-            logger.warning(f"SarvamTTS: httpx not available ({e}); returning b''.")
+            logger.warning(f"SarvamTTS: httpx not available ({e})
+            returning b''.")
             return b""
 
         url = f"{_SARVAM_BASE_URL}/text-to-speech"
@@ -334,7 +341,8 @@ class SarvamTTS(TTSProvider):
                 return b""
             payload = resp.json()
         except Exception as e:
-            logger.warning(f"SarvamTTS request failed ({e}); returning b''.")
+            logger.warning(f"SarvamTTS request failed ({e})
+            returning b''.")
             return b""
 
         return self._extract_audio(payload)
@@ -378,7 +386,8 @@ class SarvamTTS(TTSProvider):
         self, text: str, voice_id: str | None = None, **kwargs
     ) -> AsyncGenerator[bytes, None]:
         """
-        Stream synthesized audio. Bulbul v3 supports true streaming; here we use
+        Stream synthesized audio. Bulbul v3 supports true streaming
+        here we use
         the simple, robust path (full synth, single yield) so the pipeline's
         streaming contract is satisfied without depending on the streaming
         endpoint's exact framing. Degrades to nothing-yielded on failure.
@@ -436,7 +445,8 @@ class Ai4BharatSTT(STTProvider):
         try:
             import httpx
         except Exception as e:
-            logger.warning(f"Ai4BharatSTT: httpx unavailable ({e}); returning ''.")
+            logger.warning(f"Ai4BharatSTT: httpx unavailable ({e})
+            returning ''.")
             return ""
         url = self.endpoint.rstrip("/") + "/transcribe"
         files = {"file": ("audio.wav", audio, "audio/wav")}
@@ -452,7 +462,8 @@ class Ai4BharatSTT(STTProvider):
                 return ""
             payload = resp.json()
         except Exception as e:
-            logger.warning(f"Ai4BharatSTT request failed ({e}); returning ''.")
+            logger.warning(f"Ai4BharatSTT request failed ({e})
+            returning ''.")
             return ""
         if isinstance(payload, dict):
             for key in ("transcript", "text", "transcription"):
@@ -498,7 +509,8 @@ class Ai4BharatTTS(TTSProvider):
         try:
             import httpx
         except Exception as e:
-            logger.warning(f"Ai4BharatTTS: httpx unavailable ({e}); returning b''.")
+            logger.warning(f"Ai4BharatTTS: httpx unavailable ({e})
+            returning b''.")
             return b""
         lang = (language or kwargs.get("language") or "").strip() or detect_language(text)
         url = self.endpoint.rstrip("/") + "/tts"
@@ -513,7 +525,8 @@ class Ai4BharatTTS(TTSProvider):
                 return b""
             payload = resp.json()
         except Exception as e:
-            logger.warning(f"Ai4BharatTTS request failed ({e}); returning b''.")
+            logger.warning(f"Ai4BharatTTS request failed ({e})
+            returning b''.")
             return b""
         if isinstance(payload, dict):
             for key in ("audio", "audio_base64", "audio_content"):
@@ -557,7 +570,8 @@ def register_indic_providers(registry=None) -> None:
 
         logger.info("Registered Indian-language providers: sarvam (stt+tts), ai4bharat (stt+tts).")
     except Exception as e:  # pragma: no cover - registration must never crash app
-        logger.warning(f"register_indic_providers failed ({e}); skipping.")
+        logger.warning(f"register_indic_providers failed ({e})
+        skipping.")
 
 
 # Auto-register on import so a simple `import app.voice_agent.indic_providers`

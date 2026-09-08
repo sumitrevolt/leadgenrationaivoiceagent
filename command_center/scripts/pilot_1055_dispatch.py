@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """PILOT 09-02 10:55 IST sweep — FRESH live evidence (10:50-10:55 IST):
-/health 308 auth-gated UP (healthy); call_loop DEAD 50h+ (mtime Aug31 08:39:55Z
+/health 308 auth-gated UP (healthy)
+call_loop DEAD 50h+ (mtime Aug31 08:39:55Z
 batch211 ok=0/fail=3 'from number 911171366938 is not owned', proc0 cron0);
 SIP 5 vars len=0 disk (DID NOT landed); VOBIZ_CALLER_ID len13 REVOKED still in .env;
 WA flip INERT (containers app+worker=0, disk .env=1; restart pending owner-approve);
 auto_sent true=0; HOT-QUEUE 09-02 PRESENT 43 rows (first: AFM SOLAR wa.me deep-link);
-leads/ ABSENT (ammo ZERO); egress api.vobiz.com 000@10s DAY5; WAHA container leadgen_waha
+leads/ ABSENT (ammo ZERO)
+egress api.vobiz.com 000@10s DAY5
+WAHA container leadgen_waha
 UP, sessions 401 with bad-key probe (auth gate), real key 3561...582=200 WORKING (earlier);
 revenue_snap 09-01 mrr=5997/active=3 STALE vs ledger Jiya INV/2026-27/0001 sole (GRD-003);
 VPS mirror mtime 05:16 STALE vs local 10:45 -> BRD push THIS run.
-Fleet ACK 0 since 00:12Z (48h+). Bottleneck: DID never landed; WA rail OPEN but 0 sends.
+Fleet ACK 0 since 00:12Z (48h+). Bottleneck: DID never landed
+WA rail OPEN but 0 sends.
 NO new TASK-ID (anti-spam max1) — rebump SAL-003 + PLT-004 only (P0), REV-COMMAND ALL.
 """
 import json
@@ -91,14 +95,26 @@ print("BOTS: statuses refreshed")
 pp = os.path.join(base, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pin["vps_status"] = "UP (/health 308 auth-gated); loop DEAD 50h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars len=0; VOBIZ_CALLER_ID REVOKED; WA flip INERT (containers=0 disk=1); auto_sent 0; HOT-QUEUE 09-02 PRESENT 43/43 (03:30 gen); leads/ ABSENT; egress 000 DAY5"
+pin["vps_status"] = "UP (/health 308 auth-gated)
+loop DEAD 50h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars len=0
+VOBIZ_CALLER_ID REVOKED
+WA flip INERT (containers=0 disk=1)
+auto_sent 0
+HOT-QUEUE 09-02 PRESENT 43/43 (03:30 gen)
+leads/ ABSENT
+egress 000 DAY5"
 pin["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pin["target"] = "₹5,00,000"
 pin["gap"] = "₹4,98,001"
 pin["bottleneck"] = "DID never landed (SIP 5 vars len=0) -> WA restart INERT (owner) -> 86 WA UPI deep-links ZERO sends (SAL-003) -> fleet ACK 0 48h+"
 pin["pipeline"] = "86 HOT UPI deep-links (queues 09-01+09-02), 0 WA sends, 0 dialer connects, Jiya P0"
 pin["hot"] = "hot-queue 09-02 43 UPI warm leads (SAL-003 ABHI) + Jiya retention (SUC-002 12:00)"
-pin["action"] = "SAL-003 >=10 sendText ABHI (WAHA OPEN; hot-queue 09-02 wa_link+UPI); PLT-004 egress verdict+SIP template; owner: restart approval for WA flip"
+pin["action"] = "SAL-003 >=10 sendText ABHI (WAHA OPEN
+hot-queue 09-02 wa_link+UPI)
+PLT-004 egress verdict+SIP template
+owner: restart approval for WA flip"
 pin["next_expected_payment"] = "WA sendText reply -> UPI close ya Jiya retention — evidence ke saath"
 save(pp, pin)
 print("PINNED: refreshed")

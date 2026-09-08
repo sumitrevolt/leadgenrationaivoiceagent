@@ -67,18 +67,26 @@ bots_path = os.path.join(base, "bots.json")
 with open(bots_path, encoding="utf-8") as f:
     bots = json.load(f)
 
-bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 34h+; SIP 5 vars len=0; Vobiz egress TCP-block "
-                           f"(DNS ok, curl/curl-4 8s timeout); WAHA :3111 401 = NAYA WA-send suspect; hot-queue 09-01 CSV 24h+ "
+bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 34h+
+SIP 5 vars len=0
+Vobiz egress TCP-block "
+                           f"(DNS ok, curl/curl-4 8s timeout)
+                           WAHA :3111 401 = NAYA WA-send suspect
+                           hot-queue 09-01 CSV 24h+ "
                            f"stale, WA sends 0. VPS mirror abhi push kiya (data dir missing tha). VPS healthy 37a1daf8. 0 ACK — nudge sent.")
 bots["sales"]["status"] = (f"SAL-003 P0: hot-queue WA closes + vendor DID due 09:00 IST. FRESH: auto_sent=0, WAHA 401, "
                            f"hot-queue 24h+ STALE. WA = aaj ka revenue path. ACK missing — REINFORCE sent.")
 bots["platform"]["status"] = ("PLT-004 P0: egress re-test by PILOT — TCP-block (DNS ok, curl timeout). WAHA 401 naya. "
                               "SIP 0 non-empty. Root-cause + template 09:00 IST. ACK missing.")
-bots["operations"]["status"] = "OPS-006 P0: loop DEAD re-confirm (proc 0, cron 0). Restart-ready; 10:30 digest. WAHA liveness monitor add. ACK missing."
-bots["engineering"]["status"] = "ENG-003 P1: watchdog missing re-confirm (crontab 0); WAHA 401 probe include. Due 09:30. ACK missing."
-bots["hunter"]["status"] = "HNT-004 P1: leads/ EMPTY re-confirm; 50-lead DND CSV due 09:30 IST. ACK missing."
+bots["operations"]["status"] = "OPS-006 P0: loop DEAD re-confirm (proc 0, cron 0). Restart-ready
+10:30 digest. WAHA liveness monitor add. ACK missing."
+bots["engineering"]["status"] = "ENG-003 P1: watchdog missing re-confirm (crontab 0)
+WAHA 401 probe include. Due 09:30. ACK missing."
+bots["hunter"]["status"] = "HNT-004 P1: leads/ EMPTY re-confirm
+50-lead DND CSV due 09:30 IST. ACK missing."
 bots["guardian"]["status"] = "GRD-003 P1: 5+ verdicts due 11:00 IST (revenue-snap mismatch, WAHA 401, loop-dead, invoice find). ACK missing."
-bots["success"]["status"] = "SUC-002 P0: Jiya email SENT proof due 12:00 IST; only payer ₹1,999 churn-risk. ACK missing."
+bots["success"]["status"] = "SUC-002 P0: Jiya email SENT proof due 12:00 IST
+only payer ₹1,999 churn-risk. ACK missing."
 bots["board"]["status"] = ("BRD-002 P2: VPS data dir MISSING mila — PILOT ne 01:50 push kar diya. Tera kaam: page verify "
                            "+ 30-min cadence. Due 12:00 IST.")
 with open(bots_path, "w", encoding="utf-8") as f:
@@ -92,13 +100,20 @@ with open(pinned_path, encoding="utf-8") as f:
     pinned = json.load(f)
 pinned["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
 pinned["priority_tasks"] = ["SAL-003", "PLT-004", "OPS-006", "ENG-003", "HNT-004"]
-pinned["vps_status"] = ("HEALTHY (37a1daf8); calling loop DEAD 34h+ (mtime Aug 31 08:39Z batch 211; proc 0; cron 0); "
+pinned["vps_status"] = ("HEALTHY (37a1daf8)
+calling loop DEAD 34h+ (mtime Aug 31 08:39Z batch 211
+proc 0
+cron 0)
+"
                         "SIP env 5 vars EMPTY; Vobiz egress TCP-BLOCK (DNS ok, curl 8s timeout); WAHA :3111 401 Unauthorized (Naya)")
 pinned["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001) — GRD-003 verifying snapshots active=3/MRR=5997 vs ledger claim"
 pinned["gap"] = "₹4,98,001"
 pinned["bottleneck"] = ("DID gate: vendor proof absent (SAL-003) + Vobiz egress TCP-block (PLT-004) + SIP creds empty + "
                         "loop dead no-watchdog (ENG-003/OPS-006) + WAHA 401 WA-send suspect. Revenue path AAJ = hot-queue WA closes (0 sent).")
-pinned["pipeline"] = "43 HOT interested leads (hot_queue 09-01 CSV, 24h+ stale); 0 dialer connects; 0 WA sends; Jiya P0"
+pinned["pipeline"] = "43 HOT interested leads (hot_queue 09-01 CSV, 24h+ stale)
+0 dialer connects
+0 WA sends
+Jiya P0"
 pinned["action"] = ("SAL-003 WA >=10 + vendor DID 09:00 → PLT-004 egress root-cause 09:00 → ENG-003 watchdog 09:30 → "
                     "HNT-004 CSV 09:30 → OPS-006 10:30 digest → GRD-003 11:00 verdicts → SUC-002 Jiya 12:00 → BRD-002 page verify")
 pinned["next_expected_payment"] = "Hot-queue WA close (UPI deep-link) ya Jiya retention ya pehla post-DID sale — vaada nahi, evidence ke saath"

@@ -175,21 +175,75 @@ async def status() -> dict:
 _PAGE_HTML = """<!doctype html>
 <html><head><meta charset="utf-8"><title>Docs AI Edit — LeadGen</title>
 <style>
- body{font-family:system-ui,Segoe UI,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
- .wrap{max-width:1200px;margin:0 auto;padding:24px}
- h1{margin:0 0 6px 0;font-size:22px}
- .sub{color:#94a3b8;margin-bottom:20px;font-size:13px}
- .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
- .col{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;display:flex;flex-direction:column}
- h3{margin:0 0 8px 0;font-size:14px;color:#94a3b8}
- textarea{flex:1;min-height:420px;width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:10px;border-radius:6px;font-family:ui-monospace,Menlo,monospace;font-size:13px;box-sizing:border-box;resize:vertical}
- .toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
- button.tool{background:#334155;color:#e2e8f0;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+ body{font-family:system-ui,Segoe UI,sans-serif
+ margin:0
+ background:#0f172a
+ color:#e2e8f0}
+ .wrap{max-width:1200px
+ margin:0 auto
+ padding:24px}
+ h1{margin:0 0 6px 0
+ font-size:22px}
+ .sub{color:#94a3b8
+ margin-bottom:20px
+ font-size:13px}
+ .grid{display:grid
+ grid-template-columns:1fr 1fr
+ gap:16px}
+ .col{background:#1e293b
+ border:1px solid #334155
+ border-radius:10px
+ padding:14px
+ display:flex
+ flex-direction:column}
+ h3{margin:0 0 8px 0
+ font-size:14px
+ color:#94a3b8}
+ textarea{flex:1
+ min-height:420px
+ width:100%
+ background:#0f172a
+ border:1px solid #334155
+ color:#e2e8f0
+ padding:10px
+ border-radius:6px
+ font-family:ui-monospace,Menlo,monospace
+ font-size:13px
+ box-sizing:border-box
+ resize:vertical}
+ .toolbar{display:flex
+ flex-wrap:wrap
+ gap:6px
+ margin-bottom:12px}
+ button.tool{background:#334155
+ color:#e2e8f0
+ border:0
+ padding:6px 12px
+ border-radius:6px
+ cursor:pointer
+ font-size:12px
+ font-weight:600}
  button.tool:hover{background:#3b82f6}
- button.tool:disabled{background:#475569;cursor:not-allowed}
- select{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:5px 8px;border-radius:6px;font-size:12px}
- .meta{color:#64748b;font-size:11px;margin-top:6px}
- button.copy{background:#065f46;color:#a7f3d0;font-size:12px;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;margin-top:6px;font-weight:600}
+ button.tool:disabled{background:#475569
+ cursor:not-allowed}
+ select{background:#0f172a
+ border:1px solid #334155
+ color:#e2e8f0
+ padding:5px 8px
+ border-radius:6px
+ font-size:12px}
+ .meta{color:#64748b
+ font-size:11px
+ margin-top:6px}
+ button.copy{background:#065f46
+ color:#a7f3d0
+ font-size:12px
+ border:0
+ padding:6px 12px
+ border-radius:6px
+ cursor:pointer
+ margin-top:6px
+ font-weight:600}
  @media (max-width:900px){.grid{grid-template-columns:1fr}}
 </style></head>
 <body><div class="wrap">
@@ -212,7 +266,10 @@ _PAGE_HTML = """<!doctype html>
    <option value="hindi">hindi</option>
   </select>
   <button class="tool" data-a="change_tone">Change tone</button>
-  <span id="msg" style="align-self:center;color:#94a3b8;font-size:12px;margin-left:10px"></span>
+  <span id="msg" style="align-self:center
+  color:#94a3b8
+  font-size:12px
+  margin-left:10px"></span>
  </div>
 
  <div class="grid">
@@ -230,7 +287,8 @@ _PAGE_HTML = """<!doctype html>
 <script>
 async function api(p,o={}){ const r = await fetch('/api/docs/edit'+p,{...o,credentials:'include',
  headers:{'Content-Type':'application/json',...(o.headers||{})}}); if(!r.ok) throw new Error(r.status+': '+await r.text());
- return r.json(); }
+ return r.json()
+ }
 
 const $in = document.getElementById('in');
 const $out = document.getElementById('out');
@@ -238,7 +296,9 @@ $in.addEventListener('input', ()=>document.getElementById('in_meta').textContent
 
 async function runAction(action){
   const text = $in.value.trim();
-  if(!text){ document.getElementById('msg').textContent = 'Input khaali.'; return; }
+  if(!text){ document.getElementById('msg').textContent = 'Input khaali.'
+  return
+  }
   document.querySelectorAll('button.tool').forEach(b=>b.disabled=true);
   document.getElementById('msg').textContent = 'Running '+action+'...';
   try{
@@ -248,14 +308,17 @@ async function runAction(action){
     $out.value = j.edited_text;
     document.getElementById('out_meta').textContent = j.output_chars+' chars · '+j.provider+' · '+j.action;
     document.getElementById('msg').textContent = 'Done.';
-  }catch(e){ document.getElementById('msg').textContent = 'Fail: '+e.message; }
-  finally{ document.querySelectorAll('button.tool').forEach(b=>b.disabled=false); }
+  }catch(e){ document.getElementById('msg').textContent = 'Fail: '+e.message
+  }
+  finally{ document.querySelectorAll('button.tool').forEach(b=>b.disabled=false)
+  }
 }
 document.querySelectorAll('button.tool').forEach(b=>{
   b.onclick = () => runAction(b.dataset.a);
 });
 document.getElementById('copy').onclick = () => {
-  if(!$out.value){ return; }
+  if(!$out.value){ return
+  }
   $in.value = $out.value; $in.dispatchEvent(new Event('input'));
   $out.value = '';
   document.getElementById('msg').textContent = 'Replaced input with output.';

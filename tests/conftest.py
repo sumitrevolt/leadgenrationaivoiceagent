@@ -121,10 +121,12 @@ _ORIG_CAE_EARLY = _sa_asyncio_early.create_async_engine
 def _cae_nullpool_file_sqlite(url, *args, **kwargs):
     """Test-only sqlite pool policy (SQLAlchemy #13039 / aiosqlite #369).
 
-    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin; safe across
+    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin
+    safe across
       pytest + TestClient portal loops).
     - :memory: / bare sqlite+aiosqlite:// -> StaticPool (one shared connection so
-      DDL stays visible across checkouts; dispose still closes the worker).
+      DDL stays visible across checkouts
+      dispose still closes the worker).
     """
     if "poolclass" not in kwargs:
         try:
@@ -308,7 +310,8 @@ def _resume_inquiry_bg_accept_gate():
     """Keep inquiry spawn gate open across tests.
 
     Production shutdown calls drain_inquiry_bg_tasks() which stops accepting.
-    Tests that exercise drain must not poison later cases; reopen after each test.
+    Tests that exercise drain must not poison later cases
+    reopen after each test.
     """
     try:
         from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
@@ -443,7 +446,8 @@ def _async_engine_teardown_guard(event_loop):
     assert not leaked, (
         "aiosqlite connection worker thread(s) leaked at session end: "
         + ", ".join(leaked)
-        + " (app drain_inquiry_bg_tasks + dispose; see SQLAlchemy #13039)"
+        + " (app drain_inquiry_bg_tasks + dispose
+        see SQLAlchemy #13039)"
     )
 
 

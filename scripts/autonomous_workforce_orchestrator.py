@@ -64,7 +64,8 @@ def _resolve_combo_key(combo_name: str) -> str:
     _COMBO_KEY_CACHE[combo_name] = fallback
     return fallback
 
-COMBO_KEYS: dict[str, str] = {}  # deprecated — use _resolve_combo_key(); kept for compat
+COMBO_KEYS: dict[str, str] = {}  # deprecated — use _resolve_combo_key()
+kept for compat
 
 
 # 31 Agents Roster with primary combo and designated peer helper

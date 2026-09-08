@@ -3,7 +3,8 @@
 Executes ONLY the exact 8-point deletion approved against
 docs/QDRANT_DUPLICATE_CLEANUP_DRYRUN_2026-07-15.md. Revalidates the live
 candidate set against the approved fingerprint/ID list before deleting
-anything; aborts with no changes if the live state has drifted from what
+anything
+aborts with no changes if the live state has drifted from what
 was approved. Explicit point-ID deletion only (qmodels.PointIdsList) --
 never a filter-based or namespace-wide delete.
 

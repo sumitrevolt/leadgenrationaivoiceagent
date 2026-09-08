@@ -2,7 +2,8 @@
 Tests: agent stack (P1 Qdrant RAG + P2 LangGraph supervisor).
 
 Sab tests network/Qdrant/Gemini ke BINA chalte hain — pure logic + TestClient.
-- /api/agents/* endpoints (status hamesha; run ko stub karke, taaki langgraph
+- /api/agents/* endpoints (status hamesha
+run ko stub karke, taaki langgraph
   installed ho tab bhi koi graph/LLM call na ho).
 - route_for_task() rule-based router directly (no langgraph needed).
 - KnowledgeBase backend selection with qdrant_url empty (keyword fallback),

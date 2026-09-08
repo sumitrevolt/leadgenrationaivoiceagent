@@ -71,7 +71,8 @@ def daily_video_client_task(self, *, client_id: str) -> dict[str, Any]:
     Enqueued by ``app.marketing.daily_video.run_daily`` with
     ``task_id=daily_video:{client_id}:{YYYY-MM-DD}`` so a re-fired beat cannot
     render the same client twice in a day. HEAVY — never called from the web
-    process; the producer only dispatches.
+    process
+    the producer only dispatches.
     """
     from app.tasks.idempotency import idempotent_task
 

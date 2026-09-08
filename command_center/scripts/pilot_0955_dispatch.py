@@ -3,14 +3,18 @@
 /health 200 healthy 37a1daf8; call_loop DEAD 48h+ (mtime Aug31 08:39:55Z batch211 ok=0/fail=3 'not owned', proc0 cron0);
 SIP 5 vars EMPTY (SIP_PASSWORD orphan len20 only, no HOST/USER/DID); VOBIZ_CALLER_ID len13 REVOKED;
 WA flip INERT (containers app+worker+heavy =0, disk .env=1; owner-approve restart);
-*** HOT-QUEUE 09-02 PRESENT (stat 2026-09-02 03:30:09Z = 09:00 IST; header+43 rows, 43/43 wa_link+UPI deep-links) — CORRECTION to 07:48 'ABSENT' ***
+*** HOT-QUEUE 09-02 PRESENT (stat 2026-09-02 03:30:09Z = 09:00 IST
+header+43 rows, 43/43 wa_link+UPI deep-links) — CORRECTION to 07:48 'ABSENT' ***
 WAHA with-key 200 WORKING session default 918459012607 (activity 1788322802243); webhook leadsgenai.in/api/wa/selfhost/webhook ok;
 WHATSAPP_AUTO_SEND=1 disk; auto_sent true=0 (no sends yet); leads/ ABSENT (ammo ZERO);
 scheduler ALIVE: scan_inbox/2min + staff jobs + boss-autonomy-sweep 09:55.
 GATES: SAL-003 09:00 MISSED (no ACK, no WA-send, no DID) -> BLOCKED; PLT-004 09:00 MISSED -> BLOCKED;
 HNT-004 09:30 MISSED (leads/ absent) -> BLOCKED; ENG-003 09:30 MISSED (watchdog absent) -> BLOCKED;
-OPS-006 10:30 imminent; GRD-003 11:00; SUC-002/BRD-002 12:00. Fleet ACK 0 since 00:12Z (48h+).
-Funnel: DID gate (never landed) -> WA warm-follow-up rail OPEN (hot-queue 09-02) but 0 sends; restart INERT.
+OPS-006 10:30 imminent
+GRD-003 11:00
+SUC-002/BRD-002 12:00. Fleet ACK 0 since 00:12Z (48h+).
+Funnel: DID gate (never landed) -> WA warm-follow-up rail OPEN (hot-queue 09-02) but 0 sends
+restart INERT.
 NO new TASK-ID (anti-spam, max1) — SAL-003 = bottleneck owner (WA sendText NOW + DID), PLT-004 escalate.
 """
 import json
@@ -92,12 +96,22 @@ print("BOTS: statuses refreshed")
 pp = os.path.join(base, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pin["vps_status"] = "UP (/health 200 healthy 37a1daf8); loop DEAD 48h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars EMPTY; VOBIZ_CALLER_ID REVOKED; WA flip INERT (disk=1 containers=0); HOT-QUEUE 09-02 PRESENT 43/43 (09:00 IST gen); WAHA WORKING; auto_sent 0; leads/ ABSENT"
+pin["vps_status"] = "UP (/health 200 healthy 37a1daf8)
+loop DEAD 48h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars EMPTY
+VOBIZ_CALLER_ID REVOKED
+WA flip INERT (disk=1 containers=0)
+HOT-QUEUE 09-02 PRESENT 43/43 (09:00 IST gen)
+WAHA WORKING
+auto_sent 0
+leads/ ABSENT"
 pin["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pin["gap"] = "₹4,98,001"
 pin["pipeline"] = "43+43 HOT UPI-tagged warm leads (queue 09-01/09-02), 0 WA sends, 0 dialer connects, Jiya P0"
 pin["bottleneck"] = "DID never landed (SAL-003 09:00 MISSED) + WA container flip INERT (owner-restart) + fleet 0 ACK 48h+ (4 tasks BLOCKED)"
-pin["action"] = "SAL-003 WA sendText >=10 abhi (WAHA WORKING, hot-queue 09-02) + DID chase; owner: restart approval + hot-queue manual action"
+pin["action"] = "SAL-003 WA sendText >=10 abhi (WAHA WORKING, hot-queue 09-02) + DID chase
+owner: restart approval + hot-queue manual action"
 pin["next_expected_payment"] = "WA sendText reply -> UPI close ya Jiya retention — evidence ke saath"
 save(pp, pin)
 print("PINNED: refreshed")

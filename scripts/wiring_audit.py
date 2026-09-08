@@ -49,7 +49,8 @@ def load_routes() -> set[str]:
 def extract_onclick_handlers(html: str) -> list[str]:
     handlers: list[str] = []
     for m in re.finditer(r'onclick="([^"]+)"', html):
-        for stmt in m.group(1).split(";"):
+        for stmt in m.group(1).split("
+        "):
             stmt = stmt.strip()
             mm = re.match(r"([A-Za-z_$][\w$]*)\s*\(", stmt)
             if mm and mm.group(1) not in SKIP_HANDLERS:

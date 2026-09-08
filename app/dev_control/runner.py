@@ -5,7 +5,8 @@ HARD GATES (never relaxed by this module):
     Celery wrapper, not here — this function is the pure orchestration core).
   * The runner produces a REVIEW-ONLY patch PROPOSAL artifact. It NEVER writes
     that patch into the working tree, commits, pushes, or deploys. ``apply_patch``
-    below unconditionally refuses; patch application is a separate future phase.
+    below unconditionally refuses
+    patch application is a separate future phase.
   * File-ownership locks prevent two workers touching the same files.
   * OmniRoute receives one bounded sanitized packet and no worktree/tool access.
   * Provider usage evidence still flows into the existing usage ledger.
@@ -91,7 +92,8 @@ async def run_dev_task(
     del (
         task_budget_usd,
         daily_remaining_usd,
-    )  # OmniRoute combos are free-only; transport owns quota fallback.
+    )  # OmniRoute combos are free-only
+    transport owns quota fallback.
     from app.models.dev_task import DevTask
 
     task = await db.get(DevTask, task_id)
@@ -130,7 +132,8 @@ async def run_dev_task(
                 "Do not request repository, worktree, shell, Git, browser, database, or production access.",
                 "Do not apply, commit, push, deploy, send, call, bill, or mutate state.",
             ],
-            output_format="review-only unified diff proposal + rationale; no tool calls",
+            output_format="review-only unified diff proposal + rationale
+            no tool calls",
         )
         if not packet.get("ok"):
             result = {

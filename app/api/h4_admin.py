@@ -37,7 +37,8 @@ async def litellm_spend(hours: int = 24, _user=Depends(require_admin)) -> dict:
 @router.get("/margin-alerts")
 async def margin_alerts(_user=Depends(require_admin)) -> dict:
     """Flag clients whose LLM cost > revenue. Today returns the structural
-    payload; the revenue dict will be wired from billing in a follow-up."""
+    payload
+    the revenue dict will be wired from billing in a follow-up."""
     return await litellm_costs.margin_alerts()
 
 

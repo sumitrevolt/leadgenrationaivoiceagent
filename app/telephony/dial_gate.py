@@ -5,9 +5,12 @@ IVR/bots ko "interested" mark kar raha tha. User ka mandate: jab tak quality
 prove na ho, promotional/cold AI calls SIRF approved (company/test) numbers pe.
 
 DESIGN (platform_dial.py / upi_config pattern — env pehle, warna bind-mounted
-data-file; container recreate ke bina toggle):
-- ``DIAL_TEST_MODE`` env explicit 0/1 = final; warna ``data/dial_test_mode.json``
-  ``{"enabled": ...}``; DONO absent => **DEFAULT ON** (fail-CLOSED for
+data-file
+container recreate ke bina toggle):
+- ``DIAL_TEST_MODE`` env explicit 0/1 = final
+warna ``data/dial_test_mode.json``
+  ``{"enabled": ...}``
+  DONO absent => **DEFAULT ON** (fail-CLOSED for
   promotional — cold-calling DLT bhi user-side pending hai, so conservative
   default is also the compliance-correct default).
 - Allowlist = env ``DIAL_TEST_ALLOWLIST`` (comma-separated) + data-file
@@ -156,7 +159,8 @@ def _prefix_threshold() -> int:
 def phone_quality(number: str) -> str:
     """'mobile' | 'flom' | 'fixed' | 'tollfree' | 'invalid' | 'unknown'.
 
-    libphonenumber (IN numbering plan) se; lib absent/error => 'unknown'
+    libphonenumber (IN numbering plan) se
+    lib absent/error => 'unknown'
     (dialing ko lib-failure par brick mat karo — allowlist/test-mode gates
     apni jagah hain)."""
     try:

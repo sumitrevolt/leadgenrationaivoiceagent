@@ -4,18 +4,24 @@
 FRESH live evidence 07:21 IST (this run, not stale):
   - VPS UP /health 37a1daf8 healthy uptime 11h20m, environment production.
   - WA flip LIVE=1 in BOTH containers (docker exec env SALES_AUTOPILOT_WHATSAPP_ENABLED=1).
-    BUT auto_sent=true WITH msg_id = 0 of 2298; reply_drafts mtime Sep3 17:40 (no sends fired).
+    BUT auto_sent=true WITH msg_id = 0 of 2298
+    reply_drafts mtime Sep3 17:40 (no sends fired).
     => ENG-004 real WAHA sendText STILL NOT shipped = #1 close rail dead.
-  - hot-queue for 2026-09-04 ABSENT (2nd day date-lock; last 09-03 03:30).
+  - hot-queue for 2026-09-04 ABSENT (2nd day date-lock
+  last 09-03 03:30).
   - SIP 5 vars (HOST/USERNAME/PASSWORD/DID/PROVIDER) ALL len=0 -> DID NOT landed;
     VOBIZ_CALLER_ID len13 = 911171366938 still REVOKED ("not owned by this account").
-  - call_loop.log mtime Aug31 08:39:55Z batch211 (ok=0 fail=3 "not owned"); proc0 cron0 => dialer DEAD day5+.
+  - call_loop.log mtime Aug31 08:39:55Z batch211 (ok=0 fail=3 "not owned")
+  proc0 cron0 => dialer DEAD day5+.
   - leads/ dir ABSENT/EMPTY => ammo 0.
-  - VERIFIED revenue Rs1,999 (Jiya INV/2026-27/0001 SOLE); GAP Rs4,98,001.
-  - Fleet 0-ACK ~5 days (all command_center msgs are PILOT GHANTIs; zero specialist ACK).
+  - VERIFIED revenue Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+  GAP Rs4,98,001.
+  - Fleet 0-ACK ~5 days (all command_center msgs are PILOT GHANTIs
+  zero specialist ACK).
   - Owner-ESC esc_0904_1252 already on record.
 
-One TASK-ID/bot/run, token-lean. Honour existing task IDs; no new IDs.
+One TASK-ID/bot/run, token-lean. Honour existing task IDs
+no new IDs.
 """
 import json
 import os
@@ -98,16 +104,22 @@ print("bots.json updated")
 with open(os.path.join(BASE, "pinned.json"), encoding="utf-8") as f:
     pin = json.load(f)
 pin["last_updated"] = "2026-09-04T07:21+05:30"
-pin["vps_status"] = ("VPS UP /health 37a1daf8 healthy uptime11h20m; containers WA flip=1 PAR auto_sent=true WITH msg-id=0 of 2298, "
+pin["vps_status"] = ("VPS UP /health 37a1daf8 healthy uptime11h20m
+containers WA flip=1 PAR auto_sent=true WITH msg-id=0 of 2298, "
                      "reply_drafts mtime Sep3 17:40 (ENG-004 sendText NOT shipped); hot-queue 09-04 ABSENT 2nd day (last 09-03); "
                      "SIP 5 vars len=0 DID not landed (CLI 911171366938 REVOKED), dialer DEAD day5, leads 0; "
                      "VERIFIED rev Rs1,999 (Jiya INV/0001 SOLE), GAP Rs4,98,001. Bottleneck #1 WA msgid=0 #1b ammo+reachability 0 #2 DID. "
                      "Fleet 0-ACK ~5d; OWNER-ESC esc_0904_1252 filed.")
 pin["bottleneck"] = ("#1 WA auto_send 0 msg-id (ENG-004 link-only->sendText not shipped) | "
                      "#1b qualified+WA-reachable lead 0 (HNT-005) | #2 DID not landed->dialer dead (CLI REVOKED) | #3 no close-kit buyer")
-pin["pipeline"] = ("reply_drafts 2298 (auto_sent=0, msgid=0); hot-queue 09-04 ABSENT (last 09-03 dirty); dialer 0 connects; "
+pin["pipeline"] = ("reply_drafts 2298 (auto_sent=0, msgid=0)
+hot-queue 09-04 ABSENT (last 09-03 dirty)
+dialer 0 connects
+"
                    "genuine WA inbound 1258806323 warm; Jiya P0 retention")
-pin["action"] = ("07:30 IST gate: ENG-004 ship sendText+msgid+reachability; HNT-005 50 WA-reachable qualified CSV; "
+pin["action"] = ("07:30 IST gate: ENG-004 ship sendText+msgid+reachability
+HNT-005 50 WA-reachable qualified CSV
+"
                  "SAL reachable-only->UPI + genuine inbound follow; PLT DID-land+restart; SUC Jiya proof; GRD verdicts; "
                  "OPS 09-04 date-lock digest; BRD mirror. OWNER-ESC esc_0904_1252 already on record; 0 proof = hold.")
 with open(os.path.join(BASE, "pinned.json"), "w", encoding="utf-8") as f:

@@ -129,7 +129,8 @@ PRE_EXISTING_IDS = [
 def _inline_js() -> str:
     blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
     assert blocks, "no inline <script> block found"
-    return "\n;\n".join(blocks)
+    return "\n
+    \n".join(blocks)
 
 
 def test_inline_js_syntax_ok(tmp_path):

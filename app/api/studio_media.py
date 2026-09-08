@@ -7,7 +7,8 @@ rembg (optional) for background removal — graceful if absent.
 
 Security model (file uploads on a payments platform — see plan
 docs/superpowers/plans/STUDIO_IMAGE_VIDEO_TOOLS_PLAN.md):
-  * require_customer on every route; rate-limited.
+  * require_customer on every route
+  rate-limited.
   * Upload: size cap + content-type allowlist + MAGIC-BYTE sniff (not extension) +
     PIL verify + decompression-bomb pixel bound. Stored under a per-client dir.
   * IDOR-safe BY CONSTRUCTION: every path is data/studio_*/<client_id>/... where

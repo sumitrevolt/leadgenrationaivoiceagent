@@ -3,7 +3,8 @@
   POST /api/contentauto/repurpose          (admin)  1 topic/URL → 7 formats
   POST /api/contentauto/pulse              (admin)  brand mention scan (news+reddit)
   GET  /api/contentauto/pulse/runs         (admin)  weekly brand-pulse run records
-  POST /api/contentauto/month-plan         (admin)  30-din calendar (dry_run default; commit=true → content_schedule)
+  POST /api/contentauto/month-plan         (admin)  30-din calendar (dry_run default
+  commit=true → content_schedule)
   GET  /api/contentauto/team-report        (admin)  weekly AI-staff narrative (?client_id=)
   POST /api/contentauto/team-report/run    (admin)  gated TEAM_REPORT weekly sweep
   POST /api/contentauto/push/subscribe     (public, 30/60s)  browser push sub save
@@ -15,9 +16,12 @@ Mount (main.py):
     from app.api.contentauto import router as contentauto_router
     app.include_router(contentauto_router, prefix="/api")   # /api/contentauto/*
 
-Flags: BRAND_PULSE / TEAM_REPORT (default OFF); webpush = VAPID keys presence.
-PROD lessons baked in: har LLM/network call asyncio.wait_for; sync/file work
-asyncio.to_thread; modules never-raise (error dicts).
+Flags: BRAND_PULSE / TEAM_REPORT (default OFF)
+webpush = VAPID keys presence.
+PROD lessons baked in: har LLM/network call asyncio.wait_for
+sync/file work
+asyncio.to_thread
+modules never-raise (error dicts).
 """
 
 from __future__ import annotations

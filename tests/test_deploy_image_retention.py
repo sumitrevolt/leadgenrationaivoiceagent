@@ -351,7 +351,8 @@ def test_deploy_vps_wires_lineage_retention_planner():
     joined = "\n".join(command_lines)
     assert "docker rmi -f" not in joined
 
-    health_ok = t.index('if [ "$LIVE_VER" != "$VER" ]; then')
+    health_ok = t.index('if [ "$LIVE_VER" != "$VER" ]
+    then')
     write_idx = t.index("--write-lineage")
     up_idx = t.index("_compose_up > /tmp/deploy_up.log")
     assert up_idx < health_ok < write_idx
@@ -364,11 +365,13 @@ def test_deploy_vps_refusal_gates_all_destructive_cleanup():
     assert "_CLEANUP_OK=1" in retention
     assert "docker image prune -f" in retention
     assert "BUILD CACHE skipped" in retention
-    assert 'if [ "$_CLEANUP_OK" -eq 1 ]; then' in retention
+    assert 'if [ "$_CLEANUP_OK" -eq 1 ]
+    then' in retention
     assert "docker builder prune -f --filter" in retention
     assert "zero destructive cleanup executed" in retention
     prune_idx = retention.index("docker image prune -f")
-    gate_idx = retention.index('if [ "$_CLEANUP_OK" -eq 1 ]; then')
+    gate_idx = retention.index('if [ "$_CLEANUP_OK" -eq 1 ]
+    then')
     assert prune_idx < gate_idx
     builder_idx = retention.index("docker builder prune -f --filter")
     assert gate_idx < builder_idx

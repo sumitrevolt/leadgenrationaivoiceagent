@@ -3,7 +3,8 @@
 - End-customer mini-CRM + birthday/anniversary wishes (app/marketing/customer_crm.py)
 - Mini-site product catalog CRUD (app/marketing/product_catalog.py)
 
-(Razorpay payment links removed 2026-06-18 — no online gateway; manual UPI.)
+(Razorpay payment links removed 2026-06-18 — no online gateway
+manual UPI.)
 Sab additive + free-stack + ban-safe (wishes = DRAFT/1-click, KOI auto-send
 nahi). Writes admin-only. Mount: /api + prefix /clientcrm.
 """

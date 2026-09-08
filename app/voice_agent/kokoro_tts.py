@@ -10,7 +10,8 @@ module ships safe (zero behaviour change) and activates only after the dep bake 
 flag flip. Never-raise: `synthesize()` returns b"" on any failure so callers can
 fall through cleanly.
 
-Caveats (documented for the voice-path owner): Kokoro outputs ~24 kHz; the live
+Caveats (documented for the voice-path owner): Kokoro outputs ~24 kHz
+the live
 Vobiz stream needs L16/16 kHz, so adoption there needs a resample step. Hindi
 naturalness < EdgeTTS → keep EdgeTTS primary, Kokoro = failover only.
 """

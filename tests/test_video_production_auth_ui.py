@@ -175,7 +175,8 @@ def test_customer_video_media_is_tenant_scoped_path_safe_and_version_bound(
 
     stale = client.get("/api/customer/videos/video-own-v3/media?revision=1")
     assert stale.status_code == 409
-    assert stale.json()["error"]["message"] == "video version changed; refresh review"
+    assert stale.json()["error"]["message"] == "video version changed
+    refresh review"
 
     V._append(
         {
@@ -238,7 +239,8 @@ def test_customer_video_feedback_requires_exact_displayed_revision(client):
         json={"action": "approve", "expected_revision": 2},
     )
     assert stale.status_code == 409
-    assert stale.json()["error"]["message"] == "video version changed; refresh review"
+    assert stale.json()["error"]["message"] == "video version changed
+    refresh review"
 
 
 def test_customer_video_reject_is_terminal_and_cannot_regenerate(client):

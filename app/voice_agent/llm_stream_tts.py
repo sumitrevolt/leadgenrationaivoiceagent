@@ -20,7 +20,8 @@ _SENT_END = re.compile(r"(?<=[.!?؟।॥])\s+|\n+")
 # Clause separators for the optional early FIRST-chunk flush (TTFA boost): comma,
 # semicolon, colon, Hindi/Arabic comma, and spaced dashes — natural micro-pauses
 # a TTS can speak. Used only when STREAM_TTS_CLAUSE_FLUSH=1 (default OFF).
-_CLAUSE_END = re.compile(r"(?<=[,;:।،])\s+|\s[—–-]\s")
+_CLAUSE_END = re.compile(r"(?<=[,
+:।،])\s+|\s[—–-]\s")
 
 
 def _env_flag(name: str, default_on: bool = False) -> bool:
@@ -77,7 +78,8 @@ def pop_clause(buf: str) -> tuple[str, str]:
     if m:
         # Drop the trailing clause separator itself (comma/dash) — the chunk reads
         # cleaner for TTS; the pause is implied by the chunk boundary.
-        head = b[: m.start()].strip(" ,;:।،—–-")
+        head = b[: m.start()].strip(" ,
+        :।،—–-")
         rest = b[m.end() :]
         if head:
             return head, rest

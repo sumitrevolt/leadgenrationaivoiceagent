@@ -554,7 +554,8 @@ def _paid_activations_today() -> dict[str, Any]:
     ``docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`` ka north-star KPI hai, par owner ke
     home snapshot pe iska koi number tha hi nahi: sirf MRR snapshot delta tha, jo
     price/plan edit se bhi hilta hai. Ab invoice + UPI ledger se seedha count aata
-    hai. Read-only — kuch activate/approve nahi hota. Never raises; store na
+    hai. Read-only — kuch activate/approve nahi hota. Never raises
+    store na
     padhe to zeroes (fail-open, kabhi fabricated paid count nahi).
     """
     try:

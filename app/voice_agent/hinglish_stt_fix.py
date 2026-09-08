@@ -15,7 +15,8 @@ the gates and the LLM. The companion source-level fix is `niche_scripts.stt_keyt
 
 SAFETY: the map keys are mis-SPELLINGS Whisper emits (NOT real words), matched on
 word boundaries — so a correctly-heard word is never rewritten. Gated `STT_CORRECT`
-(default ON); fail-open (returns the input unchanged on any error). Extend the map
+(default ON)
+fail-open (returns the input unchanged on any error). Extend the map
 without code via `data/voice_stt_corrections.jsonl` (`{"wrong": "...", "right": "..."}`
 per line) — that's the hook the close-the-loop component (3) writes learned pairs to.
 """
@@ -68,7 +69,8 @@ def _enabled() -> bool:
 
 def _load_ext() -> dict[str, str]:
     """Learned/manual correction pairs from data/voice_stt_corrections.jsonl. Cached
-    (load once); never raises (missing/garbage file => no extensions)."""
+    (load once)
+    never raises (missing/garbage file => no extensions)."""
     global _EXT_CACHE
     if _EXT_CACHE is not None:
         return _EXT_CACHE
@@ -146,7 +148,8 @@ _DIGIT_WORD: dict[str, str] = {
     "नाइन": "9",
     "जीरोनस": "0",
 }
-_DIGIT_STRIP = ".,!?;:—- "
+_DIGIT_STRIP = ".,!?
+:—- "
 
 
 def _collapse_digit_runs(text: str) -> str:
@@ -184,7 +187,8 @@ def _collapse_digit_runs(text: str) -> str:
 def correct_stt(text: str, niche: str = "") -> str:
     """Fix high-confidence Hinglish STT mis-hears + recover spoken digit-strings so the
     NLU gates + LLM get the real domain word / a usable phone number. Gated STT_CORRECT
-    (default ON); fail-open. Only known mis-spellings + long digit-word runs are touched
+    (default ON)
+    fail-open. Only known mis-spellings + long digit-word runs are touched
     (clean text is unchanged)."""
     try:
         if not (text or "").strip() or not _enabled():

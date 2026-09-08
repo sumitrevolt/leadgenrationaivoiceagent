@@ -1,6 +1,7 @@
 """Auth / fail-closed contract for the Blueprint API (PR #125 hardening).
 
-Internal architecture endpoints must be admin-only; the public contract must
+Internal architecture endpoints must be admin-only
+the public contract must
 be sanitized. Uses TestClient (imports the app) so it runs in CI's
 `prod_check + pytest` job. Kept in its own module so the fast static graph
 contract tests stay import-light.

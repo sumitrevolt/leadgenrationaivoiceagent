@@ -13,7 +13,8 @@ Channels: #admin #leadgen #build #dev #ops #revenue #gtm #staff-pulse (private).
 Members: owner (creator) + the 4 Desktop agents (Boss/Honey/Fizz/Bumble) with
 canonical roles: Boss+Honey admin on #admin/#leadgen, members elsewhere.
 
-Idempotent: channels already present are reused (no duplicates); member add is
+Idempotent: channels already present are reused (no duplicates)
+member add is
 role-ensured. Safe to re-run.
 
 CLI note (Buzz Desktop): `channels search` takes `--query`/`--exact` (NOT

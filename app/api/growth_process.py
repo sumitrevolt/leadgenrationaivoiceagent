@@ -1,7 +1,8 @@
 """Process-engine endpoints (process-as-code: deterministic + breakpoints).
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router(); paths unchanged (/api/growth/process/*).
+Mounted via growth.router.include_router()
+paths unchanged (/api/growth/process/*).
 """
 
 from __future__ import annotations

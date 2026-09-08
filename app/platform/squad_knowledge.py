@@ -14,7 +14,8 @@ def daily_index_update():
 
     Uses lazy imports (copy-neighbor defensive pattern) so the module imports
     cleanly even when scripts/ deps are unavailable. Validation result is the
-    ``run()`` exit code; domain-brief regeneration is best-effort.
+    ``run()`` exit code
+    domain-brief regeneration is best-effort.
     """
     try:
         from scripts.validate_knowledge_os import run as validate_run

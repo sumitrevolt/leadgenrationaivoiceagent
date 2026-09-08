@@ -1,13 +1,17 @@
 """video_ad_cycle — har ~5 din AI video ad: generate -> client approval -> social
-publish; "change chahiye" -> naya revision -> re-approval (free-stack, never-raise).
+publish
+"change chahiye" -> naya revision -> re-approval (free-stack, never-raise).
 
 Bars:
 - generate_for_client -> pending record (approval submit + video_path).
 - on_approved (approve-hook) -> approved (publish-pending).
-- publish_due -> approved item channels pe; koi send na ho to publish_failed (no crash).
-- on_changes_requested (reject-hook) -> changes_requested; _regen_due naya rev banata.
+- publish_due -> approved item channels pe
+koi send na ho to publish_failed (no crash).
+- on_changes_requested (reject-hook) -> changes_requested
+_regen_due naya rev banata.
 - content_approval.approve/reject (WA-link path) bhi hooks fire karta.
-- run_cycle flag-OFF inert; flag-ON due-client generate karta.
+- run_cycle flag-OFF inert
+flag-ON due-client generate karta.
 Heavy reel_video / external postiz stubbed.
 """
 

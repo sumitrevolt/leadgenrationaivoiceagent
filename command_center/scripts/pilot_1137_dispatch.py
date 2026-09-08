@@ -2,16 +2,22 @@
 """PILOT 09-02 11:37 IST sweep — FRESH live evidence (11:30-11:37 IST):
 /health 37a1daf8 healthy (uptime 17h33m, production);
 call_loop DEAD 50h+ (mtime Aug31 08:39:55Z batch211 ok=0/fail=3
-REVOKED CLI 911171366938 'not owned'; proc0 cron0) — prompt claim 'loop chal
+REVOKED CLI 911171366938 'not owned'
+proc0 cron0) — prompt claim 'loop chal
 raha 38/day' STALE, live = DEAD;
 hot-queue 09-02 PRESENT 43 rows (AFM SOLAR head, wa_link+UPI 8459012607@axl);
-leads/ ABSENT (ammo ZERO); auto_sent true=0 (ZERO WA sends); drafts tail whatsapp
-intent=other newsletter only; WAHA leadgen_waha UP 7d; WA flip STILL INERT
+leads/ ABSENT (ammo ZERO)
+auto_sent true=0 (ZERO WA sends)
+drafts tail whatsapp
+intent=other newsletter only
+WAHA leadgen_waha UP 7d
+WA flip STILL INERT
 (disk .env=1 but worker/app env no WHATSAPP_ENABLED line = containers unbooted
 flip); SIP 5 vars len=0 (DID NAHI landed; Jio order in-flight vendor trail only);
 CC mirror VPS tasks.json mtime 05:26Z == 10:56 IST push (fresh);
 FLEET ACK 0 since 00:12Z (48h+). NO new TASK-ID (anti-spam) — rebump 8 bots +
-REV-COMMAND. GRD 11:00 gate MISSED (now overdue); SUC 12:00 imminent.
+REV-COMMAND. GRD 11:00 gate MISSED (now overdue)
+SUC 12:00 imminent.
 """
 import json
 import os
@@ -104,14 +110,28 @@ print("BOTS: statuses refreshed")
 pp = os.path.join(base, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
-pin["vps_status"] = "UP (/health 37a1daf8 healthy uptime17h33m); loop DEAD 50h+ (batch211 REVOKED CLI; proc0 cron0); SIP 5 vars len=0; VOBIZ_CALLER_ID REVOKED; WA flip INERT (disk=1 containers unbooted); auto_sent 0; HOT-QUEUE 09-02 PRESENT 43/43 UPI+wa_link; leads/ ABSENT; egress 000 DAY5; WAHA UP 7d"
+pin["vps_status"] = "UP (/health 37a1daf8 healthy uptime17h33m)
+loop DEAD 50h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 5 vars len=0
+VOBIZ_CALLER_ID REVOKED
+WA flip INERT (disk=1 containers unbooted)
+auto_sent 0
+HOT-QUEUE 09-02 PRESENT 43/43 UPI+wa_link
+leads/ ABSENT
+egress 000 DAY5
+WAHA UP 7d"
 pin["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001)"
 pin["target"] = "₹5,00,000"
 pin["gap"] = "₹4,98,001"
-pin["bottleneck"] = "DID NAHI landed (SIP 5 vars len=0; Jio order in-flight) → dialer dead → WA flip INERT → 86 UPI deep-links ZERO sends → fleet ACK 0 48h+"
+pin["bottleneck"] = "DID NAHI landed (SIP 5 vars len=0
+Jio order in-flight) → dialer dead → WA flip INERT → 86 UPI deep-links ZERO sends → fleet ACK 0 48h+"
 pin["pipeline"] = "86 HOT UPI deep-links (queues 09-01+09-02), 0 WA sends, 0 dialer connects, Jiya P0"
 pin["hot"] = "hot-queue 09-02 43 UPI warm leads (SAL-003 ABHI, ACC 12:30) + Jiya retention (SUC-002 12:00)"
-pin["action"] = "SAL-003 >=10 sendText (WAHA OPEN); PLT-004 egress verdict+SIP template; GRD verdicts overdue; owner: WA restart approval + Jio DID follow-up"
+pin["action"] = "SAL-003 >=10 sendText (WAHA OPEN)
+PLT-004 egress verdict+SIP template
+GRD verdicts overdue
+owner: WA restart approval + Jio DID follow-up"
 pin["next_expected_payment"] = "WA sendText reply → UPI close ya Jiya retention — evidence ke saath"
 save(pp, pin)
 print("PINNED: refreshed")

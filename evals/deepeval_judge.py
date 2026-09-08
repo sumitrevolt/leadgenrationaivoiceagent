@@ -1,14 +1,16 @@
 """
 deepeval_judge.py — FREE LLM judge for DeepEval (RAG/answer-quality regression).
 
-KYUN: promptfoo prompt-level adversarial check karta; DeepEval RAG OUTPUT quality
+KYUN: promptfoo prompt-level adversarial check karta
+DeepEval RAG OUTPUT quality
 (faithfulness/answer-relevancy) ko gate karta — alag layer, genuine gap-filler.
 self_improve + code_upgrader behaviour mutate karte hain → eval gate na ho to
 autonomous change CHUP-CHAP quality gira sakta. Yeh wahi safety-rail.
 
 FREE-STACK: judge bhi free hai — Cerebras/Groq OpenAI-compatible endpoint (wahi key
 jo promptfoo llm-eval.yml use karta: OPENAI_API_KEY + OPENAI_BASE_URL). Koi paid
-OpenAI nahi. deepeval = CI/dev-only dep (requirements-dev.txt; prod lock me NAHI).
+OpenAI nahi. deepeval = CI/dev-only dep (requirements-dev.txt
+prod lock me NAHI).
 
 GRACEFUL: deepeval missing YA judge key absent => judge_available()=False =>
 tests skip ho jaate (CI green rehti, advisory). Kabhi hard-fail nahi.

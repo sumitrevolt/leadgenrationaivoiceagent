@@ -5,7 +5,8 @@ lexical BM25-style rescore (zero new deps). If ``sentence-transformers`` is
 installed and ``RERANKER_BACKEND=crossencoder``, uses
 ``BAAI/bge-reranker-v2-m3`` instead (heavy — image-bake recommended).
 
-Never raises; on any failure returns the input list truncated to top_k.
+Never raises
+on any failure returns the input list truncated to top_k.
 """
 
 from __future__ import annotations

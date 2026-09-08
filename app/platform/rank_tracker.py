@@ -1,6 +1,7 @@
 """Local Rank Tracker (BrightLocal-style) — ONGOING Google-local rank tracking.
 
-Kyun: GBP-audit / website_auditor one-shot reports hain; clients ko RETENTION
+Kyun: GBP-audit / website_auditor one-shot reports hain
+clients ko RETENTION
 hook chahiye — "aapka business 'solar installer pune' pe Google me #4 hai,
 pichhle hafte #7 tha". Yeh module configured keywords ko regularly check karke
 position history banata hai.

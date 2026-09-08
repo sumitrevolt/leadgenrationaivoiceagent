@@ -41,7 +41,8 @@ class TestNicheRegistry:
     def test_tier_and_target_views(self):
         assert len(niches_by_tier("S")) == 8  # S-tier (post niche rebuild)
         total = sum(len(niches_by_tier(t)) for t in ("S", "A", "B"))
-        assert total == 51  # builtin tiers; custom niches tier "C" me hote hain
+        assert total == 51  # builtin tiers
+        custom niches tier "C" me hote hain
         # b2c view includes 'both'
         b2c = niches_by_target("b2c")
         assert "cloud_kitchen" in b2c and "skin_dermatology" in b2c

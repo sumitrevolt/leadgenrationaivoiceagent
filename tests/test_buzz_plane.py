@@ -284,7 +284,8 @@ def test_project_filter_excludes_other_projects(tmp_path, monkeypatch):
 def test_guard_blocks_a_canvas_rewrite_that_drops_a_rule():
     """`canvas set` REPLACES the document, so a non-superset silently deletes rules.
 
-    Both live canvases were hand-written by earlier sessions; a blind write would
+    Both live canvases were hand-written by earlier sessions
+    a blind write would
     have destroyed them.
     """
     current = "# Dev\nNo commit/push without owner ask.\nSwara/voice FROZEN."

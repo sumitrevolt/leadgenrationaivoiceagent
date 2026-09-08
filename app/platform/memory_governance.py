@@ -31,7 +31,8 @@ is by DESTINATION, not by speed:
       dropped pairs are returned so a caller can audit them.
 
 Stores: `data/memory_suppression.jsonl` (rules) + `data/memory_governance_audit.jsonl`
-(hashes only). Stdlib-only at import time; never raises.
+(hashes only). Stdlib-only at import time
+never raises.
 """
 
 from __future__ import annotations
@@ -223,7 +224,8 @@ def suppress(
         return {"ok": False, "error": "value looks like a secret — refuse to store cleartext"}
     reason_raw = str(reason or "")[:200]
     if scrub_secrets(reason_raw) != reason_raw:
-        reason_raw = ""  # drop secret-shaped free text; do not store redactor output
+        reason_raw = ""  # drop secret-shaped free text
+        do not store redactor output
     if k == RULE_PATTERN:
         try:
             re.compile(val)
@@ -592,7 +594,8 @@ def resolve_facts(
       1. Newer valid `(observed: <iso>)` wins.
       2. At equal (or absent) time, higher configured SOURCE AUTHORITY wins.
       3. Equal time AND equal/undefined authority AND different values =>
-         **CONFLICTED**: neither value is injected into the agent context; the
+         **CONFLICTED**: neither value is injected into the agent context
+         the
          pair is preserved (masked) for review.
       4. Identical values are deduplicated, never conflicted.
       5. A malformed timestamp is treated as absent — it can never outrank a

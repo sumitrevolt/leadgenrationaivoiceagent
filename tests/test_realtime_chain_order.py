@@ -1,6 +1,7 @@
 """test_realtime_chain_order.py — audit §10 fix: realtime chain latency-first order.
 
-Red-first: old order was mistral→groq→cerebras; this test would FAIL on the old
+Red-first: old order was mistral→groq→cerebras
+this test would FAIL on the old
 code (mistral first = higher p50 first-token latency for short voice turns).
 Fixed: groq→cerebras→mistral for realtime (audit §10 [LOW] 2026-07-06).
 Bulk unchanged: cerebras→groq→mistral (throughput-first).

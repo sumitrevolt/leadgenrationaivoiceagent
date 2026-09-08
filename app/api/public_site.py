@@ -8,7 +8,8 @@ Final paths (main.py prefix="/api" ke saath):
                                  source_slug (mini-site /b/{slug}) + preferred_time
                                  optional — slug se client resolve hota (business/
                                  niche/city auto-fill), record me bhi store hote.
-                                 DB Lead save best-effort; data/inquiries.jsonl
+                                 DB Lead save best-effort
+                                 data/inquiries.jsonl
                                  me HAMESHA append (koi inquiry kabhi lost nahi).
                                  NOTIFY_EMAIL + SMTP set ho to owner ko email.
   GET  /api/public/inquiries  -> ADMIN — last 100 inquiries (jsonl + DB merged).
@@ -21,7 +22,8 @@ Final paths (main.py prefix="/api" ke saath):
                                  score/grade/top-3 fixes/impact. Full
                                  breakdown sirf paid/admin ke liye (lead-magnet).
 
-Import-safe: DB/team modules lazy-import hote hain; kuch bhi missing ho to
+Import-safe: DB/team modules lazy-import hote hain
+kuch bhi missing ho to
 form submit phir bhi jsonl me save hota hai aur user ko ok milta hai.
 """
 
@@ -172,7 +174,8 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
     """Lead model me best-effort save. Fail ho to None (jsonl me data hai hi).
 
     Dedupe-by-phone (production audit 2026-07-01, F-DB2) — this was the one
-    real-DB Lead() write path with no dedup check; every other write path
+    real-DB Lead() write path with no dedup check
+    every other write path
     (app/platform/prospector.py, app/tasks/sync.py) already looks up an
     existing Lead by phone first. Matching that established convention: a
     repeat inquiry from the same phone number appends to the existing lead's
@@ -902,7 +905,8 @@ async def public_signup(body: SignupIn, request: Request):
                     _coro = _sender.send_text_message(_wa_to, _wa_msg)
                     try:
                         _loop = _aio.get_running_loop()
-                        _loop.create_task(_coro)  # fire-and-forget; signup never waits
+                        _loop.create_task(_coro)  # fire-and-forget
+                        signup never waits
                     except RuntimeError:
                         _aio.run(_coro)
             except Exception as e:
@@ -1066,7 +1070,8 @@ async def public_signup(body: SignupIn, request: Request):
 @router.get("/pay-info")
 async def pay_info():
     """Landing page ka payment modal — NO AUTH. UPI VPA set ho tabhi
-    enabled; QR upi_kit (pure-python encoder) se banta hai, packages
+    enabled
+    QR upi_kit (pure-python encoder) se banta hai, packages
     app.marketing.packages se (key/name/price only). Kabhi raise nahi karta."""
     vpa = ""
     try:
@@ -1131,7 +1136,8 @@ async def turnstile_config():
 @router.get("/business-types")
 async def public_business_types():
     """PUBLIC lead-magnet catalog — audit/site-audit forms isse dropdown bharate
-    hain; visitor apna business type select karta hai to inquiry `niche` ke saath
+    hain
+    visitor apna business type select karta hai to inquiry `niche` ke saath
     aati hai (lead + auto-callback niche-aware). Read-only, no auth — sirf
     wizard catalog ke labels/niches hain, koi PII nahi."""
     try:

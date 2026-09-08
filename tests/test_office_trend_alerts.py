@@ -1,6 +1,7 @@
 """W4.3 — Office momentum alerts built on W4.2 day-over-day trends.
 
-Trends give numbers; this turns worsening momentum into an explicit founder signal in
+Trends give numbers
+this turns worsening momentum into an explicit founder signal in
 the snapshot: stuck leads rising (mid-funnel jamming) or hot leads falling (top-funnel
 slowing). Deterministic, read-only, thresholds env-tunable, never raises.
 """

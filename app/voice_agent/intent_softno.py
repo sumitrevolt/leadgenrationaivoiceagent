@@ -13,7 +13,8 @@ Yeh module = PURE POLICY (no LLM, no network, never raises). Detection
 `qa_checks.is_soft_no` se reuse hota hai (single source of truth). Stateless:
 soft-no count poori `history` se derive hota (works whether the current turn is
 already in history or not). Gated `SOFTNO_DEESCALATE` (default ON — clear
-trust/compliance win; set 0 to disable).
+trust/compliance win
+set 0 to disable).
 
 Wired in: `telecaller_brain.reply()` + `reply_stream_sentences()` (all niches).
 Partial precedent: `platform_pitch.py` ka interest gate (ai_marketing only).

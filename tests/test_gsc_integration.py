@@ -72,7 +72,8 @@ def test_run_daily_disabled_noop() -> None:
 
 def test_run_daily_never_raises(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     creds = tmp_path / "sa.json"
-    creds.write_text("{}")  # exists → enabled True; invalid creds → service build fails
+    creds.write_text("{}")  # exists → enabled True
+    invalid creds → service build fails
     monkeypatch.setenv("GSC_ENABLED", "1")
     monkeypatch.setenv("GSC_SERVICE_ACCOUNT_JSON", str(creds))
     r = gsc.run_daily()

@@ -73,7 +73,8 @@ def _action(band: str, reasons: list[str]) -> str:
     """Hinglish retention next-action (draft — human/journey execute kare)."""
     if band == "green":
         return "Sab theek — monthly report bhejo aur referral maango."
-    joined = "; ".join(reasons[:2])
+    joined = "
+    ".join(reasons[:2])
     if band == "yellow":
         return f"Check-in call/WA karo ({joined}). Fresh content pack + is hafte ke results share karo."
     return (
@@ -218,7 +219,8 @@ async def run_check() -> dict[str, Any]:
         notify = os.environ.get("NOTIFY_EMAIL", "").strip()
         if reds and _alerts_enabled() and notify:
             lines = [
-                f"- {r['business_name']} ({r['client_id']}) score={r['score']}: {'; '.join(r['reasons'])}\n  Action: {r['action']}"
+                f"- {r['business_name']} ({r['client_id']}) score={r['score']}: {'
+                '.join(r['reasons'])}\n  Action: {r['action']}"
                 for r in reds[:10]
             ]
             body = (

@@ -5,7 +5,8 @@ Tests: growth engine (app/platform/growth_engine.py) — self-run pulse.
 No network / no DB / no LLM:
   - growth_engine._PULSE_FILE / _HISTORY_FILE / _INQUIRIES_FILE  → tmp_path
   - prospector._PROSPECTS_FILE → tmp_path (real data/ na chhue)
-  - team._db → None (DB calls silently skip; team_status zeros deta hai)
+  - team._db → None (DB calls silently skip
+  team_status zeros deta hai)
   - seo_blog.run_daily_blog / prospector.run_prospecting → async no-op stubs
     (self-heal kabhi asli network/LLM/scrape na kare)
 

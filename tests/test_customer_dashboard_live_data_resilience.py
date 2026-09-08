@@ -203,7 +203,8 @@ def test_bottom_of_script_loaders_are_individually_isolated():
     listed after it. Each loader must now run through _safeBoot()."""
     html = _html()
     assert "function _safeBoot(name, fn)" in html
-    idx = html.index('_safeBoot("loadBilling", loadBilling);')
+    idx = html.index('_safeBoot("loadBilling", loadBilling)
+    ')
     snippet = html[idx : idx + 500]
     for loader in (
         "loadBilling",
@@ -215,7 +216,8 @@ def test_bottom_of_script_loaders_are_individually_isolated():
         "sec2faLoad",
         "whLoad",
     ):
-        assert f'_safeBoot("{loader}", {loader});' in snippet, f"{loader} not isolated"
+        assert f'_safeBoot("{loader}", {loader})
+        ' in snippet, f"{loader} not isolated"
 
 
 def test_load_live_dashboard_is_named_and_retryable():
@@ -223,7 +225,8 @@ def test_load_live_dashboard_is_named_and_retryable():
     load with no way to retry. Must be a named, re-invokable function."""
     html = _html()
     assert "async function loadLiveDashboard()" in html
-    assert "loadLiveDashboard();" in html  # initial invocation at page load
+    assert "loadLiveDashboard()
+    " in html  # initial invocation at page load
     retry_idx = html.index("function retryLiveDashboard")
     retry_snippet = html[retry_idx : retry_idx + 150]
     assert "loadLiveDashboard()" in retry_snippet

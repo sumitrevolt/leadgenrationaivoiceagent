@@ -3,7 +3,8 @@
 
 RUN ONCE, SUCCESSFULLY — 2026-08-09. `--apply` moved Boss across all seven
 channels, every call `rc=0`, and a read-back confirmed `A present=False,
-C present=True` everywhere. Re-running `--apply` now is a no-op-ish repeat; use
+C present=True` everywhere. Re-running `--apply` now is a no-op-ish repeat
+use
 the default (read-only) to inspect state, and `--rollback` to undo.
 
 WHY (evidence, 2026-08-09):
@@ -147,7 +148,8 @@ def main() -> int:
         return 2
     print("  canonical Boss present in every target channel")
 
-    print("\nSTEP 3 — retire Boss#A (membership only; history untouched)")
+    print("\nSTEP 3 — retire Boss#A (membership only
+    history untouched)")
     for name in targets:
         rc, _, err = run(["channels", "remove-member", "--channel", ch[name], "--pubkey", BOSS_A])
         print(f"  #{name:9} remove A rc={rc} {'' if rc == 0 else err[:90]}")

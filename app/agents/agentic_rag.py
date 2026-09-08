@@ -10,10 +10,12 @@ Plain vector RAG retrieves once and hopes the chunks are relevant. This adds the
 It reuses what we already have — ``knowledge_base.retrieve`` (Qdrant/Chroma/keyword)
 for retrieval and ``free_ai.chat`` (Cerebras→Groq→…) for grading/rewriting/answering —
 so there are **no new dependencies**. Everything is async and defensive: any LLM/KB
-hiccup degrades to the plain KB path; it never raises.
+hiccup degrades to the plain KB path
+it never raises.
 
 OFF by default. Enable with ``USE_AGENTIC_RAG=1`` (a provider key for free_ai is what
-makes grading/rewriting actually run; without it, it still returns the best KB hit).
+makes grading/rewriting actually run
+without it, it still returns the best KB hit).
 
 Use:
   from app.agents.agentic_rag import get_agentic_rag

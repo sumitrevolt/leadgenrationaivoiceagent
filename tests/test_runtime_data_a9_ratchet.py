@@ -246,7 +246,8 @@ def test_manifest_still_validates():
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
     """Migrated stores, and the count is still 21 — that is the honest answer.
 
-    Writers can now follow a cutover; authoritative bytes are still inside the
+    Writers can now follow a cutover
+    authoritative bytes are still inside the
     checkout (~182 MB recordings). A count that fell here would be a false green.
     """
     blocking = manifest.blocking_stores()

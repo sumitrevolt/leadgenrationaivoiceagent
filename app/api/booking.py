@@ -24,7 +24,8 @@ router = APIRouter(prefix="/booking", tags=["Booking"])
 def _resolve_client_id(slug: str) -> str:
     """Mini-site slug → owning client_id so slot availability/booking is scoped PER
     business (jiya's booked slot must NOT block another studio's same slot). Cheap
-    sync lookup; slug fallback still isolates mini-sites if the client isn't found
+    sync lookup
+    slug fallback still isolates mini-sites if the client isn't found
     (that fallback alone fixes the shared-singleton bug). Never raises."""
     slug = (slug or "").strip()
     if not slug:
@@ -90,7 +91,8 @@ async def book_slot(req: BookIn):
     """Book a slot returned by /slots. Returns the booking confirmation.
 
     `slug` scopes the double-book guard PER business — two different clients can hold
-    the same wall-clock slot; the same client can't double-book it."""
+    the same wall-clock slot
+    the same client can't double-book it."""
     try:
         from app.integrations.calendar_booking import get_calendar
 

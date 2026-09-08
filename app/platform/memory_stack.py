@@ -16,18 +16,22 @@ budget nahi, koi DEADLINE nahi, aur do layers (working window + prospective
 
 REVIEW-DRIVEN CORRECTIONS (v2, 2026-08-05):
   - L6 ab JSONL pe NAHI — durable table + atomic claim (`prospective_store`).
-    JSONL read-modify-write exactly-once nahi tha; wo path hata diya gaya hai.
+    JSONL read-modify-write exactly-once nahi tha
+    wo path hata diya gaya hai.
   - `tenant_id` har read/write/assemble/dispatch pe MANDATORY. Koi global
     fallback tenant nahi — blank tenant = refuse.
   - Budget ab TOKEN-based (repo ka `estimate_tokens`), completion headroom
-    reserve ke saath; char-slicing gaya.
+    reserve ke saath
+    char-slicing gaya.
   - Master flag `MEMORY_STACK_ENABLED` + subordinate per-layer flags +
-    `validate_config()`; invalid/partial config = FAIL-CLOSED, koi dispatch nahi.
+    `validate_config()`
+    invalid/partial config = FAIL-CLOSED, koi dispatch nahi.
   - L1 explicitly NON-AUTHORITATIVE hot cache (per-process, TTL, evicted).
 
 INVARIANTS: never-raise · off-loop (`to_thread` + `wait_for`) · no paid AI · no
 new dependency · additive (kisi lane ka behaviour nahi badla) · INERT until the
-master flag is armed. Top-level imports SIRF stdlib; app.* lazy.
+master flag is armed. Top-level imports SIRF stdlib
+app.* lazy.
 """
 
 from __future__ import annotations
@@ -468,7 +472,8 @@ def push_turn(tenant_id: str, session_id: str, role: str, content: str) -> bool:
     L1 is process-local, TTL-bounded and NON-durable, so it is the one place
     allowed to keep a turn while governance is unavailable — that is exactly
     "answer without remembering". The session is marked degraded and can never
-    be promoted (nothing promotes L1 into a durable lane; locked by a test).
+    be promoted (nothing promotes L1 into a durable lane
+    locked by a test).
     """
     try:
         key = _wkey(tenant_id, session_id)

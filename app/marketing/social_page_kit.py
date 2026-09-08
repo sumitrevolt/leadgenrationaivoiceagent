@@ -18,7 +18,8 @@ ai_image, niches. free-LLM se bios — LLM down ho to TEMPLATE fallback se bhi
 COMPLETE kit milta hai (kabhi empty/raise nahi).
 
 NOTE: pages khud create nahi hote (Meta/Google account-action hai) — yeh
-paste-ready kit hai; client ko 1-click copy deliverable (Growth-tier).
+paste-ready kit hai
+client ko 1-click copy deliverable (Growth-tier).
 """
 
 from __future__ import annotations

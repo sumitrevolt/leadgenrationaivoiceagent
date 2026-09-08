@@ -3,7 +3,8 @@
 
 Validates the whole agentic-knowledge layer:
 1. Registries parse (runbooks, playbooks, owner truth).
-2. Classifier is conservative (RED for compliance/irreversible; fail-closed).
+2. Classifier is conservative (RED for compliance/irreversible
+fail-closed).
 3. Every runbook has required fields (id/name/trigger/class/source/detection).
 4. Every playbook has required fields.
 5. Secrets scan over notebook_exports/ + ops/ (no raw keys).

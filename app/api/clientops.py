@@ -404,7 +404,8 @@ class VideoAdGenIn(BaseModel):
 @router.post("/video-ads/generate")
 async def video_ads_generate(body: VideoAdGenIn, _user=Depends(require_admin)):
     """Admin manual: ek client ka video ad banao + approval bhejo. HEAVY build_reel
-    background THREAD me (web event-loop block na ho); ~30-60s me approval link aata."""
+    background THREAD me (web event-loop block na ho)
+    ~30-60s me approval link aata."""
     import asyncio
 
     from app.marketing import video_ad_cycle
@@ -690,7 +691,8 @@ async def posthog_funnel_overview(
     - payload=1: exact FUNNELS filters JSON — PostHog UI me paste karne ke liye
       (jab personal API key nahi hai).
     - create=1: PostHog API se insight banao (POSTHOG_PERSONAL_API_KEY phx_
-      chahiye; phc_ key private endpoints pe nahi chalta — INERT by design).
+      chahiye
+      phc_ key private endpoints pe nahi chalta — INERT by design).
     """
     from app.analytics import posthog_client as _ph
     from app.integrations import posthog_funnel as pf

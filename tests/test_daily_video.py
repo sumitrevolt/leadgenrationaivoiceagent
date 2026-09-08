@@ -213,7 +213,8 @@ def test_auto_downgrades_after_consecutive_advanced_failures(monkeypatch):
 
 def test_explicit_advanced_refuses_rather_than_silently_using_classic(monkeypatch):
     """`DAILY_VIDEO_ENGINE=advanced` is an operator assertion — honour it or
-    report the refusal; never quietly ship a lower-tier deliverable."""
+    report the refusal
+    never quietly ship a lower-tier deliverable."""
     monkeypatch.setenv("DAILY_VIDEO_ENGINE", "advanced")
     engine, why = daily_video.choose_engine(_CID)
     assert engine == ""

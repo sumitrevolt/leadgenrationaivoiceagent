@@ -4,9 +4,11 @@ Predis ka core differentiator (video) free-stack me. Ban-safe: file banta hai,
 HUMAN upload karta hai (auto-publish nahi).
 
 ⚠️ HEAVY CPU job — web request me lamba chal sakta (3-5 slides ~20-40s). Scheduler me
-kabhi UNGATED mat daalo; Celery worker me hi chalana (prod-down qa-job lesson).
+kabhi UNGATED mat daalo
+Celery worker me hi chalana (prod-down qa-job lesson).
 Requires: ffmpeg binary + Pillow + edge-tts (sab pehle se stack me). `available()`
-se check; missing = error dict, NEVER raises. Output: data/reels/<id>.mp4
+se check
+missing = error dict, NEVER raises. Output: data/reels/<id>.mp4
 """
 
 from __future__ import annotations

@@ -12,7 +12,8 @@ Warm-transfer pattern (emulated):
     1. HOLD  — lead ko hold pe daalo (hold music / "ek second ruko").
     2. WHISPER — human agent ko call/whisper karke chhota context brief sunao
                  (LLM se summarize karte hain agar brain available ho).
-    3. BRIDGE — lead + human ko conference me bridge kar do; AI step back.
+    3. BRIDGE — lead + human ko conference me bridge kar do
+    AI step back.
 
 Telephony legs `telephony_service` ke through jaate hain. Jab koi real provider
 configured nahi hota, to SIMULATION mode me har step log hota hai aur ek
@@ -176,7 +177,8 @@ class WarmTransfer:
                 # Simulation: pretend the agent answered after a short ring.
                 await asyncio.sleep(0.1)
                 human_call_id = f"human_{call_id}"
-                steps.append("[WHISPER] (SIMULATION) Agent answered; brief delivered.")
+                steps.append("[WHISPER] (SIMULATION) Agent answered
+                brief delivered.")
         except Exception as e:
             logger.error(f"Warm-transfer whisper leg failed: {e}")
             await self._safe_unhold(telephony, call_id)

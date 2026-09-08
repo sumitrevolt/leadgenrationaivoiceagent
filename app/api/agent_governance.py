@@ -7,7 +7,8 @@ parity):
   - lifecycle_hooks: pre/post/error task hooks (flag AGENT_HOOKS).
   - custom_agents: data-defined personas, no code-deploy (flag CUSTOM_AGENTS).
 
-Reads = require_admin; mutations = require_super_admin (RBAC design — core-control
+Reads = require_admin
+mutations = require_super_admin (RBAC design — core-control
 changes super-admin gated, jaisa upgrader patch-status). Lazy-import per route.
 Mount (main session wires): app.include_router(agent_governance.router,
 prefix="/api/agents-ext").

@@ -12,9 +12,13 @@ it BEFORE its first mutating command.
 
 Modes
 -----
-``diagnose``      read-only report; safe anywhere; always exit 0
-``check-deploy``  strict; non-zero unless a destructive deploy is provably safe
-``check-cutover`` validates prerequisites for a FUTURE cutover; performs nothing
+``diagnose``      read-only report
+safe anywhere
+always exit 0
+``check-deploy``  strict
+non-zero unless a destructive deploy is provably safe
+``check-cutover`` validates prerequisites for a FUTURE cutover
+performs nothing
 
 It never prints secret values — only paths, booleans and counts.
 """

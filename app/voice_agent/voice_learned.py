@@ -11,7 +11,8 @@ the current niche into its system prompt — so a human-approved correction from
 real call actually improves the live agent.
 
 GUARDRAILS: only the admin promote path writes here (gated by `promotion_gate` +
-`require_admin`); never a blind/auto write. Bounded to top-N per niche so the prompt
+`require_admin`)
+never a blind/auto write. Bounded to top-N per niche so the prompt
 stays small (root-cause #2: 8B models under a heavy prompt). Gated
 `VOICE_LEARNED_INJECT` (default ON). Every function never raises.
 """

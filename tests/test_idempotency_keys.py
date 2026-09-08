@@ -35,7 +35,8 @@ class _FakeTask:
 def _capture_fallback_key(args, monkeypatch):
     """Invoke the idempotent wrapper and return the Redis key it generated.
 
-    A fake redis client records the key passed to ``.set(...)``; ``nx=True``
+    A fake redis client records the key passed to ``.set(...)``
+    ``nx=True``
     returns truthy so the wrapped function still runs (no skip).
     """
     captured: dict[str, str] = {}

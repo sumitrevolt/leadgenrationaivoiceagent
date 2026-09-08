@@ -1,7 +1,8 @@
 """Social Setup Wizard prefs honored by the daily draft-content loop.
 
 These are draft/approval preferences only. They do not enable auto-posting or
-bulk sending; SOCIAL_ENGINE remains separately gated. Runtime honor is behind
+bulk sending
+SOCIAL_ENGINE remains separately gated. Runtime honor is behind
 SOCIAL_PREFS_HONOR=1 (default OFF).
 """
 

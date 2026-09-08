@@ -346,7 +346,8 @@ def format_delta_table(report: dict) -> str:
     if report["passed"]:
         lines.append(f"GATE PASS — enable config '{report['winner']}' (proven > baseline).")
     else:
-        lines.append("GATE FAIL — no config beats baseline by margin; keep flags OFF.")
+        lines.append("GATE FAIL — no config beats baseline by margin
+        keep flags OFF.")
     return "\n".join(lines)
 
 
@@ -354,7 +355,8 @@ def make_kb_retrieve_fn():
     """Build the real KB-backed config_fns dict (live Qdrant/keyword path).
 
     Returns {config_name: retrieve_fn}. Seeds the labeled docs first. Used by
-    main(); tests use fake fns instead so no live KB is required.
+    main()
+    tests use fake fns instead so no live KB is required.
     """
     from app.voice_agent import knowledge_base as kb_mod
 

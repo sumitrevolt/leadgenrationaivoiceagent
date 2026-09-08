@@ -126,7 +126,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "REPLY_AUTO_SEND",
         FlagValueKind.BOOLEAN,
         FlagGovernance.SAFETY_INVARIANT,
-        notes="Cold auto-reply; keep OFF",
+        notes="Cold auto-reply
+        keep OFF",
         owner="rohan",
         risk="outbound",
         customer=True,
@@ -198,7 +199,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "UPI_AUTO_ACTIVATE_CLIENTS",
         FlagValueKind.CSV_ALLOWLIST,
         FlagGovernance.CONFIGURATION_NOT_SWITCH,
-        notes="Empty fail-closed; * needs graduation",
+        notes="Empty fail-closed
+        * needs graduation",
         risk="billing",
     ),
     "SALES_AUTOPILOT_WHATSAPP_ENABLED": _m(
@@ -226,14 +228,17 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "WHATSAPP_SEND_ALLOWLIST",
         FlagValueKind.CSV_ALLOWLIST,
         FlagGovernance.CONFIGURATION_NOT_SWITCH,
-        notes="Empty=nobody; *=explicit all",
+        notes="Empty=nobody
+        *=explicit all",
         risk="outbound",
     ),
     "PLATFORM_DIAL_DAILY": _m(
         "PLATFORM_DIAL_DAILY",
         FlagValueKind.BOOLEAN,
         FlagGovernance.PRODUCTION_PROVEN,
-        notes="Boolean arm; cap=PLATFORM_DIAL_LIMIT; Agent Runtime RED separate",
+        notes="Boolean arm
+        cap=PLATFORM_DIAL_LIMIT
+        Agent Runtime RED separate",
         owner="swara",
         risk="voice",
         customer=True,
@@ -306,7 +311,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "OKF_INGEST_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
-        notes="ADR-119 Phase-1 OKF→Qdrant ingest; OFF default; dry-run always safe",
+        notes="ADR-119 Phase-1 OKF→Qdrant ingest
+        OFF default
+        dry-run always safe",
         owner="platform",
         risk="ops",
         default="0",
@@ -318,7 +325,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "OKF_PUBLIC_BUNDLE",
         FlagValueKind.BOOLEAN,
         FlagGovernance.SAFE_LOCAL_ONLY,
-        notes="Public /okf/ Markdown; default ON; content is git-curated knowledge/",
+        notes="Public /okf/ Markdown
+        default ON
+        content is git-curated knowledge/",
         owner="platform",
         risk="ops",
         default="1",
@@ -338,7 +347,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "EXTERNAL_AGENT_ORCHESTRATOR",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-148 records/missions; prod OFF",
+        notes="ADR-148 records/missions
+        prod OFF",
         risk="dev_control",
         default="0",
         canary="local/Windows",
@@ -347,7 +357,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "EXTERNAL_AGENT_RUNNER",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-149 dual-gate; prod OFF",
+        notes="ADR-149 dual-gate
+        prod OFF",
         risk="dev_control",
         companions=("EXTERNAL_AGENT_ORCHESTRATOR",),
         default="0",
@@ -357,7 +368,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "PR_FACTORY_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-156 thin dispatcher onto external_agents; dual-gate with ORCHESTRATOR; prod OFF",
+        notes="ADR-156 thin dispatcher onto external_agents
+        dual-gate with ORCHESTRATOR
+        prod OFF",
         risk="dev_control",
         companions=("EXTERNAL_AGENT_ORCHESTRATOR",),
         default="0",
@@ -369,7 +382,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "PR_FACTORY_PILOT_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-166 bounded PR-orchestration pilot (triple-gate, task manifest, max 2 repair attempts, no merge/deploy); prod OFF",
+        notes="ADR-166 bounded PR-orchestration pilot (triple-gate, task manifest, max 2 repair attempts, no merge/deploy)
+        prod OFF",
         risk="dev_control",
         companions=("EXTERNAL_AGENT_ORCHESTRATOR", "PR_FACTORY_ENABLED"),
         default="0",
@@ -381,7 +395,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "CELERY_ONBOARD_QUEUE",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Route onboard_client to existing heavy worker; OFF=default celery; never invent an unconsumed queue",
+        notes="Route onboard_client to existing heavy worker
+        OFF=default celery
+        never invent an unconsumed queue",
         risk="ops",
         default="0",
         kill="CELERY_ONBOARD_QUEUE=0",
@@ -391,7 +407,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "ONBOARDING_PIPELINE",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Staged onboarding factory pipeline with retry/DLQ/backpressure; OFF=default (legacy auto_onboard still works)",
+        notes="Staged onboarding factory pipeline with retry/DLQ/backpressure
+        OFF=default (legacy auto_onboard still works)",
         risk="ops",
         default="0",
         kill="ONBOARDING_PIPELINE=0",
@@ -401,7 +418,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "FORM_BUILDER",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Admin form/survey builder (data/forms.jsonl); OFF=API 503, no checkout writes from the route",
+        notes="Admin form/survey builder (data/forms.jsonl)
+        OFF=API 503, no checkout writes from the route",
         risk="ops",
         default="0",
         kill="FORM_BUILDER=0",
@@ -411,7 +429,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "PROPOSAL_BUILDER",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Admin proposal/quote drafts (data/proposals.jsonl); OFF=API 503; not a billing ledger",
+        notes="Admin proposal/quote drafts (data/proposals.jsonl)
+        OFF=API 503
+        not a billing ledger",
         risk="ops",
         default="0",
         kill="PROPOSAL_BUILDER=0",
@@ -421,7 +441,9 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "COORDINATION_HUB_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-150 Owner OS thin projection; not second control plane; prod OFF",
+        notes="ADR-150 Owner OS thin projection
+        not second control plane
+        prod OFF",
         risk="owner_os",
         default="0",
         canary="local/admin",
@@ -430,7 +452,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "OWNER_OS_LITMUS",
         FlagValueKind.BOOLEAN,
         FlagGovernance.PRODUCTION_PROVEN,
-        notes="ADR-155 agent-swarm pattern harvest — deterministic Owner OS litmus; default ON",
+        notes="ADR-155 agent-swarm pattern harvest — deterministic Owner OS litmus
+        default ON",
         risk="owner_os",
         default="1",
         kill="OWNER_OS_LITMUS=0",
@@ -440,7 +463,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "COORD_HUB_BUZZ_SECRET",
         FlagValueKind.SECRET,
         FlagGovernance.SECRET_NEVER_EXPOSE,
-        notes="Buzz webhook HMAC only; never admin bearer",
+        notes="Buzz webhook HMAC only
+        never admin bearer",
         risk="security",
     ),
     "COORD_HUB_TOOL_CURSOR_SECRET": _m(
@@ -468,18 +492,22 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "COORD_PLAN_NODE",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-159 MetaGPT steal-#1 structured plan canary; prod OFF; legacy _extract_list stays authoritative fallback",
+        notes="ADR-159 MetaGPT steal-#1 structured plan canary
+        prod OFF
+        legacy _extract_list stays authoritative fallback",
         owner="platform",
         risk="llm_cost",
         companions=("COORD_PLAN_NODE_REVIEWS",),
         default="0",
-        canary="coordinator.plan() single caller; measure before graduating",
+        canary="coordinator.plan() single caller
+        measure before graduating",
     ),
     "COORD_PLAN_NODE_REVIEWS": _m(
         "COORD_PLAN_NODE_REVIEWS",
         FlagValueKind.INTEGER,
         FlagGovernance.CONFIGURATION_NOT_SWITCH,
-        notes="Bounded review/revise rounds on schema failure; 0 = no review round",
+        notes="Bounded review/revise rounds on schema failure
+        0 = no review round",
         owner="platform",
         risk="llm_cost",
         default="1",
@@ -489,11 +517,14 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "HARNESS_SESSION_EVENTS",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="ADR-180 dsh steal-#1 typed SessionEvent + process-local hash-chain on harness jsonl; prod OFF; flag-off rows stay historical-key compatible",
+        notes="ADR-180 dsh steal-#1 typed SessionEvent + process-local hash-chain on harness jsonl
+        prod OFF
+        flag-off rows stay historical-key compatible",
         owner="platform",
         risk="ops",
         default="0",
-        canary="local pytest + isolated HARNESS_RUN_LOG; do not arm AGENT_HARNESS with this in prod",
+        canary="local pytest + isolated HARNESS_RUN_LOG
+        do not arm AGENT_HARNESS with this in prod",
         kill="HARNESS_SESSION_EVENTS=0",
     ),
     "DSH_RUNTIME_ENABLED": _m(
@@ -517,7 +548,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "DSH_SHADOW_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Proposal-only DSH shadow; child has no mutating capability submit tool",
+        notes="Proposal-only DSH shadow
+        child has no mutating capability submit tool",
         owner="platform",
         risk="agent_os",
         companions=("DSH_AGENT_ALLOWLIST",),
@@ -529,7 +561,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "DSH_AGENT_ALLOWLIST",
         FlagValueKind.CSV_ALLOWLIST,
         FlagGovernance.CONFIGURATION_NOT_SWITCH,
-        notes="Bounded executable-agent allowlist; empty means no DSH authority or shadow",
+        notes="Bounded executable-agent allowlist
+        empty means no DSH authority or shadow",
         owner="rohan",
         risk="agent_os",
         companions=("DSH_RUNTIME_ENABLED", "DSH_SHADOW_ENABLED"),
@@ -587,7 +620,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "SALES_AUTOPILOT_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.PRODUCTION_PROVEN,
-        notes="Owner-armed master; channels separate",
+        notes="Owner-armed master
+        channels separate",
         risk="outbound",
         customer=True,
         evidence="PRODUCTION-PROVEN",
@@ -612,7 +646,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "AGENT_RUNTIME",
         FlagValueKind.BOOLEAN,
         FlagGovernance.CANARY_ONLY,
-        notes="Pilot allowlist; RED blocked for Swara/Ananya",
+        notes="Pilot allowlist
+        RED blocked for Swara/Ananya",
         risk="agent_os",
         canary="PILOT_AGENTS allowlist",
     ),
@@ -665,7 +700,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "VOICE_CLOSE_WHATSAPP",
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
-        notes="Close-signal WA; needs sender gate",
+        notes="Close-signal WA
+        needs sender gate",
         risk="outbound",
         customer=True,
         companions=("WHATSAPP_AUTO_SEND",),
@@ -683,7 +719,8 @@ _OVERRIDES: dict[str, FlagMeta] = {
         owner="platform",
         risk="product",
         default="0",
-        canary="module present, zero callers; wire one niche namespace first",
+        canary="module present, zero callers
+        wire one niche namespace first",
     ),
     "VOICE_KB_MIN_GROUND_SCORE": _m(
         "VOICE_KB_MIN_GROUND_SCORE",
@@ -893,7 +930,8 @@ def describe_flag(name: str) -> FlagMeta:
         kind=kind,
         governance=gov,
         secret=secret,
-        notes="heuristic type; governance unknown_requires_review until owner overlay",
+        notes="heuristic type
+        governance unknown_requires_review until owner overlay",
         evidence_label="CODE-PRESENT",
     )
 

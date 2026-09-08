@@ -55,7 +55,9 @@ bots_path = os.path.join(base, "bots.json")
 with open(bots_path, encoding="utf-8") as f:
     bots = json.load(f)
 
-bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 34h+ (mtime 08-31 14:09 IST; proc 0; cron 0) + "
+bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 34h+ (mtime 08-31 14:09 IST
+proc 0
+cron 0) + "
                            f"SIP 5 vars len=0 + Vobiz egress 000 (01:45 re-test) = dialer gate. HOT: hot-queue 43 WA closes = "
                            f"aaj ka revenue path — SAL-003 execution ZERO (auto_sent=0). AAJ 0 WA sends. "
                            f"01:40 dispatches ke 0 bot ACK — nudge sent. VPS healthy 37a1daf8.")
@@ -63,12 +65,17 @@ bots["sales"]["status"] = (f"SAL-003 P0: hot-queue 43 WA closes + vendor DID pro
                            f"(auto_sent=0). Dialer dead 34h — WA = aaj ka revenue path. ACK missing — REINFORCE sent.")
 bots["platform"]["status"] = (f"PLT-004 P0: egress api.vobiz.com STILL 000 (01:45 IST re-test, 4+ days). SIP env 0 non-empty. "
                               f"Root-cause + plan 09:00 IST. ACK missing.")
-bots["operations"]["status"] = "OPS-006 P0: loop death root-cause done (proc 0 + cron 0); restart-ready; 10:30 digest. ACK missing."
+bots["operations"]["status"] = "OPS-006 P0: loop death root-cause done (proc 0 + cron 0)
+restart-ready
+10:30 digest. ACK missing."
 bots["engineering"]["status"] = "ENG-003 P1: watchdog + Jio SIP runbook due 09:30 IST. No watchdog exists — loop dead 34h+. ACK missing."
-bots["hunter"]["status"] = "HNT-004 P1: leads/ EMPTY re-confirm; 50-lead DND-scrubbed CSV due 09:30 IST. ACK missing."
+bots["hunter"]["status"] = "HNT-004 P1: leads/ EMPTY re-confirm
+50-lead DND-scrubbed CSV due 09:30 IST. ACK missing."
 bots["guardian"]["status"] = "GRD-003 P1: 5 verdicts due 11:00 IST (incl revenue-snapshot OR mismatch). ACK missing."
-bots["success"]["status"] = "SUC-002 P0: Jiya email SENT proof due 12:00 IST; only payer ₹1,999 churn-risk. ACK missing."
-bots["board"]["status"] = "BRD-002 P2: VPS mirror STALE (Sep 1 19:09 vs local now); push 3 files + validate due 12:00 IST."
+bots["success"]["status"] = "SUC-002 P0: Jiya email SENT proof due 12:00 IST
+only payer ₹1,999 churn-risk. ACK missing."
+bots["board"]["status"] = "BRD-002 P2: VPS mirror STALE (Sep 1 19:09 vs local now)
+push 3 files + validate due 12:00 IST."
 with open(bots_path, "w", encoding="utf-8") as f:
     json.dump(bots, f, ensure_ascii=False, indent=2)
     f.write("\n")
@@ -80,11 +87,17 @@ with open(pinned_path, encoding="utf-8") as f:
     pinned = json.load(f)
 pinned["last_updated"] = now.strftime("%Y-%m-%dT%H:%MZ")
 pinned["priority_tasks"] = ["SAL-003", "PLT-004", "OPS-006", "ENG-003", "HNT-004"]
-pinned["vps_status"] = "HEALTHY (37a1daf8); calling loop DEAD 34h+ (mtime Aug 31 14:09 IST); SIP env 5 vars EMPTY; Vobiz egress 000 (01:45 IST re-test)"
+pinned["vps_status"] = "HEALTHY (37a1daf8)
+calling loop DEAD 34h+ (mtime Aug 31 14:09 IST)
+SIP env 5 vars EMPTY
+Vobiz egress 000 (01:45 IST re-test)"
 pinned["verified_revenue"] = "₹1,999 (Jiya INV/2026-27/0001) — GRD-003 verifying snapshots active=3/MRR=5997 claim"
 pinned["gap"] = "₹4,98,001"
 pinned["bottleneck"] = "DID gate: vendor proof absent (SAL-003) + Vobiz egress 000 (PLT-004) + SIP creds empty + loop dead no-watchdog (ENG-003/OPS-006). Revenue path AAJ = hot-queue 43 WA closes (SAL-003, 0 sent so far)."
-pinned["pipeline"] = "43 HOT interested leads (wa_link+UPI ready); 0 dialer connects (loop dead 34h+); 0 WA sends; Jiya P0"
+pinned["pipeline"] = "43 HOT interested leads (wa_link+UPI ready)
+0 dialer connects (loop dead 34h+)
+0 WA sends
+Jiya P0"
 pinned["action"] = "SAL-003 hot-queue WA >=10 proof + vendor DID → PLT-004 egress fix → OPS-006/ENG-003 restart+watchdog → HNT-004 CSV → GRD-003 5 verdicts → SUC-002 Jiya proof → BRD-002 mirror"
 with open(pinned_path, "w", encoding="utf-8") as f:
     json.dump(pinned, f, ensure_ascii=False, indent=2)

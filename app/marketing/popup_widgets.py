@@ -31,7 +31,8 @@ _CONFIG_FILE = os.path.join("data", "popup_config.jsonl")
 
 _TRIGGERS = {"exit_intent", "scroll50", "delay"}
 _MAX_SEGMENTS = 6
-_MIN_SEGMENTS = 2  # 4-6 recommended; <2 = wheel render nahi hota
+_MIN_SEGMENTS = 2  # 4-6 recommended
+<2 = wheel render nahi hota
 
 
 def _slug_key(slug: str) -> str:
@@ -252,10 +253,17 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
  if(window.__lgaiPopupPack)return;window.__lgaiPopupPack=1;
  var CFG=__CFG__,SLUG=__SLUG__,EMBED=__EMBED__,COLOR=__COLOR__;
  var FONT="-apple-system,Segoe UI,Roboto,Arial,sans-serif";
- function today(){return new Date().toISOString().slice(0,10);}
- function seen(k){try{return localStorage.getItem(k)===today();}catch(e){return false;}}
- function mark(k){try{localStorage.setItem(k,today());}catch(e){}}
- function el(t,c){var d=document.createElement(t);if(c)d.style.cssText=c;return d;}
+ function today(){return new Date().toISOString().slice(0,10)
+ }
+ function seen(k){try{return localStorage.getItem(k)===today()
+ }catch(e){return false
+ }}
+ function mark(k){try{localStorage.setItem(k,today())
+ }catch(e){}}
+ function el(t,c){var d=document.createElement(t)
+ if(c)d.style.cssText=c
+ return d
+ }
  var ov=null;
  function openForm(){
   if(!ov){
@@ -279,14 +287,19 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
   var x=el("span","position:absolute;right:10px;top:6px;font-size:15px;cursor:pointer;opacity:.85");
   x.textContent="✕";bar.appendChild(x);
   x.addEventListener("click",function(e){e.stopPropagation();bar.remove();});
-  if(B.link){bar.addEventListener("click",function(){location.href=B.link;});}
+  if(B.link){bar.addEventListener("click",function(){location.href=B.link
+  })
+  }
   document.body.appendChild(bar);
   if(B.countdown_until){
    var end=Date.parse(B.countdown_until);
    if(!isNaN(end)){
     var iv=setInterval(function(){
      var s=Math.floor((end-Date.now())/1e3);
-     if(s<=0){cd.textContent="";clearInterval(iv);return;}
+     if(s<=0){cd.textContent=""
+     clearInterval(iv)
+     return
+     }
      var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
      cd.textContent="⏳ "+(d>0?d+"d ":"")+h+"h "+m+"m "+(s%60)+"s";
     },1000);
@@ -315,7 +328,8 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var b=el("button","width:100%;padding:12px;border:0;border-radius:10px;background:"+COLOR+";color:#fff;font:700 15px/1 "+FONT+";cursor:pointer");
    b.type="button";b.textContent=P.cta_text||"Callback chahiye";c.appendChild(b);
    o.appendChild(c);document.body.appendChild(o);
-   function close(){try{o.remove();}catch(e){}}
+   function close(){try{o.remove()
+   }catch(e){}}
    x.addEventListener("click",close);
    o.addEventListener("click",function(e){if(e.target===o)close();});
    b.addEventListener("click",function(){close();openForm();});
@@ -340,10 +354,16 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
   var COLS=["#f59e0b","#10b981","#3b82f6","#ef4444","#8b5cf6","#14b8a6"];
   var fab=el("button","position:fixed;left:18px;bottom:18px;z-index:2147483200;background:"+COLOR+";color:#fff;border:0;border-radius:999px;padding:12px 16px;font:600 14px/1 "+FONT+";cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.25)");
   fab.type="button";fab.textContent="🎡 Lucky Spin";
-  if(document.body){document.body.appendChild(fab);}else{document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(fab);});}
+  if(document.body){document.body.appendChild(fab)
+  }else{document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(fab)
+  })
+  }
   fab.addEventListener("click",function(){
    var n=SEG.length,arc=360/n,stops=[],i;
-   for(i=0;i<n;i++){stops.push(COLS[i%COLS.length]+" "+(i*arc)+"deg "+((i+1)*arc)+"deg");}
+   for(i=0
+   i<n
+   i++){stops.push(COLS[i%COLS.length]+" "+(i*arc)+"deg "+((i+1)*arc)+"deg")
+   }
    var o=el("div","position:fixed;inset:0;z-index:2147483400;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center");
    var c=el("div","position:relative;width:320px;max-width:92vw;background:#fff;border-radius:16px;padding:22px 18px;text-align:center;font-family:"+FONT);
    var x=el("button","position:absolute;top:6px;right:10px;background:none;border:0;font-size:20px;cursor:pointer;color:#888");
@@ -352,7 +372,9 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var ptr=el("div","width:0;height:0;margin:0 auto;border-left:10px solid transparent;border-right:10px solid transparent;border-top:14px solid #111");c.appendChild(ptr);
    var wh=el("div","width:230px;height:230px;margin:2px auto 10px;border-radius:50%;border:6px solid #eee;background:conic-gradient("+stops.join(",")+");transition:transform 3.2s cubic-bezier(.15,.65,.1,1)");c.appendChild(wh);
    var lg=el("div","font-size:12px;color:#555;text-align:left;margin:0 auto 10px;max-width:230px");
-   for(i=0;i<n;i++){
+   for(i=0
+   i<n
+   i++){
     var row=el("div","margin:2px 0");
     var dot=el("span","display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:"+COLS[i%COLS.length]);
     var lb=document.createElement("span");lb.textContent=SEG[i].label||"";
@@ -363,7 +385,8 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    var b=el("button","width:100%;padding:12px;border:0;border-radius:10px;background:"+COLOR+";color:#fff;font:700 15px/1 "+FONT+";cursor:pointer");
    b.type="button";b.textContent="SPIN 🎰";c.appendChild(b);
    o.appendChild(c);document.body.appendChild(o);
-   function close(){try{o.remove();}catch(e){}}
+   function close(){try{o.remove()
+   }catch(e){}}
    x.addEventListener("click",close);
    o.addEventListener("click",function(e){if(e.target===o)close();});
    var spun=false;
@@ -376,12 +399,14 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
      res.textContent="🎉 "+(s.label||"Offer")+(s.coupon_code?" — code: "+s.coupon_code:"");
      b.disabled=false;b.textContent="📞 Offer claim karein";
      b.addEventListener("click",function(){close();openForm();});
-     try{fab.style.display="none";}catch(e){}
+     try{fab.style.display="none"
+     }catch(e){}
     },3400);
    });
   });
  })();
-})();"""
+})()
+"""
 
 
 def render_js(slug: str) -> str:

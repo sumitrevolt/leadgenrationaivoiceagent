@@ -1,6 +1,7 @@
 """Guardrails wired into the PUBLIC chatbot/widget (app/marketing/chatbot.py).
 
-Verifies: flag OFF = passthrough; flag ON blocks prompt-injection (no LLM call),
+Verifies: flag OFF = passthrough
+flag ON blocks prompt-injection (no LLM call),
 redacts PII BEFORE the LLM sees it, and replaces unsafe LLM output. free_ai + KB mocked.
 """
 

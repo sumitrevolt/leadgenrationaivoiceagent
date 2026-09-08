@@ -2,7 +2,8 @@
 """Idempotent .env key setter (VPS).
 
 GENERIC mode:  python3 scripts/env_set.py KEY=VALUE [KEY=VALUE ...] [--file PATH]
-               (existing key REPLACE, naya APPEND; backup .env.bak_envset_<ts>)
+               (existing key REPLACE, naya APPEND
+               backup .env.bak_envset_<ts>)
 LEGACY mode:   python3 scripts/env_set.py     (no args — purana fixed P1/P3 set)
 
 Secrets is file me kabhi nahi — sirf flag-style keys CLI se do.

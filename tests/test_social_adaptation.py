@@ -2,10 +2,12 @@
 
 Contract:
 - adapt_for_platform NEVER mutates the input dict.
-- Instagram: URLs stripped → "Link in bio" note appended; hashtag tail up to 30
+- Instagram: URLs stripped → "Link in bio" note appended
+hashtag tail up to 30
   merged into caption.
 - X: long text split into thread parts with "(k/n)" suffixes.
-- GBP: hashtags removed entirely; caption truncated to 1500.
+- GBP: hashtags removed entirely
+caption truncated to 1500.
 - LinkedIn: hashtag tail limited to 5 (algorithm pref).
 - YouTube: description = caption + up to 15 tags.
 - Facebook: pass-through with hashtag tail up to 10.

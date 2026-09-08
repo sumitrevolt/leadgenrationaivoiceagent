@@ -66,7 +66,8 @@ def test_unknown_count_matches_unknown_rows() -> None:
 def test_multiple_legacy_paths_do_not_inflate_the_count() -> None:
     """A family with three legacy paths is still ONE family.
 
-    `governance.owner_os` names three JSONL files; counting paths instead of
+    `governance.owner_os` names three JSONL files
+    counting paths instead of
     authorities is exactly how ~250 literals got mistaken for ~250 stores.
     """
     multi = [s for s in m.STORES if len(s.get("legacy_paths") or []) > 1]

@@ -16,7 +16,8 @@ sendable. Root causes fixed here:
   5. ``scripts/backfill_prospect_status.py`` reclassifies the rows already
      stranded at ``new`` using the same ingest rule.
 
-No email is ever sent by any of this; AUTO_EMAIL_OUTREACH stays untouched.
+No email is ever sent by any of this
+AUTO_EMAIL_OUTREACH stays untouched.
 """
 
 from __future__ import annotations

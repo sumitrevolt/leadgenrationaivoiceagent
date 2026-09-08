@@ -22,7 +22,8 @@ def main() -> None:
 
     p = posters.generate_poster("offer-burst", "R&D <Solar>", offer="20% OFF", phone="98xxx")
     svg = p.get("svg") or ""
-    print("POSTER ok:", ("R&amp;D" in svg) and ("<Solar>" not in svg) and len(svg) > 500)
+    print("POSTER ok:", ("R&amp
+    D" in svg) and ("<Solar>" not in svg) and len(svg) > 500)
 
     up = festivals.upcoming(60)
     print("FESTIVALS next-60d:", len(up), "| first:", (up[0]["name"] if up else "none"))

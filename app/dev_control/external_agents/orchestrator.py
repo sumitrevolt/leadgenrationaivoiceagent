@@ -284,7 +284,8 @@ def submit_result(mission_id: str, owner: str, result: dict[str, Any]) -> dict[s
         mission.add_evidence("result_manifest", verdict["result"])
         if not verdict["accepted"]:
             mission.transition(MissionState.BLOCKED, actor_role="executor")
-            mission.blocker = "; ".join(verdict["violations"])[:500]
+            mission.blocker = "
+            ".join(verdict["violations"])[:500]
             return
         mission.transition(MissionState.IMPLEMENTED, actor_role="executor")
         mission.transition(MissionState.TESTING, actor_role="executor")

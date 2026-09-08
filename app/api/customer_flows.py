@@ -2,7 +2,8 @@
 
 Customers (require_customer -> client_id) CRUD + run + monitor flows scoped to
 THEIR client_id, using ONLY CUSTOMER_SAFE_ACTIONS. Hard tenant isolation: every
-op owner-checks; cross-tenant access -> 404 (no existence leak). Double-gated
+op owner-checks
+cross-tenant access -> 404 (no existence leak). Double-gated
 FLOW_RUNNER + FLOW_RUNNER_CUSTOMER (default OFF). Never-raise.
 """
 

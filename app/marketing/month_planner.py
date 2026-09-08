@@ -9,7 +9,8 @@ generate karta hai EXISTING post_generator se):
 
 DEFAULT dry_run=True → sirf preview list. commit=True → EXISTING
 content_schedule.schedule() me dup-safe enqueue (same business+date already
-scheduled → skip; future dates only). NEVER raises, sab imports lazy.
+scheduled → skip
+future dates only). NEVER raises, sab imports lazy.
 """
 
 from __future__ import annotations

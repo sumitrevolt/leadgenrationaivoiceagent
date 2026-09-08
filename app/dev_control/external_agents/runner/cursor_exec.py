@@ -2,7 +2,8 @@
 
 ``--trust`` decision: **KEEP --trust**. Cursor Agent non-interactive print mode
 requires it for a pre-provisioned workspace. Containment is NOT provided by
-``--trust`` itself; it comes from: dedicated feat/ext-* worktree, deny-by-default
+``--trust`` itself
+it comes from: dedicated feat/ext-* worktree, deny-by-default
 env (no secret wildcards), redirected HOME/USERPROFILE/APPDATA/LOCALAPPDATA to
 runner-owned profile trees (minimal Claude/Cursor auth material only), allowlisted
 argv, post-run git-observed path scope checks, pushurl disabled://no-push on the
@@ -227,7 +228,8 @@ def extract_result_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
 
     Fail-closed on outer stdout: the entire stdout must be one JSON value
     (no surrounding prose). Cursor may wrap the mission manifest in
-    ``{result: ...}``; the inner ``result`` string may contain leading prose,
+    ``{result: ...}``
+    the inner ``result`` string may contain leading prose,
     in which case the first JSON object is extracted (same as Claude review).
     """
     text = stdout.strip()
@@ -306,6 +308,7 @@ def invoke_cursor(
             try:
                 manifest = extract_result_manifest(result.stdout, mission.mission_id)
             except ProcessSafetyError as stdout_exc:
-                parse_error = f"{file_exc};{stdout_exc}"
+                parse_error = f"{file_exc}
+                {stdout_exc}"
                 manifest = None
     return result, manifest, parse_error

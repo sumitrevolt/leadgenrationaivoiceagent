@@ -13,7 +13,8 @@ ya draft-only" risk tier me hain — koi side-effect send nahi:
 
 Saari functions import-safe (lazy imports), bounded, aur kabhi raise nahi karti
 — fail-open {"ok": False, "detail": ...} pattern. self_improve._execute inhe
-dispatch karta hai; coordinator/staff bhi reuse kar sakte hain.
+dispatch karta hai
+coordinator/staff bhi reuse kar sakte hain.
 """
 
 from __future__ import annotations
@@ -102,7 +103,8 @@ async def dialer_sprint_prep(limit: int = 3) -> dict[str, Any]:
 async def hot_wa_draft(limit: int = 5) -> dict[str, Any]:
     """Hot Queue warm leads ke WhatsApp reply drafts (draft-only, ban-safe).
 
-    ``reply_agent.hot_queue(scope="boss")`` se warm rows lo; sirf un rows ke
+    ``reply_agent.hot_queue(scope="boss")`` se warm rows lo
+    sirf un rows ke
     liye WA draft banao jinke paas abhi koi usable draft NAHI hai (LLM-down
     gap-fill). Draft row channel="whatsapp" + from=phone ke saath save hoti hai
     → hot_queue agle pass me wa_link ke saath dikhti hai, human 1-click send

@@ -14,14 +14,16 @@ PROBLEM: do single-points-of-failure jinhe koi watch nahi karta —
 Yeh module dono ke liye thin, NEVER-RAISE helpers deta hai:
   * `ensure_call_processor_alive(app)` — lifespan periodically call kare. Task
     dead-non-cancel mile to re-spawn + ntfy alert (cooldown). Heartbeat record.
-  * `alert_boot_grace_skip(job)` — boot-grace skip ke time call ho; ops_alerts
+  * `alert_boot_grace_skip(job)` — boot-grace skip ke time call ho
+  ops_alerts
     ntfy fire kare taaki operator ko pata chale ki aaj job skip hua.
 
 Design rules (project-proven):
 - **Flag-gated, default OFF**: `LOOP_SUPERVISOR=1` unset = INERT. Bina flag ke
   dono helpers ek `{"ok": True, "reason": "disabled"}` no-op return karte hain —
   shipping karne se kuch nahi badalta.
-- **NEVER raises**: har cheez try/except; failure = graceful skip. Lifespan ya
+- **NEVER raises**: har cheez try/except
+failure = graceful skip. Lifespan ya
   scheduler ko kabhi crash nahi karega.
 - **Reuses** `app.platform.ops_alerts._ntfy` (same ntfy channel + cooldown
   pattern) aur `automation_health.record_run` (heartbeat).

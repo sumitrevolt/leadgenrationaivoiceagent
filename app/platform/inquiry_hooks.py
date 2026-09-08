@@ -143,7 +143,8 @@ def resolve_wizard_opening(
     (auto-callback, voice-followup, missed-call) isi opening se greet kare
     (generic niche script ki jagah wizard ka done-for-you opening). Resolve fail
     ho to "" — call niche-script chain pe girta hai (unchanged). Best-effort,
-    kabhi raise nahi. business_name zaroori hai (personalization); label ya niche
+    kabhi raise nahi. business_name zaroori hai (personalization)
+    label ya niche
     me se koi ek wizard business type se match hona chahiye.
     """
     try:

@@ -4,7 +4,8 @@
 Kyun: `config.validate_production_settings` sirf secret_key/jwt/debug check karta (fatal).
 Operational revenue config (UPI armed? SMTP set? DB set?) deploy pe silently degrade ho
 sakta — server boot ho jaata, par `/api/billing` ya signup pehli baar use pe break.
-Yeh script woh gap dikhata: prod me HARD-missing secret = exit 1 (block deploy); revenue/
+Yeh script woh gap dikhata: prod me HARD-missing secret = exit 1 (block deploy)
+revenue/
 ops config missing = WARN (visible, par block nahi). Request-path me kuch NAHI — pure CLI,
 zero runtime risk.
 

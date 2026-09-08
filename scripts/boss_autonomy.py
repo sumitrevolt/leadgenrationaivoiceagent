@@ -17,7 +17,8 @@ Usage:
   python scripts/boss_autonomy.py simulate <title> [--agent hermes]
 
 Sweep advances EXISTING decision ids (never re-proposes). Execution requires a
-canary (PILOT_AGENTS) executor; manager is held until its mutating canary.
+canary (PILOT_AGENTS) executor
+manager is held until its mutating canary.
 Boss authority = HMAC via BOSS_GOV_AUTHORITY_KEY, verified by governance.
 """
 

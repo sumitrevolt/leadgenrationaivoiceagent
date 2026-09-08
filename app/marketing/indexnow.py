@@ -10,7 +10,8 @@ naye /blog/{slug} + landing pages publish hote hi search engines ko ping.
 - `submit_sitemap_if_enabled()` — GATED `INDEXNOW=1` (default OFF = zero change):
   apna /sitemap.xml self-fetch (scheduled job me, hot path NAHI) → <loc> parse →
   sirf NAYE/changed URLs submit (cursor sha256 me last-submitted set).
-- Defensive: kabhi raise nahi karta; network fail = {"ok": False}.
+- Defensive: kabhi raise nahi karta
+network fail = {"ok": False}.
 """
 
 from __future__ import annotations

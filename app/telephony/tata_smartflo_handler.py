@@ -26,7 +26,8 @@ Env vars (from .env):
 NOTE: Authorization header becomes MANDATORY after 30 Sep 2026.
       We always send it.
 
-Import-safe: no network at import time; httpx imported lazily.
+Import-safe: no network at import time
+httpx imported lazily.
 """
 
 import os

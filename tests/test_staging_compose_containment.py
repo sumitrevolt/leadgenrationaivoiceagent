@@ -7,7 +7,8 @@ also carries the memory-containment controls from
 
 Offline/pure — parses the compose files with PyYAML, no docker daemon required.
 The live daemon-level checks (profile gating, fail-closed APP_VERSION, loopback
-host_ip) were verified with `docker compose config` at authoring time; these
+host_ip) were verified with `docker compose config` at authoring time
+these
 tests pin the file-level contract so a regression cannot silently ship.
 """
 

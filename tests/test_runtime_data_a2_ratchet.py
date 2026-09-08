@@ -11,7 +11,8 @@ Two properties are asserted that the repo-wide debt ratchet cannot give:
 
   * the A2 writer modules carry ZERO uncontrolled in-checkout runtime paths
     (repo-wide the rule is only "no growth", because 1000+ findings predate
-    this workstream; for a store that has just been migrated the honest target
+    this workstream
+    for a store that has just been migrated the honest target
     is zero and it must stay zero);
   * nothing in the repository still imports the deleted module CONSTANTS. The
     deprecation shim in `consent_ledger` can only fire once per importing
@@ -283,7 +284,8 @@ def test_manifest_still_validates():
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
     """Six migrated stores, and the count is still 21 — that is the honest answer.
 
-    Their writers can now follow a cutover; their authoritative bytes are still
+    Their writers can now follow a cutover
+    their authoritative bytes are still
     inside the checkout. Until those bytes are copied, verified and activated, a
     destructive deployment still destroys them. A count that fell to 18 here
     would be a false green: resolver-ready is not data-safe.

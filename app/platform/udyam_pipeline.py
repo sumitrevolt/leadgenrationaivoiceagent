@@ -15,8 +15,11 @@ never depends on scraping third-party directories (Justdial/IndiaMart are ToS-bl
 CONTRACT (enterprise gate):
 - Flag-gated `UDYAM_PIPELINE=1` (default OFF). Inert without it AND without the
   data.gov.in key (`DATA_GOV_IN_API_KEY` + `DATA_GOV_RESOURCE_ID`) -> Udyam seed empty.
-- Never-raise; free-stack; reuses harvester dedup + prospector persist (no duplicate logic).
-- Cost-bounded: caller passes `limit`; Maps lookups = 1 per seed (capped by limit).
+- Never-raise
+free-stack
+reuses harvester dedup + prospector persist (no duplicate logic).
+- Cost-bounded: caller passes `limit`
+Maps lookups = 1 per seed (capped by limit).
 """
 
 from __future__ import annotations
@@ -123,7 +126,8 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
     """Udyam-primary -> Maps+website enrich -> dedup -> persist. Never raises.
 
     Returns {enabled, seeds, enriched, new, skipped}. `niche` tags the persisted leads
-    (Udyam category is coarse; the harvester/scoring re-classifies downstream)."""
+    (Udyam category is coarse
+    the harvester/scoring re-classifies downstream)."""
     if not enabled():
         return {"enabled": False}
     seeds = await _udyam_seeds(city, limit)

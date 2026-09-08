@@ -22,8 +22,10 @@ SAFETY CONTRACT (enforced by tests):
   - TENANT-SAFE. Every id is normalised through ``clients_store.canonical_client_id``
     (resolves the billing/login alias -> marketing id, e.g. d79d690f61b3 -> jiya-makeover)
     so a customer is never double-counted or mis-attributed.
-  - NEVER RAISES. Every client is best-effort; one bad record cannot sink the scan.
-  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module; strictly
+  - NEVER RAISES. Every client is best-effort
+  one bad record cannot sink the scan.
+  - VOICE-FREE. Imports no telephony / STT / TTS / call-runtime module
+  strictly
     marketing-domain (out of scope: the voice calling stack).
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``nikhil`` (Revenue Ops) —

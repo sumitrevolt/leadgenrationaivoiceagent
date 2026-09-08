@@ -181,7 +181,8 @@ class Tracer:
     Records per-call spans/events and keeps a ring buffer of recent traces so a
     dashboard can read the last N calls without any DB.
 
-    Thread-safety: simple append-only usage; good enough for single-process
+    Thread-safety: simple append-only usage
+    good enough for single-process
     async pipelines. (Add a lock if you go multi-thread.)
     """
 

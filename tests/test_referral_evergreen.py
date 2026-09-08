@@ -59,7 +59,9 @@ class TestMakeReferral:
         # malicious business name must be escaped in the card SVG
         r = referral_kit.make_referral("Evil<script>alert(1)</script>", reward='"x"&y')
         assert "<script>" not in r["card_svg"]
-        assert "&lt;script&gt;" in r["card_svg"]
+        assert "&lt
+        script&gt
+        " in r["card_svg"]
         # escaped reward (quotes/amp) — raw quote/amp pair must not appear unescaped
         assert '"x"&y' not in r["card_svg"]
 

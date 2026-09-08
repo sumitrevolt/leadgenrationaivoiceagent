@@ -10,7 +10,8 @@ ask, don't wait — and never let a paid customer sit silently undelivered.
 This module is the P0 delivery guarantee:
   - `deliver_client_value(client)` — WhatsApp the live mini-site link + what they
     got. GATED `AUTO_DELIVER_VALUE` (default OFF) so real customer sends are
-    reviewed before going live; `force=True` for an operator-triggered single send.
+    reviewed before going live
+    `force=True` for an operator-triggered single send.
   - `find_undelivered_paid_clients()` — read-only dead-man detector: paid+active
     clients not yet delivered (powers the founder alert + operator surface).
   - `run_delivery_sweep()` — the dead-man sweep (fail-LOUD: records stuck customers,
@@ -267,7 +268,8 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
 async def deliver_client_value(client: dict[str, Any], force: bool = False) -> dict[str, Any]:
     """Value-first delivery: WhatsApp the live mini-site link + content note to the
     paying customer, then mark delivery_state='delivered'. GATED AUTO_DELIVER_VALUE
-    (default OFF) unless force=True (operator single-send). Never raises; fail-LOUD."""
+    (default OFF) unless force=True (operator single-send). Never raises
+    fail-LOUD."""
     res: dict[str, Any] = {"delivered": False, "client_id": str((client or {}).get("id") or "")}
     if not is_paid_client(client):
         res["skipped"] = "not_paid"

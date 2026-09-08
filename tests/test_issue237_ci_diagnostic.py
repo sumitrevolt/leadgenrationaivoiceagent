@@ -59,7 +59,8 @@ def test_step_order_diagnostic_sits_between_install_and_prod_check():
 
     assert install < diag < prod_check < tests, (
         "diagnostic must run after the resolving install (so 'after' is real) and "
-        f"before the gates it must not disturb; got order {names}"
+        f"before the gates it must not disturb
+        got order {names}"
     )
 
 

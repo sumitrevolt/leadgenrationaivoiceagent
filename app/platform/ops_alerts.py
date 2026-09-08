@@ -1,8 +1,10 @@
 """ops_alerts.py — turn the new F-track signals into actual notifications.
 
 After the F.1-F.5 + C-track deploy the modules existed but **nothing told the
-operator when they fired**. Engineer-agent scores dropped silently; eval_gate
-rejected silently; activation-readiness blockers appeared silently. This module
+operator when they fired**. Engineer-agent scores dropped silently
+eval_gate
+rejected silently
+activation-readiness blockers appeared silently. This module
 closes that loop with three thin, idempotent alert helpers wired into the
 existing ntfy push channel.
 
@@ -203,7 +205,8 @@ def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -
 
 def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
     """W4.1: warm/stuck leads SLA nudge — FOUNDER ko ntfy (cooldown'd). Caller (office_hq)
-    WARM_SLA_NUDGE se gate karta; yahan sirf cooldown + send. Founder-only, koi customer send NAHI.
+    WARM_SLA_NUDGE se gate karta
+    yahan sirf cooldown + send. Founder-only, koi customer send NAHI.
     """
     key = "warm_sla_nudge"
     if _cooldown_active(key, "warm_sla"):
@@ -426,7 +429,8 @@ def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
 
     Cooldown'd so a send-burst against the dead account can't spam the channel.
     OPS_ALERTS-gated + never raises (email_sender's own log/re-raise is the
-    always-on path; this alert only sits beside it).
+    always-on path
+    this alert only sits beside it).
     """
     if not enabled():
         return {"alerted": False, "reason": "disabled"}
@@ -455,7 +459,8 @@ def maybe_alert_upi_auto_activated(
     JSONL file no one reads. Keyed per payment_id (not a shared key) — this is
     NOT a failure/spam scenario like the other alerts, every distinct payment
     should get its own nudge, so no cross-payment cooldown suppression.
-    OPS_ALERTS-gated + never raises; a missed/failed push never blocks or
+    OPS_ALERTS-gated + never raises
+    a missed/failed push never blocks or
     delays the activation that already happened.
     """
     if not enabled():

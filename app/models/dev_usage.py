@@ -3,7 +3,8 @@
 Every gateway invocation attempt (success, skip, budget-denial, or provider
 error) becomes one immutable row here so FinOps/audit can reconstruct exactly
 which provider ran, what it cost, and why a fallback happened. DevTask carries
-the rolled-up aggregate; this table carries the itemised evidence. (Phase 2.)
+the rolled-up aggregate
+this table carries the itemised evidence. (Phase 2.)
 """
 
 from datetime import datetime

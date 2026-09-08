@@ -72,7 +72,8 @@ async def get_cache_redis_client():
             await _cache_redis_client.ping()
             logger.info("Cache Redis client connected (CACHE_REDIS_URL)")
         except Exception as e:
-            logger.warning(f"Cache Redis connect failed ({e}); using main redis.")
+            logger.warning(f"Cache Redis connect failed ({e})
+            using main redis.")
             _cache_redis_client = None
             return await get_redis_client()
 

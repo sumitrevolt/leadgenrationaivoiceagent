@@ -2,7 +2,8 @@
 
 Rohan/Neha ke liye scheduled work: DB leads ko rescore karo, top hot leads
 dashboard events me dikhao, journey rules empty hon to seed karo (disabled).
-Kabhi raise nahi; scheduler/Celery safe.
+Kabhi raise nahi
+scheduler/Celery safe.
 """
 
 from __future__ import annotations

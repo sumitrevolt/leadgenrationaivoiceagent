@@ -36,7 +36,8 @@ logger = setup_logger(__name__)
 
 _ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 _TIMEOUT_S = 8.0
-_MAX_CHARS = 900  # replies are ~20 words; keep synth fast
+_MAX_CHARS = 900  # replies are ~20 words
+keep synth fast
 _SAMPLE_RATE = 24000  # Gemini TTS output: 24kHz 16-bit mono PCM
 
 

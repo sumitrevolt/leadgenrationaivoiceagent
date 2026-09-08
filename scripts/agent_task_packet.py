@@ -29,7 +29,8 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
 
     out = [
         "# AGENT TASK PACKET",
-        f"(HEAD {head} — do NOT re-scan the repo; this is your bounded context)",
+        f"(HEAD {head} — do NOT re-scan the repo
+        this is your bounded context)",
         "",
         f"## Objective\n{objective}",
         "",
@@ -48,7 +49,8 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
         (
             f"- {test}"
             if test
-            else "- Add/extend a targeted pytest; changed behaviour needs a new assertion."
+            else "- Add/extend a targeted pytest
+            changed behaviour needs a new assertion."
         ),
         "",
         "## Definition of done",

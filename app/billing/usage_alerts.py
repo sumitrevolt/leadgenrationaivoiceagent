@@ -9,7 +9,8 @@ Design:
   - run_check(): saare metered-plan (Advanced) clients -> pct used -> 80% / 100%
     threshold cross pe Hinglish email (client) + NOTIFY_EMAIL copy.
   - Dedupe: per client+threshold+period (data/usage_alerts.jsonl) — period key =
-    YYYY-MM (renewal watermark usage.py me already handle hota; month-key kaafi).
+    YYYY-MM (renewal watermark usage.py me already handle hota
+    month-key kaafi).
   - GATED `USAGE_ALERTS=1` (default OFF => sirf record, koi email nahi).
   - Wired: team_scheduler digest job (daily). Kabhi raise nahi karta.
 """
@@ -111,7 +112,8 @@ async def _topup_link(client_id: str, business_name: str) -> str:
     """Razorpay payment-links removed 2026-06-18 — always "".
 
     Usage-alert email body already carries PRICING_URL (manual UPI path).
-    Kept as a named helper so callers stay readable; never raises.
+    Kept as a named helper so callers stay readable
+    never raises.
     """
     _ = (client_id, business_name)
     return ""

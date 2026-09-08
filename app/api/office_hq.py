@@ -139,7 +139,8 @@ async def office_ask(body: AskIn, current_user=Depends(require_admin)):
 @router.post("/agents/{member}/task", dependencies=[Depends(rate_limit("agents", 5, 60))])
 async def office_agent_task(member: str, body: AgentTaskIn, current_user=Depends(require_admin)):
     """Draft-safe bounded task dispatch to one agent (solo) or the coordinator
-    team. Returns {ok, summary, run_id?}; failures/timeouts degrade to an honest
+    team. Returns {ok, summary, run_id?}
+    failures/timeouts degrade to an honest
     {ok:False|status:"timeout"} (never raises)."""
     from app.platform import office_hq
 
@@ -252,7 +253,8 @@ async def office_improvement_council(
 @router.get("/briefing")
 async def office_briefing(force: int = 0, current_user=Depends(require_admin)):
     """Today's HQ radio-bulletin: {ok, date, text, has_audio}. Cached once per
-    IST-day; force=1 regenerates. Never raises (degrades to text-only / ok:False)."""
+    IST-day
+    force=1 regenerates. Never raises (degrades to text-only / ok:False)."""
     from app.platform import office_briefing as ob
 
     try:
@@ -283,7 +285,8 @@ async def office_agent_os_status(current_user=Depends(require_admin)):
     """Read-only Agent OS + OmniRoute operator status (ADR-109).
 
     Never returns API keys, raw prompts, or customer PII. OmniRoute remains
-    INERT unless both flags + key are set; this endpoint only reports truth.
+    INERT unless both flags + key are set
+    this endpoint only reports truth.
     """
     import os
 

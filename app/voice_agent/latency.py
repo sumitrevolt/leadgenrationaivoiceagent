@@ -117,14 +117,16 @@ _FILLERS = {
 }
 
 # Punctuation incl. the Hindi danda + question mark variants.
-_PUNCT_RE = re.compile(r"[.,!?;:\"'`~/\\|()\[\]{}<>।॥…\-_*#@&%$^+=]+")
+_PUNCT_RE = re.compile(r"[.,!?
+:\"'`~/\\|()\[\]{}<>।॥…\-_*#@&%$^+=]+")
 _WS_RE = re.compile(r"\s+")
 
 
 @dataclass
 class _CacheEntry:
     value: str
-    expires_at: float  # monotonic deadline; float("inf") => no TTL
+    expires_at: float  # monotonic deadline
+    float("inf") => no TTL
 
 
 class ResponseCache:
@@ -133,12 +135,14 @@ class ResponseCache:
 
     The key is the *normalized* user utterance, so "Kitna hai?", "kitna hai" and
     "  KITNA   HAI ??" all map to the same entry and return an INSTANT reply,
-    skipping the LLM (and saving cost). Capacity-bounded LRU; expired entries are
+    skipping the LLM (and saving cost). Capacity-bounded LRU
+    expired entries are
     evicted lazily on access.
 
     Args:
         max_size: max number of cached entries (LRU evicts the oldest).
-        ttl_s: seconds an entry stays fresh; None / <=0 => never expires.
+        ttl_s: seconds an entry stays fresh
+        None / <=0 => never expires.
     """
 
     def __init__(self, max_size: int = 256, ttl_s: float | None = 1800.0) -> None:
@@ -324,7 +328,8 @@ class FirstSentenceChunker:
         """
         Return (first_sentence, remainder).
 
-        `first_sentence` is emitted to TTS IMMEDIATELY; `remainder` is whatever
+        `first_sentence` is emitted to TTS IMMEDIATELY
+        `remainder` is whatever
         is left (possibly "") to synthesize while the bot is already speaking.
         If the first sentence is shorter than `min_first_chars`, following
         sentences are merged in so the opening isn't a tiny fragment.
@@ -402,7 +407,8 @@ class PartialTranscriptBuffer:
         """
         Feed a new partial transcript. We treat each `partial` as the best
         current hypothesis for the whole utterance (typical streaming-STT shape):
-        a longer/changed partial replaces the buffer; an identical one bumps the
+        a longer/changed partial replaces the buffer
+        an identical one bumps the
         stability counter. Returns the current accumulated text.
         """
         if partial is None:
@@ -423,7 +429,8 @@ class PartialTranscriptBuffer:
         turn looks DONE — i.e. the transcript is non-trivial, has been stable for
         `stable_repeats`, and silence has lasted >= `silence_ms_threshold`.
 
-        Call this on every partial/silence tick; commit (send to LLM) when True.
+        Call this on every partial/silence tick
+        commit (send to LLM) when True.
         """
         text = self.update(partial)
         if len(text) < self.min_chars:
@@ -636,7 +643,8 @@ class LatencyOptimizer:
         Produce a reply for `utterance` on the lowest-latency path and return
         (text, TurnTimer). Order:
 
-            1. CACHE  — normalized lookup; on hit, return INSTANTLY (no LLM).
+            1. CACHE  — normalized lookup
+            on hit, return INSTANTLY (no LLM).
             2. KB     — optional knowledge-base instant answer (see below).
             3. LLM    — call `generate_fn` (sync or async), then cache the result.
 

@@ -3,11 +3,13 @@
 KYA: AI-staff scheduled jobs ka single registry (label/cadence/owner) + per-job
 runtime enable/disable override + "run-due" recovery dispatch. Overrides
 `data/scheduler_overrides.json` me rehte (bind-mounted => container rebuild
-NAHI chahiye; admin toggle turant live).
+NAHI chahiye
+admin toggle turant live).
 
 KAHAN GATE LAGTA: `team_scheduler._run_job` (single choke-point — in-process
 loop AUR Celery `staff_jobs.run_staff_job` DONO isi se guzarte). Isliye toggle
-dono paths pe kaam karta hai; beat entry fire hoti hai par job body skip.
+dono paths pe kaam karta hai
+beat entry fire hoti hai par job body skip.
 
 SAFETY:
 - FAIL-OPEN: overrides file missing/corrupt/error => job ENABLED (aaj jaisa).
@@ -370,7 +372,8 @@ def list_jobs() -> dict[str, Any]:
 
 def _dispatch(job: str, *, manual: bool = False) -> str:
     """Job ko background me chalao — Celery prefer (durable, web-process block
-    nahi hota; idempotent_task ttl=3600 double-enqueue dedupe karta). Broker na
+    nahi hota
+    idempotent_task ttl=3600 double-enqueue dedupe karta). Broker na
     mile to in-process create_task fallback (rollback mode).
 
     Scheduled paths (manual=False) honor owner_schedulers kill via

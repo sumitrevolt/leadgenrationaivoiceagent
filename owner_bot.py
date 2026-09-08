@@ -16,55 +16,55 @@ sys.path.insert(0, "C:\\Users\\Ratanshila\\.openclaw\\workspace")
 def handle_owner_message(text: str) -> str:
     """Owner WhatsApp text → admin action + response."""
     text = text.strip().lower()
-    
+
     # Command routing
     if text in ["1", "hotqueue", "leads", "status"]:
         from app.platform.admin_api import hot_queue_status
         return json.dumps(hot_queue_status(), indent=2)
-    
+
     elif text in ["2", "compliance", "gates"]:
         from app.platform.admin_api import compliance_snapshot
         return json.dumps(compliance_snapshot(), indent=2)
-    
+
     elif text in ["3", "deploy"]:
         from app.platform.admin_api import deploy_initiate
         return json.dumps(deploy_initiate(), indent=2)
-    
+
     elif text in ["4", "squads"]:
         from app.platform.admin_api import squad_health
         return json.dumps(squad_health(), indent=2)
-    
+
     elif text in ["5", "knowledge"]:
         # Default knowledge query
         from app.platform.admin_api import knowledge_query
         return json.dumps(knowledge_query({"query": "What is our compliance status?"}), indent=2)
-    
+
     elif text in ["6", "controls"]:
         return json.dumps({
             "note": "Use: controls {\"param\": \"outreach_daily_cap\", \"value\": 100}",
             "example": "controls {\"param\": \"voice_daily_cap\", \"value\": 100}"
         }, indent=2)
-    
+
     elif text in ["7", "campaign"]:
         from app.platform.squad_marketing import run_hourly_campaign
         return json.dumps(run_hourly_campaign(), indent=2)
-    
+
     elif text in ["8", "whatsapp", "wa"]:
         from app.platform.squad_whatsapp import check_wa_status
         return json.dumps(check_wa_status(), indent=2)
-    
+
     elif text in ["9", "squad"]:
         # Ask which squad
         return "Which squad? 1=Voice, 2=Marketing, 3=Compliance, 4=Deploy, 5=Knowledge, 6=QA, 7=Data, 8=Billing, 9=WA, 10=Monitoring, 11=CI/CD"
-    
+
     elif text in ["10", "monitoring"]:
         from app.platform.squad_monitoring import gate_health_dashboard
         return json.dumps(gate_health_dashboard(), indent=2)
-    
+
     elif text in ["11", "ci/cd"]:
         from app.platform.squad_cicd import check_prod_gates
         return json.dumps(check_prod_gates(), indent=2)
-    
+
     elif text in ["help", "menu"]:
         return """
 🛠️ LEADGEN AI — OWNER ADMIN COMMANDS
@@ -85,7 +85,7 @@ help / menu → This help text
 🛡️ All commands gated — cannot weaken compliance (TRAI/DND/kill-fence)
 ⚙️ Autopilot: 1000 engineers × 15 squads active
 """
-    
+
     else:
         # Unknown command - show help + recent status
         from app.platform.admin_api import hot_queue_status, compliance_snapshot

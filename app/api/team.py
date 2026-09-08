@@ -51,7 +51,8 @@ async def get_team_stats(
     days: int = 7, member: str | None = None, current_user: User = Depends(require_admin)
 ):
     """Per-agent success-rate + last-run rollup (degrade-detection KPI). Feed =
-    /events; yeh = aggregate. Never raises — empty on failure."""
+    /events
+    yeh = aggregate. Never raises — empty on failure."""
     try:
         from app.platform import team
 
@@ -222,7 +223,8 @@ async def post_outreach_review_decision(
 ):
     """Operator bookmark: admin records a review decision for a pending recipient
     (reviewed_sent / reviewed_skip / reviewed_schedule / reviewed_suppress / reviewed_unsuppress).
-    Append-only jsonl; never auto-sends, never touches warmup state."""
+    Append-only jsonl
+    never auto-sends, never touches warmup state."""
     try:
         from app.platform import auto_outreach
 

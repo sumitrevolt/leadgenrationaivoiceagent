@@ -2,7 +2,8 @@
 
 Guards the measured design (addendum #6/#7):
   * readiness must NEVER go through `_get_qdrant_client()` / `_get_qdrant_embedder()`
-    (measured >239s because it force-loads FastEmbed; bare ctor = 13.6ms)
+    (measured >239s because it force-loads FastEmbed
+    bare ctor = 13.6ms)
   * filter must be namespace AND source="niche:<key>" — ns-only false-readies
   * `real_estate` (QA target, NOT a catalog key) must degrade, never raise
 """
@@ -46,7 +47,8 @@ def _conds(flt):
 def test_catalog_membership_not_hardcoded_size():
     """NOTE: catalog size is RUNTIME-VARIABLE — local repo showed 39 keys but the
     production container showed 42 (same code SHA lineage), so NICHES is extended at
-    runtime. Never assert an exact count; assert membership."""
+    runtime. Never assert an exact count
+    assert membership."""
     keys = R.catalog_niches()
     assert len(keys) >= 39
     assert "studying_abroad" in keys

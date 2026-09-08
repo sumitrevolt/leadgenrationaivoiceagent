@@ -15,7 +15,8 @@ Design rules:
 - READ-ONLY (admin). Never mutates env. Never makes outbound calls — purely
   shape-checks os.environ. Cheap to call from a dashboard polling loop.
 - Format-aware shape checks. Razorpay is **deferred by default** (NEUTRAL) —
-  paid checkout baad me; marketing launch is not blocked on missing keys.
+  paid checkout baad me
+  marketing launch is not blocked on missing keys.
 - INERT for not-yet-activated items: unset = NEUTRAL (waiting), not BLOCKER.
   Only the things that gate first revenue / customer trust escalate to BLOCKER.
 
@@ -643,7 +644,8 @@ def _compliance_env() -> dict[str, Any]:
       (a) recording_retention_armed — RECORDING_RETENTION=1 => the 90-day DPDP
           recording purge actually deletes (not dry-run/observe-only).
       (b) dnd_fail_closed — WARNs loudly when DND_FAIL_OPEN=1 (a TRAI risk: it
-          would turn the promotional DND gate fail-OPEN; prod ignores it at
+          would turn the promotional DND gate fail-OPEN
+          prod ignores it at
           runtime but it should be unset).
       (c) the effective (post-clamp) promotional calling window (09:00–21:00
           IST ceiling), informationally.

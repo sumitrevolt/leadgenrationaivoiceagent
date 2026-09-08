@@ -4,15 +4,19 @@
 LIVE VERIFIED 05:32 IST Sep 4 (VPS date Thu Sep 4 00:05 UTC = 05:35 IST):
   - /health 200, containers worker/app/scheduler Up ~10h healthy (WA flip LIVE=1 picked up).
   - SIP 5 vars (HOST/USERNAME/PASSWORD/DID/PROVIDER) ALL EMPTY -> DID NOT landed;
-    VOBIZ CLI +9111 still revoked; call_loop.log mtime Aug31 08:39:55Z batch 211
+    VOBIZ CLI +9111 still revoked
+    call_loop.log mtime Aug31 08:39:55Z batch 211
     ok0/fail3 'from number not owned' -> DIALER DEAD day5+ (proc0, cron0 watchdog).
   - Vobiz egress api.vobiz.com STILL 000 timeout @8s.
-  - reply_drafts.jsonl: PRECISE auto_sent=true = 0 (grep false-match 'trueconnect@jio.com'), 
+  - reply_drafts.jsonl: PRECISE auto_sent=true = 0 (grep false-match 'trueconnect@jio.com'),
     auto_sent=false = 469, last WAHQ reply draft 17:40 UTC Sep3. WA rail ZERO real auto-sends.
-  - leads/ ABSENT (ammo 0); hot-queue 09-04 NOT generated (scheduler date-lock STILL broken,
-    last = 09-03 44 rows). 
-  - invoices.jsonl mtime Aug24; revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001); GAP Rs4,98,001.
-  - Sep3 ke saare tasks (ENG-004/SAL-005/PLT-005/SUC-004/HNT-005/GRD-004/OPS-007/BRD-003) 
+  - leads/ ABSENT (ammo 0)
+  hot-queue 09-04 NOT generated (scheduler date-lock STILL broken,
+    last = 09-03 44 rows).
+  - invoices.jsonl mtime Aug24
+  revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001)
+  GAP Rs4,98,001.
+  - Sep3 ke saare tasks (ENG-004/SAL-005/PLT-005/SUC-004/HNT-005/GRD-004/OPS-007/BRD-003)
     abhi bhi 0 evidence since 14:30 Sep3. => NEW 06:30 IST gate + OWNER escalation re-confirm.
 """
 import json
@@ -30,7 +34,8 @@ def save(p, obj):
         json.dump(obj, f, indent=1, ensure_ascii=False)
         f.write("\n")
 
-tail = ("PILOT 05:35 IST Sep4 CRON (LIVE): /health 200; SIP 5 vars ALL EMPTY DID NOT landed "
+tail = ("PILOT 05:35 IST Sep4 CRON (LIVE): /health 200
+SIP 5 vars ALL EMPTY DID NOT landed "
         "(dialer DEAD day5+ loop mtime Aug31 batch211 ok0/fail3 proc0); Vobiz egress 000@8s; "
         "auto_sent TRUE=0 precise (469 false; 4 = trueconnect@jio false-match); leads/ ABSENT ammo0; "
         "hot-queue 09-04 NOT gen (date-lock broken, last 09-03); WA flip LIVE=1; rev Rs1,999 Jiya sole; "
@@ -98,7 +103,9 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-04T05:35+05:30"
-pin["vps_status"] = ("/health 200; SIP 5 vars EMPTY DID not landed (CLI revoked, egress 000); "
+pin["vps_status"] = ("/health 200
+SIP 5 vars EMPTY DID not landed (CLI revoked, egress 000)
+"
                      "dialer DEAD day5+; auto_sent TRUE=0 precise; hot-queue 09-04 NOT gen (date-lock); "
                      "VERIFIED rev Rs1,999 (Jiya sole); GAP Rs4,98,001. Sep3 0-evidence -> 06:30 gate.")
 save(pp, pin)

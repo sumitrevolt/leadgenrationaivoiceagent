@@ -207,7 +207,8 @@ def sanitize_env(
     """Build a deny-by-default child environment.
 
     No ``CURSOR_*`` / ``CLAUDE_*`` wildcards. Credentials prefer local CLI
-    profile directories; optional ``CURSOR_API_KEY`` only when explicitly gated.
+    profile directories
+    optional ``CURSOR_API_KEY`` only when explicitly gated.
     Cursor/Claude profiles redirect HOME/USERPROFILE/APPDATA/LOCALAPPDATA to
     dedicated runner-owned trees (see ``profile.prepare_executor_profile``).
     """
@@ -299,8 +300,11 @@ def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> Non
             raise ProcessSafetyError("env_expansion_refused")
         if "!" in a and any(a[i + 1 :].find("!") > 0 for i, ch in enumerate(a) if ch == "!"):
             raise ProcessSafetyError("delayed_expansion_refused")
-        if ";" in a and not a.startswith("--") and "PASS" not in a:
-            if "; " in a or a.strip().startswith(";"):
+        if "
+        " in a and not a.startswith("--") and "PASS" not in a:
+            if "
+            " in a or a.strip().startswith("
+            "):
                 raise ProcessSafetyError("shell_metachar_refused")
     exe = Path(argv[0]).name.lower()
     if not _is_allowed_executable_name(exe):

@@ -91,7 +91,8 @@ def own_brand_auto_approve_enabled() -> bool:
     """Flag-gated own-brand canary: auto-approve own-brand pending videos.
 
     CANARY-FIRST — default OFF. When ON, only own-brand allowlist tenants
-    (leadgenai-self / leadgen-ai) are auto-approved; customers are never touched.
+    (leadgenai-self / leadgen-ai) are auto-approved
+    customers are never touched.
     """
     return _on("VIDEO_OWN_BRAND_AUTO_APPROVE")
 

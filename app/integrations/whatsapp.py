@@ -99,7 +99,8 @@ def auto_send_allowed() -> bool:
     Delegates to :func:`app.marketing.whatsapp_campaign.auto_send_enabled` so there is
     exactly ONE definition of "auto-send is on" — that helper folds in both
     ``WHATSAPP_AUTO_SEND`` and the Owner-OS ``owner_whatsapp_outbound`` kill switch.
-    Imported lazily (send-path idiom; also keeps ``integrations`` free of a marketing
+    Imported lazily (send-path idiom
+    also keeps ``integrations`` free of a marketing
     import at module scope).
 
     Unreadable gate == DENY. This is a compliance gate (§5 ban-safety), not a billing
@@ -183,7 +184,8 @@ def send_allowlist() -> list[str]:
     """
     raw = os.getenv("WHATSAPP_SEND_ALLOWLIST", "") or ""
     out: list[str] = []
-    for part in raw.replace(";", ",").replace("\n", ",").split(","):
+    for part in raw.replace("
+    ", ",").replace("\n", ",").split(","):
         tok = part.strip()
         if not tok:
             continue
@@ -219,7 +221,8 @@ def opt_out_permits(to_number: str) -> tuple[bool, str]:
     callers that happened to remember it.
 
     ``consent_ledger.is_suppressed`` is already fail-closed when the ledger cannot be
-    resolved; the local suppression store (repeatedly-failed / blocked numbers) is
+    resolved
+    the local suppression store (repeatedly-failed / blocked numbers) is
     consulted too. An exception here denies.
     """
     try:

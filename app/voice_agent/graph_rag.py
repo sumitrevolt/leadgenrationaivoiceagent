@@ -9,7 +9,8 @@ via the same fastembed model the Qdrant KB uses. Per-namespace graph store under
 
 This sits ALONGSIDE the vector KB (``knowledge_base.py``) — it does not replace it.
 Use it when answers depend on relationships/causality across documents (e.g. a client's
-full business profile, multi-fact niche knowledge). OFF by default; any missing dep /
+full business profile, multi-fact niche knowledge). OFF by default
+any missing dep /
 init error / query error disables it and returns a safe empty result — never raises.
 
 Enable:

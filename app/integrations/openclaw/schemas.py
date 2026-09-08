@@ -15,7 +15,8 @@ class CopilotCommandIn(BaseModel):
     text: str | None = Field(
         None,
         max_length=2000,
-        description="Optional natural-language original; never executed directly",
+        description="Optional natural-language original
+        never executed directly",
     )
     idempotency_key: str | None = Field(None, max_length=80)
     confirm: bool = False

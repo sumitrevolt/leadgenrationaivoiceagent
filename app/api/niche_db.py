@@ -15,7 +15,8 @@ Endpoints:
   GET    /api/niche/stats                  — prospects count by niche + status
 
 Auth: admin-required (require_admin) sirf write ops pe.
-Rate limiting: list/schema = 60/60s; write = 20/60s.
+Rate limiting: list/schema = 60/60s
+write = 20/60s.
 Kabhi raise nahi karta — errors as JSON.
 """
 

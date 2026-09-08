@@ -1,6 +1,7 @@
 """
 Tests: Vobiz telephony — XML builder, answer webhook, test-call endpoint.
-No network — VobizClient methods are monkeypatched; tests always pass an
+No network — VobizClient methods are monkeypatched
+tests always pass an
 explicit `message` so the LLM path is never exercised.
 """
 
@@ -25,8 +26,11 @@ class TestBuildSpeakXml:
 
     def test_escapes_special_chars(self):
         xml = build_speak_xml("R&D <test> calls")
-        assert "R&amp;D" in xml
-        assert "&lt;test&gt;" in xml
+        assert "R&amp
+        D" in xml
+        assert "&lt
+        test&gt
+        " in xml
         assert "<test>" not in xml
 
     def test_empty_text_still_valid(self):

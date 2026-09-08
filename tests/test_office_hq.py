@@ -724,7 +724,8 @@ def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
     view: poll interval 25s->15s (frontend/office_map.html setInterval) and
     cache TTL 35s->18s (this file). TTL must stay ABOVE the poll interval --
     same invariant as the 2026-07-01 incident fix (TTL 15s vs poll 25s meant
-    the cache expired before every single poll, defeating it entirely; fixed
+    the cache expired before every single poll, defeating it entirely
+    fixed
     by raising TTL comfortably above the poll interval). This test pins that
     invariant so a future retune can't silently invert it again by relying on
     build_snapshot()'s compute time as coincidental slack instead of a real
@@ -740,7 +741,8 @@ def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
 def test_schedule_defs_contract():
     """Every entry is display-complete: job key, Hinglish-friendly label, and a
     valid type-specific shape (daily/weekly = 4-int IST window with start<end;
-    weekly also a 0-6 weekday; recurring = human cadence string)."""
+    weekly also a 0-6 weekday
+    recurring = human cadence string)."""
     jobs = [d["job"] for d in office_hq.SCHEDULE_DEFS]
     assert len(jobs) == len(set(jobs)), "duplicate job key in SCHEDULE_DEFS"
     for d in office_hq.SCHEDULE_DEFS:
@@ -761,7 +763,8 @@ def test_schedule_defs_windows_match_team_scheduler_source():
     """Drift-lock: SCHEDULE_DEFS is a static DISPLAY mirror of the real windows
     in team_scheduler.py — if a window there changes without updating the
     mirror (or vice versa), this fails loudly. Window tuples are asserted
-    verbatim against the scheduler source; recurring jobs assert their
+    verbatim against the scheduler source
+    recurring jobs assert their
     _last_ran wiring still exists."""
     import inspect
 

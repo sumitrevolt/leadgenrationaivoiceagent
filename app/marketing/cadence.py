@@ -184,7 +184,8 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
             d = await linkedin_assist.draft_outreach(biz, biz, niche)
             out["draft"] = d.get("connect_note")
             out["linkedin"] = {k: d.get(k) for k in ("comment", "connect_note", "dm")}
-            out["note"] = "manual send (ToS); comment-first"
+            out["note"] = "manual send (ToS)
+            comment-first"
     except Exception as e:  # noqa: BLE001
         out["error"] = str(e)[:120]
     return out

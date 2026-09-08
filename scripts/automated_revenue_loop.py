@@ -7,7 +7,8 @@ End-to-end automated loop:
   → PAYMENT_REQUEST_SENT → PAYMENT_PENDING → PAYMENT_DETECTED
   → PAYMENT_RECONCILED → VERIFIED_PAID → INVOICE_SETTLED → CUSTOMER_ACTIVE
 
-Every transition requires evidence; never skips PAYMENT_REQUEST_SENT
+Every transition requires evidence
+never skips PAYMENT_REQUEST_SENT
 → VERIFIED_PAID without verified transaction evidence.
 """
 

@@ -77,19 +77,38 @@ print(f"TASKS: {n_updated} evidence-updated @ {ts}")
 # ---------- 3) BOTS.JSON REFRESH ----------
 bots_path = os.path.join(base, "bots.json")
 bots = load(bots_path)
-bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 45h+ (batch 211, proc 0, cron 0); SIP 5 vars len=0; "
-                           f"api.vobiz.com timeout DAY5; VOBIZ_CALLER_ID REVOKED len13; WA-sent 0 (2204 drafts auto_sent true=0); "
-                           f"leads/ ABSENT; /health 37a1daf8 healthy 11h42m; WAHA with-key 200 WORKING; hot-queue 43/43; "
+bots["Pilot"]["status"] = (f"{ts_short} IST REV-COMMAND: loop DEAD 45h+ (batch 211, proc 0, cron 0)
+SIP 5 vars len=0
+"
+                           f"api.vobiz.com timeout DAY5
+                           VOBIZ_CALLER_ID REVOKED len13
+                           WA-sent 0 (2204 drafts auto_sent true=0)
+                           "
+                           f"leads/ ABSENT
+                           /health 37a1daf8 healthy 11h42m
+                           WAHA with-key 200 WORKING
+                           hot-queue 43/43
+                           "
                            f"MIRROR MD5-SYNCED. FLEET 0 ACK - REINFORCE {ts_short} sent. Gates 09:00-12:00 IST.")
-bots["sales"]["status"] = (f"SAL-003 P0: WA manual-send ABHI (WAHA with-key 200; hot-queue 43 UPI; auto_sent 0). "
+bots["sales"]["status"] = (f"SAL-003 P0: WA manual-send ABHI (WAHA with-key 200
+hot-queue 43 UPI
+auto_sent 0). "
                            f"Vendor DID proof 09:00 IST. ACK missing - REINFORCE sent.")
-bots["platform"]["status"] = ("PLT-004 P0: egress timeout DAY5; SIP 5 vars len=0; VOBIZ_CALLER_ID REVOKED len13; WA flip INERT. Root-cause + template 09:00 IST. ACK missing.")
-bots["operations"]["status"] = "OPS-006 P0: loop DEAD 45h+ re-confirm (proc 0, cron 0, mtime Aug31 08:39Z). Restart sign = env swap; 10:30 digest. ACK missing."
+bots["platform"]["status"] = ("PLT-004 P0: egress timeout DAY5
+SIP 5 vars len=0
+VOBIZ_CALLER_ID REVOKED len13
+WA flip INERT. Root-cause + template 09:00 IST. ACK missing.")
+bots["operations"]["status"] = "OPS-006 P0: loop DEAD 45h+ re-confirm (proc 0, cron 0, mtime Aug31 08:39Z). Restart sign = env swap
+10:30 digest. ACK missing."
 bots["engineering"]["status"] = "ENG-003 P1: watchdog missing (crontab 0). WAHA probe 200/401 pattern. Watchdog+runbook 09:30. ACK missing."
-bots["hunter"]["status"] = "HNT-004 P1: leads/ ABSENT re-confirm; hot-queue Sep2 ABSENT; 50-lead DND CSV 09:30 IST. ACK missing."
+bots["hunter"]["status"] = "HNT-004 P1: leads/ ABSENT re-confirm
+hot-queue Sep2 ABSENT
+50-lead DND CSV 09:30 IST. ACK missing."
 bots["guardian"]["status"] = "GRD-003 P1: 6+1 verdicts 11:00 IST (revenue-truth + loop-dead + WAHA + auto_sent + leads + DID + WA-claim). ACK missing."
-bots["success"]["status"] = "SUC-002 P0: Jiya only payer 1999 churn-risk; SMTP SENT proof 12:00 IST. REV-105 close-kit standby. ACK missing."
-bots["board"]["status"] = "BRD-002 P2: MIRROR MD5-SYNCED VERIFIED (tasks/bots/messages 3/3); fresh push abhi. Page verify + cadence 12:00. ACK missing."
+bots["success"]["status"] = "SUC-002 P0: Jiya only payer 1999 churn-risk
+SMTP SENT proof 12:00 IST. REV-105 close-kit standby. ACK missing."
+bots["board"]["status"] = "BRD-002 P2: MIRROR MD5-SYNCED VERIFIED (tasks/bots/messages 3/3)
+fresh push abhi. Page verify + cadence 12:00. ACK missing."
 save(bots_path, bots)
 print(f"BOTS: {len(bots)} statuses refreshed @ {ts}")
 
@@ -98,7 +117,9 @@ pinned_path = os.path.join(base, "pinned.json")
 pinned = load(pinned_path)
 pinned["last_updated"] = now.strftime("%Y-%m-%dT%H:%M+05:30")
 pinned["priority_tasks"] = ["SAL-003", "PLT-004", "OPS-006", "ENG-003", "HNT-004"]
-pinned["vps_status"] = ("HEALTHY (/health 37a1daf8, uptime 11h42m, env production; containers up 40h); calling loop DEAD 45h+ "
+pinned["vps_status"] = ("HEALTHY (/health 37a1daf8, uptime 11h42m, env production
+containers up 40h)
+calling loop DEAD 45h+ "
                         "(mtime Aug31 08:39:55Z batch 211; proc 0; cron 0); SIP 5 vars EMPTY (DID not landed); VOBIZ_CALLER_ID REVOKED len13; "
                         "Vobiz egress timeout DAY5; WA sent 0 (reply_drafts 2204 auto_sent true=0); leads/ ABSENT; "
                         "WAHA :3111 with X-Api-Key 200 WORKING / no-key 401 expected gate; WA container flip INERT (disk=1 containers=0, owner-approve restart needed)")
@@ -107,7 +128,10 @@ pinned["gap"] = "₹4,98,001"
 pinned["bottleneck"] = ("DID gate (SAL-003 09:00): vendor DID absent + SIP 5 vars EMPTY + VOBIZ_CALLER_ID REVOKED + Vobiz egress timeout day5 (PLT-004) + "
                         "WA container flip INERT (restart owner-approve; manual WA path OPEN — 0 sends abhi) + "
                         "loop dead no-watchdog (ENG-003/OPS-006) + ammo EMPTY (HNT-004). WA channel OPEN (WAHA with-key 200) - hot-queue 43 closes = aaj ka revenue path (0 sent).")
-pinned["pipeline"] = "43 HOT interested leads (hot_queue 09-01.csv, 43/43 wa_link+UPI); 0 dialer connects (loop dead 45h+); 0 WA sends; Jiya P0"
+pinned["pipeline"] = "43 HOT interested leads (hot_queue 09-01.csv, 43/43 wa_link+UPI)
+0 dialer connects (loop dead 45h+)
+0 WA sends
+Jiya P0"
 pinned["action"] = ("SAL-003 WA >=10 + vendor DID 09:00 → PLT-004 egress verdict + env template 09:00 → ENG-003 watchdog 09:30 → "
                     "HNT-004 CSV 09:30 → OPS-006 10:30 digest → GRD-003 verdicts 11:00 → SUC-002 Jiya 12:00 → BRD-002 page verify 12:00")
 pinned["next_expected_payment"] = "Hot-queue WA close (UPI deep-link) ya Jiya retention ya pehla post-DID sale - vaada nahi, evidence ke saath"

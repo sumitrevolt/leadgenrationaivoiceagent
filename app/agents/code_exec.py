@@ -74,7 +74,8 @@ async def execute(script: str, timeout_s: int = 20, agent: str = "super_admin") 
     GATED (2 layers, dono pass hone par hi run hota):
       1. enabled() False → {"ok":False,"error":"disabled"} (no spawn).
       2. _permitted(agent) False → {"ok":False,"error":"permission_denied"} (no spawn) —
-         defense-in-depth so koi automation-agent RCE self-trigger na kare; sirf trusted
+         defense-in-depth so koi automation-agent RCE self-trigger na kare
+         sirf trusted
          human (super_admin) ya explicitly-granted agent. AGENT_PERMISSIONS se enforce.
     Yeh true sandbox nahi — guarded subprocess only. Returns {ok, stdout, stderr, ...}.
     """

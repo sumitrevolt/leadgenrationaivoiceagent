@@ -13,10 +13,12 @@ genuine value hai —
      admin patch-code ko approve karne se PEHLE validate kare (human-in-loop = hamara
      deploy-gated philosophy).
 
-Design (project patterns): never-raise, stdlib-baseline (`ast` always; `ruff` OPTIONAL —
+Design (project patterns): never-raise, stdlib-baseline (`ast` always
+`ruff` OPTIONAL —
 present ho to undefined-name/F-rules milte, warna sirf syntax). Read-only, import-safe.
 
-Flag: CODE_DIAGNOSTICS=1 (gates the AUTOMATIC Vikram self-check; admin endpoint
+Flag: CODE_DIAGNOSTICS=1 (gates the AUTOMATIC Vikram self-check
+admin endpoint
 flag-independent).
 """
 
@@ -46,7 +48,8 @@ def check_code(code: str, run_lint: bool = True) -> list[dict[str, Any]]:
 
     Returns [{level, code, line, col, message}]. Empty = clean. Never raises.
     Baseline = `ast` syntax (stdlib). If `ruff` binary present, adds pyflakes-class
-    rules (undefined names etc.) — the LSP-diagnostics equivalent; absent → syntax-only.
+    rules (undefined names etc.) — the LSP-diagnostics equivalent
+    absent → syntax-only.
     """
     src = textwrap.dedent(code or "").strip("\n")
     if not src.strip():

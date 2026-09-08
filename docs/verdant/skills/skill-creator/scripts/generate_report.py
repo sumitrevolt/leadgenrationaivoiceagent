@@ -37,7 +37,9 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
 """ + refresh_tag + """    <title>""" + title_prefix + """Skill Description Optimization</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500
+    600&family=Lora:wght@400
+    500&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Lora', Georgia, serif;
@@ -47,7 +49,9 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
             background: #faf9f5;
             color: #141413;
         }
-        h1 { font-family: 'Poppins', sans-serif; color: #141413; }
+        h1 { font-family: 'Poppins', sans-serif
+        color: #141413
+        }
         .explainer {
             background: white;
             padding: 15px;
@@ -65,8 +69,11 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
             margin-bottom: 20px;
             border: 1px solid #e8e6dc;
         }
-        .summary p { margin: 5px 0; }
-        .best { color: #788c5d; font-weight: bold; }
+        .summary p { margin: 5px 0
+        }
+        .best { color: #788c5d
+        font-weight: bold
+        }
         .table-container {
             overflow-x: auto;
             width: 100%;
@@ -95,7 +102,8 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         th.test-col {
             background: #6a9bcc;
         }
-        th.query-col { min-width: 200px; }
+        th.query-col { min-width: 200px
+        }
         td.description {
             font-family: monospace;
             font-size: 11px;
@@ -110,14 +118,17 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         td.test-result {
             background: #f0f6fc;
         }
-        .pass { color: #788c5d; }
-        .fail { color: #c44; }
+        .pass { color: #788c5d
+        }
+        .fail { color: #c44
+        }
         .rate {
             font-size: 9px;
             color: #b0aea5;
             display: block;
         }
-        tr:hover { background: #faf9f5; }
+        tr:hover { background: #faf9f5
+        }
         .score {
             display: inline-block;
             padding: 2px 6px;
@@ -125,29 +136,65 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
             font-weight: bold;
             font-size: 11px;
         }
-        .score-good { background: #eef2e8; color: #788c5d; }
-        .score-ok { background: #fef3c7; color: #d97706; }
-        .score-bad { background: #fceaea; color: #c44; }
-        .train-label { color: #b0aea5; font-size: 10px; }
-        .test-label { color: #6a9bcc; font-size: 10px; font-weight: bold; }
-        .best-row { background: #f5f8f2; }
-        th.positive-col { border-bottom: 3px solid #788c5d; }
-        th.negative-col { border-bottom: 3px solid #c44; }
-        th.test-col.positive-col { border-bottom: 3px solid #788c5d; }
-        th.test-col.negative-col { border-bottom: 3px solid #c44; }
-        .legend { font-family: 'Poppins', sans-serif; display: flex; gap: 20px; margin-bottom: 10px; font-size: 13px; align-items: center; }
-        .legend-item { display: flex; align-items: center; gap: 6px; }
-        .legend-swatch { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
-        .swatch-positive { background: #141413; border-bottom: 3px solid #788c5d; }
-        .swatch-negative { background: #141413; border-bottom: 3px solid #c44; }
-        .swatch-test { background: #6a9bcc; }
-        .swatch-train { background: #141413; }
+        .score-good { background: #eef2e8
+        color: #788c5d
+        }
+        .score-ok { background: #fef3c7
+        color: #d97706
+        }
+        .score-bad { background: #fceaea
+        color: #c44
+        }
+        .train-label { color: #b0aea5
+        font-size: 10px
+        }
+        .test-label { color: #6a9bcc
+        font-size: 10px
+        font-weight: bold
+        }
+        .best-row { background: #f5f8f2
+        }
+        th.positive-col { border-bottom: 3px solid #788c5d
+        }
+        th.negative-col { border-bottom: 3px solid #c44
+        }
+        th.test-col.positive-col { border-bottom: 3px solid #788c5d
+        }
+        th.test-col.negative-col { border-bottom: 3px solid #c44
+        }
+        .legend { font-family: 'Poppins', sans-serif
+        display: flex
+        gap: 20px
+        margin-bottom: 10px
+        font-size: 13px
+        align-items: center
+        }
+        .legend-item { display: flex
+        align-items: center
+        gap: 6px
+        }
+        .legend-swatch { width: 16px
+        height: 16px
+        border-radius: 3px
+        display: inline-block
+        }
+        .swatch-positive { background: #141413
+        border-bottom: 3px solid #788c5d
+        }
+        .swatch-negative { background: #141413
+        border-bottom: 3px solid #c44
+        }
+        .swatch-test { background: #6a9bcc
+        }
+        .swatch-train { background: #141413
+        }
     </style>
 </head>
 <body>
     <h1>""" + title_prefix + """Skill Description Optimization</h1>
     <div class="explainer">
-        <strong>Optimizing your skill's description.</strong> This page updates automatically as different versions of your skill's description are tested. Each row is an iteration - a new description attempt. The columns show test queries: green checkmarks mean the skill triggered correctly (or correctly didn't trigger), red crosses mean it got it wrong. The "Train" score shows performance on queries used to improve the description; the "Test" score shows performance on held-out queries the optimizer hasn't seen. When it's done, the best-performing description will be applied to your skill.
+        <strong>Optimizing your skill's description.</strong> This page updates automatically as different versions of your skill's description are tested. Each row is an iteration - a new description attempt. The columns show test queries: green checkmarks mean the skill triggered correctly (or correctly didn't trigger), red crosses mean it got it wrong. The "Train" score shows performance on queries used to improve the description
+        the "Test" score shows performance on held-out queries the optimizer hasn't seen. When it's done, the best-performing description will be applied to your skill.
     </div>
 """]
 

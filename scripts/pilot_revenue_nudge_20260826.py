@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PILOT one-shot: post task nudges to Buzz HOSTED #revenue channel.
 
-NOTE 2026-08-26: hosted relay is canonical; local relay (127.0.0.1:3100) is DOWN,
+NOTE 2026-08-26: hosted relay is canonical
+local relay (127.0.0.1:3100) is DOWN,
 buzz.xyz https endpoints 403 from this network, VPS :3110 has no community.
 Mentions must be plain text (no @ prefix) - mention preflight fails otherwise.
 """

@@ -2,7 +2,8 @@
 
 Identity and local publish-reservation helpers. Never opens the mutable
 ``video_path``. Provider upload MUST stream from the same file descriptor that
-was hashed; hashing a path and then re-opening that path is NOT a closed race.
+was hashed
+hashing a path and then re-opening that path is NOT a closed race.
 
 Postiz public API (docs inspected 2026-07-30) does **not** document an
 idempotency-key contract for ``/public/v1/posts`` or ``/upload``. Therefore this

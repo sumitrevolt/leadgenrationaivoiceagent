@@ -8,7 +8,8 @@ via `_slot_key(client_id, when_iso)`.
 Hermetic: no network / no real calendar (internal durable-ledger provider). Covers:
   1. Same slot bookable by TWO different clients (the reported bug).
   2. Double-book same slot + same client -> rejected.
-  3. No-client (legacy/global) booking still guards itself; legacy ledger rows
+  3. No-client (legacy/global) booking still guards itself
+  legacy ledger rows
      (rows WITHOUT a client_id) load without crash and stay global-only — they do
      NOT poison a per-client bucket.
   4. Availability is per-client (a slot taken by one client is still offered to another).
@@ -53,7 +54,8 @@ def test_same_slot_two_clients_both_succeed(monkeypatch, tmp_path):
     r1 = asyncio.run(cal.book_slot(when_iso=when, name="Jiya cust", phone="1", client_id="jiya"))
     r2 = asyncio.run(cal.book_slot(when_iso=when, name="Tattoo cust", phone="2", client_id="trend"))
     assert r1.ok, r1.error
-    assert r2.ok, f"different client must be able to hold the SAME slot; got: {r2.error}"
+    assert r2.ok, f"different client must be able to hold the SAME slot
+    got: {r2.error}"
     assert r1.booking_id != r2.booking_id
 
 

@@ -14,8 +14,11 @@ Indian telecaller best-practices pe based hain (web-researched, June 2026):
   - [Company]/[Name]/[Project] placeholders runtime pe brain substitute karta
 
 Niche-specific facts baked-in: solar = PM Surya Ghar subsidy (3kW pe ~Rs.78k,
-300 unit free); home loan = balance-transfer EMI savings; insurance = term plan
-~Rs.20-30/din; study-abroad/coaching/interior/dental = FREE consultation hook
+300 unit free)
+home loan = balance-transfer EMI savings
+insurance = term plan
+~Rs.20-30/din
+study-abroad/coaching/interior/dental = FREE consultation hook
 + no-cost EMI.
 
 Consumers: TelecallerBrain (prompt grounding), knowledge_base (KB embedding via
@@ -165,7 +168,8 @@ def kb_documents(niche_key: str) -> list[str]:
     """Niche script ko chhote standalone fact/example strings me flatten karo.
 
     Output KB embedding ke liye ready hai (har string self-contained sentence).
-    Covered niche ka apna data; uncovered niche general script pe map hota hai.
+    Covered niche ka apna data
+    uncovered niche general script pe map hota hai.
     """
     script = get_script(niche_key)
     label = _NICHE_LABELS.get(niche_key, niche_key.replace("_", " ") if niche_key else "general")
@@ -211,7 +215,8 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
 
     TRAI TCCCPR mandates AI promotional calls open with an AI disclosure (not on
     user-ask). If the line already discloses (contains an AI token), it is left
-    as-is; otherwise an up-front disclosure is injected naturally. Never raises —
+    as-is
+    otherwise an up-front disclosure is injected naturally. Never raises —
     on any error the original text is returned (the static openers already name
     the company, so we fail toward speaking rather than silence).
     """
@@ -285,7 +290,8 @@ def stt_keyterms(niche: str = "", client_name: str = "") -> str:
     """Short biasing string for STT (Whisper `prompt=` / Gemini context) — pushes
     the recogniser toward this call's Hinglish register + brand/niche entities so
     proper nouns (client + domain) transcribe right (D-11). Gated STT_BIAS
-    (default ON); returns "" when off. Kept short (Whisper biases on a short
+    (default ON)
+    returns "" when off. Kept short (Whisper biases on a short
     prompt). Never raises."""
     try:
         import os

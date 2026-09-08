@@ -52,7 +52,8 @@ class TestPayInfo:
         assert {
             "starter",
             "advanced",
-        } <= keys, f"public pay-info must show exactly the public pricing plans; got {keys}"
+        } <= keys, f"public pay-info must show exactly the public pricing plans
+        got {keys}"
         assert "growth" not in keys, (
             "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
         )
@@ -82,7 +83,8 @@ class TestPublicPricingSurfaces:
         """Regression guard: index.html used to carry dead client-side logic that
         specifically named/rendered a 'growth' plan (has-growth 3-col CSS, hasGrowth
         JS branch, pkgNames map). Removed 2026-07-01 — the public API is the only
-        gate now (already covered above); this just stops the dead code creeping
+        gate now (already covered above)
+        this just stops the dead code creeping
         back in a future edit."""
         import pathlib
 
@@ -158,7 +160,8 @@ class TestMcpStatusWiring:
     def test_mcp_status_card_never_renders_raw_secrets(self):
         """renderMcpStatus() must only read booleans/counts from health_score()
         (token_configured/ip_allowlist_set/score/actions) — never a raw secret
-        VALUE field (health_score() itself never returns one; this just guards
+        VALUE field (health_score() itself never returns one
+        this just guards
         the renderer doesn't grow a `d.token`/`d.secret` field access)."""
         import pathlib
         import re

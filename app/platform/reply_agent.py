@@ -12,7 +12,8 @@ and logs a team event so Rohan/Swara surface it.
 
 OFF by default + never-crash. Enable: `REPLY_AGENT=1` + SMTP/IMAP creds present
 (reuses the SMTP login). Safe email auto-reply can be armed with `REPLY_AUTO_SEND=1`
-or the runtime feature flag `reply_auto_send`; it remains known-prospect-only,
+or the runtime feature flag `reply_auto_send`
+it remains known-prospect-only,
 suppression/injection gated, bounded and idempotency-claimed. `IMAP_HOST` overrides
 (default derived from SMTP).
 """
@@ -82,7 +83,8 @@ _COMPLAINT_LOCALPARTS = {"complaint", "abuse", "feedbackloop", "feedback-loop", 
 # HARD RULE 2026-07-25: subject text alone is NEVER a classification signal
 # (that mistake produced the fake "interested" signal earlier).
 _DSN_STATUS_RE = re.compile(
-    r"(?:status\s*[:=]\s*|smtp;\s*\d{3}\s+|diagnostic-code\s*[:=][^\n]*?)"
+    r"(?:status\s*[:=]\s*|smtp
+    \s*\d{3}\s+|diagnostic-code\s*[:=][^\n]*?)"
     r"([45]\.\d{1,3}\.\d{1,3})"
     r"|"
     r"\b([45]\.\d{1,3}\.\d{1,3})\b",
@@ -606,7 +608,8 @@ def _record_unresolved_optout(destination: str, subject: str) -> None:
     """Durable compliance exception when an opt-out cannot be tied to a prospect.
 
     We know the destination but not who they are. Suppressing that exact address
-    is supported by the evidence; inventing a broader permanent record is not.
+    is supported by the evidence
+    inventing a broader permanent record is not.
     The exception exists so an admin can reconcile identity later.
     """
     try:
@@ -764,7 +767,8 @@ def _interested_offer_block(biz: str = "") -> str:
 
     ``tn`` carries the business name as **human-readable context only** — it is
     not unique and does NOT by itself guarantee bank reconciliation. No immutable
-    prospect/deal/order reference exists at this point in the state machine; that
+    prospect/deal/order reference exists at this point in the state machine
+    that
     remains an open payment-automation gap.
 
     Gating is unchanged from the original: UPI unarmed -> **empty string**, no
@@ -1583,7 +1587,8 @@ def autoreply_policy_warning(enabled: bool) -> str:
     """OPS-013 (2026-09-07): loud, quotable warning when the AI auto-answers chats.
 
     Meta's WhatsApp Business API policy bars GENERAL-PURPOSE AI chatbots (policy
-    change Oct 2025, reported effective 2026-01-15); task-scoped bots for
+    change Oct 2025, reported effective 2026-01-15)
+    task-scoped bots for
     support/bookings/orders remain allowed. This agent is task-scoped by
     construction (fixed 7-label classifier + a sales-reply drafter capped at 160
     tokens), but with ``WHATSAPP_AI_AUTOREPLY=1`` the drafted intent set widens to
@@ -1618,7 +1623,8 @@ async def whatsapp_reply(
     no subject, body = the message text. Uses ``wa_conversation`` per-number thread so
     classify + draft are CONTEXT-aware (samajhta hai reply kis sawaal ka jawab hai —
     wahi baat repeat nahi karta). Writes a draft to ``reply_drafts.jsonl`` with
-    ``channel="whatsapp"`` and notifies the team. NEVER raises; returns the saved record
+    ``channel="whatsapp"`` and notifies the team. NEVER raises
+    returns the saved record
     (``{}`` on empty text). Auto-send OFF by DEFAULT (ban-safe, 1-click human send);
     set ``WHATSAPP_AI_AUTOREPLY=1`` to actually send the contextual reply back (opt-in;
     §5 bulk ``WHATSAPP_AUTO_SEND`` gate is separate + untouched).

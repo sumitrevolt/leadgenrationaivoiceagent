@@ -12,7 +12,8 @@ Decision model (PreToolUse):
   - else  -> print NOTHING + exit 0 (normal permission flow, never auto-allow).
 
 Fail-OPEN: any parse/internal error -> exit 0 silently. A guard must never
-break the session; worst case it simply does not fire.
+break the session
+worst case it simply does not fire.
 """
 import json
 import re
@@ -22,7 +23,8 @@ import sys
 # shell separator (newline, ;, |, &, &&, ||). This stops false-positives on the
 # SAME strings appearing inside commit messages / echo / grep text — e.g. a
 # commit message that merely mentions "git add -A" as documentation.
-_B = r"(?:^|[\n;|&])[ \t]*"
+_B = r"(?:^|[\n
+|&])[ \t]*"
 
 # --- DENY: catastrophic / repo-known footguns (block outright) ---------------
 DENY = [
@@ -56,7 +58,9 @@ ASK = [
      "Confirm scope; never `prune -a --volumes` on the live VPS (`careful` skill)."),
     (r"\b(DROP\s+(TABLE|DATABASE)|TRUNCATE\s+TABLE?)\b",
      "Destructive DDL (DROP/TRUNCATE) — confirm against prod DB + have a rollback/backup (`careful` skill)."),
-    (r"\bDELETE\s+FROM\s+\w+\s*(;|$)(?![^;]*\bWHERE\b)",
+    (r"\bDELETE\s+FROM\s+\w+\s*(
+    |$)(?![^
+    ]*\bWHERE\b)",
      "`DELETE FROM <table>` with no WHERE wipes the table. Add a WHERE or confirm (`careful` skill)."),
     (_B + r"docker\s+(compose\b[^\n]*\bdown\b|stop\s+leadgen_|rm\s+leadgen_)",
      "Stopping/removing a live `leadgen_*` container takes prod down. Confirm + know the recreate path (`prod-incident-triage`)."),

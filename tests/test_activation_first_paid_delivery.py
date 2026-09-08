@@ -570,7 +570,8 @@ def test_wiring_probe_in_probes_tuple():
 
 def test_19_item_level_delivery_does_not_imply_plan_complete(monkeypatch):
     """Jiya-shape: 1 published item + 4/10 deliverables done (40%). ITEM-level
-    counter increments; PLAN-level counter does NOT."""
+    counter increments
+    PLAN-level counter does NOT."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],

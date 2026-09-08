@@ -138,7 +138,10 @@ for i, text in enumerate(TESTS):
     y, _ = librosa.load(f"c{i}.mp3", sr=16000, mono=True)
     sf.write(f"c{i}.wav", y, 16000)
     # clean 16kHz (web-call quality)
-    t = time.time(); o = _stt(stt, y); ms = (time.time() - t) * 1000; clean_ms.append(ms)
+    t = time.time()
+    o = _stt(stt, y)
+    ms = (time.time() - t) * 1000
+    clean_ms.append(ms)
     w = _wer(text, o.get("rnnt") if "unavailable" not in str(o.get("rnnt")) else o.get("ctc"))
     if w is not None: clean_wer.append(w)
     # simulated 8kHz telephony (downsample 16k->8k->16k = phone band-limit)

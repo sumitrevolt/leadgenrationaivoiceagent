@@ -20,7 +20,8 @@ a backend hook for stronger isolation in production:
 
 NOTE: real egress default-deny requires OS-level isolation. On the subprocess
 backend we scrub credentials so leaked code cannot *authenticate* to your
-providers, which is the highest-value mitigation; treat network containment as
+providers, which is the highest-value mitigation
+treat network containment as
 a prod-backend responsibility.
 """
 

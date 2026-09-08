@@ -49,7 +49,8 @@ def _clip(s: str, n: int) -> str:
         return cut[: dot + 1]
     if " " in cut:
         cut = cut[: cut.rfind(" ")]
-    return cut.rstrip(" ,.;:-")[:n]
+    return cut.rstrip(" ,.
+    :-")[:n]
 
 
 def _norm_services(services: list[Any] | None) -> list[str]:

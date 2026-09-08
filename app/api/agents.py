@@ -89,7 +89,8 @@ class FanOutRequest(BaseModel):
     """Goal to fan out to multiple agents in parallel."""
 
     goal: str = Field(..., min_length=3, max_length=2000)
-    agents: list[str] | None = Field(None, description="STAFF keys; default dev/rohan/isha/kavya")
+    agents: list[str] | None = Field(None, description="STAFF keys
+    default dev/rohan/isha/kavya")
 
 
 @router.get("/roster")
@@ -97,7 +98,8 @@ async def agents_roster(
     user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
     """STAFF roster + executable-capability flag (PUBLIC). recent_runs carry the
-    internal coordination goal/output text → admin-only; anon/non-admin get []."""
+    internal coordination goal/output text → admin-only
+    anon/non-admin get []."""
     out: dict[str, Any] = {"roster": coordinator.roster(), "recent_runs": []}
     if user is not None and user.can_access_admin():
         out["recent_runs"] = coordinator.recent_runs(10)

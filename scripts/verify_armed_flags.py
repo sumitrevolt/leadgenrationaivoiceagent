@@ -11,7 +11,9 @@ gaya" aur "flag actually armed hai" kabhi confuse na ho. Checks:
        GET  /api/onboard-wizard/business-types   → expect 200 (read-only, hamesha live)
        GET  /api/onboard-wizard/preview/salon    → expect 200 (read-only)
        POST /api/onboard-wizard/apply            → expect 423 (flag unarmed) ya 200/422
-       (423 = INERT correct; 422 = validation; 200 = ARMED)
+       (423 = INERT correct
+       422 = validation
+       200 = ARMED)
   D. Verdict — go/no-go summary + exit code (0 = ready, 1 = problem, 2 = warning).
 
 Usage:

@@ -2,7 +2,8 @@
 """buzz_setup_apply — owner-run Buzz workspace mutations, one command.
 
 Everything here changes the shared Buzz workspace, so it is dry-run by default
-and every step is idempotent-ish (Buzz opens a review form; you still click Save).
+and every step is idempotent-ish (Buzz opens a review form
+you still click Save).
 
     python scripts/buzz_setup_apply.py                 # print the plan, change nothing
     python scripts/buzz_setup_apply.py --print-prompt  # just the prompt, to paste
@@ -14,14 +15,16 @@ attestation. Verified 2026-08-09 that the tag is not in the Windows credential
 store, not obtainable from the relay (NIP-11 JSON only, no web UI), and not
 behind any local port (Buzz Desktop listens on none). Desktop mints it
 in-process, so creating an agent is an owner UI action. Use `--print-prompt` and
-paste; keep `--apply` for the day Buzz exposes a tag.
+paste
+keep `--apply` for the day Buzz exposes a tag.
 
 Why a script and not a doc: `buzz agents draft-create` takes a multi-line system
 prompt on stdin. Pasting that by hand into PowerShell mangles the quoting every
 time (three separate sessions have hit it). The prompt lives here as text.
 
 WHAT THIS DOES NOT DO: it does not create a live agent. `draft-create` opens a
-prefilled form in the owner's Buzz Desktop; the harness, model and permissions
+prefilled form in the owner's Buzz Desktop
+the harness, model and permissions
 are chosen there and the agent exists only after the owner clicks Save. Until
 then the agent is CODE-READY, not LIVE — same distinction as
 `enterprise_profile_ready` vs rollout-live in ADR-164.
@@ -71,7 +74,8 @@ Hard rules (these are refusals, not preferences)
   window, AI disclosure, consent suppression, DPDP retention and the billing
   truth in packages.py are not negotiable, and a change that loosens one is an
   ABORT you report, not a tradeoff you weigh.
-- Never print a secret. Env var NAMES are fine; values never.
+- Never print a secret. Env var NAMES are fine
+values never.
 - Swara / the voice path is FROZEN. Review it, never propose edits to it.
 
 Evidence discipline

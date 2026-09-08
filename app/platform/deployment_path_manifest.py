@@ -1,7 +1,8 @@
 """Semantic deployment-path manifest — one row per logical entry point.
 
 NOT one row per command occurrence. The raw scanner finds 85 mutation-pattern
-occurrences across 38 files; that is candidate discovery, not classification.
+occurrences across 38 files
+that is candidate discovery, not classification.
 Three files it flagged production-capable turned out to be a CI workflow, a
 throwaway-container restore drill, and an `echo` of operator instructions.
 
@@ -110,7 +111,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="canonical release authority; rolls all 5 app-image services",
+        evidence="canonical release authority
+        rolls all 5 app-image services",
     ),
     _e(
         deployment_id="release.mcp_remote",
@@ -129,7 +131,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="independent reset --hard chain; cannot delegate without changing MCP flow",
+        evidence="independent reset --hard chain
+        cannot delegate without changing MCP flow",
     ),
     _e(
         deployment_id="release.pitch",
@@ -148,7 +151,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         status=GUARDED_DIRECTLY,
-        evidence="app-only rollout variant; delegation candidate for a later wave",
+        evidence="app-only rollout variant
+        delegation candidate for a later wave",
     ),
     _e(
         deployment_id="release.force_pull",
@@ -398,7 +402,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=False,
         exit_code_propagated=True,
         status=NON_PRODUCTION,
-        evidence="runs-on: ubuntu-latest; mutates only the runner's ephemeral "
+        evidence="runs-on: ubuntu-latest
+        mutates only the runner's ephemeral "
         "checkout and pushes a ci-debug branch. No /opt/leadgen, no ssh, no "
         "production compose. The scanner matched the git identity ci@leadsgenai.in.",
     ),
@@ -418,7 +423,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=False,
         exit_code_propagated=True,
         status=DIAGNOSTIC_ONLY,
-        evidence="restores a backup into a THROWAWAY container; its `docker rm -f` "
+        evidence="restores a backup into a THROWAWAY container
+        its `docker rm -f` "
         "targets that same temp container. Reads /opt/leadgen/backups. Never "
         "mutates the production checkout or production services.",
     ),

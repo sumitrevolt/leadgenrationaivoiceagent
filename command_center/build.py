@@ -68,7 +68,8 @@ out = os.path.join(BASE, "state.js")
 with open(out, "w", encoding="utf-8") as f:
     f.write("window.CC_STATE = ")
     json.dump(state, f, ensure_ascii=False)
-    f.write(";")
+    f.write("
+    ")
 
 print(f"BUILD OK: {len(msgs)} messages, {len(tasks)} tasks, {len(bots)} bots "
       f"({counts['working']} working / {counts['idle']} idle / {counts['blocked']} blocked)")

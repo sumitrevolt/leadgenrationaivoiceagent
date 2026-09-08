@@ -62,7 +62,8 @@ def test_s4_no_secret_shaped_literals(shell_html):
 
 def test_s5_bridge_allowlist_matches_contract_doc(shell_html):
     # actions defined in the shell's BRIDGE_ACTIONS object
-    block = shell_html.split("const BRIDGE_ACTIONS", 1)[1].split("};", 1)[0]
+    block = shell_html.split("const BRIDGE_ACTIONS", 1)[1].split("}
+    ", 1)[0]
     shell_actions = set(re.findall(r"^\s*([a-z0-9_]+):", block, re.M))
     assert shell_actions == DOCUMENTED_ACTIONS, (
         f"shell allowlist drifted: extra={shell_actions - DOCUMENTED_ACTIONS}, "
@@ -245,7 +246,8 @@ def test_c5_customer_shell_fetches_only_customer_api_paths(customer_shell_html):
 
 
 def test_c6_customer_shell_has_no_admin_actions(customer_shell_html):
-    block = customer_shell_html.split("const BRIDGE_ACTIONS", 1)[1].split("};", 1)[0]
+    block = customer_shell_html.split("const BRIDGE_ACTIONS", 1)[1].split("}
+    ", 1)[0]
     actions = set(re.findall(r"^\s*([a-z0-9_]+):", block, re.M))
     assert actions == CUSTOMER_ACTIONS, (
         f"customer allowlist drifted: extra={actions - CUSTOMER_ACTIONS}, "

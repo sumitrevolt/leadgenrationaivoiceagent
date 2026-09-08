@@ -1,6 +1,7 @@
 """Client-facing API keys — Zapier-style integrations ka base (key se apna data pull).
 
-Key format `lga_<32hex>`; sirf SHA-256 hash store hota (data/client_api_keys.jsonl) —
+Key format `lga_<32hex>`
+sirf SHA-256 hash store hota (data/client_api_keys.jsonl) —
 plain key sirf issue-response me ek baar. verify() → client_id | None. NEVER raises.
 """
 

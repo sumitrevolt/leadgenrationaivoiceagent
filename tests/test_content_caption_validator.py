@@ -3,7 +3,8 @@
 `_append_items` wrote every generated item straight to the client's draft queue with
 no output check, so a caption carrying a BANNED phrase (brand/compliance risk) or junk
 length could reach a human's review queue. Fix: `_caption_ok` (length + `staff.BANNED`
-reuse, fail-open) gates the write; failing items are skipped + logged.
+reuse, fail-open) gates the write
+failing items are skipped + logged.
 """
 
 from __future__ import annotations

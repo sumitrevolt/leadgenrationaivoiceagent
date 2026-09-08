@@ -14,7 +14,8 @@ DESIGN (prod-rules ke hisaab se):
   * OFF by default  -> `ENABLE_LLM_OBS=1` + LANGFUSE keys na ho -> 100% no-op.
   * NEVER-RAISE     -> observability ka koi error caller tak nahi (FAIL-OPEN). User-code
                        ka exception NORMAL propagate karta (suppress nahi).
-  * NON-BLOCKING    -> events background daemon-thread queue me; LLM hot-path kabhi
+  * NON-BLOCKING    -> events background daemon-thread queue me
+  LLM hot-path kabhi
                        block/await nahi karta. Queue-full / network-fail = chup drop.
   * interface STABLE-> llm_span()/observe_llm() signature same (free_ai/structured
                        ke call-sites unchanged).
@@ -22,13 +23,15 @@ DESIGN (prod-rules ke hisaab se):
 DO SINKS (independent — ek, dono, ya koi nahi):
   1. Langfuse REST  (ENABLE_LLM_OBS=1 + LANGFUSE keys) — cloud free-tier, zero VPS load.
   2. OTel -> Tempo  (ENABLE_OTEL=1 + opentelemetry installed) — maujooda Grafana/Tempo
-     stack reuse, protobuf-SAFE (sirf otel-API import; OTLP exporter boot pe alag).
+     stack reuse, protobuf-SAFE (sirf otel-API import
+     OTLP exporter boot pe alag).
 
 ENV:
   ENABLE_LLM_OBS=1
   LANGFUSE_PUBLIC_KEY=pk-lf-...
   LANGFUSE_SECRET_KEY=sk-lf-...     (secret — sirf .env me)
-  LANGFUSE_BASE_URL=https://us.cloud.langfuse.com   (default; EU/JP/HIPAA alag)
+  LANGFUSE_BASE_URL=https://us.cloud.langfuse.com   (default
+  EU/JP/HIPAA alag)
   ENABLE_OTEL=1                      (+ pip install -r requirements-otel.txt) -> Tempo
   OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
 """
@@ -264,7 +267,8 @@ def _otel_enabled() -> bool:
     if _env("ENABLE_OTEL").lower() not in _TRUE:
         return False
     try:
-        import opentelemetry.trace  # noqa: F401  (pure-python API; no protobuf)
+        import opentelemetry.trace  # noqa: F401  (pure-python API
+        no protobuf)
 
         return True
     except Exception:
@@ -329,7 +333,8 @@ def llm_span(
       * Langfuse REST  -> _enabled()       (ENABLE_LLM_OBS + LANGFUSE_*_KEY)
       * OTel -> Tempo  -> _otel_enabled()  (ENABLE_OTEL + opentelemetry installed)
     Dono OFF = no-op span. User-code exception NORMALLY propagate hota (suppress
-    nahi); span ERROR mark + flush/close hota. interface unchanged (call-sites same)."""
+    nahi)
+    span ERROR mark + flush/close hota. interface unchanged (call-sites same)."""
     lf_on = _enabled()
     ot_on = _otel_enabled()
     if not (lf_on or ot_on):

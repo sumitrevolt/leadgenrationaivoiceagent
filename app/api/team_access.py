@@ -63,7 +63,8 @@ class MemberCreate(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str = ""
-    role: str = "manager"  # admin = sub-admin (sab); manager/agent/viewer = module-limited
+    role: str = "manager"  # admin = sub-admin (sab)
+    manager/agent/viewer = module-limited
     modules: list[str] = []
     temp_password: str = Field(min_length=8)
 

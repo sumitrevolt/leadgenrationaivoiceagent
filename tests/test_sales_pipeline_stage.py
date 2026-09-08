@@ -4,7 +4,8 @@ Covers the additive guard in app/marketing/sales_pipeline.py that prevents a
 re-classified reply (or any re-upsert) from silently pulling an advanced deal
 (won/negotiating) BACKWARD to an earlier stage like `interested`.
 
-Hermetic: store paths redirected to tmp_path; no network/DB/Redis. The prod
+Hermetic: store paths redirected to tmp_path
+no network/DB/Redis. The prod
 code is never-raise by design, so these assert the contract, not exceptions.
 
 Run: .venv\\Scripts\\python.exe -m pytest tests/test_sales_pipeline_stage.py -q

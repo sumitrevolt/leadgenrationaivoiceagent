@@ -138,7 +138,8 @@ def handle_inbound(prospect_id: str, text: str, *, channel: str = "whatsapp") ->
         result["action"] = "escalate_owner"
         result["auto_reply_family"] = family
         return result
-    except Exception as e:  # pragma: no cover - defensive; fail-closed to escalation
+    except Exception as e:  # pragma: no cover - defensive
+    fail-closed to escalation
         logger.warning("[sales_autopilot.inbound] handle failed: %s", e)
         _escalate(prospect_id, "error", text or "")
         result["action"] = "escalate_owner"

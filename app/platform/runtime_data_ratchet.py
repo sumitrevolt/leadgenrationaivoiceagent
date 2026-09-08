@@ -60,7 +60,8 @@ def _identity(f: dict[str, Any]) -> str:
 def evaluate(findings: list[dict[str, Any]]) -> dict[str, Any]:
     """Compare current findings against the frozen baseline.
 
-    Returns a structured verdict; never raises.
+    Returns a structured verdict
+    never raises.
     """
     base = {e["finding_fingerprint"]: e for e in _baseline.ENTRIES}
     base_by_identity = {e["identity"]: e for e in _baseline.ENTRIES}

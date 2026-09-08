@@ -120,7 +120,8 @@ Touched:   <file list>
 
 PULSE_CANVAS = """# #staff-pulse — 31/31 Runtime STAFF Mirror
 
-**Read-only.** This channel observes; it does not command.
+**Read-only.** This channel observes
+it does not command.
 
 ## Chain of control
 
@@ -153,7 +154,8 @@ Format: `[PULSE] <division> | <agent> | <last_run> | <ok|warn|fail> | <note>`
 ## Decision tiers
 
 - **GREEN** — agent executes itself, reports after.
-- **AMBER** — Boss decides; Council consulted where relevant.
+- **AMBER** — Boss decides
+Council consulted where relevant.
 - **RED** — refused by the system. DND, TRAI window, consent, DPDP,
   secret exposure, destructive ops. Boss cannot bypass these either.
 - **Human gate** — exactly one: real UPI bank-credit confirmation and

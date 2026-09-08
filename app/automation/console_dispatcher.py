@@ -23,7 +23,8 @@ worker drains the queue and routes envelopes to HANDLERS (typed map below).
 
 DESIGN PRINCIPLES
 -----------------
-* Fail-closed but never crash-the-caller. Every storage op is wrapped; an
+* Fail-closed but never crash-the-caller. Every storage op is wrapped
+an
   IO error is logged and the call returns ``{"emitted": False, "reason": ...}``
   so production paths (billing, voice, webhooks) keep working.
 * Per-tenant isolation — ``data/console_events/<tenant_id>.jsonl`` is the
@@ -204,7 +205,8 @@ def emit_console_event(
       * "voice_kill_active"  — VOICE_LAUNCH_KILL=1 and slot uses voice
       * "duplicate"          — within DEDUPE_WINDOW_S of an identical event
       * "empty_tenant"       — caller passed "" or whitespace
-      * "storage_error"      — JSONL write raised; logged but not raised
+      * "storage_error"      — JSONL write raised
+      logged but not raised
     """
     payload = payload or {}
     now = time.time()

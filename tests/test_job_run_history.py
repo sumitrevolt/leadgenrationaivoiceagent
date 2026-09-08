@@ -7,7 +7,8 @@ Covers three fixes that landed together:
   2. `automation_health.run_history` — newest-first reader with job/status filters,
      failures-first ordering, limit cap, missing-file → [], never raises.
   3. `team_scheduler._run_job` — threads real failure detail into record_run
-     (error_class="job_reported_failure" when inner returns False; exception
+     (error_class="job_reported_failure" when inner returns False
+     exception
      type/message when an exception reaches the wrapper) WITHOUT changing the
      wrapper's never-raise / heartbeat-on-finally behaviour.
   4. `GET /api/platform/team/scheduler/runs` — admin-gated read endpoint.

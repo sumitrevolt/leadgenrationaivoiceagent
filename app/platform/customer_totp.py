@@ -10,8 +10,10 @@ Design:
   One row per client_id: {client_id, secret, enabled_at, recovery_hashes[]}.
   Secrets are stored plain (the customer can already see them at enrol —
   not a meaningful incremental risk for a v1 self-hosted SaaS).
-- **Recovery codes**: 8 single-use codes shown ONCE at enrol; stored as
-  SHA-256 hashes; consumed on use. Customer can call /disable with either a
+- **Recovery codes**: 8 single-use codes shown ONCE at enrol
+stored as
+  SHA-256 hashes
+  consumed on use. Customer can call /disable with either a
   fresh TOTP code OR a recovery code.
 - **Pending-login challenge**: when login succeeds with email+password but
   2FA is enabled, the login endpoint returns a short-lived "challenge" token
@@ -166,7 +168,8 @@ def begin_enroll(client_id: str, email: str) -> dict:
 def confirm_enroll(client_id: str, secret: str, code: str, recovery_codes: list[str]) -> dict:
     """Customer scanned the QR and typed the first code from their app +
     saved their recovery codes — verify + persist. Both `secret` and
-    `recovery_codes` came from begin_enroll(); the customer is the trust
+    `recovery_codes` came from begin_enroll()
+    the customer is the trust
     boundary that kept them between calls (they're shown once)."""
     cid = (client_id or "").strip()
     if not cid:

@@ -2,7 +2,8 @@
 
 Naya lead aate hi platform owner ke PHONE pe ntfy buzz (email complement) with a
 1-tap WhatsApp action. Gated LEAD_NTFY_ALERT (default ON) + ntfy.enabled()
-(NTFY_URL+NTFY_TOPIC). Alert flow ko KABHI nahi todta; email/client-WA paths
+(NTFY_URL+NTFY_TOPIC). Alert flow ko KABHI nahi todta
+email/client-WA paths
 unaffected. Mirrors tests/test_content_ordering_lead_alerts.py conventions.
 """
 

@@ -220,7 +220,8 @@ def test_sync_never_raises_when_update_blows_up(monkeypatch):
 def test_persist_call_log_skips_sync_on_duplicate(monkeypatch):
     """A replayed status callback must not re-apply a status transition.
 
-    _insert_sync returns "" for a duplicate call_sid; persist_call_log must
+    _insert_sync returns "" for a duplicate call_sid
+    persist_call_log must
     then skip the CRM sync entirely.
     """
     monkeypatch.setenv("CALL_LEAD_CRM_SYNC", "1")

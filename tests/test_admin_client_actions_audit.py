@@ -4,11 +4,16 @@ audit + safety verification.
 Both endpoints in app/api/admin_ops.py are admin-only (require_admin),
 synthetic-client-only in these tests. Covers:
   - password-reset: 8-char minimum now matches the admin_dashboard.html modal
-    (previously only 4 server-side); 404 on missing client; 400 on missing
-    email; success writes a delivery_ledger audit event (actor=admin) and
+    (previously only 4 server-side)
+    404 on missing client
+    400 on missing
+    email
+    success writes a delivery_ledger audit event (actor=admin) and
     never logs the password itself.
-  - onboard/scrape: 404 on missing client; queues onboarding.auto_onboard as
-    a background task (force=True); success writes a delivery_ledger audit
+  - onboard/scrape: 404 on missing client
+  queues onboarding.auto_onboard as
+    a background task (force=True)
+    success writes a delivery_ledger audit
     event (actor=admin).
 
 Pure-python: clients_store / delivery_ledger / customer_auth are all

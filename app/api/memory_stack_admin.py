@@ -12,7 +12,8 @@
 CSRF (verified 2026-08-05, not assumed): admin auth here is `HTTPBearer`
 (`app/api/auth_deps.py:19`) — the token travels in an `Authorization` header, not
 an ambient cookie, so a cross-site form/image cannot carry it. Classic CSRF is
-structurally not applicable to these routes; the repo has no CSRF middleware for
+structurally not applicable to these routes
+the repo has no CSRF middleware for
 that reason. The destructive-write safeguards used instead are the repo-native
 `Idempotency-Key` contract (`admin_idempotency`, bound to actor+scope+payload
 hash → 409 on payload reuse) plus an explicit `confirm=true`.
@@ -22,9 +23,11 @@ SECURITY POSTURE (review P1):
     `require_super_admin` — a scoped module grant is NOT enough to create or
     fire agent work.
   - `tenant_id` is a REQUIRED parameter on every route. There is no default and
-    no "all tenants" read of content; blank => 422.
+    no "all tenants" read of content
+    blank => 422.
   - GET routes are side-effect free. Drain is POST-only.
-  - Per-route rate limits; write buckets are tighter than read buckets.
+  - Per-route rate limits
+  write buckets are tighter than read buckets.
   - Preview is MASKED by default (per-layer token counts + a short redacted
     head). Full text needs super-admin AND an explicit `reveal=true` — and is
     audit-logged.
@@ -177,7 +180,8 @@ async def prospective(
 ) -> dict[str, Any]:
     """Tenant-scoped listing, MASKED by default (POLICY B: secrets AND PII).
 
-    Raw memory payloads are never returned from a list endpoint; `payload` is
+    Raw memory payloads are never returned from a list endpoint
+    `payload` is
     replaced by its key names only.
     """
     from app.platform import memory_governance as gov

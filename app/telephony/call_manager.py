@@ -153,7 +153,8 @@ class CallManager:
 
         Vobiz fetches this URL when the call connects and expects VobizXML back.
         The dedicated conversational path is the Vobiz stream WS
-        (/api/telephony/vobiz/stream/{token}); this best-effort answer_url points
+        (/api/telephony/vobiz/stream/{token})
+        this best-effort answer_url points
         at the status webhook host so place_call always has a destination. Calls
         are DLT/recharge-blocked right now, so this is structural (not call-tested).
         """

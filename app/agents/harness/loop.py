@@ -99,7 +99,8 @@ async def _checkpoint(ctx: RunContext, call: ToolCall) -> None:
 
     File-mutating tools declare ``paths`` in their args -> real file snapshot via
     the repo's agent_checkpoints.snapshot(paths, label). For non-file mutations
-    (external send, billing) there is nothing to file-snapshot; the idempotency
+    (external send, billing) there is nothing to file-snapshot
+    the idempotency
     key + audit marker are the replay-safety guarantee, so we record a logical
     checkpoint instead of calling snapshot with the wrong shape."""
     label = f"pre:{call.name}:{call.call_id}"
@@ -425,7 +426,8 @@ class Harness:
         if d.get("would_validate") is False:
             verdict = ComparisonVerdict.MISSING_CONTEXT
         elif d.get("would_allow") is False:
-            verdict = ComparisonVerdict.POLICY_MISMATCH  # harness would deny; legacy did it
+            verdict = ComparisonVerdict.POLICY_MISMATCH  # harness would deny
+            legacy did it
         elif meta.get("verdict_override"):
             # Adapter-supplied observed verdict (FALLBACK/DELEGATION/PARSER_AMBIGUITY)
             # — only honoured once structural gates (validate/permit) have passed.

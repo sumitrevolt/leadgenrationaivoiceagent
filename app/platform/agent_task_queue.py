@@ -605,7 +605,8 @@ def _write_orphan_backup(rows: list[dict[str, Any]]) -> str:
 
     Resolve and write are deliberately not split. CI's runtime-data debt ratchet
     classifies a write by the path expression at the `open()` site: when that
-    expression comes straight from `resolve_store_path`, it is CANONICAL; when
+    expression comes straight from `resolve_store_path`, it is CANONICAL
+    when
     it comes from a helper's return value it reads as an undeclared mutable
     path and fails the gate. Keeping both in one function is also the honest
     shape — nothing else should be able to hand this function a path.
@@ -656,7 +657,8 @@ async def reap_orphan_routines(
     happened: the ledger row was abandoned by a bookkeeping bug.
 
     NEVER requeues. These wrap real side-effecting jobs (`platform_dial`,
-    `email_outreach`, …); re-running one to "resolve" it would place real calls
+    `email_outreach`, …)
+    re-running one to "resolve" it would place real calls
     or send real email. The work is long since done — only the row is stale.
 
     Safety: bounded `limit`, `dry_run=True` by default, idempotent (only ever
@@ -764,7 +766,8 @@ async def reap_stale_leases(
     running, a second agent would claim the same row, and the original's `complete()` would
     silently overwrite the second run. Bumping `checkout_version` on requeue does not help,
     precisely because those two writers ignore it. And these leases wrap real side-effecting
-    work (`agent_runtime._durable_open` covers every runtime action; `team_scheduler`:309
+    work (`agent_runtime._durable_open` covers every runtime action
+    `team_scheduler`:309
     covers every scheduled routine), so a double-run is customer-visible, not queue hygiene.
 
     Terminal-fail keeps the safety property provable: once reaped, the row is `failed`, and

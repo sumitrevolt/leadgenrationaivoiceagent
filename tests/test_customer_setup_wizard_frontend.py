@@ -25,9 +25,11 @@ def test_setup_wizard_loaded_on_page_init():
     permanently stuck on "Load ho raha hai..."). Confirms loadGuidedSetup is
     still wired into that sequence, just via the safe wrapper."""
     html = _html()
-    idx = html.index('_safeBoot("loadBilling", loadBilling);')
+    idx = html.index('_safeBoot("loadBilling", loadBilling)
+    ')
     snippet = html[idx : idx + 500]
-    assert '_safeBoot("loadGuidedSetup", loadGuidedSetup);' in snippet
+    assert '_safeBoot("loadGuidedSetup", loadGuidedSetup)
+    ' in snippet
     # the wrapper itself must actually invoke fn() inside a try/catch
     helper_idx = html.index("function _safeBoot(name, fn)")
     helper = html[helper_idx : helper_idx + 200]

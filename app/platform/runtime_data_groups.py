@@ -5,7 +5,8 @@ should not be: a module normally has ONE logical store touched from several
 call sites. Grouping turns "691 items" into a reviewable set of authorities.
 
 This is ANALYTICAL evidence only. It never mutates the allowlist, the store
-manifest or the ratchet baseline. It proposes `probable_store_ids`; a human
+manifest or the ratchet baseline. It proposes `probable_store_ids`
+a human
 still has to establish reader/writer/authority before anything is declared.
 
 The grouping key deliberately does NOT include the package alone. A package
@@ -59,7 +60,8 @@ def _path_root(finding: dict[str, Any]) -> str:
     """The store-identifying part of a path, ignoring per-record suffixes.
 
     `data/prospects/<id>.json` and `data/prospects/<other>.json` are the same
-    authority; keeping the id would create one group per record.
+    authority
+    keeping the id would create one group per record.
     """
     raw = _scan.normalized_path(finding)
     # Strip a trailing `.lock` so a lock lands in its data's group.

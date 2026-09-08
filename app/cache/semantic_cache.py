@@ -1,7 +1,8 @@
 """
 semantic_cache.py — free LLM response cache (L1 exact + L2 semantic).
 
-KYUN: greeting-audio + 60s API cache pehle se hai; "general LLM response cache"
+KYUN: greeting-audio + 60s API cache pehle se hai
+"general LLM response cache"
 audit me free-to-add GAP tha (latency↓ + free-tier token/TPD burn↓). Yeh wahi
 bharta — koi naya paid dep nahi, tera maujooda fastembed + Qdrant + Redis reuse.
 
@@ -14,7 +15,8 @@ DESIGN (teri prod-rules ke according):
     (public-path pe ML kabhi event-loop block na kare — 3 prod-downs ka sabak).
   - SHARED METRICS: hit/miss counters Redis me (multi-worker-correct — tera in-process
     counter "unreliable" decision ke according). /metrics inhe expose karta hai.
-  - DECOUPLED + TESTABLE: core ek duck-typed `backend` pe chalta; default prod
+  - DECOUPLED + TESTABLE: core ek duck-typed `backend` pe chalta
+  default prod
     backend lazily fastembed/Qdrant/Redis use karta. Tests fake backend dete hain.
 
 USAGE (caller opt-in karta, koi auto-wiring nahi):
@@ -288,7 +290,8 @@ async def semantic_complete(
     scope        : niche/client isolation (alag scope cross-serve nahi karega).
     Returns      : (response, info). info["cache"] = exact|semantic|miss|disabled.
 
-    FAIL-OPEN: cache layer ka koi bhi error = factory() chalega; response kabhi
+    FAIL-OPEN: cache layer ka koi bhi error = factory() chalega
+    response kabhi
     block/raise nahi hoga.
     """
     info: dict[str, Any] = {"cache": "miss", "score": 0.0, "scope": scope}

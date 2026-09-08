@@ -5,7 +5,8 @@ invalid/circuit/quality fail. Gemini 2.5 Flash remains stable baseline/fallback.
 
 OmniRoute gateway is OPTIONAL (local/dev). Production voice uses the same free
 providers via free_ai with sticky pin — OmniRoute catalog informs route picks
-when available; otherwise env defaults apply.
+when available
+otherwise env defaults apply.
 """
 
 from __future__ import annotations

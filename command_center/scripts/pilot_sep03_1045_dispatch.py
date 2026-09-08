@@ -10,7 +10,8 @@ New live evidence at 10:45 (not in 10:40 record):
   mtime Aug31 08:39Z). leads/ =0 ammo.
 - hot-queue 09-03 PRESENT (scheduler healed). wa_conversations tail = newsletter/auto-reps only,
   0 genuine buyer intent.
-- Rev VERIFIED Rs1,999 Jiya sole; GAP Rs4,98,001.
+- Rev VERIFIED Rs1,999 Jiya sole
+GAP Rs4,98,001.
 10:36 already fired 1 TASK_REBUMP per bot (11:00 deadlines) + 10:40 REVENUE_COMMAND — NO new
 TASK-ID (max 1/bot/run honoured, anti-spam). This run = fresh evidence append + 11:00 gate.
 Appends messages.jsonl, updates bots/pinned/tasks tails.

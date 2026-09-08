@@ -31,7 +31,8 @@ _FORBIDDEN_BRANCH_PARTS = ("..", "refs/", "//", "~", "^", ":", "\\")
 _HEX40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 #: Shell metacharacters that make a manifest command unsafe to run.
-_SHELL_METACHARS = (";", "&&", "||", "`", "$(", "|", ">", "<", "*", "?", "~", "\n", "\r", "\x00")
+_SHELL_METACHARS = ("
+", "&&", "||", "`", "$(", "|", ">", "<", "*", "?", "~", "\n", "\r", "\x00")
 
 #: Executables a manifest test/lint/security command may start with.
 _TEST_PREFIXES = (

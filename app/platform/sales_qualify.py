@@ -1,7 +1,8 @@
 """sales_qualify.py — BANT qualification, Indian local-SMB adapted.
 
 ai-sales-team-claude (zubair-trabzada) ke BANT+MEDDIC rubric se inspired —
-unka US-B2B-SaaS version funding-rounds/G2/LinkedIn pe chalta tha; humara
+unka US-B2B-SaaS version funding-rounds/G2/LinkedIn pe chalta tha
+humara
 LOCAL SMB (solar/gym/salon) version GBP-signals pe: rating, reviews, website,
 owner-access, inquiry recency. Pure-Python (no LLM/no network) = fast + testable.
 

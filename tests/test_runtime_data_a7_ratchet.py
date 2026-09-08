@@ -3,7 +3,8 @@
 A1–A6 proved the shared authority on telephony, compliance, delivery, billing,
 and ops telemetry. A7 applies it to the prospect store:
 
-  * sales.prospects — data/prospects.jsonl (~20MB; append + whole-file rewrite)
+  * sales.prospects — data/prospects.jsonl (~20MB
+  append + whole-file rewrite)
 
 Two properties the repo-wide debt ratchet cannot give:
 
@@ -12,7 +13,8 @@ Two properties the repo-wide debt ratchet cannot give:
   * the resolver is a function, not an import-time Path/str constant.
 
 Nothing here enables calling, writes a marker, copies the ~20MB file, or
-starts host cutover. Bytes stay in-checkout; blockers stay at 21.
+starts host cutover. Bytes stay in-checkout
+blockers stay at 21.
 """
 
 from __future__ import annotations
@@ -120,7 +122,8 @@ def test_manifest_still_validates():
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
     """Migrated stores, and the count is still 21 — that is the honest answer.
 
-    Writers can now follow a cutover; authoritative bytes are still inside the
+    Writers can now follow a cutover
+    authoritative bytes are still inside the
     checkout (~20MB prospects.jsonl). A count that fell here would be a false green.
     """
     blocking = manifest.blocking_stores()

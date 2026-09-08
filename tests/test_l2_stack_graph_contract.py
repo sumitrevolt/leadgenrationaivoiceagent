@@ -2,7 +2,8 @@
 
 Root causes covered:
 1. X-Frame-Options DENY on /app/control-center/graph (ADR-104) — covered in
-   test_l2_stack_graph_frame_headers.py; re-asserted here for HEAD+GET parity.
+   test_l2_stack_graph_frame_headers.py
+   re-asserted here for HEAD+GET parity.
 2. Silent parent blank when iframe fails — parent must keep Old Explorer link
    and listen for cc-graph-ready / cc-graph-error postMessage.
 3. Dataset must be real curated architecture (not empty placeholder).

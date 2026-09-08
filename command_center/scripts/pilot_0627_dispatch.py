@@ -77,7 +77,16 @@ print("bots.json updated")
 pp = os.path.join(BASE, "pinned.json")
 pin = load(pp)
 pin["last_updated"] = "2026-09-02T06:27+05:30"
-pin["vps_status"] = "HEALTHY (/health 37a1daf8 uptime 12h21m); loop DEAD 48h+ (batch211 REVOKED CLI; proc0 cron0); SIP 4 vars EMPTY; VOBIZ_CALLER_ID REVOKED; egress 000 day5; WA flip INERT (containers=0 disk=1); WA-sent 0; leads/ ABSENT; hot-queue 09-01 43/43 present"
+pin["vps_status"] = "HEALTHY (/health 37a1daf8 uptime 12h21m)
+loop DEAD 48h+ (batch211 REVOKED CLI
+proc0 cron0)
+SIP 4 vars EMPTY
+VOBIZ_CALLER_ID REVOKED
+egress 000 day5
+WA flip INERT (containers=0 disk=1)
+WA-sent 0
+leads/ ABSENT
+hot-queue 09-01 43/43 present"
 save(pp, pin)
 print("pinned.json updated")
 print("DONE")

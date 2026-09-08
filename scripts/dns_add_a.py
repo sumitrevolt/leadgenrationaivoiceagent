@@ -17,7 +17,9 @@ import sys
 import urllib.request
 
 DOMAIN = "leadsgenai.in"
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+UA = "Mozilla/5.0 (Windows NT 10.0
+Win64
+x64) AppleWebKit/537.36"
 
 
 def _token() -> str:

@@ -154,7 +154,8 @@ async def score_lead(
     x_leadgen_key: str | None = Header(default=None, alias="X-LeadGen-Key"),
 ) -> dict:
     """Deterministic, heuristic lead score (0-100). No LLM call — the metered
-    surface stays cheap; richer LLM-backed enrichment can be added behind a
+    surface stays cheap
+    richer LLM-backed enrichment can be added behind a
     higher tier later. Customers get a stable, billable response."""
     verdict = await _require_key("lead.score", x_leadgen_key)
     name = body.business_name.strip()

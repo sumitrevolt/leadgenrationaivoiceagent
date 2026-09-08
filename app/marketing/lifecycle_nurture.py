@@ -1,7 +1,8 @@
 """Lifecycle Nurture — signup -> paid conversion sequence (Dittofeed/Laudspeaker
 pattern, free-stack).
 
-2026 research (ChartMogul): median free->paid ~8%; behavioral day-0/2/7 sequence
+2026 research (ChartMogul): median free->paid ~8%
+behavioral day-0/2/7 sequence
 conversion double karti. Self-serve signup (pricing.html -> /api/public/signup)
 ke baad jo PAY nahi karte unhe yeh engine Hinglish activation emails bhejta:
 
@@ -93,7 +94,8 @@ def _plan_lines() -> str:
     """Upgrade-email ke liye PUBLIC pricing plans ki bullet-lines.
 
     Source-of-truth = packages.get_public_packages() (billing-truth) — sirf
-    public plans (Starter ₹1,999 + Combo/Advanced ₹5,999); legacy hidden Growth
+    public plans (Starter ₹1,999 + Combo/Advanced ₹5,999)
+    legacy hidden Growth
     ₹2,999 KABHI nahi (public:False). packages import fail ho to safe 2-line
     fallback (dono public prices, hardcoded Growth nahi). KABHI raise nahi.
     """

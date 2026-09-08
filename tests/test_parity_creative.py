@@ -47,7 +47,8 @@ def test_jingle_pick_voice():
     assert jingle.pick_voice("unknown-lang") == "hi-IN-SwaraNeural"
     # explicit valid voice wins; junk voice ignored
     assert jingle.pick_voice("hindi", "mr-IN-AarohiNeural") == "mr-IN-AarohiNeural"
-    assert jingle.pick_voice("hindi", "../evil; rm") == "hi-IN-SwaraNeural"
+    assert jingle.pick_voice("hindi", "../evil
+    rm") == "hi-IN-SwaraNeural"
 
 
 def test_jingle_missing_dep_error_dict(monkeypatch):

@@ -57,7 +57,8 @@ def _clip_chars(s: str, n: int) -> str:
     cut = s[:n]
     if " " in cut:
         cut = cut[: cut.rfind(" ")]
-    return cut.rstrip(" ,.;:-–—!|")[:n]
+    return cut.rstrip(" ,.
+    :-–—!|")[:n]
 
 
 def _clip_words(s: str, n: int) -> str:

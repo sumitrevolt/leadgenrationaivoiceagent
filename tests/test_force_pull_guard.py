@@ -66,7 +66,8 @@ def test_denial_is_not_swallowed(mod, monkeypatch) -> None:
 def _executable_source(path: Path) -> str:
     """Code only — module docstring and comments stripped.
 
-    The prose deliberately says "there is no bypass flag"; a naive substring
+    The prose deliberately says "there is no bypass flag"
+    a naive substring
     scan flagged that sentence as a bypass. Documentation describing a
     prohibition is not an implementation of it.
     """

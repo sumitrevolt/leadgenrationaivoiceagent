@@ -97,7 +97,8 @@ ADMIN_MSG = """**Buzz enterprise coordination setup — done.**
 GREEN agent khud execute · AMBER Boss decide (owner ko routine approvals nahi) · RED system refuse, Boss bhi override nahi kar sakta (DND, TRAI 10-19 IST, AI disclosure, consent, DPDP, secrets, destructive ops, 32nd persona, FROZEN Swara, non-`deploy_vps.sh` deploy). **Ek hi human gate: real UPI bank-credit confirmation + paid-ledger marking.** `UPI_AUTO_ACTIVATE` fail-closed rahega.
 
 **Naye guides** (`~/.buzz/GUIDES/`)
-`AUTONOMY_POLICY.md` · `STAFF_ROUTING_MAP.md` · `CODING_AGENT_PROTOCOL.md`; `BUZZ_OPERATING_MODEL.md` + `BOSS_ADMIN.md` refreshed. Repo: `docs/coordination/{README.md, LOCKS.json}` (untracked, additive).
+`AUTONOMY_POLICY.md` · `STAFF_ROUTING_MAP.md` · `CODING_AGENT_PROTOCOL.md`
+`BUZZ_OPERATING_MODEL.md` + `BOSS_ADMIN.md` refreshed. Repo: `docs/coordination/{README.md, LOCKS.json}` (untracked, additive).
 
 **Boss membership restored** — admin on `#admin` + `#leadgen`, member on gtm/ops/revenue/dev/build/staff-pulse.
 

@@ -11,9 +11,11 @@ Public API (sab never-raise, pure stdlib + lazy imports):
   - subscribers(client_id)             -> active subs (latest state per email)
   - unsubscribe(token)                 -> public 1-click opt-out (append event)
   - unsub_html(result)                 -> tiny Hinglish confirmation page
-  - compose(client_id, month=None)     -> async; newsletter {subject, html, text}
+  - compose(client_id, month=None)     -> async
+  newsletter {subject, html, text}
                                           (free_ai polish + deterministic fallback)
-  - run_due_if_enabled(force=False)    -> async; GATED `NEWSLETTER_ENGINE=1`:
+  - run_due_if_enabled(force=False)    -> async
+  GATED `NEWSLETTER_ENGINE=1`:
                                           month me 1 baar per active client w/ subs>0,
                                           compose -> SEND via EmailSender SMTP (cap
                                           200 emails/run). Flag OFF = compose +
@@ -210,8 +212,13 @@ def unsub_html(result: dict[str, Any] | None) -> str:
         "<body style='font-family:Arial,sans-serif;background:#f7f7fb;margin:0;padding:40px 16px;'>"
         "<div style='max-width:480px;margin:0 auto;background:#fff;border-radius:12px;"
         "padding:28px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.06);'>"
-        f"<h2 style='margin:0 0 12px;color:#222;'>{'✅' if ok else '⚠️'} Unsubscribe</h2>"
-        f"<p style='color:#444;font-size:15px;line-height:1.5;'>{_html.escape(msg)}</p>"
+        f"<h2 style='margin:0 0 12px
+        color:#222
+        '>{'✅' if ok else '⚠️'} Unsubscribe</h2>"
+        f"<p style='color:#444
+        font-size:15px
+        line-height:1.5
+        '>{_html.escape(msg)}</p>"
         "</div></body></html>"
     )
 
@@ -291,8 +298,14 @@ def _render_html(
     parts = [
         "<html><body style='font-family:Arial,Helvetica,sans-serif;font-size:15px;"
         "line-height:1.55;color:#222;max-width:600px;margin:0 auto;'>",
-        f"<div style='background:{e(color)};color:#fff;padding:18px 22px;border-radius:10px 10px 0 0;'>"
-        f"<h2 style='margin:0;font-size:20px;'>{e(biz)} — {e(month_label)} Newsletter 📬</h2></div>",
+        f"<div style='background:{e(color)}
+        color:#fff
+        padding:18px 22px
+        border-radius:10px 10px 0 0
+        '>"
+        f"<h2 style='margin:0
+        font-size:20px
+        '>{e(biz)} — {e(month_label)} Newsletter 📬</h2></div>",
         "<div style='padding:18px 22px;border:1px solid #eee;border-top:0;border-radius:0 0 10px 10px;'>",
         f"<p>{e(intro)}</p>",
     ]
@@ -302,8 +315,12 @@ def _render_html(
         )
     if offer:
         parts.append(
-            f"<p style='background:#fff8e6;border-left:3px solid {e(color)};padding:10px 14px;"
-            f"border-radius:4px;'><b>🎁 Offer:</b> {e(offer)}</p>"
+            f"<p style='background:#fff8e6
+            border-left:3px solid {e(color)}
+            padding:10px 14px
+            "
+            f"border-radius:4px
+            '><b>🎁 Offer:</b> {e(offer)}</p>"
         )
     if products:
         parts.append("<p><b>🛍️ Hamare picks:</b></p><ul>")
@@ -314,7 +331,9 @@ def _render_html(
         parts.append("</ul>")
     if minisite_url:
         parts.append(
-            f"<p><a href='{e(minisite_url)}' style='background:{e(color)};color:#fff;"
+            f"<p><a href='{e(minisite_url)}' style='background:{e(color)}
+            color:#fff
+            "
             "padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;'>"
             "Visit / Book karein</a></p>"
         )
@@ -478,8 +497,12 @@ async def run_due_if_enabled(force: bool = False) -> dict[str, Any]:
                     unsub_url = _UNSUB_BASE + tok
                     html_body = str(news["html"]).replace(
                         "</body></html>",
-                        f"<p style='color:#999;font-size:11px;text-align:center;'>"
-                        f"<a href='{_html.escape(unsub_url)}' style='color:#999;'>Unsubscribe</a></p>"
+                        f"<p style='color:#999
+                        font-size:11px
+                        text-align:center
+                        '>"
+                        f"<a href='{_html.escape(unsub_url)}' style='color:#999
+                        '>Unsubscribe</a></p>"
                         "</body></html>",
                     )
                     text = str(news["text"]) + f"\n\nUnsubscribe: {unsub_url}"
@@ -554,9 +577,12 @@ def rss_to_email(limit: int = 5) -> dict[str, Any]:
             return {"ok": True, "posts": [], "note": "Koi naya blog post nahi."}
         e = _html.escape
         items_html = "".join(
-            f"<li style='margin-bottom:8px;'><a href='{e(_SITE_URL)}/blog/{e(str(a.get('slug')))}'>"
+            f"<li style='margin-bottom:8px
+            '><a href='{e(_SITE_URL)}/blog/{e(str(a.get('slug')))}'>"
             f"{e(str(a.get('title') or a.get('slug')))}</a><br>"
-            f"<span style='color:#666;font-size:13px;'>{e(str(a.get('meta_description') or '')[:140])}</span></li>"
+            f"<span style='color:#666
+            font-size:13px
+            '>{e(str(a.get('meta_description') or '')[:140])}</span></li>"
             for a in fresh
         )
         html_body = (

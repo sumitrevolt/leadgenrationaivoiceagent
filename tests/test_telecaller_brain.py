@@ -469,7 +469,8 @@ def test_note_repeat_ask_allows_exactly_one_per_call() -> None:
 async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypatch) -> None:
     """LLM streams 'Ji, zara dobara boliye?' against a fully clear substantive
     complaint (verbatim shape from a real 2026-07-03 call) — the stream must NOT
-    speak it; it abandons the stream and uses reply()'s guarded output."""
+    speak it
+    it abandons the stream and uses reply()'s guarded output."""
     b = _brain("ai_marketing")
     b.close_signal_fired = False
     b.caller_phone = ""

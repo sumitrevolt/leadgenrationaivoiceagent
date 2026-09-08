@@ -251,7 +251,8 @@ def test_manifest_needs_customer_input_when_brand_facts_missing():
 
 def test_manifest_rejects_non_hex_color_injection():
     """Colors land in CSS custom properties, so only hex literals may pass."""
-    hostile = dict(_BRAND, primary_color="red; } body { display:none } :root{--x:")
+    hostile = dict(_BRAND, primary_color="red
+    } body { display:none } :root{--x:")
     with pytest.raises(hp.RenderError) as e:
         hp.build_manifest(_make_spec(), brand=hostile)
     assert e.value.code == "needs_customer_input"

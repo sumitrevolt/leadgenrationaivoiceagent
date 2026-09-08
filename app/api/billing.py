@@ -1048,7 +1048,8 @@ async def _activate_subscription_row(
 ) -> Subscription | None:
     """Find/create the Subscription row and mark it ACTIVE for the current period.
 
-    Mirrors the existing cancel/upgrade DB patterns. Best-effort; returns the row or
+    Mirrors the existing cancel/upgrade DB patterns. Best-effort
+    returns the row or
     None when there isn't enough identity to act on.
     """
     sub = await _find_subscription_by_gateway_id(
@@ -1145,7 +1146,8 @@ async def stripe_webhook_removed(request: Request):
     `tests/test_stripe_webhook_fail_closed.py`.
 
     400 is kept (not 410) because that is the status the endpoint already
-    returned; changing it would be an unrequested contract change.
+    returned
+    changing it would be an unrequested contract change.
 
     Owner decision 2026-08-05: manual UPI only (issue #243, not_planned).
     Payments are reconciled through `/api/upi/*` with

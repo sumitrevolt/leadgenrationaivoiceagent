@@ -6,13 +6,16 @@ Script = alibaba/page-agent IIFE build (CDN pinned @1.10.0, MIT), jo apna UI khu
 render karta hai. Humara kaam = key-safe LLM proxy + flag-gated boot loader.
 
 KEY-SAFETY (ai-image-proxy pattern): LLM key KABHI browser me nahi jaati.
-page-agent ka `apiKey` = admin JWT (localStorage.accessToken) hota hai; yeh proxy
+page-agent ka `apiKey` = admin JWT (localStorage.accessToken) hota hai
+yeh proxy
 usse require_admin se verify karke SERVER-side Mistral/Groq key ke saath upstream
 OpenAI-compatible /chat/completions ko forward karta hai (stream pass-through).
 
-Flag: PAGE_AGENT (default OFF = fully inert; config enabled:false, chat 503).
+Flag: PAGE_AGENT (default OFF = fully inert
+config enabled:false, chat 503).
 Env knobs: PAGE_AGENT_MODEL (default mistral-small-latest),
-PAGE_AGENT_SCRIPT_URL (default = pinned jsDelivr; self-host karne pe override).
+PAGE_AGENT_SCRIPT_URL (default = pinned jsDelivr
+self-host karne pe override).
 
 Routes (mounted at /api in main.py — duplicate-route grep done, koi /page-agent nahi):
   GET  /api/page-agent/boot.js              — public loader JS (self-gates: token+config)

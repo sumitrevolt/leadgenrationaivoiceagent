@@ -1,7 +1,8 @@
 """
 Webhooks API
 (Stripe deleted 2026-07-10, Exotel+Razorpay removed 2026-06-18, Twilio removed 2026-07-07 —
-payments via manual UPI; voice via Vobiz telephony/webhooks.py)
+payments via manual UPI
+voice via Vobiz telephony/webhooks.py)
 """
 
 import json
@@ -99,7 +100,8 @@ async def whatsapp_webhook_verify(request: Request):
 async def whatsapp_webhook_inbound(request: Request):
     """Inbound WhatsApp messages from the official Meta Cloud API.
 
-    - App-Secret signature verified (X-Hub-Signature-256); unconfigured -> allowed (warn).
+    - App-Secret signature verified (X-Hub-Signature-256)
+    unconfigured -> allowed (warn).
     - Each inbound TEXT -> ``reply_agent.whatsapp_reply()`` => intent classify + Hinglish
       draft saved to ``data/reply_drafts.jsonl`` (1-click human send).
     - 'STOP' / 'UNSUBSCRIBE' / 'band karo' -> opt-out (suppress), no draft.

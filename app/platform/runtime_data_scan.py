@@ -1464,7 +1464,8 @@ def fingerprint(finding: dict[str, Any]) -> str:
     """Stable identity for ratcheting.
 
     Line number is DELIBERATELY excluded. A finding that moves because an
-    import was added above it is the same finding; treating it as new would
+    import was added above it is the same finding
+    treating it as new would
     mean every unrelated edit invents debt, and a ratchet that cries wolf is a
     ratchet people disable.
     """

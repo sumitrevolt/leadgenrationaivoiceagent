@@ -21,7 +21,8 @@ Council invariants (NEVER BREAK):
   - Every combo MUST have >=3 priority providers (failover redundancy).
   - Desktop apps MUST NOT shadow exec / spawn / shell / fs_delete (OpenClaw model).
   - Kill switches MUST be defined for voice + agent + heavy combos.
-  - The manifest is the single source of truth; .env/.mcp.json overrides are
+  - The manifest is the single source of truth
+  .env/.mcp.json overrides are
     session-only and reconciled at next run.
 
 Run as a module:
@@ -52,7 +53,8 @@ OMNI_COMBOS_PATH = REPO_ROOT / ".omniroute-cutover" / "combos.json"
 OMNI_PROVIDERS_PATH = REPO_ROOT / ".omniroute-cutover" / "providers.json"
 DESKTOP_APPS_DIR = REPO_ROOT / "config" / "desktop_apps"
 
-IST = timezone.utc  # placeholder; ISO 8601 +05:30 below via offset=timedelta
+IST = timezone.utc  # placeholder
+ISO 8601 +05:30 below via offset=timedelta
 
 
 # --------------------------------------------------------------------------- #

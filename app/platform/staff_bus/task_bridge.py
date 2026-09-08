@@ -9,7 +9,8 @@ Design:
   - **Fail-open**: bridge errors are logged and swallowed — a bus hiccup must
     never block a task state transition.
   - **Idempotent-ish**: each task_id is unique and the bus has its own
-    idempotency guard; double-fires are deduped by the bus.
+    idempotency guard
+    double-fires are deduped by the bus.
   - **No new infrastructure**: reuses existing ``StaffBus.publish()`` and the
     ``lgai:events`` Redis channel wired in PR #409.
 """

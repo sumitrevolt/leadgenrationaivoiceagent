@@ -6,7 +6,8 @@ Research: docs/LeadHarvester_Research_2026.md. LEGAL-FIRST design:
     (open license) seed names, website-enrich (email_finder + find_contacts).
   - JustDial/IndiaMART/LinkedIn/Facebook AUTO-scrape KABHI nahi (ToS/ban/IT-Act)
     — directory domains explicitly SKIP hote. Unka path = manual CSV import.
-  - Polite: per-run fetch caps, timeouts, UA, sleep; anti-bot bypass NAHI.
+  - Polite: per-run fetch caps, timeouts, UA, sleep
+  anti-bot bypass NAHI.
 
 Pipeline: collect (enabled sources) → normalize → validate (phonenumbers E.164
 + email MX) → dedupe (store phone/email) → persist (prospector._append = jsonl
@@ -36,7 +37,8 @@ _niche_locks: dict[str, asyncio.Lock] = {}
 _RUNS = os.path.join("data", "harvest_runs.jsonl")
 _FETCH_CAP = 6  # per websearch run site fetches
 _HTTP_TIMEOUT = 10.0
-_UA = "LeadGenAI/1.0 (business contact discovery; admin@leadsgenai.in)"
+_UA = "LeadGenAI/1.0 (business contact discovery
+admin@leadsgenai.in)"
 
 # In domains ko AUTO kabhi fetch/scrape nahi karte (ToS / ban / personal-data)
 _BLOCKED_DOMAINS = (
@@ -83,7 +85,8 @@ _JUNK_NAME_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
-_MAX_NAME_LEN = 90  # real business names itne lambe nahi hote; page titles hote hain
+_MAX_NAME_LEN = 90  # real business names itne lambe nahi hote
+page titles hote hain
 
 
 def ingest_validation_enabled() -> bool:
@@ -98,7 +101,8 @@ def ingest_validation_enabled() -> bool:
 def ingest_reject_reason(name: str, phone10: str, email: str, source: str) -> str:
     """'' = accept; warna reject-reason. Pure function (unit-testable, no env).
 
-    Rules (backlog 2026-07-05): junk-title regex sab par; websearch (unstructured
+    Rules (backlog 2026-07-05): junk-title regex sab par
+    websearch (unstructured
     SERP) leads ko valid mobile YA verified email chahiye. Structured sources
     (osm/opendata/GMB) ke naam real hote hain — sirf junk-regex + length check.
     """
@@ -328,7 +332,8 @@ def _rec_ci(rec: dict[str, Any], *keys: str) -> str:
 
 def _ogd_name(rec: dict[str, Any]) -> str:
     """Extract a business/unit name from a data.gov.in record — FIELD-NAME-AGNOSTIC.
-    (Udyam = `EnterpriseName`; other MSME datasets = name_of_unit/firm_name/... .)"""
+    (Udyam = `EnterpriseName`
+    other MSME datasets = name_of_unit/firm_name/... .)"""
     n = _rec_ci(
         rec,
         "enterprisename",
@@ -389,7 +394,8 @@ def _udyam_district(city: str) -> str:
 
 async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
     """data.gov.in OGD (gated DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID) —
-    Udyam/MSME unit names = seed leads (no phone; enrich baad me). Open license."""
+    Udyam/MSME unit names = seed leads (no phone
+    enrich baad me). Open license."""
     key = os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
     rid = os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()
     if not key or not rid:

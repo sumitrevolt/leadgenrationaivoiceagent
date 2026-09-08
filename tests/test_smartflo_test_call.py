@@ -1,7 +1,8 @@
 """
 Tests for the Tata Smartflo test-call admin endpoint.
 
-No network — TataSmartfloClient is monkeypatched; tests verify:
+No network — TataSmartfloClient is monkeypatched
+tests verify:
   - Auth gating (401/403 without admin)
   - 503 when Smartflo not configured
   - 422 when 'to' number is missing/short

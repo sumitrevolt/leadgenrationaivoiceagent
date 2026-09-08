@@ -116,14 +116,17 @@ class ConversationContext:
                     price_bits.append(f"{v.get('name', k)}:₹{v.get('price_inr', '?')}")
                 else:
                     price_bits.append(f"{k}:{v}")
-            lines.append("APPROVED_PRICING (server-owned, do not invent): " + "; ".join(price_bits))
+            lines.append("APPROVED_PRICING (server-owned, do not invent): " + "
+            ".join(price_bits))
         if self.facts:
-            fact_s = "; ".join(f"{k}={v}" for k, v in list(self.facts.items())[:8])
+            fact_s = "
+            ".join(f"{k}={v}" for k, v in list(self.facts.items())[:8])
             lines.append("facts: " + fact_s)
         if self.tools_called:
             lines.append("tools_called: " + ",".join(self.tools_called[-6:]))
         if self.opt_out:
-            lines.append("OPT_OUT=true — do not sell; confirm suppression and end.")
+            lines.append("OPT_OUT=true — do not sell
+            confirm suppression and end.")
         if self.older_summary:
             lines.append("earlier: " + self.older_summary[:300])
         if self.active_route:

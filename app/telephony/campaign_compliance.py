@@ -23,7 +23,8 @@ def call_type_for(transactional: bool) -> str:
 def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tuple[bool, str]:
     """(ok, reason) — IST calling-window check for promotional/transactional calls.
 
-    Mirrors TRAI's actual 9am-9pm; env defaults kept conservative (matches
+    Mirrors TRAI's actual 9am-9pm
+    env defaults kept conservative (matches
     scripts/fire_calls.py, unchanged). Never raises."""
     try:
         ist = (now_utc or datetime.utcnow()) + timedelta(hours=5, minutes=30)
@@ -47,7 +48,8 @@ def readiness_ok() -> tuple[bool, int, list[str]]:
     """(ok, score, actions) — telephony readiness gate (score>=70 required).
 
     Never raises — a readiness-check failure fails OPEN (score 100) so a bug in
-    THIS check can't silently block every campaign; the per-call VobizClient
+    THIS check can't silently block every campaign
+    the per-call VobizClient
     gate is still the real backstop."""
     try:
         from app.telephony.telephony_readiness import run_checks

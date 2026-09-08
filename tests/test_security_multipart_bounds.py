@@ -3,7 +3,8 @@
 Guards the reachable multipart denial-of-service class
 (GHSA-2c2j-9gv5-cj73 / GHSA-f96h-pmfr-66vw — unbounded per-part size and
 part-count parsing in older Starlette). Starlette's fixed versions enforce a
-per-part size ceiling and a part-count ceiling; an oversized or multi-thousand
+per-part size ceiling and a part-count ceiling
+an oversized or multi-thousand
 part request must be rejected quickly (4xx), never accepted/unbounded.
 
 The public test surface mirrors the app's real unauthenticated multipart route
@@ -60,7 +61,9 @@ def _multipart_body(part_size: int, n_parts: int = 1) -> tuple[bytes, str]:
     part = b"x" * part_size
     for i in range(n_parts):
         body.write(b"--" + b + b"\r\n")
-        body.write(b'Content-Disposition: form-data; name="file"; filename="f%d.webm"\r\n' % i)
+        body.write(b'Content-Disposition: form-data
+        name="file"
+        filename="f%d.webm"\r\n' % i)
         body.write(b"Content-Type: audio/webm\r\n\r\n")
         body.write(part)
         body.write(b"\r\n")

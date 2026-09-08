@@ -13,9 +13,11 @@ ko lock karti hai:
   3) carousel.generate_carousel(slug=/phone=) -> slide CTA client ki apni
      mini-site URL (/b/<slug>) ya phone ho, hardcoded "leadsgenai.in/audit" nahi.
   4) lifecycle_nurture upgrade-email -> legacy hidden Growth ₹2,999 plan ka
-     zikr NA ho (billing-truth); public Advanced/Combo ₹5,999 pitch ho.
+     zikr NA ho (billing-truth)
+     public Advanced/Combo ₹5,999 pitch ho.
 
-No network — free_ai.chat conftest-stubbed; jahan template path chahiye wahan
+No network — free_ai.chat conftest-stubbed
+jahan template path chahiye wahan
 free_ai None kar dete hain. Pure-logic assertions.
 """
 

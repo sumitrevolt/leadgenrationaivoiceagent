@@ -5,7 +5,8 @@ the Customer AI Marketing Studio. Each returns a uniform shape:
     {"sections": [{"title": str, "items": [str, ...]}, ...], ...extra}
 
 so the frontend can render ALL of them with one generic formatter. Niche-aware
-where cheap; always non-empty. These power the structural growth-OS features
+where cheap
+always non-empty. These power the structural growth-OS features
 (#43,46,47,49,50,61,64,66,67,69,70,72,74,77,88,90) that don't need an external
 API or an LLM call.
 """

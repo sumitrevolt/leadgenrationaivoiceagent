@@ -3,11 +3,13 @@
 RED BY DESIGN. The reader currently swallows every failure
 (`except Exception: return False`), so a missing, unreadable or malformed
 kill file DISENGAGES the kill — the opposite of what an emergency switch
-must do. These tests describe the required contract; the implementation
+must do. These tests describe the required contract
+the implementation
 lands in a separate bounded batch.
 
 Locked contract (proved from source, see AdminKillStatus spec):
-  ENV VOICE_LAUNCH_KILL is the FINAL override; the file is a FALLBACK.
+  ENV VOICE_LAUNCH_KILL is the FINAL override
+  the file is a FALLBACK.
   Writer emits exactly {"kill": <bool>} and nothing else.
   Every file-layer failure must yield engaged=True with a safe reason.
 

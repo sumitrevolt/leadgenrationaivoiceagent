@@ -14,7 +14,8 @@ fail-CLOSED safety spine chahiye jo:
 
 DESIGN (repo-consistent): import-safe, koi function KABHI raise nahi karta.
 Master flag ``VOICE_LAUNCH_CAMPAIGN`` (default OFF = INERT) — is module ke hone
-bhar se koi call NAHI lagti; ye sirf gate/counter/state helpers deta hai jinhe
+bhar se koi call NAHI lagti
+ye sirf gate/counter/state helpers deta hai jinhe
 dial loop explicit call kare. platform_dial ke teen kill-layers (env/data-file/
 scheduler) is module se untouched hain — ye unke UPAR ek extra safety spine hai.
 
@@ -101,7 +102,8 @@ class VoiceDisposition(str, Enum):
     Canonically ise NUP alag rakha hai (billing/analytics visibility ke liye),
     par FAILED family ke saath ek NON-CONNECT attempt hai. Launch policy: har
     provider-ACCEPTED attempt (answered/nup/busy/failed/rejected/no_answer/...)
-    daily cap me count hota hai; sirf pre-dial SKIP (gate ne block kiya, call
+    daily cap me count hota hai
+    sirf pre-dial SKIP (gate ne block kiya, call
     kabhi lagi hi nahi) count NAHI hota.
     """
 
@@ -266,7 +268,8 @@ def campaign_enabled() -> bool:
 def _kill_file() -> Path:
     """Resolved per call, never captured at import.
 
-    The runtime-data cutover can move this store to the external root; a path
+    The runtime-data cutover can move this store to the external root
+    a path
     frozen at import could never follow it. VOICE_LAUNCH_KILL_FILE keeps its
     current precedence before the cutover, and after it the authority refuses an
     override that points anywhere but the canonical target — a forgotten
@@ -361,7 +364,8 @@ def _kill_file_status() -> AdminKillStatus:
 def admin_kill_status() -> AdminKillStatus:
     """Global admin kill switch, fail-CLOSED, with a non-secret reason.
 
-    ENV ``VOICE_LAUNCH_KILL`` is FINAL when it carries a recognised token; the
+    ENV ``VOICE_LAUNCH_KILL`` is FINAL when it carries a recognised token
+    the
     data-file is only the fallback (container-recreate ke bina flip — data/
     bind-mount). A non-empty UNRECOGNISED token engages rather than falling
     through, because "VOICE_LAUNCH_KILL=maybe" is a misconfiguration, not a
@@ -401,7 +405,8 @@ def daily_cap(kind: str = "campaign") -> int:
 def tenant_cap(requested: int | None = None) -> int:
     """Per-tenant attempt ceiling for a tenant-scoped test call.
 
-    Env VOICE_TENANT_DAILY_CAP is the platform-wide default; an explicit
+    Env VOICE_TENANT_DAILY_CAP is the platform-wide default
+    an explicit
     `requested` from tenant config is clamped into [1, ceiling].
 
     CEILING NOTE: clamped to the SAME ``_DAILY_CAP_CEILING`` as the campaign
@@ -525,7 +530,8 @@ async def reserve_call_slot(kind: str = "campaign") -> SlotReservation:
     """Atomically claim ONE attempt slot for today (IST). Returns ok=False if the
     cap is reached OR the counter is unavailable (fail-CLOSED — spend/compliance
     cap ko count na kar paane par dial mat karo). Idempotency is the CALLER's job
-    (dedupe per lead); this only enforces the volume ceiling.
+    (dedupe per lead)
+    this only enforces the volume ceiling.
 
     ATOMICITY: single Redis INCR — multi-worker safe. First incr sets the 36h TTL.
     """
@@ -778,7 +784,8 @@ def new_session_id() -> str:
 
 async def create_voice_session(owner: str = "", niche: str = "", label: str = "") -> str:
     """Canonical session LIFECYCLE — naya session banao (attempt counter 0 se).
-    YAHI single place hai jahan session attempt-count reset hota hai; worker or
+    YAHI single place hai jahan session attempt-count reset hota hai
+    worker or
     scheduler restart kabhi reset NAHI karta. Never raises (Redis down => "")."""
     try:
         sid = new_session_id()
@@ -925,7 +932,8 @@ async def release_session_slot(sid: str | None = None) -> int:
 
 async def record_session_disposition(sid: str | None, disp: Any) -> None:
     """Per-session disposition tally (answered/no_answer/busy/failed/nup/...).
-    Best-effort; never blocks the caller."""
+    Best-effort
+    never blocks the caller."""
     try:
         d = normalize_disposition(disp)
         r = await _redis()
@@ -1148,7 +1156,8 @@ def circuit_fail_threshold() -> int:
 async def circuit_open() -> bool:
     """True while the breaker is tripped. Never raises (unavailable => False so a
     Redis outage doesn't itself wedge the loop — the daily-cap is the fail-closed
-    guard; the breaker is an availability/spike guard on top)."""
+    guard
+    the breaker is an availability/spike guard on top)."""
     try:
         r = await _redis()
         return bool(await r.get(_CIRCUIT_KEY))
@@ -1201,7 +1210,8 @@ async def record_provider_result(placed: bool, error: str = "") -> bool:
             except Exception:
                 pass
         if n >= circuit_fail_threshold():
-            await trip_circuit(f"provider_failure_spike ({n} consecutive; last={error[:60]})")
+            await trip_circuit(f"provider_failure_spike ({n} consecutive
+            last={error[:60]})")
             return True
         return await circuit_open()
     except Exception as e:
@@ -1215,7 +1225,8 @@ async def record_provider_result(placed: bool, error: str = "") -> bool:
 def _recordings_dir() -> Path:
     """Retention-governed recordings dir — resolved per call, never frozen at import.
 
-    RECORDINGS_DIR keeps its current override precedence before cutover; after
+    RECORDINGS_DIR keeps its current override precedence before cutover
+    after
     cutover the shared authority refuses an override that points anywhere but
     the canonical target. Inlined (not delegated) so the path scanner still
     binds the CREATE at ``recording_path_healthy`` to this store's legacy path.

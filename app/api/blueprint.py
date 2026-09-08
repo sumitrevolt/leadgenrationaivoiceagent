@@ -9,11 +9,13 @@ Security (PR #125 hardening):
     These carry repo file paths, feature-flag inventory, runtime probe keys,
     tech-refs and internal edges — internal architecture, not for the public.
   * ``/public`` → **sanitized** business-safe contract (labels + high-level
-    connections + coarse state only; no paths/flags/runtime/desc).
+    connections + coarse state only
+    no paths/flags/runtime/desc).
   * ``/meta`` → version + counts only (business-safe, no sensitive metadata).
 
 Read-only, no secrets, never-raises. Live runtime status is joined client-side
-from already-approved endpoints; nodes with no live binding stay honestly
+from already-approved endpoints
+nodes with no live binding stay honestly
 ``Unknown`` (never fabricated ``Healthy``).
 """
 

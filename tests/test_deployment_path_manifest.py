@@ -273,7 +273,8 @@ def test_detached_execution_is_tracked_separately_from_guarding() -> None:
     `_ship_vps_recover.sh` inherits the parent's guard (the guard runs before
     any mutation regardless), but `setsid nohup ... &` means the caller never
     learns whether the release succeeded. Recording that as `guarded=False`
-    would overstate exposure; ignoring it would hide a real weakness.
+    would overstate exposure
+    ignoring it would hide a real weakness.
     """
     e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "recovery.ship_recover")
     assert e["guarded"] is True

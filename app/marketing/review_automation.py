@@ -3,7 +3,8 @@
 Inspired by GoHighLevel Reviews AI, Birdeye, Podium:
   - Triggered after: service completion, appointment show, NPS promoter detection
   - Multi-step sequence: initial request → reminder → escalation
-  - Sentiment-gate: happy → Google public review; unhappy → private feedback
+  - Sentiment-gate: happy → Google public review
+  unhappy → private feedback
   - Channel: WhatsApp / SMS / Email (existing integrations, free stack)
   - Track: data/review_sequences.jsonl
   - Feature flag: REVIEW_AUTOMATION (default OFF)

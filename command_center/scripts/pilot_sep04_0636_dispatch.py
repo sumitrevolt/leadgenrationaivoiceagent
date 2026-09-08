@@ -2,19 +2,22 @@
 """PILOT 06:36 IST (Sep4 CRON) — REVENUE COMMAND + bottleneck re-route, LIVE-verified 06:30 IST.
 
 LIVE VERIFIED 06:30 IST (01:00 UTC) of VPS:
-  - VPS UP; WA flip LIVE=1 in BOTH worker+app containers.
+  - VPS UP
+  WA flip LIVE=1 in BOTH worker+app containers.
   - WA rail STILL ZERO-DELIVERY: reply_drafts auto_sent=true=0, msg_id=0 of 2298 — ENG-004 not shipped.
   - hot-queue 09-04 NOT generated (last 09-03, date-lock broken 2nd day).
   - dialer STILL DEAD day5+: SIP 5 vars ALL EMPTY (DID not landed), VOBIZ_CALLER_ID revoked,
     call_loop mtime Aug31 08:39:55Z proc0 cron0, leads/ empty (ammo 0).
-  - Revenue VERIFIED Rs1,999 (Jiya INV/2026-27/0001 SOLE); GAP Rs4,98,001.
+  - Revenue VERIFIED Rs1,999 (Jiya INV/2026-27/0001 SOLE)
+  GAP Rs4,98,001.
   - Fleet ACK 0 ~52h (0 proof, 0 ACK across Sep3/Sep4).
   - GENUINE WA inbound live (wa_conversations from 1258806323 — real chatter Sep3) = warm lead signal.
 
 BOTTLENECK ladder: #1 WA rail 0 msgid (ENG-004) => no genuine send => no UPI => no ledger.
 #1b leads ammo 0 (HNT-005) + reachability (sendText blocked on NON-WA numbers).
 #2 DID not landed (PLT-005). #3 Jiya churn (SUC-004).
-One TASK-ID/bot/run honoured (rebump existing; no new IDs). token-lean.
+One TASK-ID/bot/run honoured (rebump existing
+no new IDs). token-lean.
 """
 import json
 import os
@@ -100,13 +103,26 @@ print("bots.json updated")
 with open(os.path.join(BASE, "pinned.json"), encoding="utf-8") as f:
     pin = json.load(f)
 pin["last_updated"] = "2026-09-04T06:36+05:30"
-pin["vps_status"] = ("VPS UP; containers WA flip=1 PAR auto_sent=0 AND msg_id=0 of 2298 (link-only day5+, ENG-004 not shipped); "
+pin["vps_status"] = ("VPS UP
+containers WA flip=1 PAR auto_sent=0 AND msg_id=0 of 2298 (link-only day5+, ENG-004 not shipped)
+"
                      "hot-queue 09-04 NOT gen (date-lock broken 2nd day); SIP 5 vars EMPTY DID not landed, dialer DEAD day5, "
                      "leads 0; VERIFIED rev ₹1,999 (Jiya INV/0001 SOLE), GAP ₹4,98,001. Bottleneck #1 WA msgid=0 #1b ammo+reachability 0 #2 DID. "
                      "Fleet 0-ACK ~52h -> 07:30 OWNER-ESC gate.")
 pin["bottleneck"] = "#1 WA auto_send 0 msg-id (ENG-004 link-only->sendText not shipped) | #1b qualified+WA-reachable lead 0 (HNT-005) | #2 DID not landed->dialer dead | #3 no close-kit buyer"
-pin["pipeline"] = "reply_drafts 2298 (auto_sent=0, msgid=0, non-reachable int); hot-queue 09-03 44 dirty (09-04 NOT gen); dialer 0 connects; genuine WA inbound 1258806323 warm signal; Jiya P0 retention"
-pin["action"] = "07:30 IST: ENG-004 ship sendText+msgid+reachability; HNT-005 50 WA-reachable qualified CSV; SAL reachable-only->UPI + genuine inbound follow; PLT DID-land+restart; SUC Jiya proof; GRD verdicts; OPS 09-04 date-lock digest; BRD mirror. 0 proof = OWNER escalation."
+pin["pipeline"] = "reply_drafts 2298 (auto_sent=0, msgid=0, non-reachable int)
+hot-queue 09-03 44 dirty (09-04 NOT gen)
+dialer 0 connects
+genuine WA inbound 1258806323 warm signal
+Jiya P0 retention"
+pin["action"] = "07:30 IST: ENG-004 ship sendText+msgid+reachability
+HNT-005 50 WA-reachable qualified CSV
+SAL reachable-only->UPI + genuine inbound follow
+PLT DID-land+restart
+SUC Jiya proof
+GRD verdicts
+OPS 09-04 date-lock digest
+BRD mirror. 0 proof = OWNER escalation."
 with open(os.path.join(BASE, "pinned.json"), "w", encoding="utf-8") as f:
     json.dump(pin, f, ensure_ascii=False, indent=1)
 print("pinned.json updated")

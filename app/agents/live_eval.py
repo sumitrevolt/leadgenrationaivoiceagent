@@ -12,7 +12,8 @@ Three layers:
     (empty/too-long/double-question/repeat) DENTED by the D-13 `qa_checks`
     findings (pushy-after-softno / talk-listen / missing-permission / literal).
   * `eval_recent_calls(n)` — score the last N live calls, mean → `eval_gate`
-    (suite `live_calls`, metric `conversation_quality`); reports per-call findings
+    (suite `live_calls`, metric `conversation_quality`)
+    reports per-call findings
     + interruption stats. Used by the nightly Arjun guardrail.
   * `llm_judge_transcript(messages)` — OPTIONAL free-LLM judge that returns a score
     WITH a rationale (gated `LLM_JUDGE`, default OFF = cost-free).
@@ -22,7 +23,8 @@ vobiz_stream) + per-turn outcome distribution. The false-vs-missed CLASSIFICATIO
 needs STT-validated barge events (ties to the D-6 backchannel-allowlist arch gap)
 and is flagged as `classification: "unclassified"` until that lands.
 
-Import-safe, never raises; deterministic layers are free (no LLM/network).
+Import-safe, never raises
+deterministic layers are free (no LLM/network).
 """
 
 from __future__ import annotations
@@ -187,7 +189,8 @@ _JUDGE_SYSTEM = (
 
 async def llm_judge_transcript(messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Optional free-LLM judge that returns a score WITH a rationale (P4-3).
-    Gated `LLM_JUDGE` (default OFF). Never raises; returns
+    Gated `LLM_JUDGE` (default OFF). Never raises
+    returns
     {available: False} when disabled/unparseable."""
     if not _judge_enabled():
         return {"available": False, "reason": "disabled"}

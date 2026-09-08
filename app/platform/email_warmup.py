@@ -1,7 +1,8 @@
 """Email warmup ramp + bounce auto-pause — sender-reputation guard (Smartlead/Instantly pattern, free).
 
 Research (June 2026): naya domain/inbox ramp = wk1 3-10/day -> wk2 10-25 -> wk3 25-35
--> wk4+ 35-50; Google bounce hard-ceiling 2%, industry auto-pause trigger = 1.8%.
+-> wk4+ 35-50
+Google bounce hard-ceiling 2%, industry auto-pause trigger = 1.8%.
 Humara static cap 25/day conservative tha, par: (a) ramp nahi (naya inbox bhi day-1
 se 25 bhejta), (b) bounce-spike pe auto-pause nahi (sender-rep burn risk).
 
@@ -9,7 +10,8 @@ Design (self-contained, jsonl-free single JSON state `data/email_warmup.json`):
   - GATED `EMAIL_WARMUP=1` (default OFF => effective_cap(base) == base, zero change).
   - Start-marker pehli gated call pe auto-set (ya `WARMUP_START_DATE=YYYY-MM-DD` env).
   - Ramp: wk1 5/day, wk2 15, wk3 25, wk4+ base (conservative edge of research).
-  - record_sent()/record_bounce() -> rolling 7-din counters; rate >= BOUNCE_PAUSE_PCT
+  - record_sent()/record_bounce() -> rolling 7-din counters
+  rate >= BOUNCE_PAUSE_PCT
     (1.8%) aur sends >= 20 => 24h auto-pause + NOTIFY_EMAIL alert (best-effort).
   - Wired: auto_outreach dono cap-spots (defensive try/except, fallback = base cap).
 Kabhi raise nahi karta.
@@ -313,7 +315,8 @@ def record_unsub(email: str = "", reason: str = "") -> dict[str, Any]:
 def record_complaint(email: str = "", reason: str = "") -> dict[str, Any]:
     """Spam-complaint report — threshold cross pe 24h auto-pause + alert. Never raises.
 
-    Spam-complaint rate = #1 2026 Gmail/Yahoo deliverability gate (must stay <0.3%; we
+    Spam-complaint rate = #1 2026 Gmail/Yahoo deliverability gate (must stay <0.3%
+    we
     auto-pause at the 0.25% buffer). This counts USER-REPORTED SPAM only.
 
     ADR-103: unsubscribe reasons are routed to `record_unsub` instead. Previously every

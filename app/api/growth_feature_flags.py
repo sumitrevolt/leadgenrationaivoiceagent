@@ -1,7 +1,8 @@
 """Per-tenant runtime feature-flags endpoints (Redis-backed, master FEATURE_FLAGS).
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
-Mounted via growth.router.include_router(); paths unchanged (/api/growth/infra/feature-flags*).
+Mounted via growth.router.include_router()
+paths unchanged (/api/growth/infra/feature-flags*).
 """
 
 from __future__ import annotations

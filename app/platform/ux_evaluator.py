@@ -228,7 +228,8 @@ def _check_keyboard_focus(html: str, dashboard: str, counter: list[int]) -> UXIs
     or insufficient.
     """
     # Detect outline suppression
-    has_outline_none = bool(re.search(r"outline\s*:\s*(?:none|0\s*;?)", html, re.IGNORECASE))
+    has_outline_none = bool(re.search(r"outline\s*:\s*(?:none|0\s*
+    ?)", html, re.IGNORECASE))
     has_outline_zero = bool(re.search(r"outline\s*:\s*0\b", html, re.IGNORECASE))
     outline_suppressed = has_outline_none or has_outline_zero
 
@@ -460,7 +461,8 @@ def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> list[UXIs
         dashboard_name:  "customer" or "admin" (used for issue labelling).
 
     Returns:
-        List[UXIssue] — one entry per failed check; passed checks are omitted.
+        List[UXIssue] — one entry per failed check
+        passed checks are omitted.
     """
     html = _read_html(filepath)
     if not html:
@@ -473,7 +475,8 @@ def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> list[UXIs
                 dimension="loading_states",
                 severity=Severity.CRITICAL,
                 wcag_violation=False,
-                user_impact="Dashboard HTML file could not be read; all checks skipped.",
+                user_impact="Dashboard HTML file could not be read
+                all checks skipped.",
                 evidence=Evidence(line_numbers=[], code_snippets=[str(filepath)]),
                 remediation=f"Ensure the file exists at {filepath}.",
             )

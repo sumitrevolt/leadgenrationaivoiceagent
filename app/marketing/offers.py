@@ -17,7 +17,8 @@ So the cardinality is deal 1..N offer. Storing a single mutable ``order_ref`` /
 ``quoted_amount`` on the deal would mean a second offer silently overwrites the
 first — and an already-issued payment link would start resolving to a different
 amount than the prospect was quoted. Offers are therefore their own append-only
-entity; the deal is referenced, never mutated by an offer.
+entity
+the deal is referenced, never mutated by an offer.
 
 IMMUTABILITY
 ------------
@@ -30,7 +31,8 @@ alter what a prospect was already quoted — that is the billing-truth invariant
 ORDER REFERENCE
 ---------------
 ``LG-<uuid4 hex, 32 chars>`` — full 128-bit, deliberately NOT truncated. The
-deal id is itself already ``uuid4().hex[:12]`` (48 bits); truncating again to
+deal id is itself already ``uuid4().hex[:12]`` (48 bits)
+truncating again to
 build a reference would stack birthday risk on an already-shortened value for no
 benefit, since this string is never typed by hand. It is non-secret, URL-safe,
 UPI-``tn``-safe, and carries no customer data. Uniqueness is additionally
@@ -273,7 +275,8 @@ def issue_offer(
 
         with file_lock(_store()) as locked:
             if not locked:
-                logger.warning("[offers] could not lock store; refusing to issue")
+                logger.warning("[offers] could not lock store
+                refusing to issue")
                 return None
             return _issue_locked(
                 did, code, amount, currency, prospect_id, client_id, ttl_days, supersedes
@@ -357,7 +360,8 @@ def issue_custom_offer(
     """EXPLICIT-amount offer — admin-gated custom quotes (DFY setup fee) aur
     promo-discounted supersede orders ke liye (revenue sprint 2026-08-23).
 
-    ``issue_offer`` sirf catalogue price resolve karta hai; ye function caller
+    ``issue_offer`` sirf catalogue price resolve karta hai
+    ye function caller
     ka frozen amount leta hai with hard bounds (₹99..₹10L) — isliye SIRF
     admin-authenticated / engine-internal callers use kar sakte hain, kabhi
     public input par nahi. Fail-closed: bad amount/deal → None, kabhi raise
@@ -381,7 +385,8 @@ def issue_custom_offer(
 
         with file_lock(_store()) as locked:
             if not locked:
-                logger.warning("[offers] could not lock store; refusing to issue")
+                logger.warning("[offers] could not lock store
+                refusing to issue")
                 return None
             return _issue_locked(
                 did,

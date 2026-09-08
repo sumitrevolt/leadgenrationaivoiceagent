@@ -39,10 +39,12 @@ upd('GRD-002', last_update=f"{now} PILOT: NUDGE — (a) Jiya account-health re-r
 upd('HNT-003', last_update=f"{now} PILOT: LOCK — LI-005 50 MOBILE DND-scrubbed leads deadline 16:00 (1h5m left). 17,596 MOBILE ready-pool h, LI-004 missed tha — is baar CSV + DND-proof column + count evidence chahiye. ACC: CSV file + count + DND column.")
 
 # platform — confirm PLT-003
-upd('PLT-003', last_update=f"{now} PILOT: LOCK — 15:00 pehla hourly telephony verify. Note: VPS->api.vobiz.com ConnectTimeout 14:10 tha; call_loop 14:45-52 'not owned' fail. File /opt/leadgen/data/plt003_hourly.md. ACC: 15:00 entry.")
+upd('PLT-003', last_update=f"{now} PILOT: LOCK — 15:00 pehla hourly telephony verify. Note: VPS->api.vobiz.com ConnectTimeout 14:10 tha
+call_loop 14:45-52 'not owned' fail. File /opt/leadgen/data/plt003_hourly.md. ACC: 15:00 entry.")
 
 # operations — hourly digest
-upd('OPS-005', last_update=f"{now} PILOT: D-0 14:55 digest — batches 2-6 loops fresh (skip=0), fail='not owned' x3/batch, totals ok=0, 560 batches cum, 343 not-owned errors, 0 USER_BUSY, 0 connect. DID land hote hi ok>0 expect. Hourly digest jari rakho; owner brief calls/connects/convert.")
+upd('OPS-005', last_update=f"{now} PILOT: D-0 14:55 digest — batches 2-6 loops fresh (skip=0), fail='not owned' x3/batch, totals ok=0, 560 batches cum, 343 not-owned errors, 0 USER_BUSY, 0 connect. DID land hote hi ok>0 expect. Hourly digest jari rakho
+owner brief calls/connects/convert.")
 
 # board — mirror refresh (bots.json stale 08-29)
 upd('BRD-001', last_update=f"{now} PILOT: NUDGE — mirror refresh AAJ D-0 statuses: PLT-003 15:00 verify, HNT-003 16:00 LI-005, ENG-002 spin-fix LIVE, SAL-001 ESC#15 17:30 DID ACC, SUC-001 redispatch, GRD-002 Jiya re-review. bots.json abhi 08-29 stale h. ACC: 3 JSON updated + valid.")

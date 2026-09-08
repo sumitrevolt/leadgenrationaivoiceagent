@@ -1,7 +1,8 @@
 """Tests for app/voice_agent/agent_memory.py (cross-session per-lead memory).
 
 Covers: flag-OFF = zero IO; remember->recall roundtrip; recall_block format;
-min-similarity filter; fail-open on backend error. Fake backend (no Qdrant/LLM).
+min-similarity filter
+fail-open on backend error. Fake backend (no Qdrant/LLM).
 """
 
 import pytest

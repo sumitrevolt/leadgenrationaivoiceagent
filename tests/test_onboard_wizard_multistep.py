@@ -2,7 +2,8 @@
 
 Covers:
   - get_script_preview(): niche opening, suggested opening from services/offer,
-    discovery/closing/objection types; general fallback for unknown types.
+    discovery/closing/objection types
+    general fallback for unknown types.
   - apply_auto_setup(): services/offer/opening_line persist (flag-gated), applied
     list includes services_offer_opening.
   - TelecallerBrain.opening_line(): client record wizard_setup.opening_line override

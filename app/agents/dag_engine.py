@@ -6,7 +6,8 @@ journal DIR data/process_runs/ with process_engine (same record format) but uses
 a SEPARATE index file (dag_index.jsonl) so each engine's watchdog sees only its
 own runs. process_engine.py is byte-unchanged.
 
-Parallelism = ready-set concurrency ACROSS ticks; one await at a time WITHIN a
+Parallelism = ready-set concurrency ACROSS ticks
+one await at a time WITHIN a
 tick (no asyncio.gather) — crash-safe + rate-limit-safe. Conditions are
 FAIL-CLOSED (edge_condition). run_completed/run_failed are EMITTED by advance
 (replay reflects journal truth, like process_engine). Import-safe, never raises.
@@ -186,7 +187,8 @@ def replay(run_id: str) -> dict[str, Any]:
         elif t == "breakpoint_approved":
             n = d.get("node")
             if n in nodes:
-                nodes[n]["state"] = "done"  # no result; out-edges unconditional
+                nodes[n]["state"] = "done"  # no result
+                out-edges unconditional
         elif t == "run_completed":
             st["status"] = ST_COMPLETED
             st["ended_at"] = ev.get("at", "")
@@ -224,7 +226,8 @@ def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[st
             return {"ok": False, "error": "flow not found"}
         graph, errs, kind = flow_compiler.compile_flow(fl)
         if kind != "dag" or not graph:
-            return {"ok": False, "error": "not a dag flow: " + "; ".join(errs)[:160]}
+            return {"ok": False, "error": "not a dag flow: " + "
+            ".join(errs)[:160]}
         run_id = f"{pk[:18]}-{uuid.uuid4().hex[:8]}"
         _append_event(
             run_id,

@@ -16,7 +16,8 @@ STATE MACHINE
 
 EXACTLY-ONCE ARGUMENT (what is actually guaranteed):
   - A claim is ONE `UPDATE ... WHERE id=:id AND checkout_version=:v AND
-    status='pending'`. The DB serialises it; `rowcount==1` for exactly one
+    status='pending'`. The DB serialises it
+    `rowcount==1` for exactly one
     caller, `0` for every loser. Two concurrent claimers therefore produce ONE
     dispatch, not two. Proven by the concurrency test, not asserted.
   - `idempotency_key` is UNIQUE, so a retrying *producer* also collapses to one
@@ -255,7 +256,8 @@ def claim_batch(
 ) -> list[dict[str, Any]]:
     """Atomically claim up to `limit` due rows. Returns only rows THIS caller won.
 
-    Every claim is its own compare-and-set; losers are skipped silently. No
+    Every claim is its own compare-and-set
+    losers are skipped silently. No
     dispatch happens here and no session is held after return.
     """
     if not available():

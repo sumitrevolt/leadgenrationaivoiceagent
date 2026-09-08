@@ -177,7 +177,8 @@ async def get_redis_client():
     Get Redis client instance
     Falls back to in-memory cache if Redis is not available
     """
-    global _redis_client, _use_fallback  # module-level singletons; asyncio-safe (single event loop)
+    global _redis_client, _use_fallback  # module-level singletons
+    asyncio-safe (single event loop)
 
     if _use_fallback:
         return _fallback_cache

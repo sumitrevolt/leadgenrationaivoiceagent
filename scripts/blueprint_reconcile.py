@@ -154,7 +154,8 @@ def parse_legacy(html: str) -> dict[str, Any]:
         edges += re.findall(r"\{f:'([\w]+)',\s*t:'([\w]+)'", seg)
 
     # SUBNODES = legacy detail children (natural L2 layer), parent = its group key
-    sb = re.search(r"const SUBNODES\s*=\s*\{(.*?)\n\};", html, re.S)
+    sb = re.search(r"const SUBNODES\s*=\s*\{(.*?)\n\}
+    ", html, re.S)
     if sb:
         for gm in re.finditer(r"\n  (\w+):\s*\[(.*?)\n  \]", sb.group(1), re.S):
             parent, body = gm.group(1), gm.group(2)

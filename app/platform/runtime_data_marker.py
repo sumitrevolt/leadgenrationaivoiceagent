@@ -63,7 +63,8 @@ def validate_marker(
         problems.append(f"schema_version {marker['schema_version']!r} != {SCHEMA_VERSION!r}")
     if str(marker["manifest_version"]) != manifest.MANIFEST_VERSION:
         problems.append(
-            f"stale manifest_version {marker['manifest_version']!r}; "
+            f"stale manifest_version {marker['manifest_version']!r}
+            "
             f"current is {manifest.MANIFEST_VERSION!r}"
         )
     if runtime_root_identifier and str(marker["runtime_root_identifier"]) != str(
@@ -103,7 +104,8 @@ def validate_marker(
     if required_store_ids:
         missing = sorted(required_store_ids - set(ids))
         if missing:
-            problems.append(f"incomplete migrated store set; missing: {missing}")
+            problems.append(f"incomplete migrated store set
+            missing: {missing}")
 
     started = _parse_ts(marker["cutover_started_at"])
     completed = _parse_ts(marker["cutover_completed_at"])

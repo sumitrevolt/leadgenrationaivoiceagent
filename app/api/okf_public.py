@@ -29,7 +29,8 @@ async def okf_index() -> PlainTextResponse:
     raw = path.read_text(encoding="utf-8", errors="replace")
     if okf_bundle._secret_blocked(raw):  # noqa: SLF001 — shared guard
         raise HTTPException(status_code=404, detail="okf_blocked")
-    return PlainTextResponse(raw, media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(raw, media_type="text/markdown
+    charset=utf-8")
 
 
 @router.get("/okf/{doc_path:path}", include_in_schema=False)
@@ -41,4 +42,5 @@ async def okf_doc(doc_path: str) -> PlainTextResponse:
     raw = path.read_text(encoding="utf-8", errors="replace")
     if okf_bundle._secret_blocked(raw):  # noqa: SLF001
         raise HTTPException(status_code=404, detail="okf_blocked")
-    return PlainTextResponse(raw, media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(raw, media_type="text/markdown
+    charset=utf-8")

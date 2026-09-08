@@ -251,7 +251,8 @@ def _client_record(client_id: str) -> dict | None:
     UPI-activated customers apni billing/login id (e.g. Jiya `d79d690f61b3`) se
     login karte hain, par marketing record marketing id (`jiya-makeover`) pe keyed
     hai — billing id us record ke `billing_client_ids` me carry hoti hai.
-    `resolve_client` alias ko canonical record pe map karta; warna customer
+    `resolve_client` alias ko canonical record pe map karta
+    warna customer
     dashboard ko orphaned partial view (content/plan/onboarding sab khali) dikhta
     tha. Billing/invoice reads raw id use karte hain (yahan nahi). Kabhi raise nahi.
     """
@@ -355,7 +356,8 @@ def _parse_dt(rec: dict) -> datetime:
 def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse:
     """File-based REAL dashboard: inquiries.jsonl + content queue + client record.
 
-    is_sample_data=False jab koi real activity ho; agar bilkul kuch na ho to
+    is_sample_data=False jab koi real activity ho
+    agar bilkul kuch na ho to
     honest zeros (is_sample_data=True, par koi fictional business NAHI)."""
     client_rec = _client_record(client_id)
     inquiries = _inquiries_for_client(client_id, client_rec)
@@ -386,7 +388,8 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
         leads.append(
             LeadRow(
                 id=str(r.get("id") or ""),
-                status=tier,  # B4: default status = AI tier; overridden below if customer set one
+                status=tier,  # B4: default status = AI tier
+                overridden below if customer set one
                 business=str(r.get("business_name") or "-")[:80],
                 contact=str(r.get("name") or "-")[:80],
                 phone=(
@@ -441,7 +444,8 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
                 if _o and str(_o.get("client_id") or "") == str(client_id) and _o.get("status"):
                     _ld.status = _o[
                         "status"
-                    ]  # status only; score (tier) untouched so charts/filters stay valid
+                    ]  # status only
+                    score (tier) untouched so charts/filters stay valid
     except Exception:
         pass
 

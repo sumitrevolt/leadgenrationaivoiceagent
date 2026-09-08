@@ -148,7 +148,8 @@ def test_lead_magnet_pages_wire_business_type_dropdown():
 
 def test_inquiry_dry_run_query_param_threads_to_chain(client, monkeypatch):
     """POST /api/public/inquiry?dry_run=1 — chain trigger hota hai par dial nahi.
-    (dry_run query param → run_after_inquiry(dry_run=True); bina param → False.)"""
+    (dry_run query param → run_after_inquiry(dry_run=True)
+    bina param → False.)"""
     import app.api.public_site as ps
     import app.platform.inquiry_hooks as hooks
 

@@ -170,7 +170,8 @@ def _anonymize_dict(d: dict[str, Any], depth: int = 0) -> dict[str, Any]:
 def anonymize_pii(value: Any) -> Any:
     """Mask PII in a string or dict (recursive).
 
-    str  → scrub embedded phone-runs; return masked string.
+    str  → scrub embedded phone-runs
+    return masked string.
     dict → recursively mask values for keys matching PII_KEYS.
     other types returned as-is.
 
@@ -315,7 +316,8 @@ async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[st
 def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
     """Sweep JSONL records older than RETENTION_DAYS (env, default 365).
 
-    dry_run=True (default)  → report only; nothing deleted.
+    dry_run=True (default)  → report only
+    nothing deleted.
     dry_run=False + DATA_RETENTION=1 env gate → real purge (atomic rewrite +
     .bak copy per touched file).
 

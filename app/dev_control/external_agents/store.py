@@ -12,10 +12,12 @@ Topology facts (verified against ``docker-compose.vps.yml``):
     worker-video — so FileLock CAS on ``data/external_missions/.locks/`` is
     shared across those containers on one VPS host.
   * Redis (``REDIS_URL``) is the preferred multi-container CAS backend when
-    reachable; same pattern as ``dev_control.locks.RedisOwnershipLock``.
+    reachable
+    same pattern as ``dev_control.locks.RedisOwnershipLock``.
   * A Windows Cursor session and a Claude Code session only share state when
     they point at the same ``EXTERNAL_MISSION_DIR`` (or the same Redis).
-  * Redeploy preserves ``./data``; container replacement does not wipe the
+  * Redeploy preserves ``./data``
+  container replacement does not wipe the
     mission store. JSON alone without the CAS backend is NOT distributed-safe.
 """
 
@@ -385,7 +387,8 @@ def recover_stale(*, now: datetime | None = None) -> list[dict[str, Any]]:
             m.clear_lease()
             m.transition(MissionState.FAILED_RETRYABLE)
             m.blocker = f"stale_lease_recovered_from:{prev}"
-            m.add_evidence("recovery", {"from": prev}, note="lease expired; worker presumed dead")
+            m.add_evidence("recovery", {"from": prev}, note="lease expired
+            worker presumed dead")
             with _LOCAL:
                 _atomic_write(
                     _mission_path(m.mission_id),

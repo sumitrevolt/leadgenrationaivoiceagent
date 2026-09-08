@@ -3,7 +3,8 @@
 
 Koi bhi tool (opencode/cursor/claude/bolt/monkeycode) session start/end pe isse
 call karke apni presence Coordination Hub dashboard (/app/coordination) me
-update karta hai. HMAC-signed; secret env se aata hai — kabhi commit nahi.
+update karta hai. HMAC-signed
+secret env se aata hai — kabhi commit nahi.
 
 Usage (bash / powershell, secret env me):
   COORD_HUB_TOOL_OPENCODE_SECRET=<secret> python scripts/coord_hub_heartbeat.py opencode

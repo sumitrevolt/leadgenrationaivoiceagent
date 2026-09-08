@@ -2,14 +2,18 @@
 """PILOT Sep-03 11:20 IST sweep — FRESH LIVE re-verify (evidence-first, corrected probe).
 
 LIVE VERIFIED 11:20 IST (clean positional probe — earlier sed=SET reading was a probe artifact):
-  - /health 308 auth-gated; containers worker/app/scheduler Up 15h healthy.
+  - /health 308 auth-gated
+  containers worker/app/scheduler Up 15h healthy.
   - WA flip LIVE=1 both containers (env gate SOLVED) BUT auto_sent true=0/false=443
     (msg-id count 0) -> WA rail still ZERO real send day5 -> #1 bottleneck (ENG-004).
   - SIP 5 vars ALL len=0 (SIP_HOST/USERNAME/PASSWORD/DID/PROVIDER EMPTY) -> DID NOT landed;
-    VOBIZ_CALLER_ID len13 +9111 REVOKED CLI. call_loop proc 0; log mtime Aug31 08:39Z batch211
+    VOBIZ_CALLER_ID len13 +9111 REVOKED CLI. call_loop proc 0
+    log mtime Aug31 08:39Z batch211
     ok0/fail3 -> dialer DEAD day5.
-  - leads/ EMPTY ammo 0; hot-queue 09-03 PRESENT 44 rows (dirty, 0 genuine buyer proven).
-  - Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001); GAP Rs4,98,001.
+  - leads/ EMPTY ammo 0
+  hot-queue 09-03 PRESENT 44 rows (dirty, 0 genuine buyer proven).
+  - Revenue VERIFIED Rs1,999 Jiya sole (INV/2026-27/0001)
+  GAP Rs4,98,001.
   - FLEET 0-ACK ~54h independent of PILOT probes. 12:00 OWNER-ESCALATION gate next.
 Apex same as 10:30/11:05: #1 WA auto_send ZERO (ENG-004); #2 genuine close (SAL-005);
 #3 DID (PLT-005); Jiya protect (SUC-004). No new TASK-ID (07:35 set already owns; max 1/bot/run
@@ -102,7 +106,8 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T11:20+05:30"
-pin["vps_status"] = ("/health 308 auth-gated containers Up15h; WA flip LIVE=1 par auto_sent 0/443 NO msg-id "
+pin["vps_status"] = ("/health 308 auth-gated containers Up15h
+WA flip LIVE=1 par auto_sent 0/443 NO msg-id "
                      "day5 -> 0 UPI; SIP 5 vars ALL EMPTY DID NOT landed (CLI revoked); dialer DEAD day5 (leads0); "
                      "hot-queue 09-03 44 dirty; VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); GAP Rs4,98,001. "
                      "FLEET 0-ACK ~54h -> 12:00 OWNER-ESCALATION gate.")

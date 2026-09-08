@@ -354,7 +354,8 @@ def test_hash_is_streaming_not_whole_file_read(video, monkeypatch):
 async def test_toctou_gap_closed_provider_receives_snapshot_bytes(video, monkeypatch):
     """Stage 3C: mutating the original between gate and upload must not matter.
 
-    Provider is handed the snapshot path; uploaded bytes must equal the
+    Provider is handed the snapshot path
+    uploaded bytes must equal the
     approved snapshot, not the swapped original.
     """
     from pathlib import Path

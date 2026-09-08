@@ -9,7 +9,8 @@ These scenarios were flagged as gaps in the 2026-06-25 playbook audit
 
 UNLIKE the first draft of this file, every test here DRIVES REAL PRODUCTION
 CODE (not a tautology that sets a value then asserts it). Each test is:
-  - hermetic  — module store paths redirected to tmp_path; no network/DB/Redis,
+  - hermetic  — module store paths redirected to tmp_path
+  no network/DB/Redis,
   - real      — calls the actual prod function (content_approval.approve,
                 sales_pipeline.set_stage, dunning.on_payment_failed,
                 dlq_retry.run_sweep, idempotency.seen_before, ...),

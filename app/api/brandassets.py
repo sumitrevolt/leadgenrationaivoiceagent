@@ -92,8 +92,10 @@ async def card_vcf(slug: str):
         raise HTTPException(status_code=404, detail=res.get("error", "card not found"))
     return Response(
         content=res["vcf"],
-        media_type="text/vcard; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{res["filename"]}"'},
+        media_type="text/vcard
+        charset=utf-8",
+        headers={"Content-Disposition": f'attachment
+        filename="{res["filename"]}"'},
     )
 
 
