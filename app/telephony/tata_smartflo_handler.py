@@ -139,7 +139,7 @@ class TataSmartfloClient:
             "async": 1,  # mandatory: Smartflo only supports async mode
         }
         if caller:
-            payload["caller_id"] = self._clean_number(caller)
+            payload["caller_id"] = self._clean_caller_id(caller)
         if call_timeout:
             payload["call_timeout"] = min(max(call_timeout, 30), 3600)
         if customer_ring_timeout:
@@ -200,6 +200,30 @@ class TataSmartfloClient:
         if digits.startswith("0") and len(digits) == 11:
             digits = digits[1:]
         return digits
+
+    @staticmethod
+    def _clean_caller_id(number: str) -> str:
+        """Normalise a caller_id for the Smartflo Click-to-Call API.
+
+        2026-09-08 fix: the C2C API requires the caller_id (DID) in FULL E.164
+        form (``918069879757``). ``_clean_number()`` strips the leading ``91``
+        country code down to 10 digits, and Smartflo rejects that with HTTP 422
+        ``{"caller_id": "Provide a vaild caller_id."}`` -- which is why every
+        outbound call was rejected before it was ever placed.
+
+        This helper therefore only removes *formatting* (``+``, spaces, dashes,
+        parentheses) and NEVER strips the country code.
+
+        Args:
+            number: Raw DID / caller id, e.g. ``"+918069879757"``.
+
+        Returns:
+            Digits-only caller id WITH the country code intact, or ``""`` when
+            nothing usable was supplied.
+        """
+        if not number:
+            return ""
+        return "".join(ch for ch in str(number) if ch.isdigit())
 
     def validate_config(self) -> dict[str, Any]:
         """Return what is configured / missing for Tata Smartflo."""

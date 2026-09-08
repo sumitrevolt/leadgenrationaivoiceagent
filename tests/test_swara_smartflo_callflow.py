@@ -556,3 +556,71 @@ async def test_cleanup_meters_call_with_usable_duration(
     assert "duration_seconds" in seen, (
         f"wrong kwarg name sent to meter_call_completion: {sorted(seen)}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Regression guard: Tata SmartFlo C2C caller_id must be FULL E.164.
+# Fixed 2026-09-08 - `place_call()` used `_clean_number()` for the caller_id,
+# which stripped the leading `91` (918069879757 -> 8069879757). SmartFlo rejects
+# the 10-digit form with HTTP 422 {"caller_id": "Provide a vaild caller_id."},
+# so NO outbound call was ever placed. `customer_number` must keep using the
+# 10-digit `_clean_number()` form.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_place_call_sends_caller_id_in_full_e164(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """caller_id = 918069879757 (full E.164), customer_number = 10 digits."""
+    httpx = pytest.importorskip("httpx")
+    from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+    _set(monkeypatch,
+         TATA_SMARTFLO_API_TOKEN="tok_test",
+         TATA_SMARTFLO_API_KEY="key_test",
+         TATA_SMARTFLO_DID=_TATA_DID)
+
+    captured: dict[str, Any] = {}
+
+    class _FakeResponse:
+        """Minimal stand-in for httpx.Response (no network)."""
+
+        status_code = 200
+        text = ('{"success": true, "message": "Originate successfully queued", '
+                '"ref_id": "ref_test"}')
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "success": True,
+                "message": "Originate successfully queued",
+                "ref_id": "ref_test",
+            }
+
+    async def _fake_post(self: Any, url: str, **kwargs: Any) -> _FakeResponse:
+        captured["url"] = url
+        captured["payload"] = dict(kwargs.get("json") or {})
+        return _FakeResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _fake_post)
+
+    client = TataSmartfloClient()
+    result = await client.place_call(to="919876543210")
+
+    payload = captured.get("payload")
+    assert payload, "place_call() never posted a payload (client not configured?)"
+    assert int(result.get("status_code") or 0) == 200, result
+
+    # --- the actual regression: caller_id keeps its country code ------------
+    assert payload["caller_id"] == _TATA_DID, (
+        f"caller_id must be full E.164 {_TATA_DID!r}, got {payload['caller_id']!r} "
+        "(10-digit form is rejected by SmartFlo with HTTP 422)"
+    )
+    assert payload["caller_id"] != "8069879757", (
+        "caller_id lost its country code -> SmartFlo 422 'Provide a vaild caller_id.'"
+    )
+
+    # --- customer_number must still be the 10-digit form --------------------
+    assert payload["customer_number"] == "9876543210", (
+        f"customer_number must stay 10-digit, got {payload['customer_number']!r}"
+    )
