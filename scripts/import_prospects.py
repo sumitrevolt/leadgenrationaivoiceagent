@@ -1,8 +1,7 @@
-import codecs
 import json
+import codecs
 import uuid
-
-from app.models.base import _get_sync_engine, get_db_session
+from app.models.base import get_db_session, _get_sync_engine
 from app.models.lead import Lead, LeadSource, LeadStatus, lead_exists_for_phone
 
 engine = _get_sync_engine()
@@ -17,15 +16,15 @@ with get_db_session() as session:
             phone10 = phone10[2:]
         elif phone10.startswith('0') and len(phone10) == 11:
             phone10 = phone10[1:]
-
+        
         if len(phone10) != 10:
             continue
-
+            
         if lead_exists_for_phone(session, phone10):
             bname = rec['business_name']
             print(f'SKIP DUP: {bname}')
             continue
-
+            
         lead = Lead(
             id=rec.get('id', str(uuid.uuid4())),
             company_name=rec['business_name'][:255],
@@ -42,7 +41,7 @@ with get_db_session() as session:
         session.commit()
         bname = rec['business_name']
         print(f'INSERTED: {bname}')
-
+    
     from sqlalchemy import func
     count = session.query(func.count()).select_from(Lead).scalar()
     print(f'TOTAL LEADS IN DB: {count}')

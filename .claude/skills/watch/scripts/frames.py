@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 MAX_FPS = 2.0
 
 
@@ -110,7 +111,7 @@ def auto_fps(duration_seconds: float, max_frames: int = 100) -> tuple[float, int
 
 
 def auto_fps_focus(duration_seconds: float, max_frames: int = 100) -> tuple[float, int]:
-    """Denser budget for user-specified ranges - they are zooming in for detail."""
+    """Denser budget for user-specified ranges — they are zooming in for detail."""
     if duration_seconds <= 0:
         return min(MAX_FPS, 2.0), 2
 
@@ -205,20 +206,15 @@ if __name__ == "__main__":
     i = 0
     while i < len(args):
         if args[i] == "--fps":
-            fps_override = float(args[i + 1])
-            i += 2
+            fps_override = float(args[i + 1]); i += 2
         elif args[i] == "--resolution":
-            resolution = int(args[i + 1])
-            i += 2
+            resolution = int(args[i + 1]); i += 2
         elif args[i] == "--max-frames":
-            max_frames = int(args[i + 1])
-            i += 2
+            max_frames = int(args[i + 1]); i += 2
         elif args[i] == "--start":
-            start_arg = args[i + 1]
-            i += 2
+            start_arg = args[i + 1]; i += 2
         elif args[i] == "--end":
-            end_arg = args[i + 1]
-            i += 2
+            end_arg = args[i + 1]; i += 2
         else:
             i += 1
 

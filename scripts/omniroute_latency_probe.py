@@ -168,7 +168,7 @@ def main() -> int:
     print("=" * 74)
     print(f"gateway : {args.base}")
     print(f"iters   : {args.iters} per model")
-    print("target  : TTFT p50 < 1000 ms   (prod baseline llm_first was 2189/6839/6334 ms)")
+    print(f"target  : TTFT p50 < 1000 ms   (prod baseline llm_first was 2189/6839/6334 ms)")
     print()
 
     count = gateway_reachable(args.base, key)

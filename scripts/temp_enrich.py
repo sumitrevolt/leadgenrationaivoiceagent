@@ -1,6 +1,5 @@
 import asyncio
 import csv
-
 from app.marketing.packages import get_public_packages
 
 
@@ -12,7 +11,7 @@ async def main():
     print(f"Loaded Offers: {offers}")
 
     # Read prospect
-    with open("hot_icp_prospects.csv", encoding="utf-8") as f:
+    with open("hot_icp_prospects.csv", "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         prospect = next(reader)
 

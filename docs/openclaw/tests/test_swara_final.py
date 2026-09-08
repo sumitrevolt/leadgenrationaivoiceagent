@@ -4,9 +4,8 @@ Final comprehensive verification of OpenClaw x Swara Voice Intelligence (Rules 1
 This test suite maps directly to the actual module APIs — no assumptions,
 all field names and method signatures verified against source code.
 """
-import os
 import sys
-
+import os
 import pytest
 
 # Ensure workspace is on the path
@@ -87,7 +86,7 @@ class TestVoiceLearningEvents:
     """Rule 4: Every useful interaction generates voice_learning_event"""
 
     def test_voice_learning_event_created(self):
-        from app.voice_agent.swara_learning import get_voice_learning_store, record_voice_event
+        from app.voice_agent.swara_learning import record_voice_event, get_voice_learning_store
         store = get_voice_learning_store()
         store._events.clear()
         event = record_voice_event(
@@ -150,9 +149,7 @@ class TestOwnerCorrections:
 
     def test_owner_correction_recorded(self):
         from app.voice_agent.swara_learning import (
-            get_voice_learning_store,
-            record_owner_correction,
-            record_voice_event,
+            record_voice_event, record_owner_correction, get_voice_learning_store
         )
         store = get_voice_learning_store()
         store._events.clear()
@@ -272,9 +269,7 @@ class TestNoUncontrolledSelfTraining:
 
     def test_promote_requires_quality_gates(self):
         from app.voice_agent.swara_learning import (
-            get_voice_learning_store,
-            promote_candidate_to_golden,
-            record_voice_event,
+            record_voice_event, promote_candidate_to_golden, get_voice_learning_store
         )
         store = get_voice_learning_store()
         store._events.clear()
@@ -303,7 +298,7 @@ class TestQualityGate:
     """Rule 10: Quality gates ≥98% meaning/intent, ≥95% hinglish/pronunciation/persona"""
 
     def test_thresholds_enforced(self):
-        from app.voice_agent.swara_eval import BOOLEAN_GATES, QUALITY_GATES
+        from app.voice_agent.swara_eval import QUALITY_GATES, BOOLEAN_GATES
         assert QUALITY_GATES["meaning_preservation"] >= 0.98
         assert QUALITY_GATES["intent_preservation"] >= 0.98
         assert QUALITY_GATES["natural_hinglish"] >= 0.95
@@ -424,12 +419,12 @@ class TestSingleConfigPattern:
 
     def test_feature_flags_exist(self):
         from app.voice_agent.swara_config import (
-            hinglish_adaptation_enabled,
-            pronunciation_memory_enabled,
-            voice_eval_enabled,
+            voice_learning_enabled,
             voice_learning_auto_collect,
             voice_learning_auto_promote,
-            voice_learning_enabled,
+            voice_eval_enabled,
+            pronunciation_memory_enabled,
+            hinglish_adaptation_enabled,
         )
         assert callable(voice_learning_enabled)
         assert callable(voice_learning_auto_collect)
@@ -468,8 +463,8 @@ class TestSafetyCompliance:
     """TRAI/DPDP/Rule 16 constraints enforced"""
 
     def test_no_deceptive_sales(self):
-        from app.voice_agent.swara_adaptation import AdaptationCandidate
         from app.voice_agent.swara_eval import get_safety_evaluator
+        from app.voice_agent.swara_adaptation import AdaptationCandidate
         # Safety eval reads pronunciation_normalized, so we set the deceptive text there
         cand = AdaptationCandidate(
             candidate_id="safety_1",
@@ -483,11 +478,11 @@ class TestSafetyCompliance:
             target_style="professional_business",
         )
         results = get_safety_evaluator().evaluate(cand)
-        assert not results["no_deceptive_sales"]  # "guarantee" triggers flag
+        assert results["no_deceptive_sales"] == False  # "guarantee" triggers flag
 
     def test_no_invented_discounts(self):
-        from app.voice_agent.swara_adaptation import AdaptationCandidate
         from app.voice_agent.swara_eval import get_safety_evaluator
+        from app.voice_agent.swara_adaptation import AdaptationCandidate
         cand = AdaptationCandidate(
             candidate_id="safety_2",
             english_text="Today only special discount",
@@ -500,7 +495,7 @@ class TestSafetyCompliance:
             target_style="persuasive_sales",
         )
         results = get_safety_evaluator().evaluate(cand)
-        assert not results["no_invented_discounts"]  # "today only"/"discount" triggers flag
+        assert results["no_invented_discounts"] == False  # "today only"/"discount" triggers flag
 
 
 if __name__ == "__main__":

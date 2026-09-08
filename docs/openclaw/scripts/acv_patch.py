@@ -1,6 +1,6 @@
 import re
 
-with open('/app/app/marketing/packages.py') as f:
+with open('/app/app/marketing/packages.py', 'r') as f:
     content = f.read()
 
 # Add ACV_ANNUAL_BUNDLE definition after the Advanced package, before get_packages

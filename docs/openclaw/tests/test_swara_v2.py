@@ -1,6 +1,5 @@
 """Final verification test for Swara Voice Intelligence modules."""
 import sys
-
 import pytest
 
 sys.path.insert(0, r'C:\Users\Ratanshila\.openclaw\workspace')
@@ -92,7 +91,7 @@ class TestLearning:
     """Rules 4, 6: Learning events"""
 
     def test_record_event(self):
-        from app.voice_agent.swara_learning import get_voice_learning_store, record_voice_event
+        from app.voice_agent.swara_learning import record_voice_event, get_voice_learning_store
         store = get_voice_learning_store()
         store._events.clear()
         event = record_voice_event(
@@ -104,11 +103,7 @@ class TestLearning:
         assert event.domain == "greeting"
 
     def test_owner_correction(self):
-        from app.voice_agent.swara_learning import (
-            get_voice_learning_store,
-            record_owner_correction,
-            record_voice_event,
-        )
+        from app.voice_agent.swara_learning import record_voice_event, record_owner_correction, get_voice_learning_store
         store = get_voice_learning_store()
         store._events.clear()
         event = record_voice_event(
@@ -123,14 +118,14 @@ class TestQualityGate:
     """Rules 9-10: Quality gates"""
 
     def test_thresholds(self):
-        from app.voice_agent.swara_eval import BOOLEAN_GATES, QUALITY_GATES
+        from app.voice_agent.swara_eval import QUALITY_GATES, BOOLEAN_GATES
         assert QUALITY_GATES["meaning_preservation"] >= 0.98
         assert QUALITY_GATES["intent_preservation"] >= 0.98
         assert QUALITY_GATES["natural_hinglish"] >= 0.95
 
     def test_high_quality_passes(self):
-        from app.voice_agent.swara_adaptation import AdaptationCandidate
         from app.voice_agent.swara_eval import get_quality_evaluator
+        from app.voice_agent.swara_adaptation import AdaptationCandidate
         cand = AdaptationCandidate(
             candidate_id="t1", english_text="Confirmed", domain="appointment", context="confirm",
             extracted_meaning="Appointment confirmed", hinglish_draft="appointment confirm ho gayi",
@@ -140,8 +135,8 @@ class TestQualityGate:
         assert result is not None
 
     def test_safety_no_deception(self):
-        from app.voice_agent.swara_adaptation import AdaptationCandidate
         from app.voice_agent.swara_eval import get_safety_evaluator
+        from app.voice_agent.swara_adaptation import AdaptationCandidate
         cand = AdaptationCandidate(
             candidate_id="t2", english_text="Guaranteed 100% success today only",
             domain="closing", context="sales",
@@ -149,7 +144,7 @@ class TestQualityGate:
             persona_rewrite="guarantee", pronunciation_normalized="guarantee"
         )
         results = get_safety_evaluator().evaluate(cand)
-        assert not results["no_deceptive_sales"]
+        assert results["no_deceptive_sales"] == False
 
 
 class TestShadowMode:

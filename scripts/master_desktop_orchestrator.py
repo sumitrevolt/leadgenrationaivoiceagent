@@ -134,7 +134,7 @@ def ensure_claude_proxy():
     proxy_script = str(REPO_ROOT / "scripts" / "claude_proxy.py")
     pythonw = REPO_ROOT / ".venv" / "Scripts" / "pythonw.exe"
     exe = str(pythonw) if pythonw.exists() else PYTHON_EXE
-
+    
     subprocess.Popen(
         [exe, proxy_script],
         cwd=str(REPO_ROOT),
@@ -215,15 +215,15 @@ def print_status():
     print("=================================================================")
     print("        ANTIGRAVITY MASTER ORCHESTRATOR - SYSTEM STATUS          ")
     print("=================================================================")
-
+    
     # 1. Backends & Proxies
     print("\n--- [1] AI Inference & Gateways ---")
     omni_ok, omni_stat = check_http_port(20128, "/")
     print(f"  * OmniRoute Gateway (:20128) : {'[ONLINE]' if omni_ok else '[OFFLINE]'} - {omni_stat}")
-
+    
     proxy_ok, proxy_stat = check_http_port(22000, "/health")
     print(f"  * Claude Proxy (:22000)      : {'[ONLINE]' if proxy_ok else '[OFFLINE]'} - {proxy_stat}")
-
+    
     fastapi_ok, fastapi_stat = check_http_port(8000, "/health")
     print(f"  * LeadGen FastAPI (:8000)    : {'[ONLINE]' if fastapi_ok else '[STANDBY]'} - {fastapi_stat}")
 
@@ -234,10 +234,10 @@ def print_status():
 
     claude_pids = is_process_running("Claude")
     print(f"  * Claude Desktop   : {'[RUNNING - PIDs: ' + str(claude_pids) + ']' if claude_pids else '[STOPPED]'}")
-
+    
     hermes_pids = is_process_running("Hermes")
     print(f"  * Hermes Desktop   : {'[RUNNING - PIDs: ' + str(hermes_pids) + ']' if hermes_pids else '[STOPPED]'}")
-
+    
     wb_pids = is_process_running("WorkBuddyAI")
     print(f"  * WorkBuddy AI     : {'[RUNNING - PIDs: ' + str(wb_pids) + ']' if wb_pids else '[STOPPED]'}")
 
@@ -256,10 +256,10 @@ def print_status():
         mx, my = get_mouse_position()
         print(f"  * Primary Display Resolution: {sw}x{sh}")
         print(f"  * Current Mouse Position    : ({mx}, {my})")
-        print("  * Visual Glow & HUD Overlay : [AVAILABLE]")
+        print(f"  * Visual Glow & HUD Overlay : [AVAILABLE]")
     except Exception as e:
         print(f"  * Visual Control Note       : {e}")
-
+        
     print("=================================================================\n")
 
 

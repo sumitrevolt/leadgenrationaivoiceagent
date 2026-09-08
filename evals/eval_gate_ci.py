@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eval_gate_ci.py - record DeepEval CI results into the rolling baseline.
+"""eval_gate_ci.py — record DeepEval CI results into the rolling baseline.
 
 Reads pytest's JUnit XML (each parametrized test == one metric × niche combo),
 maps pass/fail to a 0-1 score, and pipes every result through
@@ -10,11 +10,11 @@ A summary `evals/eval_gate_summary.json` artifact captures per-metric verdicts
 so a PR comment / dashboard can pick up regressions without parsing JUnit again.
 
 Exit codes:
-  0 - no regressions OR EVAL_GATE_HARD unset (advisory, default)
-  1 - at least one "reject" decision AND EVAL_GATE_HARD=1 (hard-gate active)
+  0 — no regressions OR EVAL_GATE_HARD unset (advisory, default)
+  1 — at least one "reject" decision AND EVAL_GATE_HARD=1 (hard-gate active)
 
 The CI workflow keeps the step as `continue-on-error: true` for the first
-weeks so a misbehaving baseline can't redden every PR - once we trust the
+weeks so a misbehaving baseline can't redden every PR — once we trust the
 signal, drop the flag from the workflow.
 """
 
@@ -69,7 +69,7 @@ def main() -> int:
     xml = Path(os.environ.get("DEEPEVAL_JUNIT", "evals/deepeval-results.xml"))
     rows = _parse_junit(xml)
     if not rows:
-        print(f"[eval-gate-ci] no testcases parsed from {xml} - nothing to gate")
+        print(f"[eval-gate-ci] no testcases parsed from {xml} — nothing to gate")
         return 0
 
     verdicts: list[dict] = []
@@ -102,7 +102,7 @@ def main() -> int:
     }
     out_path = Path(os.environ.get("EVAL_GATE_SUMMARY", "evals/eval_gate_summary.json"))
     out_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print(f"[eval-gate-ci] wrote {out_path} - {len(rejects)}/{len(rows)} regressions")
+    print(f"[eval-gate-ci] wrote {out_path} — {len(rejects)}/{len(rows)} regressions")
 
     if rejects:
         print("[eval-gate-ci] REGRESSIONS:")

@@ -78,8 +78,7 @@ def main():
     elif kind == "npub":
         print(encode("npub", raw))
     else:
-        print(f"unknown kind {kind}
-        use nsec|npub", file=sys.stderr)
+        print(f"unknown kind {kind}; use nsec|npub", file=sys.stderr)
         sys.exit(1)
 
 

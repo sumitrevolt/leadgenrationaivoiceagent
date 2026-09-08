@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Validate the 3 command_center JSON files + print messages count."""
-import json
-import os
+import json, os
 
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
 for name in ["tasks.json", "bots.json", "pinned.json"]:

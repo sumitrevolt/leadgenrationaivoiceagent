@@ -1,4 +1,4 @@
-"""ONLY entry: TaskYAML -> ``create_mission`` / ``advance``.
+"""ONLY entry: TaskYAML → ``create_mission`` / ``advance``.
 
 No second mission ledger. No post-create ``store.get``/``store.save``.
 Inert unless dual-gate flags are ON.
@@ -29,7 +29,7 @@ class FactoryDisabled(RuntimeError):
 def _require_factory() -> None:
     if not factory_enabled():
         raise FactoryDisabled(
-            "PR_FACTORY_ENABLED=0 or EXTERNAL_AGENT_ORCHESTRATOR=0 - factory inert"
+            "PR_FACTORY_ENABLED=0 or EXTERNAL_AGENT_ORCHESTRATOR=0 — factory inert"
         )
 
 
@@ -37,7 +37,7 @@ def submit_task(raw: dict[str, Any] | FactoryTask, *, lock: Any = None) -> dict[
     """Validate task and call ``create_mission`` (sole mission creation path).
 
     Factory extras ride on ``initial_evidence`` so they attach inside the
-    canonical create save - never via a separate store write.
+    canonical create save — never via a separate store write.
     """
     _require_factory()
     task = raw if isinstance(raw, FactoryTask) else validate_task(raw)
@@ -84,7 +84,7 @@ def advance_mission(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="PR Factory -> external_agents bridge")
+    parser = argparse.ArgumentParser(description="PR Factory → external_agents bridge")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_submit = sub.add_parser("submit", help="Submit a task YAML file")

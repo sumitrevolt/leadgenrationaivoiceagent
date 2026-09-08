@@ -4,7 +4,7 @@ Every decision here is fail-closed: unverifiable GitHub state, a moved head,
 protected-path touches, a missing head pin, an exhausted attempt budget or a
 stale CI result all refuse the operation before any file is touched.
 
-No subprocess, no network - tests exercise these exact control paths.
+No subprocess, no network — tests exercise these exact control paths.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ _CODE_MARKERS = (
 
 
 class PilotRefusal(Exception):
-    """The pilot refused to act - stable machine code + reason for audit."""
+    """The pilot refused to act — stable machine code + reason for audit."""
 
     def __init__(self, code: str, reason: str, detail: str = "") -> None:
         super().__init__(f"{code}: {reason}".rstrip(":"))
@@ -84,7 +84,7 @@ class GuardRefusal(PilotRefusal):
 
 
 class PilotStateUnverifiable(GuardRefusal):
-    """GitHub state could not be confirmed - fail closed, never proceed."""
+    """GitHub state could not be confirmed — fail closed, never proceed."""
 
     def __init__(self, detail: str = "") -> None:
         super().__init__("github_state_unverifiable", "GitHub state could not be verified", detail)
@@ -97,7 +97,7 @@ def validate_sha(sha: str) -> bool:
 def check_expected_head_sha(expected: str, actual: str) -> None:
     """Refuse when the remote task-branch head does not match the manifest pin.
 
-    ``expected`` must be a real 40-hex pin (never empty/"PENDING") - a task whose
+    ``expected`` must be a real 40-hex pin (never empty/"PENDING") — a task whose
     head is not pinned cannot be repaired (a moved/unpinned branch is unsafe).
     """
     if not validate_sha(expected):
@@ -163,8 +163,7 @@ def classify_failure(summary: str) -> str:
     """Buckets a failing log: ``code`` | ``infra`` | ``unknown``.
 
     Code markers win over infra markers because a stack trace inside an infra
-    wrapper is still a code failure
-    only infra-only evidence is retryable
+    wrapper is still a code failure; only infra-only evidence is retryable
     without code change.
     """
     low = (summary or "").lower()
@@ -301,7 +300,7 @@ def _default_state_dir() -> Path:
 def fresh_ci_evidence(runs: list[dict[str, Any]], head_sha: str) -> dict[str, Any] | None:
     """Find a check run bound to the exact head SHA (fresh-CI evidence).
 
-    A completed run against an older SHA is deliberately ignored - a stale CI
+    A completed run against an older SHA is deliberately ignored — a stale CI
     result can never authorize completion for the current head.
     """
     needle = head_sha.lower()

@@ -1,8 +1,7 @@
 import sys
-
 sys.path.insert(0, '/app')
 # Read the file
-with open('/app/app/marketing/packages.py') as f:
+with open('/app/app/marketing/packages.py', 'r') as f:
     content = f.read()
 
 # Find the PACKAGES list closing and add acv_annual to it

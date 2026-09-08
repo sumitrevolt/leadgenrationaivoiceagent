@@ -1,11 +1,11 @@
 # ============================================================================
-# AI4Bharat voice-stack PROOF v2 - run on FREE Google Colab GPU (zero cost)
+# AI4Bharat voice-stack PROOF v2 — run on FREE Google Colab GPU (zero cost)
 # ============================================================================
 # HOW:
 #   1. https://colab.research.google.com  ->  New notebook
 #   2. Runtime > Change runtime type > Hardware accelerator = T4 GPU  (free)
 #   3. Paste this WHOLE file into ONE cell, Run. (~5 min first time = model download)
-#   4. Read the SUMMARY at the bottom - that is your GO / NO-GO for the GPU box.
+#   4. Read the SUMMARY at the bottom — that is your GO / NO-GO for the GPU box.
 #
 # Proves IndicConformer (STT) + IndicF5 (TTS) Hinglish quality on a real 16GB GPU,
 # WITHOUT your laptop's 4GB-VRAM / disk / network limits.
@@ -19,21 +19,13 @@
 #   (d) shows CTC and RNNT decoding (RNNT usually more accurate) + a GO/NO-GO summary
 # ============================================================================
 
-import subprocess
-import sys
+import subprocess, sys
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "transformers", "torchaudio", "soundfile", "librosa", "edge-tts",
                 "nest_asyncio", "indic-transliteration", "jiwer"], check=True)
 
-import asyncio
-import os
-import time
-import re
-import warnings
-import librosa
-import numpy as np
-import soundfile as sf
-import torch
+import asyncio, os, time, re, warnings
+import librosa, numpy as np, soundfile as sf, torch
 import nest_asyncio
 from transformers import AutoModel
 
@@ -63,7 +55,7 @@ except Exception:
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 print("GPU:", torch.cuda.get_device_name(0) if DEV == "cuda" else
-      "*** NO GPU - Runtime > Change runtime type > T4 GPU, then re-run ***")
+      "*** NO GPU — Runtime > Change runtime type > T4 GPU, then re-run ***")
 
 # ---------------- helpers ----------------
 def _to_roman(s):
@@ -138,10 +130,7 @@ for i, text in enumerate(TESTS):
     y, _ = librosa.load(f"c{i}.mp3", sr=16000, mono=True)
     sf.write(f"c{i}.wav", y, 16000)
     # clean 16kHz (web-call quality)
-    t = time.time()
-    o = _stt(stt, y)
-    ms = (time.time() - t) * 1000
-    clean_ms.append(ms)
+    t = time.time(); o = _stt(stt, y); ms = (time.time() - t) * 1000; clean_ms.append(ms)
     w = _wer(text, o.get("rnnt") if "unavailable" not in str(o.get("rnnt")) else o.get("ctc"))
     if w is not None: clean_wer.append(w)
     # simulated 8kHz telephony (downsample 16k->8k->16k = phone band-limit)
@@ -210,7 +199,7 @@ print("\nGO / NO-GO guide (real-time cold calls):")
 print("  GREEN : eyeball HEARD ≈ SAID  +  STT < ~800ms  +  TTS < ~1500ms/sentence")
 print("  AMBER : quality good but TTS slow -> EdgeTTS for LIVE, IndicF5 for premium")
 print("  judge TTS by EAR (indicf5_out.wav), STT by EYE (SAID vs HEARD above)")
-print("  8kHz WER >> clean WER is NORMAL - that gap = exactly why we warm-start on")
+print("  8kHz WER >> clean WER is NORMAL — that gap = exactly why we warm-start on")
 print("  telephony data (GramVaani SLR118 / Kathbath) + fine-tune on OUR calls.")
 print("=" * 62)
 print("Share with me: this SUMMARY + 2-3 SAID/HEARD lines + how indicf5_out.wav sounds.")

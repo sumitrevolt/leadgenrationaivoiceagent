@@ -22,7 +22,7 @@ def repair_task_from_check(
     if not slot.get("ok"):
         return {"ok": False, **slot}
 
-    title = f"CI repair: PR #{int(pr_number)} - {check_name}"
+    title = f"CI repair: PR #{int(pr_number)} — {check_name}"
     description = (
         f"Failing check `{check_name}` on PR #{int(pr_number)}.\n\n"
         f"Summary:\n{failing_summary}\n\n"

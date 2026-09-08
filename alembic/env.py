@@ -2,14 +2,13 @@
 Alembic Migrations Environment
 LeadGen AI Voice Agent
 
-Migrations run on a SYNCHRONOUS engine (works for BOTH SQLite - the default app DB -
-and Postgres). The async pool in app.models.base is for the running app
-one-shot
+Migrations run on a SYNCHRONOUS engine (works for BOTH SQLite — the default app DB —
+and Postgres). The async pool in app.models.base is for the running app; one-shot
 migrations don't need it and a sync engine avoids the aiosqlite/asyncpg driver dance.
 
 `target_metadata` is the FULL app model set: importing the `app.models` package
 registers EVERY table on `Base.metadata` (leads, clients, campaigns, users, payments,
-billing_records, agents, agent_events, data_credits, ...) - single source of truth, no
+billing_records, agents, agent_events, data_credits, ...) — single source of truth, no
 hand-maintained per-model import list to drift out of sync.
 """
 
@@ -18,14 +17,14 @@ from logging.config import fileConfig
 from sqlalchemy import create_engine, pool
 
 # Importing the package registers every model on Base.metadata.
-import app.models  # noqa: F401  (side-effect import - registers all tables)
+import app.models  # noqa: F401  (side-effect import — registers all tables)
 from alembic import context
 from app.models.base import Base
 
 # Alembic Config object (values from alembic.ini).
 config = context.config
 
-# Python logging from the ini (best-effort - never block migrations on a logging hiccup).
+# Python logging from the ini (best-effort — never block migrations on a logging hiccup).
 # disable_existing_loggers=False is REQUIRED: env.py is imported in-process by
 # run_startup_migrations() during the app lifespan, and fileConfig defaults to
 # disable_existing_loggers=True (the default) - which sets logger.disabled=True on EVERY app
@@ -85,7 +84,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
-            # SQLite can't ALTER most things in place - batch mode rewrites tables.
+            # SQLite can't ALTER most things in place — batch mode rewrites tables.
             render_as_batch=connection.dialect.name == "sqlite",
         )
         with context.begin_transaction():

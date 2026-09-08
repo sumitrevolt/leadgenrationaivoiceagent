@@ -1,4 +1,4 @@
-"""Bounded repair orchestration - the actual pilot control path.
+"""Bounded repair orchestration — the actual pilot control path.
 
 Flow (fail-closed at every step, never merge, never deploy):
 
@@ -197,9 +197,9 @@ class Pilot:
 
     def _post_diagnosis_comment(self, pr: int, head: str, ci: dict[str, Any]) -> None:
         body = (
-            "## PR Factory pilot - read-only diagnosis\n\n"
+            "## PR Factory pilot — read-only diagnosis\n\n"
             f"- PR head: `{head}`\n"
-            f"- CI classification: `{ci['kind']}` -> `{ci['action']}`\n"
+            f"- CI classification: `{ci['kind']}` → `{ci['action']}`\n"
             "- No code, no push, no worktree mutation performed.\n"
         )
         self.gh.post_comment(pr, body)
@@ -241,8 +241,7 @@ class Pilot:
         if not self.ledger.can_repair(pr, head, self.task.max_repair_attempts):
             raise PilotRefusal(
                 "attempt_cap_exceeded",
-                f"automated repair attempts exhausted (max {self.task.max_repair_attempts})
-                owner review required",
+                f"automated repair attempts exhausted (max {self.task.max_repair_attempts}); owner review required",
             )
 
         outcome = "no_change"
@@ -263,8 +262,7 @@ class Pilot:
                 outcome = "pushed"
                 reasons.append(f"pushed repair {new_head} to {self.task.task_branch}")
             else:
-                reasons.append("no commit produced by code runner
-                nothing pushed")
+                reasons.append("no commit produced by code runner; nothing pushed")
 
         self.ledger.record_attempt(
             pr, head, outcome, note=fix.get("summary", "")[:200] if self.code_runner else ""
@@ -336,7 +334,7 @@ class Pilot:
 
     def _post_repair_comment(self, pr: int, head: str, verdict: str, attempt: int) -> None:
         body = (
-            "## PR Factory pilot - bounded repair\n\n"
+            "## PR Factory pilot — bounded repair\n\n"
             f"- PR head: `{head}`\n"
             f"- attempt: {attempt}/{self.task.max_repair_attempts}\n"
             f"- verdict: `{verdict}`\n"

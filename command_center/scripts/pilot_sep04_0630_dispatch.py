@@ -2,8 +2,7 @@
 """PILOT Sep-04 ~06:30 IST sweep - REVENUE COMMAND GHANTI (LIVE re-verified).
 State UNCHANGED since 06:15: SIP 5 vars ALL EMPTY (DID not landed), auto_sent 0,
 hot-queue 09-04 NOT gen. FRESH evidence + tight 07:00 gates."""
-import json
-import os
+import json, os
 
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
 TS = "2026-09-04T06:30:00+05:30"
@@ -17,13 +16,10 @@ def save(p, obj):
         json.dump(obj, f, indent=1, ensure_ascii=False)
         f.write("\n")
 
-def G(to, tid, typ, prio, msg):
-    return {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
-            "type": typ, "priority": prio, "msg": msg}
+G = lambda to, tid, typ, prio, msg: {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
+                                     "type": typ, "priority": prio, "msg": msg}
 
-FACT = ("LIVE 06:30 IST Sep4 (PILOT re-verified): /health 308 auth-gated (healthy)
-containers Up
-"
+FACT = ("LIVE 06:30 IST Sep4 (PILOT re-verified): /health 308 auth-gated (healthy); containers Up; "
         "SIP 5 vars ALL len=0 (SIP_HOST/DID blank) DID NOT landed; VOBIZ_CALLER_ID REVOKED; "
         "call_loop mtime Aug31 batch211 = DIALER DEAD day5 proc0 NO watchdog; WA flip container=1 LIVE par "
         "auto_sent TRUE=0/2298 (NO msg-id day5+); leads/ EMPTY ammo 0; hot-queue last 09-03, "
@@ -94,7 +90,7 @@ sts = {
              "(link-only day5+); SIP 5 vars len=0 DID NOT landed (CLI revoked); dialer DEAD day5+ (leads0); "
              "hot-queue 09-04 NOT gen (date-lock broken 2nd day); rev Rs1,999 Jiya sole; GAP Rs4,98,001. "
              "GHANTI all 8 07:00 gates - 06:15 too 0 proof/0 ACK (fleet unresponsive ~52h).",
-    "engineering": "ENG-004 P0 (FRESH GHANTI): WA flip LIVE=1 par auto_send 0/2298 NO msg-id - link-only->sendText. #1 gate. 07:00.",
+    "engineering": "ENG-004 P0 (FRESH GHANTI): WA flip LIVE=1 par auto_send 0/2298 NO msg-id - link-only→sendText. #1 gate. 07:00.",
     "platform": "PLT-005 P0 (FRESH GHANTI): dialer day5+ - SIP 5 vars len=0 re-confirm, CLI revoked, leads 0. DID vendor proof+ETA. 07:00.",
     "operations": "OPS-007 P1 (FRESH GHANTI): 09-04 queue NOT gen 2nd day (date-lock broken); WA auto_send 0 digest. 07:00.",
     "sales": "SAL-005 P0 (FRESH GHANTI): dirty HARD STOP; GENUINE wa_conversations intent close msg-id. 07:00.",
@@ -136,9 +132,7 @@ try:
 except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-04T06:30+05:30"
-pin["vps_status"] = ("HEALTHY (/health 308 auth-gated, containers Up)
-VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE)
-"
+pin["vps_status"] = ("HEALTHY (/health 308 auth-gated, containers Up); VERIFIED rev Rs1,999 (Jiya INV/2026-27/0001 SOLE); "
                      "WA flip container=1 LIVE par auto_sent 0/2298 NO msg-id (link-only day5+) -> 0 UPI; "
                      "hot-queue 09-04 NOT gen 2nd day (date-lock broken); dialer DEAD day5+ (SIP 5 vars len=0, CLI "
                      "revoked, leads 0); GAP Rs4,98,001. GHANTI all 8 07:00 gates - fleet unresponsive ~52h "

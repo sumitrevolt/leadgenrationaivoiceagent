@@ -26,7 +26,7 @@ _SAFE_BRANCH_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9/._-]{0,127}$")
 
 
 class WorktreeGuardError(guard.GuardRefusal):
-    """Worktree path/branch safety violation - refuse."""
+    """Worktree path/branch safety violation — refuse."""
 
 
 def allowed_worktree_root() -> Path:
@@ -198,7 +198,7 @@ def remove_task_worktree(repo_root: str, task: PilotTask) -> dict[str, Any]:
     current branch == task branch · clean working tree (dirty = refuse,
     never force-remove). A manifest that points at a path this repo does not
     own (or that does not exist as a registered worktree) is refused as a
-    path mismatch - never silently accepted.
+    path mismatch — never silently accepted.
     """
     repo = Path(repo_root).resolve()
     wt = task_worktree_path(task)

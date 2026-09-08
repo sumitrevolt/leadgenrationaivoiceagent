@@ -8,10 +8,8 @@ byid = {t['id']: t for t in tasks}
 
 t = byid.get('OPS-003')
 if t:
-    t['last_update'] = f"{now} PILOT: NUDGE #3 - Buzz relay down from HQ
-    is task-record ke last_update me hi reply post karo. 16:00 interim: phone_type_blocked audit finding + stale-queue refresh fix. Deadline 17:00 unchanged."
-    t['blocker'] = "comms degraded - Buzz MCP relay down
-    report via task-record"
+    t['last_update'] = f"{now} PILOT: NUDGE #3 - Buzz relay down from HQ; is task-record ke last_update me hi reply post karo. 16:00 interim: phone_type_blocked audit finding + stale-queue refresh fix. Deadline 17:00 unchanged."
+    t['blocker'] = "comms degraded - Buzz MCP relay down; report via task-record"
 
 t = byid.get('HNT-001')
 if t:

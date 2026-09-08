@@ -1,8 +1,5 @@
-import os
-import subprocess
+import requests, subprocess, os
 from pathlib import Path
-
-import requests
 
 env = {}
 for p in ["/opt/leadgen/.env"]:

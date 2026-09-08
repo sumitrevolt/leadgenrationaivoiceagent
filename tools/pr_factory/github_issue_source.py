@@ -1,4 +1,4 @@
-"""Read GitHub issues via ``gh`` CLI - no Linear dependency (Wave 1)."""
+"""Read GitHub issues via ``gh`` CLI — no Linear dependency (Wave 1)."""
 
 from __future__ import annotations
 
@@ -72,5 +72,5 @@ def issue_to_task_stub(issue: dict[str, Any]) -> dict[str, Any]:
         "issue_id": str(issue.get("number") or ""),
         "labels": [x for x in labels if x],
         "url": str(issue.get("url") or ""),
-        "note": "Wave 1 stub - fill allowed_paths, acceptance_criteria, required_tests, rollback_plan",
+        "note": "Wave 1 stub — fill allowed_paths, acceptance_criteria, required_tests, rollback_plan",
     }

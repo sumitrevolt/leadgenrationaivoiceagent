@@ -1,11 +1,8 @@
 import asyncio
 import json
-
 from sqlalchemy import select
-
 from app.models.base import get_async_session
 from app.models.lead import Lead
-
 
 async def get_warm_leads():
     async with get_async_session() as session:
@@ -19,7 +16,7 @@ async def get_warm_leads():
             .limit(10)
         )
         leads = (await session.execute(q)).scalars().all()
-
+        
         result = []
         for l in leads:
             result.append({
@@ -31,7 +28,7 @@ async def get_warm_leads():
                 "notes": l.notes,
                 "qualification": l.qualification_data
             })
-
+            
         print(json.dumps(result, indent=2))
 
 if __name__ == "__main__":

@@ -2,15 +2,14 @@
 
 Business rule (decided in-code, matching the ALREADY-established app-level
 convention independently used by app/platform/prospector.py and
-app/tasks/sync.py - both look up `Lead.phone` globally before inserting):
+app/tasks/sync.py — both look up `Lead.phone` globally before inserting):
 phone is the platform-wide dedup key. app/api/public_site.py::_save_lead_db
 was the one write path missing this check (fixed alongside this migration).
 
 Non-destructive by design: this migration NEVER deletes or merges rows. It
-inspects the live `leads` table for phone values with more than one row
-if
+inspects the live `leads` table for phone values with more than one row; if
 any exist, it logs a warning (visible in migration output / deploy logs) and
-SKIPS creating the hard constraint - a broken app-level dedup bug elsewhere
+SKIPS creating the hard constraint — a broken app-level dedup bug elsewhere
 must not turn an `alembic upgrade head` into a data-loss event. Once the
 warning-listed duplicates are reviewed and cleaned up by an operator, running
 `alembic downgrade -1 && alembic upgrade head` re-attempts constraint creation.
@@ -37,7 +36,7 @@ def upgrade() -> None:
     inspector = sa.inspect(bind)
 
     if "leads" not in inspector.get_table_names():
-        return  # fresh DB with no leads table yet - nothing to enforce
+        return  # fresh DB with no leads table yet — nothing to enforce
 
     existing_indexes = {ix["name"] for ix in inspector.get_indexes("leads")}
     existing_uniques = {uc["name"] for uc in inspector.get_unique_constraints("leads")}
@@ -56,11 +55,10 @@ def upgrade() -> None:
         preview = ", ".join(f"{row[0]} (x{row[1]})" for row in dupes[:10])
         more = f" and {len(dupes) - 10} more" if len(dupes) > 10 else ""
         print(
-            f"[009_leads_phone_unique_if_clean] SKIPPING unique index - "
+            f"[009_leads_phone_unique_if_clean] SKIPPING unique index — "
             f"{len(dupes)} phone(s) already have duplicate leads: {preview}{more}. "
             f"App-level dedup (public_site.py/prospector.py/tasks/sync.py) now "
-            f"prevents new duplicates
-            clean up existing ones then re-run "
+            f"prevents new duplicates; clean up existing ones then re-run "
             f"'alembic downgrade -1 && alembic upgrade head' to enforce at the DB level."
         )
         return

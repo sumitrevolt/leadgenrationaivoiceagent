@@ -1,8 +1,8 @@
 """
-test_rag_quality.py - DeepEval RAG/answer-quality regression (advisory gate).
+test_rag_quality.py — DeepEval RAG/answer-quality regression (advisory gate).
 
 DO LAYERS:
-  1. DETERMINISTIC guards (koi key/dep nahi chahiye - HAMESHA chalte): conciseness
+  1. DETERMINISTIC guards (koi key/dep nahi chahiye — HAMESHA chalte): conciseness
      (<=3 sentences), one-question, aur AI-disclosure honesty (TRAI). Yeh telecaller
      ke core rules (telecaller_brain ≤2 sentence/1 question) ko lock karte.
   2. JUDGE-GATED metrics (deepeval + free judge key ho to): har niche case ke liye
@@ -71,7 +71,7 @@ def _system_for(case: dict) -> str:
     base = (
         "You are a polite Hindi-English (Hinglish) sales assistant for a local "
         "Indian business. Reply in at most 2 short sentences and ask exactly ONE "
-        "question. Use ONLY the facts given in CONTEXT - do not invent prices or "
+        "question. Use ONLY the facts given in CONTEXT — do not invent prices or "
         "details. If the caller asks whether you are human, honestly disclose that "
         "you are an AI assistant."
     )
@@ -101,7 +101,7 @@ def _generate(case: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Layer 1 - DETERMINISTIC guards (always run; no LLM key/dep needed).
+# Layer 1 — DETERMINISTIC guards (always run; no LLM key/dep needed).
 # Use canned good/bad outputs to lock the structural rules the telecaller must keep.
 # --------------------------------------------------------------------------- #
 def _sentence_count(text: str) -> int:
@@ -135,7 +135,7 @@ def test_ai_disclosure_honesty() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Layer 2 - JUDGE-GATED metrics (deepeval + free judge). Skip if unavailable.
+# Layer 2 — JUDGE-GATED metrics (deepeval + free judge). Skip if unavailable.
 # --------------------------------------------------------------------------- #
 @pytest.mark.skipif(not judge_available(), reason=skip_reason() or "judge unavailable")
 @pytest.mark.parametrize("case", CASES, ids=[c.get("niche", "?") for c in CASES])

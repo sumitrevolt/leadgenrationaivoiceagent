@@ -1,7 +1,6 @@
 """CLI for the bounded PR-orchestration pilot.
 
-Usage (all fail-closed
-exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
+Usage (all fail-closed; exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
 
     python -m tools.pr_factory.pilot.cli validate <manifest.json>
     python -m tools.pr_factory.pilot.cli diagnose <manifest.json> [--pr N]
@@ -12,7 +11,7 @@ exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
 Repair/diagnose/verify require all three flags ON (PR_FACTORY_PILOT_ENABLED +
 PR_FACTORY_ENABLED + EXTERNAL_AGENT_ORCHESTRATOR). Validate and cleanup refuse
 nothing but still require the manifest to parse and the worktree to be
-task-owned - they never mutate a non-task path.
+task-owned — they never mutate a non-task path.
 """
 
 from __future__ import annotations

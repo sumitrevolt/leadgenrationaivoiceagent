@@ -12,9 +12,9 @@ import argparse
 import json
 import os
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
+import urllib.request
+import urllib.error
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -65,7 +65,7 @@ def generate_hermes_profile_config(host: str = "127.0.0.1", port: int = 20128) -
     routes = list_task_routes()
     base_url = f"http://{host}:{port}/v1"
     api_key = os.getenv("OMNIROUTE_API_KEY", "<YOUR_OMNIROUTE_API_KEY>")
-
+    
     profiles = {}
     for task_id, route in routes.items():
         profile_name = task_id.replace(".", "_")
@@ -90,7 +90,7 @@ def print_harness_status(host: str, port: int) -> None:
     print("=" * 72)
     print("      OMNIROUTE 12-COMBO & DUAL-COMPUTER HARNESS STATUS REPORT      ")
     print("=" * 72)
-
+    
     healthy, msg = check_gateway_health(host, port)
     status_symbol = "✅" if healthy else "⚠️"
     print(f"Gateway Status [{host}:{port}]: {status_symbol} {msg}")
@@ -98,7 +98,7 @@ def print_harness_status(host: str, port: int) -> None:
     print(f"OMNIROUTE_API_KEY present   : {bool(os.getenv('OMNIROUTE_API_KEY'))}")
     print(f"Adapter Available           : {omniroute_available()}")
     print("-" * 72)
-
+    
     routes = list_task_routes()
     print(f"Registered OmniRoute Combos ({len(routes)} combos active):")
     print(f"{'#':<3} | {'Task ID':<26} | {'Primary Model':<18} | {'Fallback Model':<18}")
@@ -106,13 +106,13 @@ def print_harness_status(host: str, port: int) -> None:
     for idx, (task_id, route) in enumerate(routes.items(), 1):
         fallback = route.fallback_model or "None"
         print(f"{idx:<3} | {task_id:<26} | {route.primary_model:<18} | {fallback:<18}")
-
+    
     print("-" * 72)
     print("CLAUDE CODE GATEWAY ENV TEMPLATE (NOT claude_desktop_config.json - Claude Desktop")
     print("does not route models via ANTHROPIC_BASE_URL; only Claude Code CLI env does):")
     claude_cfg = generate_claude_desktop_config(host, port)
     print(json.dumps(claude_cfg, indent=2))
-
+    
     print("-" * 72)
     print("HERMES DESKTOP PROFILE SUMMARY (%APPDATA%\\Hermes\\):")
     hermes_cfg = generate_hermes_profile_config(host, port)
@@ -120,11 +120,11 @@ def print_harness_status(host: str, port: int) -> None:
     for pname, pdata in list(hermes_cfg['profiles'].items())[:4]:
         print(f"  • {pname:<24} -> Primary: {pdata['primary_model']:<16} (Fallback: {pdata['fallback_model']})")
     print("  ... [and 8 more profiles linked]")
-
+    
     print("=" * 72)
     print("DUAL-COMPUTER SETUP INSTRUCTIONS:")
-    print("  • Computer 1 (Local): powershell scripts\\start-hermes-omniroute.ps1 -Combo leadgen.project_best")
-    print("  • Computer 1 (Claude): powershell scripts\\start-claude-omniroute.ps1 -Combo leadgen.coding_primary")
+    print(f"  • Computer 1 (Local): powershell scripts\\start-hermes-omniroute.ps1 -Combo leadgen.project_best")
+    print(f"  • Computer 1 (Claude): powershell scripts\\start-claude-omniroute.ps1 -Combo leadgen.coding_primary")
     print(f"  • Computer 2 (Peer PC): set OMNIROUTE_HOST={host} or run with -OmniHost {host}")
     print("=" * 72)
 

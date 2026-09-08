@@ -1,5 +1,4 @@
-import json
-import sys
+import json, sys
 
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
 

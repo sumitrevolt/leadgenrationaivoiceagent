@@ -1,6 +1,5 @@
 """Owner OS hot-queue analyzer — runs on prod via SSH-copied file."""
-import json
-import sys
+import json, sys
 from collections import Counter
 
 d = json.load(open("/tmp/hq_all.json"))

@@ -1,8 +1,8 @@
 """
-Self-hosted Indian-language voice model-server - the FREE "apna Sarvam".
+Self-hosted Indian-language voice model-server — the FREE "apna Sarvam".
 =======================================================================
 Runs AI4Bharat IndicConformer (STT) + IndicF5 (TTS) on YOUR NVIDIA GPU
-(laptop ya dedicated box). No per-minute cost - sirf compute.
+(laptop ya dedicated box). No per-minute cost — sirf compute.
 
 Endpoints match app/voice_agent/indic_providers.py Ai4Bharat* contract, so the
 LeadGen app talks to it just by setting:  AI4BHARAT_ENDPOINT=https://<your-url>
@@ -21,7 +21,7 @@ Run (laptop with NVIDIA GPU):
     cloudflared tunnel --url http://localhost:8900   # free public https URL
 
 NOTE: models download once (~2.4GB STT + IndicF5) from HuggingFace on first run.
-This is a STARTING scaffold - verify/tune on your actual GPU (see README caveats).
+This is a STARTING scaffold — verify/tune on your actual GPU (see README caveats).
 """
 from __future__ import annotations
 
@@ -54,13 +54,13 @@ def _load_models() -> None:
     if _stt is None:
         _stt = AutoModel.from_pretrained(STT_REPO, trust_remote_code=True)
         try:
-            _stt = _stt.to(DEVICE).eval()  # nosecurity - torch eval-MODE, not Python eval()
+            _stt = _stt.to(DEVICE).eval()  # nosecurity — torch eval-MODE, not Python eval()
         except Exception:
             pass
     if _tts is None:
         _tts = AutoModel.from_pretrained(TTS_REPO, trust_remote_code=True)
         try:
-            _tts = _tts.to(DEVICE).eval()  # nosecurity - torch eval-MODE, not Python eval()
+            _tts = _tts.to(DEVICE).eval()  # nosecurity — torch eval-MODE, not Python eval()
         except Exception:
             pass
 
@@ -69,7 +69,7 @@ def _load_models() -> None:
 def _startup() -> None:
     try:
         _load_models()
-    except Exception as e:  # don't die on startup - /health reports state
+    except Exception as e:  # don't die on startup — /health reports state
         print(f"[voice-stack] model load deferred/failed: {e}")
 
 
@@ -87,7 +87,7 @@ def health() -> dict:
 
 
 def _decode_audio(data: bytes) -> tuple[np.ndarray, int]:
-    """Decode any container (webm/opus from browser, wav, mp3, ogg) -> mono float32 + sr.
+    """Decode any container (webm/opus from browser, wav, mp3, ogg) → mono float32 + sr.
     Tries soundfile, then PyAV (ffmpeg) for webm/opus."""
     try:
         arr, sr = sf.read(io.BytesIO(data), dtype="float32")
@@ -96,7 +96,7 @@ def _decode_audio(data: bytes) -> tuple[np.ndarray, int]:
         return arr, sr
     except Exception:
         pass
-    # PyAV (ffmpeg) - browser MediaRecorder webm/opus
+    # PyAV (ffmpeg) — browser MediaRecorder webm/opus
     import av  # type: ignore
 
     container = av.open(io.BytesIO(data))

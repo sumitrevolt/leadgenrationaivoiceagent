@@ -43,7 +43,7 @@ esc = {
         "SAL-005": "no genuine-buyer UPI close (WA rail gated)"
     },
     "action_this_run": "08:00 IST full-dispatch pushed to VPS mirror (specialists reach): REV-COMMAND + ENG-004 DECISIVE GHANTI (gate 09:00, hard acceptance) + PLT-005/HNT-005/SUC-004/SAL-005/GRD-004/OPS-007/BRD-003 standing re-notes. VPS mirror md5 now current.",
-    "recommendation": "OWNER 3 decisions needed: (a) force-deploy ENG-004 real WAHA sendText commit (needs msg-id proof) - THE single unlock to pehla UPI close; (b) Jio/RMS DID creds for PLT-005 to revive dialer; (c) Jiya retention P0 (only verified payer). Jab tak ye gates locked, naya verified collection Rs0. Goal 08-30 passed - seek re-baseline.",
+    "recommendation": "OWNER 3 decisions needed: (a) force-deploy ENG-004 real WAHA sendText commit (needs msg-id proof) — THE single unlock to pehla UPI close; (b) Jio/RMS DID creds for PLT-005 to revive dialer; (c) Jiya retention P0 (only verified payer). Jab tak ye gates locked, naya verified collection Rs0. Goal 08-30 passed — seek re-baseline.",
     "deadline_owned": "next gate ENG-004 09:00 IST 2026-09-04"
 }
 p = f"{BASE}/esc_0904_0800.jsonl"

@@ -6,7 +6,7 @@ API has a key. Returns segments in the same shape as transcribe.parse_vtt so
 the rest of the pipeline (filter_range, format_transcript) doesn't care where
 the transcript came from.
 
-Pure stdlib - no `pip install groq` or `pip install openai` needed.
+Pure stdlib — no `pip install groq` or `pip install openai` needed.
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ import urllib.error
 import uuid
 from pathlib import Path
 from urllib.request import Request, urlopen
+
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_MODEL = "whisper-large-v3"
@@ -82,7 +83,7 @@ def load_api_key(preferred: str | None = None) -> tuple[str, str] | tuple[None, 
 
 
 def extract_audio(video_path: str, out_path: Path) -> Path:
-    """Extract mono 16kHz 64kbps mp3 - ~480 kB/min, fits any Whisper limit."""
+    """Extract mono 16kHz 64kbps mp3 — ~480 kB/min, fits any Whisper limit."""
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is not installed. Install with: brew install ffmpeg")
 
@@ -104,14 +105,14 @@ def extract_audio(video_path: str, out_path: Path) -> Path:
     if result.returncode != 0:
         raise SystemExit(f"ffmpeg audio extraction failed: {result.stderr.strip()}")
     if not out_path.exists() or out_path.stat().st_size == 0:
-        raise SystemExit("ffmpeg produced no audio - video may have no audio track")
+        raise SystemExit("ffmpeg produced no audio — video may have no audio track")
     return out_path
 
 
 def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, str]:
     """Assemble a multipart/form-data body the Whisper APIs accept.
 
-    Whisper's multipart upload is small and predictable - doing it by hand
+    Whisper's multipart upload is small and predictable — doing it by hand
     keeps us on pure stdlib instead of pulling requests/groq/openai SDKs.
     """
     boundary = f"----WatchBoundary{uuid.uuid4().hex}"
@@ -119,31 +120,22 @@ def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, st
     buf = io.BytesIO()
 
     for name, value in fields.items():
-        buf.write(f"--{boundary}".encode())
+        buf.write(f"--{boundary}".encode()); buf.write(eol)
+        buf.write(f'Content-Disposition: form-data; name="{name}"'.encode()); buf.write(eol)
         buf.write(eol)
-        buf.write(f'Content-Disposition: form-data
-        name="{name}"'.encode())
-        buf.write(eol)
-        buf.write(eol)
-        buf.write(str(value).encode())
-        buf.write(eol)
+        buf.write(str(value).encode()); buf.write(eol)
 
     mimetype = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    buf.write(f"--{boundary}".encode())
-    buf.write(eol)
+    buf.write(f"--{boundary}".encode()); buf.write(eol)
     buf.write(
-        f'Content-Disposition: form-data
-        name="file"
-        filename="{file_path.name}"'.encode()
+        f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"'.encode()
     )
     buf.write(eol)
-    buf.write(f"Content-Type: {mimetype}".encode())
-    buf.write(eol)
+    buf.write(f"Content-Type: {mimetype}".encode()); buf.write(eol)
     buf.write(eol)
     buf.write(file_path.read_bytes())
     buf.write(eol)
-    buf.write(f"--{boundary}--".encode())
-    buf.write(eol)
+    buf.write(f"--{boundary}--".encode()); buf.write(eol)
 
     return buf.getvalue(), boundary
 
@@ -163,7 +155,7 @@ def _post_whisper(endpoint: str, api_key: str, model: str, audio_path: Path) -> 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": f"multipart/form-data; boundary={boundary}",
-        # Groq sits behind Cloudflare - the default `Python-urllib/3.x` UA
+        # Groq sits behind Cloudflare — the default `Python-urllib/3.x` UA
         # trips WAF rule 1010 (403) before auth even runs. Any non-default
         # UA clears it; we identify honestly.
         "User-Agent": "watch-skill/1.0 (+claude-code; python-urllib)",
@@ -183,7 +175,7 @@ def _post_whisper(endpoint: str, api_key: str, model: str, audio_path: Path) -> 
             detail = _read_error_body(exc)
             last_exc, last_detail = exc, detail
 
-            # 4xx other than 429 are client errors - no retry will fix them.
+            # 4xx other than 429 are client errors — no retry will fix them.
             if 400 <= exc.code < 500 and exc.code != 429:
                 raise SystemExit(f"Whisper request failed: {exc}{detail}")
 
@@ -197,7 +189,7 @@ def _post_whisper(endpoint: str, api_key: str, model: str, audio_path: Path) -> 
 
             if attempt < MAX_ATTEMPTS - 1:
                 print(
-                    f"[watch] whisper HTTP {exc.code} - retrying in {delay:.1f}s "
+                    f"[watch] whisper HTTP {exc.code} — retrying in {delay:.1f}s "
                     f"(attempt {attempt + 2}/{MAX_ATTEMPTS})",
                     file=sys.stderr,
                 )
@@ -208,7 +200,7 @@ def _post_whisper(endpoint: str, api_key: str, model: str, audio_path: Path) -> 
             if attempt < MAX_ATTEMPTS - 1:
                 delay = RETRY_BASE_DELAY * (attempt + 1)
                 print(
-                    f"[watch] whisper network error ({type(exc).__name__}: {exc}) - "
+                    f"[watch] whisper network error ({type(exc).__name__}: {exc}) — "
                     f"retrying in {delay:.1f}s (attempt {attempt + 2}/{MAX_ATTEMPTS})",
                     file=sys.stderr,
                 )
@@ -233,7 +225,7 @@ def _read_error_body(exc: urllib.error.HTTPError) -> str:
     if not body:
         return ""
     try:
-        return f" - {body.decode('utf-8', errors='replace')[:400]}"
+        return f" — {body.decode('utf-8', errors='replace')[:400]}"
     except Exception:
         return ""
 
@@ -275,7 +267,7 @@ def transcribe_video(
     backend: str | None = None,
     api_key: str | None = None,
 ) -> tuple[list[dict], str]:
-    """Run the full flow: extract audio -> upload -> parse segments.
+    """Run the full flow: extract audio → upload → parse segments.
 
     Returns (segments, backend_used). Raises SystemExit on any failure.
     """
@@ -295,7 +287,7 @@ def transcribe_video(
     print(f"[watch] extracting audio for Whisper ({backend})…", file=sys.stderr)
     audio_path = extract_audio(video_path, audio_out)
     size_kb = audio_path.stat().st_size / 1024
-    print(f"[watch] audio: {size_kb:.0f} kB - uploading to {backend} Whisper…", file=sys.stderr)
+    print(f"[watch] audio: {size_kb:.0f} kB — uploading to {backend} Whisper…", file=sys.stderr)
 
     if backend == "groq":
         response = _post_whisper(GROQ_ENDPOINT, api_key, GROQ_MODEL, audio_path)

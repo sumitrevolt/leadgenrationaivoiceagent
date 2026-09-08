@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -515,7 +515,7 @@ class GoldenUtteranceLibrary:
             path = self._init_jsonl()
             if path and Path(path).exists():
                 try:
-                    with open(path, encoding="utf-8") as f:
+                    with open(path, "r", encoding="utf-8") as f:
                         for line in f:
                             line = line.strip()
                             if not line:
@@ -621,7 +621,7 @@ class GoldenUtteranceLibrary:
         """Get all contexts available for an intent."""
         self._load()
         with self._lock:
-            return {u.context for u in self._library.get(intent, [])}
+            return sorted(set(u.context for u in self._library.get(intent, [])))
 
     def stats(self) -> dict[str, Any]:
         """Get library statistics."""

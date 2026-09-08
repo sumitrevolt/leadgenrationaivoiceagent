@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """Post kickoff messages in the new channels, then verify final wiring."""
 from __future__ import annotations
-
-import ctypes
-import json
-import os
-import subprocess
-import time
+import ctypes, json, os, subprocess, time
 from ctypes import wintypes
 from pathlib import Path
 

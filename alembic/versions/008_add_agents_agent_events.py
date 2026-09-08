@@ -1,11 +1,11 @@
 """agents / agent_events tables (F-DB1, production audit 2026-07-01).
 
 Both tables previously existed only via SQLAlchemy create_all() fallback, with
-no Alembic migration - a latent gap that would 500 the Team dashboard + worker
+no Alembic migration — a latent gap that would 500 the Team dashboard + worker
 pool the day DB_CREATE_ALL is flipped to 0 (Alembic-only mode, see
 app/models/base.py init_async_db docstring).
 
-Idempotent: skip if a table already exists (create_all on live DB) - this is a
+Idempotent: skip if a table already exists (create_all on live DB) — this is a
 pure no-op there, matching the pattern in 006_flywheel_enterprise.py and
 007_add_lead_status_history.py. Only creates the tables on an environment where
 they're genuinely absent (fresh DB / disaster-recovery restore), so there is no
@@ -13,7 +13,7 @@ column-drift risk against the live VPS: it never ALTERs an existing table.
 
 Columns mirror app/models/agent.py::Agent and app/models/agent_event.py::AgentEvent
 exactly, including the `role` column that base.py's _apply_schema_upgrades()
-ALTERs onto pre-existing `agents` tables - a fresh table created by this
+ALTERs onto pre-existing `agents` tables — a fresh table created by this
 migration already has it, so no post-create ALTER is needed for a new DB.
 
 Revision ID: 008_add_agents_agent_events
@@ -102,7 +102,7 @@ def downgrade() -> None:
     # The only dependent (agents.status) is dropped above, so the TYPE has no
     # remaining dependents at this point. IF EXISTS matches this migration's
     # already-idempotent contract (guarded upgrade, try/except downgrade), and is
-    # NOT a substitute for ordering - the drop is correctly sequenced after the
+    # NOT a substitute for ordering — the drop is correctly sequenced after the
     # dependent tables. Guarded to Postgres: SQLite maps Enum to VARCHAR+CHECK and
     # has no TYPE object, so DROP TYPE is invalid there.
     bind = op.get_bind()

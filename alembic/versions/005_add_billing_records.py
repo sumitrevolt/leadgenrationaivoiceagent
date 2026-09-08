@@ -1,9 +1,9 @@
 """add billing_records ledger table (BillingRecord model)
 
-The minute-metering / MRR ledger (app/models/billing_record.py) had no migration -
+The minute-metering / MRR ledger (app/models/billing_record.py) had no migration —
 it only got created at runtime by create_all(). This adds it to the Alembic history so
 fresh, migration-driven setups get the table too. IDEMPOTENT: if the table already
-exists (create_all built it on the live SQLite DB), upgrade is a no-op - safe to run
+exists (create_all built it on the live SQLite DB), upgrade is a no-op — safe to run
 on the existing production database without "table already exists" errors.
 
 Revision ID: 005_add_billing_records
@@ -24,7 +24,7 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     if "billing_records" in sa.inspect(bind).get_table_names():
-        return  # already present (create_all) - idempotent no-op
+        return  # already present (create_all) — idempotent no-op
 
     op.create_table(
         "billing_records",

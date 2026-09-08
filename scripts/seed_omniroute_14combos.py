@@ -207,7 +207,7 @@ def build_sql() -> str:
     for idx, (combo_name, desc, email_key, aliases) in enumerate(COMBOS_14):
         combo_id = str(uuid.uuid4())
         combo_models_42 = get_combo_models(idx)
-
+        
         models = [
             {
                 "id": f"{combo_name}-m{i+1}-{m['providerId']}",
@@ -219,7 +219,7 @@ def build_sql() -> str:
             }
             for i, m in enumerate(combo_models_42)
         ]
-
+        
         payload = {
             "id": combo_id,
             "name": combo_name,
@@ -241,7 +241,7 @@ def build_sql() -> str:
             "version": 2,
             "isActive": True,
         }
-
+        
         # 4a. Insert the canonical combo row
         row_payload = dict(payload)
         row_payload["name"] = combo_name
@@ -307,7 +307,7 @@ def run_seed() -> int:
         if cp_res.returncode != 0:
             print("[FAIL] docker cp failed:", cp_res.stderr.decode()[:300])
             return 1
-
+            
         res = subprocess.run(
             [docker_bin, "exec", CONTAINER, "node", "/tmp/omniroute_seed_14x42.js"],
             capture_output=True, timeout=60,

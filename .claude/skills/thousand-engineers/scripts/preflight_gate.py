@@ -1,9 +1,9 @@
-"""thousand-engineers preflight gate - local verify evidence runner.
+"""thousand-engineers preflight gate — local verify evidence runner.
 
 Runs the repo's cheap local gates over a changed path set and prints one
 evidence line per gate. Exit code 0 = all gates green, 1 = any gate red.
 This is the executable companion of the skill's "Pre-ship gate" doctrine
-("Here is the proof" - kabhi "should be fine" nahi).
+("Here is the proof" — kabhi "should be fine" nahi).
 
 Usage:
     python scripts/preflight_gate.py --paths app/foo.py tests/test_foo.py

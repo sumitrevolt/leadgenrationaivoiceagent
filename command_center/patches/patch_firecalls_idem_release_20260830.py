@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT hotfix 2026-08-30 14:35 IST - fire_calls.py FAIL branch idem-release.
+"""PILOT hotfix 2026-08-30 14:35 IST — fire_calls.py FAIL branch idem-release.
 
 Root cause (evidence): call_loop.log batches 7-12 all SKIP(already_dispatched_this_session)
 after 14:07 batches 1-6 FAIL 'not owned'. FAIL branch records FAILED disposition but never
@@ -7,9 +7,7 @@ releases session slot / idem claim => same 3 leads re-fetched forever, 0 attempt
 Fix: on FAIL, release slot + idem so next batch actually attempts again (when DID lands,
 retry hits PLACED OK). Compliance gates untouched.
 """
-import re
-import shutil
-import sys
+import re, sys, shutil
 
 path = "/opt/leadgen/scripts/fire_calls.py"
 src = open(path, encoding="utf-8").read()

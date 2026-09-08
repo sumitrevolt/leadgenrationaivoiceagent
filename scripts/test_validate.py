@@ -1,5 +1,5 @@
-import pathlib
 import sys
+import pathlib
 
 # Add workspace scripts to path
 workspace = pathlib.Path(r'C:\Users\Ratanshila\.openclaw\workspace')
@@ -7,7 +7,6 @@ scripts = workspace / 'scripts'
 sys.path.insert(0, str(scripts))
 
 from pathlib import Path
-
 from app.platform import runtime_data_allowlist as _allow
 from app.platform import runtime_data_scan as _scan
 

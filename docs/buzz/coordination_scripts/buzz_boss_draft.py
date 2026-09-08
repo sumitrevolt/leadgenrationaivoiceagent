@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """Open an owner-reviewed Boss create-agent draft in Buzz Desktop."""
 from __future__ import annotations
-
-import ctypes
-import json
-import os
-import subprocess
+import ctypes, json, os, subprocess
 from ctypes import wintypes
 from pathlib import Path
 

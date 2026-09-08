@@ -1,7 +1,7 @@
 """Lead status-history audit table (F-DB3, production audit 2026-07-01).
 
 Idempotent: skip if table already exists (create_all on live DB).
-Forward-only - no backfill of pre-existing status changes.
+Forward-only — no backfill of pre-existing status changes.
 Revision ID: 007_add_lead_status_history
 Revises: 006_flywheel_enterprise
 """

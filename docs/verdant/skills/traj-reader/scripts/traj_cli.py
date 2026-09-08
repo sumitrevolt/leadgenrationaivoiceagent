@@ -21,7 +21,7 @@ def _salvage_meta(path):
     """Best-effort extraction of timestamp/message_count from a malformed JSON file."""
     salvaged = {}
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
             # top-of-file is enough; keys normally live within first few KB
             head = f.read(8192)
         for m in _META_RE.finditer(head):
@@ -88,7 +88,7 @@ def get_traj_files(channel_id):
 
 def load_traj_meta(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {"message_count": data.get("message_count", 0), "timestamp": data.get("timestamp", "")}
     except json.JSONDecodeError as err:
@@ -106,7 +106,7 @@ def load_traj_meta(path):
 
 def load_traj(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as err:
         print(f"[warn] {Path(path).name}: truncated/invalid JSON ({err})", file=sys.stderr)
@@ -339,7 +339,7 @@ def cmd_summary(args):
     print(f"Messages:   {summary['message_count']}")
     print(f"Tool calls: {summary['tool_calls']}")
     print(f"Total chars:{summary['total_chars']}")
-    print("Roles:")
+    print(f"Roles:")
     for role, count in sorted(roles.items()):
         print(f"  {role}: {count}")
 

@@ -44,22 +44,22 @@ def _notify_screen(title: str, detail: str = "", duration: float = 3.5):
 def tool_thousand_engineers(args: dict) -> dict:
     """Retrieve 1000-engineers doctrine, 10-lens review, or specific discipline packs (D1-D12)."""
     topic = str(args.get("topic") or args.get("discipline") or "doctrine").strip().lower()
-
+    
     if not ENGINEERS_1000_FILE.exists():
         fallback = REPO_ROOT / ".claude" / "skills" / "thousand-engineers" / "SKILL.md"
         if fallback.exists():
             return {"text": fallback.read_text(encoding="utf-8")}
         return {"text": "1000-engineers canonical file missing at deploy/dsh/skills/1000-engineers.md"}
-
+    
     content = ENGINEERS_1000_FILE.read_text(encoding="utf-8")
-
+    
     if topic in ("all", "full"):
         return {"text": content}
-
+    
     if topic in ("doctrine", "rules", "invariants", "0"):
         lines = content.splitlines()[:72]
         return {"text": "\n".join(lines)}
-
+        
     if topic in ("10-lens", "review", "lenses", "1"):
         lines = content.splitlines()
         start = -1
@@ -72,7 +72,7 @@ def tool_thousand_engineers(args: dict) -> dict:
                 break
         if start != -1:
             return {"text": "\n".join(lines[start : end if end != -1 else start + 30])}
-
+            
     pack_map = {
         "d1": "### D1. Architecture",
         "arch": "### D1. Architecture",
@@ -108,7 +108,7 @@ def tool_thousand_engineers(args: dict) -> dict:
         "d12": "### D12. Debugging",
         "debug": "### D12. Debugging",
     }
-
+    
     target_header = pack_map.get(topic)
     if target_header:
         lines = content.splitlines()
@@ -123,11 +123,11 @@ def tool_thousand_engineers(args: dict) -> dict:
                 extracted.append(l)
         if extracted:
             return {"text": "\n".join(extracted)}
-
+            
     matched = [l for l in content.splitlines() if topic in l.lower()]
     if matched:
         return {"text": "\n".join(matched[:50])}
-
+        
     return {"text": f"Discipline/topic '{topic}' not found in 1000-engineers knowledge pack."}
 
 
@@ -136,22 +136,22 @@ def tool_execute_admin_command(args: dict) -> dict:
     cmd = str(args.get("command") or "").strip()
     if not cmd:
         return {"text": "Error: 'command' argument is required."}
-
+    
     _notify_screen("Admin Shell Execution", cmd, duration=4.0)
 
     blocked = ["format ", "rmdir /s /q c:\\", "rm -rf /", "del /f /s /q c:\\"]
     if any(b in cmd.lower() for b in blocked):
         return {"text": f"Blocked by safety guard: command '{cmd}' contains dangerous operations."}
-
+    
     timeout = int(args.get("timeout_seconds") or 120)
     timeout = max(5, min(300, timeout))
-
+    
     run_cmd = cmd
     if cmd.startswith("python "):
         run_cmd = f'"{PYTHON_EXE}" {cmd[7:]}'
     elif cmd.startswith("pytest "):
         run_cmd = f'"{PYTHON_EXE}" -m pytest {cmd[7:]}'
-
+        
     try:
         res = subprocess.run(
             run_cmd,
@@ -186,7 +186,7 @@ def tool_mouse_move_and_click(args: dict) -> dict:
         y = args.get("y")
         button = str(args.get("button") or "left")
         clicks = int(args.get("clicks") or 1)
-
+        
         click_mouse(x=x, y=y, button=button, clicks=clicks, visual_ripple=True)
         pos = get_mouse_position()
         return {"text": f"Mouse clicked at ({pos[0]}, {pos[1]}) [button={button}, clicks={clicks}]. Visual ripple displayed."}
@@ -280,7 +280,7 @@ def tool_self_harness_verify(args: dict) -> dict:
     """Execute standard verification suites (prod_check, secrets, billing truth, mcp_engineer)."""
     suite = str(args.get("suite") or "all").strip().lower()
     _notify_screen("Self-Harness Check", f"Running suite: {suite}", duration=4.0)
-
+    
     results = []
     def run_check(label: str, script_args: list[str]):
         cmd = [PYTHON_EXE] + script_args
@@ -317,7 +317,7 @@ def tool_hot_queue_triage(args: dict) -> dict:
     action = str(args.get("action") or "summary").strip().lower()
     scope = str(args.get("scope") or "boss").strip().lower()
     _notify_screen("Hot Queue Triage", f"Action: {action} ({scope})", duration=3.0)
-
+    
     cmd = [
         PYTHON_EXE,
         "-c",
@@ -368,7 +368,7 @@ def tool_omniroute_list_combos(args: dict) -> dict:
         output.append(f"  - Role: {c.get('role', 'Worker')}")
         output.append(f"  - Worker Email Key: {c.get('email', 'N/A')}")
         output.append(f"  - App Route Alias: {c['real']} / {c['id']}")
-        output.append("  - Live Provider Slots: 3 free-tier lanes (Total 42 across gateway)")
+        output.append(f"  - Live Provider Slots: 3 free-tier lanes (Total 42 across gateway)")
     return {"text": "\n".join(output)}
 
 
@@ -386,11 +386,11 @@ def tool_omniroute_query_combo(args: dict) -> dict:
         safe_prompt = mask_customer_data(prompt)
     except Exception:
         safe_prompt = prompt
-
+    
     api_key = os.environ.get("OMNIROUTE_API_KEY", "")
     endpoints = ["http://127.0.0.1:20128/v1/chat/completions", "http://127.0.0.1:22000/v1/chat/completions"]
     last_err = None
-
+    
     payload = json.dumps({
         "model": combo,
         "messages": [
@@ -400,13 +400,13 @@ def tool_omniroute_query_combo(args: dict) -> dict:
         "max_tokens": int(args.get("max_tokens") or 2048),
         "temperature": float(args.get("temperature") or 0.2)
     }).encode("utf-8")
-
+    
     headers = {
         "Content-Type": "application/json",
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-
+    
     for url in endpoints:
         try:
             req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
@@ -419,7 +419,7 @@ def tool_omniroute_query_combo(args: dict) -> dict:
         except Exception as e:
             last_err = e
             continue
-
+            
     return {"text": f"OmniRoute query failed on all endpoints: {last_err}"}
 
 
@@ -427,7 +427,7 @@ def tool_omniroute_health_check(args: dict) -> dict:
     """Probe OmniRoute gateway, Claude proxy, container status, and combo database health."""
     import urllib.request
     results = []
-
+    
     # 1. Probe port 20128
     try:
         req = urllib.request.Request("http://127.0.0.1:20128/api/health")
@@ -435,7 +435,7 @@ def tool_omniroute_health_check(args: dict) -> dict:
             results.append(f"OmniRoute Gateway (:20128): HEALTHY (HTTP {resp.getcode()})")
     except Exception as e:
         results.append(f"OmniRoute Gateway (:20128): {e}")
-
+        
     # 2. Probe port 22000
     try:
         req = urllib.request.Request("http://127.0.0.1:22000/api/health")
@@ -443,7 +443,7 @@ def tool_omniroute_health_check(args: dict) -> dict:
             results.append(f"Claude Proxy (:22000): HEALTHY (HTTP {resp.getcode()})")
     except Exception as e:
         results.append(f"Claude Proxy (:22000): {e}")
-
+        
     # 3. Probe combos count
     try:
         req = urllib.request.Request("http://127.0.0.1:20128/v1/models")
@@ -454,7 +454,7 @@ def tool_omniroute_health_check(args: dict) -> dict:
             results.append(f"Active LeadsGen Combos: {len(combo_models)} / 14 registered in live models")
     except Exception as e:
         results.append(f"Models probe: {e}")
-
+        
     return {"text": "\n".join(results)}
 
 
@@ -481,13 +481,13 @@ def tool_project_status(args: dict) -> dict:
     summary.append(f"Repository Root: {REPO_ROOT}")
     summary.append(f"Python Executable: {PYTHON_EXE}")
     summary.append(f"1000-Engineers Canonical Doc: {'EXISTS' if ENGINEERS_1000_FILE.exists() else 'NOT FOUND'}")
-
+    
     env_file = REPO_ROOT / ".env"
     summary.append(f".env Config File: {'PRESENT (Secured)' if env_file.exists() else 'NOT FOUND'}")
-
+    
     graph_file = REPO_ROOT / "app" / "graphify-out" / "graph.json"
     summary.append(f"Graphify Code Graph: {'PRESENT (' + str(round(graph_file.stat().st_size / 1024, 1)) + ' KB)' if graph_file.exists() else 'NOT FOUND'}")
-
+    
     return {"text": "\n".join(summary)}
 
 

@@ -1,12 +1,7 @@
-import asyncio
-import os
-import sys
-
+import asyncio, os, sys
 sys.path.insert(0, "/app")
 import asyncpg
-
 from app.telephony.dial_gate import phone_quality
-
 
 async def main():
     url = os.environ["DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://")

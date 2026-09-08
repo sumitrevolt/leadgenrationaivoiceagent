@@ -1,7 +1,6 @@
 import sys
-
 sys.path.insert(0, '/app')
-from app.marketing.packages import ACV_ANNUAL_BUNDLE, PACKAGES
+from app.marketing.packages import PACKAGES, ACV_ANNUAL_BUNDLE
 
 # Add ACV bundle to PACKAGES list
 PACKAGES.append(ACV_ANNUAL_BUNDLE)
@@ -16,6 +15,5 @@ for p in PACKAGES:
 ACV_ANNUAL_BUNDLE['public'] = True
 print('\nPublic packages after:')
 from app.marketing.packages import get_public_packages
-
 for p in get_public_packages():
     print(f'  {p["key"]}: {p["name"]} - {p["price_inr_year"]}/yr')

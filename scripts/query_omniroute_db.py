@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Query OmniRoute database for providers, combos, connections"""
 
-import json
 import sqlite3
+import json
 
 db_path = r"C:\Users\Ratanshila\.omniroute\storage.sqlite"
 

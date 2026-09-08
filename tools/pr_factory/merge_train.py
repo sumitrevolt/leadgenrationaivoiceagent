@@ -19,7 +19,7 @@ def _gh_exe() -> str:
 
 
 def can_label(*, risk_class: str, review_passed: bool, checks_green: bool) -> dict[str, Any]:
-    """Gate before labeling - never auto-label RED/AMBER without Owner OS."""
+    """Gate before labeling — never auto-label RED/AMBER without Owner OS."""
     risk = (risk_class or "").strip().upper()
     if risk == "RED":
         return {"ok": False, "reason": "red_refused"}
@@ -39,7 +39,7 @@ def apply_auto_merge_label(
 ) -> dict[str, Any]:
     """Apply the ``auto-merge`` label (existing workflow does the rest).
 
-    Wave 1 default ``dry_run=True`` - prints intent without mutating GitHub.
+    Wave 1 default ``dry_run=True`` — prints intent without mutating GitHub.
     """
     if dry_run:
         return {

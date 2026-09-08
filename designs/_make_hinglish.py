@@ -13,7 +13,7 @@ out_path = Path("designs/leadgen-dark-dashboard-hinglish.html")
 src = src_path.read_text(encoding="utf-8")
 
 # (find, replace) pairs. Order matters: longer/more specific first.
-# Tuples only - strings in a list would unpack wrong.
+# Tuples only — strings in a list would unpack wrong.
 replacements = [
     # Page head
     ("<h1>Good morning, Jiya 👋</h1>", "<h1>Suprabhat, Jiya 👋</h1>"),
@@ -36,8 +36,8 @@ replacements = [
     (">30 days<", ">30 din<"),
     # Call Activity card
     (
-        "Outbound AI calls vs. connected - last 7 days",
-        "Outbound AI calls vs. connected - pichhle 7 din",
+        "Outbound AI calls vs. connected — last 7 days",
+        "Outbound AI calls vs. connected — pichhle 7 din",
     ),
     (">Placed<", ">Lage<"),
     (">Connected<", ">Judh Gaye<"),
@@ -49,8 +49,8 @@ replacements = [
     # Recent Leads
     ("<h3>Recent Leads</h3>", "<h3>Haaal ke Leads</h3>"),
     (
-        "Highest-intent first - SLA clock running",
-        "Sabse high-intent pehle - SLA clock chal rahi hai",
+        "Highest-intent first — SLA clock running",
+        "Sabse high-intent pehle — SLA clock chal rahi hai",
     ),
     (">View all<", ">Sab dekho<"),
     # Table headers
@@ -69,8 +69,8 @@ replacements = [
     # Plan card
     ("<h3>Your Plan</h3>", "<h3>Aapka Plan</h3>"),
     (
-        "AI Automated Marketing - renews 1 Sep 2026",
-        "AI Automated Marketing - 1 Sep 2026 ko renew hoga",
+        "AI Automated Marketing — renews 1 Sep 2026",
+        "AI Automated Marketing — 1 Sep 2026 ko renew hoga",
     ),
     ("158 min left", "158 min bache"),
     (">Top-up minutes<", ">Minutes top-up<"),
@@ -91,22 +91,22 @@ replacements = [
     # Live Activity
     (">Streaming<", ">Streaming<"),
     (
-        "answered - 3m 12s, intent high, callback set 4 PM.",
-        "ne uthaya - 3m 12s, intent high, callback 4 PM set.",
+        "answered — 3m 12s, intent high, callback set 4 PM.",
+        "ne uthaya — 3m 12s, intent high, callback 4 PM set.",
     ),
     (
         "published 4 Instagram posts for this week.",
         "ne is hafte ke 4 Instagram posts publish kiye.",
     ),
     (
-        "12 new leads imported from Google Maps - Andheri West cluster.",
-        "12 naye leads Google Maps se aaye - Andheri West cluster.",
+        "12 new leads imported from Google Maps — Andheri West cluster.",
+        "12 naye leads Google Maps se aaye — Andheri West cluster.",
     ),
     (
         "Monsoon Bridal Offer campaign crossed 4,200 impressions.",
         "Monsoon Bridal Offer campaign ne 4,200 impressions cross kiye.",
     ),
-    ("opened quotation - nudged on WhatsApp.", "ne quotation kholi - WhatsApp par nudge bheja."),
+    ("opened quotation — nudged on WhatsApp.", "ne quotation kholi — WhatsApp par nudge bheja."),
     ("2 min ago", "2 min pehle"),
     ("18 min ago", "18 min pehle"),
     ("1 hr ago", "1 ghante pehle"),
@@ -150,8 +150,8 @@ for old, new in replacements:
 
 # Update page title and the lang attribute so it reads as Hinglish
 src = src.replace(
-    "<title>LeadGen AI - Customer Dashboard (Dark Premium)</title>",
-    "<title>LeadGen AI - Customer Dashboard (Hinglish, Dark Premium)</title>",
+    "<title>LeadGen AI — Customer Dashboard (Dark Premium)</title>",
+    "<title>LeadGen AI — Customer Dashboard (Hinglish, Dark Premium)</title>",
 )
 src = src.replace(
     "LadiGen AI",

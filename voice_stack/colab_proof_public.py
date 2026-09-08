@@ -1,10 +1,10 @@
 # ============================================================================
-# Voice-stack PROOF (PUBLIC models) - FREE Google Colab GPU, ZERO account needed
+# Voice-stack PROOF (PUBLIC models) — FREE Google Colab GPU, ZERO account needed
 # ============================================================================
 # Uses ONLY public ungated models (no HF token), and proves BOTH axes:
-#   ACCURACY : whisper-hindi (IndicWhisper) - slow autoregressive, this is the
+#   ACCURACY : whisper-hindi (IndicWhisper) — slow autoregressive, this is the
 #              OFFLINE label-model (Phase 3), NOT the live model.
-#   SPEED    : a public wav2vec2-CTC Hindi model - same single-pass CTC family as the
+#   SPEED    : a public wav2vec2-CTC Hindi model — same single-pass CTC family as the
 #              production live model (IndicConformer) -> shows real-time latency.
 #   TTS      : facebook/mms-tts-hin (public). (Production target = IndicF5 voice-clone.)
 #
@@ -19,20 +19,13 @@
 #      paste this whole file into ONE cell -> Run.
 # ============================================================================
 
-import subprocess
-import sys
+import subprocess, sys
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "transformers", "torchaudio", "soundfile", "librosa", "edge-tts",
                 "nest_asyncio", "jiwer", "scipy"], check=True)
 
-import asyncio
-import time
-import re
-import warnings
-import librosa
-import numpy as np
-import soundfile as sf
-import torch
+import asyncio, time, re, warnings
+import librosa, numpy as np, soundfile as sf, torch
 import nest_asyncio
 from transformers import pipeline
 nest_asyncio.apply()
@@ -40,15 +33,14 @@ warnings.filterwarnings("ignore")
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 print("GPU:", torch.cuda.get_device_name(0) if DEV == "cuda" else
-      "*** NO GPU - Runtime > Change runtime type > T4 GPU, then re-run ***")
+      "*** NO GPU — Runtime > Change runtime type > T4 GPU, then re-run ***")
 print("TIP: if you ran an earlier version this session and hit CUDA OOM, do "
       "Runtime > Restart session, then run this cell ONCE (frees leftover GPU mem).")
 
 import gc
 def _free():
     try:
-        gc.collect()
-        torch.cuda.empty_cache()
+        gc.collect(); torch.cuda.empty_cache()
     except Exception:
         pass
 
@@ -93,17 +85,13 @@ def _bench(asr, label):
     print(f"\n--- {label}: SAID vs HEARD + latency + WER (normalized) ---")
     for i, (dev, roman) in enumerate(TESTS):
         y, _ = librosa.load(f"c{i}.wav", sr=16000, mono=True)
-        t = time.time()
-        heard = _text(asr(f"c{i}.wav"))
-        dt = (time.time() - t) * 1000
-        ms.append(dt)
+        t = time.time(); heard = _text(asr(f"c{i}.wav")); dt = (time.time() - t) * 1000; ms.append(dt)
         w = _wer(dev, heard)
         if w is not None: wc.append(w)
         y8 = librosa.resample(librosa.resample(y, orig_sr=16000, target_sr=8000),
                               orig_sr=8000, target_sr=16000)
         sf.write("c8.wav", y8, 16000)
-        heard8 = _text(asr("c8.wav"))
-        w8 = _wer(dev, heard8)
+        heard8 = _text(asr("c8.wav")); w8 = _wer(dev, heard8)
         if w8 is not None: wp.append(w8)
         print(f"SAID : {roman}")
         print(f"HEARD: {heard}")
@@ -120,8 +108,7 @@ for i, (dev, _) in enumerate(TESTS):
     sf.write(f"c{i}.wav", y, 16000)
 
 # ---------------- STT-A: ACCURACY (whisper-hindi = offline LABEL model, slow) ----------
-print("\n[1/3] STT-A accuracy model (IndicWhisper, offline-label
-NOT live)...")
+print("\n[1/3] STT-A accuracy model (IndicWhisper, offline-label; NOT live)...")
 def _build_whisper():
     cand = [("vasista22/whisper-hindi-large-v2", None),
             ("openai/whisper-large-v3", {"language": "hi", "task": "transcribe"})]
@@ -141,8 +128,7 @@ def _build_whisper():
 wh = _build_whisper()
 _ = _text(wh("c0.wav")) if wh else None  # warmup
 a_ms, a_wc, a_wp = _bench(wh, "STT-A IndicWhisper (accuracy)") if wh else (float("nan"),) * 3
-wh = None
-_free()  # free the big whisper before loading STT-B (keep GPU peak low)
+wh = None; _free()  # free the big whisper before loading STT-B (keep GPU peak low)
 
 # ---------------- STT-B: SPEED (wav2vec2-CTC = live-architecture proxy, fast) ----------
 print("\n[2/3] STT-B speed model (public wav2vec2-CTC = IndicConformer-like)...")
@@ -177,9 +163,7 @@ try:
         with torch.no_grad():
             return mms(**ins).waveform.squeeze().detach().cpu().numpy().astype(np.float32)
     _ = _synth("नमस्ते")  # warmup
-    t = time.time()
-    audio = _synth(SAY)
-    tts_ms = (time.time() - t) * 1000
+    t = time.time(); audio = _synth(SAY); tts_ms = (time.time() - t) * 1000
     sf.write("mms_tts_out.wav", audio, mms.config.sampling_rate)
     print(f"  TTS '{SAY[:28]}...' -> {tts_ms:.0f}ms  saved mms_tts_out.wav")
     try:
@@ -192,7 +176,7 @@ except Exception as e:
 
 # ---------------- SUMMARY / GO–NO-GO ----------------
 print("\n" + "=" * 64)
-print("SUMMARY   (FREE T4 GPU, PUBLIC models - no login)")
+print("SUMMARY   (FREE T4 GPU, PUBLIC models — no login)")
 print(f"  STT-A IndicWhisper (LABEL, offline) : {a_ms:.0f} ms | WER clean ~{a_wc:.0f}% phone ~{a_wp:.0f}%")
 print(f"  STT-B wav2vec2-CTC (SPEED, live-like): {b_ms:.0f} ms | WER clean ~{b_wc:.0f}% phone ~{b_wp:.0f}%")
 if tts_ms is not None:
@@ -201,8 +185,7 @@ print("\nHOW TO READ:")
 print("  - STT-A is SLOW BY DESIGN (autoregressive) -> it's the offline label model, not live.")
 print("  - STT-B (CTC, single-pass) = the LIVE latency profile. IndicConformer ≈ this speed")
 print("    with better accuracy. If STT-B is sub-second -> live real-time is PROVEN.")
-print("  - WER is normalized
-remaining diffs are mostly numerals (11 vs ग्यारह).")
+print("  - WER is normalized; remaining diffs are mostly numerals (11 vs ग्यारह).")
 print("  - 8kHz ≈ clean WER => robust to telephony (good).")
 print("  GREEN if: STT-B < ~1s AND STT-A WER < ~10% AND mms_tts_out.wav sounds clear.")
 print("=" * 64)

@@ -1,7 +1,6 @@
-import traceback
-
 from app.tasks.daily_social_post import run_daily_social_post
 from app.tasks.staff_jobs import run_staff_job
+import traceback
 
 print("=== Triggering missed daily social post (missed 9:30 AM) ===")
 try:

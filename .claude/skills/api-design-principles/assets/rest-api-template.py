@@ -52,9 +52,9 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    email: EmailStr | None = None
-    name: str | None = Field(None, min_length=1, max_length=100)
-    status: UserStatus | None = None
+    email: Optional[EmailStr] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    status: Optional[UserStatus] = None
 
 
 class User(UserBase):
@@ -81,7 +81,7 @@ class PaginatedResponse(BaseModel):
 
 # Error handling
 class ErrorDetail(BaseModel):
-    field: str | None = None
+    field: Optional[str] = None
     message: str
     code: str
 
@@ -89,7 +89,7 @@ class ErrorDetail(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     message: str
-    details: list[ErrorDetail] | None = None
+    details: Optional[list[ErrorDetail]] = None
 
 
 @app.exception_handler(HTTPException)
@@ -111,8 +111,8 @@ async def http_exception_handler(request, exc):
 async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status: UserStatus | None = Query(None),
-    search: str | None = Query(None),
+    status: Optional[UserStatus] = Query(None),
+    search: Optional[str] = Query(None),
 ):
     """List users with pagination and filtering."""
     # Mock implementation
@@ -199,7 +199,6 @@ if __name__ == "__main__":
 
     uvicorn.run(
         app,
-        host="0.0.0.0",  # nosec B104  # doc template dev server
-        local demos only
+        host="0.0.0.0",  # nosec B104  # doc template dev server; local demos only
         port=8000,
     )

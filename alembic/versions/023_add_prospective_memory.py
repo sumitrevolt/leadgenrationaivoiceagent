@@ -1,10 +1,10 @@
-"""Add prospective_memory table - durable L6 agent memory (claim/lease/idempotency).
+"""Add prospective_memory table — durable L6 agent memory (claim/lease/idempotency).
 
 Revision ID: 023_add_prospective_memory
 Revises: 022_add_request_depth
 
 Additive + idempotent (021 ka same pattern). Rollback drops the table if present.
-Table is INERT until MEMORY_STACK_ENABLED is armed - creating it changes no
+Table is INERT until MEMORY_STACK_ENABLED is armed — creating it changes no
 running behaviour.
 """
 
@@ -65,5 +65,5 @@ def downgrade() -> None:
     op.drop_index("ix_prospective_tenant_agent", table_name="prospective_memory")
     op.drop_index("ix_prospective_status_due", table_name="prospective_memory")
     # the unique constraint lives inside the table definition, so dropping the
-    # table removes it - no ALTER needed (portable to SQLite).
+    # table removes it — no ALTER needed (portable to SQLite).
     op.drop_table("prospective_memory")

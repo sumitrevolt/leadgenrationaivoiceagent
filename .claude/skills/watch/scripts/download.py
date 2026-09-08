@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+
 VIDEO_EXTS = {".mp4", ".mkv", ".webm", ".mov", ".m4v", ".avi", ".flv", ".wmv"}
 
 

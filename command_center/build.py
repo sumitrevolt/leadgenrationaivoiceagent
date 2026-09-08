@@ -2,9 +2,7 @@
 """Owner Command Center builder: data/*.json(l) -> state.js (loaded by index.html).
 Validates: no active task without owner, ASSIGNED tasks must have assigned_at (ACK watchdog),
 every message has ts+from. Exit!=0 on violation."""
-import json
-import os
-import sys
+import json, os, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(BASE, "data")
@@ -68,7 +66,7 @@ out = os.path.join(BASE, "state.js")
 with open(out, "w", encoding="utf-8") as f:
     f.write("window.CC_STATE = ")
     json.dump(state, f, ensure_ascii=False)
-    f.write("\n")
+    f.write(";")
 
 print(f"BUILD OK: {len(msgs)} messages, {len(tasks)} tasks, {len(bots)} bots "
       f"({counts['working']} working / {counts['idle']} idle / {counts['blocked']} blocked)")

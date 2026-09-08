@@ -2,11 +2,7 @@
 """PILOT one-shot Buzz task dispatch (reuses owner_nsec loader from staff_pulse).
 Usage: python scripts/buzz_send_task.py <channel> <message...>
 """
-import ctypes
-import json
-import os
-import subprocess
-import sys
+import ctypes, json, os, subprocess, sys
 from ctypes import wintypes
 from pathlib import Path
 

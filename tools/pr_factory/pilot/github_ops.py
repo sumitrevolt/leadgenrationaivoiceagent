@@ -1,4 +1,4 @@
-"""Thin ``gh`` wrapper for the pilot - every call fails closed.
+"""Thin ``gh`` wrapper for the pilot — every call fails closed.
 
 ``runner`` is injectable so tests drive the exact control paths with a fake.
 Only scopes/operations the pilot is allowed to use exist here. There is
@@ -6,8 +6,7 @@ deliberately NO method for merging, auto-merge, deploying, or touching secrets.
 
 GitHub REST primitives are read via ``gh api`` (check-runs, refs) and the PR
 surface via ``gh pr`` (create --draft, comment). All responses are JSON-parsed
-and validated
-an unparseable/non-zero result raises ``GitHubOpsError`` which
+and validated; an unparseable/non-zero result raises ``GitHubOpsError`` which
 the orchestration layer converts into a fail-closed refusal.
 """
 
@@ -43,7 +42,7 @@ def default_runner(gh_bin: str = "gh", timeout: int = 60) -> Runner:
 
 
 class GitHubOpsError(RuntimeError):
-    """gh call failed / unverifiable - fail closed, never assume success."""
+    """gh call failed / unverifiable — fail closed, never assume success."""
 
 
 class GitHubOps:

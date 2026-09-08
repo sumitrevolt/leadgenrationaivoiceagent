@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -438,7 +438,7 @@ class PronunciationDictionary:
             path = self._init_jsonl()
             if path and Path(path).exists():
                 try:
-                    with open(path, encoding="utf-8") as f:
+                    with open(path, "r", encoding="utf-8") as f:
                         for line in f:
                             line = line.strip()
                             if not line:

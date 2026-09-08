@@ -1,5 +1,4 @@
 import os
-
 for root, dirs, files in os.walk('app'):
     for f in files:
         if 'postiz' in f.lower() or 'post' in f.lower():

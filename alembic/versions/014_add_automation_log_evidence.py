@@ -1,7 +1,7 @@
 """Add automation_logs.evidence_url (ADR-068, 2026-07-09).
 
 Proof artifact URL/path for an automation run (report HTML, published post URL).
-Idempotent: skip if the column already exists. Additive, nullable - safe on a
+Idempotent: skip if the column already exists. Additive, nullable — safe on a
 live Postgres (instant metadata-only ADD COLUMN) and on SQLite.
 
 Revision ID: 014_add_automation_log_evidence

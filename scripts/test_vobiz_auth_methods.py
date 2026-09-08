@@ -1,7 +1,6 @@
+import requests
 import os
 from pathlib import Path
-
-import requests
 
 # Load .env
 env = {}

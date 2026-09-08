@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Stop hook (Phase 0, Loop B) - capture Claude dev-session outcome signals.
+"""Stop hook (Phase 0, Loop B) — capture Claude dev-session outcome signals.
 
 Writes ONE raw record to data/claude_feedback.jsonl. The reward SCORE is computed
-on READ by app.agents.rl.reward.dev_reward (single source of truth) - this hook
+on READ by app.agents.rl.reward.dev_reward (single source of truth) — this hook
 stores only raw signals so it stays dependency-free and fast.
 
 INERT unless RL_ENGINE=1. Fail-open: any error -> exit 0, never blocks the session.
-Self-contained (no app import) - runs on the Claude Code host with a 10s budget.
+Self-contained (no app import) — runs on the Claude Code host with a 10s budget.
 """
 import datetime
 import json
@@ -20,7 +20,7 @@ def _flag_on() -> bool:
 
 def _read_marker(path: str) -> dict:
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
@@ -29,8 +29,7 @@ def _read_marker(path: str) -> dict:
 def _marker_fresh(marker: dict, max_age_s: int = 7200) -> bool:
     """A verify marker only describes the session that just ran /verify. Treat
     a marker with no/old `ts` as stale so we don't misattribute one verify
-    result to many session-ends. No ts (back-compat) = assume fresh
-    consume-once
+    result to many session-ends. No ts (back-compat) = assume fresh; consume-once
     is the real guard."""
     ts = marker.get("ts")
     if not ts:
