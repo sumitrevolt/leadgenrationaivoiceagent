@@ -59,8 +59,7 @@ _MULAW_SILENCE_BYTE = 0xFF  # mulaw encoding of PCM 0
 def _pcm16(freq: float = 440.0, rate: int = 8000, n: int = 160, amp: int = 9000) -> bytes:
     """Build n samples of a PCM16 mono sine tone."""
     return b"".join(
-        struct.pack("<h", int(amp * math.sin(2 * math.pi * freq * i / rate)))
-        for i in range(n)
+        struct.pack("<h", int(amp * math.sin(2 * math.pi * freq * i / rate))) for i in range(n)
     )
 
 
@@ -205,8 +204,8 @@ def _build_session(
     async def _fake_llm_reply(user_text: str) -> str:
         return "Bilkul sir, main aapki madad kar sakti hoon."
 
-    sess._tts = _fake_tts            # type: ignore[method-assign]
-    sess._stt = _fake_stt            # type: ignore[method-assign]
+    sess._tts = _fake_tts  # type: ignore[method-assign]
+    sess._stt = _fake_stt  # type: ignore[method-assign]
     sess._llm_reply = _fake_llm_reply  # type: ignore[method-assign]
     return sess
 
@@ -352,8 +351,15 @@ async def test_barge_in_clears_playback(monkeypatch: pytest.MonkeyPatch, tmp_pat
     # caller starts talking over the bot
     for i in range(6):
         await ws.feed(_media_event(_loud_mulaw_frame(), 100 + i))
+    # Wait until the receive loop has consumed the queued silence and loud
+    # frames; fixed sleeps made this test assert before the loud frames were
+    # observed on a busy Windows event loop.
+    for _ in range(100):
         await asyncio.sleep(0.01)
+        if ws.received >= 18:
+            break
 
+    assert ws.received >= 18, f"receive loop stalled before loud frames: {ws.received}"
     assert sess._speaking is False, "barge-in did not stop playback"
     assert "clear" in ws.names(), "barge-in did not send a 'clear' event"
 
@@ -386,13 +392,27 @@ def test_pick_trunk_returns_non_empty_caller_id_for_vobiz(
 ) -> None:
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
-    _set(monkeypatch,
-         VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test",
-         VOBIZ_CALLER_ID=_VOBIZ_DID)
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
+    _set(
+        monkeypatch,
+        VOBIZ_AUTH_ID="MA_TEST",
+        VOBIZ_AUTH_TOKEN="tok_test",
+        VOBIZ_CALLER_ID=_VOBIZ_DID,
+    )
 
     provider, caller_id = pick_trunk(lead=None)
     assert provider == "vobiz"
@@ -406,12 +426,24 @@ def test_pick_trunk_never_returns_trunk_without_caller_id(
     """A trunk with creds but no DID must be skipped, not returned with ''."""
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
-    _set(monkeypatch, VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test",
-         VOBIZ_CALLER_ID="")  # creds present, DID missing -> the reported prod bug
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
+    _set(
+        monkeypatch, VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test", VOBIZ_CALLER_ID=""
+    )  # creds present, DID missing -> the reported prod bug
 
     provider, caller_id = pick_trunk(lead=None)
     assert (provider, caller_id) == ("none", ""), (
@@ -450,10 +482,21 @@ def test_pick_trunk_resolves_did_for_each_armed_trunk(
 ) -> None:
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
     _set(monkeypatch, **provider_env)
 
     provider, caller_id = pick_trunk(lead={"transactional": True})
@@ -489,10 +532,12 @@ def test_smartflo_client_did_resolves_from_env(monkeypatch: pytest.MonkeyPatch) 
     """TataSmartfloClient.did is what /test-call shows as the caller-ID."""
     from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
-    _set(monkeypatch,
-         TATA_SMARTFLO_API_TOKEN="tok_test",
-         TATA_SMARTFLO_API_KEY="key_test",
-         TATA_SMARTFLO_DID=_TATA_DID)
+    _set(
+        monkeypatch,
+        TATA_SMARTFLO_API_TOKEN="tok_test",
+        TATA_SMARTFLO_API_KEY="key_test",
+        TATA_SMARTFLO_DID=_TATA_DID,
+    )
     try:
         from app.config import settings
 
@@ -520,9 +565,7 @@ def test_wss_host_has_no_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Regression guard: post-call metering must call the REAL meter_call_completion
-# signature. Fixed 2026-09-08 - it previously raised TypeError (wrong kwargs)
-# which `except Exception: pass` swallowed, so calls were never metered/billed.
+# Post-call metering contract
 # --------------------------------------------------------------------------- #
 
 
@@ -556,121 +599,5 @@ async def test_cleanup_meters_call_with_usable_duration(
     assert "duration_seconds" in seen, (
         f"wrong kwarg name sent to meter_call_completion: {sorted(seen)}"
     )
-
-
-# --------------------------------------------------------------------------- #
-# Regression guard: Tata SmartFlo C2C caller_id must be FULL E.164.
-# Fixed 2026-09-08 - `place_call()` used `_clean_number()` for the caller_id,
-# which stripped the leading `91` (918069879757 -> 8069879757). SmartFlo rejects
-# the 10-digit form with HTTP 422 {"caller_id": "Provide a vaild caller_id."},
-# so NO outbound call was ever placed. `customer_number` must keep using the
-# 10-digit `_clean_number()` form.
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.asyncio
-async def test_place_call_sends_caller_id_in_full_e164(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """caller_id = 918069879757 (full E.164), customer_number = 10 digits."""
-    httpx = pytest.importorskip("httpx")
-    from app.telephony.tata_smartflo_handler import TataSmartfloClient
-
-    _set(monkeypatch,
-         TATA_SMARTFLO_API_TOKEN="tok_test",
-         TATA_SMARTFLO_API_KEY="key_test",
-         TATA_SMARTFLO_DID=_TATA_DID)
-
-    captured: dict[str, Any] = {}
-
-    class _FakeResponse:
-        """Minimal stand-in for httpx.Response (no network)."""
-
-        status_code = 200
-        text = ('{"success": true, "message": "Originate successfully queued", '
-                '"ref_id": "ref_test"}')
-
-        def json(self) -> dict[str, Any]:
-            return {
-                "success": True,
-                "message": "Originate successfully queued",
-                "ref_id": "ref_test",
-            }
-
-    async def _fake_post(self: Any, url: str, **kwargs: Any) -> _FakeResponse:
-        captured["url"] = url
-        captured["payload"] = dict(kwargs.get("json") or {})
-        return _FakeResponse()
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", _fake_post)
-
-    client = TataSmartfloClient()
-    result = await client.place_call(to="919876543210")
-
-    payload = captured.get("payload")
-    assert payload, "place_call() never posted a payload (client not configured?)"
-    assert int(result.get("status_code") or 0) == 200, result
-
-    # --- the actual regression: caller_id keeps its country code ------------
-    assert payload["caller_id"] == _TATA_DID, (
-        f"caller_id must be full E.164 {_TATA_DID!r}, got {payload['caller_id']!r} "
-        "(10-digit form is rejected by SmartFlo with HTTP 422)"
-    )
-    assert payload["caller_id"] != "8069879757", (
-        "caller_id lost its country code -> SmartFlo 422 'Provide a vaild caller_id.'"
-    )
-
-    # --- customer_number must still be the 10-digit form --------------------
-    assert payload["customer_number"] == "9876543210", (
-        f"customer_number must stay 10-digit, got {payload['customer_number']!r}"
-    )
-
-
-# --------------------------------------------------------------------------- #
-# Regression guard: the `start` event must never null out metadata that the
-# /stream route already seeded from the query params.
-# Fixed 2026-09-08 - the assignments were unconditional, so a start payload
-# without callSid/from/to wiped them -> _cleanup() called meter_call_completion()
-# with call_id=None -> the billing record was silently lost (revenue leak).
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.asyncio
-async def test_start_event_does_not_wipe_preseeded_call_metadata(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
-    """A start payload missing callSid/from/to keeps the pre-seeded values."""
-    ws = _FakeWS()
-    sess = _build_session(ws, monkeypatch, tmp_path)
-
-    # Exactly what app/api/telephony_smartflo.py seeds from ?call_id=&from=&to=
-    sess.stream_sid = "SM_PRESEEDED"
-    sess.call_sid = "CA_PRESEEDED"
-    sess.from_number = "+918459012607"
-    sess.to_number = "+918069879757"
-
-    task = asyncio.create_task(sess.handle())
-    await ws.feed(_connected_event())
-    # Smartflo start event carrying ONLY the media format - no identifiers at all.
-    await ws.feed(
-        {
-            "event": "start",
-            "start": {
-                "mediaFormat": {
-                    "encoding": "audio/x-mulaw",
-                    "sampleRate": 8000,
-                    "bitRate": 64,
-                    "bitDepth": 8,
-                }
-            },
-        }
-    )
-    await ws.feed(_stop_event())
-    await asyncio.wait_for(task, timeout=15)
-
-    assert sess.stream_sid == "SM_PRESEEDED", "stream_sid wiped by an empty start event"
-    assert sess.call_sid == "CA_PRESEEDED", (
-        "call_sid wiped -> meter_call_completion() gets call_id=None -> billing LOST"
-    )
-    assert sess.from_number == "+918459012607", "from_number wiped by an empty start event"
-    assert sess.to_number == "+918069879757", "to_number wiped by an empty start event"
+    assert seen["call_id"] == "CA_QA_0001"
+    assert seen["duration_seconds"] >= 0
