@@ -2,7 +2,7 @@
 """Add ACV Annual Bundle to packages.py"""
 import sys
 
-with open('/opt/leadgen/app/marketing/packages.py', 'r') as f:
+with open('/opt/leadgen/app/marketing/packages.py') as f:
     content = f.read()
 
 # Find the line after the closing brace of PACKAGES list

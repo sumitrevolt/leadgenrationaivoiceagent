@@ -47,7 +47,7 @@ def import_legacy_data_if_needed() -> None:
             continue
         dir_path = os.path.dirname(DATA_FILE)
         os.makedirs(dir_path, exist_ok=True)
-        with open(legacy_file, "r", encoding="utf-8") as src:
+        with open(legacy_file, encoding="utf-8") as src:
             data = json.load(src)
         with tempfile.NamedTemporaryFile(
             "w", encoding="utf-8", dir=dir_path, delete=False, suffix=".tmp"
@@ -76,15 +76,15 @@ def _migrate_items(data: dict[str, Any]) -> bool:
             elif "tasks" not in item:
                 item["tasks"] = []
             migrated = True
-        
+
         if "tasks" not in item:
             item["tasks"] = []
             migrated = True
-        
+
         if "updated_at" not in item:
             item["updated_at"] = item.get("created_at", datetime.now(timezone.utc).isoformat())
             migrated = True
-    
+
     return migrated
 
 
@@ -93,12 +93,12 @@ def load_data() -> dict[str, Any]:
     import_legacy_data_if_needed()
     if not os.path.exists(DATA_FILE):
         return {"items": []}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with open(DATA_FILE, encoding="utf-8") as f:
         data = json.load(f)
-    
+
     if _migrate_items(data):
         save_data(data)
-    
+
     return data
 
 
@@ -160,10 +160,10 @@ def cmd_list(args: argparse.Namespace) -> dict[str, Any]:
     """List pending items."""
     data = load_data()
     items = data.get("items", [])
-    
+
     if not args.all:
         items = [item for item in items if item.get("status") != "complete"]
-    
+
     result_items = []
     for item in items:
         result_items.append({
@@ -174,7 +174,7 @@ def cmd_list(args: argparse.Namespace) -> dict[str, Any]:
             "age": calculate_age(item.get("created_at", "")),
             "stale": is_stale(item.get("updated_at", item.get("created_at", ""))),
         })
-    
+
     return {"count": len(result_items), "items": result_items}
 
 
@@ -183,7 +183,7 @@ def cmd_add(args: argparse.Namespace) -> dict[str, Any]:
     data = load_data()
     item_id = generate_id(args.title)
     now = datetime.now(timezone.utc).isoformat()
-    
+
     new_item = {
         "id": item_id,
         "title": args.title,
@@ -193,10 +193,10 @@ def cmd_add(args: argparse.Namespace) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
-    
+
     data.setdefault("items", []).append(new_item)
     save_data(data)
-    
+
     return {"success": True, "id": item_id, "title": args.title}
 
 
@@ -204,7 +204,7 @@ def cmd_update(args: argparse.Namespace) -> dict[str, Any]:
     """Update an existing pending item."""
     data = load_data()
     items = data.get("items", [])
-    
+
     for item in items:
         if item.get("id") == args.id:
             if args.status:
@@ -214,7 +214,7 @@ def cmd_update(args: argparse.Namespace) -> dict[str, Any]:
             item["updated_at"] = datetime.now(timezone.utc).isoformat()
             save_data(data)
             return {"success": True, "id": args.id, "status": item["status"]}
-    
+
     return {"success": False, "error": f"Item not found: {args.id}"}
 
 
@@ -222,7 +222,7 @@ def cmd_complete(args: argparse.Namespace) -> dict[str, Any]:
     """Mark an item as complete and manage retention."""
     data = load_data()
     items = data.get("items", [])
-    
+
     found = False
     for item in items:
         if item.get("id") == args.id:
@@ -232,16 +232,16 @@ def cmd_complete(args: argparse.Namespace) -> dict[str, Any]:
             item["updated_at"] = datetime.now(timezone.utc).isoformat()
             found = True
             break
-    
+
     if not found:
         return {"success": False, "error": f"Item not found: {args.id}"}
-    
+
     complete_items = [item for item in items if item.get("status") == "complete"]
     if len(complete_items) > 10:
         complete_items.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         keep_ids = {item["id"] for item in complete_items[:10]}
         data["items"] = [item for item in items if item.get("status") != "complete" or item["id"] in keep_ids]
-    
+
     save_data(data)
     return {"success": True, "id": args.id, "status": "complete"}
 
@@ -250,22 +250,22 @@ def cmd_link(args: argparse.Namespace) -> dict[str, Any]:
     """Link a task to a pending item."""
     data = load_data()
     items = data.get("items", [])
-    
+
     for item in items:
         if item.get("id") == args.id:
             tasks = item.setdefault("tasks", [])
-            
+
             existing_ids = {task.get("id") for task in tasks if isinstance(task, dict)}
             if args.task_id not in existing_ids:
                 tasks.append({
                     "id": args.task_id,
                     "name": args.task_name or "",
                 })
-            
+
             item["updated_at"] = datetime.now(timezone.utc).isoformat()
             save_data(data)
             return {"success": True, "id": args.id, "linked": args.task_id}
-    
+
     return {"success": False, "error": f"Item not found: {args.id}"}
 
 
@@ -273,13 +273,13 @@ def cmd_delete(args: argparse.Namespace) -> dict[str, Any]:
     """Delete a pending item."""
     data = load_data()
     items = data.get("items", [])
-    
+
     original_count = len(items)
     data["items"] = [item for item in items if item.get("id") != args.id]
-    
+
     if len(data["items"]) == original_count:
         return {"success": False, "error": f"Item not found: {args.id}"}
-    
+
     save_data(data)
     return {"success": True, "id": args.id}
 
@@ -291,37 +291,37 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     list_parser = subparsers.add_parser("list", help="List pending items")
     list_parser.add_argument("--all", action="store_true", help="Include completed items")
-    
+
     add_parser = subparsers.add_parser("add", help="Add a new pending item")
     add_parser.add_argument("title", help="Requirement title")
     add_parser.add_argument("--note", help="Optional note or context")
-    
+
     update_parser = subparsers.add_parser("update", help="Update a pending item")
     update_parser.add_argument("id", help="Item ID")
     update_parser.add_argument("--status", choices=["pend", "running", "hold"], help="New status")
     update_parser.add_argument("--note", help="Update note")
-    
+
     complete_parser = subparsers.add_parser("complete", help="Mark item as complete")
     complete_parser.add_argument("id", help="Item ID")
     complete_parser.add_argument("--note", help="Completion note")
-    
+
     link_parser = subparsers.add_parser("link", help="Link a task to an item")
     link_parser.add_argument("id", help="Item ID")
     link_parser.add_argument("--task-id", required=True, help="Task UUID")
     link_parser.add_argument("--task-name", help="Task name")
-    
+
     delete_parser = subparsers.add_parser("delete", help="Delete a pending item")
     delete_parser.add_argument("id", help="Item ID")
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return
-    
+
     try:
         result = None
         if args.command == "list":

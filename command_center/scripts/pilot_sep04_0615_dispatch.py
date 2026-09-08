@@ -15,8 +15,9 @@ def save(p, obj):
         json.dump(obj, f, indent=1, ensure_ascii=False)
         f.write("\n")
 
-G = lambda to, tid, typ, prio, msg: {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
-                                     "type": typ, "priority": prio, "msg": msg}
+def G(to, tid, typ, prio, msg):
+    return {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
+            "type": typ, "priority": prio, "msg": msg}
 
 FACT = ("LIVE 06:15 IST Sep4 (PILOT re-verified): /health 308 auth-gated (healthy); containers Up; "
         "SIP 5 vars ALL EMPTY (SIP_HOST=/SIP_DID= blank) DID NOT landed; VOBIZ_CALLER_ID REVOKED; "

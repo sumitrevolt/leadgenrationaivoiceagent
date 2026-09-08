@@ -1,6 +1,8 @@
 import sys
+
 sys.path.insert(0, r'.')
 from pathlib import Path
+
 from app.platform import runtime_data_allowlist as _allow
 from app.platform import runtime_data_scan as _scan
 

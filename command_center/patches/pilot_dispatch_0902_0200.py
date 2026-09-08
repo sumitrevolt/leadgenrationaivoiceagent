@@ -54,7 +54,7 @@ notes = {
 n_updated = 0
 for t in tasks:
     if t.get("id") in notes:
-        t["evidence"] = (t.get("evidence", "") + " || " + notes[t["id"]]).strip(" ||")
+        t["evidence"] = (t.get("evidence", "") + " || " + notes[t["id"]]).removeprefix(" || ")
         n_updated += 1
 with open(tasks_path, "w", encoding="utf-8") as f:
     json.dump(tasks, f, ensure_ascii=False, indent=2)

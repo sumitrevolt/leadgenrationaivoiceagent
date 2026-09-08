@@ -25,7 +25,7 @@ import json
 import os
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -189,7 +189,7 @@ class VoiceLearningStore:
         base = os.getenv("VOICE_LEARNING_DATA_DIR", "data/voice_learning")
         try:
             os.makedirs(base, exist_ok=True)
-            self._jsonl_path = os.path.join(base, f"learning_events.jsonl")
+            self._jsonl_path = os.path.join(base, "learning_events.jsonl")
         except Exception as e:
             logger.warning(f"[voice_learning] Cannot init JSONL path: {e}")
             self._jsonl_path = None
@@ -203,7 +203,7 @@ class VoiceLearningStore:
         2. JSONL file (if writable) — for durability + batch processing
         3. In-process list — always works as fallback
         """
-        self._redis_connected == False and self._init_redis()
+        not self._redis_connected and self._init_redis()
         self._init_jsonl()
 
         event_dict = event.to_dict()

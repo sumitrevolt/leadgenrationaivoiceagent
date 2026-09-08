@@ -1,5 +1,8 @@
-import requests, json, os
+import json
+import os
 from pathlib import Path
+
+import requests
 
 env = {}
 for p in ["/opt/leadgen/.env", ".env"]:

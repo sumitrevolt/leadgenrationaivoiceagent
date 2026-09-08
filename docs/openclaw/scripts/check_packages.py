@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, '/app')
 from app.marketing.packages import PACKAGES, get_public_packages
 

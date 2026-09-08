@@ -1,4 +1,4 @@
-with open(r'C:\Users\Ratanshila\.openclaw\workspace\app\tasks\staff_jobs.py', 'r', encoding='utf-8', errors='replace') as f:
+with open(r'C:\Users\Ratanshila\.openclaw\workspace\app\tasks\staff_jobs.py', encoding='utf-8', errors='replace') as f:
     content = f.read()
 
 # Add the whatsapp_automation task function after boss_autonomy_sweep

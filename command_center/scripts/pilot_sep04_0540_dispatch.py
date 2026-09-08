@@ -14,8 +14,9 @@ def save(p, obj):
         json.dump(obj, f, indent=1, ensure_ascii=False)
         f.write("\n")
 
-G = lambda to, tid, typ, prio, msg: {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
-                                     "type": typ, "priority": prio, "msg": msg}
+def G(to, tid, typ, prio, msg):
+    return {"ts": TS, "from": "PILOT", "to": to, "task_id": tid,
+            "type": typ, "priority": prio, "msg": msg}
 
 FACT = ("LIVE 05:40 IST Sep4: containers Up10h healthy; WA flip containers=1 BOTH; "
         "auto_sent TRUE=0/2298 (469 false, 0 true, NO msg-id); SIP 5 vars ALL EMPTY DID NOT landed; "

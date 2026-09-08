@@ -1,5 +1,5 @@
-import urllib.request
 import sys
+import urllib.request
 
 try:
     res = urllib.request.urlopen("http://72.61.245.204:3110/_liveness", timeout=10)

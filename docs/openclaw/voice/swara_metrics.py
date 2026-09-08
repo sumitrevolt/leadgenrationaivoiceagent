@@ -25,13 +25,14 @@ import os
 import threading
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.utils.logger import setup_logger
 from app.voice_agent.swara_config import get_version_info
+
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -71,9 +72,9 @@ def _vaqi_latency_summary(samples_ms: list[float]) -> dict[str, float]:
     }
 
 
-def _vaqi_calculate(call_metrics: "VoiceCallMetrics") -> dict[str, Any]:
+def _vaqi_calculate(call_metrics: VoiceCallMetrics) -> dict[str, Any]:
     """Calculate VAQI metrics for a single call.
-    
+
     Returns dict with VAQI legs:
     - interruption_rate: premature_interruptions / total_interruptions (if interruptions > 0)
     - missed_response_rate: missed_responses / turns (if turns > 0)
@@ -88,13 +89,13 @@ def _vaqi_calculate(call_metrics: "VoiceCallMetrics") -> dict[str, Any]:
         "vaqi_latency_p99": 0.0,
         "vaqi_turns_total": call_metrics.turns,
     }
-    
+
     # Note: These fields need to be populated by the call code (turn_detector.py / vobiz_stream.py)
     # via record_turn() with is_customer_interruption=True for interruptions,
     # and a new record_missed_response() method for missed responses.
     # For now, they stay None (not 0, which would misleadingly read as "perfect")
     # until live call code starts calling the recording methods.
-    
+
     return vaqi
 
 

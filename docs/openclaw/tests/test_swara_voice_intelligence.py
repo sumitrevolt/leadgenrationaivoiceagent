@@ -17,12 +17,13 @@ Tests verify:
 - Rule 20: Single voice configuration pattern
 """
 
-import pytest
-import tempfile
 import json
 import os
-from pathlib import Path
+import tempfile
 from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 # ============================================================
 # Rule 1: Single Canonical Voice Identity
@@ -99,7 +100,7 @@ class TestVoiceLearningEvents:
     """Rule 4: Every useful interaction generates voice_learning_event"""
 
     def test_event_structure(self):
-        from app.voice_agent.swara_learning import VoiceLearningEvent, AudioMetadata
+        from app.voice_agent.swara_learning import AudioMetadata, VoiceLearningEvent
         event = VoiceLearningEvent(
             original_text="Hello customer",
             language="hinglish",
@@ -124,7 +125,7 @@ class TestVoiceLearningEvents:
 
     def test_high_priority_owner_correction(self):
         """Rule 6: Owner corrections create high-priority learning events"""
-        from app.voice_agent.swara_learning import VoiceLearningEvent, AudioMetadata
+        from app.voice_agent.swara_learning import AudioMetadata, VoiceLearningEvent
         event = VoiceLearningEvent(
             original_text="Wrong pronunciation was 'LeedGen'",
             language="hinglish",
@@ -153,7 +154,7 @@ class TestVoiceLearningEvents:
         assert event.collection_source == "owner_correction"
 
     def test_record_voice_event(self):
-        from app.voice_agent.swara_learning import record_voice_event, get_voice_learning_store
+        from app.voice_agent.swara_learning import get_voice_learning_store, record_voice_event
         store = get_voice_learning_store()
         store._events.clear()  # Reset for test
 
@@ -274,7 +275,7 @@ class TestQualityGate:
     """Rules 9 & 10: Candidates must pass evaluation; quality thresholds"""
 
     def test_quality_evaluator_thresholds(self):
-        from app.voice_agent.swara_eval import QUALITY_GATES, BOOLEAN_GATES
+        from app.voice_agent.swara_eval import BOOLEAN_GATES, QUALITY_GATES
 
         # Verify thresholds match Rule 10
         assert QUALITY_GATES["meaning_preservation"] >= 0.98
@@ -298,8 +299,8 @@ class TestQualityGate:
         assert len(result.failed_gates) == 0
 
     def test_high_quality_candidate_passes(self):
-        from app.voice_agent.swara_eval import get_quality_evaluator
         from app.voice_agent.swara_adaptation import AdaptationCandidate
+        from app.voice_agent.swara_eval import get_quality_evaluator
 
         candidate = AdaptationCandidate(
             candidate_id="cand_test_001",
@@ -318,8 +319,8 @@ class TestQualityGate:
         assert result.overall_score > 0.9
 
     def test_low_quality_candidate_fails(self):
-        from app.voice_agent.swara_eval import get_quality_evaluator
         from app.voice_agent.swara_adaptation import AdaptationCandidate
+        from app.voice_agent.swara_eval import get_quality_evaluator
 
         candidate = AdaptationCandidate(
             candidate_id="cand_test_002",
@@ -428,7 +429,7 @@ class TestObservabilityMetrics:
         assert completed.customer_interruptions == 1
 
     def test_aggregated_metrics(self):
-        from app.voice_agent.swara_metrics import get_metrics_collector, AggregatedMetrics
+        from app.voice_agent.swara_metrics import AggregatedMetrics, get_metrics_collector
         collector = get_metrics_collector()
 
         agg = collector.get_aggregated(hours=24)
@@ -473,7 +474,7 @@ class TestVersioning:
         assert candidate.model_version.startswith("swara_")
 
     def test_learning_pipeline_versioned(self):
-        from app.voice_agent.swara_learning import VoiceLearningEvent, AudioMetadata
+        from app.voice_agent.swara_learning import AudioMetadata, VoiceLearningEvent
         event = VoiceLearningEvent(
             original_text="Test",
             language="hinglish",
@@ -532,8 +533,9 @@ class TestFullPipeline:
 
     def test_opening_message_uses_golden_utterance(self):
         """agent.get_opening_message should use golden utterance"""
-        from app.voice_agent.agent import VoiceAgent
         import asyncio
+
+        from app.voice_agent.agent import VoiceAgent
 
         async def test():
             agent = VoiceAgent()
@@ -551,9 +553,11 @@ class TestFullPipeline:
 
     def test_process_speech_records_learning_event(self):
         """process_speech should record voice learning event"""
-        from app.voice_agent.agent import VoiceAgent
-        from app.voice_agent.swara_learning import get_voice_learning_store
         import asyncio
+
+        from app.voice_agent.swara_learning import get_voice_learning_store
+
+        from app.voice_agent.agent import VoiceAgent
 
         async def test():
             agent = VoiceAgent()
@@ -594,10 +598,13 @@ class TestNoUncontrolledSelfTraining:
 
     def test_candidate_promotion_requires_evaluation(self):
         """Candidate must pass evaluation before promotion"""
-        from app.voice_agent.swara_learning import promote_candidate_to_golden
-        from app.voice_agent.swara_learning import get_voice_learning_store
-        from app.voice_agent.swara_learning import VoiceLearningEvent, AudioMetadata
         from app.voice_agent.swara_adaptation import AdaptationCandidate
+        from app.voice_agent.swara_learning import (
+            AudioMetadata,
+            VoiceLearningEvent,
+            get_voice_learning_store,
+            promote_candidate_to_golden,
+        )
 
         store = get_voice_learning_store()
         store._events.clear()
@@ -676,8 +683,8 @@ class TestEnterpriseBehavior:
 
     def test_no_robotic_phrases(self):
         """Swara must not sound robotic (Rule 14)"""
-        from app.voice_agent.swara_eval import get_quality_evaluator
         from app.voice_agent.swara_adaptation import AdaptationCandidate
+        from app.voice_agent.swara_eval import get_quality_evaluator
 
         candidate = AdaptationCandidate(
             candidate_id="cand_test",
@@ -697,8 +704,8 @@ class TestEnterpriseBehavior:
 
     def test_safety_evaluator_checks_deception(self):
         """Safety evaluator checks for deceptive sales (Rule 16)"""
-        from app.voice_agent.swara_eval import get_safety_evaluator
         from app.voice_agent.swara_adaptation import AdaptationCandidate
+        from app.voice_agent.swara_eval import get_safety_evaluator
 
         candidate = AdaptationCandidate(
             candidate_id="cand_test",

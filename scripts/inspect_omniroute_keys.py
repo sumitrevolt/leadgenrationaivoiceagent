@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import sqlite3
 import json
+import sqlite3
 
 db_path = '/root/.omniroute/storage.sqlite'
 conn = sqlite3.connect(db_path)

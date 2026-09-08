@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import sys
+
 sys.path.insert(0, '/app')
 from app.marketing.packages import PACKAGES, get_public_packages
+
 print("PACKAGES:")
 for p in PACKAGES:
     print(f"  {p['key']}: {p['name']} - {p['price_inr_year']}/yr")

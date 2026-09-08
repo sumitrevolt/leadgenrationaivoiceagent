@@ -1,6 +1,6 @@
 import asyncio
-import os
 import json
+import os
 
 os.environ['OMNIROUTE_ENABLED'] = '1'
 os.environ['OMNIROUTE_AGENTS'] = '1'
@@ -34,7 +34,7 @@ FLAGSHIP_MODELS = [
     ("kunlun", "kunlun/matrix-3.5", "Chinese Flagship"),
     ("360ai", "360ai/360-ai-4.0", "Chinese Flagship"),
     ("ppio", "ppio/deepseek-v4-flash", "Chinese Flagship"),
-    
+
     # International Providers (21)
     ("gemini", "gemini/gemini-3.5-flash", "International Flagship"),
     ("groq", "groq/llama-3.3-70b-versatile", "International Flagship"),
@@ -63,10 +63,10 @@ results = {}
 
 async def main():
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-    
+
     working = []
     not_working = []
-    
+
     for provider, model, category in FLAGSHIP_MODELS:
         payload = {
             "model": model,
@@ -74,11 +74,11 @@ async def main():
             "max_output_tokens": 8,
             "temperature": 0.0
         }
-        
+
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(f"{BASE_URL}/v1/responses", headers=headers, json=payload)
-                
+
                 status = response.status_code
                 if status == 200:
                     body = response.json()
@@ -89,25 +89,25 @@ async def main():
                     error = response.text[:80]
                     not_working.append((provider, model, status, error))
                     print(f"FAIL {category} {provider} {model} {status}: {error[:50]}")
-                    
+
         except httpx.TimeoutException:
             not_working.append((provider, model, "TIMEOUT", ""))
             print(f"TIMEOUT {category} {provider} {model}")
         except Exception as e:
             not_working.append((provider, model, "ERROR", str(e)))
             print(f"ERROR {category} {provider} {model} {type(e).__name__}")
-    
-    print(f"RESULTS")
+
+    print("RESULTS")
     print(f"Working: {len(working)}")
     print(f"Not working: {len(not_working)}")
-    
+
     chinese_working = [w for w in working if w[2] == "Chinese Flagship"]
     intl_working = [w for w in working if w[2] == "International Flagship"]
-    
+
     print(f"Chinese working: {len(chinese_working)}")
     for p, m, c, r in chinese_working:
         print(f"  {p} {m}")
-    
+
     print(f"International working: {len(intl_working)}")
     for p, m, c, r in intl_working:
         print(f"  {p} {m}")

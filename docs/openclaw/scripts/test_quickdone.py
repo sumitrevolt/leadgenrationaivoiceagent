@@ -1,4 +1,5 @@
 from app.platform.reply_agent import hot_queue, make_hq_done_token
+
 rows = hot_queue(limit=5, scope='boss')
 print('Total:', len(rows))
 r = rows[0]

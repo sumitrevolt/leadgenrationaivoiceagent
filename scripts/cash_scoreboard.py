@@ -12,9 +12,9 @@ Recalculates after every VERIFIED_PAID event:
   AVERAGE_CASH_PER_DEAL = VERIFIED_CASH / count of paid deals
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -49,10 +49,10 @@ def classify_payment(payment_received_at, provider_txn_id=None, customer_id=None
         pt = datetime.fromisoformat(payment_received_at)
         if pt.tzinfo is None:
             pt = pt.replace(tzinfo=timezone.utc)
-        
+
         start = datetime.strptime(CAMPAIGN_START, '%Y-%m-%d').replace(tzinfo=timezone.utc)
         end = datetime.strptime(CAMPAIGN_END, '%Y-%m-%d').replace(tzinfo=timezone.utc) + timedelta(days=1, hours=-1, minutes=-30)
-        
+
         if start <= pt <= end:
             return 'CAMPAIGN_REVENUE'
         else:
@@ -64,27 +64,27 @@ def classify_payment(payment_received_at, provider_txn_id=None, customer_id=None
 def recalculate_scoreboard():
     """Full scoreboard recalculation after VERIFIED_PAID events."""
     from db import get_connection
-    
+
     verified_cash = load_campaign_ledger()
-    
+
     # Calculate derived metrics
     remaining = max(Decimal('0'), TARGET - verified_cash)
     progress = calculate_progress(verified_cash, TARGET)
-    
+
     # Count payments today / in campaign window
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT COUNT(*), GROUP_CONCAT(DISTINCT client_id) 
-            FROM upi_submissions 
+            SELECT COUNT(*), GROUP_CONCAT(DISTINCT client_id)
+            FROM upi_submissions
             WHERE status = 'VERIFIED_PAID'
               AND received_at >= %s
               AND received_at <= %s
         """, (CAMPAIGN_START, CAMPAIGN_END))
         payment_count_result = cursor.fetchone()
         conn.close()
-        
+
         if payment_count_result and payment_count_result[0]:
             payments_today = int(payment_count_result[0])
             # Parse client IDs (GROUP_CONCAT may have commas)
@@ -95,32 +95,32 @@ def recalculate_scoreboard():
     except Exception:
         payments_today = 0
         client_ids_str = ''
-    
+
     # Count unique paid deals
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT COUNT(DISTINCT customer_id) 
-            FROM upi_submissions 
+            SELECT COUNT(DISTINCT customer_id)
+            FROM upi_submissions
             WHERE status = 'VERIFIED_PAID'
         """)
         deals_result = cursor.fetchone()
         conn.close()
-        
+
         if deals_result and deals_result[0]:
             paid_deals = int(deals_result[0])
         else:
             paid_deals = 0
     except Exception:
         paid_deals = 0
-    
+
     # Calculate average cash per deal
     if paid_deals > 0:
         average_cash_per_deal = verified_cash / Decimal(str(paid_deals))
     else:
         average_cash_per_deal = Decimal('0')
-    
+
     # Build scoreboard
     scoreboard = {
         'verified_cash_collected': float(verified_cash),
@@ -133,7 +133,7 @@ def recalculate_scoreboard():
         'timestamp': datetime.utcnow().isoformat(),
         'campaign_window': f"{CAMPAIGN_START} to {CAMPAIGN_END} EOD IST",
     }
-    
+
     return scoreboard
 
 
@@ -152,7 +152,7 @@ def verify_payment_reference(ref_id):
     try:
         cursor.execute("""
             SELECT id, status, amount, received_at, customer_id, invoice_id
-            FROM upi_submissions 
+            FROM upi_submissions
             WHERE reference_id = %s OR provider_txn_id = %s
         """, (ref_id, ref_id))
         result = cursor.fetchone()
@@ -165,9 +165,9 @@ def verify_payment_reference(ref_id):
 def main():
     """Entry point — recalculate and display scoreboard."""
     from db import get_connection
-    
+
     scoreboard = recalculate_scoreboard()
-    
+
     print("=" * 60)
     print("HERMES CAMPAIGN REVENUE SCOREBOARD")
     print("=" * 60)
@@ -176,19 +176,19 @@ def main():
     print(f"Remaining: ₹{scoreboard['remaining']:,.2f}")
     print(f"Progress: {scoreboard['progress_percent']}%")
     print(f"Campaign Window: {scoreboard['campaign_window']}")
-    print(f"")
+    print("")
     print(f"Payments Today (campaign): {scoreboard['payments_today']}")
     print(f"Unique Paid Deals: {scoreboard['paid_deals']}")
     print(f"Average Cash per Deal: ₹{scoreboard['average_cash_per_deal']:,.2f}")
-    print(f"")
-    
+    print("")
+
     if scoreboard['remaining'] > 0:
         print(f"🎯 NEXT: ₹{scoreboard['remaining']:,.2f} more needed to reach target")
     else:
-        print(f"🏆 TARGET REACHED! ₹5,00,000 verified cash collected!")
-    
+        print("🏆 TARGET REACHED! ₹5,00,000 verified cash collected!")
+
     print("=" * 60)
-    
+
     # Output JSON for monitoring
     print("\n--- JSON OUTPUT ---")
     print(json.dumps(scoreboard, indent=2))

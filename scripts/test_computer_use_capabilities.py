@@ -25,7 +25,7 @@ def test_stdio_mcp(name: str, cmd_list: list[str], test_tool_call: dict | None =
         )
         req1 = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n"
         req2 = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}) + "\n"
-        
+
         full_input = req1 + req2
         if test_tool_call:
             req3 = json.dumps({
@@ -37,7 +37,7 @@ def test_stdio_mcp(name: str, cmd_list: list[str], test_tool_call: dict | None =
             full_input += req3
 
         stdout, stderr = p.communicate(input=full_input, timeout=6)
-        
+
         tools = []
         tool_call_result = None
         for line in stdout.strip().splitlines():
@@ -49,7 +49,7 @@ def test_stdio_mcp(name: str, cmd_list: list[str], test_tool_call: dict | None =
                     tool_call_result = data.get("result") or data.get("error")
             except Exception:
                 pass
-                
+
         return {
             "ok": len(tools) > 0 or p.returncode == 0,
             "tools_count": len(tools),
@@ -124,31 +124,31 @@ def main():
             claude_cu = s_data.get("computerUse", {}).get("enabled", False)
         except Exception:
             pass
-    print(f"\n[A] Claude Desktop App:", flush=True)
+    print("\n[A] Claude Desktop App:", flush=True)
     print(f"    - Native Screen Computer Use: {'[PASS] ENABLED' if claude_cu else '[WARN] DISABLED'}", flush=True)
-    print(f"    - OS & Command Execution (via Admin Harness): [PASS] READY", flush=True)
-    print(f"    - Browser Computer Use (via Puppeteer/Playwright): [PASS] CONFIGURED", flush=True)
-    print(f"    - 1000 Engineers Talent Harness: [PASS] ATTACHED", flush=True)
+    print("    - OS & Command Execution (via Admin Harness): [PASS] READY", flush=True)
+    print("    - Browser Computer Use (via Puppeteer/Playwright): [PASS] CONFIGURED", flush=True)
+    print("    - 1000 Engineers Talent Harness: [PASS] ATTACHED", flush=True)
 
     # Hermes Desktop
     hermes_conn = Path.home() / "AppData" / "Roaming" / "Hermes" / "connections.json"
     hermes_cfg = Path.home() / "AppData" / "Local" / "hermes" / "config.yaml"
-    print(f"\n[B] Hermes Desktop App:", flush=True)
+    print("\n[B] Hermes Desktop App:", flush=True)
     print(f"    - OmniRoute Model Gateway: {'[PASS] CONNECTED' if hermes_conn.exists() else '[FAIL] MISSING'}", flush=True)
     print(f"    - MCP Admin Harness (Computer Use): {'[PASS] ATTACHED' if hermes_cfg.exists() else '[FAIL] MISSING'}", flush=True)
-    print(f"    - 1000 Engineers Talents + Shell: [PASS] READY", flush=True)
+    print("    - 1000 Engineers Talents + Shell: [PASS] READY", flush=True)
 
     # WorkBuddy AI
     wb_st = Path.home() / ".workbuddy-ai" / "settings.json"
     wb_mcp = Path.home() / ".workbuddy-ai" / "mcp_servers.json"
-    print(f"\n[C] WorkBuddy AI Desktop App:", flush=True)
+    print("\n[C] WorkBuddy AI Desktop App:", flush=True)
     print(f"    - 25 Dynamic Model Combos: {'[PASS] CONFIGURED' if wb_st.exists() else '[FAIL] MISSING'}", flush=True)
     print(f"    - MCP Servers Attached: {'[PASS] READY' if wb_mcp.exists() else '[FAIL] MISSING'}", flush=True)
-    print(f"    - OS Command & Computer Use: [PASS] READY", flush=True)
+    print("    - OS Command & Computer Use: [PASS] READY", flush=True)
 
     # DSH
     dsh_st = Path.home() / ".dsh" / "settings.yaml"
-    print(f"\n[D] DSH / Terminal Agent:", flush=True)
+    print("\n[D] DSH / Terminal Agent:", flush=True)
     print(f"    - Settings & MCP Harness: {'[PASS] CONFIGURED' if dsh_st.exists() else '[FAIL] MISSING'}", flush=True)
 
     print("\n" + "=" * 70, flush=True)

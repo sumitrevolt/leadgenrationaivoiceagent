@@ -124,7 +124,7 @@ class Manifest:
     self_healing: dict
 
     @classmethod
-    def load(cls, path: Path = MANIFEST_PATH) -> "Manifest":
+    def load(cls, path: Path = MANIFEST_PATH) -> Manifest:
         if not path.exists():
             raise FileNotFoundError(f"manifest not found at {path}")
         if yaml is None:
@@ -220,7 +220,7 @@ class OmniState:
     connections: list = field(default_factory=list)
 
     @classmethod
-    def load(cls) -> "OmniState":
+    def load(cls) -> OmniState:
         combos_raw: list = []
         connections: list = []
         if OMNI_COMBOS_PATH.exists():

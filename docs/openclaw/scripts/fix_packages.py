@@ -1,6 +1,6 @@
 import sys
 
-with open('/opt/leadgen/app/marketing/packages.py', 'r') as f:
+with open('/opt/leadgen/app/marketing/packages.py') as f:
     lines = f.readlines()
 
 # Find the line "def get_packages(include_trial: bool = False) -> list:"

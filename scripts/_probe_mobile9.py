@@ -1,6 +1,10 @@
-import asyncio, os, sys
+import asyncio
+import os
+import sys
+
 sys.path.insert(0, "/app")
 import asyncpg
+
 
 async def main():
     url = os.environ["DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://")

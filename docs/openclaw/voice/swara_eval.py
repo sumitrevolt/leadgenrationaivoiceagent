@@ -23,15 +23,16 @@ from __future__ import annotations
 import json
 import os
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from app.utils.logger import setup_logger
+from app.voice_agent.swara_adaptation import AdaptationCandidate
 from app.voice_agent.swara_config import voice_eval_enabled
 from app.voice_agent.swara_learning import VoiceLearningEvent, get_voice_learning_store
-from app.voice_agent.swara_adaptation import AdaptationCandidate
+
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -277,7 +278,7 @@ class QualityGateEvaluator:
 
         # Penalty: too many English words in a row (unnatural)
         english_words = len([w for w in adapted.split() if w.isalpha() and w.lower() not in
-                            {"hai", "hai", "ho", "hoon", "kar", "karo", "kare", "karen",
+                            {"hai", "ho", "hoon", "kar", "karo", "kare", "karen",
                              "mein", "me", "ko", "se", "pe", "par", "ka", "ki", "ke",
                              "aur", "ya", "lekin", "toh", "kyunki", "isliye", "phir",
                              "namaste", "shukriya", "zaroor", "bilkul", "thik", "accha",

@@ -1,5 +1,7 @@
 import sys
+
 from sqlalchemy import text
+
 from app.models.base import _get_sync_engine
 
 engine = _get_sync_engine()

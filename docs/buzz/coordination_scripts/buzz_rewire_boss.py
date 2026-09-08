@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Point every channel at the NEW Boss pubkey and drop the stale one."""
 from __future__ import annotations
-import ctypes, json, os, subprocess, time
+
+import ctypes
+import json
+import os
+import subprocess
+import time
 from ctypes import wintypes
 from pathlib import Path
 

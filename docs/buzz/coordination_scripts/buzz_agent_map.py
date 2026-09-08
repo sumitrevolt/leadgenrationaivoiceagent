@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Print managed-agents roster minus avatar blobs."""
-import json, os
+import json
+import os
 from pathlib import Path
 
 p = Path(os.environ["APPDATA"]) / "xyz.block.buzz.app" / "agents" / "managed-agents.json"

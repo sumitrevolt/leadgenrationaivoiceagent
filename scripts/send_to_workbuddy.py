@@ -82,7 +82,12 @@ print("Clipboard set successfully.")
 
 # Visual action indicator
 from scripts.desktop_action_overlay import notify_computer_action
-from scripts.desktop_mouse_visualizer import click_mouse, move_mouse, press_hotkey, show_screen_glow_frame
+from scripts.desktop_mouse_visualizer import (
+    click_mouse,
+    move_mouse,
+    press_hotkey,
+    show_screen_glow_frame,
+)
 
 show_screen_glow_frame(duration_seconds=4.0, title="Automating WorkBuddy Prompt")
 notify_computer_action("WorkBuddy Automation", "Pasting planned task into WorkBuddy chat input", duration=4.0)

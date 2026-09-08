@@ -1,5 +1,8 @@
-import requests, json, os
+import json
+import os
 from pathlib import Path
+
+import requests
 
 env = {}
 for p in ["/opt/leadgen/.env", ".env"]:
@@ -20,10 +23,10 @@ if r.status_code == 200:
     data = r.json()
     objects = data.get("objects", [])
     print(f"Total objects returned: {len(objects)}")
-    
+
     answered = [c for c in objects if c.get("bill_duration", 0) > 0 or c.get("hangup_cause") not in ("USER_BUSY", "CALL_REJECTED")]
     print(f"Total non-busy / answered: {len(answered)}")
-    
+
     print("\n--- Last 10 calls ---")
     for c in objects[:10]:
         print(f"{c.get('created_at')} | {c.get('from_number')} -> {c.get('to_number')} | state: {c.get('call_state')} | cause: {c.get('hangup_cause')} | cause_name: {c.get('hangup_cause_name')} | dur: {c.get('bill_duration')}")

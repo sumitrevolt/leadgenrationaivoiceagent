@@ -1,6 +1,6 @@
 import re
 
-with open('/opt/leadgen/docker-compose.vps.yml', 'r') as f:
+with open('/opt/leadgen/docker-compose.vps.yml') as f:
     content = f.read()
 
 # Fix the DSH_ALLOWLIST_CSV lines - they should have ${DSH_ALLOWLIST_CSV:-}

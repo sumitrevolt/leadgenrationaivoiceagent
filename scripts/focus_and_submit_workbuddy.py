@@ -27,7 +27,12 @@ target_x = int(sw * 0.22)  # ~420px on 1920
 target_y = int(sh * 0.94)  # ~1015px on 1080
 
 from scripts.desktop_action_overlay import notify_computer_action
-from scripts.desktop_mouse_visualizer import click_mouse, move_mouse, press_hotkey, show_screen_glow_frame
+from scripts.desktop_mouse_visualizer import (
+    click_mouse,
+    move_mouse,
+    press_hotkey,
+    show_screen_glow_frame,
+)
 
 # Visual indicator on screen
 show_screen_glow_frame(duration_seconds=4.0, title="Submitting SDXL Task to WorkBuddy")

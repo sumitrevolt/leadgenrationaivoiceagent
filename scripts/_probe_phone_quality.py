@@ -1,8 +1,11 @@
-import logging, sys
+import logging
+import sys
+
 logging.disable(logging.CRITICAL)
 sys.path.insert(0, ".")
 import phonenumbers
-from app.telephony.dial_gate import phone_quality, _last10
+
+from app.telephony.dial_gate import _last10, phone_quality
 
 nums = ['916436551963','916124696567','918312472948','918048054887','917126684222','+919876543210']
 for n in nums:

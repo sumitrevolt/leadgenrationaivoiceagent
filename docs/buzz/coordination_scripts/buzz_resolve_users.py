@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Resolve Buzz member pubkeys -> display names (read-only)."""
 from __future__ import annotations
-import ctypes, json, os, subprocess
+
+import ctypes
+import json
+import os
+import subprocess
 from ctypes import wintypes
 from pathlib import Path
 

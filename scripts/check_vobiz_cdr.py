@@ -1,4 +1,7 @@
-import os, requests, json
+import json
+import os
+
+import requests
 
 env = {}
 with open("/opt/leadgen/.env") as f:

@@ -17,7 +17,6 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-
 # Free flagship model pool candidates
 COMMON_FREE_MODELS = [
     {

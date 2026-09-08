@@ -1,6 +1,6 @@
 import asyncio
-import os
 import json
+import os
 
 os.environ['OMNIROUTE_ENABLED'] = '1'
 os.environ['OMNIROUTE_AGENTS'] = '1'
@@ -28,7 +28,7 @@ FLAGSHIP_MODELS = [
     {"provider": "tencent", "model": "tencent/hunyuan-hy3", "name": "Hunyuan-Hy3"},
     {"provider": "lingyi", "model": "lingyi/yi-lightning", "name": "Yi-Lightning"},
     {"provider": "chinamobile", "model": "chinamobile/moma-300b", "name": "MoMA-300B"},
-    
+
     # International Providers (27)
     {"provider": "gemini", "model": "gemini/gemini-3.5-flash", "name": "Gemini-3.5-Flash"},
     {"provider": "groq", "model": "groq/openai/gpt-oss-120b", "name": "GPT-OSS-120B"},
@@ -76,25 +76,25 @@ COMBOS = [
 
 async def main():
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-    
+
     # Get existing combos
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(f"{BASE_URL}/api/combos", headers=headers)
         combos_data = resp.json().get('combos', [])
-        
+
         # Create a map of combo name to id
         combo_map = {c['name']: c['id'] for c in combos_data}
-        
+
         print(f"Found {len(combos_data)} combos")
-        
+
         # Update each combo
         for combo_name in COMBOS:
             if combo_name not in combo_map:
                 print(f"  Combo '{combo_name}' not found, skipping")
                 continue
-            
+
             combo_id = combo_map[combo_name]
-            
+
             # Build models array
             models = []
             for i, m in enumerate(FLAGSHIP_MODELS):
@@ -106,7 +106,7 @@ async def main():
                     "weight": 0,
                     "label": m['name']
                 })
-            
+
             # Update combo
             update_data = {
                 "models": models,
@@ -118,18 +118,18 @@ async def main():
                     "trackMetrics": True
                 }
             }
-            
+
             resp = await client.put(
                 f"{BASE_URL}/api/combos/{combo_id}",
                 headers=headers,
                 json=update_data
             )
-            
+
             if resp.status_code == 200:
                 print(f"  ✅ {combo_name}: {len(models)} models updated")
             else:
                 print(f"  ❌ {combo_name}: {resp.status_code} - {resp.text[:100]}")
-        
+
         print("\n✅ All combos updated with 42 flagship models!")
 
 asyncio.run(main())

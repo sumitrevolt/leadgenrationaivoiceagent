@@ -11,10 +11,10 @@ Non-destructive diagnostic tool that inspects:
 
 from __future__ import annotations
 
+import json
 import os
 import sys
-import json
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Ensure project root is in path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,20 +22,20 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from app.platform.agent_registry import (
-    build_registry,
-    Lane,
-    HARD_OFF,
-    LIVE,
     DRAFT,
-    SHADOW,
-    PROPOSAL,
+    HARD_OFF,
     INBOUND_READY,
+    LIVE,
+    PROPOSAL,
+    SHADOW,
+    Lane,
+    build_registry,
 )
 
 
-def run_audit() -> Dict[str, Any]:
+def run_audit() -> dict[str, Any]:
     registry = build_registry()
-    print(f"=== 31-AGENT RUNTIME & ORCHESTRATION AUDIT ===")
+    print("=== 31-AGENT RUNTIME & ORCHESTRATION AUDIT ===")
     print(f"Total Agents Registered: {len(registry)}\n")
 
     summary_counts = {

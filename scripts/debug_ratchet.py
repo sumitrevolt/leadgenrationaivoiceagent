@@ -1,10 +1,12 @@
 """Debug runtime-data path scan to find 12 new entries needing allowlist."""
 import sys
+
 sys.path.insert(0, r'.')
 from pathlib import Path
+
 from app.platform import runtime_data_allowlist as _allow
-from app.platform import runtime_data_scan as _scan
 from app.platform import runtime_data_ratchet as _ratchet
+from app.platform import runtime_data_scan as _scan
 
 repo = Path(r'C:\Users\Ratanshila\.openclaw\workspace')
 entries = _allow.load()
@@ -17,14 +19,14 @@ print(f'Bad findings (unddeclared/ambiguous): {len(bad)}')
 
 # Run ratchet to see new unresolved
 verdict = _ratchet.evaluate(findings)
-print(f'\nRatchet verdict:')
+print('\nRatchet verdict:')
 print(f'  unresolved now: {verdict["unresolved_now"]}')
 print(f'  newly unresolved: {len(verdict["new_unresolved"])}')
 print(f'  resolved since baseline: {len(verdict["resolved"])}')
 print(f'  removed since baseline: {len(verdict["removed"])}')
 
 if verdict["new_unresolved"]:
-    print(f'\nNewly unresolved findings:')
+    print('\nNewly unresolved findings:')
     for f in verdict["new_unresolved"]:
         print(f'  {f["file"]}:{f["line"]}  {f["operation"]} - {f["path_expression"][:80]} - {f["classification"]}')
 

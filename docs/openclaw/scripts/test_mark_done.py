@@ -1,4 +1,5 @@
 from app.platform.reply_agent import hot_queue, make_hq_done_token, mark_handled
+
 rows = hot_queue(limit=3, scope='boss')
 print('Total:', len(rows))
 for i, r in enumerate(rows):

@@ -9,10 +9,10 @@ falls to PAYMENT_REVIEW_REQUIRED on ambiguity.
 Idempotent: same transaction never credits twice.
 """
 
-import os
-import sys
-import re
 import json
+import os
+import re
+import sys
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -47,21 +47,21 @@ def scan_and_reconcile():
     """Main reconciliation loop."""
     conn = get_connection()
     cursor = conn.cursor()
-    
+
     try:
         # Scan for pending UPI submissions
         cursor.execute("""
-            SELECT id, customer_id, invoice_id, amount, provider_txn_id, 
+            SELECT id, customer_id, invoice_id, amount, provider_txn_id,
                    reference_id, received_at, status
             FROM upi_submissions
             WHERE status = 'PENDING'
             ORDER BY received_at ASC
         """)
         events = cursor.fetchall()
-        
+
         for event in events:
             event_id, customer_id, invoice_id, amount, provider_txn_id, reference_id, received_at, status = event
-            
+
             # Fetch invoice details
             cursor.execute("""
                 SELECT id, customer_id, expected_amount, status, campaign_eligible
@@ -69,12 +69,12 @@ def scan_and_reconcile():
                 WHERE id = %s
             """, (invoice_id,))
             invoice = cursor.fetchone()
-            
+
             if not invoice:
                 continue
-            
+
             inv_id, inv_customer_id, expected_amount, inv_status, inv_campaign_eligible = invoice
-            
+
             # Check: invoice already paid
             if inv_status == 'PAID':
                 cursor.execute("""
@@ -82,10 +82,10 @@ def scan_and_reconcile():
                 """, (event_id,))
                 conn.commit()
                 continue
-            
+
             # Idempotency: transaction already consumed
             cursor.execute("""
-                SELECT COUNT(*) FROM upi_submissions 
+                SELECT COUNT(*) FROM upi_submissions
                 WHERE provider_txn_id = %s AND status = 'VERIFIED_PAID'
             """, (provider_txn_id,))
             if cursor.fetchone()[0] > 0:
@@ -94,7 +94,7 @@ def scan_and_reconcile():
                 """, (event_id,))
                 conn.commit()
                 continue
-            
+
             # Amount match check
             if Decimal(str(amount)) != Decimal(str(expected_amount)):
                 cursor.execute("""
@@ -102,7 +102,7 @@ def scan_and_reconcile():
                 """, (event_id,))
                 conn.commit()
                 continue
-            
+
             # Customer/Reference match check
             if customer_id != inv_customer_id:
                 cursor.execute("""
@@ -110,7 +110,7 @@ def scan_and_reconcile():
                 """, (event_id,))
                 conn.commit()
                 continue
-            
+
             # Campaign eligibility check
             if not is_campaign_eligible(received_at):
                 cursor.execute("""
@@ -118,39 +118,39 @@ def scan_and_reconcile():
                 """, (event_id,))
                 conn.commit()
                 continue
-            
+
             # ALL CHECKS PASSED → VERIFIED_PAID
             cursor.execute("""
                 UPDATE upi_submissions SET status = 'VERIFIED_PAID' WHERE id = %s
             """, (event_id,))
-            
+
             # Settle invoice
             cursor.execute("""
-                UPDATE invoices SET status = 'PAID', paid_at = NOW(), verified_at = NOW(), 
+                UPDATE invoices SET status = 'PAID', paid_at = NOW(), verified_at = NOW(),
                     transaction_id = %s, verified = TRUE
                 WHERE id = %s
             """, (provider_txn_id, invoice_id))
-            
+
             # Update ledger / cash scoreboard
             cursor.execute("""
                 UPDATE campaign_ledger SET verified_cash_collected = verified_cash_collected + %s WHERE id = 1
             """, (Decimal(str(amount)),))
-            
+
             # Trigger idempotent provisioning
             cursor.execute("""
                 CALL trigger_provisioning(%s)
             """, (provider_txn_id,))
-            
+
             # Record audit trail
             cursor.execute("""
                 INSERT INTO payment_audit (invoice_id, transaction_id, amount, verified_at, verified_by)
                 VALUES (%s, %s, %s, NOW(), 'AUTOMATED_RECONCILIATION')
             """, (invoice_id, provider_txn_id, amount))
-            
+
             conn.commit()
-        
+
         return {'scanned': len(events)}
-    
+
     finally:
         conn.close()
 

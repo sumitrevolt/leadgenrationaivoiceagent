@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Read the last few #admin messages (read-only)."""
 from __future__ import annotations
-import ctypes, json, os, subprocess, sys
+
+import ctypes
+import json
+import os
+import subprocess
+import sys
 from ctypes import wintypes
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
 RELAY = "https://leadsgenai.communities.buzz.xyz"
