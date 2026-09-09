@@ -192,7 +192,8 @@ async def smartflo_test_call(
 
     Body (JSON):
         to (str, required):     Destination number (10-12 digit Indian number)
-        caller_id (str, optional): DID to show to customer (defaults to TATA_SMARTFLO_DID)
+        caller_id (str, optional): DID override. When omitted, Smartflo uses
+            the DID configured on the Click-to-Call API key.
         call_timeout (int, optional): Max call duration in seconds (default 300)
         niche (str, optional):  Niche key for voice bot (default from env SMARTFLO_DEFAULT_NICHE)
 
@@ -257,7 +258,10 @@ async def smartflo_test_call(
         "placed": placed,
         "ref_id": ref_id,
         "to": to_number,
-        "caller_id": caller_id or client.did,
+        # The API key is the provider-side source of truth when no override is
+        # supplied. Do not report the optional env DID as if it was sent.
+        "caller_id": caller_id or None,
+        "caller_id_source": "request_override" if caller_id else "smartflo_api_key",
         "call_timeout": call_timeout,
         "smartflo_response": result.get("body"),
         "status_code": result.get("status_code"),
@@ -272,7 +276,7 @@ async def smartflo_test_call(
             if placed
             else [
                 "Check TATA_SMARTFLO_API_TOKEN / API_KEY are valid.",
-                "Verify DID is active in Smartflo portal.",
+                "Verify the DID and Voice Bot destination are assigned to this Click-to-Call API key.",
                 "Check Smartflo account balance/plan status.",
             ]
         ),

@@ -21,7 +21,8 @@ comes via webhooks. Webhook URL must be configured in the Smartflo portal.
 Env vars (from .env):
   TATA_SMARTFLO_API_TOKEN  - Bearer token from Smartflo portal
   TATA_SMARTFLO_API_KEY    - Click-to-Call Support API Key
-  TATA_SMARTFLO_DID        - Caller ID DID (bundled with license)
+  TATA_SMARTFLO_DID        - Optional display/status DID. The C2C API key
+                             owns the default DID/destination configuration.
 
 NOTE: Authorization header becomes MANDATORY after 30 Sep 2026.
       We always send it.
@@ -105,7 +106,8 @@ class TataSmartfloClient:
 
         Args:
             to:             Customer's phone number (10-12 digit Indian number)
-            caller_id:      DID to show to customer (defaults to TATA_SMARTFLO_DID)
+            caller_id:      Optional DID override. When omitted, Smartflo uses
+                            the DID configured on the C2C API key.
             call_timeout:   Max call duration in seconds (auto-hangup)
             customer_ring_timeout: Max seconds to ring customer (10-30)
             custom_identifier: Up to 10 custom key-value pairs for webhook correlation
@@ -129,15 +131,21 @@ class TataSmartfloClient:
                 },
             }
 
-        # Build clean 10-digit number for Smartflo API
+        # Build clean number for Smartflo API. For C2C Support, the API key is
+        # the source of truth for the configured DID and destination. Sending
+        # an env DID here can override that mapping and Smartflo rejects it
+        # when the DID is not valid for this particular key.
         to_clean = self._clean_number(to)
-        caller = caller_id or self.did
+        caller = (caller_id or "").strip()
 
         payload: dict[str, Any] = {
             "customer_number": to_clean,
             "api_key": self.api_key,
             "async": 1,  # mandatory: Smartflo only supports async mode
         }
+        # `caller_id` is optional in Smartflo's C2C Support contract. Only send
+        # it when the caller explicitly requested an override; otherwise let
+        # the API key select its provisioned/verified DID.
         if caller:
             payload["caller_id"] = self._clean_number(caller)
         if call_timeout:

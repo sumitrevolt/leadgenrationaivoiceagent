@@ -221,8 +221,8 @@ class TestSuccess:
         }
         assert expected_keys.issubset(body.keys()), f"Missing keys: {expected_keys - body.keys()}"
 
-    def test_caller_id_defaults_to_did(self):
-        """When caller_id not provided, defaults to client.did."""
+    def test_caller_id_uses_provider_api_key_by_default(self):
+        """No caller_id override means the provider API key selects the DID."""
         from starlette.testclient import TestClient
 
         _override_admin()
@@ -233,7 +233,8 @@ class TestSuccess:
                     json={"to": "9876543210"},
                 )
         body = r.json()
-        assert body["caller_id"] == "918012345678"
+        assert body["caller_id"] is None
+        assert body["caller_id_source"] == "smartflo_api_key"
 
     def test_custom_caller_id_passed_through(self):
         """Explicit caller_id in body is used."""
