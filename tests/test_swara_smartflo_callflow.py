@@ -59,8 +59,7 @@ _MULAW_SILENCE_BYTE = 0xFF  # mulaw encoding of PCM 0
 def _pcm16(freq: float = 440.0, rate: int = 8000, n: int = 160, amp: int = 9000) -> bytes:
     """Build n samples of a PCM16 mono sine tone."""
     return b"".join(
-        struct.pack("<h", int(amp * math.sin(2 * math.pi * freq * i / rate)))
-        for i in range(n)
+        struct.pack("<h", int(amp * math.sin(2 * math.pi * freq * i / rate))) for i in range(n)
     )
 
 
@@ -205,8 +204,8 @@ def _build_session(
     async def _fake_llm_reply(user_text: str) -> str:
         return "Bilkul sir, main aapki madad kar sakti hoon."
 
-    sess._tts = _fake_tts            # type: ignore[method-assign]
-    sess._stt = _fake_stt            # type: ignore[method-assign]
+    sess._tts = _fake_tts  # type: ignore[method-assign]
+    sess._stt = _fake_stt  # type: ignore[method-assign]
     sess._llm_reply = _fake_llm_reply  # type: ignore[method-assign]
     return sess
 
@@ -393,13 +392,27 @@ def test_pick_trunk_returns_non_empty_caller_id_for_vobiz(
 ) -> None:
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
-    _set(monkeypatch,
-         VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test",
-         VOBIZ_CALLER_ID=_VOBIZ_DID)
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
+    _set(
+        monkeypatch,
+        VOBIZ_AUTH_ID="MA_TEST",
+        VOBIZ_AUTH_TOKEN="tok_test",
+        VOBIZ_CALLER_ID=_VOBIZ_DID,
+    )
 
     provider, caller_id = pick_trunk(lead=None)
     assert provider == "vobiz"
@@ -413,12 +426,24 @@ def test_pick_trunk_never_returns_trunk_without_caller_id(
     """A trunk with creds but no DID must be skipped, not returned with ''."""
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
-    _set(monkeypatch, VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test",
-         VOBIZ_CALLER_ID="")  # creds present, DID missing -> the reported prod bug
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
+    _set(
+        monkeypatch, VOBIZ_AUTH_ID="MA_TEST", VOBIZ_AUTH_TOKEN="tok_test", VOBIZ_CALLER_ID=""
+    )  # creds present, DID missing -> the reported prod bug
 
     provider, caller_id = pick_trunk(lead=None)
     assert (provider, caller_id) == ("none", ""), (
@@ -457,10 +482,21 @@ def test_pick_trunk_resolves_did_for_each_armed_trunk(
 ) -> None:
     from app.telephony.trunks import pick_trunk
 
-    _clear(monkeypatch, "VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID",
-           "JIO_SIP_HOST", "JIO_SIP_USER", "JIO_SIP_PASS", "JIO_SIP_DID",
-           "JIO_TRUNK_ENABLED", "TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY",
-           "TATA_SMARTFLO_DID", "TATA_SMARTFLO_ENABLED")
+    _clear(
+        monkeypatch,
+        "VOBIZ_AUTH_ID",
+        "VOBIZ_AUTH_TOKEN",
+        "VOBIZ_CALLER_ID",
+        "JIO_SIP_HOST",
+        "JIO_SIP_USER",
+        "JIO_SIP_PASS",
+        "JIO_SIP_DID",
+        "JIO_TRUNK_ENABLED",
+        "TATA_SMARTFLO_API_TOKEN",
+        "TATA_SMARTFLO_API_KEY",
+        "TATA_SMARTFLO_DID",
+        "TATA_SMARTFLO_ENABLED",
+    )
     _set(monkeypatch, **provider_env)
 
     provider, caller_id = pick_trunk(lead={"transactional": True})
@@ -496,10 +532,12 @@ def test_smartflo_client_did_resolves_from_env(monkeypatch: pytest.MonkeyPatch) 
     """TataSmartfloClient.did is what /test-call shows as the caller-ID."""
     from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
-    _set(monkeypatch,
-         TATA_SMARTFLO_API_TOKEN="tok_test",
-         TATA_SMARTFLO_API_KEY="key_test",
-         TATA_SMARTFLO_DID=_TATA_DID)
+    _set(
+        monkeypatch,
+        TATA_SMARTFLO_API_TOKEN="tok_test",
+        TATA_SMARTFLO_API_KEY="key_test",
+        TATA_SMARTFLO_DID=_TATA_DID,
+    )
     try:
         from app.config import settings
 
