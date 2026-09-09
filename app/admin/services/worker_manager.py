@@ -48,10 +48,7 @@ def list_profiles() -> list[str]:
     if not os.path.isdir(d):
         return []
     try:
-        return sorted(
-            name for name in os.listdir(d)
-            if os.path.isdir(os.path.join(d, name))
-        )
+        return sorted(name for name in os.listdir(d) if os.path.isdir(os.path.join(d, name)))
     except OSError:
         return []
 
@@ -62,8 +59,7 @@ def _get_hermes_processes() -> list[dict[str, Any]]:
     try:
         # Use tasklist for reliable Windows process listing
         result = subprocess.run(
-            ["tasklist", "/FO", "CSV", "/NH"],
-            capture_output=True, text=True, timeout=10
+            ["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
             for line in result.stdout.strip().split("\n"):
@@ -76,9 +72,15 @@ def _get_hermes_processes() -> list[dict[str, Any]]:
                             pid = int(pid_str)
                             # Get memory and command line via PowerShell
                             ps_result = subprocess.run(
-                                ["powershell", "-NoProfile", "-Command",
-                                 f"Get-CimInstance Win32_Process -Filter 'ProcessId={pid}' | Select-Object CommandLine, WorkingSetSize | ConvertTo-Json"],
-                                capture_output=True, text=True, timeout=5
+                                [
+                                    "powershell",
+                                    "-NoProfile",
+                                    "-Command",
+                                    f"Get-CimInstance Win32_Process -Filter 'ProcessId={pid}' | Select-Object CommandLine, WorkingSetSize | ConvertTo-Json",
+                                ],
+                                capture_output=True,
+                                text=True,
+                                timeout=5,
                             )
                             cmdline = ""
                             mem = 0
@@ -86,12 +88,14 @@ def _get_hermes_processes() -> list[dict[str, Any]]:
                                 pdata = json.loads(ps_result.stdout)
                                 cmdline = pdata.get("CommandLine", "") or ""
                                 mem = int(pdata.get("WorkingSetSize") or 0)
-                            procs.append({
-                                "Name": name,
-                                "ProcessId": pid,
-                                "CommandLine": cmdline,
-                                "WorkingSetSize": mem,
-                            })
+                            procs.append(
+                                {
+                                    "Name": name,
+                                    "ProcessId": pid,
+                                    "CommandLine": cmdline,
+                                    "WorkingSetSize": mem,
+                                }
+                            )
                         except (ValueError, json.JSONDecodeError):
                             continue
     except Exception as e:
@@ -122,7 +126,7 @@ def _read_worker_task(profile: str) -> str | None:
             files = sorted(os.listdir(memory_dir), reverse=True)
             if files:
                 latest = os.path.join(memory_dir, files[0])
-                with open(latest, "r", encoding="utf-8", errors="ignore") as f:
+                with open(latest, encoding="utf-8", errors="ignore") as f:
                     content = f.read(500)
                     # Extract first meaningful line as task
                     for line in content.split("\n"):
@@ -144,23 +148,27 @@ def get_workers() -> list[dict[str, Any]]:
         proc = _match_profile_to_process(profile, processes)
         if proc:
             ws = int(proc.get("WorkingSetSize") or proc.get("WorkingSet64") or 0)
-            workers.append({
-                "name": profile,
-                "status": "active",
-                "pid": int(proc.get("ProcessId") or 0),
-                "ram_mb": round(ws / (1024 * 1024), 1),
-                "category": WORKER_CATEGORIES.get(profile, "Agent"),
-                "current_task": _read_worker_task(profile),
-            })
+            workers.append(
+                {
+                    "name": profile,
+                    "status": "active",
+                    "pid": int(proc.get("ProcessId") or 0),
+                    "ram_mb": round(ws / (1024 * 1024), 1),
+                    "category": WORKER_CATEGORIES.get(profile, "Agent"),
+                    "current_task": _read_worker_task(profile),
+                }
+            )
         else:
-            workers.append({
-                "name": profile,
-                "status": "idle",
-                "pid": None,
-                "ram_mb": 0,
-                "category": WORKER_CATEGORIES.get(profile, "Agent"),
-                "current_task": None,
-            })
+            workers.append(
+                {
+                    "name": profile,
+                    "status": "idle",
+                    "pid": None,
+                    "ram_mb": 0,
+                    "category": WORKER_CATEGORIES.get(profile, "Agent"),
+                    "current_task": None,
+                }
+            )
 
     # Sort: active first, then by RAM
     workers.sort(key=lambda x: (0 if x["status"] == "active" else 1, -x["ram_mb"]))
@@ -184,17 +192,28 @@ def kill_worker(name: str) -> dict[str, Any]:
     """Kill a worker process by profile name."""
     result = subprocess.run(
         ["taskkill", "/F", "/FI", f"WINDOWTITLE eq *{name}*"],
-        capture_output=True, text=True, timeout=10
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     if result.returncode == 0:
         return {"ok": True}
     # Try by command line match
     result2 = subprocess.run(
-        ["powershell", "-NoProfile", "-Command",
-         f"Get-CimInstance Win32_Process | Where-Object {{$_.CommandLine -like '*{name}*'}} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force }}"],
-        capture_output=True, text=True, timeout=10
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            f"Get-CimInstance Win32_Process | Where-Object {{$_.CommandLine -like '*{name}*'}} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force }}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
-    return {"ok": result2.returncode == 0, "error": result2.stderr if result2.returncode != 0 else None}
+    return {
+        "ok": result2.returncode == 0,
+        "error": result2.stderr if result2.returncode != 0 else None,
+    }
 
 
 def get_worker_count() -> dict[str, int]:

@@ -84,7 +84,9 @@ async def restart(name: str, _user=Depends(require_admin)) -> dict:
 
 
 @router.get("/containers/{name}/logs")
-async def logs(name: str, lines: int = Query(100, ge=1, le=1000), _user=Depends(require_admin)) -> dict:
+async def logs(
+    name: str, lines: int = Query(100, ge=1, le=1000), _user=Depends(require_admin)
+) -> dict:
     """Get container logs."""
     try:
         return get_logs(name, lines)

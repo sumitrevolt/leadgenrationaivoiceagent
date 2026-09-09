@@ -1,4 +1,5 @@
 """Task Ledger service: SQLite-backed task management with auto-assign and duplicate detection."""
+
 from __future__ import annotations
 
 import difflib
@@ -8,13 +9,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from app.admin.models import KanbanBoard, Priority, Status, Task, TaskCreate, TaskUpdate, WorkerStatus
+from app.admin.models import (
+    KanbanBoard,
+    Priority,
+    Status,
+    Task,
+    TaskCreate,
+    TaskUpdate,
+    WorkerStatus,
+)
 
 # Known workers from Hermes profiles
 WORKERS = [
-    "board", "claude", "engineering", "guardian", "hunter",
-    "openclaw", "operations", "pilot", "platform", "sales",
-    "success", "verdant", "workbuddy",
+    "board",
+    "claude",
+    "engineering",
+    "guardian",
+    "hunter",
+    "openclaw",
+    "operations",
+    "pilot",
+    "platform",
+    "sales",
+    "success",
+    "verdant",
+    "workbuddy",
 ]
 
 DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "admin_tasks.db"
@@ -35,9 +54,18 @@ def _get_conn() -> sqlite3.Connection:
 
 def _row_to_task(row) -> Task:
     if isinstance(row, tuple):
-        row = {"id": row[0], "title": row[1], "description": row[2], "owner": row[3],
-               "priority": row[4], "status": row[5], "deadline": row[6], "evidence": row[7],
-               "created_at": row[8], "updated_at": row[9]}
+        row = {
+            "id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "owner": row[3],
+            "priority": row[4],
+            "status": row[5],
+            "deadline": row[6],
+            "evidence": row[7],
+            "created_at": row[8],
+            "updated_at": row[9],
+        }
     return Task(
         id=row["id"],
         title=row["title"],
@@ -109,7 +137,7 @@ def create_task(task_in: TaskCreate) -> Task:
         conn.close()
 
 
-def get_task(task_id: int) -> Optional[Task]:
+def get_task(task_id: int) -> Task | None:
     """Fetch a single task by id."""
     init_db()
     conn = _get_conn()
@@ -121,9 +149,9 @@ def get_task(task_id: int) -> Optional[Task]:
 
 
 def list_tasks(
-    status_filter: Optional[str] = None,
-    owner_filter: Optional[str] = None,
-    priority_filter: Optional[str] = None,
+    status_filter: str | None = None,
+    owner_filter: str | None = None,
+    priority_filter: str | None = None,
 ) -> list[Task]:
     """Return all tasks with optional filters, sorted by priority then created_at."""
     init_db()
@@ -148,7 +176,7 @@ def list_tasks(
         conn.close()
 
 
-def update_task(task_id: int, task_upd: TaskUpdate) -> Optional[Task]:
+def update_task(task_id: int, task_upd: TaskUpdate) -> Task | None:
     """Patch fields on an existing task. Returns updated task or None."""
     existing = get_task(task_id)
     if existing is None:
@@ -212,7 +240,7 @@ def get_idle_workers() -> list[str]:
     return [ws.name for ws in get_worker_statuses() if ws.is_idle]
 
 
-def auto_assign(task: Task) -> Optional[str]:
+def auto_assign(task: Task) -> str | None:
     """Assign a task to an idle worker with the fewest tasks. Returns worker name or None."""
     idle = get_idle_workers()
     if not idle:
@@ -313,11 +341,13 @@ def detect_duplicates(new_title: str, threshold: float = 0.75) -> list[dict]:
     for row in rows:
         ratio = difflib.SequenceMatcher(None, new_lower, row["title"].lower()).ratio()
         if ratio >= threshold:
-            matches.append({
-                "task_id": row["id"],
-                "title": row["title"],
-                "similarity": round(ratio, 3),
-                "matched_title": new_title,
-            })
+            matches.append(
+                {
+                    "task_id": row["id"],
+                    "title": row["title"],
+                    "similarity": round(ratio, 3),
+                    "matched_title": new_title,
+                }
+            )
     matches.sort(key=lambda m: m["similarity"], reverse=True)
     return matches

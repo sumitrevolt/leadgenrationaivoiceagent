@@ -19,10 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.admin.main import admin_router as admin_command_center_router
 from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
-from app.admin.main import admin_router as admin_command_center_router
 from app.api.agents import router as agents_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
@@ -652,9 +652,7 @@ app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 try:
     from app.api.buzz_mcp_tools import router as buzz_mcp_router
 
-    app.include_router(
-        buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"]
-    )
+    app.include_router(buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"])
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Buzz MCP tools router not mounted: {_e}")
 # Telephony provider callbacks (Vobiz voice + status). Sentry's FastApiIntegration
@@ -714,7 +712,9 @@ try:
     from app.api.internal_media import router as content_internal_router
 
     app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
-    app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
+    app.include_router(
+        content_public_router, prefix="/api", tags=["ContentOS"]
+    )  # /api/content-os/*  (admin/owner)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentOS router not mounted: {_e}")
 try:

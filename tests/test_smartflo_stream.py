@@ -93,11 +93,13 @@ class _FakeWS:
 
     def enqueue_stop(self, reason: str = "caller hung up") -> None:
         """Convenience: enqueue a stop event."""
-        self.enqueue({
-            "event": "stop",
-            "stop": {"reason": reason},
-            "streamSid": "test-stream-001",
-        })
+        self.enqueue(
+            {
+                "event": "stop",
+                "stop": {"reason": reason},
+                "streamSid": "test-stream-001",
+            }
+        )
 
     def enqueue_disconnect(self) -> None:
         """Simulate WebSocket disconnect (closes the receive loop)."""
@@ -199,21 +201,23 @@ class TestStartEvent:
     async def test_start_extracts_metadata(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-abc-123",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-abc-123",
-                "callSid": "CA-xyz-789",
-                "from": "919876543210",
-                "to": "918012345678",
-                "direction": "outbound",
-                "customParameters": {
-                    "niche": "salon_spa",
-                    "client_id": "jiya-makeover",
+                "start": {
+                    "streamSid": "MZ-abc-123",
+                    "callSid": "CA-xyz-789",
+                    "from": "919876543210",
+                    "to": "918012345678",
+                    "direction": "outbound",
+                    "customParameters": {
+                        "niche": "salon_spa",
+                        "client_id": "jiya-makeover",
+                    },
                 },
-            },
-        })
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s.stream_sid == "MZ-abc-123"
@@ -226,11 +230,13 @@ class TestStartEvent:
     async def test_start_is_provider_metadata_and_not_acked(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-test",
-            "start": {"streamSid": "MZ-test", "callSid": "CA-test"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-test",
+                "start": {"streamSid": "MZ-test", "callSid": "CA-test"},
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         # Smartflo sends start metadata to the endpoint; only media/mark/clear
@@ -251,16 +257,18 @@ class TestStartEvent:
     async def test_start_sets_lead_phone_from_number(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-1",
-                "callSid": "CA-1",
-                "from": "919876543210",
-                "to": "918012345678",
-            },
-        })
+                "start": {
+                    "streamSid": "MZ-1",
+                    "callSid": "CA-1",
+                    "from": "919876543210",
+                    "to": "918012345678",
+                },
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s._lead_phone == "919876543210"
@@ -268,15 +276,17 @@ class TestStartEvent:
     async def test_start_overrides_niche_from_params(self):
         ws = _FakeWS()
         s = _session(ws, niche="general")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-1",
-                "callSid": "CA-1",
-                "customParameters": {"niche": "solar"},
-            },
-        })
+                "start": {
+                    "streamSid": "MZ-1",
+                    "callSid": "CA-1",
+                    "customParameters": {"niche": "solar"},
+                },
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s.niche == "solar"
@@ -290,17 +300,21 @@ class TestMediaEvent:
         ws = _FakeWS()
         s = _session(ws)
         # Send start first
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         # Send 5 media events with silence
         for _ in range(5):
-            ws.enqueue({
-                "event": "media",
-                "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
-            })
+            ws.enqueue(
+                {
+                    "event": "media",
+                    "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
+                }
+            )
         ws.enqueue_stop()
         await s.handle()
         assert s._media_frames == 5
@@ -309,11 +323,13 @@ class TestMediaEvent:
     async def test_media_event_with_empty_payload_skipped(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue({"event": "media", "media": {}})  # no payload
         ws.enqueue_stop()
         await s.handle()
@@ -323,15 +339,19 @@ class TestMediaEvent:
         """Smartflo Twilio-style: payload nested under media key."""
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
-        ws.enqueue({
-            "event": "media",
-            "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
+        ws.enqueue(
+            {
+                "event": "media",
+                "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s._media_frames == 1
@@ -340,15 +360,19 @@ class TestMediaEvent:
         """Speech-like audio should register nonzero RMS."""
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
-        ws.enqueue({
-            "event": "media",
-            "media": {"payload": _make_speech_mulaw(160), "chunk": "1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
+        ws.enqueue(
+            {
+                "event": "media",
+                "media": {"payload": _make_speech_mulaw(160), "chunk": "1"},
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s._caller_rms_max > 0
@@ -369,11 +393,13 @@ class TestDTMF:
     async def test_dtmf_9_triggers_cleanup(self):
         ws = _FakeWS()
         s = _session(ws, lead_phone="919876543210")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue({"event": "dtmf", "dtmf": {"digit": "9"}})
         await s.handle()
         assert s._closed is True
@@ -384,11 +410,13 @@ class TestDTMF:
     async def test_dtmf_other_digit_ignored(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue({"event": "dtmf", "dtmf": {"digit": "5"}})
         ws.enqueue_stop()
         await s.handle()
@@ -405,11 +433,13 @@ class TestMarkEvent:
     async def test_mark_does_not_crash(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "mark",
-            "streamSid": "MZ-1",
-            "mark": {"name": "bot-100"},
-        })
+        ws.enqueue(
+            {
+                "event": "mark",
+                "streamSid": "MZ-1",
+                "mark": {"name": "bot-100"},
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s._closed is True
@@ -443,11 +473,13 @@ class TestGreeting:
         """Start event should trigger greeting (if TTS available)."""
         ws = _FakeWS()
         s = _session(ws, opening_line="Namaste! Main Swara bol rahi hoon.")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue_stop()
         with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
             with patch.object(s, "_say", new_callable=AsyncMock) as mock_say:
@@ -461,11 +493,13 @@ class TestGreeting:
         """_maybe_greet is idempotent."""
         ws = _FakeWS()
         s = _session(ws, opening_line="Namaste!")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue_stop()
         with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
             with patch.object(s, "_say", new_callable=AsyncMock) as mock_say:
@@ -476,11 +510,13 @@ class TestGreeting:
     async def test_default_greeting_includes_client_name(self):
         ws = _FakeWS()
         s = _session(ws, client_name="Sharma Salon")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue_stop()
         with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
             with patch.object(s, "_say", new_callable=AsyncMock):
@@ -501,35 +537,43 @@ class TestFullSequence:
         s = _session(ws, opening_line="Hello!")
         # Enqueue the full sequence
         ws.enqueue({"event": "connected"})
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-full-001",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-full-001",
-                "callSid": "CA-full-001",
-                "from": "919876543210",
-                "to": "918012345678",
-                "direction": "inbound",
-            },
-        })
+                "start": {
+                    "streamSid": "MZ-full-001",
+                    "callSid": "CA-full-001",
+                    "from": "919876543210",
+                    "to": "918012345678",
+                    "direction": "inbound",
+                },
+            }
+        )
         # 10 silence frames
         for _ in range(10):
-            ws.enqueue({
-                "event": "media",
-                "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
-            })
+            ws.enqueue(
+                {
+                    "event": "media",
+                    "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
+                }
+            )
         # 3 speech frames
         for _ in range(3):
-            ws.enqueue({
-                "event": "media",
-                "media": {"payload": _make_speech_mulaw(160), "chunk": "1"},
-            })
+            ws.enqueue(
+                {
+                    "event": "media",
+                    "media": {"payload": _make_speech_mulaw(160), "chunk": "1"},
+                }
+            )
         # 5 more silence frames (turn boundary)
         for _ in range(5):
-            ws.enqueue({
-                "event": "media",
-                "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
-            })
+            ws.enqueue(
+                {
+                    "event": "media",
+                    "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
+                }
+            )
         # A mark event
         ws.enqueue({"event": "mark", "streamSid": "MZ-full-001", "mark": {"name": "end"}})
         # Stop
@@ -556,10 +600,12 @@ class TestFullSequence:
         ws = _FakeWS()
         s = _session(ws)
         # Media BEFORE start
-        ws.enqueue({
-            "event": "media",
-            "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
-        })
+        ws.enqueue(
+            {
+                "event": "media",
+                "media": {"payload": _make_silence_mulaw(160), "chunk": "1"},
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s._media_frames == 1  # counted but no stream_sid
@@ -581,7 +627,9 @@ class TestTranscriptPersistence:
         s.from_number = "919876543210"
         s.to_number = "918012345678"
 
-        with patch("app.telephony.smartflo_stream._call_transcripts_dir", return_value=str(tmp_path)):
+        with patch(
+            "app.telephony.smartflo_stream._call_transcripts_dir", return_value=str(tmp_path)
+        ):
             await s._persist_transcript()
 
         files = list(tmp_path.glob("smartflo_*.json"))
@@ -596,7 +644,9 @@ class TestTranscriptPersistence:
         ws = _FakeWS()
         s = _session(ws)
         s.hist = []
-        with patch("app.telephony.smartflo_stream._call_transcripts_dir", return_value=str(tmp_path)):
+        with patch(
+            "app.telephony.smartflo_stream._call_transcripts_dir", return_value=str(tmp_path)
+        ):
             await s._persist_transcript()
         files = list(tmp_path.glob("smartflo_*.json"))
         assert len(files) == 0
@@ -609,16 +659,18 @@ class TestCustomParameters:
     async def test_lead_phone_from_start_params(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-1",
-                "callSid": "CA-1",
-                "from": "919999999999",
-                "customParameters": {"lead_phone": "918888888888"},
-            },
-        })
+                "start": {
+                    "streamSid": "MZ-1",
+                    "callSid": "CA-1",
+                    "from": "919999999999",
+                    "customParameters": {"lead_phone": "918888888888"},
+                },
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         # lead_phone from customParameters should win over 'from'
@@ -627,15 +679,17 @@ class TestCustomParameters:
     async def test_client_id_from_params(self):
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "streamSid": "MZ-1",
-                "callSid": "CA-1",
-                "customParameters": {"client_id": "jiya-makeover"},
-            },
-        })
+                "start": {
+                    "streamSid": "MZ-1",
+                    "callSid": "CA-1",
+                    "customParameters": {"client_id": "jiya-makeover"},
+                },
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s.client_id == "jiya-makeover"
@@ -769,17 +823,19 @@ class TestDemoReadinessRegressions:
         """Smartflo's exact casing is unconfirmed until the live call — accept both."""
         ws = _FakeWS()
         s = _session(ws)
-        ws.enqueue({
-            "event": "start",
-            "stream_sid": "SN-1",
-            "start": {
+        ws.enqueue(
+            {
+                "event": "start",
                 "stream_sid": "SN-1",
-                "call_sid": "CS-1",
-                "from": "919999999999",
-                "to": "918000000000",
-                "custom_parameters": {"niche": "salon", "client_id": "c-1"},
-            },
-        })
+                "start": {
+                    "stream_sid": "SN-1",
+                    "call_sid": "CS-1",
+                    "from": "919999999999",
+                    "to": "918000000000",
+                    "custom_parameters": {"niche": "salon", "client_id": "c-1"},
+                },
+            }
+        )
         ws.enqueue_stop()
         await s.handle()
         assert s.stream_sid == "SN-1"
@@ -791,11 +847,13 @@ class TestDemoReadinessRegressions:
         """§5 TRAI invariant: AI-disclosure at call start."""
         ws = _FakeWS()
         s = _session(ws, client_name="Sharma Salon")
-        ws.enqueue({
-            "event": "start",
-            "streamSid": "MZ-1",
-            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
-        })
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-1",
+                "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+            }
+        )
         ws.enqueue_stop()
         with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
             with patch.object(s, "_say", new_callable=AsyncMock):

@@ -54,6 +54,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 # ---------------------------------------------------------------------------
 # Capability detection (same pattern as vobiz_stream.py)
 # ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ def _groq_key() -> str:
     if not k:
         try:
             from app.config import settings
+
             k = (getattr(settings, "groq_api_key", "") or "").strip()
         except Exception:
             pass
@@ -86,10 +88,12 @@ TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 # audioop (stdlib ≤3.12, backport 3.13+)
 try:
     import audioop  # type: ignore
+
     _AUDIOOP_OK = True
 except Exception:
     try:
         import audioop_lts as audioop  # type: ignore
+
         _AUDIOOP_OK = True
     except Exception:
         audioop = None  # type: ignore
@@ -98,11 +102,11 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Audio constants
 # ---------------------------------------------------------------------------
-SMARTFLO_SAMPLE_RATE = 8000    # mulaw 8kHz
-INTERNAL_SAMPLE_RATE = 16000   # our pipeline runs at 16kHz
-FRAME_MS = 20                  # 20ms frames
-MULAW_FRAME_BYTES = 160        # 8kHz * 20ms = 160 bytes mulaw
-PCM16_FRAME_BYTES = 320        # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
+SMARTFLO_SAMPLE_RATE = 8000  # mulaw 8kHz
+INTERNAL_SAMPLE_RATE = 16000  # our pipeline runs at 16kHz
+FRAME_MS = 20  # 20ms frames
+MULAW_FRAME_BYTES = 160  # 8kHz * 20ms = 160 bytes mulaw
+PCM16_FRAME_BYTES = 320  # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
 
 # VAD thresholds (same as vobiz_stream defaults)
 _DEF_VAD_RMS = 300
@@ -233,6 +237,7 @@ def pcm16_to_wav(pcm16: bytes, rate: int = INTERNAL_SAMPLE_RATE) -> bytes:
 def _call_transcripts_dir() -> str:
     try:
         from app.platform.runtime_recording_paths import call_transcripts_dir
+
         return str(call_transcripts_dir())
     except Exception:
         return "data/call_transcripts"
@@ -387,6 +392,7 @@ class SmartfloStreamSession:
             if self.client_id:
                 try:
                     from app.marketing import clients_store
+
                     _c = clients_store.get_client(self.client_id)
                     if _c:
                         self.client_name = (
@@ -417,6 +423,7 @@ class SmartfloStreamSession:
             if str(digit) == "9":
                 try:
                     from app.telephony.consent_ledger import ConsentAction, persist_opt_out
+
                     persist_opt_out(
                         phone=self._lead_phone or "",
                         action=ConsentAction.OPT_OUT,
@@ -540,6 +547,7 @@ class SmartfloStreamSession:
     async def _groq_stt(self, pcm_16k: bytes) -> str:
         """Groq Whisper-large-v3 STT (free tier)."""
         import httpx
+
         key = _groq_key()
         # Groq expects a real audio container — wrap PCM16 16kHz in a WAV header
         wav = pcm16_to_wav(pcm_16k, INTERNAL_SAMPLE_RATE)
@@ -563,11 +571,13 @@ class SmartfloStreamSession:
     async def _gemini_stt(self, pcm_16k: bytes) -> str:
         """Gemini multimodal audio-in STT."""
         from app.voice_agent.free_ai import gemini_audio_transcribe
+
         return await gemini_audio_transcribe(pcm_16k, sample_rate=16000)
 
     async def _local_stt(self, pcm_16k: bytes) -> str:
         """Local vosk/faster-whisper STT fallback."""
         from app.voice_agent.free_ai import local_stt
+
         return await local_stt(pcm_16k, sample_rate=16000)
 
     # ------------------------------------------------------------------ #
@@ -593,6 +603,7 @@ class SmartfloStreamSession:
             if self._telecaller is None and not getattr(self, "_telecaller_tried", False):
                 self._telecaller_tried = True
                 from app.voice_agent.telecaller_brain import TelecallerBrain
+
                 self._telecaller = TelecallerBrain(
                     niche=self.niche,
                     client_id=self.client_id,
@@ -723,6 +734,7 @@ class SmartfloStreamSession:
     async def _tts(self, text: str) -> bytes:
         """Text → PCM16 16kHz audio via EdgeTTS."""
         import edge_tts
+
         rate = os.environ.get("SMARTFLO_TTS_RATE", "+26%")
         pitch = os.environ.get("SMARTFLO_TTS_PITCH", "+2Hz")
         voice = os.environ.get("SMARTFLO_TTS_VOICE", "hi-IN-SwaraNeural")
@@ -736,6 +748,7 @@ class SmartfloStreamSession:
             return b""
         # Decode MP3 → PCM16 via pydub
         from pydub import AudioSegment
+
         seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
         seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
         return seg.raw_data
@@ -759,14 +772,16 @@ class SmartfloStreamSession:
             payload_b64 = base64.b64encode(frame).decode()
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "media",
-                        "streamSid": self.stream_sid,
-                        "media": {
-                            "payload": payload_b64,
-                            "chunk": str(chunk_num),
-                        },
-                    }),
+                    self._send(
+                        {
+                            "event": "media",
+                            "streamSid": self.stream_sid,
+                            "media": {
+                                "payload": payload_b64,
+                                "chunk": str(chunk_num),
+                            },
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
@@ -778,11 +793,13 @@ class SmartfloStreamSession:
         # Send mark to signal end of playback
         if self.stream_sid:
             try:
-                await self._send({
-                    "event": "mark",
-                    "streamSid": self.stream_sid,
-                    "mark": {"name": f"bot-{chunk_num}"},
-                })
+                await self._send(
+                    {
+                        "event": "mark",
+                        "streamSid": self.stream_sid,
+                        "mark": {"name": f"bot-{chunk_num}"},
+                    }
+                )
             except Exception:
                 pass
         self._speaking = False
@@ -797,10 +814,12 @@ class SmartfloStreamSession:
         if self.stream_sid:
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "clear",
-                        "streamSid": self.stream_sid,
-                    }),
+                    self._send(
+                        {
+                            "event": "clear",
+                            "streamSid": self.stream_sid,
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except Exception:
@@ -861,6 +880,7 @@ class SmartfloStreamSession:
         # Meter call completion
         try:
             from app.telephony.post_call_hooks import meter_call_completion
+
             await meter_call_completion(
                 call_id=self.call_sid or self.stream_sid or "smartflo-unknown",
                 client_id=self.client_id,
@@ -881,6 +901,7 @@ class SmartfloStreamSession:
         if not self.hist:
             return
         import os
+
         transcript_dir = _call_transcripts_dir()
         os.makedirs(transcript_dir, exist_ok=True)
         ts = self._started_at.strftime("%Y%m%d_%H%M%S")

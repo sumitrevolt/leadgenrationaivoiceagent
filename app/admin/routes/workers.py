@@ -15,12 +15,12 @@ import logging
 from fastapi import APIRouter, Depends
 
 from app.admin.services.worker_manager import (
-    list_profiles,
-    get_workers,
     get_idle_workers,
     get_worker,
-    kill_worker,
     get_worker_count,
+    get_workers,
+    kill_worker,
+    list_profiles,
 )
 from app.api.auth_deps import require_admin
 
@@ -78,8 +78,9 @@ async def kill_worker_route(name: str, _user=Depends(require_admin)) -> dict:
 @router.post("/{name}/restart")
 async def restart_worker(name: str, _user=Depends(require_admin)) -> dict:
     """Restart a worker (kill + relaunch Hermes with profile)."""
-    import subprocess
     import os
+    import subprocess
+
     try:
         # Kill first
         kill_result = kill_worker(name)
@@ -98,8 +99,9 @@ async def restart_worker(name: str, _user=Depends(require_admin)) -> dict:
             return {"ok": False, "error": "hermes.exe not found in standard paths"}
         subprocess.Popen(
             [hermes_exe, "--profile", name],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
         )
         return {"ok": True, "message": f"Worker '{name}' restarted", "kill_result": kill_result}
     except Exception as e:
