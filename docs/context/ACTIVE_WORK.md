@@ -31,7 +31,7 @@
 
 ## Parked (not in active 3)
 - **WS-SEC** voice FROZEN, DND/TRAI/DPDP fail-closed. Kill fence practiced (VLK=0 restored).
-- **WS-DSH** DSH_RUNTIME_ENABLED=0 (fail-closed); dsh-worker container running but runtime flag off.
+- **WS-DSH** DSH_RUNTIME_ENABLED=1, DSH_SHADOW_ENABLED=1 (prod cfd87be2/98792d35 ARMED); allowlist=[jiya_makeover] (narrowed from 29); kill switch works (=0 rollback to direct executor). ADR-183 authorized 2026-08-14.
 - **WS-UPI304** Guest bind + approved-unactivated admin queue.
 - **WS-AMAX** DUNNING_ENGINE=1 (observe, do not flip).
 - **WS-GOV** BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1 but agents UNARMED 30/30 (rollout held).

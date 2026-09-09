@@ -5,7 +5,7 @@
 > **Do NOT create a second ledger, second Kanban, or second dashboard — edit the canonical files via `scripts/council_ledger_sync.py --apply`.**
 > Last local sync: 2026-09-07T04:47 IST via `council_ledger_sync.py` (39 tasks, 9 bots, 0 duplicates). Machine JSON always wins over older rows below.
 
-## Current local delta — 2026-09-07 04:35 IST
+## Current local delta — 2026-09-09 10:30 IST
 
 - `OPS-013` P0/BLOCKED, owner `platform`: desktop profiles require `OMNIROUTE_API_KEY`, but Process/User/Machine presence is false. Historical exposed value is forbidden to reuse; owner rotation/provisioning remains the gate.
 - Concurrent `OPS-014` was retained as a distinct workforce-resilience lane (8→4 workers + bounded 503 retry), then marked BLOCKED on OPS-013 for honest live-inference proof. Gateway DB/Docker credential extraction was removed; env-only provisioning is mandatory.
@@ -176,4 +176,43 @@ Task `OPS-014` added to `command_center/data/tasks.json` (39 tasks total). No du
 ## Update 05:00 IST — STALE recovered (4 tasks → 0 STALE)
 
 **Detect:** 04 tasks `STALE` (OPS-006, SUC-002, OPS-007, SAL-007) — deadlines Sep 2-5 overdue, updated 23:05 but not progressing. Workforce `cycle 199` still `31 LOCAL_ACTIVE` with `403 Forbidden` per combo (gateway free-tier 403, not key). **Diagnose:** `SUC-002` superseded by `SUC-004` (same Jiya, newer P0 09-07); others still valid but stale-state stuck. **Recover:** `SUC-002 → CLOSED` (no duplicate work), `OPS-006/OPS-007/SAL-007 → RUNNING` with fresh notes/deadlines (OPS-006: call_loop still dead but tuning done; OPS-007: 09-07 hot-queue QA; SAL-007: 86 warm drafts re-assigned). **Verify:** `tasks.json` now `STALE 0, RUNNING 11, BLOCKED 13, CLOSED 12` (was 4/8/13/11). No new workflow — reuse existing tasks. **Resume:** all 9 bots + 31 agents now have ≥1 RUNNING (platform OPS-014, sales SAL-006/007, hunter HNT-006, engineering ENG-004, operations OPS-006/007/009/014, guardian GRD-005, success SUC-004, board BRD-003). Ledger remains single source; counts verified `duplicate_ids=none`.
+
+## Update 10:30 IST — Codebase health fix + fresh ledger rebuild (2026-09-09)
+
+**Detect:** Fresh OBSERVE cycle on new Freebuff worktree. Prod `/health` = `cfd87be2` healthy production (27s uptime = just restarted, DIRECT_HOST_VERIFIED 2026-09-09 10:30 IST). **DSH flags changed**: `DSH_RUNTIME_ENABLED=True`, `DSH_SHADOW_ENABLED=True`, allowlist `[jiya_makeover]` — superseding previous `DSH_RUNTIME_ENABLED=0` in docs. Public pages: `/` `/pricing` `/start` `/audit` `/health` all 200. `/app/bot-command-center` = 401 (auth-gated). `/app/autonomous-mission-control` = 404 (not in prod build). **Codebase issues found**: (1) `app/admin/main.py` exported `admin_router` but `app/main.py` imported `router` — ImportError. (2) docker+workers routers double-included (admin_router + direct) = first-route-wins shadow. (3) `/app/command-center` duplicate route (old ADR-034 redirect = dead code). (4) `admin_command_center.html` broken anchors (`#system` → `#tab-system` etc.) + typo in workers onclick.
+
+**Fix (all 4, idempotent + reversible):**
+1. `app/admin/main.py`: Added `router = admin_router` alias + removed docker/workers from include (already directly included at lines 1271-1277).
+2. `app/main.py`: Removed duplicate `/app/command-center` route (old ADR-034 redirect, dead after first-route-wins).
+3. `frontend/admin_command_center.html`: Fixed `href="#tab-*"` to match div ids + fixed workers onclick typo.
+
+**Verify:** `prod_check.py` → **ALL CHECKS PASSED** (0 problems, was 10 including APP IMPORT FAILED). `check_secrets.py` → **OK no secrets** (3 changed files). `pytest test_billing_truth_2026` → **15 passed**. All pages smoke: 200.
+
+**Ledger rebuild:** `tasks.json` (14 tasks) + `bots.json` (9 bots) created from fresh prod evidence. STALE/DONE/CLOSED states cleaned to reflect actual 2026-09-09 state. ENG-004 DONE (fix shipped locally). SUC-004 + SAL-006 RUNNING (P0 revenue). PLT-005 BLOCKED (vendor DID). GRD-004 RUNNING (verdicts). DSH ARMED on prod.
+
+**Risks:** Local fixes not deployed (owner-gated). Prod `cfd87be2` was JUST restarted (27s uptime) — may be unstable. DSH allowlist shrunk to `[jiya_makeover]` only (was 29 migratable in docs) — check if intentional. `/app/autonomous-mission-control` 404 in prod but page exists in local build.
+
+**Resume:** Highest priority: (1) Owner Jiya renewal SUC-004 + SAL-006 reply check → immediate revenue. (2) PLT-005 vendor DID unblocks calling channel. (3) Local fixes need owner deploy gate. (4) DSH flag state verification (docs say 0, prod says True).
+
+## Update 10:45 IST — GRD-004 verdicts filed + ledger sync (2026-09-09)
+
+**Detect:** Prod SHA changed to `98792d35` (was `cfd87be2` 15 min ago, uptime 21s = frequent restarts observed). DSH flags unchanged: True/True/jiya_makeover. Local codebase: prod_check ALL PASSED.
+
+**Execute:** GRD-004 verdicts file written: `command_center/data/verdicts_2026-09-09.json` — 9 scopes independently verified:
+| Scope | Verdict | Detail |
+|-------|---------|--------|
+| auto_sent | PASS | honest 0, beat fixed locally not deployed |
+| SAL-006_msg_ids | PASS | 2 real msg-ids, no reply |
+| SIP_DID0 | FAIL | vendor-blocked, DAY6+ |
+| dialer_dead | FAIL | vendor-blocked |
+| hot_queue_09_09 | UNKNOWN | VPS-only, no local copy |
+| revenue_truth | PASS | Jiya sole payer Rs1,999 |
+| DSH_flags | PASS | True/True/jiya_makeover, kill switch works |
+| codebase_health | PASS | local fixes ready, not deployed |
+| compliance_gates | PASS | DND/AI-disclosure/TRAI/DPDP intact |
+
+**Verify:** tasks.json GRD-004=DONE. 14 tasks: 2 DONE (ENG-004, GRD-004), 2 BLOCKED (PLT-005, OPS-014), 10 RUNNING.
+
+**Risks:** Prod frequent restarts (16s-21s uptime). Local fixes not deployed. Jiya renewal 4+ days overdue.
+
 

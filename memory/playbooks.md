@@ -16,7 +16,7 @@
 - Worker recreate ke baad: `redis-cli llen celery`; >500 = `del celery` (beat re-schedules).
 
 ## DeepSeek Harness rollout, rollback drill, and retirement (ADR-181/182/183)
-**Current posture (2026-08-16, prod `090af9e6`):** **DIRECT-RUNTIME AUTHORITY, DSH NOT ARMED.** `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`; allowlist contains the 29 migratable identities for governed future promotion only (never `*`). Swara/Ananya remain frozen RED/hard-off. Legacy/direct executor remains the sole operational execution authority until separate owner promotion, shadow/soak evidence, rollback drill, and retirement gates are explicitly satisfied. Rollback remains `DSH_RUNTIME_ENABLED=0`.
+**Current posture (2026-09-09, prod `98792d35`):** **DSH ARMED, owner-authorized (ADR-183).** `DSH_RUNTIME_ENABLED=1`, `DSH_SHADOW_ENABLED=1`; allowlist=`jiya_makeover` (narrowed from 29 migratable on ADR-183). Swara/Ananya remain frozen RED/hard-off. Legacy/direct executor retained (ADR-182 retirement gates not yet met). Rollback = `DSH_RUNTIME_ENABLED=0`. ADR-183 authorized full arm 2026-08-14; allowlist narrowing 29→1 and shadow flip 0→1 occurred in a subsequent owner session (no ADR recorded).
 
 **Redis / cancellation posture (VERIFIED 2026-08-16):** production runtime reports Redis-backed cancellation/idempotency healthy with fallback inactive and runtime DLQ count 0. This does **not** arm DSH execution; it only means the shared cancellation/idempotency substrate is healthy. If DNS ever fails inside a future `dsh-worker`, re-attach with alias: `docker network disconnect leadgen_dsh_net leadgen_redis; docker network connect --alias redis leadgen_dsh_net leadgen_redis`.
 

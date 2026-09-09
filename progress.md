@@ -1,4 +1,51 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
+## Loop Run — 2026-09-09 (Codebase health fix + Central Ledger rebuild — prod cfd87be2 DSH ARMED)
+
+- **Date:** 2026-09-09 ~10:30 IST
+- **Goal:** Autonomous Admin continuous loop — OBSERVE fresh prod + codebase → VERIFY health/integrity → COUNCIL DECISION on highest-value fixes → EXECUTE → TEST → RECORD → NEXT. User mandate: 9 Hermes bots + 31 agents + desktop workers se central task-ledger coordinate karo, duplicate dashboards/agents/workflows mat banao.
+- **Inspected:** Prod `/health` cfd87be2 (DIRECT_HOST_VERIFIED, uptime 27s just restarted, DSH_RUNTIME_ENABLED=True DSH_SHADOW_ENABLED=True allowlist=[jiya_makeover]). Pages: `/` `/pricing` `/start` `/audit` `/health` 200; `/app/bot-command-center` 401; `/app/autonomous-mission-control` 404. `app/admin/main.py` (18 lines, exports `admin_router`). `app/main.py` lines 25/1241/1271/1277/1809/2030. `frontend/admin_command_center.html` sidebar links. `scripts/council_ledger_sync.py` (1362 lines). `CENTRAL_LEDGER.md` (179 lines). `command_center/data/` (only messages.jsonl, no tasks.json/bots.json). Secrets: check_secrets OK.
+- **Problems Found:**
+  1. **IMPORT ERROR** (P0): `app/main.py:25` does `from app.admin.main import router` but file exports `admin_router`. `prod_check` = FAIL: APP IMPORT FAILED. Root cause: commit `1059929` created `admin_router` but import expects `router`.
+  2. **DUPLICATE ROUTES** (P1): `app/admin/main.py` includes docker+workers sub-routers which are ALREADY directly included at `app/main.py:1271-1277`. 6 route shadows via first-route-wins.
+  3. **DUPLICATE PAGE ROUTE** (P1): `/app/command-center` registered TWICE — line 1809 (new, serves HTML) and line 2030 (old ADR-034 redirect to `/app/control-center`). Dead code after first-route-wins.
+  4. **BROKEN HTML ANCHORS** (P2): `admin_command_center.html` sidebar links `href="#system"` etc. but divs have `id="tab-system"`. Also typo: `showTab('workers,this)')` (extra quote).
+  5. **DSH FLAG DRIFT** (INFO): Prod `DSH_RUNTIME_ENABLED=True` but AGENTS.md/CURRENT_STATE say `DSH_RUNTIME_ENABLED=0` — significant state change from what docs claim.
+  6. **MISSING LEDGER FILES** (P2): `command_center/data/tasks.json` and `bots.json` absent in worktree — central ledger unreadable.
+- **Changed:**
+  1. `app/admin/main.py`: Added `router = admin_router` alias + removed docker/workers from include (comment explains why). Idempotent.
+  2. `app/main.py`: Removed duplicate `/app/command-center` route (old ADR-034 redirect). Pure deletion of dead code.
+  3. `frontend/admin_command_center.html`: Fixed `href="#tab-system/workers/docker/kanban"` + fixed workers onclick typo. Minimal additive.
+  4. `command_center/data/tasks.json`: Created 14-task ledger from fresh prod evidence (ENG-004 DONE, SUC-004/SAL-006 P0 RUNNING, PLT-005 BLOCKED, etc.).
+  5. `command_center/data/bots.json`: Created 9-bot roster with status.
+  6. `docs/coordination/CENTRAL_LEDGER.md`: Added 10:30 IST update block with full OBSERVE→FIX→VERIFY→RESUME evidence.
+- **Tests Run:**
+  - `scripts/prod_check.py` → **ALL CHECKS PASSED** (was: 10 problems including APP IMPORT FAILED + 6 DUPLICATE routes + 4 broken anchors)
+  - `scripts/check_secrets.py` → **OK no secrets** (3 changed files)
+  - `pytest tests/test_billing_truth_2026.py -q` → **15 passed**
+  - Smoke: `curl / /pricing /start /audit /health` → all 200
+  - Smoke: `curl /app/bot-command-center` → 401 (expected, auth-gated)
+  - Smoke: `curl /app/autonomous-mission-control` → 404 (exists locally, not in prod build)
+- **Verification Evidence:** prod_check BEFORE: `[FAIL] 10 problems` (APP IMPORT FAILED + 6 DUPLICATE + 4 WIRING). prod_check AFTER: `[OK] ALL CHECKS PASSED`. check_secrets: `[OK] no secrets detected`. Fresh prod probe: `SHA=cfd87be2 STATUS=healthy ENV=production DSH_RT=True DSH_SH=True`.
+- **Risks:** (1) Local fixes NOT deployed — owner deploy gate required. (2) Prod `cfd87be2` JUST restarted (27s uptime) — may indicate instability. (3) DSH allowlist shrunk from 29 migratable to `[jiya_makeover]` only — verify if intentional. (4) `/app/autonomous-mission-control` 404 in prod but HTML exists locally — may need page route registration. (5) Task ledger 14 tasks is a FRESH REBUILD — historical context from prior 39-task ledger not preserved (predecessor tasks/archived items not carried forward).
+- **Remaining / Owner gates:** (a) SUC-004 Jiya renewal send — DID-independent, immediate revenue. (b) SAL-006 reply check + UPI close. (c) PLT-005 vendor DID — blocks all calling. (d) Local fixes need `git push` + `deploy_vps.sh` kill-fence. (e) DSH flag state clarification (docs vs prod). (f) OPS-010 NTFY arming. (g) HNT-005 lead CSV generation.
+- **Next Highest Priority:** Owner decides: (1) Deploy local fixes (import fix + route cleanup) — immediate code quality improvement. (2) Jiya renewal SUC-004 — immediate revenue. (3) DSH flag verification (docs say 0, prod says True — could be intentional upgrade by another session).
+
+---
+
+## Loop Run — 2026-09-09 10:45 IST (GRD-004 verdicts + ledger sync + prod 98792d35 verified)
+
+- **Date:** 2026-09-09 ~10:45 IST
+- **Goal:** Autonomous Admin continuous loop — GRD-004 verdicts file + ledger sync + revenue task verification.
+- **Inspected:** Prod `/health` 98792d35 healthy (uptime 21s, just restarted — frequent restarts observed). DSH True/True/jiya_makeover confirmed. Smoke: 200 on all public pages. /app/bot-command-center 401 (auth). /app/command-center 307 (redirect, prod not having local fix). prod_check ALL PASSED locally.
+- **Changed:** (1) `command_center/data/verdicts_2026-09-09.json` CREATED — 9 scopes, 6 PASS, 2 FAIL (vendor DID/dialer), 1 UNKNOWN (hot-queue). (2) `command_center/data/tasks.json` — GRD-004 status DONE.
+- **Tests Run:** prod_check ALL PASSED. check_secrets OK.
+- **Verification:** verdicts file exists + parses. tasks.json has 14 tasks, GRD-004=DONE, no duplicates.
+- **Risks:** Prod restarting frequently (16s-21s uptime on consecutive probes). Local fixes still NOT deployed. Jiya renewal still not sent (owner action required).
+- **Remaining:** SUC-004 Jiya send (owner), SAL-006 reply check (owner), PLT-005 vendor DID (owner), deploy local fixes (owner).
+- **Next Highest Priority:** Owner: (1) Jiya renewal SUC-004 immediate revenue, (2) deploy local fixes, (3) SAL-006 reply check.
+
+---
+
 ## Loop Run — 2026-09-07 (STALE 4→0 : superseded close + re-assign, Detect→Diagnose→Recover→Verify→Resume)
 
 - **Date:** 2026-09-07 ~05:00 IST
