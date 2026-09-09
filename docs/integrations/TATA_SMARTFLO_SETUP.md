@@ -17,9 +17,11 @@ Goal: ONE real phone call where Smartflo streams audio to `wss://leadsgenai.in/a
 2026-09-07 fixes (pre-demo, this worktree, `tests/test_smartflo_stream.py::TestDemoReadinessRegressions`, 75 green):
 Groq STT now uploads a real WAV (was raw PCM → 400 every utterance) · playback runs as a background task so barge-in actually works · `start` accepts camelCase **and** snake_case · start-frame **key-set** is logged (no PII) so a protocol mismatch is visible in one log line · default greeting says "AI assistant" (§5 disclosure).
 
+2026-09-09 official VOICE Streaming contract check: Smartflo sends `connected` → `start` → `media` → `stop` (and `dtmf`/provider `mark`) to the endpoint; the endpoint sends only bot `media`, `mark`, and `clear` back. The endpoint must not echo `connected` or `start`. Bot media is µ-law/8000 base64 and each payload must be at least 160 bytes or a 160-byte multiple.
+
 ## UNVERIFIED until the first live call (do not claim these work)
 
-1. Exact Smartflo WS event schema (`streamSid` vs `stream_sid`, `mediaFormat`, whether it expects our `connected`/`start` acks). → read the `start schema` log line after call #1.
+1. Live Smartflo WS event delivery and audio proof → read the `start schema` log line and capture `media_frames`, `caller_rms_max`, and a transcript after call #1. The event direction and packet contract are now confirmed from the official VOICE Streaming documents.
 2. Dynamic-endpoint response field name (`wss_url`) and whether the demo tenant has Voice Bot / streaming enabled at all (Tata usually enables it per account).
 3. Click-to-Call "second leg" landing on the voice bot — the `api_key` destination must be the Voice Bot / streaming flow, not an agent extension.
 4. Whether Tata requires our VPS IP `72.61.245.204` in **Settings → IP Pool Whitelisting** for API calls (menu exists in the demo portal — add it up front).

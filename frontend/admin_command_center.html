@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Admin Command Center</title>
+<style>
+:root {
+  --bg: #0f172a; --card: #1e293b; --card-2: #334155; --line: #475569;
+  --text: #f1f5f9; --muted: #94a3b8; --green: #22c55e; --red: #ef4444;
+  --amber: #f59e0b; --blue: #3b82f6; --indigo: #6366f1; --purple: #a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:1.5rem;color:var(--indigo)}
+.header .status{display:flex;gap:1rem;font-size:0.875rem;color:var(--muted)}
+.main{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 60px)}
+.sidebar{background:var(--card);border-right:1px solid var(--line);padding:1rem;overflow-y:auto}
+.sidebar a{display:block;padding:0.75rem 1rem;color:var(--muted);text-decoration:none;border-radius:0.5rem;margin-bottom:0.5rem;transition:all 0.2s}
+.sidebar a:hover,.sidebar a.active{background:var(--card-2);color:var(--text)}
+.content{padding:1.5rem;overflow-y:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:0.75rem;padding:1.25rem}
+.card h3{font-size:0.875rem;color:var(--muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em}
+.metric{font-size:2rem;font-weight:700}
+.metric.small{font-size:1.25rem}
+.label{font-size:0.75rem;color:var(--muted);margin-top:0.25rem}
+.bar{height:8px;background:var(--card-2);border-radius:4px;overflow:hidden;margin-top:0.5rem}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.5s}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:0.5rem}
+.status-dot.green{background:var(--green)}
+.status-dot.yellow{background:var(--amber)}
+.status-dot.red{background:var(--red)}
+.worker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.75rem}
+.worker-card{background:var(--card-2);border-radius:0.5rem;padding:1rem;border:1px solid transparent;transition:all 0.2s}
+.worker-card:hover{border-color:var(--indigo)}
+.worker-card .name{font-weight:600;margin-bottom:0.5rem}
+.worker-card .cat{font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem}
+.worker-card .ram{font-size:0.8rem;color:var(--blue)}
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1rem}
+.kanban-col{background:var(--card);border-radius:0.5rem;padding:1rem;min-height:300px}
+.kanban-col h4{font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--line)}
+.task-card{background:var(--card-2);border-radius:0.4rem;padding:0.75rem;margin-bottom:0.5rem;font-size:0.8rem}
+.task-card .priority{display:inline-block;padding:0.15rem 0.4rem;border-radius:0.25rem;font-size:0.7rem;margin-bottom:0.4rem}
+.priority.P0{background:var(--red);color:#fff}
+.priority.P1{background:var(--amber);color:#000}
+.priority.P2{background:var(--blue);color:#fff}
+.priority.P3{background:var(--card);color:var(--muted)}
+.container-item{display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--line);font-size:0.85rem}
+.container-item:last-child{border-bottom:none}
+.btn{padding:0.4rem 0.8rem;border:0;border-radius:0.4rem;cursor:pointer;font-size:0.75rem;margin-left:0.25rem}
+.btn-primary{background:var(--indigo);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:0.25rem 0.5rem;font-size:0.7rem}
+.filters{display:flex;gap:0.5rem;margin-bottom:1rem}
+.filters button{padding:0.5rem 1rem;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:0.5rem;cursor:pointer}
+.filters button.active{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🤖 LeadGen AI — Admin Command Center</h1>
+  <div class="status">
+    <span id="sys-time"></span>
+    <span id="sys-health">● Connecting...</span>
+  </div>
+</div>
+<div class="main">
+  <nav class="sidebar">
+    <a href="#tab-system" class="active" onclick="showTab('system',this)">📊 System Health</a>
+    <a href="#tab-workers" onclick="showTab('workers',this)">🤖 Workers</a>
+    <a href="#tab-docker" onclick="showTab('docker',this)">🐳 Docker</a>
+    <a href="#tab-kanban" onclick="showTab('kanban',this)">📋 Task Ledger</a>
+  </nav>
+  <div class="content">
+    <!-- System Health Tab -->
+    <div id="tab-system">
+      <div class="grid">
+        <div class="card">
+          <h3>RAM Usage</h3>
+          <div class="metric" id="ram-pct">--</div>
+          <div class="label" id="ram-detail">-- / -- GB</div>
+          <div class="bar"><div class="bar-fill" id="ram-bar" style="width:0%;background:var(--green)"></div></div>
+        </div>
+        <div class="card">
+          <h3>CPU Usage</h3>
+          <div class="metric" id="cpu-pct">--</div>
+          <div class="label">Average across cores</div>
+          <div class="bar"><div class="bar-fill" id="cpu-bar" style="width:0%;background:var(--blue)"></div></div>
+        </div>
+        <div class="card">
+          <h3>Disk (C:)</h3>
+          <div class="metric small" id="disk-pct">--</div>
+          <div class="label" id="disk-detail">-- / -- GB</div>
+          <div class="bar"><div class="bar-fill" id="disk-bar" style="width:0%;background:var(--purple)"></div></div>
+        </div>
+        <div class="card">
+          <h3>Services</h3>
+          <div id="ports-list" style="font-size:0.85rem">Loading...</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Top Processes (by RAM)</h3>
+        <div id="processes-list" style="font-size:0.85rem">Loading...</div>
+      </div>
+    </div>
+    <!-- Workers Tab -->
+    <div id="tab-workers" style="display:none">
+      <div class="filters">
+        <button class="active" onclick="filterWorkers('all',this)">All</button>
+        <button onclick="filterWorkers('active',this)">Active</button>
+        <button onclick="filterWorkers('idle',this)">Idle</button>
+      </div>
+      <div class="worker-grid" id="worker-grid">Loading...</div>
+    </div>
+    <!-- Docker Tab -->
+    <div id="tab-docker" style="display:none">
+      <div class="grid">
+        <div class="card">
+          <h3>Containers</h3>
+          <div id="docker-containers">Loading...</div>
+        </div>
+        <div class="card">
+          <h3>Networks</h3>
+          <div id="docker-networks">Loading...</div>
+        </div>
+        <div class="card">
+          <h3>Volumes</h3>
+          <div id="docker-volumes">Loading...</div>
+        </div>
+      </div>
+    </div>
+    <!-- Kanban Tab -->
+    <div id="tab-kanban" style="display:none">
+      <div class="filters">
+        <button class="active" onclick="loadKanban()">Refresh</button>
+        <button onclick="autoAssign()">Auto-Assign Idle</button>
+      </div>
+      <div class="kanban" id="kanban-board">Loading...</div>
+    </div>
+  </div>
+</div>
+<script>
+const API = '/admin/api';
+let currentTab = 'system';
+let workersData = [];
+let refreshInterval;
+
+function showTab(tab, el) {
+  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = 'block';
+  currentTab = tab;
+  loadTab(tab);
+}
+
+function loadTab(tab) {
+  if (tab === 'system') loadSystem();
+  else if (tab === 'workers') loadWorkers();
+  else if (tab === 'docker') loadDocker();
+  else if (tab === 'kanban') loadKanban();
+}
+
+async function apiGet(path) {
+  try {
+    const r = await fetch(API + path);
+    return await r.json();
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+async function loadSystem() {
+  const h = await apiGet('/system/health');
+  if (h.error) return;
+  const ramPct = h.ram_percent || 0;
+  document.getElementById('ram-pct').textContent = ramPct.toFixed(1) + '%';
+  document.getElementById('ram-detail').textContent = `${h.ram_used_gb} / ${h.ram_total_gb} GB`;
+  const ramBar = document.getElementById('ram-bar');
+  ramBar.style.width = ramPct + '%';
+  ramBar.style.background = ramPct > 85 ? 'var(--red)' : ramPct > 70 ? 'var(--amber)' : 'var(--green)';
+  
+  const cpuPct = h.cpu_percent || 0;
+  document.getElementById('cpu-pct').textContent = cpuPct.toFixed(1) + '%';
+  document.getElementById('cpu-bar').style.width = cpuPct + '%';
+  
+  const diskPct = h.disk_percent || 0;
+  document.getElementById('disk-pct').textContent = diskPct.toFixed(1) + '%';
+  document.getElementById('disk-detail').textContent = `${h.disk_used_gb} / ${h.disk_total_gb} GB`;
+  document.getElementById('disk-bar').style.width = diskPct + '%';
+  
+  const ports = (h.ports || []).map(p => `<div style="margin:0.25rem 0"><span class="status-dot ${p.status === 'open' ? 'green' : 'red'}"></span>Port ${p.port} — ${p.status}</div>`).join('');
+  document.getElementById('ports-list').innerHTML = ports || 'No ports';
+  
+  const procs = (h.processes || []).slice(0, 10).map(p => `<div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--line)"><span>${p.name} <span style="color:var(--muted)">(#${p.pid})</span></span><span style="color:var(--blue)">${p.ram_mb} MB</span></div>`).join('');
+  document.getElementById('processes-list').innerHTML = procs || 'No processes';
+}
+
+async function loadWorkers() {
+  const data = await apiGet('/workers');
+  workersData = data.workers || [];
+  renderWorkers(workersData);
+}
+
+function renderWorkers(list) {
+  const html = list.map(w => `
+    <div class="worker-card">
+      <div class="name"><span class="status-dot ${w.status === 'active' ? 'green' : 'yellow'}"></span>${w.name}</div>
+      <div class="cat">${w.category || 'Agent'}</div>
+      <div class="ram">${w.ram_mb > 0 ? w.ram_mb + ' MB' : 'Idle'}</div>
+      ${w.current_task ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">${w.current_task.substring(0,50)}</div>` : ''}
+      <div style="margin-top:0.75rem">
+        <button class="btn btn-danger btn-sm" onclick="killWorker('${w.name}')">Kill</button>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('worker-grid').innerHTML = html || 'No workers';
+}
+
+function filterWorkers(filter, el) {
+  document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (filter === 'all') renderWorkers(workersData);
+  else renderWorkers(workersData.filter(w => w.status === filter));
+}
+
+async function killWorker(name) {
+  if (!confirm(`Kill worker "${name}"?`)) return;
+  await fetch(API + `/workers/${encodeURIComponent(name)}/kill`, { method: 'POST' });
+  setTimeout(loadWorkers, 1000);
+}
+
+async function loadDocker() {
+  const containers = await apiGet('/docker/containers');
+  const cList = (containers.containers || containers.data || []).slice(0, 10);
+  document.getElementById('docker-containers').innerHTML = cList.map(c => {
+    const name = c.Names || c.name || c.Name || 'unknown';
+    const state = c.State || c.state || c.Status || 'unknown';
+    const status = state.toLowerCase().includes('running') ? 'green' : 'red';
+    return `<div class="container-item"><span><span class="status-dot ${status}"></span>${name}</span><span style="font-size:0.7rem;color:var(--muted)">${state}</span></div>`;
+  }).join('') || 'No containers';
+  
+  const networks = await apiGet('/docker/networks');
+  const nList = networks.networks || networks.data || [];
+  document.getElementById('docker-networks').innerHTML = nList.map(n => `<div class="container-item"><span>${n.Name || n.name}</span><span style="font-size:0.7rem;color:var(--muted)">${n.Driver || n.driver || ''}</span></div>`).join('') || 'No networks';
+  
+  const volumes = await apiGet('/docker/volumes');
+  const vList = volumes.volumes || volumes.data || [];
+  document.getElementById('docker-volumes').innerHTML = vList.map(v => `<div class="container-item"><span>${v.Name || v.name}</span><span style="font-size:0.7rem;color:var(--muted)">${v.Driver || v.driver || ''}</span></div>`).join('') || 'No volumes';
+}
+
+async function loadKanban() {
+  const data = await apiGet('/tasks/kanban');
+  const board = data.kanban || data;
+  const cols = ['backlog', 'in_progress', 'review', 'done'];
+  const labels = ['Backlog', 'In Progress', 'Review', 'Done'];
+  let html = '';
+  cols.forEach((col, i) => {
+    const tasks = board[col] || [];
+    html += `<div class="kanban-col"><h4>${labels[i]} (${tasks.length})</h4>`;
+    tasks.forEach(t => {
+      html += `<div class="task-card"><span class="priority ${t.priority}">${t.priority}</span><div style="font-weight:600;margin:0.3rem 0">${t.title}</div>${t.owner ? `<div style="font-size:0.7rem;color:var(--muted)">👤 ${t.owner}</div>` : ''}</div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('kanban-board').innerHTML = html || 'No tasks';
+}
+
+async function autoAssign() {
+  await fetch(API + '/tasks/auto-assign', { method: 'POST' });
+  setTimeout(loadKanban, 1000);
+}
+
+function updateTime() {
+  document.getElementById('sys-time').textContent = new Date().toLocaleTimeString();
+}
+
+// Init
+updateTime();
+setInterval(updateTime, 1000);
+loadTab('system');
+refreshInterval = setInterval(() => loadTab(currentTab), 5000);
+</script>
+</body>
+</html>
