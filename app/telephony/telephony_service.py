@@ -80,7 +80,7 @@ class TelephonyService:
 
         # Try to construct the chosen real handler; on ANY failure, fall back to
         # simulation so we never crash.
-        if self.provider in ("vobiz", "sip"):
+        if self.provider in ("vobiz", "sip", "tata_smartflo"):
             try:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:
@@ -219,7 +219,11 @@ class TelephonyService:
                 # The C2C Support API is customer-first: Smartflo dials customer,
                 # then bridges to the destination configured on the API key.
                 call_id = str(uuid.uuid4())
-                caller = from_number or _env("TATA_SMARTFLO_DID")
+                # The C2C API key is the provider-side source of truth for the
+                # Smartflo DID and destination. Only an explicit caller-id
+                # override should be sent; an env DID must not shadow the
+                # portal mapping.
+                caller = from_number or None
                 result = await self._handler.place_call(
                     to=to_number,
                     caller_id=caller,
@@ -228,12 +232,8 @@ class TelephonyService:
                         "call_id": call_id,
                     },
                 )
-                if result.get("status_code") == 200 and (
-                    result.get("body") or {}
-                ).get("success"):
-                    ref_id = str(
-                        (result.get("body") or {}).get("ref_id") or call_id
-                    )
+                if result.get("status_code") == 200 and (result.get("body") or {}).get("success"):
+                    ref_id = str((result.get("body") or {}).get("ref_id") or call_id)
                     return CallResult(
                         call_id=ref_id,
                         status="initiated",
@@ -366,6 +366,9 @@ class TelephonyService:
         available = {
             "vobiz": bool(_env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN")),
             "sip": bool(_env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD")),
+            "tata_smartflo": bool(
+                _env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY")
+            ),
         }
 
         if self.provider == "vobiz":
@@ -374,6 +377,12 @@ class TelephonyService:
                     missing.append(k)
         elif self.provider == "sip":
             for k in ("SIP_HOST", "SIP_USERNAME", "SIP_PASSWORD"):
+                if not _env(k):
+                    missing.append(k)
+        elif self.provider == "tata_smartflo":
+            # Smartflo C2C uses the API key's portal mapping for DID and
+            # destination. The DID env var is display/status metadata only.
+            for k in ("TATA_SMARTFLO_API_TOKEN", "TATA_SMARTFLO_API_KEY"):
                 if not _env(k):
                     missing.append(k)
 
