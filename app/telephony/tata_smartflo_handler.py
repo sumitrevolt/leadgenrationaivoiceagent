@@ -162,15 +162,22 @@ class TataSmartfloClient:
                     headers=self._headers(),
                 )
             body = self._safe_body(resp)
+            msg = body.get("message", "") or ""
             if resp.status_code == 200 and body.get("success"):
                 ref_id = body.get("ref_id", "unknown")
                 # CodeQL: do not log any part of the destination number —
                 # ref_id is sufficient correlation and is not PII.
                 logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
+            elif "not active" in msg.lower() or "invalid" in msg.lower() or "caller_id" in msg.lower():
+                # 2026-09-09: Smartflo account inactive / demo expired → calls auto-disconnect
+                logger.error(
+                    f"🚨 Smartflo BLOCKED: {msg} "
+                    f"(account inactive or DID invalid — calls will auto-disconnect)"
+                )
             else:
                 logger.warning(
                     f"Tata Smartflo call rejected: {resp.status_code} "
-                    f"{body.get('message', body)}"
+                    f"{msg or body}"
                 )
             return {"status_code": resp.status_code, "body": body}
         except Exception as e:

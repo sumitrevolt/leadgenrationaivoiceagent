@@ -321,10 +321,10 @@ class SmartfloStreamSession:
         )
         try:
             while True:
-                raw = await asyncio.wait_for(self.ws.receive_text(), timeout=60.0)
+                raw = await asyncio.wait_for(self.ws.receive_text(), timeout=120.0)
                 await self._on_event(raw)
         except asyncio.TimeoutError:
-            logger.info("[smartflo-stream] WS idle timeout (60s) — closing")
+            logger.info("[smartflo-stream] WS idle timeout (120s) — closing")
         except Exception as e:
             if not self._closed:
                 logger.warning(f"[smartflo-stream] WS error: {e}")
