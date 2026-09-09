@@ -117,9 +117,11 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
     from app.telephony.smartflo_stream import SmartfloStreamSession
 
     # Check if Smartflo voice streaming is enabled
-    enabled = (
-        os.environ.get("SMARTFLO_VOICE_STREAM_ENABLED", "0").strip().lower()
-        in ("1", "true", "yes", "on")
+    enabled = os.environ.get("SMARTFLO_VOICE_STREAM_ENABLED", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
     )
     if not enabled:
         logger.warning("[smartflo-stream] rejected: SMARTFLO_VOICE_STREAM_ENABLED=0")
@@ -132,7 +134,9 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
     # Optional: HMAC secret verification
     secret = os.environ.get("SMARTFLO_WS_SECRET", "").strip()
     require_secret = os.environ.get("SMARTFLO_WS_REQUIRE_SECRET", "0").strip().lower() in (
-        "1", "true", "yes",
+        "1",
+        "true",
+        "yes",
     )
     if require_secret and secret:
         # Verify from query param or header
@@ -192,7 +196,8 @@ async def smartflo_test_call(
 
     Body (JSON):
         to (str, required):     Destination number (10-12 digit Indian number)
-        caller_id (str, optional): DID to show to customer (defaults to TATA_SMARTFLO_DID)
+        caller_id (str, optional): DID override. When omitted, Smartflo uses
+            the DID configured on the Click-to-Call API key.
         call_timeout (int, optional): Max call duration in seconds (default 300)
         niche (str, optional):  Niche key for voice bot (default from env SMARTFLO_DEFAULT_NICHE)
 
@@ -228,9 +233,7 @@ async def smartflo_test_call(
         call_timeout = 300
     if call_timeout < 30 or call_timeout > 3600:
         call_timeout = 300
-    niche = (body.get("niche") or "").strip() or os.environ.get(
-        "SMARTFLO_DEFAULT_NICHE", "general"
-    )
+    niche = (body.get("niche") or "").strip() or os.environ.get("SMARTFLO_DEFAULT_NICHE", "general")
 
     # Place the call
     result = await client.place_call(
@@ -244,10 +247,7 @@ async def smartflo_test_call(
         },
     )
 
-    placed = (
-        result.get("status_code") == 200
-        and (result.get("body") or {}).get("success") is True
-    )
+    placed = result.get("status_code") == 200 and (result.get("body") or {}).get("success") is True
     ref_id = (result.get("body") or {}).get("ref_id") if placed else None
 
     if not placed:
@@ -257,7 +257,10 @@ async def smartflo_test_call(
         "placed": placed,
         "ref_id": ref_id,
         "to": to_number,
-        "caller_id": caller_id or client.did,
+        # The API key is the provider-side source of truth when no override is
+        # supplied. Do not report the optional env DID as if it was sent.
+        "caller_id": caller_id or None,
+        "caller_id_source": "request_override" if caller_id else "smartflo_api_key",
         "call_timeout": call_timeout,
         "smartflo_response": result.get("body"),
         "status_code": result.get("status_code"),
@@ -272,7 +275,7 @@ async def smartflo_test_call(
             if placed
             else [
                 "Check TATA_SMARTFLO_API_TOKEN / API_KEY are valid.",
-                "Verify DID is active in Smartflo portal.",
+                "Verify the DID and Voice Bot destination are assigned to this Click-to-Call API key.",
                 "Check Smartflo account balance/plan status.",
             ]
         ),
@@ -303,9 +306,7 @@ async def smartflo_status(user: User = Depends(require_admin)) -> dict[str, Any]
         "wss_host": _wss_host(),
         "streaming": streaming,
         "env": {
-            "SMARTFLO_VOICE_STREAM_ENABLED": os.environ.get(
-                "SMARTFLO_VOICE_STREAM_ENABLED", "0"
-            ),
+            "SMARTFLO_VOICE_STREAM_ENABLED": os.environ.get("SMARTFLO_VOICE_STREAM_ENABLED", "0"),
             "SMARTFLO_WS_HOST": os.environ.get("SMARTFLO_WS_HOST", ""),
             "SMARTFLO_DEFAULT_NICHE": os.environ.get("SMARTFLO_DEFAULT_NICHE", "general"),
         },
@@ -321,9 +322,7 @@ def _verify_hmac(token: str, secret: str) -> bool:
         return False
     try:
         data, sig = token.rsplit(".", 1)
-        expected = hmac.new(
-            secret.encode(), data.encode(), hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(sig, expected)
     except Exception:
         return False
