@@ -39,9 +39,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-SMARTFLO_C2C_ENDPOINT = (
-    "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
-)
+SMARTFLO_C2C_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -161,9 +159,7 @@ class TataSmartfloClient:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=30.0, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.post(
                     SMARTFLO_C2C_ENDPOINT,
                     json=payload,
@@ -177,8 +173,7 @@ class TataSmartfloClient:
                 logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
             else:
                 logger.warning(
-                    f"Tata Smartflo call rejected: {resp.status_code} "
-                    f"{body.get('message', body)}"
+                    f"Tata Smartflo call rejected: {resp.status_code} {body.get('message', body)}"
                 )
             return {"status_code": resp.status_code, "body": body}
         except Exception as e:

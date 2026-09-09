@@ -26,13 +26,17 @@ class _AsyncClient:
     async def __aexit__(self, *args: object) -> None:
         return None
 
-    async def post(self, url: str, *, json: dict[str, object], headers: dict[str, str]) -> _Response:
+    async def post(
+        self, url: str, *, json: dict[str, object], headers: dict[str, str]
+    ) -> _Response:
         self.__class__.payload = json
         return _Response()
 
 
 @pytest.mark.asyncio
-async def test_c2c_support_uses_api_key_did_when_no_override(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_c2c_support_uses_api_key_did_when_no_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import httpx
 
     from app.telephony.tata_smartflo_handler import TataSmartfloClient

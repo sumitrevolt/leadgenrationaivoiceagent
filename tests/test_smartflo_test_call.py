@@ -263,7 +263,9 @@ class TestSuccess:
                     json={"to": "9876543210", "call_timeout": 5},
                 )
         body = r.json()
-        assert body["call_timeout"] == 300  # default (body int conversion may not clamp in response)
+        assert (
+            body["call_timeout"] == 300
+        )  # default (body int conversion may not clamp in response)
 
     def test_niche_forwarded_in_custom_identifier(self):
         """Niche is forwarded to place_call via custom_identifier."""
@@ -271,7 +273,9 @@ class TestSuccess:
 
         captured = {}
 
-        async def fake_place_call(self, to, caller_id=None, call_timeout=300, custom_identifier=None, **kw):
+        async def fake_place_call(
+            self, to, caller_id=None, call_timeout=300, custom_identifier=None, **kw
+        ):
             captured.update(
                 to=to,
                 caller_id=caller_id,
