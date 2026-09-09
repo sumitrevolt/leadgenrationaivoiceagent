@@ -345,9 +345,10 @@ class SmartfloStreamSession:
         event = data.get("event")
 
         if event == "connected":
-            logger.info("[smartflo-stream] connected event")
-            # Smartflo sends the handshake to this endpoint. The official
-            # contract does not require an echo response.
+            logger.info("[smartflo-stream] connected event — acknowledging handshake")
+            # Smartflo docs: "connected event acts as a handshake response".
+            # Send acknowledgment so Smartflo knows we're ready.
+            await self._send({"event": "connected"})
 
         elif event == "start":
             start = data.get("start") or {}
@@ -365,6 +366,11 @@ class SmartfloStreamSession:
                 or start.get("streamSid")
                 or start.get("stream_sid")
             )
+            if not self.stream_sid:
+                logger.error(
+                    "[smartflo-stream] NO stream_sid in start event! "
+                    f"data keys={sorted(data.keys())} start keys={sorted(start.keys())}"
+                )
             self.call_sid = start.get("callSid") or start.get("call_sid")
             self.from_number = start.get("from")
             self.to_number = start.get("to")
@@ -400,6 +406,15 @@ class SmartfloStreamSession:
             await self._maybe_greet()
 
         elif event == "media":
+            if not self.stream_sid:
+                # Try to extract stream_sid from media event itself
+                self.stream_sid = data.get("streamSid") or data.get("stream_sid")
+                if self.stream_sid:
+                    logger.info(f"[smartflo-stream] recovered stream_sid from media event: {self.stream_sid[:16]}...")
+                else:
+                    # Still no stream_sid — but keep processing (Smartflo may not require it)
+                    if self._media_frames <= 3:
+                        logger.warning("[smartflo-stream] media received but stream_sid still None — audio replies may not work")
             media = data.get("media") or {}
             payload = media.get("payload")
             if payload:
@@ -681,25 +696,41 @@ class SmartfloStreamSession:
             return
         if self._closed:
             return
+        if not self.stream_sid:
+            logger.error("[smartflo-stream] _say called but stream_sid=None — cannot send audio!")
+            return
         self._cancel_playback()
         generation = self._playback_generation
+        logger.info(f"[smartflo-stream] _say scheduling TTS for {len(text)} chars (stream_sid={self.stream_sid[:16]}...)" )
         self._play_task = asyncio.create_task(self._speak_task(text, generation))
 
     async def _speak_task(self, text: str, generation: int) -> None:
         try:
+            logger.info(f"[smartflo-stream] _speak_task START text={text[:60]!r}...")
             pcm_16k = await self._tts(text)
+            if not pcm_16k:
+                logger.error(f"[smartflo-stream] _tts returned EMPTY for text={text[:60]!r}")
+                # Fallback: try with minimal text
+                if len(text) > 20:
+                    logger.info("[smartflo-stream] retrying TTS with shorter text")
+                    pcm_16k = await self._tts("Namaste!")
             if not pcm_16k or self._closed or generation != self._playback_generation:
+                logger.error(f"[smartflo-stream] _speak_task ABORT: pcm={bool(pcm_16k)} closed={self._closed} gen={generation}!={self._playback_generation}")
                 return
+            logger.info(f"[smartflo-stream] _speak_task TTS done: {len(pcm_16k)} bytes PCM16")
             # Downsample 16kHz → 8kHz, encode to mulaw
             pcm_8k = pcm16_16k_to_8k(pcm_16k)
             mulaw = pcm16_to_mulaw(pcm_8k)
+            logger.info(f"[smartflo-stream] _speak_task encoded: {len(mulaw)} bytes mulaw, sending...")
             # Send in chunks (160 bytes = 20ms)
             await self._send_mulaw_audio(mulaw, generation)
+            logger.info("[smartflo-stream] _speak_task DONE — audio sent")
         except asyncio.CancelledError:
             self._speaking = False
             raise
         except Exception as e:
-            logger.warning(f"[smartflo-stream] TTS/send failed: {e}")
+            logger.error(f"[smartflo-stream] _speak_task FAILED: {type(e).__name__}: {e}")
+            self._speaking = False
 
     def _cancel_playback(self) -> None:
         """Cancel an in-flight TTS/playback task (idempotent, never raises)."""
@@ -721,24 +752,54 @@ class SmartfloStreamSession:
             pass
 
     async def _tts(self, text: str) -> bytes:
-        """Text → PCM16 16kHz audio via EdgeTTS."""
-        import edge_tts
+        """Text → PCM16 16kHz audio via EdgeTTS. With timeout and fallback."""
+        try:
+            import edge_tts
+        except ImportError:
+            logger.error("[smartflo-stream] edge_tts not installed!")
+            return b""
         rate = os.environ.get("SMARTFLO_TTS_RATE", "+26%")
         pitch = os.environ.get("SMARTFLO_TTS_PITCH", "+2Hz")
         voice = os.environ.get("SMARTFLO_TTS_VOICE", "hi-IN-SwaraNeural")
-        communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
-        mp3_buf = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                mp3_buf.write(chunk["data"])
-        mp3_data = mp3_buf.getvalue()
-        if not mp3_data:
-            return b""
+        try:
+            communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+            mp3_buf = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    mp3_buf.write(chunk["data"])
+            mp3_data = mp3_buf.getvalue()
+            if not mp3_data:
+                logger.error(f"[smartflo-stream] EdgeTTS returned EMPTY mp3 for text={text[:40]!r}")
+                return b""
+            logger.info(f"[smartflo-stream] EdgeTTS: {len(mp3_data)} bytes MP3 for {len(text)} chars")
+        except Exception as e:
+            logger.error(f"[smartflo-stream] EdgeTTS FAILED: {type(e).__name__}: {e}")
+            # Fallback: try different voice
+            try:
+                fallback_voice = "hi-IN-SwaraNeural" if voice != "hi-IN-SwaraNeural" else "hi-IN-MadhurNeural"
+                communicate = edge_tts.Communicate(text, fallback_voice, rate=rate, pitch=pitch)
+                mp3_buf = io.BytesIO()
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        mp3_buf.write(chunk["data"])
+                mp3_data = mp3_buf.getvalue()
+                if not mp3_data:
+                    return b""
+                logger.info(f"[smartflo-stream] EdgeTTS fallback voice OK: {len(mp3_data)} bytes")
+            except Exception as e2:
+                logger.error(f"[smartflo-stream] EdgeTTS fallback also FAILED: {type(e2).__name__}: {e2}")
+                return b""
         # Decode MP3 → PCM16 via pydub
-        from pydub import AudioSegment
-        seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
-        seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
-        return seg.raw_data
+        try:
+            from pydub import AudioSegment
+            seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
+            seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+            pcm = seg.raw_data
+            logger.info(f"[smartflo-stream] TTS pipeline OK: {len(pcm)} bytes PCM16")
+            return pcm
+        except Exception as e:
+            logger.error(f"[smartflo-stream] pydub MP3 decode FAILED: {type(e).__name__}: {e}")
+            return b""
 
     async def _send_mulaw_audio(self, mulaw: bytes, generation: int) -> None:
         """Send mulaw audio to Smartflo in 160-byte chunks with chunk counter."""
