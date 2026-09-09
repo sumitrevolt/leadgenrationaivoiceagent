@@ -173,15 +173,15 @@ class TestWebSocketLifecycle:
 # 2. Connected event
 # ---------------------------------------------------------------------------
 class TestConnectedEvent:
-    async def test_connected_sends_handshake_back(self):
+    async def test_connected_is_provider_handshake_and_not_echoed(self):
         ws = _FakeWS()
         s = _session(ws)
         ws.enqueue({"event": "connected"})
         ws.enqueue_stop()
         await s.handle()
-        # Should have sent a connected event back
-        connected_msgs = [m for m in ws.sent if m.get("event") == "connected"]
-        assert len(connected_msgs) >= 1
+        # Smartflo sends this handshake to the endpoint; the endpoint must not
+        # echo a second connected frame back (per the official event contract).
+        assert not [m for m in ws.sent if m.get("event") == "connected"]
 
     async def test_connected_does_not_set_stream_sid(self):
         ws = _FakeWS()
@@ -223,7 +223,7 @@ class TestStartEvent:
         assert s.niche == "salon_spa"
         assert s.client_id == "jiya-makeover"
 
-    async def test_start_sends_ack(self):
+    async def test_start_is_provider_metadata_and_not_acked(self):
         ws = _FakeWS()
         s = _session(ws)
         ws.enqueue({
@@ -233,9 +233,20 @@ class TestStartEvent:
         })
         ws.enqueue_stop()
         await s.handle()
-        acks = [m for m in ws.sent if m.get("event") == "start"]
-        assert len(acks) >= 1
-        assert acks[0].get("streamSid") == "MZ-test"
+        # Smartflo sends start metadata to the endpoint; only media/mark/clear
+        # are endpoint-to-Smartflo events in this bidirectional contract.
+        assert not [m for m in ws.sent if m.get("event") == "start"]
+
+    async def test_outbound_media_pads_short_final_chunk_to_160_bytes(self):
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-packet-001"
+
+        with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
+            await s._send_mulaw_audio(b"\x00" * 161, s._playback_generation)
+
+        media = [m for m in ws.sent if m.get("event") == "media"]
+        assert [len(base64.b64decode(m["media"]["payload"])) for m in media] == [160, 160]
 
     async def test_start_sets_lead_phone_from_number(self):
         ws = _FakeWS()
@@ -683,8 +694,8 @@ class TestDemoReadinessRegressions:
         assert captured["data"]["model"] == "whisper-large-v3"
 
     def test_pcm16_to_wav_header_declares_16k_mono(self):
-        import wave
         import io as _io
+        import wave
 
         from app.telephony.smartflo_stream import pcm16_to_wav
 

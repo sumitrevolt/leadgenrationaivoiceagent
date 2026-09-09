@@ -15,10 +15,13 @@ Protocol (from docs.smartflo.tatatelebusiness.com):
     {"event":"media","media":{"payload":"<b64 mulaw>","chunk":"1","timestamp":"5"}}
     {"event":"stop","stop":{"reason":"..."}}
     {"event":"dtmf","dtmf":{"digit":"1"}}
+    {"event":"mark","mark":{"name":"..."}}   — playback completion
   send to Smartflo:
     {"event":"media","media":{"payload":"<b64 mulaw>","chunk":"1"}}
     {"event":"clear"}                    — flush playback (barge-in)
-    {"event":"mark","mark":{"name":"..."}} — sync end-of-playback
+    {"event":"mark","mark":{"name":"..."}} — signal end-of-playback
+
+  Smartflo sends connected/start/stop to this endpoint; they are not echoed.
 
 Audio format: G.711 µ-law (mulaw), 8000 Hz, 8-bit, 64 kbps.
   - Inbound: decode mulaw → PCM16 8kHz → resample to 16kHz → STT
@@ -343,8 +346,8 @@ class SmartfloStreamSession:
 
         if event == "connected":
             logger.info("[smartflo-stream] connected event")
-            # Send our connected handshake back
-            await self._send({"event": "connected"})
+            # Smartflo sends the handshake to this endpoint. The official
+            # contract does not require an echo response.
 
         elif event == "start":
             start = data.get("start") or {}
@@ -393,11 +396,6 @@ class SmartfloStreamSession:
                             self.niche = _c["niche"]
                 except Exception:
                     pass
-            # Send start ack back to Smartflo
-            await self._send({
-                "event": "start",
-                "streamSid": self.stream_sid,
-            })
             # Greet
             await self._maybe_greet()
 
@@ -752,6 +750,12 @@ class SmartfloStreamSession:
             if not self._speaking or generation != self._playback_generation:
                 break  # barge-in cancelled playback
             frame = mulaw[offset : offset + MULAW_FRAME_BYTES]
+            # Smartflo warns that a final non-160-byte payload can create an
+            # audible gap. Pad only the final frame with µ-law silence so every
+            # outbound media payload is a valid 20 ms (or larger multiple)
+            # packet.
+            if len(frame) < MULAW_FRAME_BYTES:
+                frame += b"\xff" * (MULAW_FRAME_BYTES - len(frame))
             payload_b64 = base64.b64encode(frame).decode()
             try:
                 await asyncio.wait_for(
