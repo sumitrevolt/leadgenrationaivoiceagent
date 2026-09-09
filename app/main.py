@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
-from app.admin.main import router as admin_command_center_router
+from app.admin.main import admin_router as admin_command_center_router
 from app.api.agents import router as agents_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
@@ -1266,18 +1266,6 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
 try:
-    from app.admin.routes.docker import router as docker_admin_router
-
-    app.include_router(docker_admin_router)  # /admin/api/docker/* — Docker container control
-except Exception as _e:  # pragma: no cover
-    logger.warning(f"Docker admin router not mounted: {_e}")
-try:
-    from app.admin.routes.workers import router as workers_admin_router
-
-    app.include_router(workers_admin_router)  # /admin/api/workers/* — Hermes bot coordination
-except Exception as _e:  # pragma: no cover - never block boot
-    logger.warning(f"Workers admin router not mounted: {_e}")
-try:
     from app.api.owner_os import router as owner_os_router
 
     app.include_router(owner_os_router)  # /api/admin/owner-os/* — Owner Command Console
@@ -1802,15 +1790,6 @@ async def customer_dashboard_v2_page():
     """
     return FileResponse(
         str(FRONTEND_DIR / "customer_dashboard_v2.html"),
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
-    )
-
-
-@app.get("/app/command-center", tags=["Frontend"])
-async def command_center_page():
-    """Command Center - Real-time system monitoring and worker coordination."""
-    return FileResponse(
-        str(FRONTEND_DIR / "admin_command_center.html"),
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
     )
 
