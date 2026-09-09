@@ -232,12 +232,8 @@ class TelephonyService:
                         "call_id": call_id,
                     },
                 )
-                if result.get("status_code") == 200 and (
-                    result.get("body") or {}
-                ).get("success"):
-                    ref_id = str(
-                        (result.get("body") or {}).get("ref_id") or call_id
-                    )
+                if result.get("status_code") == 200 and (result.get("body") or {}).get("success"):
+                    ref_id = str((result.get("body") or {}).get("ref_id") or call_id)
                     return CallResult(
                         call_id=ref_id,
                         status="initiated",
@@ -371,8 +367,7 @@ class TelephonyService:
             "vobiz": bool(_env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN")),
             "sip": bool(_env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD")),
             "tata_smartflo": bool(
-                _env("TATA_SMARTFLO_API_TOKEN")
-                and _env("TATA_SMARTFLO_API_KEY")
+                _env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY")
             ),
         }
 
