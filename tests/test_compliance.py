@@ -18,13 +18,20 @@ def _run(coro):
 
 
 class _FakeDND:
-    """Stand-in for DNDChecker — returns a fixed is_dnd verdict."""
+    """Stand-in for DNDChecker — returns a fixed, VERIFIED is_dnd verdict.
+
+    `channel` is accepted because ComplianceGate._is_dnd() calls
+    `check_single(phone, channel="voice")` (OPS-017 voice-only allowance). A fake
+    without it raises TypeError, which the gate's `except` swallows into a
+    fail-closed `dnd_lookup_failed` — silently turning these "allowed" tests into
+    block tests. Keep the signature in sync with the real DNDChecker.
+    """
 
     def __init__(self, is_dnd: bool = False):
         self._v = is_dnd
 
-    async def check_single(self, phone: str):
-        return SimpleNamespace(is_dnd=self._v)
+    async def check_single(self, phone: str, channel: str = "voice"):
+        return SimpleNamespace(is_dnd=self._v, verified=True)
 
 
 IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)  # noon IST — inside both windows
@@ -193,7 +200,7 @@ def test_gate_never_raises_on_bad_dnd(monkeypatch):
 class _UnverifiedDND:
     """DND backend that answers but cannot verify — exercises the fail-open path."""
 
-    async def check_single(self, phone: str):
+    async def check_single(self, phone: str, channel: str = "voice"):
         return SimpleNamespace(is_dnd=False, verified=False)
 
 

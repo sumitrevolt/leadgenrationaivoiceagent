@@ -89,6 +89,10 @@ class TataSmartfloClient:
         customer_ring_timeout: int = 30,
         custom_identifier: dict[str, str] | None = None,
         enforce_compliance: bool = True,
+        call_type: str = "transactional",
+        skip_compliance: bool = False,
+        answer_url: str | None = None,
+        callback_data: str | None = None,
         **extra: Any,
     ) -> dict[str, Any]:
         """
@@ -113,6 +117,20 @@ class TataSmartfloClient:
             enforce_compliance: Run the TRAI/TCCCPR pre-dial gate (default True).
                 Exists ONLY so a pure transport unit test can opt out explicitly.
                 Production callers must leave it True.
+            call_type:       "promotional" (cold) or "transactional" (consented).
+                Selects the compliance lane: ONLY promotional calls are subject
+                to DND + DLT/140 + caller-id checks (compliance.py:388).
+                Defaults to "transactional" for backwards compatibility.
+            skip_compliance: CallManager opt-out for calls already gated upstream
+                in queue_call() (mirrors VobizClient.place_call).
+                Effective gating = ``enforce_compliance and not skip_compliance``.
+            answer_url:      Vobiz-only field. ACCEPTED so the CallManager's
+                Vobiz-shaped kwargs do not explode, then DROPPED — Smartflo's
+                second leg is bound to the api_key in the Smartflo portal, so
+                this must never be sent to the C2C API.
+            callback_data:   Call correlation id (also accepted as the
+                Vobiz-spelled ``CallbackData`` kwarg). Folded into
+                ``custom_identifier["call_id"]`` — never sent top-level.
             **extra:        Forwarded to API payload
 
         Returns:
@@ -125,17 +143,41 @@ class TataSmartfloClient:
             {"status_code": 0, "body": {"error": "compliance_blocked: <reason>"}}
         """
         # ------------------------------------------------------------------ #
+        # KWARG NORMALISATION (Vobiz-shaped caller support)
+        # CallManager (call_manager.py:395) calls every handler with the Vobiz
+        # signature. Accept those fields explicitly so they are CONSUMED here
+        # instead of leaking into the Smartflo C2C JSON body via **extra.
+        # ------------------------------------------------------------------ #
+        callback_data = callback_data or extra.pop("CallbackData", None)
+        if answer_url:
+            # Vobiz-only: Smartflo's destination is configured in the portal
+            # against the api_key, so there is nothing to forward. Log + drop.
+            logger.debug(
+                "Tata Smartflo place_call: ignoring Vobiz-only answer_url "
+                "(Smartflo destination is bound to the api_key in the portal)."
+            )
+        # An absent/blank call_type keeps the historical transactional default.
+        # Anything else is forwarded VERBATIM to the gates — never downgraded.
+        call_type = (call_type or "transactional").strip() or "transactional"
+
+        # ------------------------------------------------------------------ #
         # COMPLIANCE PRE-FLIGHT (TRAI/TCCCPR) — mirrors VobizClient.place_call
         # (vobiz_handler.py:91 / :116): dial_gate -> ComplianceGate -> admin
         # kill switch. FAILS CLOSED: an error inside any gate blocks the call
         # instead of dialling. This client used to have NO gate at all, so
         # calling it directly could cold-dial any number.
+        #
+        # P0 FIX 2026-09-13: the call_type was HARDCODED to transactional here,
+        # so a cold/promotional call placed through SmartFlo silently took the
+        # lenient lane and skipped DND + DLT/140 + caller-id entirely (Vobiz was
+        # correct; the provider swap regressed it). The real call_type is now
+        # threaded through both gates.
         # ------------------------------------------------------------------ #
-        if enforce_compliance:
+        if enforce_compliance and not skip_compliance:
             try:
                 from app.telephony.dial_gate import check as dial_gate_check
 
-                ok, reason = dial_gate_check(to, call_type="transactional")
+                ok, reason = dial_gate_check(to, call_type)
                 if not ok:
                     logger.warning(
                         f"Tata Smartflo place_call blocked by dial_gate: {reason}"
@@ -156,9 +198,15 @@ class TataSmartfloClient:
             try:
                 from app.telephony.compliance import CallType, get_compliance_gate
 
-                decision = await get_compliance_gate().check(
-                    to, CallType.TRANSACTIONAL
+                # Same derivation as vobiz_handler.py:111. Anything that is not
+                # an exact CallType value falls back to TRANSACTIONAL (Vobiz
+                # parity); "promotional" therefore reaches the strict lane.
+                ct = (
+                    CallType(call_type)
+                    if call_type in (c.value for c in CallType)
+                    else CallType.TRANSACTIONAL
                 )
+                decision = await get_compliance_gate().check(to, ct)
                 if not decision.allowed:
                     logger.warning(
                         "Tata Smartflo place_call blocked by compliance: "
@@ -217,6 +265,19 @@ class TataSmartfloClient:
         # Build clean 10-digit number for Smartflo API
         to_clean = self._clean_number(to)
         caller = caller_id or self.did
+
+        # CALL CORRELATION (2026-09-13): CallManager passes the internal call_id
+        # as the Vobiz-spelled `CallbackData`. Smartflo has no such top-level
+        # field — shipping it there was junk in the C2C body AND lost the
+        # correlation (voice-minute billing / lead qualification / CRM sync all
+        # depend on it). Fold it into custom_identifier, which the webhook
+        # echoes back. Done BEFORE the 10-key truncation below so it survives.
+        # "call_id" is inserted first and the caller's own keys win on conflict
+        # (setdefault semantics) — telephony_service.py:226 already sets one.
+        if callback_data is not None:
+            merged_identifier: dict[str, str] = {"call_id": str(callback_data)}
+            merged_identifier.update(custom_identifier or {})
+            custom_identifier = merged_identifier
 
         payload: dict[str, Any] = {
             "customer_number": to_clean,

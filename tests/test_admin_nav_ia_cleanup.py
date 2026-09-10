@@ -58,11 +58,15 @@ def test_ops_command_center_merged_and_deleted():
     assert not os.path.exists("frontend/command_center.html")
 
 
-def test_command_center_route_redirects_to_control_center():
+def test_command_center_route_redirects_to_owner_command_center():
     # The /app/command-center route is kept as a permanent redirect so old
-    # bookmarks still resolve to the canonical ops cockpit instead of 404-ing.
+    # bookmarks still resolve to a canonical cockpit instead of 404-ing.
+    # 2026-09-10 (24x7 Owner Command Center): the canonical destination is now
+    # /app/owner-command-center — the single OWNER/ADMIN entry point from the
+    # architecture mandate. /app/control-center still exists as its own page,
+    # so this is a retarget, not a feature loss.
     main = _main_py()
-    assert 'RedirectResponse(url="/app/control-center"' in main
+    assert 'RedirectResponse(url="/app/owner-command-center"' in main
 
 
 def test_delivery_command_center_title_unchanged():
