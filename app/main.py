@@ -1161,6 +1161,16 @@ except Exception as _e:  # pragma: no cover
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 try:
+    from app.admin.main import admin_router as _admin_cc_router
+    app.include_router(_admin_cc_router)
+except Exception as _e:
+    logger.warning(f"Admin Command Center router not mounted: {_e}")
+try:
+    from app.api.owner_command_center import router as _occ_router
+    app.include_router(_occ_router, prefix="/api/occ")
+except Exception as _e:
+    logger.warning(f"Owner Command Center router not mounted: {_e}")
+try:
     from app.api.assessment import router as assessment_router
 
     app.include_router(
@@ -2006,21 +2016,20 @@ async def growth_tools_page():
 
 @app.get("/app/command-center", tags=["Frontend"])
 async def command_center_page():
-    """MERGED→DELETED 2026-07-07 (ADR-034): the old Ops Command Center duplicated
-    /app/control-center + /app/ops (LLM health, staff roster, automation flags).
-    Route kept as a permanent redirect so old bookmarks/links still land on the
-    canonical ops cockpit; command_center.html deleted. Merge-before-delete per
-    user mandate."""
+    """Redirect to unified Owner Command Center."""
     from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/app/owner-command-center", status_code=307)
 
-    return RedirectResponse(url="/app/control-center", status_code=307)
+
+@app.get("/app/owner-command-center", tags=["Frontend"])
+async def owner_command_center_page():
+    """Owner Command Center — unified L1→L4 dashboard (health/revenue/automation/workers)."""
+    return FileResponse(str(FRONTEND_DIR / "owner_command_center.html"))
 
 
 @app.get("/app/delivery-command-center", tags=["Frontend"])
 async def delivery_command_center_page():
-    """Customer Delivery OS admin front door — total/paying/stuck/receiving-value/
-    failed-automation customers, pending approvals, revenue. Business-outcome view;
-    distinct from /app/command-center (infra/ops KPI cockpit)."""
+    """Customer Delivery OS admin front door."""
     return FileResponse(str(FRONTEND_DIR / "delivery_command_center.html"))
 
 

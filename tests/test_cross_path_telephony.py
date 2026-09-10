@@ -57,6 +57,17 @@ def test_vobiz_cleanup_meters_once(monkeypatch):
     """VobizStreamSession._cleanup invokes meter_call_completion exactly once."""
     meter = AsyncMock(return_value=True)
     monkeypatch.setattr("app.telephony.post_call_hooks.meter_call_completion", meter)
+    # 2026-09-10: without these two, _cleanup() writes a REAL row to the
+    # gitignored data/interactions.jsonl and fires a real outbound webhook on
+    # every single test run. Test pollution, not intent.
+    monkeypatch.setattr(
+        "app.platform.interaction_log.record",
+        AsyncMock(return_value={"ok": True}),
+    )
+    monkeypatch.setattr(
+        "app.platform.outbound_webhooks.emit",
+        AsyncMock(return_value=None),
+    )
 
     sess = VobizStreamSession(MagicMock(), client_id="cid-1", client_name="Test Co")
     sess.stream_sid = "stream-99"

@@ -24,6 +24,39 @@ class TelephonyProvider(Enum):
     """Supported telephony providers"""
 
     VOBIZ = "vobiz"
+    TATA_SMARTFLO = "tata_smartflo"
+
+
+def _build_handler(provider: str) -> Any:
+    """
+    Build the telephony client for ``provider`` — SINGLE decision point.
+
+    Kept at module level (and provider-in → client-out) so provider routing is
+    unit-testable without constructing a full ``CallManager``.
+
+    Args:
+        provider: Normalized provider id ("vobiz" | "tata_smartflo").
+
+    Returns:
+        The provider client instance (``VobizClient`` or ``TataSmartfloClient``).
+
+    Note:
+        Unknown/stale provider strings (legacy "exotel"/"twilio" still sitting in
+        .env) fall back to Vobiz with a warning — they must NEVER raise.
+    """
+    key = (provider or "").strip().lower()
+
+    if key == TelephonyProvider.TATA_SMARTFLO.value:
+        from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+        return TataSmartfloClient()
+
+    if key != TelephonyProvider.VOBIZ.value:
+        logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
+
+    from app.telephony.vobiz_handler import VobizClient
+
+    return VobizClient()
 
 
 @dataclass
@@ -81,14 +114,12 @@ class CallManager:
 
         # Defensive: an unknown/stale provider (e.g. legacy "exotel"/"twilio" still
         # sitting in .env) must NEVER crash the whole app — fall back to Vobiz (the
-        # only supported provider) with a warning.
-        if provider != "vobiz":
+        # default provider) with a warning.
+        if provider not in (p.value for p in TelephonyProvider):
             logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
-            provider = "vobiz"
+            provider = TelephonyProvider.VOBIZ.value
 
-        from app.telephony.vobiz_handler import VobizClient
-
-        self.handler = VobizClient()
+        self.handler = _build_handler(provider)
 
         self.provider = TelephonyProvider(provider)
         self.voice_agent = VoiceAgent()

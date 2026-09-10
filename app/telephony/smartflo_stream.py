@@ -51,6 +51,44 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Billing identity — DOUBLE-BILLING GUARD
+# ---------------------------------------------------------------------------
+# The status webhook (app/telephony/smartflo_webhooks.py:183) resolves the call id
+# with `_pick(data, "call_id", "callId", "callid", "uuid", "id")`. This stream
+# path resolves its OWN id separately, and `meter_call_completion` dedupes on
+# `call_meter:{call_id}`.
+#
+# => If the two sides resolve DIFFERENT ids for the same call, the call is
+#    metered TWICE (two distinct dedupe keys). That is a revenue defect, not a
+#    logging nit.
+#
+# So this key list MUST stay in sync with smartflo_webhooks.py:183. Previously
+# the stream only looked at `start.callSid` / `start.call_sid`; when the provider
+# sent any other spelling, `self.call_sid` stayed empty, `_cleanup()` fell back
+# to `stream_sid`, and the stream silently billed under a key the webhook would
+# never match.
+_CALL_ID_KEYS = ("callSid", "call_sid", "callId", "call_id", "callid", "uuid", "id")
+
+
+def _extract_call_id(data: dict[str, Any], start: dict[str, Any]) -> str:
+    """Resolve the provider call id from a Smartflo media ``start`` frame.
+
+    Searches ``start`` first, then the whole frame, using the same key set as the
+    status webhook — so both paths converge on one id and dedupe correctly.
+
+    Returns "" when nothing matches (the caller then falls back to stream_sid and
+    MUST warn: that is the double-billing risk condition).
+    """
+    for source in (start, data):
+        if not isinstance(source, dict):
+            continue
+        for key in _CALL_ID_KEYS:
+            value = source.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    return ""
+
 
 # ---------------------------------------------------------------------------
 # Capability detection (same pattern as vobiz_stream.py)
@@ -367,7 +405,7 @@ class SmartfloStreamSession:
                 or start.get("streamSid")
                 or start.get("stream_sid")
             )
-            self.call_sid = start.get("callSid") or start.get("call_sid")
+            self.call_sid = _extract_call_id(data, start)
             self.from_number = start.get("from")
             self.to_number = start.get("to")
             # Pull niche/client from customParameters (if set in Smartflo portal)
@@ -425,16 +463,13 @@ class SmartfloStreamSession:
             digit = (data.get("dtmf") or {}).get("digit")
             logger.info(f"[smartflo-stream] dtmf={digit}")
             if str(digit) == "9":
-                try:
-                    from app.telephony.consent_ledger import ConsentAction, persist_opt_out
-
-                    persist_opt_out(
-                        phone=self._lead_phone or "",
-                        action=ConsentAction.OPT_OUT,
-                        source="smartflo_dtmf_press9",
-                    )
-                except Exception:
-                    pass
+                # TCCCPR: press-9 MUST reach the consent ledger. The previous
+                # body imported ``ConsentAction``/``persist_opt_out``, which do
+                # not exist in app/telephony/consent_ledger.py (only
+                # ``record_opt_out`` does) — so every press-9 raised ImportError
+                # and the bare ``except Exception: pass`` buried it. A caller
+                # who opted out was never suppressed, and nothing said so.
+                self._persist_opt_out("smartflo_dtmf_press9")
                 await self._send({"event": "clear", "streamSid": self.stream_sid})
                 await self._cleanup()
 
@@ -825,19 +860,76 @@ class SmartfloStreamSession:
         self._speaking = False
 
     # ------------------------------------------------------------------ #
+    # Opt-out (TCCCPR)
+    # ------------------------------------------------------------------ #
+    def _persist_opt_out(self, reason: str) -> None:
+        """Instant cross-channel suppression via consent_ledger.
+
+        Mirrors ``vobiz_stream._persist_opt_out`` (vobiz_stream.py:1431-1446).
+        Best-effort, never raises — a ledger failure must not break the live
+        call. But it is NEVER silent: ERROR on failure, INFO on success,
+        WARNING when there is no phone to suppress. A swallowed opt-out is a
+        compliance failure, not a logging nit.
+
+        PII: only the last 4 digits of the phone are ever logged.
+        """
+        phone = (getattr(self, "_lead_phone", "") or "").strip()
+        if not phone:
+            logger.warning(
+                "[smartflo-stream] opt-out detected but no lead_phone to suppress "
+                "(reason=%s streamSid=%s)",
+                reason,
+                self.stream_sid,
+            )
+            return
+        try:
+            from app.telephony.consent_ledger import record_opt_out
+
+            record_opt_out(
+                phone,
+                reason=reason,
+                channel="voice",
+                call_id=str(self.stream_sid or ""),
+            )
+            logger.info(f"[smartflo-stream] opt-out persisted ...{phone[-4:]} ({reason})")
+        except Exception as e:
+            logger.error(f"[smartflo-stream] opt-out persist FAILED ...{phone[-4:]}: {e}")
+
+    # ------------------------------------------------------------------ #
     # Greeting
     # ------------------------------------------------------------------ #
+    def _opening_line_raw(self) -> str:
+        """Caller-supplied or default opener, BEFORE AI-disclosure /
+        permission-ask normalisation. Mirrors ``vobiz_stream._opening_line_raw``."""
+        return self._caller_opening_line or (
+            f"Namaste! Main {self.client_name} ki AI assistant bol rahi hoon. "
+            "Aapki kya madad kar sakti hoon?"
+        )
+
     async def _maybe_greet(self) -> None:
         if self._greeted:
             return
         self._greeted = True
-        opener = self._caller_opening_line
-        if not opener:
-            # TRAI/§5 invariant: AI-disclosure at call start ("ek AI assistant").
-            opener = (
-                f"Namaste! Main {self.client_name} ki AI assistant bol rahi hoon. "
-                "Aapki kya madad kar sakti hoon?"
+        # TRAI/§5 invariant — MANDATORY, never optional and never skippable:
+        # AI-disclosure + permission ask come from the SHARED helpers
+        # (vobiz_stream.py:2518-2523) so SmartFlo cannot drift out of sync with
+        # the rest of the platform. Re-implementing the sentence inline is what
+        # let it drift in the first place.
+        raw = self._opening_line_raw()
+        try:
+            from app.voice_agent.niche_scripts import (
+                ensure_ai_disclosure,
+                ensure_permission_ask,
             )
+
+            opener = ensure_permission_ask(ensure_ai_disclosure(raw))
+        except Exception as e:
+            # Fail toward speaking, but loudly: a missing disclosure is a
+            # compliance event, not a debug detail.
+            logger.error(f"[smartflo-stream] opener disclosure normalisation FAILED: {e}")
+            opener = raw
+        if not (opener or "").strip():
+            opener = raw
         self.hist.append({"role": "assistant", "content": opener})
         await self._say(opener)
 
@@ -875,19 +967,82 @@ class SmartfloStreamSession:
             await self._persist_transcript()
         except Exception as e:
             logger.debug(f"[smartflo-stream] transcript persist failed: {e}")
-        # Meter call completion
-        try:
-            from app.telephony.post_call_hooks import meter_call_completion
-
-            await meter_call_completion(
-                call_id=self.call_sid or self.stream_sid or "smartflo-unknown",
-                client_id=self.client_id,
-                duration_seconds=int(
-                    (datetime.now(timezone.utc) - self._started_at).total_seconds()
-                ),
+        # End-of-call qualification + billing (P0-3).
+        #
+        # ── DOUBLE-METERING CONTRACT — read before changing this ──────────
+        # Billing identity is ``self.call_sid`` (populated from the SmartFlo
+        # media ``start`` frame's ``callSid`` at smartflo_stream.py:370), falling
+        # back to ``self.stream_sid``. That is the EXACT expression the old
+        # standalone metering block used, so billed identity is unchanged here.
+        #
+        # ``finalize_stream_session`` meters internally via
+        # ``meter_call_completion(call_id=...)`` (post_call_hooks.py:790), which
+        # is deduped on ``call_meter:{call_id}``. It is the ONLY metering call
+        # left on this path: the standalone block that used to sit here is gone,
+        # so there is no second in-process meter to double-bill with. The
+        # SmartFlo status webhook (smartflo_webhooks._meter_call) meters the
+        # same way and shares the same dedupe key when the provider call id
+        # matches — which is why we must not invent a new one.
+        if not (self.call_sid or "").strip():
+            # DOUBLE-BILLING RISK, and it is invisible without this line: with no
+            # provider call id we bill under `stream_sid`, while the status
+            # webhook bills under the REAL call id — two dedupe keys, two bills
+            # for one call. Billing anyway (never billing is the worse failure —
+            # that was the bug we just fixed) but make the very first live call
+            # scream about it so it can be reconciled before paid traffic.
+            logger.warning(
+                "[smartflo-stream] NO provider call id on the start frame "
+                "(streamSid=%s) — metering under stream_sid. If the status "
+                "webhook resolves a different id, this call is billed TWICE. "
+                "Capture the start frame and reconcile before paid traffic.",
+                self.stream_sid,
             )
-        except Exception:
-            pass
+        _call_id = self.call_sid or self.stream_sid or "smartflo-unknown"
+        try:
+            from app.telephony.post_call_hooks import finalize_stream_session
+
+            await finalize_stream_session(
+                self.hist,
+                call_id=_call_id,
+                client_id=self.client_id or "",
+                client_name=self.client_name or "",
+                phone=self._lead_phone or "",
+                niche=self.niche or "",
+                started_at=self._started_at,
+                ended_at=datetime.now(timezone.utc),
+                extra_transcript={
+                    "provider": "tata_smartflo",
+                    "stream_sid": self.stream_sid,
+                    "call_sid": self.call_sid,
+                    "from": self.from_number,
+                    "to": self.to_number,
+                    "media_frames": self._media_frames,
+                    "caller_rms_max": self._caller_rms_max,
+                },
+                lead_id=self._crm_lead_id or "",
+                # 2026-09-10: without this the analytics call_logs row is written
+                # with provider="phone", so Smartflo calls are indistinguishable
+                # from every other stream session and the dashboard cannot break
+                # them out (vobiz_stream.py:3374 passes provider="vobiz").
+                provider="tata_smartflo",
+            )
+        except Exception as e:
+            # Qualification threw — do NOT let that cost us the billing record.
+            # Retry the meter alone, under the SAME call_id, so the dedupe guard
+            # makes this a no-op if finalize already metered: at most one bill.
+            logger.error(f"[smartflo-stream] finalize_stream_session FAILED: {e}")
+            try:
+                from app.telephony.post_call_hooks import meter_call_completion
+
+                await meter_call_completion(
+                    call_id=_call_id,
+                    client_id=self.client_id,
+                    duration_seconds=int(
+                        (datetime.now(timezone.utc) - self._started_at).total_seconds()
+                    ),
+                )
+            except Exception as e2:
+                logger.error(f"[smartflo-stream] fallback metering FAILED: {e2}")
         # Close WS
         try:
             await self.ws.close()

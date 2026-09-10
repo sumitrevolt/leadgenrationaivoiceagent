@@ -5,7 +5,7 @@ Main Application Configuration
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -93,6 +93,51 @@ class Settings(BaseSettings):
     vobiz_sip_pass: str = ""
     vobiz_sip_realm: str = ""
     vobiz_caller_id: str = ""
+
+    # Tata Tele Smartflo (secondary trunk — C2C + voice streaming).
+    # Purely additive typed mirrors of the TATA_SMARTFLO_* / trunk env vars.
+    # Existing readers use _env() (getattr(settings, lower) -> os.getenv
+    # fallback), so these fields are backwards-compatible and change no
+    # behaviour; they only make the values visible/validated on `settings`.
+    #
+    # 2026-09-10 ALIAS FIX — do not remove. Three of these switches are NOT
+    # actually named TATA_SMARTFLO_* in production: the live readers
+    # (app/api/telephony_smartflo.py:121/133/134) read SMARTFLO_VOICE_STREAM_ENABLED,
+    # SMARTFLO_WS_SECRET and SMARTFLO_WS_REQUIRE_SECRET. A plain `tata_smartflo_*`
+    # field would therefore bind to an env var nobody ever sets, silently read
+    # False/"", and any future `settings.<field>` reader would keep the provider
+    # INERT even with the switch armed — a "configured but dead" state that is
+    # very hard to debug. AliasChoices binds the REAL name first and keeps the
+    # TATA_-prefixed spelling working as a fallback.
+    tata_smartflo_api_token: str = ""
+    tata_smartflo_api_key: str = ""
+    tata_smartflo_did: str = ""
+    tata_smartflo_enabled: bool = False
+    tata_smartflo_voice_stream_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SMARTFLO_VOICE_STREAM_ENABLED",
+            "TATA_SMARTFLO_VOICE_STREAM_ENABLED",
+        ),
+    )
+    tata_smartflo_weight: int = 50
+    tata_smartflo_cps_limit: int = 2
+    tata_smartflo_max_concurrent: int = 5
+    tata_smartflo_webhook_secret: str = ""
+    tata_smartflo_ws_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SMARTFLO_WS_SECRET",
+            "TATA_SMARTFLO_WS_SECRET",
+        ),
+    )
+    tata_smartflo_ws_require_secret: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SMARTFLO_WS_REQUIRE_SECRET",
+            "TATA_SMARTFLO_WS_REQUIRE_SECRET",
+        ),
+    )
 
     # Public base URL — webhooks (e.g. Vobiz answer_url) isi pe bante hain
     public_base_url: str = "https://leadsgenai.in"

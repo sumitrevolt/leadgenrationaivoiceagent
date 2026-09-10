@@ -176,6 +176,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "network: internet/LLM-key dependent tests (CI: -m 'not network')",
+    "real_finalize_stream_session: opt back in to the REAL post_call_hooks.finalize_stream_session (stream tests isolate it in memory by default)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

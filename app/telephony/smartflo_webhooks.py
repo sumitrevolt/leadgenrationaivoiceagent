@@ -313,21 +313,68 @@ def get_recent_webhooks(limit: int = 50) -> list[dict[str, Any]]:
 # Downstream actions (best-effort, never raise)
 # ---------------------------------------------------------------------------
 async def _meter_call(call_id: str, duration_s: int, custom_id: dict[str, Any]) -> None:
-    """Trigger billing metering for a connected Smartflo call."""
-    try:
-        client_id = custom_id.get("client_id")
-        await meter_call_completion(
-            client_id=client_id,
-            call_duration_s=duration_s,
-            metadata={
-                "provider": "tata_smartflo",
-                "call_id": call_id,
-                "source": custom_id.get("source", "webhook"),
-            },
+    """Trigger billing metering for a connected Smartflo call.
+
+    2026-09-10 REVENUE FIX — do not revert to the old kwargs.
+    The previous body called::
+
+        meter_call_completion(client_id=..., call_duration_s=..., metadata={...})
+
+    but the real signature (``app/telephony/post_call_hooks.py:47-54``) is::
+
+        meter_call_completion(call_id, *, client_id="", client_name="",
+                              duration_seconds, campaign_id=None)
+
+    ``call_id`` is a REQUIRED positional and ``call_duration_s`` / ``metadata``
+    are not parameters at all, so EVERY call raised ``TypeError`` — and the
+    ``except`` swallowed it at ``logger.debug``. Meaning: **no Smartflo outbound
+    call was ever metered**, and nothing in the logs said so. This was a silent
+    revenue leak, not a logging nit.
+
+    Two hard rules now:
+      1. A metering failure is ``logger.warning``, never ``logger.debug``.
+      2. A call with no billable identity is logged loudly — an unattributable
+         call is unbilled revenue, and ``usage.py``'s ``if not cid: return False``
+         would otherwise drop it without a trace.
+    """
+    if meter_call_completion is None:
+        logger.warning(
+            "[smartflo-webhook] metering unavailable (import failed) — call %s NOT metered",
+            call_id,
         )
-        logger.info(f"[smartflo-webhook] metered call {call_id} ({duration_s}s)")
+        return
+
+    client_id = str(custom_id.get("client_id") or "").strip()
+    client_name = str(custom_id.get("client_name") or "").strip()
+    if not client_id and not client_name:
+        logger.warning(
+            "[smartflo-webhook] call %s has NO billable identity (client_id/client_name "
+            "absent from custom_identifier) — minutes will not be billed to anyone.",
+            call_id,
+        )
+
+    try:
+        metered = await meter_call_completion(
+            call_id=call_id,
+            client_id=client_id,
+            client_name=client_name,
+            duration_seconds=int(duration_s or 0),
+        )
     except Exception as e:
-        logger.debug(f"[smartflo-webhook] metering skipped: {e}")
+        logger.warning(
+            "[smartflo-webhook] metering FAILED for call %s: %s", call_id, e
+        )
+        return
+
+    if metered:
+        logger.info("[smartflo-webhook] metered call %s (%ss)", call_id, duration_s)
+    else:
+        logger.warning(
+            "[smartflo-webhook] call %s NOT metered (meter returned False, %ss) — "
+            "check client identity and duration",
+            call_id,
+            duration_s,
+        )
 
 
 async def _update_lead_status(lead_id: str, status: str, duration_s: int) -> None:

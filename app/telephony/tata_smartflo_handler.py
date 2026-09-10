@@ -88,6 +88,7 @@ class TataSmartfloClient:
         call_timeout: int = 300,
         customer_ring_timeout: int = 30,
         custom_identifier: dict[str, str] | None = None,
+        enforce_compliance: bool = True,
         **extra: Any,
     ) -> dict[str, Any]:
         """
@@ -109,6 +110,9 @@ class TataSmartfloClient:
             call_timeout:   Max call duration in seconds (auto-hangup)
             customer_ring_timeout: Max seconds to ring customer (10-30)
             custom_identifier: Up to 10 custom key-value pairs for webhook correlation
+            enforce_compliance: Run the TRAI/TCCCPR pre-dial gate (default True).
+                Exists ONLY so a pure transport unit test can opt out explicitly.
+                Production callers must leave it True.
             **extra:        Forwarded to API payload
 
         Returns:
@@ -116,7 +120,88 @@ class TataSmartfloClient:
 
         On success (200):
             body = {"success": true, "message": "Originate successfully queued", "ref_id": "..."}
+
+        On a compliance block (never dialled):
+            {"status_code": 0, "body": {"error": "compliance_blocked: <reason>"}}
         """
+        # ------------------------------------------------------------------ #
+        # COMPLIANCE PRE-FLIGHT (TRAI/TCCCPR) — mirrors VobizClient.place_call
+        # (vobiz_handler.py:91 / :116): dial_gate -> ComplianceGate -> admin
+        # kill switch. FAILS CLOSED: an error inside any gate blocks the call
+        # instead of dialling. This client used to have NO gate at all, so
+        # calling it directly could cold-dial any number.
+        # ------------------------------------------------------------------ #
+        if enforce_compliance:
+            try:
+                from app.telephony.dial_gate import check as dial_gate_check
+
+                ok, reason = dial_gate_check(to, call_type="transactional")
+                if not ok:
+                    logger.warning(
+                        f"Tata Smartflo place_call blocked by dial_gate: {reason}"
+                    )
+                    return {
+                        "status_code": 0,
+                        "body": {"error": f"compliance_blocked: dial_gate: {reason}"},
+                    }
+            except Exception as e:
+                logger.error(
+                    f"Tata Smartflo place_call: dial_gate error ({e}) — blocking dial."
+                )
+                return {
+                    "status_code": 0,
+                    "body": {"error": f"compliance_blocked: dial_gate_error: {e}"},
+                }
+
+            try:
+                from app.telephony.compliance import CallType, get_compliance_gate
+
+                decision = await get_compliance_gate().check(
+                    to, CallType.TRANSACTIONAL
+                )
+                if not decision.allowed:
+                    logger.warning(
+                        "Tata Smartflo place_call blocked by compliance: "
+                        f"{decision.reasons}"
+                    )
+                    return {
+                        "status_code": 0,
+                        "body": {
+                            "error": (
+                                "compliance_blocked: "
+                                f"{'; '.join(decision.reasons) or 'blocked'}"
+                            )
+                        },
+                    }
+            except Exception as e:
+                logger.error(
+                    f"Tata Smartflo place_call: compliance gate error ({e}) — blocking dial."
+                )
+                return {
+                    "status_code": 0,
+                    "body": {"error": f"compliance_blocked: gate_error: {e}"},
+                }
+
+            try:
+                from app.telephony.voice_launch import admin_kill_engaged
+
+                if admin_kill_engaged():
+                    logger.warning(
+                        "Tata Smartflo place_call blocked: admin kill switch engaged."
+                    )
+                    return {
+                        "status_code": 0,
+                        "body": {"error": "compliance_blocked: admin_kill_engaged"},
+                    }
+            except Exception as e:
+                logger.error(
+                    f"Tata Smartflo place_call: kill-switch check error ({e}) — blocking dial."
+                )
+                return {
+                    "status_code": 0,
+                    "body": {"error": f"compliance_blocked: kill_switch_error: {e}"},
+                }
+
         if not self.available():
             logger.warning("Tata Smartflo place_call rejected: not configured")
             return {

@@ -119,6 +119,33 @@ EXPECTED_GAP_MIN = {
     "heartbeat": 10 * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
     "content_approval_notify": 65
     * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
+    # ---- 2026-09-10: dead-man blind spots closed (24x7 migration audit) --------
+    # These jobs were DECLARED in app/worker.py beat_schedule but absent from this
+    # registry, so they could NEVER surface as overdue — a silent failure class.
+    # Gaps below are deliberately GENEROUS (worst case = late alarm, never a false
+    # one); tighten after one observed cycle. Note: a job with no recorded run gets
+    # status "never_ran" (health() :749), NOT "overdue" — so jobs that are dormant
+    # because ENABLE_LEGACY_BEAT=0 strips them (app/worker.py:884) will report
+    # honestly as never_ran rather than firing a false overdue alarm.
+    "crm-sync": 180,  # */15 → 3h grace
+    "process-call-queue": 180,  # hourly :00
+    "process-voice-followups": 180,  # ONLY legacy job kept when ENABLE_LEGACY_BEAT=0
+    "daily-lead-scraping": 30 * 60,  # daily 06:00 IST
+    "daily-report": 30 * 60,
+    "weekly-report": 8 * 24 * 60,
+    "clean-logs": 30 * 60,
+    "brain-training-check": 180,
+    "brain-training-all": 8 * 24 * 60,
+    "brain-production": 30 * 60,
+    "brain-sub-agent": 30 * 60,
+    "brain-voice-agent": 30 * 60,
+    "brain-web-knowledge": 30 * 60,
+    "vertex-continuous-check": 180,
+    "vertex-knowledge-update": 30 * 60,
+    "vertex-train-all": 8 * 24 * 60,
+    "content_os.daily_video_run": 30 * 60,  # daily 09:00 (INERT unless CONTENT_OS_ENABLED=1)
+    "content_os.scan_inbox": 30,  # every 2 min
+    "content_os.notify_owner": 180,  # every 15 min
 }
 
 

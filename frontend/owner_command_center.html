@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owner Command Center — LeadGen AI</title>
+<style>
+:root {
+  --bg: #0f172a; --card: #1e293b; --card-2: #334155; --line: #475569;
+  --text: #f1f5f9; --muted: #94a3b8; --green: #22c55e; --red: #ef4444;
+  --amber: #f59e0b; --blue: #3b82f6; --indigo: #6366f1; --purple: #a855f7;
+  --cyan: #06b6d4; --pink: #ec4899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.4}
+.header{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+.header h1{font-size:1.4rem;color:var(--indigo);display:flex;align-items:center;gap:.5rem}
+.header .status{display:flex;gap:1rem;font-size:.85rem;color:var(--muted);flex-wrap:wrap}
+.pill{padding:.25rem .75rem;border-radius:1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.pill.green{background:rgba(34,197,94,.15);color:var(--green)}
+.pill.amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.pill.red{background:rgba(239,68,68,.15);color:var(--red)}
+.pill.blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.main{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 70px)}
+.sidebar{background:var(--card);border-right:1px solid var(--line);padding:1rem .5rem;overflow-y:auto;position:sticky;top:0;height:calc(100vh - 70px)}
+.sidebar a{display:flex;align-items:center;gap:.5rem;padding:.6rem .85rem;color:var(--muted);text-decoration:none;border-radius:.5rem;margin-bottom:.25rem;transition:all .2s;font-size:.85rem}
+.sidebar a:hover,.sidebar a.active{background:var(--card-2);color:var(--text)}
+.sidebar a .icon{width:20px;text-align:center}
+.sidebar .sec{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:1rem .5rem .5rem;padding-top:.5rem;border-top:1px solid var(--line)}
+.content{padding:1.5rem;overflow-y:auto;max-height:calc(100vh - 70px)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:.75rem;padding:1rem;text-align:center}
+.kpi .val{font-size:1.75rem;font-weight:700}
+.kpi .label{font-size:.7rem;color:var(--muted);margin-top:.25rem;text-transform:uppercase;letter-spacing:.05em}
+.section{margin-bottom:2rem}
+.section h2{font-size:1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:.75rem;padding:1.25rem}
+.card h3{font-size:.8rem;color:var(--muted);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;justify-content:space-between}
+.metric-big{font-size:2rem;font-weight:700}
+.metric-sub{font-size:.75rem;color:var(--muted);margin-top:.25rem}
+.bar{height:6px;background:var(--card-2);border-radius:3px;overflow:hidden;margin-top:.5rem}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.row:last-child{border-bottom:none}
+.row .label{color:var(--muted)}
+.row .val{font-weight:600}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.5rem}
+.dot.green{background:var(--green)}.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}.dot.grey{background:var(--muted)}
+.worker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem}
+.worker{background:var(--card-2);border-radius:.5rem;padding:.75rem;border:1px solid transparent;transition:all .2s}
+.worker:hover{border-color:var(--indigo)}
+.worker .name{font-weight:600;font-size:.85rem;margin-bottom:.25rem;display:flex;align-items:center;gap:.25rem}
+.worker .team{font-size:.65rem;color:var(--muted);margin-bottom:.25rem}
+.worker .combo{font-size:.7rem;color:var(--cyan)}
+.worker .status{font-size:.7rem;margin-top:.25rem}
+.combo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem}
+.combo{background:var(--card-2);border-radius:.5rem;padding:.75rem;font-size:.8rem}
+.combo .id{font-weight:600;color:var(--indigo);margin-bottom:.25rem}
+.combo .meta{color:var(--muted);font-size:.7rem}
+.task-col{background:var(--card);border-radius:.5rem;padding:1rem;min-height:200px}
+.task-col h4{font-size:.75rem;color:var(--muted);margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.05em}
+.task{background:var(--card-2);border-radius:.4rem;padding:.65rem;margin-bottom:.5rem;font-size:.75rem}
+.task .pri{display:inline-block;padding:.1rem .35rem;border-radius:.2rem;font-size:.65rem;margin-bottom:.25rem;font-weight:600}
+.pri.P0{background:var(--red);color:#fff}.pri.P1{background:var(--amber);color:#000}
+.pri.P2{background:var(--blue);color:#fff}.pri.P3{background:var(--card);color:var(--muted)}
+.approval-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem}
+.approval{background:var(--card-2);border-radius:.5rem;padding:.75rem;text-align:center}
+.approval .count{font-size:1.5rem;font-weight:700}
+.approval .type{font-size:.7rem;color:var(--muted);margin-top:.25rem}
+.log-item{padding:.5rem 0;border-bottom:1px solid var(--line);font-size:.8rem}
+.log-item:last-child{border-bottom:none}
+.log-item .ts{color:var(--muted);font-size:.7rem}
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:.25rem;font-size:.7rem;font-weight:600}
+.badge.ok{background:rgba(34,197,94,.15);color:var(--green)}
+.badge.warn{background:rgba(245,158,11,.15);color:var(--amber)}
+.badge.err{background:rgba(239,68,68,.15);color:var(--red)}
+.loading{display:flex;align-items:center;justify-content:center;padding:3rem;color:var(--muted)}
+.spinner{width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:spin .8s linear infinite;margin-right:.75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🎯 Owner Command Center</h1>
+  <div class="status">
+    <span id="health-pill" class="pill green">● SYSTEM HEALTHY</span>
+    <span id="prod-version">v—</span>
+    <span id="last-updated">—</span>
+  </div>
+</div>
+<div class="sidebar">
+  <a href="#" class="active" data-section="overview"><span class="icon">📊</span>Overview</a>
+  <a href="#" data-section="workers"><span class="icon">🤖</span>Workers</a>
+  <a href="#" data-section="agents"><span class="icon">👥</span>31 Agents</a>
+  <a href="#" data-section="tasks"><span class="icon">📋</span>Task Ledger</a>
+  <a href="#" data-section="combos"><span class="icon">🔀</span>14 Combos</a>
+  <div class="sec">Automation</div>
+  <a href="#" data-section="voice"><span class="icon">📞</span>Voice</a>
+  <a href="#" data-section="whatsapp"><span class="icon">💬</span>WhatsApp</a>
+  <a href="#" data-section="email"><span class="icon">📧</span>Email</a>
+  <a href="#" data-section="video"><span class="icon">🎬</span>Video</a>
+  <a href="#" data-section="social"><span class="icon">📱</span>Social</a>
+  <a href="#" data-section="leads"><span class="icon">🎯</span>Lead Gen</a>
+  <div class="sec">Business</div>
+  <a href="#" data-section="revenue"><span class="icon">💰</span>Revenue</a>
+  <a href="#" data-section="approvals"><span class="icon">✅</span>Approvals</a>
+  <a href="#" data-section="incidents"><span class="icon">🚨</span>Incidents</a>
+  <a href="#" data-section="system"><span class="icon">🖥️</span>System</a>
+</div>
+<div class="content" id="content">
+  <div class="loading"><div class="spinner"></div>Loading command center…</div>
+</div>
+<script>
+const S = {
+  data: null,
+  section: 'overview',
+  async load() {
+    try {
+      const r = await fetch('/api/occ/overview', {credentials:'include'});
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      this.data = await r.json();
+      this.render();
+    } catch(e) {
+      document.getElementById('content').innerHTML = '<div class="loading">⚠️ Failed to load: '+e.message+'</div>';
+    }
+  },
+  render() {
+    const d = this.data;
+    document.getElementById('last-updated').textContent = 'Updated: '+new Date(d.at).toLocaleTimeString();
+    document.getElementById('prod-version').textContent = 'API: '+(d.elapsed_ms||0)+'ms';
+    
+    const c = document.getElementById('content');
+    switch(this.section) {
+      case 'overview': c.innerHTML = this.renderOverview(d); break;
+      case 'workers': c.innerHTML = this.renderWorkers(d); break;
+      case 'agents': c.innerHTML = this.renderAgents(d); break;
+      case 'tasks': c.innerHTML = this.renderTasks(d); break;
+      case 'combos': c.innerHTML = this.renderCombos(d); break;
+      case 'voice': c.innerHTML = this.renderVoice(d); break;
+      case 'whatsapp': c.innerHTML = this.renderWhatsApp(d); break;
+      case 'email': c.innerHTML = this.renderEmail(d); break;
+      case 'video': c.innerHTML = this.renderVideo(d); break;
+      case 'social': c.innerHTML = this.renderSocial(d); break;
+      case 'leads': c.innerHTML = this.renderLeads(d); break;
+      case 'revenue': c.innerHTML = this.renderRevenue(d); break;
+      case 'approvals': c.innerHTML = this.renderApprovals(d); break;
+      case 'incidents': c.innerHTML = this.renderIncidents(d); break;
+      case 'system': c.innerHTML = this.renderSystem(d); break;
+      default: c.innerHTML = this.renderOverview(d);
+    }
+  },
+  renderOverview(d) {
+    const tl = d.task_ledger||{};
+    const wf = d.workforce||{};
+    const ak = d.admin_kpis||{};
+    const act = d.activation||{};
+    const sys = d.system||{};
+    return `
+      <div class="kpi-grid">
+        <div class="kpi"><div class="val">${ak.prospects_total||0}</div><div class="label">Prospects</div></div>
+        <div class="kpi"><div class="val">${ak.clients_total||0}</div><div class="label">Clients</div></div>
+        <div class="kpi"><div class="val">${tl.total||0}</div><div class="label">Tasks</div></div>
+        <div class="kpi"><div class="val">${(wf.agents||[]).length||0}</div><div class="label">Agents</div></div>
+        <div class="kpi"><div class="val">${(d.combos||[]).length||0}</div><div class="label">Combos</div></div>
+        <div class="kpi"><div class="val">${sys.disk_percent||0}%</div><div class="label">Disk</div></div>
+      </div>
+      <div class="section"><h2>📊 Today Overview</h2>
+        <div class="grid">
+          <div class="card"><h3>Marketing</h3>
+            <div class="row"><span class="label">Emails sent</span><span class="val">${(d.today_overview||{}).emails_sent||0}</span></div>
+            <div class="row"><span class="label">Content created</span><span class="val">${(d.today_overview||{}).content_created||0}</span></div>
+            <div class="row"><span class="label">Social posts</span><span class="val">${(d.today_overview||{}).social_posts||0}</span></div>
+          </div>
+          <div class="card"><h3>Activation</h3>
+            <div class="row"><span class="label">Payments ready</span><span class="val">${act.payments_ready?'✅':'❌'}</span></div>
+            <div class="row"><span class="label">Blockers</span><span class="val">${act.blocker_count||0}</span></div>
+            <div class="row"><span class="label">Ready for paid</span><span class="val">${act.ready_for_first_paid_customer?'✅':'❌'}</span></div>
+          </div>
+          <div class="card"><h3>System Ports</h3>
+            <div class="row"><span class="label">OmniRoute :20128</span><span class="val">${sys.port_omniroute||'—'}</span></div>
+            <div class="row"><span class="label">App :8000</span><span class="val">${sys.port_local_app||'—'}</span></div>
+            <div class="row"><span class="label">Buzz :3100</span><span class="val">${sys.port_buzz_relay||'—'}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="section"><h2>🚨 Wiring Gaps (${(d.wiring_gaps||[]).length})</h2>
+        <div class="card">
+          ${((d.wiring_gaps||[]).length===0)?'<div class="row"><span class="label">All armed systems wired ✅</span></div>':''}
+          ${(d.wiring_gaps||[]).map(g=>`<div class="row"><span class="label">${g.flag||g.id||'Unknown'}</span><span class="val">${g.reason||g.label||'Backend/creds missing'}</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  },
+  renderWorkers(d) {
+    const wf = d.workforce||{};
+    const desktop = wf.desktop_apps||{};
+    const agents = wf.agents||[];
+    return `
+      <div class="section"><h2>🤖 Desktop Workers</h2>
+        <div class="worker-grid">
+          ${Object.entries(desktop).map(([k,v])=>`
+            <div class="worker">
+              <div class="name">${k}</div>
+              <div class="status"><span class="dot green"></span>${v}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="section"><h2>📊 Workforce Status</h2>
+        <div class="grid">
+          <div class="card"><h3>Cycle</h3><div class="metric-big">${wf.cycle||0}</div><div class="metric-sub">${wf.status||'—'}</div></div>
+          <div class="card"><h3>Active Members</h3><div class="metric-big">${wf.active_members||0}</div><div class="metric-sub">of ${wf.working_members||0}</div></div>
+          <div class="card"><h3>Actions Today</h3><div class="metric-big">${wf.actions_today||0}</div><div class="metric-sub">${wf.peer_rescues_count||0} peer rescues</div></div>
+        </div>
+      </div>
+    `;
+  },
+  renderAgents(d) {
+    const agents = (d.workforce||{}).agents||[];
+    const teams = {};
+    agents.forEach(a=>{
+      const t = a.team||'Other';
+      if(!teams[t]) teams[t]=[];
+      teams[t].push(a);
+    });
+    return `<div class="section"><h2>👥 31 Specialist Agents</h2>
+      ${Object.entries(teams).map(([team,list])=>`
+        <div class="card" style="margin-bottom:1rem">
+          <h3>${team} (${list.length})</h3>
+          <div class="worker-grid">
+            ${list.map(a=>`
+              <div class="worker">
+                <div class="name">${a.emoji||'🤖'} ${a.name||a.key}</div>
+                <div class="combo">${a.combo||'—'}</div>
+                <div class="status"><span class="dot ${a.status==='LOCAL_ACTIVE'?'green':'amber'}"></span>${a.status||'—'}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  },
+  renderTasks(d) {
+    const tl = d.task_ledger||{};
+    const bs = tl.by_status||{};
+    const bo = tl.by_owner||{};
+    return `
+      <div class="section"><h2>📋 Task Ledger</h2>
+        <div class="grid">
+          <div class="card"><h3>By Status</h3>
+            <div class="row"><span class="label">Backlog</span><span class="val">${bs.backlog||0}</span></div>
+            <div class="row"><span class="label">In Progress</span><span class="val">${bs.in_progress||0}</span></div>
+            <div class="row"><span class="label">Review</span><span class="val">${bs.review||0}</span></div>
+            <div class="row"><span class="label">Done</span><span class="val">${bs.done||0}</span></div>
+          </div>
+          <div class="card"><h3>By Owner</h3>
+            ${Object.entries(bo).map(([k,v])=>`<div class="row"><span class="label">${k}</span><span class="val">${v}</span></div>`).join('')||'<div class="row"><span class="label">No active assignments</span></div>'}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+  renderCombos(d) {
+    const combos = d.combos||[];
+    return `<div class="section"><h2>🔀 14 Combos (OmniRoute)</h2>
+      <div class="combo-grid">
+        ${combos.map(c=>`
+          <div class="combo">
+            <div class="id">${c.id}</div>
+            <div class="meta">${c.object} · created ${new Date(c.created*1000).toLocaleDateString()}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  },
+  renderVoice(d) {
+    const ah = d.automation_health||{};
+    return `<div class="section"><h2>📞 Voice Automation</h2>
+      <div class="grid">
+        <div class="card"><h3>Status</h3>
+          <div class="row"><span class="label">Platform Dial</span><span class="val">${ah.platform_dial?'LIVE':'OFF'}</span></div>
+          <div class="row"><span class="label">Daily Cap</span><span class="val">${ah.daily_cap||100}</span></div>
+          <div class="row"><span class="label">Test Mode</span><span class="val">${ah.test_mode?'ON':'OFF'}</span></div>
+        </div>
+        <div class="card"><h3>Compliance</h3>
+          <div class="row"><span class="label">DND Fail-Closed</span><span class="val">✅</span></div>
+          <div class="row"><span class="label">TRAI Window</span><span class="val">10-19 IST</span></div>
+          <div class="row"><span class="label">AI Disclosure</span><span class="val">✅</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderWhatsApp(d) {
+    return `<div class="section"><h2>💬 WhatsApp Automation</h2>
+      <div class="grid">
+        <div class="card"><h3>Status</h3>
+          <div class="row"><span class="label">WAHA Session</span><span class="val">default</span></div>
+          <div class="row"><span class="label">Cold Auto-Send</span><span class="val pill red">OFF</span></div>
+          <div class="row"><span class="label">Post-Call WA</span><span class="val pill green">ARMED</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderEmail(d) {
+    return `<div class="section"><h2>📧 Email Automation</h2>
+      <div class="grid">
+        <div class="card"><h3>Outreach</h3>
+          <div class="row"><span class="label">Daily Cap</span><span class="val">25</span></div>
+          <div class="row"><span class="label">Reply Triage</span><span class="val pill green">LIVE</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderVideo(d) {
+    return `<div class="section"><h2>🎬 Video Automation</h2>
+      <div class="grid">
+        <div class="card"><h3>Production</h3>
+          <div class="row"><span class="label">Daily Video</span><span class="val pill green">LIVE</span></div>
+          <div class="row"><span class="label">Own-Brand Auto</span><span class="val pill green">CANARY</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderSocial(d) {
+    return `<div class="section"><h2>📱 Social Automation</h2>
+      <div class="grid">
+        <div class="card"><h3>Channels</h3>
+          <div class="row"><span class="label">Postiz</span><span class="val pill green">LIVE</span></div>
+          <div class="row"><span class="label">Facebook</span><span class="val pill green">LIVE</span></div>
+          <div class="row"><span class="label">Instagram</span><span class="val pill green">LIVE</span></div>
+          <div class="row"><span class="label">X/Twitter</span><span class="val pill green">LIVE</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderLeads(d) {
+    const ak = d.admin_kpis||{};
+    return `<div class="section"><h2>🎯 Lead Generation</h2>
+      <div class="grid">
+        <div class="card"><h3>Pipeline</h3>
+          <div class="row"><span class="label">Total Prospects</span><span class="val">${ak.prospects_total||0}</span></div>
+          <div class="row"><span class="label">Clients</span><span class="val">${ak.clients_total||0}</span></div>
+          <div class="row"><span class="label">Content Queue</span><span class="val">${ak.content_queue||0}</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderRevenue(d) {
+    const act = d.activation||{};
+    return `<div class="section"><h2>💰 Revenue</h2>
+      <div class="grid">
+        <div class="card"><h3>Money Path</h3>
+          <div class="row"><span class="label">Payments Ready</span><span class="val">${act.payments_ready?'✅':'❌'}</span></div>
+          <div class="row"><span class="label">Blockers</span><span class="val">${act.blocker_count||0}</span></div>
+          <div class="row"><span class="label">UPI Rail</span><span class="val pill green">CANONICAL</span></div>
+        </div>
+        <div class="card"><h3>Plans</h3>
+          <div class="row"><span class="label">Main</span><span class="val">₹1,999/mo</span></div>
+          <div class="row"><span class="label">Combo</span><span class="val">₹5,999/mo</span></div>
+          <div class="row"><span class="label">Advanced</span><span class="val">₹5,999/mo</span></div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderApprovals(d) {
+    return `<div class="section"><h2>✅ Approvals</h2>
+      <div class="approval-grid">
+        <div class="approval"><div class="count">0</div><div class="type">Owner</div></div>
+        <div class="approval"><div class="count">0</div><div class="type">Customer</div></div>
+        <div class="approval"><div class="count">0</div><div class="type">Deploy</div></div>
+        <div class="approval"><div class="count">0</div><div class="type">Content</div></div>
+        <div class="approval"><div class="count">0</div><div class="type">Financial</div></div>
+      </div>
+    </div>`;
+  },
+  renderIncidents(d) {
+    return `<div class="section"><h2>🚨 Incidents</h2>
+      <div class="card">
+        <div class="row"><span class="label">P0 Critical</span><span class="val pill green">0</span></div>
+        <div class="row"><span class="label">P1 Major</span><span class="val pill green">0</span></div>
+        <div class="row"><span class="label">P2 Degraded</span><span class="val pill green">0</span></div>
+        <div class="row"><span class="label">P3 Info</span><span class="val pill green">0</span></div>
+      </div>
+    </div>`;
+  },
+  renderSystem(d) {
+    const sys = d.system||{};
+    return `<div class="section"><h2>🖥️ System Health</h2>
+      <div class="grid">
+        <div class="card"><h3>Disk</h3>
+          <div class="metric-big">${sys.disk_percent||0}%</div>
+          <div class="bar"><div class="bar-fill" style="width:${sys.disk_percent||0}%;background:${(sys.disk_percent||0)>90?'var(--red)':'var(--green)'}"></div></div>
+          <div class="metric-sub">${sys.disk_used_gb||0} / ${sys.disk_total_gb||0} GB</div>
+        </div>
+        <div class="card"><h3>Ports</h3>
+          <div class="row"><span class="label">OmniRoute :20128</span><span class="val">${sys.port_omniroute||'—'}</span></div>
+          <div class="row"><span class="label">App :8000</span><span class="val">${sys.port_local_app||'—'}</span></div>
+          <div class="row"><span class="label">Buzz :3100</span><span class="val">${sys.port_buzz_relay||'—'}</span></div>
+        </div>
+      </div>
+    </div>`;
+  }
+};
+
+// Sidebar navigation
+document.querySelectorAll('.sidebar a').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    document.querySelectorAll('.sidebar a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    S.section = a.dataset.section;
+    S.render();
+  });
+});
+
+// Auto-refresh every 30s
+S.load();
+setInterval(()=>S.load(), 30000);
+</script>
+</body>
+</html>

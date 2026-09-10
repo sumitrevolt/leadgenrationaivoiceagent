@@ -227,10 +227,23 @@ class TestBillingChain:
 
         meter_called = {}
 
-        async def fake_meter(client_id=None, call_duration_s=0, metadata=None):
+        # 2026-09-10: signature MUST mirror the real
+        # app.telephony.post_call_hooks.meter_call_completion (call_id is a
+        # required positional). The previous fake used the buggy kwargs
+        # (client_id=/call_duration_s=/metadata=), which is exactly why the
+        # real TypeError was never caught by this test.
+        async def fake_meter(
+            call_id,
+            *,
+            client_id="",
+            client_name="",
+            duration_seconds=0,
+            campaign_id=None,
+        ):
+            meter_called["call_id"] = call_id
             meter_called["client_id"] = client_id
-            meter_called["duration"] = call_duration_s
-            meter_called["metadata"] = metadata
+            meter_called["client_name"] = client_name
+            meter_called["duration"] = duration_seconds
             return True
 
         webhook_payload = {
@@ -254,6 +267,10 @@ class TestBillingChain:
         assert r.status_code == 200
         assert meter_called.get("client_id") == "jiya-makeover"
         assert meter_called.get("duration") == 180
+        # REGRESSION: call_id is a REQUIRED positional of the real function.
+        # Before 2026-09-10 the webhook never passed it, so every metering call
+        # raised TypeError and was swallowed — no outbound call was ever billed.
+        assert meter_called.get("call_id") == "CA-billing-001"
 
     async def test_failed_webhook_skips_metering(self):
         """Webhook with status=failed does NOT trigger metering."""

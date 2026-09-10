@@ -69,28 +69,169 @@ class InvalidTransition(ValueError):
     """Raised when a task attempts to skip a required control-plane gate."""
 
 
-_IDEMPOTENCY: dict[str, dict[str, Any]] = {}
-
-
-def create_task_record(objective: str, idempotency_key: str) -> dict[str, Any]:
-    key = idempotency_key.strip()
+def _normalise_idempotency_key(idempotency_key: str) -> str:
+    """Trim the key; empty keys never reach the DB (behaviour preserved)."""
+    key = (idempotency_key or "").strip()
     if not key:
         raise ValueError("idempotency_key is required")
-    if key in _IDEMPOTENCY:
-        out = dict(_IDEMPOTENCY[key])
-        out["reused"] = True
-        return out
-    import uuid
+    return key
 
-    record = {
-        "task_id": str(uuid.uuid4()),
-        "objective": objective.strip()[:4000],
-        "state": TaskState.PROPOSED.value,
-        "lease_until": None,
-        "reused": False,
+
+def _row_to_record(task: Any, *, reused: bool) -> dict[str, Any]:
+    """Project a DevTask row onto the public record dict."""
+    return {
+        "task_id": task.id,
+        "idempotency_key": task.idempotency_key,
+        "objective": task.parent_objective,
+        "state": task.state,
+        "lease_until": task.lease_until,
+        "retry_count": int(task.retry_count or 0),
+        "next_eligible_at": getattr(task, "next_eligible_at", None),
+        "parent_id": getattr(task, "parent_id", None),
+        "created_at": task.created_at,
+        "updated_at": task.updated_at,
+        "reused": reused,
     }
-    _IDEMPOTENCY[key] = record
-    return dict(record)
+
+
+def _build_task(objective: str, key: str, *, customer_id: str | None, priority: int, now: datetime):
+    """Build (not persist) a DevTask. Model import stays lazy on purpose."""
+    from app.models.dev_task import DevTask
+
+    return DevTask(
+        id=str(uuid.uuid4()),
+        idempotency_key=key,
+        parent_objective=(objective or "").strip()[:4000],
+        customer_id=customer_id,
+        priority=int(priority),
+        state=TaskState.PROPOSED.value,
+        retry_count=0,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def create_task_record(
+    objective: str,
+    idempotency_key: str,
+    *,
+    db=None,
+    customer_id: str | None = None,
+    priority: int = 50,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """SYNC durable create. Idempotency is enforced by the DATABASE.
+
+    The old implementation kept a process-local ``_IDEMPOTENCY`` dict, which
+    made idempotency a lie for a 24x7 system: every restart (or every second
+    uvicorn worker) forgot every key and happily created duplicate tasks. The
+    guarantee now comes from the UNIQUE column ``dev_tasks.idempotency_key``:
+    an existing row is returned (``reused=True``), and if two writers race, the
+    loser's INSERT hits the unique constraint and the committed winner is
+    returned — never a second row, never a 500.
+
+    ``db`` may be any sync SQLAlchemy Session. When it is None a short-lived
+    session is opened via ``app.models.base.get_db_session``.
+    """
+    # Validate BEFORE importing SQLAlchemy: a bad key must fail fast, and this
+    # keeps the guard testable on a bare interpreter.
+    key = _normalise_idempotency_key(idempotency_key)
+    now = now or datetime.utcnow()
+
+    if db is None:
+        from app.models.base import get_db_session
+
+        with get_db_session() as session:
+            return _create_task_sync(
+                session,
+                objective,
+                key,
+                customer_id=customer_id,
+                priority=priority,
+                now=now,
+            )
+
+    return _create_task_sync(
+        db,
+        objective,
+        key,
+        customer_id=customer_id,
+        priority=priority,
+        now=now,
+    )
+
+
+def _create_task_sync(
+    db,
+    objective: str,
+    key: str,
+    *,
+    customer_id: str | None,
+    priority: int,
+    now: datetime,
+) -> dict[str, Any]:
+    """Session-owning body of the sync durable create (see create_task_record)."""
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.dev_task import DevTask
+
+    existing = db.execute(select(DevTask).where(DevTask.idempotency_key == key)).scalars().first()
+    if existing is not None:
+        return _row_to_record(existing, reused=True)
+    task = _build_task(objective, key, customer_id=customer_id, priority=priority, now=now)
+    db.add(task)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        winner = (
+            db.execute(select(DevTask).where(DevTask.idempotency_key == key)).scalars().first()
+        )
+        if winner is not None:
+            return _row_to_record(winner, reused=True)
+        raise
+    return _row_to_record(task, reused=False)
+
+
+async def create_task_record_async(
+    db,
+    objective: str,
+    idempotency_key: str,
+    *,
+    customer_id: str | None = None,
+    priority: int = 50,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """ASYNC durable create (FastAPI layer). Same DB-level idempotency."""
+    key = _normalise_idempotency_key(idempotency_key)
+    now = now or datetime.utcnow()
+
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.dev_task import DevTask
+
+    existing = (
+        (await db.execute(select(DevTask).where(DevTask.idempotency_key == key))).scalars().first()
+    )
+    if existing is not None:
+        return _row_to_record(existing, reused=True)
+    task = _build_task(objective, key, customer_id=customer_id, priority=priority, now=now)
+    db.add(task)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        winner = (
+            (await db.execute(select(DevTask).where(DevTask.idempotency_key == key)))
+            .scalars()
+            .first()
+        )
+        if winner is not None:
+            return _row_to_record(winner, reused=True)
+        raise
+    return _row_to_record(task, reused=False)
 
 
 def transition(record: dict[str, Any], target: TaskState) -> dict[str, Any]:

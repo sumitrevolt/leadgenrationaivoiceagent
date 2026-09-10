@@ -762,6 +762,7 @@ async def finalize_stream_session(
     campaign_variant_id: str = "",
     turn_metrics: list[dict[str, Any]] | None = None,
     lead_id: str = "",
+    provider: str = "phone",
 ) -> None:
     """Meter + transcript + qualify — one call for WS stream cleanup paths.
 
@@ -807,7 +808,7 @@ async def finalize_stream_session(
     # table the analytics dashboard reads). Covers phone_stream cleanup path.
     await persist_call_log(
         call_id=str(call_id or ""),
-        provider="phone",
+        provider=provider or "phone",
         phone=phone or "",
         client_id=str(client_id or ""),
         client_name=client_name or "",
@@ -831,6 +832,35 @@ async def finalize_stream_session(
             )
         except Exception:
             pass
+    # Customer-facing webhook fan-out (2026-09-10 parity fix).
+    # Vobiz emits "call_completed" from its own cleanup (vobiz_stream.py:3327);
+    # this helper did not, so a Smartflo call never reached a customer's
+    # subscribed endpoint. Only added here because this helper has exactly one
+    # caller in-tree (smartflo_stream) — no risk of double-emitting.
+    try:
+        from app.platform import outbound_webhooks as _ow
+
+        await _ow.emit(
+            "call_completed",
+            {
+                "call_id": str(call_id or ""),
+                "outcome": outcome,
+                "duration_seconds": int(dur),
+                "lead_score": 0,
+                "phone": phone or "",
+                "niche": niche or "",
+                "client_id": str(client_id or ""),
+                "client_name": client_name or "",
+                "source": f"{provider or 'phone'}_stream",
+            },
+            client_id=str(client_id or ""),
+        )
+    except Exception as e:
+        # Never silent: a customer webhook that silently never fires is
+        # indistinguishable from a working one until somebody complains.
+        logger.warning(
+            "[post_call] call_completed webhook emit FAILED call_id=%s: %s", call_id, e
+        )
     try:
         from app.platform import interaction_log
 

@@ -546,6 +546,28 @@ async def campaign_stop(_user=Depends(require_admin)):
     return {"stopped": True}
 
 
+def _provider_creds_ok(provider: str) -> bool:
+    """
+    True when the ACTIVE telephony provider has its credentials configured.
+
+    Uses the canonical per-provider credential pairs (same pairs as
+    app/telephony/telephony_readiness.py) so the God Mode panel never reports
+    "provider not configured" for a correctly configured non-Vobiz provider.
+
+    Args:
+        provider: Active provider id ("vobiz" | "tata_smartflo").
+
+    Returns:
+        bool — False for unknown/unsupported providers.
+    """
+    key = (provider or "").strip().lower()
+    if key == "vobiz":
+        return bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
+    if key == "tata_smartflo":
+        return bool(os.environ.get("TATA_SMARTFLO_API_TOKEN") and os.environ.get("TATA_SMARTFLO_API_KEY"))
+    return False
+
+
 # ── System summary ────────────────────────────────────────────────────────────
 @router.get("/system/summary", summary="System snapshot for God Mode panel")
 async def system_summary(_user=Depends(require_admin)):
@@ -589,10 +611,12 @@ async def system_summary(_user=Depends(require_admin)):
     except Exception:
         approval_notify_health = {"enabled": False, "error": True}
     vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
+    tata_ok = bool(os.environ.get("TATA_SMARTFLO_API_TOKEN") and os.environ.get("TATA_SMARTFLO_API_KEY"))
     flags = {
         "TELEPHONY_PROVIDER": provider,
-        "PROVIDER_CREDS": vobiz_ok,
+        "PROVIDER_CREDS": _provider_creds_ok(provider),
         "VOBIZ_CREDS": vobiz_ok,
+        "TATA_SMARTFLO_CREDS": tata_ok,
         "VOBIZ_CALLER_ID": bool(os.environ.get("VOBIZ_CALLER_ID", "").strip()),
         "VOBIZ_CALL_RECORD": bool(int(os.environ.get("VOBIZ_CALL_RECORD", "0"))),
         "AUTO_EMAIL_OUTREACH": os.environ.get("AUTO_EMAIL_OUTREACH", "").lower() in ("1", "true"),

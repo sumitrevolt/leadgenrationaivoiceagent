@@ -80,7 +80,7 @@ class TelephonyService:
 
         # Try to construct the chosen real handler; on ANY failure, fall back to
         # simulation so we never crash.
-        if self.provider in ("vobiz", "sip"):
+        if self.provider in ("vobiz", "sip", "tata_smartflo"):
             try:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:

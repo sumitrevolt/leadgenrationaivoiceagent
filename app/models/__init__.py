@@ -42,7 +42,9 @@ from app.models.data_credits import (
     DataCredits,
 )
 from app.models.dev_task import DevTask
+from app.models.dev_task_event import DevTaskEvent
 from app.models.dev_usage import DevTaskUsage
+from app.models.dev_worker import DevWorker
 from app.models.interaction import Interaction
 from app.models.lead import Lead, LeadSource, LeadStatus
 from app.models.lead_pipeline import (
@@ -139,6 +141,7 @@ __all__ = [
     "ApprovalNotification",
     "DevTask",
     "DevTaskUsage",
+    "DevWorker",
     # Lead-gen pipeline batch tracking models (2026-07-08)
     "LeadPipelineBatch",
     "LeadPipelineStageRun",

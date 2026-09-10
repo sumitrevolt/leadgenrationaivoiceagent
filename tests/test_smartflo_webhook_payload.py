@@ -93,7 +93,9 @@ def _clean(monkeypatch):
     monkeypatch.delenv("SMARTFLO_WEBHOOK_SECRET", raising=False)
     sw._RECENT_WEBHOOKS.clear()
 
-    async def _noop_meter(client_id=None, call_duration_s=0, metadata=None):
+    # 2026-09-10: must mirror the real
+    # app.telephony.post_call_hooks.meter_call_completion signature.
+    async def _noop_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
         return True
 
     monkeypatch.setattr(sw, "meter_call_completion", _noop_meter)
@@ -249,9 +251,10 @@ class TestMetering:
     def test_billsec_preferred_over_duration(self, monkeypatch):
         captured = {}
 
-        async def fake_meter(client_id=None, call_duration_s=0, metadata=None):
-            captured["duration"] = call_duration_s
-            captured["metadata"] = metadata
+        async def fake_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
+            captured["duration"] = duration_seconds
+            captured["call_id"] = call_id
+            captured["client_id"] = client_id
             return True
 
         monkeypatch.setattr(sw, "meter_call_completion", fake_meter)
@@ -265,12 +268,16 @@ class TestMetering:
             }
         )
         assert captured["duration"] == 150  # billsec wins
-        assert captured["metadata"]["provider"] == "tata_smartflo"
+        # Regression: _meter_call previously passed wrong kwargs, raising TypeError
+        # that was swallowed -> no SmartFlo minute was ever billed. call_id is the
+        # only required positional arg, so it must always arrive.
+        assert captured["call_id"] == "CA-bill"
+        assert captured["client_id"] == "jiya-makeover"
 
     def test_custom_identifier_json_string_coerced(self, monkeypatch):
         captured = {}
 
-        async def fake_meter(client_id=None, call_duration_s=0, metadata=None):
+        async def fake_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
             captured["client_id"] = client_id
             return True
 
@@ -287,8 +294,8 @@ class TestMetering:
     def test_falls_back_to_duration_when_no_billsec(self, monkeypatch):
         captured = {}
 
-        async def fake_meter(client_id=None, call_duration_s=0, metadata=None):
-            captured["duration"] = call_duration_s
+        async def fake_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
+            captured["duration"] = duration_seconds
             return True
 
         monkeypatch.setattr(sw, "meter_call_completion", fake_meter)

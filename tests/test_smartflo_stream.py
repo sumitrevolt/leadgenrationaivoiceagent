@@ -119,6 +119,29 @@ def _make_speech_mulaw(n_bytes: int = 160) -> str:
     return base64.b64encode(bytes((0x80 + i) % 256 for i in range(n_bytes))).decode()
 
 
+# ---------------------------------------------------------------------------
+# Structural write isolation (autouse, 2026-09-10)
+#
+# `_persist_opt_out` really calls `consent_ledger.record_opt_out` and `_cleanup`
+# really calls `post_call_hooks.finalize_stream_session` (the P0 fail-open fix).
+# Both are correct; what was wrong is that this file let them hit the REAL
+# `data/consent_ledger.jsonl` / `data/interactions.jsonl`. One stray opt-out row
+# for +919876543210 permanently poisoned the unrelated
+# test_telephony_upgrades.py::test_compliance_fails_closed_on_unverified_dnd
+# (it saw `opted_out` instead of `dnd_lookup_failed`).
+#
+# So isolation is structural: EVERY test here gets in-memory writers. Tests that
+# assert on these calls already patch them with `unittest.mock.patch`; an inner
+# patch simply wins inside its `with` block, so nothing fights.
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _isolate_stream_runtime_writers(request, monkeypatch, tmp_path):
+    """No test in this module may write to real runtime data files."""
+    from tests._stream_runtime_isolation import install_fixture
+
+    return install_fixture(request, monkeypatch, tmp_path)
+
+
 def _session(ws: _FakeWS | None = None, **kwargs: Any) -> SmartfloStreamSession:
     """Create a session with a fake WS and default params."""
     ws = ws or _FakeWS()
@@ -495,6 +518,166 @@ class TestGreeting:
                 await s.handle()
                 # _say called exactly once for greeting
                 assert mock_say.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# 9. Compliance / billing regressions (P0-1, P0-2, P0-3)
+#
+# These three are here because the pre-existing DTMF test only asserted
+# cleanup — it never asserted the ledger write, which is precisely why the
+# dead ``persist_opt_out`` import survived. Assert on the EFFECT, not on the
+# code running.
+# ---------------------------------------------------------------------------
+def _start_frame() -> dict[str, Any]:
+    return {
+        "event": "start",
+        "streamSid": "MZ-1",
+        "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+    }
+
+
+class TestPress9OptOutLedger:
+    """P0-1: press-9 MUST write to the consent ledger (TCCCPR)."""
+
+    async def test_press9_writes_opt_out_to_consent_ledger(self):
+        """record_opt_out is really invoked, with the real kwarg contract.
+
+        Fails against the old code: it imported ``ConsentAction`` /
+        ``persist_opt_out``, neither of which exists in consent_ledger.py, so
+        the ImportError was swallowed and nothing was ever recorded.
+        """
+        ws = _FakeWS()
+        s = _session(ws, lead_phone="919876543210")
+
+        captured: dict[str, Any] = {}
+
+        def _fake_record_opt_out(phone, **kwargs):
+            captured["phone"] = phone
+            captured.update(kwargs)
+            return {"ok": True}
+
+        ws.enqueue(_start_frame())
+        ws.enqueue({"event": "dtmf", "dtmf": {"digit": "9"}})
+
+        with patch(
+            "app.telephony.consent_ledger.record_opt_out",
+            new=_fake_record_opt_out,
+        ), patch(
+            "app.telephony.post_call_hooks.finalize_stream_session",
+            new_callable=AsyncMock,
+        ):
+            await s.handle()
+
+        assert captured, (
+            "record_opt_out was NEVER called — press-9 opt-out is dead code again"
+        )
+        assert captured["phone"] == "919876543210"
+        assert captured["reason"] == "smartflo_dtmf_press9"
+        assert captured["channel"] == "voice"
+        assert captured["call_id"] == "MZ-1"
+        # ...and the call still tears down (opt-out must not wedge the socket).
+        assert s._closed is True
+
+    async def test_press9_warns_when_no_lead_phone(self):
+        """No phone → no silent no-op: it must warn and skip, not crash."""
+        ws = _FakeWS()
+        s = _session(ws, lead_phone=None)
+        s._lead_phone = None
+        ws.enqueue(_start_frame())
+        ws.enqueue({"event": "dtmf", "dtmf": {"digit": "9"}})
+        with patch(
+            "app.telephony.consent_ledger.record_opt_out",
+            new=MagicMock(side_effect=AssertionError("must not be called")),
+        ), patch(
+            "app.telephony.post_call_hooks.finalize_stream_session",
+            new_callable=AsyncMock,
+        ):
+            await s.handle()
+        assert s._closed is True
+
+
+class TestGreetingAIDisclosure:
+    """P0-2: the opener must go through the shared disclosure helpers."""
+
+    async def test_greeting_carries_ai_disclosure_marker(self):
+        """Asserts on the marker list in niche_scripts, not a copied sentence."""
+        from app.voice_agent.niche_scripts import (
+            _AI_DISCLOSURE_TOKENS,
+            ensure_ai_disclosure,
+            ensure_permission_ask,
+        )
+
+        calls: list[str] = []
+
+        def _spy_disclosure(text, *a, **kw):
+            calls.append("ensure_ai_disclosure")
+            return ensure_ai_disclosure(text, *a, **kw)
+
+        def _spy_permission(text, *a, **kw):
+            calls.append("ensure_permission_ask")
+            return ensure_permission_ask(text, *a, **kw)
+
+        ws = _FakeWS()
+        # Deliberately NO AI token in the raw opener, so the helper must inject.
+        s = _session(ws, opening_line="Namaste! Main Swara bol rahi hoon.")
+        ws.enqueue(_start_frame())
+        ws.enqueue_stop()
+
+        with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True), patch(
+            "app.voice_agent.niche_scripts.ensure_ai_disclosure", new=_spy_disclosure
+        ), patch(
+            "app.voice_agent.niche_scripts.ensure_permission_ask", new=_spy_permission
+        ), patch.object(
+            s, "_say", new_callable=AsyncMock
+        ), patch(
+            "app.telephony.post_call_hooks.finalize_stream_session",
+            new_callable=AsyncMock,
+        ):
+            await s.handle()
+
+        # 1. It actually routes through the shared helpers (not an inline copy).
+        assert "ensure_ai_disclosure" in calls
+        assert "ensure_permission_ask" in calls
+        # 2. The spoken/history opener carries a recognised disclosure marker.
+        greetings = [m["content"] for m in s.hist if m.get("role") == "assistant"]
+        assert greetings, "no assistant opener in history"
+        opener = greetings[0]
+        low = opener.lower()
+        assert any(tok in low for tok in _AI_DISCLOSURE_TOKENS), (
+            f"opener has NO AI disclosure marker from _AI_DISCLOSURE_TOKENS: {opener!r}"
+        )
+
+
+class TestEndOfCallQualification:
+    """P0-3: end of call must reach the qualify/billing entry point."""
+
+    async def test_cleanup_invokes_finalize_stream_session(self):
+        ws = _FakeWS()
+        s = _session(ws, lead_phone="919876543210")
+        ws.enqueue(_start_frame())
+        ws.enqueue_stop()
+
+        with patch(
+            "app.telephony.post_call_hooks.finalize_stream_session",
+            new_callable=AsyncMock,
+        ) as mock_finalize:
+            await s.handle()
+
+        assert mock_finalize.call_count == 1
+        kwargs = mock_finalize.call_args.kwargs
+        # DOUBLE-METERING GUARD: the stream must bill under the PROVIDER call id
+        # (start.callSid), never under stream_sid, so the webhook's
+        # `call_meter:{call_id}` dedupe key lines up with ours.
+        assert kwargs["call_id"] == "CA-1"
+        assert kwargs["phone"] == "919876543210"
+        assert kwargs["client_id"] == (s.client_id or "")
+        assert kwargs["niche"] == s.niche
+        assert kwargs["started_at"] == s._started_at
+        assert kwargs["extra_transcript"]["provider"] == "tata_smartflo"
+        # 2026-09-10: without this the analytics call_logs row is written with
+        # provider="phone", so Smartflo calls can never be broken out on the
+        # dashboard (vobiz_stream.py:3374 passes provider="vobiz").
+        assert kwargs["provider"] == "tata_smartflo"
 
     async def test_default_greeting_includes_client_name(self):
         ws = _FakeWS()

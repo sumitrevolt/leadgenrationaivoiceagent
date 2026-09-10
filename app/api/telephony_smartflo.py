@@ -183,6 +183,43 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
 # ---------------------------------------------------------------------------
 
 
+async def _smartflo_dial_block_reason(to: str) -> str | None:
+    """Return a block reason for ``to``, or ``None`` when the dial may proceed.
+
+    Mirrors the pre-dial gate sequence of ``TataSmartfloClient.place_call`` /
+    ``VobizClient.place_call``: dial_gate -> ComplianceGate -> admin kill switch.
+    FAILS CLOSED — an error inside any gate is returned as a block reason, so a
+    gate outage never translates into an ungated dial.
+    """
+    try:
+        from app.telephony.dial_gate import check as dial_gate_check
+
+        ok, reason = dial_gate_check(to, call_type="transactional")
+        if not ok:
+            return f"dial_gate: {reason}"
+    except Exception as e:
+        return f"dial_gate_error: {e}"
+
+    try:
+        from app.telephony.compliance import CallType, get_compliance_gate
+
+        decision = await get_compliance_gate().check(to, CallType.TRANSACTIONAL)
+        if not decision.allowed:
+            return "; ".join(decision.reasons) or "compliance_gate_blocked"
+    except Exception as e:
+        return f"gate_error: {e}"
+
+    try:
+        from app.telephony.voice_launch import admin_kill_engaged
+
+        if admin_kill_engaged():
+            return "admin_kill_engaged"
+    except Exception as e:
+        return f"kill_switch_error: {e}"
+
+    return None
+
+
 @router.post("/test-call")
 async def smartflo_test_call(
     request: Request,
@@ -231,6 +268,30 @@ async def smartflo_test_call(
     niche = (body.get("niche") or "").strip() or os.environ.get(
         "SMARTFLO_DEFAULT_NICHE", "general"
     )
+
+    # COMPLIANCE PRE-FLIGHT (TRAI/TCCCPR) — same gate sequence as
+    # VobizClient.place_call (cf. app/api/telephony_vobiz.py:224). This endpoint
+    # used to dial with no gate at all. Fail closed: block => no dial.
+    block_reason = await _smartflo_dial_block_reason(to_number)
+    if block_reason:
+        logger.warning(
+            f"Smartflo test-call blocked by compliance gate: {block_reason}"
+        )
+        return {
+            "placed": False,
+            "ref_id": None,
+            "to": to_number,
+            "caller_id": caller_id or client.did,
+            "call_timeout": call_timeout,
+            "smartflo_response": {"error": f"compliance_blocked: {block_reason}"},
+            "status_code": 0,
+            "next_steps": [
+                "Call blocked by compliance gate (TCCCPR/TRAI) — not dialled.",
+                f"Reason: {block_reason}",
+                "Transactional calls are only allowed 09:00-21:00 IST.",
+                "Check VOICE_LAUNCH_KILL / DIAL_TEST_MODE / COMPLIANCE_ALLOWLIST.",
+            ],
+        }
 
     # Place the call
     result = await client.place_call(

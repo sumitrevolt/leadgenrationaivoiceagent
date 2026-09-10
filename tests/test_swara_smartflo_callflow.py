@@ -175,6 +175,28 @@ class _FakeWS:
 
 
 # --------------------------------------------------------------------------- #
+# Structural write isolation (autouse, 2026-09-10)
+#
+# Same root cause as tests/test_smartflo_stream.py: `_cleanup()` now really
+# reaches `post_call_hooks.finalize_stream_session`
+# (-> persist_call_log -> app.platform.interaction_log.record) and press-9
+# really reaches `consent_ledger.record_opt_out`, so these tests were appending
+# to the REAL `data/interactions.jsonl` and `data/consent_ledger.jsonl`.
+# In-memory by default; the one test that must observe the real finalize chain
+# carries the `real_finalize_stream_session` marker (its downstream disk writers
+# are still neutralised).
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture(autouse=True)
+def _isolate_stream_runtime_writers(request, monkeypatch, tmp_path):
+    """No test in this module may write to real runtime data files."""
+    from tests._stream_runtime_isolation import install_fixture
+
+    return install_fixture(request, monkeypatch, tmp_path)
+
+
+# --------------------------------------------------------------------------- #
 # Session factory with the heavy/remote parts stubbed out
 # --------------------------------------------------------------------------- #
 
@@ -570,6 +592,7 @@ def test_wss_host_has_no_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.real_finalize_stream_session
 async def test_cleanup_meters_call_with_usable_duration(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

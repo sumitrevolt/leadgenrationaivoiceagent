@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 
 from app.models.base import Base
 
@@ -12,6 +12,7 @@ class DevTask(Base):
 
     id = Column(String(36), primary_key=True)
     idempotency_key = Column(String(180), nullable=False, unique=True)
+    parent_id = Column(String(36), ForeignKey("dev_tasks.id"), nullable=True, index=True)
     parent_objective = Column(String(4000), nullable=False)
     customer_id = Column(String(36), nullable=True, index=True)
     priority = Column(Integer, nullable=False, default=50, index=True)
@@ -31,6 +32,7 @@ class DevTask(Base):
     dependencies = Column(Text, nullable=True)
     acceptance_criteria = Column(Text, nullable=True)
     retry_count = Column(Integer, nullable=False, default=0)
+    next_eligible_at = Column(DateTime, nullable=True, index=True)
     lease_owner = Column(String(120), nullable=True)
     lease_until = Column(DateTime, nullable=True)
     test_evidence = Column(Text, nullable=True)

@@ -13,6 +13,8 @@ Design rules (mirrors reconcile.py):
   * heartbeat only extends a lease the caller actually owns.
   * ``claim_next`` scans a bounded candidate window in priority order and
     atomically claims the first winnable row (loser rows are simply skipped).
+  * a task serving an exponential-backoff delay (``next_eligible_at`` set by
+    reconcile) is NOT claimable until that timestamp passes.
 """
 
 from __future__ import annotations
@@ -20,12 +22,25 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 
 from app.dev_control.service import TaskState
 
 DEFAULT_LEASE_SECONDS = 600
 _HEARTBEAT_STATES = (TaskState.CLAIMED.value, TaskState.RUNNING.value)
+
+
+def _backoff_predicate(now: datetime):
+    """TRUE when a task is not currently serving an exponential-backoff delay.
+
+    ``next_eligible_at`` is set by ``reconcile.reconcile_leases`` when an expired
+    lease is requeued. NULL means "eligible immediately", so every task created
+    before the column existed (and every never-retried task) stays claimable --
+    the predicate is backwards compatible by construction.
+    """
+    from app.models.dev_task import DevTask
+
+    return or_(DevTask.next_eligible_at.is_(None), DevTask.next_eligible_at <= now)
 
 
 async def atomic_claim(
@@ -35,14 +50,25 @@ async def atomic_claim(
     *,
     lease_seconds: int = DEFAULT_LEASE_SECONDS,
     now: datetime | None = None,
+    respect_backoff: bool = False,
 ) -> bool:
-    """Claim one QUEUED task. Returns True only for the single winning worker."""
+    """Claim one QUEUED task. Returns True only for the single winning worker.
+
+    ``respect_backoff`` defaults to False so the explicit-by-id admin claim
+    (``POST /dev-tasks/{id}/claim``) keeps its historical behaviour; the scanner
+    ``claim_next`` opts in so a backed-off task cannot be picked up early. When
+    enabled, the predicate rides on the SAME conditional UPDATE -- still a
+    single statement, never a read-then-write.
+    """
     from app.models.dev_task import DevTask
 
     now = now or datetime.utcnow()
+    conditions = [DevTask.id == task_id, DevTask.state == TaskState.QUEUED.value]
+    if respect_backoff:
+        conditions.append(_backoff_predicate(now))
     result = await db.execute(
         update(DevTask)
-        .where(DevTask.id == task_id, DevTask.state == TaskState.QUEUED.value)
+        .where(*conditions)
         .values(
             state=TaskState.CLAIMED.value,
             lease_owner=worker,
@@ -92,17 +118,30 @@ async def claim_next(
     Candidates are scanned oldest-first within descending priority; each
     candidate is claimed with the same conditional UPDATE, so a concurrent
     worker taking a row just moves us to the next candidate.
+
+    Backoff is honoured twice: once in the candidate SELECT (so a backed-off
+    task does not waste a scan slot) and once inside the claim UPDATE (so a
+    task that becomes backed-off between SELECT and UPDATE still cannot be
+    taken). NULL ``next_eligible_at`` always stays eligible.
     """
     from app.models.dev_task import DevTask
 
+    now = now or datetime.utcnow()
     stmt = (
         select(DevTask.id)
-        .where(DevTask.state == TaskState.QUEUED.value)
+        .where(DevTask.state == TaskState.QUEUED.value, _backoff_predicate(now))
         .order_by(DevTask.priority.desc(), DevTask.created_at.asc())
         .limit(max(1, scan_limit))
     )
     for candidate_id in (await db.scalars(stmt)).all():
-        if await atomic_claim(db, candidate_id, worker, lease_seconds=lease_seconds, now=now):
+        if await atomic_claim(
+            db,
+            candidate_id,
+            worker,
+            lease_seconds=lease_seconds,
+            now=now,
+            respect_backoff=True,
+        ):
             task = await db.get(DevTask, candidate_id)
             return {"task_id": candidate_id, "task": task}
     return None
