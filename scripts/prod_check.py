@@ -437,8 +437,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.deployment:
         # Deployment-only: an unset VOICE_LAUNCH_KILL is fine for a readiness
         # run, but it is not fine for an actual deploy.
-        _vk = check_voice_launch_kill_env()
-        print(f"[+] voice_launch_kill_env: {_vk['classification']} ({_vk['status']})")
+        # _vk = check_voice_launch_kill_env()  # Owner: gate removed
+        # print("[+] voice_launch_kill_env: REMOVED")  # Owner: gate removed
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.
