@@ -57,6 +57,33 @@ Each bot publishes standardized events to a shared event bus (Redis-backed):
 - **BLOCKER**: task, exact blocker, affected revenue path, attempted fixes, required escalation
 The Owner bot continuously maintains the authoritative operational state from these events.
 
+### Desktop Worker Coordination Contract — Owner Directive
+OpenClaw Desktop, WorkBuddy Desktop, and ChatGPT Desktop/Codex are worker surfaces,
+not additional owners or mission ledgers. The existing Owner OS, STAFF roster,
+mission ledger, Staff Bus, and Coordination Hub remain canonical.
+
+- **Hermes owns Telegram ingress and owner replies.** Exactly one process may poll
+  Telegram updates. OpenClaw, WorkBuddy, and ChatGPT/Codex must not create a second
+  `getUpdates` consumer; they publish task, heartbeat, completion, and blocker
+  events to the existing bus for Hermes to summarize.
+- **Owner OS owns assignment and deduplication.** Every task gets one task ID,
+  one lease owner, one acceptance criterion, and one evidence record. Other workers
+  may review or observe but must not execute the same task without an explicit
+  handoff or lease transfer.
+- **Telegram owner view is event-driven.** Hermes sends only compact actionable
+  updates to the Owner channel: assignment, ACK, blocker, completion/evidence, and
+  required approval. Healthy heartbeats remain quiet unless the owner asks for a
+  status report.
+- **Enrollment is fail-closed.** A desktop process being present is not a live
+  heartbeat. OpenClaw, WorkBuddy, and ChatGPT/Codex remain `observed-not-attested`
+  until their per-tool HMAC heartbeat and lease identity are verified in the Hub.
+- **Required escalation.** Any Telegram polling conflict, task collision, missing
+  lease, credential/OTP request, or compliance-sensitive action goes to the Owner;
+  workers stop execution and retain a draft/evidence packet.
+
+Owner-facing status format:
+`[task_id] [owner] [worker] [state] [next action] [evidence/blocker]`.
+
 ### 24×7 Operation Model
 - Scheduler: Celery beat with persistent queues
 - Workers: Celery workers with concurrency limits

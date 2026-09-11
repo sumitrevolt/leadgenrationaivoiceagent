@@ -434,11 +434,10 @@ def main(argv: list[str] | None = None) -> int:
     check_explorer_drift()
     check_api_docs_drift()
     check_dev_control_invariants()
-    if args.deployment:
-        # Deployment-only: an unset VOICE_LAUNCH_KILL is fine for a readiness
-        # run, but it is not fine for an actual deploy.
-        _vk = check_voice_launch_kill_env()
-        print(f"[+] voice_launch_kill_env: {_vk['classification']} ({_vk['status']})")
+    # NOTE: the deployment-only VOICE_LAUNCH_KILL gate was removed by owner
+    # decision (commit db5b1ceb). `--deployment` is retained for the banner
+    # above; an empty `if args.deployment:` body is a syntax error, so the
+    # branch is gone rather than left as a comment-only block.
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.

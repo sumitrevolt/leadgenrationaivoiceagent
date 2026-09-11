@@ -145,6 +145,19 @@ AUTOMATION_FLAGS = [
     "CREATIVE_MAX_REVISIONS",  # revision cap (default 3)
     "CREATIVE_TENANT_DAILY_BUDGET",  # per-tenant generation cap/day (default 20)
     "CREATIVE_WORKER_TIMEOUT_S",  # generation timeout seconds (default 300)
+    # --- Creative-engine core + video delivery (T01/T03, 2026-09-11) ----------
+    # Every one is fail-closed: the value shown is the DEFAULT when unset.
+    "CREATIVE_NOVELTY_ENABLED",  # novelty gate (refuses near-duplicate videos); default ON — ON is the SAFE state, disabling it is the risky act
+    "CREATIVE_SOCIAL_PROFILE_ENABLED",  # per-customer social-profile (Creative DNA) analysis; default OFF (new customer-data collection)
+    "CREATIVE_LEARNING_PERSIST_ENABLED",  # persist the creative-learning ledger to disk; default ON (durable, per-tenant)
+    "CREATIVE_RENDER_PLANE_ENABLED",  # route renders through the local worker data plane; default OFF
+    "CREATIVE_HYPERFRAMES_NETWORK_STRICT",  # refuse to render when network isolation cannot be ENFORCED; default OFF (label network_best_effort instead)
+    "RENDER_PLANE_LEASE_SECONDS",  # worker lease TTL seconds (default 600) — value-carrying
+    "RENDER_PLANE_WORKER_TOKEN",  # worker auth token (env only; unset = no worker can lease) — never logged/returned
+    "VIDEO_TELEGRAM_DELIVERY_ENABLED",  # deliver approved videos to the customer thread + ops group via Telegram (egress only); default OFF
+    "TELEGRAM_OPS_GROUP_ID",  # ops-group chat id for delivery receipts (env only; unset = ops target skipped)
+    "VIDEO_DELIVERY_MAX_RETRIES",  # delivery retry cap before an event is marked exhausted (default 5) — value-carrying
+    "VIDEO_DELIVERY_RETRY_BACKOFF_S",  # base delivery retry backoff seconds, exponential (default 300) — value-carrying
     "CONTENT_TIME_BUDGET_S",  # content mega-job wall-clock budget (default 420; SoftTimeLimit margin)
     "ONBOARD_TIME_BUDGET_S",  # onboard sweep wall-clock budget (default 300)
     "PROSPECT_TIME_BUDGET_S",  # prospect harvest wall-clock budget (default 300)

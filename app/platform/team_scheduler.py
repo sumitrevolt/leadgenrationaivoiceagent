@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 from app.utils.logger import setup_logger
 
@@ -223,6 +224,14 @@ _last_ran: dict[str, str | None] = {
     "whatsapp_automation": None,  # hourly: WhatsApp automation (gated WHATSAPP_AUTO_SEND; INERT off)
     "heartbeat": None,  # every 5m: owner alive heartbeat
     "content_approval_notify": None,  # hourly :40: pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
+    # T03 delivery + lifecycle + health (2026-09-11) — were JOB_META-only with no
+    # dispatch path; wired into all six registries in one change.
+    "video_delivery": None,  # hourly :15: approved video → Telegram customer + ops (gated VIDEO_TELEGRAM_DELIVERY_ENABLED)
+    "video_delivery_retry": None,  # every 15m: delivery retry-queue drain (same gate)
+    "video_health": None,  # hourly :35: read-only end-to-end video health probe
+    "video_lifecycle_reconcile": None,  # daily 04:45: read-only stuck-stage reconcile
+    # T02 render plane (2026-09-11) — VPS-side lease reap + enqueue + bridge.
+    "render_plane_lease": None,  # every 5m: reclaim expired render leases + feed queued creatives + bridge done renders
 }
 
 
@@ -511,13 +520,459 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
     return _ok
 
 
+# --------------------------------------------------------------------------- #
+# B4 (T06 §11.4) — content mega-job: explicit staged dispatch + an outcome for
+# EVERY engine.
+#
+# Before: the engines were awaited sequentially under one wall-clock budget, and
+# several trailing blocks were `try/except: pass` around `if budget.ok():` — so a
+# skip was recorded NOWHERE (the silent `customer_crm` skip). Project rule: no
+# silent failure. Now every engine goes through `_run_content_engine`, which
+# records `ran` / `failed` / `skipped_budget`, and the dispatcher records
+# `skipped_not_reached` for any registered engine it does not start.
+#
+# `CONTENT_ENGINE_ORDER` = today's exact sequential order → used whenever
+# `CONTENT_PARALLEL_ENGINES` is off (the DEFAULT), so the mega-job is
+# byte-for-byte unchanged with the flag unset.
+#
+# `CONTENT_ENGINE_STAGES` = the explicit stage table used ONLY when the parallel
+# flag is on. Stage 1 = independent producers (bounded intra-stage concurrency);
+# stage 2 = engines that consume stage-1 output and MUST run after it
+# (`social_autopost` publishes what `content_schedule` prepared). Across stages
+# dispatch is strictly ordered, so a reordered side effect is impossible.
+# --------------------------------------------------------------------------- #
+CONTENT_ENGINE_ORDER: list[str] = [
+    "auto_content",
+    "video_ad_cycle",
+    "content_schedule",
+    "social_autopost",
+    "wa_campaign_runner",
+    "cadence",
+    "sales_pipeline",
+    "dunning",
+    "lifecycle_nurture",
+    "voice_followup",
+    "channel_experiments",
+    "booking_reminders",
+    "review_monitor",
+    "customer_crm",
+    "service_reminders",
+    "newsletter",
+    "winback",
+    "rank_tracker",
+    "customer_autopilot",
+    "memory_vault",
+    "memory_stack",
+    "live_notes",
+    "sales_team",
+    "client_report",
+]
+
+# NOTE (design deviation, stated explicitly): §11.4's stage table named 14
+# engines; the live mega-job dispatches 24 — the 10 trailing gated engines were
+# omitted from the table. The table below is EXTENDED to cover all 24 so parallel
+# mode can never drop an engine. The extra engines are independent producers (they
+# do not read stage-1 output), so they belong in stage 1. Order WITHIN a stage is
+# preserved when CONTENT_ENGINE_CONCURRENCY=1.
+CONTENT_ENGINE_STAGES: list[list[str]] = [
+    [
+        "auto_content",
+        "content_schedule",
+        "wa_campaign_runner",
+        "cadence",
+        "sales_pipeline",
+        "dunning",
+        "lifecycle_nurture",
+        "voice_followup",
+        "channel_experiments",
+        "booking_reminders",
+        "review_monitor",
+        "customer_crm",
+        "service_reminders",
+        "newsletter",
+        "winback",
+        "rank_tracker",
+        "customer_autopilot",
+        "memory_vault",
+        "memory_stack",
+        "live_notes",
+        "sales_team",
+        "client_report",
+    ],
+    ["video_ad_cycle", "social_autopost"],
+]
+
+
+def _content_parallel_enabled() -> bool:
+    """B4: `CONTENT_PARALLEL_ENGINES=0` (DEFAULT) = sequential = today."""
+    return os.environ.get("CONTENT_PARALLEL_ENGINES", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def _content_engine_concurrency() -> int:
+    """B4: intra-stage fan-out, clamped 1..3. Default 1 = today."""
+    try:
+        n = int(os.environ.get("CONTENT_ENGINE_CONCURRENCY", "1") or "1")
+    except Exception:
+        n = 1
+    return max(1, min(n, 3))
+
+
+async def _content_engine_noop() -> None:
+    """Placeholder coroutine for an engine that is not applicable today."""
+    return None
+
+
+def _build_content_engines() -> dict[str, Callable[[], Any]]:
+    """NAME -> factory. Each factory does the LAZY import and returns a coroutine,
+    so a broken module can only fail its own engine (isolated by
+    `_run_content_engine`) and nothing is imported at module load."""
+
+    def _auto_content():
+        from app.marketing import auto_content
+
+        return auto_content.run_daily_content()
+
+    def _video_ad_cycle():
+        from app.marketing import video_ad_cycle
+
+        return video_ad_cycle.run_cycle()
+
+    def _content_schedule():
+        from app.marketing import content_schedule
+
+        return content_schedule.run_due()
+
+    def _social_autopost():
+        from app.tasks.reporting import run_social_autopost
+
+        return run_social_autopost()
+
+    def _wa_campaign_runner():
+        from app.marketing import wa_campaign_runner
+
+        return wa_campaign_runner.run_due()
+
+    def _cadence():
+        from app.marketing import cadence
+
+        return cadence.run_due()
+
+    def _sales_pipeline():
+        from app.marketing import sales_pipeline
+
+        return sales_pipeline.run_pipeline()
+
+    def _dunning():
+        from app.billing import dunning
+
+        return dunning.run_due()
+
+    def _lifecycle_nurture():
+        from app.marketing import lifecycle_nurture
+
+        return lifecycle_nurture.run_due()
+
+    def _voice_followup():
+        from app.telephony import voice_followup
+
+        return voice_followup.run_due()
+
+    def _channel_experiments():
+        from app.marketing import channel_experiments
+
+        return channel_experiments.run_daily(3)
+
+    def _booking_reminders():
+        from app.platform import booking_reminders
+
+        return booking_reminders.run_due()
+
+    def _review_monitor():
+        from app.marketing import review_monitor
+
+        return review_monitor.run_check()
+
+    def _customer_crm():
+        from app.marketing import customer_crm
+
+        return customer_crm.run_wishes_if_enabled()
+
+    def _service_reminders():
+        from app.platform import service_reminders
+
+        return service_reminders.run_due_if_enabled()
+
+    def _newsletter():
+        from app.marketing import newsletter
+
+        return newsletter.run_due_if_enabled()
+
+    def _winback():
+        from app.platform import winback
+
+        return winback.run_due_if_enabled()
+
+    def _rank_tracker():
+        from app.platform import rank_tracker
+
+        return rank_tracker.run_if_enabled()
+
+    def _customer_autopilot():
+        from app.platform import customer_autopilot
+
+        return customer_autopilot.run_all()
+
+    def _memory_vault():
+        from app.platform import memory_vault
+
+        return memory_vault.sync_if_enabled()
+
+    def _memory_stack():
+        from app.platform import memory_stack
+
+        return memory_stack.drain_if_enabled()
+
+    def _live_notes():
+        from app.platform import live_notes
+
+        return live_notes.refresh_if_enabled()
+
+    def _sales_team():
+        from app.agents import sales_team
+
+        return sales_team.run_auto(3)
+
+    def _client_report():
+        # White-label monthly client report — only on the 1st (as before). The
+        # day gate lives inside the factory so the engine still records an outcome.
+        if datetime.now().day != 1:
+            return _content_engine_noop()
+        from app.marketing import client_report
+
+        return client_report.run_monthly()
+
+    return {
+        "auto_content": _auto_content,
+        "video_ad_cycle": _video_ad_cycle,
+        "content_schedule": _content_schedule,
+        "social_autopost": _social_autopost,
+        "wa_campaign_runner": _wa_campaign_runner,
+        "cadence": _cadence,
+        "sales_pipeline": _sales_pipeline,
+        "dunning": _dunning,
+        "lifecycle_nurture": _lifecycle_nurture,
+        "voice_followup": _voice_followup,
+        "channel_experiments": _channel_experiments,
+        "booking_reminders": _booking_reminders,
+        "review_monitor": _review_monitor,
+        "customer_crm": _customer_crm,
+        "service_reminders": _service_reminders,
+        "newsletter": _newsletter,
+        "winback": _winback,
+        "rank_tracker": _rank_tracker,
+        "customer_autopilot": _customer_autopilot,
+        "memory_vault": _memory_vault,
+        "memory_stack": _memory_stack,
+        "live_notes": _live_notes,
+        "sales_team": _sales_team,
+        "client_report": _client_report,
+    }
+
+
+_CONTENT_ENGINES: dict[str, Callable[[], Any]] = _build_content_engines()
+
+
+def _record_engine_outcome(job: str, engine: str, status: str, **extra: Any) -> None:
+    """Thin, never-raising bridge to `automation_health.record_engine_outcome`."""
+    try:
+        from app.platform import automation_health
+
+        automation_health.record_engine_outcome(job, engine, status, **extra)
+    except Exception as e:
+        logger.warning("[team-scheduler] engine-outcome record failed for '%s': %s", engine, e)
+
+
+async def _dispatch_content_engines(job: str, budget: Any) -> dict[str, str]:
+    """Run every registered content engine, recording an outcome for each.
+
+    Default (`CONTENT_PARALLEL_ENGINES` unset) = today's exact sequential order.
+    Parallel mode = the explicit `CONTENT_ENGINE_STAGES` table, bounded
+    intra-stage concurrency, strictly ordered across stages.
+
+    Never raises: `_run_content_engine` already isolates every engine. Returns a
+    `{engine: rollup}` map for logging. Guarantees no registered engine is
+    silently skipped — any engine the stage table did not cover is recorded as
+    `skipped_not_reached`.
+    """
+    if _content_parallel_enabled():
+        stages = CONTENT_ENGINE_STAGES
+        conc = _content_engine_concurrency()
+    else:
+        stages = [CONTENT_ENGINE_ORDER]
+        conc = 1
+    outcomes: dict[str, str] = {}
+    dispatched: set[str] = set()
+
+    async def _run_one(nm: str) -> bool:
+        """Build the coroutine lazily. A factory (import) failure is itself an
+        engine failure and is recorded — never propagated, so one broken module
+        cannot abort the rest of the mega-job."""
+        try:
+            coro = _CONTENT_ENGINES[nm]()
+        except Exception as e:
+            _record_engine_outcome(
+                job,
+                nm,
+                "failed",
+                error_class=type(e).__name__,
+                error_message=str(e)[:300],
+            )
+            return False
+        return await _run_content_engine(nm, coro, budget)
+
+    for stage in stages:
+        # Unknown names in a stage table are a config bug, not a silent drop.
+        names = [n for n in stage if n in _CONTENT_ENGINES]
+        if conc <= 1:
+            for name in names:
+                dispatched.add(name)
+                ok = await _run_one(name)
+                outcomes[name] = "ran" if ok else "not_ok"
+        else:
+            sem = asyncio.Semaphore(conc)
+
+            async def _one(nm: str) -> tuple[str, bool]:
+                async with sem:
+                    return nm, await _run_one(nm)
+
+            results = await asyncio.gather(*[_one(n) for n in names])
+            for nm, ok in results:
+                dispatched.add(nm)
+                outcomes[nm] = "ran" if ok else "not_ok"
+    # Belt-and-braces: no registered engine may be skipped without a record.
+    for name in _CONTENT_ENGINES:
+        if name not in dispatched:
+            _record_engine_outcome(
+                job, name, "skipped_not_reached", reason="stage_table_missing"
+            )
+            outcomes[name] = "skipped_not_reached"
+    return outcomes
+
+
+def _engine_lease_enabled() -> bool:
+    """B4: `AUTOMATION_ENGINE_LEASE=0` (DEFAULT) = no lease = today."""
+    return os.environ.get("AUTOMATION_ENGINE_LEASE", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+async def _acquire_engine_lease(job: str) -> dict[str, Any] | None:
+    """B4 §11.4 — claim a dev_control lease so the mega-job cannot double-run.
+
+    Gated `AUTOMATION_ENGINE_LEASE=0` (default) → returns None (no lease, today's
+    behaviour). When on, the DevTask idempotency_key is per (job, IST-day), so a
+    re-fired beat or an overlapping tick loses the QUEUED→CLAIMED race and skips.
+
+    Reuses `app.dev_control` (NO second lease engine). Best-effort: any infra
+    failure fails OPEN with a loud warning rather than blocking the daily run.
+
+    Interpretation note (design ambiguity, stated explicitly): §11.4 says the
+    lease is "released at the end" while ALSO requiring a re-fired beat not to
+    double-run. Those only both hold if release marks the task terminal — so
+    release sets the DevTask COMPLETED (a terminal release that also blocks a
+    same-day re-fire). The next day's IST slot key is new, so the daily run is
+    unaffected.
+    """
+    if not _engine_lease_enabled():
+        return None
+    try:
+        import uuid
+
+        from sqlalchemy import select
+
+        from app.dev_control.claims import atomic_claim
+        from app.dev_control.service import TaskState
+        from app.models.base import get_async_session
+        from app.models.dev_task import DevTask
+
+        slot = datetime.now(_IST).strftime("%Y-%m-%d")
+        key = f"automation:{job}:{slot}"
+        owner = f"automation:{job}:{os.getpid()}"
+        async with get_async_session() as db:
+            task = await db.scalar(select(DevTask).where(DevTask.idempotency_key == key))
+            if task is None:
+                now = datetime.utcnow()
+                task = DevTask(
+                    id=str(uuid.uuid4()),
+                    idempotency_key=key,
+                    parent_objective="automation content mega-job lease (T06 B4)",
+                    state=TaskState.QUEUED.value,
+                    retry_count=0,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(task)
+                try:
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                    task = await db.scalar(
+                        select(DevTask).where(DevTask.idempotency_key == key)
+                    )
+            if task is None:
+                return {"skip": False, "task_id": None, "owner": owner, "unavailable": True}
+            won = await atomic_claim(db, str(task.id), owner, lease_seconds=1800)
+            return {"skip": not bool(won), "task_id": str(task.id), "owner": owner}
+    except Exception as e:
+        logger.warning("[team-scheduler] engine lease unavailable (failing open): %s", e)
+        return {"skip": False, "task_id": None, "owner": "", "unavailable": True}
+
+
+async def _release_engine_lease(lease: dict[str, Any] | None) -> None:
+    """Release a B4 mega-job lease (mark the DevTask COMPLETED). Never raises."""
+    if not lease or lease.get("skip") or not lease.get("task_id"):
+        return
+    try:
+        from sqlalchemy import select
+
+        from app.dev_control.service import TaskState
+        from app.models.base import get_async_session
+        from app.models.dev_task import DevTask
+
+        async with get_async_session() as db:
+            task = await db.scalar(select(DevTask).where(DevTask.id == lease["task_id"]))
+            if task is None:
+                return
+            task.state = TaskState.COMPLETED.value
+            task.lease_owner = None
+            task.lease_until = None
+            task.updated_at = datetime.utcnow()
+            await db.commit()
+    except Exception as e:
+        logger.warning("[team-scheduler] engine lease release failed (non-fatal): %s", e)
+
+
 async def _run_content_engine(name: str, coro, budget=None) -> bool:
     """W1.3: `content` mega-job ke har engine ko isolate karo. Pehle 12 engines ek
     hi try me chain the — pehla throw (e.g. auto_content) baaki engines ko silently
     skip kar deta tha. Ab har engine ka failure logged + contained; cycle aage chalta.
-    Optional ``budget`` / contextvar: SoftTimeLimit se pehle remaining engines skip."""
+    Optional ``budget`` / contextvar: SoftTimeLimit se pehle remaining engines skip.
+
+    B4 (T06 §11.4): EVERY branch now records an outcome via
+    `automation_health.record_engine_outcome` — `ran` / `failed` / `skipped_budget`.
+    This is additive (a bug fix, not a behaviour change) and cannot alter what runs;
+    it closes the "no silent failure" gap where an engine could stop running with no
+    record anywhere.
+    """
+    b = budget if budget is not None else _active_job_budget.get()
+    job_label = str(getattr(b, "label", "") or "job")
     try:
-        b = budget if budget is not None else _active_job_budget.get()
         if b is not None and not b.ok():
             try:
                 coro.close()
@@ -528,27 +983,37 @@ async def _run_content_engine(name: str, coro, budget=None) -> bool:
             # nothing anywhere said so. Prod proof: `content` blew its 420s budget
             # on 15 consecutive daily runs (2026-07-18 → 2026-08-01, 452–530s),
             # silently dropping every engine queued behind the overrun.
-            try:
-                from app.platform import automation_health
-
-                snap = b.snapshot() if hasattr(b, "snapshot") else {}
-                automation_health.record_engine_skip(
-                    str(getattr(b, "label", "") or "job"),
-                    name,
-                    "budget_exhausted",
-                    elapsed_s=snap.get("elapsed_s"),
-                    limit_s=snap.get("limit_s"),
-                )
-            except Exception as e:
-                logger.warning("[team-scheduler] engine-skip record failed for '%s': %s", name, e)
+            snap = b.snapshot() if hasattr(b, "snapshot") else {}
+            _record_engine_outcome(
+                job_label,
+                name,
+                "skipped_budget",
+                reason="budget_exhausted",
+                elapsed_s=snap.get("elapsed_s"),
+                limit_s=snap.get("limit_s"),
+            )
             return False
+        _t0 = time.monotonic()
         await coro
+        _record_engine_outcome(
+            job_label,
+            name,
+            "ran",
+            duration_ms=int((time.monotonic() - _t0) * 1000),
+        )
         return True
     except Exception as e:
         logger.warning(
             "[team-scheduler] content engine '%s' failed (isolated, cycle continues): %s",
             name,
             e,
+        )
+        _record_engine_outcome(
+            job_label,
+            name,
+            "failed",
+            error_class=type(e).__name__,
+            error_message=str(e)[:300],
         )
         return False
 
@@ -849,184 +1314,30 @@ async def _run_job_inner(job: str) -> bool:
 
             call_analytics.run_daily_digest()
         elif job == "content":
-            from app.marketing import auto_content
             from app.platform.job_time_budget import JobBudget
 
             # SoftTimeLimit (540s) se pehle partial-ok — content SoftTimeLimit DLQ (2026-07-23).
             _content_budget = JobBudget.from_env("CONTENT_TIME_BUDGET_S", label="content")
             _budget_tok = _active_job_budget.set(_content_budget)
+            # B4 §11.4: gated dev_control lease (AUTOMATION_ENGINE_LEASE=0 default →
+            # None → no behaviour change). Reuses app.dev_control; no 2nd lease engine.
+            _engine_lease = await _acquire_engine_lease("content")
             try:
-                # W1.3: har engine _run_content_engine se guzarta hai — ek engine ka throw
-                # baaki engines ko skip nahi karta (pehle poora chain ek hi try me tha).
-                await _run_content_engine("auto_content", auto_content.run_daily_content())
-                from app.marketing import video_ad_cycle
-
-                # AI video-ad cycle: har 5 din naya video (build_reel) -> client approval ->
-                # multi-channel publish. run_cycle khud interval/publish/regen handle karta
-                # (gated VIDEO_AD_CYCLE or VIDEO_DAILY_SCHEDULER_ENABLED; off = inert).
-                # Scheduler/worker context = heavy OK.
-                await _run_content_engine("video_ad_cycle", video_ad_cycle.run_cycle())
-                from app.marketing import content_schedule
-
-                await _run_content_engine(
-                    "content_schedule", content_schedule.run_due()
-                )  # date-scheduled posts auto-prepare
-                from app.tasks.reporting import run_social_autopost
-
-                # Publish 'ready' posts to connected Meta accounts (MOCK unless
-                # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
-                await _run_content_engine("social_autopost", run_social_autopost())
-                from app.marketing import wa_campaign_runner
-
-                await _run_content_engine(
-                    "wa_campaign_runner", wa_campaign_runner.run_due()
-                )  # WhatsApp drip/reactivation (inert without creds)
-                from app.marketing import cadence
-
-                await _run_content_engine(
-                    "cadence", cadence.run_due()
-                )  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
-                from app.marketing import sales_pipeline
-
-                await _run_content_engine(
-                    "sales_pipeline", sales_pipeline.run_pipeline()
-                )  # sales deals auto next-action (gated SALES_ENGINE)
-                from app.billing import dunning
-
-                await _run_content_engine(
-                    "dunning", dunning.run_due()
-                )  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
-                from app.marketing import lifecycle_nurture
-
-                await _run_content_engine(
-                    "lifecycle_nurture", lifecycle_nurture.run_due()
-                )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
-                from app.telephony import voice_followup
-
-                await _run_content_engine(
-                    "voice_followup", voice_followup.run_due()
-                )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP; inert off)
-                from app.marketing import channel_experiments
-
-                await _run_content_engine(
-                    "channel_experiments", channel_experiments.run_daily(3)
-                )  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
-                from app.platform import booking_reminders
-
-                await _run_content_engine(
-                    "booking_reminders", booking_reminders.run_due()
-                )  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
-                from app.marketing import review_monitor
-
-                await _run_content_engine(
-                    "review_monitor", review_monitor.run_check()
-                )  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
-                try:
-                    from app.marketing import customer_crm
-
-                    if _content_budget.ok():
-                        await (
-                            customer_crm.run_wishes_if_enabled()
-                        )  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
-                except Exception:
-                    pass
-                try:
-                    from app.platform import service_reminders
-
-                    if _content_budget.ok():
-                        await (
-                            service_reminders.run_due_if_enabled()
-                        )  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
-                except Exception:
-                    pass
-                try:
-                    from app.marketing import newsletter
-
-                    if _content_budget.ok():
-                        await (
-                            newsletter.run_due_if_enabled()
-                        )  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
-                except Exception:
-                    pass
-                try:
-                    from app.platform import winback
-
-                    if _content_budget.ok():
-                        await (
-                            winback.run_due_if_enabled()
-                        )  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
-                except Exception:
-                    pass
-                try:
-                    from app.platform import rank_tracker
-
-                    if _content_budget.ok():
-                        await (
-                            rank_tracker.run_if_enabled()
-                        )  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
-                except Exception:
-                    pass
-                try:
-                    from app.platform import customer_autopilot
-
-                    # per-client hands-free drafts: evergreen recycle / NPS survey / stale-inquiry
-                    # nudge / daily owner-brief. Har sub-job apne flag ke peeche (EVERGREEN_RECYCLE /
-                    # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) — all DEFAULT-OFF, draft-only.
-                    if _content_budget.ok():
-                        await customer_autopilot.run_all()
-                except Exception:
-                    pass
-                try:
-                    from app.platform import memory_vault
-
-                    if _content_budget.ok():
-                        await (
-                            memory_vault.sync_if_enabled()
-                        )  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
-                except Exception:
-                    pass
-                try:
-                    from app.platform import memory_stack
-
-                    if _content_budget.ok():
-                        # prospective memory (L6): lease-recover + atomically claim due
-                        # rows, phir normal agent_task_queue me dispatch. Gated
-                        # MEMORY_STACK_ENABLED; durable store missing = fail-CLOSED
-                        # (zero dispatch). No LLM on this path.
-                        await memory_stack.drain_if_enabled()
-                except Exception:
-                    pass
-                try:
-                    from app.platform import live_notes
-
-                    if _content_budget.ok():
-                        await (
-                            live_notes.refresh_if_enabled()
-                        )  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
-                except Exception:
-                    pass
-                try:
-                    from app.agents import sales_team
-
-                    if _content_budget.ok():
-                        await sales_team.run_auto(
-                            3
-                        )  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
-                except Exception:
-                    pass
-                try:
-                    # White-label monthly client report — mahine ki 1 tarikh ko hi.
-                    # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
-                    from datetime import datetime as _dt
-
-                    if _content_budget.ok() and _dt.now().day == 1:
-                        from app.marketing import client_report
-
-                        await client_report.run_monthly()
-                except Exception:
-                    pass
+                if _engine_lease is not None and _engine_lease.get("skip"):
+                    # Another tick holds the mega-job lease — do NOT double-run.
+                    logger.info(
+                        "[team-scheduler] content mega-job skipped — engine lease held elsewhere"
+                    )
+                else:
+                    # Every engine is dispatched through `_dispatch_content_engines`,
+                    # which records an outcome (ran/failed/skipped_budget) for each
+                    # and `skipped_not_reached` for any it does not start. With
+                    # CONTENT_PARALLEL_ENGINES unset this is today's exact order.
+                    _content_rollup = await _dispatch_content_engines("content", _content_budget)
+                    logger.info("[team-scheduler] content engine outcomes: %s", _content_rollup)
             finally:
                 _active_job_budget.reset(_budget_tok)
+                await _release_engine_lease(_engine_lease)
         elif job == "blog":
             from app.marketing import seo_blog
 
@@ -1527,6 +1838,61 @@ async def _run_job_inner(job: str) -> bool:
             from app.marketing import daily_video
 
             await daily_video.run_daily()
+        elif job == "video_delivery":
+            # T03: approved video → Telegram customer thread + ops group (egress
+            # only). Drains the pending-delivery queue. INERT unless
+            # VIDEO_TELEGRAM_DELIVERY_ENABLED=1 (`deliver_pending` returns
+            # {"ok": False, "reason": ...} immediately when off). `deliver_pending`
+            # is SYNC → to_thread so the scheduler loop is never blocked on
+            # Telegram network I/O. In RUN_DUE_EXCLUDE (scheduler_config): a
+            # restart catch-up flood would re-send real messages.
+            from app.marketing import video_delivery as _video_delivery
+
+            _vd_out = await asyncio.to_thread(_video_delivery.deliver_pending, 20)
+            logger.info(f"[team-scheduler] video_delivery: {_vd_out}")
+        elif job == "video_delivery_retry":
+            # T03: due-retry drain for the delivery queue. Same gate as
+            # `video_delivery`; each retry re-enters the SAME `deliver_video`
+            # path (no gate/resolver shortcut). `process_retries` is SYNC →
+            # to_thread. RUN_DUE_EXCLUDE (no catch-up flood of real sends).
+            from app.marketing import video_delivery as _video_delivery
+
+            _vr_out = await asyncio.to_thread(_video_delivery.process_retries, 20)
+            logger.info(f"[team-scheduler] video_delivery_retry: {_vr_out}")
+        elif job == "video_health":
+            # T03: end-to-end video automation health (artifact + freshness +
+            # verified). READ-ONLY and never raises → safe to run unconditionally
+            # (no gate; off automations surface as `gated_inert`). SYNC → to_thread.
+            from app.marketing import video_health as _video_health
+
+            _vh_out = await asyncio.to_thread(_video_health.health)
+            logger.info(
+                f"[team-scheduler] video_health: ok={_vh_out.get('ok')} "
+                f"degraded={_vh_out.get('degraded')}"
+            )
+        elif job == "video_lifecycle_reconcile":
+            # T03: bounded, READ-ONLY sweep of every tenant's creatives — which
+            # video stopped and at which stage. Never mutates a record, so a
+            # reconcile tick can never change state → safe unconditionally.
+            # `reconcile(*, limit)` is SYNC and keyword-only → to_thread.
+            from app.marketing.creative_os import lifecycle as _lifecycle
+
+            _lc_out = await asyncio.to_thread(_lifecycle.reconcile, limit=200)
+            logger.info(f"[team-scheduler] video_lifecycle_reconcile: {_lc_out}")
+        elif job == "render_plane_lease":
+            # T02/T07: VPS-side render-plane maintenance. Three bounded,
+            # idempotent effects: (1) reclaim expired render leases (the SAME
+            # pure lease_policy the control plane uses), (2) create render jobs
+            # for creatives still `queued` so the local render worker has
+            # something to lease (idempotent by job_id), (3) bridge finished
+            # renders back into `process_generation` so a completed local render
+            # enters QA exactly once. Never raises. This is the SAME logic the
+            # Celery task `render_plane_lease_task` runs; invoked directly here
+            # because the core is already async (no to_thread / nested loop).
+            from app.tasks.video_jobs import _render_plane_lease_async
+
+            _rp_out = await _render_plane_lease_async(max_retries=3, limit=200, enqueue=True)
+            logger.info(f"[team-scheduler] render_plane_lease: {_rp_out}")
         elif job == "hq_auto_chase":
             # Hot Queue auto-chase — unactioned inquiry cards pe automated EMAIL
             # follow-up. INERT unless HQ_AUTO_CHASE=1 (run_auto_chase no-ops).
@@ -1675,6 +2041,23 @@ async def _run_job_inner(job: str) -> bool:
 
 async def scheduler_loop() -> None:
     logger.info("[team-scheduler] loop started (growth 15min + dailies)")
+    # ----------------------------------------------------------------------- #
+    # B1 (T06 §11.0/§11.1) — DECISION: this loop stays SEQUENTIAL. DO NOT
+    # "optimise" it into bounded-concurrency dispatch.
+    #
+    # Production does NOT run this in-process path. The live scheduler is Celery
+    # beat + workers (`docker-compose.vps.yml:20` → RUN_IN_PROCESS_SCHEDULER=0 +
+    # `--profile celery`; `app/tasks/staff_jobs.py:10-12` records the durable path
+    # live since 2026-06-10; `deploy/scheduler/README.md:3` names Celery beat the
+    # primary scheduler; ADR-001 keeps in-process only as rollback). Parallelising
+    # the `await _run_job(...)` calls below would therefore not affect production,
+    # and would mutate a proven fallback. Production parallelism is governed by
+    # Celery worker concurrency (B2) and the `content` mega-job's internal
+    # dispatch (B4) — both of which ARE addressed by T06.
+    #
+    # If this rollback path is ever re-activated, bounded dispatch becomes a
+    # follow-up task (T07), not an opportunistic edit here.
+    # ----------------------------------------------------------------------- #
     # W1.7: persisted last-run markers boot pe load — MUST boot-grace se PEHLE chale
     # (warna load boot-grace ke in-window skip-marks ko stale values se overwrite karke
     # heavy job ko boot pe chala dega = prod-000 boot-storm). Reorder mat karo.

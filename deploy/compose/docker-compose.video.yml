@@ -1,16 +1,22 @@
 # =============================================================================
-# docker-compose.video.yml — OPT-IN overlay for HyperFrames rendering.
+# docker-compose.video.yml — OPT-IN overlay for HyperFrames rendering (T07).
 #
-# Purpose: switch ONLY `worker-video` onto the render toolchain image. The base
-# docker-compose.vps.yml is deliberately left untouched so that the default
-# deploy path — and therefore every deploy of unrelated work — behaves exactly
-# as it does today. Adding the browser toolchain to the shared app image would
-# grow the web, scheduler and general-worker containers for no reason.
+# Purpose: switch the NETLESS `renderer` service onto the render toolchain image
+# (Dockerfile.video). The base docker-compose.vps.yml is deliberately left
+# untouched by the DEFAULT deploy path, so every deploy of unrelated work behaves
+# exactly as it does today; the browser toolchain is heavy and only the renderer
+# has any reason to carry it.
+#
+# T07 change (RC5 enforcement): the toolchain moved from `worker-video` (now the
+# thin, NETWORKED orchestrator) to `renderer` (now the `network_mode: none`
+# hermetic render step). This overlay therefore (a) builds/points the `renderer`
+# at the toolchain image and (b) explicitly pins `worker-video` back to the base
+# app image so the demotion is auditable and not an accident of file ordering.
 #
 # Usage (BOTH files, in this order):
 #   APP_VERSION=<sha> docker compose \
 #     -f docker-compose.vps.yml -f docker-compose.video.yml \
-#     --profile celery up -d --no-deps worker-video
+#     --profile celery up -d --no-deps worker-video renderer
 #
 # Build first (the tag MUST end in :$APP_VERSION or scripts/deploy_vps.sh's
 # skew check will refuse the deploy):
@@ -18,12 +24,17 @@
 #     --build-arg APP_IMAGE=ghcr.io/sumitrevolt/leadgenrationaivoiceagent:$APP_VERSION \
 #     -t ghcr.io/sumitrevolt/leadgenrationaivoiceagent-video:$APP_VERSION .
 #
-# Rollback: redeploy worker-video WITHOUT this overlay. It returns to the shared
-# app image; the deterministic provider keeps working and previously approved
-# media is untouched.
+# Rollback: redeploy WITHOUT this overlay. `worker-video` returns to the base app
+# image and the deterministic provider keeps working; previously approved media is
+# untouched. Stop the `renderer` service too (it is profile-gated and inert).
 # =============================================================================
 services:
-  worker-video:
+  # ---------------------------------------------------------------------------
+  # NETLESS RENDERER — now carries the toolchain and does the hermetic render.
+  # The base file already sets `network_mode: "none"`, `cap_drop`, `security_opt`
+  # and `CREATIVE_RENDER_NETLESS=1`; this overlay only supplies the image + build.
+  # ---------------------------------------------------------------------------
+  renderer:
     image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent-video:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     build:
       context: .
@@ -37,8 +48,7 @@ services:
       HYPERFRAMES_NO_UPDATE_CHECK: "1"
       HYPERFRAMES_NO_AUTO_INSTALL: "1"
       DO_NOT_TRACK: "1"
-    # Chrome is memory-hungry: one 1080x1920 worker plus the encoder. The base
-    # file's 2000m is not enough headroom for a full-HD capture. NOTE: the
+    # Chrome is memory-hungry: one 1080x1920 worker plus the encoder. NOTE: the
     # hyperframes producer switches to a SLOW screenshot capture profile below
     # 8192 MiB total memory, so keep this at/above 8192m for ~2-min renders.
     mem_limit: 10240m
@@ -48,9 +58,17 @@ services:
     # and the render crashes with "Protocol error (Page.captureScreenshot):
     # Target closed" at ~67/762 frames. hyperframes doctor recommends 512m.
     shm_size: 512m
-    # A 1080x1920 render is ~2 min on this hardware; the Celery soft limit for
-    # render_creative_os_task must stay ABOVE CREATIVE_HYPERFRAMES_TIMEOUT_S or
-    # Celery kills the task before the provider can reap its own Chrome children.
+    # The renderer is spool-driven; the base file sets the same command.
+    command: python -m app.render_plane.spool serve
+
+  # ---------------------------------------------------------------------------
+  # worker-video — DEMOTED to the thin, NETWORKED orchestrator (T07 §9.1/§12 A3).
+  # Pinned back to the BASE app image on purpose: it must NOT carry the browser
+  # toolchain any more. It fetches inputs, writes the spool job, collects the
+  # artifact, then QA/registers/approves.
+  # ---------------------------------------------------------------------------
+  worker-video:
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     command: >-
       celery -A app.worker worker -Q video --loglevel=info --concurrency=1
       --soft-time-limit=1200 --time-limit=1320

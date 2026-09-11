@@ -1749,6 +1749,113 @@ ENTRIES: list[dict[str, Any]] = [
             "gated behind clear_after=True so admin peeks stay non-destructive."
         ),
     },
+    # --- runtime-data ratchet classification (2026-09-11) ---------------------
+    # Findings the ratchet reported as NEW unresolved. Classified here (reviewed,
+    # owned, scheduled) rather than absorbed into the debt baseline: naming the
+    # store family is the point, not hiding the access. Their families were added
+    # to runtime_data_manifest.py in the same change.
+    {
+        "allowlist_id": "admin.task_ledger.db",
+        "file": "app/admin/services/task_ledger.py",
+        # One symbol carries both operations: :36 os.makedirs(DB_PATH.parent)
+        # (CREATE) and :37 sqlite3.connect(str(DB_PATH)) (SQLITE).
+        "line_or_symbol": "DB_PATH",
+        "path_pattern": "data/admin_tasks.db",
+        "store_id": "admin.task_ledger",
+        "access_modes": ["CREATE", "SQLITE"],
+        "reason": (
+            "Admin/board task ledger (SQLite, WAL). _get_conn() creates the data/ "
+            "parent (CREATE via os.makedirs) and opens the database (SQLITE via "
+            "sqlite3.connect). The path is the module constant DB_PATH; both call "
+            "sites reach it through that one symbol."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "operations",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Ledger must stay single-process SQLite (WAL). A second concurrent "
+            "writer, or a path change away from data/, is a review trigger."
+        ),
+    },
+    {
+        "allowlist_id": "automation.omniroute_combo_state.read",
+        "file": "app/platform/omniroute_combo_health.py",
+        # `path` is bound at both call sites as `path = path or STATE_PATH`.
+        "line_or_symbol": "path",
+        # `_resolved_path_of` walks `path` -> `STATE_PATH`; the or-expression has
+        # no further symbol to follow, so naming the store constant is the honest
+        # match (same convention as marketing.brand_kits -> "_BRAND_DIR").
+        "path_pattern": "STATE_PATH",
+        "store_id": "automation.omniroute_combo_state",
+        "access_modes": ["READ"],
+        "reason": (
+            "Read-side health adapter for the 14 canonical OmniRoute combos. "
+            "load_state() opens the watchdog state file (open(path, 'r')) and "
+            "snapshot() reads it through load_state(path); both resolve via "
+            "`path or STATE_PATH`. READ-ONLY — this adapter never writes the "
+            "state file."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "automation",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must stay read-only here; an absent or stale file must render 'not "
+            "instrumented', never a green tile."
+        ),
+    },
+    {
+        "allowlist_id": "ops.owner_feed.read",
+        "file": "app/utils/owner_feed.py",
+        # `target = feed_path(path)`; both reads bind the same symbol.
+        "line_or_symbol": "target",
+        # feed_path() resolves to `Path(env) if env else DEFAULT_FEED_PATH`; the
+        # conditional has no single path literal to name, so the store constant
+        # is the honest match.
+        "path_pattern": "DEFAULT_FEED_PATH",
+        "store_id": "ops.owner_feed",
+        "access_modes": ["READ"],
+        "reason": (
+            "Owner feed event log (append-only JSONL, OWNER_TELEGRAM_FEED_DESIGN "
+            "T-02). append_event() dedupes via _recent_dedupe_keys(target) and "
+            "read_events() opens target; both derive from feed_path(path) -> "
+            "`Path(env) if env else DEFAULT_FEED_PATH`."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Append-only; corrupt lines are counted, never dropped; the store must "
+            "never raise into a worker. A path change must carry the dedupe window "
+            "and the fail-closed reads."
+        ),
+    },
+    {
+        "allowlist_id": "sales.prospects.hunt_insert_vps.report",
+        "file": "data/hunter_leads/_hunt_insert_vps.py",
+        # No symbol; declared by exact line. The scanner resolved the literal
+        # '/opt/leadgen/data/HUN-002-leads.md' to its data root, so the declared
+        # pattern's basename must be that root.
+        "line_or_symbol": 174,
+        "path_pattern": "/opt/leadgen/data",
+        "store_id": "sales.prospects",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "One-shot VPS hunter-insert script writes its run report markdown "
+            "(HUN-002-leads.md) beside the hunter data root. Offline tooling; the "
+            "REWRITE is a report artifact, not the prospect store itself."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Offline one-shot only; must not become a recurring writer of the "
+            "prospect store."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

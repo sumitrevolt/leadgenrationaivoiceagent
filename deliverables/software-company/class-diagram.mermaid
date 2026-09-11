@@ -1,0 +1,335 @@
+%% System Design — video_personalization_v2 · class diagram
+%% repo: leadgenrationaivoiceagent @ 33189b70
+classDiagram
+    %% ---------- NEW data types ----------
+    class SocialProfile {
+        +str tenant_id
+        +str profile_version
+        +str source
+        +str source_ref
+        +str analysis_method
+        +float analyzed_at
+        +str tone
+        +str audience
+        +list~str~ content_pillars
+        +dict visual_style
+        +dict posting_cadence
+        +str top_performing_format
+        +str language_hint
+        +bool verified
+        +str evidence_label
+        +list~str~ needs_input
+        +dict raw_signals
+        +profile_hash() str
+        +to_dict() dict
+    }
+
+    class CreativeLineage {
+        +str tenant_id
+        +str creative_id
+        +int revision
+        +str day
+        +str recipe
+        +str template_id
+        +str hook_variant
+        +str spec_hash
+        +str scene_text_hash
+        +list~str~ shingles
+        +float at
+        +bool forced
+        +to_dict() dict
+        +from_dict(d) CreativeLineage
+    }
+
+    class CreativeLearningLink {
+        +str creative_id
+        +int revision
+        +str tenant_id
+        +str recipe
+        +dict metrics
+        +list~str~ lead_event_ids
+        +float revenue_inr
+        +str source
+        +bool verified
+        +str kind
+        +str note
+        +float at
+        +str day
+        +to_dict() dict
+        +from_dict(d) CreativeLearningLink
+    }
+
+    class RenderJob {
+        +str job_id
+        +str idempotency_key
+        +str tenant_id
+        +str creative_id
+        +int revision
+        +str spec_hash
+        +str template_id
+        +str aspect_ratio
+        +str state
+        +str lease_owner
+        +float lease_until
+        +int attempt
+        +int retry_count
+        +float next_eligible_at
+        +str artifact_path
+        +str artifact_sha256
+        +int artifact_bytes
+        +str manifest_hash
+        +dict network_isolation
+        +str error
+    }
+
+    %% ---------- EXISTING (extended) types ----------
+    class CreativeSpec {
+        +str creative_id
+        +str tenant_id
+        +str recipe
+        +str template_id
+        +str hook_variant
+        +str selection_reason
+        +dict novelty
+        +str social_profile_version
+        +list~SceneSpec~ scenes
+        +str status
+        +str output_hash
+        +spec_hash() str
+        +compute_input_hashes() dict
+        +validate() list
+    }
+
+    class SceneSpec {
+        +int index
+        +str role
+        +str text
+        +float duration_s
+        +validate() list
+    }
+
+    class BrandProfile {
+        +str tenant_id
+        +str business_name
+        +str niche
+        +str city
+        +dict socials
+        +dict social_profile
+        +list~str~ missing
+    }
+
+    %% ---------- NEW services ----------
+    class CreativeSelector {
+        +select_creative(tenant_id, day, learning_stats, profile, rotation_index, force) dict
+        +cold_start_rotation(tenant_id, day) list
+        +niche_to_template(niche) str
+    }
+
+    class NoveltyGate {
+        +scene_fingerprint(spec) dict
+        +jaccard(a, b) float
+        +check(spec, tenant_id, n) dict
+        +accept(spec, lineage) dict
+        +read_lineage(tenant_id, n) list
+    }
+
+    class LearningStore {
+        +record_learning(link) dict
+        +get_learning_history(tenant_id, limit) list
+        +_resolve_path(tenant_id) Path
+    }
+
+    class SocialProfileService {
+        +analyze(tenant_id, force) dict
+        +get_profile(tenant_id) SocialProfile
+        +apply_to_copy(profile, recipe) dict
+    }
+
+    class NetworkGuard {
+        +build_isolation() dict
+    }
+
+    class LifecycleProjection {
+        +project(tenant_id, creative_id) dict
+        +list_lifecycle(tenant_id) list
+    }
+
+    class VideoDelivery {
+        +deliver_video(tenant_id, creative_id, targets) dict
+        +bind_customer_chat(tenant_id, chat_ref) dict
+        +enqueue_retry(receipt) dict
+        +drain_retry_queue(tenant_id) dict
+    }
+
+    class VideoHealth {
+        +probe_video_automations() list
+        +probe_automation(name) dict
+    }
+
+    class CreativeVideoAPI {
+        +overview() dict
+        +tenant(tenant_id) dict
+        +lifecycle(tenant_id, creative_id) dict
+        +evidence(tenant_id, creative_id) dict
+        +health() dict
+    }
+
+    %% ---------- REUSED infrastructure ----------
+    class CreativeOSService {
+        +enqueue_generate(...) dict
+        +process_generation(tenant_id, creative_id) dict
+        +approve_exact(tenant_id, creative_id) dict
+        +request_changes(tenant_id, creative_id) dict
+        +resolve_output_path(tenant_id, creative_id) dict
+    }
+
+    class CreativeStore {
+        +save_record(spec, extra) dict
+        +get_record(tenant_id, creative_id) dict
+        +list_records(tenant_id, status, limit) dict
+    }
+
+    class AssetRegistry {
+        +register_asset(...) dict
+        +get_asset(tenant_id, asset_id) dict
+        +revoke_asset(tenant_id, asset_id) dict
+    }
+
+    class RecipeEngine {
+        +build_scene_plan(recipe, dna, variant, ...) list
+        +recipe_allowed(recipe, source_asset_ids, verified_quote) dict
+        +RECIPES
+    }
+
+    class HyperFramesProvider {
+        +generate(spec) dict
+        +build_manifest(spec, brand, template_id, photo_asset_ids) dict
+        +manifest_hash(manifest) str
+        +network_disabled() bool
+    }
+
+    class QAGate {
+        +run_qa(path, spec, brand_name) dict
+    }
+    class EnterpriseQA {
+        +evaluate(path, spec, provider_asset) dict
+    }
+    class ApprovalGate {
+        +bind_approval(spec, actor, record) dict
+        +can_publish_to_postiz(tenant_id, creative_id) dict
+    }
+
+    class DeliveryLedger {
+        +log_event(client_id, event, detail, meta, actor, key) bool
+        +timeline(client_id, limit, customer_only) list
+    }
+
+    class OwnerFeed {
+        +build_event(source, actor, text, severity, kind, evidence, verified) dict
+        +emit(...) bool
+    }
+
+    class RuntimeDataAuthority {
+        +resolve_store_path(store_id, legacy_path, target_segments) Path
+        +resolve_temp_path(...) Path
+    }
+
+    class DevControlClaims {
+        +atomic_claim(db, task_id, worker, lease_seconds) bool
+        +atomic_heartbeat(db, task_id, worker, lease_seconds) bool
+        +claim_next(db, worker, lease_seconds) dict
+    }
+    class LeasePolicy {
+        +plan_lease_reclaim(task, now) dict
+    }
+    %% RenderPlaneReconcile is defined inside app/render_plane/jobstore.py (reclaim folded in — no separate reconcile.py file)
+    class RenderPlaneReconcile {
+        +reconcile_render_leases(db, limit) dict
+    }
+
+    class RenderPlaneJobStore {
+        +create(job) dict
+        +lease_next(worker, lease_seconds) dict
+        +heartbeat(job_id, worker, lease_seconds) bool
+        +complete(job_id, revision, attempt, sha256, manifest_hash) dict
+        +fail(job_id, error) dict
+        +get(job_id) dict
+    }
+    class RenderPlaneAPI {
+        +POST lease() dict
+        +POST heartbeat() dict
+        +POST complete() dict
+        +POST fail() dict
+        +GET status(job_id) dict
+    }
+    class RenderTransport {
+        +fetch(resource_ref, offset) dict
+        +upload(path, job_id, offset) dict
+    }
+    class LocalRenderWorker {
+        +recover_journal() dict
+        +run_once() dict
+        +run_forever() void
+    }
+    class TelegramEgress {
+        +send_video(chat_ref, path, caption) dict
+        +send_message(chat_ref, text) dict
+    }
+
+    %% ---------- relationships ----------
+    CreativeOSService --> CreativeSelector : selects recipe/template
+    CreativeOSService --> NoveltyGate : gate before persist
+    CreativeOSService --> RecipeEngine : build_scene_plan(dna)
+    CreativeOSService --> CreativeSpec : builds
+    CreativeOSService --> CreativeStore : save/get
+    CreativeOSService --> AssetRegistry : register output
+    CreativeOSService --> HyperFramesProvider : provider.generate
+    CreativeOSService --> QAGate : run_qa
+    CreativeOSService --> EnterpriseQA : evaluate
+    CreativeOSService --> ApprovalGate : bind_approval
+    CreativeOSService --> LearningStore : record_learning
+    CreativeOSService --> DeliveryLedger : log_event
+
+    CreativeSelector --> SocialProfileService : DNA
+    CreativeSelector --> LearningStore : advisory bias
+    CreativeSelector --> RecipeEngine : RECIPES
+    SocialProfileService --> SocialProfile : persists
+    NoveltyGate --> CreativeLineage : lineage index
+    NoveltyGate --> CreativeSpec : fingerprint
+    CreativeSpec "1" --> "many" SceneSpec : scenes
+    BrandProfile --> SocialProfile : embedded DNA
+
+    HyperFramesProvider --> NetworkGuard : enforced isolation
+
+    RenderPlaneAPI --> RenderPlaneJobStore : lease/heartbeat/complete
+    RenderPlaneJobStore --> DevControlClaims : reuse claim/heartbeat
+    RenderPlaneJobStore --> RenderJob : persists
+    RenderPlaneReconcile --> LeasePolicy : reuse backoff/reclaim
+    RenderPlaneReconcile --> RenderPlaneJobStore : requeue
+    LocalRenderWorker --> RenderTransport : fetch/upload
+    LocalRenderWorker --> HyperFramesProvider : render locally
+    LocalRenderWorker --> RenderPlaneAPI : lease/complete
+    RenderPlaneJobStore --> CreativeOSService : handoff to QA
+
+    VideoDelivery --> TelegramEgress : egress only
+    VideoDelivery --> DeliveryLedger : receipt
+    VideoDelivery --> CreativeOSService : resolve_output_path
+    VideoDelivery --> AssetRegistry : capture flow assets
+    VideoDelivery --> RecipeEngine : verified_quote
+
+    LifecycleProjection --> CreativeStore : record
+    LifecycleProjection --> DeliveryLedger : events
+    LifecycleProjection --> ApprovalGate : approval
+    LifecycleProjection --> AssetRegistry : assets
+    VideoHealth --> OwnerFeed : truth gate
+    VideoHealth --> DeliveryLedger : freshness
+    CreativeVideoAPI --> LifecycleProjection : L3
+    CreativeVideoAPI --> VideoHealth : L1
+    CreativeVideoAPI --> CreativeStore : L2/L4
+
+    CreativeStore --> RuntimeDataAuthority : resolves store
+    LearningStore --> RuntimeDataAuthority : resolves store
+    SocialProfileService --> RuntimeDataAuthority : resolves store
+    RenderPlaneJobStore --> RuntimeDataAuthority : resolves store
+    VideoDelivery --> RuntimeDataAuthority : resolves store
+    DeliveryLedger --> RuntimeDataAuthority : resolves store

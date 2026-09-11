@@ -87,11 +87,23 @@ async def owner_command_center_overview(
         logger.debug("activation summary failed: %s", e)
 
     # --- 4. Workforce Live Status (31 agents + desktop apps) ---
-    workforce = _safe(
-        lambda: _read_json_file("data/workforce_live_status.json", {}),
-        default={},
-        label="workforce",
-    )
+    # TRUTH GATE: workforce_live_status.json was previously populated by
+    # a synthetic orchestrator. Now NOT_INSTRUMENTED — only show real data.
+    def _get_workforce():
+        from app.platform import runtime_data
+
+        p = runtime_data.store_path("workforce_live_status.json")
+        if not p.is_file():
+            return {}
+        try:
+            with open(p, encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception:
+            return {}
+        if raw.get("evidence_kind") == "inference_probe_only":
+            return {"status": "NOT_INSTRUMENTED", "note": "Real worker activity tracked via Celery/team.log_event"}
+        return raw
+    workforce = _safe(_get_workforce, default={}, label="workforce")
 
     # --- 5. OmniRoute 14 Combos health ---
     combos = _safe(
@@ -206,13 +218,16 @@ def _get_task_ledger_summary() -> dict:
 
 
 def _get_admin_kpis() -> dict:
-    """Read key KPIs from local data files."""
+    """Read key KPIs from local data files (via the canonical runtime resolver)."""
+    from app.platform import runtime_data
+
     kpis = {}
 
     # Prospects
     try:
-        if os.path.isfile("data/prospects.jsonl"):
-            with open("data/prospects.jsonl", encoding="utf-8") as f:
+        prospects_p = runtime_data.store_path("prospects.jsonl")
+        if prospects_p.is_file():
+            with open(prospects_p, encoding="utf-8") as f:
                 lines = [l for l in f if l.strip()]
             kpis["prospects_total"] = len(lines)
     except Exception:
@@ -220,8 +235,9 @@ def _get_admin_kpis() -> dict:
 
     # Marketing clients
     try:
-        if os.path.isfile("data/marketing_clients.jsonl"):
-            with open("data/marketing_clients.jsonl", encoding="utf-8") as f:
+        clients_p = runtime_data.store_path("marketing_clients.jsonl")
+        if clients_p.is_file():
+            with open(clients_p, encoding="utf-8") as f:
                 lines = [l for l in f if l.strip()]
             kpis["clients_total"] = len(lines)
     except Exception:

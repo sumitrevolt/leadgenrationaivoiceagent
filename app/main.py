@@ -1171,6 +1171,13 @@ try:
 except Exception as _e:
     logger.warning(f"Owner Command Center router not mounted: {_e}")
 try:
+    # T04 — Creative Video Command Center (read-only L1→L4 admin API).
+    # Self-contained router; prefix "/api/admin/video" is baked into the module.
+    from app.api.creative_video import router as _creative_video_router
+    app.include_router(_creative_video_router)
+except Exception as _e:
+    logger.warning(f"Creative Video router not mounted: {_e}")
+try:
     from app.api.assessment import router as assessment_router
 
     app.include_router(
@@ -2031,6 +2038,13 @@ async def owner_command_center_page():
 async def delivery_command_center_page():
     """Customer Delivery OS admin front door."""
     return FileResponse(str(FRONTEND_DIR / "delivery_command_center.html"))
+
+
+@app.get("/app/admin/video", tags=["Frontend"])
+async def video_command_center_page():
+    """Creative Video Command Center — read-only L1→L4 admin surface
+    (automation health, tenant lifecycle, evidence panel)."""
+    return FileResponse(str(FRONTEND_DIR / "video_command_center.html"))
 
 
 @app.get("/app/dev-control", tags=["Frontend"])

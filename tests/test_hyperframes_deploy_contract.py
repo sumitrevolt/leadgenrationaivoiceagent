@@ -32,10 +32,17 @@ def test_overlay_and_dockerfile_exist():
     assert _DOCKERFILE.is_file()
 
 
-def test_overlay_touches_only_worker_video():
-    """The browser toolchain must not grow the web/scheduler/general-worker images."""
+def test_overlay_touches_only_render_plane_services():
+    """The browser toolchain must not grow the web/scheduler/general-worker images.
+
+    T07 (design §9.1 / §12 A3) moved the toolchain out of `worker-video` and into
+    the netless `renderer`; the opt-in overlay therefore touches exactly the two
+    render-plane services. It must never name app/worker/scheduler/worker-heavy —
+    that is the invariant that keeps the heavy image off the general fleet.
+    """
     overlay = _load(_OVERLAY)
-    assert set(overlay["services"]) == {"worker-video"}
+    assert set(overlay["services"]) == {"worker-video", "renderer"}
+    assert not ({"app", "worker", "scheduler", "worker-heavy"} & set(overlay["services"]))
 
 
 def test_base_compose_is_unchanged_for_app_services():
@@ -55,14 +62,25 @@ def test_base_compose_is_unchanged_for_app_services():
 
 
 def test_overlay_image_tag_still_satisfies_deploy_skew_check():
-    """deploy_vps.sh refuses any image whose tag is not :$APP_VERSION."""
+    """deploy_vps.sh refuses any image whose tag is not :$APP_VERSION.
+
+    The toolchain image now belongs to `renderer` (T07); `worker-video` is pinned
+    back to the BASE app image so the demotion cannot be undone by file ordering.
+    """
     overlay = _load(_OVERLAY)
-    image = overlay["services"]["worker-video"]["image"]
-    assert image.endswith(":${APP_VERSION:?set APP_VERSION to the immutable git SHA}")
-    args = overlay["services"]["worker-video"]["build"]["args"]
-    assert args["APP_IMAGE"].endswith(
-        ":${APP_VERSION:?set APP_VERSION to the immutable git SHA}"
-    ), "video image must be built FROM the same-sha app image, not a floating tag"
+    sentinel = ":${APP_VERSION:?set APP_VERSION to the immutable git SHA}"
+
+    renderer = overlay["services"]["renderer"]
+    assert renderer["image"].endswith(sentinel)
+    args = renderer["build"]["args"]
+    assert args["APP_IMAGE"].endswith(sentinel), (
+        "video image must be built FROM the same-sha app image, not a floating tag"
+    )
+
+    # Demotion contract: worker-video must NOT carry the -video toolchain image.
+    worker_video_image = overlay["services"]["worker-video"]["image"]
+    assert worker_video_image.endswith(sentinel)
+    assert "-video:" not in worker_video_image, "worker-video must stay on the base app image"
 
 
 def test_video_dockerfile_derives_from_app_image():
@@ -87,8 +105,31 @@ def test_video_dockerfile_disables_telemetry_and_runtime_downloads():
 def test_renderer_root_is_outside_the_app_bind_mount():
     """compose bind-mounts ./data and code over /app; the renderer must survive."""
     overlay = _load(_OVERLAY)
-    env = overlay["services"]["worker-video"]["environment"]
+    env = overlay["services"]["renderer"]["environment"]
     assert env["CREATIVE_HYPERFRAMES_ROOT"].startswith("/opt/")
+
+
+def test_renderer_is_netless_and_declares_the_rc5_fact():
+    """T07 §9.1 / §12 A3 — the RC5 primitive is a container with NO network.
+
+    The isolation is provided by the container runtime, so it must be asserted on
+    the service definition, not merely claimed by an env flag: `network_mode: none`
+    (and NO `networks:` key, which would silently re-attach a NIC), a full cap
+    drop, and the runtime-asserted `CREATIVE_RENDER_NETLESS=1` fact that
+    `network_guard.build_isolation()` reads to report `enforced is True`.
+    """
+    base = _load(_BASE)
+    renderer = base["services"]["renderer"]
+    assert renderer["network_mode"] == "none", "the renderer must have no network interface"
+    assert "networks" not in renderer, "`networks:` is incompatible with network_mode and re-attaches a NIC"
+    assert renderer["cap_drop"] == ["ALL"]
+    assert "no-new-privileges:true" in renderer["security_opt"]
+    assert renderer["environment"]["CREATIVE_RENDER_NETLESS"] == "1"
+
+    # The overlay must not weaken the primitive it points the toolchain at.
+    overlay = _load(_OVERLAY)["services"].get("renderer", {})
+    assert overlay.get("network_mode", "none") == "none"
+    assert "networks" not in overlay
 
 
 def test_lockfile_is_committed_and_pins_exact_version():

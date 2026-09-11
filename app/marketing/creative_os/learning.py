@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from app.marketing.creative_os import flags
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -38,6 +39,11 @@ class CreativeLearningLink:
     revenue_inr: float | None = None
     source: str = "manual_import"  # postiz|social_api|manual_import
     verified: bool = False
+    # --- NEW (additive; from_dict filters to known keys, so old rows load) ---
+    kind: str = "engagement"  # qa | approval | rejection | engagement
+    note: str = ""  # rejection reason / QA blocker, <=400 chars
+    at: float = 0.0
+    day: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -57,19 +63,39 @@ class CreativeLearningLink:
             "revenue_inr",
             "source",
             "verified",
+            "kind",
+            "note",
+            "at",
+            "day",
         }
         filtered = {k: v for k, v in data.items() if k in valid_keys}
         return cls(**filtered)
 
 
+# In-memory fallback used ONLY when durable persistence is explicitly disabled
+# (CREATIVE_LEARNING_PERSIST_ENABLED=0). The durable ledger is the primary store
+# (learning_store.py); this dict exists so a deliberately ephemeral run still
+# behaves, not as the production backing store.
 _MEM_STORE: dict[str, list[dict[str, Any]]] = {}
 
 
 def record_learning(link: CreativeLearningLink) -> dict[str, Any]:
-    """Persist a verified or imported learning link to the tenant's append-only ledger."""
+    """Persist a learning link to the tenant's durable append-only ledger.
+
+    Delegates to ``learning_store`` (per-tenant JSONL on disk) unless
+    ``CREATIVE_LEARNING_PERSIST_ENABLED`` is off, in which case it falls back to
+    an in-process buffer. Never raises.
+    """
     try:
         tid = str(link.tenant_id or "default")
         payload = link.to_dict()
+        if flags.learning_persist_enabled():
+            from app.marketing.creative_os import learning_store
+
+            out = learning_store.append_learning(tid, payload)
+            if out.get("ok"):
+                return {"ok": True, "creative_id": link.creative_id, "tenant_id": link.tenant_id}
+            logger.warning("[creative_learning] durable append failed: %s", out.get("error"))
         with _LOCK:
             _MEM_STORE.setdefault(tid, []).append(payload)
         return {"ok": True, "creative_id": link.creative_id, "tenant_id": link.tenant_id}
@@ -79,10 +105,24 @@ def record_learning(link: CreativeLearningLink) -> dict[str, Any]:
 
 
 def get_learning_history(tenant_id: str, limit: int = 100) -> list[CreativeLearningLink]:
-    """Retrieve historical learning records for this tenant."""
+    """Retrieve historical learning records for this tenant (durable first).
+
+    Reads the last ``limit`` rows from the per-tenant JSONL ledger; falls back to
+    the in-process buffer only when durable persistence is disabled. Corrupt lines
+    are skipped — never raises.
+    """
     tid = str(tenant_id or "default")
-    with _LOCK:
-        raw = list(_MEM_STORE.get(tid, []))
+    raw: list[dict[str, Any]] = []
+    if flags.learning_persist_enabled():
+        try:
+            from app.marketing.creative_os import learning_store
+
+            raw = learning_store.read_learning(tid, limit=limit)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("[creative_learning] durable read skip: %s", exc)
+    if not raw:
+        with _LOCK:
+            raw = list(_MEM_STORE.get(tid, []))
     records: list[CreativeLearningLink] = []
     for data in raw[-limit:]:
         try:

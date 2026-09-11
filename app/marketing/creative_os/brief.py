@@ -58,6 +58,9 @@ class BrandProfile:
     verified_trust: list[str] = field(default_factory=list)
     verified_metrics: list[dict[str, str]] = field(default_factory=list)
     kb_facts: list[str] = field(default_factory=list)
+    # Read-only Creative DNA snapshot (persisted SocialProfile), or {} when none.
+    # Attached for copy steering; this module never writes it back.
+    social_profile: dict[str, Any] = field(default_factory=dict)
     plan: str = ""
     status: str = ""
     sources: dict[str, str] = field(default_factory=dict)
@@ -278,7 +281,24 @@ def resolve_brand_profile(tenant_id: str) -> BrandProfile:
         logger.debug("creative_os.brief kb_facts skip (%s): %s", tid, exc)
 
     prof.missing = [f for f in REQUIRED_BRAND_FIELDS if not getattr(prof, f, "")]
+    prof.social_profile = _social_profile_snapshot(tid)
     return prof
+
+
+def _social_profile_snapshot(tenant_id: str) -> dict[str, Any]:
+    """Read-only persisted SocialProfile, or {} when absent/disabled.
+
+    Attaching it here (rather than in the selector) means every consumer of a
+    resolved brief sees the same DNA. It is a snapshot — this module never
+    writes it back, and a lookup failure degrades to {} rather than blocking.
+    """
+    try:
+        from app.marketing.creative_os import social_profile
+
+        return social_profile.get_profile_dict(tenant_id)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("creative_os.brief social_profile skip (%s): %s", tenant_id, exc)
+        return {}
 
 
 def unverified_prices(text: str, brand: BrandProfile) -> list[str]:

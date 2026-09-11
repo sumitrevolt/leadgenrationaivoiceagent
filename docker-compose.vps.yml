@@ -333,7 +333,10 @@ services:
     # routes to "calling") — same gap silently affected the pre-existing
     # beat-scheduled process-call-queue task too. "heavy" stays exclusive to
     # worker-heavy below (starve-prevention), so it's deliberately omitted here.
-    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=4
+    # T06 B2 (§11.2): concurrency 4 → 3. Reclaims one prefork child's peak so the
+    # new worker-heavy-llm (1500m) fits without assuming headroom the single
+    # 16GB/4-core VPS has not proven (mem_limit ceilings already sum ≈16.7GB).
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=3
     env_file: .env
     environment:
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
@@ -378,6 +381,12 @@ services:
   # alag pool (concurrency=1) me, taaki light jobs (alerts/dunning/triage) kabhi
   # starve na hon (prod-down qa-job lesson, worker-level fix). CELERY_HEAVY_QUEUE
   # flag SEND-side routing on karta (scheduler/app/worker pe bhi set).
+  #
+  # T06 B2 (§11.2): this worker now consumes `-Q heavy,heavy_llm` (was `-Q heavy`).
+  # It stays a SECOND consumer of `heavy_llm` on purpose: if `worker-heavy-llm`
+  # is not started, the LLM jobs are still drained here (serially), so the
+  # `CELERY_HEAVY_LLM_QUEUE` routing flag can never strand jobs in a queue with
+  # no consumer (the hazard documented at the `worker` -Q note above).
   # ---------------------------------------------------------------------------
   worker-heavy:
     profiles: ["celery"]
@@ -387,7 +396,7 @@ services:
     mem_reservation: 512m
     cpus: "1.5"
     user: "0:0"
-    command: celery -A app.worker worker -Q heavy --loglevel=info --concurrency=1
+    command: celery -A app.worker worker -Q heavy,heavy_llm --loglevel=info --concurrency=1
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
@@ -425,22 +434,36 @@ services:
     networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
-  # VIDEO worker — video-creative pipeline (ffmpeg-heavy) isolated onto its own
-  # queue/process, same starve-prevention shape as worker-heavy above.
-  # CELERY_VIDEO_QUEUE flag SEND-side routing on karta (scheduler/app/worker
-  # pe bhi set — see app/worker.py _route_video_task). Default OFF (INERT) —
-  # unset means video tasks fall back to the default "celery" queue, so this
-  # ships safely before this service is ever started.
+  # HEAVY-LLM worker (T06 B2 §11.2) — NETWORK/LLM-bound heavy staff-jobs
+  # (blog, content, digest, prospect) on their own queue, concurrency 2.
+  #
+  # Why: `worker-heavy` runs --concurrency=1, so all 8 heavy jobs serialise. The
+  # 4 LLM jobs each hold one outbound request at a time → they parallelise; the 4
+  # ML jobs (qa/trainer/hot_queue_*) stay serial on `heavy`.
+  #
+  # ⚠️ NOT asserted memory-safe. The host is a single 16GB/4-core VPS and existing
+  # mem_limit ceilings already sum to ≈16.7GB. This ships behind
+  # `CELERY_HEAVY_LLM_QUEUE=0` (DEFAULT) — routing stays on the single `heavy`
+  # queue until the owner ENABLES it. Before enabling in production run the
+  # validation gate: `docker stats --no-stream` + `free -m` under a real
+  # `content`+`blog` overlap, and enable only if host free memory stays > 2GB and
+  # no container is throttled. `HEAVY_LLM_CONCURRENCY` is clamped 1–3 by intent
+  # (default 2); do NOT raise above 2 until measured. Rollback: set
+  # `CELERY_HEAVY_LLM_QUEUE=0` and stop this service — `worker-heavy` then drains
+  # `heavy,heavy_llm` serially = today's throughput. No data migration.
+  #
+  # CELERY_HEAVY_WORKER is deliberately NOT set here: only `worker-heavy` runs the
+  # memory-heavy Qdrant/ONNX warm-up (test_heavy_worker_marker_is_exclusive...).
   # ---------------------------------------------------------------------------
-  worker-video:
+  worker-heavy-llm:
     profiles: ["celery"]
     image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
-    container_name: leadgen_worker_video
-    mem_limit: 2000m
+    container_name: leadgen_worker_heavy_llm
+    mem_limit: 1500m   # 2 concurrent network-bound LLM jobs ≈1.2GB peak < 1500m
     mem_reservation: 512m
-    cpus: "1.5"
+    cpus: "1.0"
     user: "0:0"
-    command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
+    command: celery -A app.worker worker -Q heavy_llm --loglevel=info --concurrency=${HEAVY_LLM_CONCURRENCY:-2}
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
@@ -449,6 +472,7 @@ services:
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0
       RUN_IN_PROCESS_SCHEDULER: "0"
+      CELERY_HEAVY_QUEUE: "1"
       QDRANT_URL: http://qdrant:6333
     depends_on:
       db:
@@ -474,6 +498,142 @@ services:
         max-size: "20m"
         max-file: "3"
     networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # VIDEO worker — video-creative pipeline (ffmpeg-heavy) isolated onto its own
+  # queue/process, same starve-prevention shape as worker-heavy above.
+  # CELERY_VIDEO_QUEUE flag SEND-side routing on karta (scheduler/app/worker
+  # pe bhi set — see app/worker.py _route_video_task). Default OFF (INERT) —
+  # unset means video tasks fall back to the default "celery" queue, so this
+  # ships safely before this service is ever started.
+  #
+  # T07 (§9.1 / §12 A3) — DEMOTED to the thin, NETWORKED ORCHESTRATOR. The
+  # browser toolchain (Node + pinned Chrome headless) moved OUT of this service
+  # and into the netless `renderer` below; this service keeps the base app image,
+  # fetches inputs, writes a spool job, collects the artifact, then does
+  # QA/register/approve. It stays networked on purpose — it is the side that
+  # talks to the VPS and to Redis. RC5 isolation is NOT claimed here.
+  # ---------------------------------------------------------------------------
+  worker-video:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_video
+    mem_limit: 2000m
+    mem_reservation: 512m
+    cpus: "1.5"
+    user: "0:0"
+    command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0
+      RUN_IN_PROCESS_SCHEDULER: "0"
+      QDRANT_URL: http://qdrant:6333
+      # T07: the shared spool this orchestrator writes jobs to and collects
+      # artifacts from. The netless `renderer` mounts the SAME host directory.
+      CREATIVE_RENDER_SPOOL_ROOT: /spool
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+      - ${CREATIVE_RENDER_SPOOL_HOST_DIR:-/opt/leadgen-render-spool}:/spool
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sh /app/scripts/celery_worker_healthcheck.sh"]
+      interval: 60s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # NETLESS RENDERER (T07, RC5 enforcement) — the hermetic render step.
+  #
+  # `network_mode: "none"` gives this container NO network interface at all (only
+  # `lo`). That is STRONGER than a netns prefix and needs ZERO capabilities, which
+  # is why `unshare --net` was rejected: worker-video has no CAP_SYS_ADMIN, so the
+  # syscall cannot succeed and RC5 would *look* fixed while staying broken (C7).
+  #
+  # It is NOT a Celery worker and needs no Redis/Postgres/egress, so
+  # `network_mode: none` is safe. It is driven by a filesystem SPOOL on the shared
+  # volume: the networked orchestrator (worker-video) writes a job file; this
+  # service renders and writes the artifact + result back. Viable because
+  # render_plane/transport.py already fetches the spec + assets BEFORE the
+  # hermetic render (Dockerfile.video:71-73 documents the same intent).
+  #
+  # HONESTY: CREATIVE_RENDER_NETLESS=1 is a fact asserted by THIS runtime and is
+  # only truthful because this service runs `network_mode: none`. It is baked
+  # into Dockerfile.video because that image runs netless and nowhere else. The
+  # healthcheck re-checks the fact (`spool verify` makes one outbound connection
+  # and fails the check if egress still works) so a mislabelled render cannot
+  # report healthy.
+  #
+  # Image: the opt-in overlay deploy/compose/docker-compose.video.yml supplies the
+  # video toolchain image; the default deploy path is unchanged (this service is
+  # profile-gated and inert until started).
+  # ---------------------------------------------------------------------------
+  renderer:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_renderer
+    # No network interface at all — the RC5 primitive. No `networks:` on purpose:
+    # it is incompatible with `network_mode` and would silently re-attach a NIC.
+    network_mode: "none"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Chrome is memory-hungry: one 1080x1920 render plus the encoder (moved here
+    # from worker-video, which no longer carries the browser). Keep >=8192m: the
+    # hyperframes producer switches to a SLOW capture profile below 8192 MiB.
+    mem_limit: 10240m
+    mem_reservation: 2048m
+    cpus: "2.0"
+    # Chrome headless shell needs >=256MB of /dev/shm (Docker default 64MB); the
+    # render crashes with "Target closed" at ~67/762 frames otherwise.
+    shm_size: 512m
+    user: "0:0"   # bind-mounted spool volume writable (app jaisa)
+    environment:
+      # Runtime-asserted fact consumed by network_guard.build_isolation().
+      CREATIVE_RENDER_NETLESS: "1"
+      # Renderer lives at /opt so the /app bind-mounts cannot shadow it.
+      CREATIVE_HYPERFRAMES_ROOT: /opt/video_renderer/hyperframes
+      CREATIVE_RENDER_SPOOL_ROOT: /spool
+      HYPERFRAMES_NO_TELEMETRY: "1"
+      HYPERFRAMES_NO_UPDATE_CHECK: "1"
+      HYPERFRAMES_NO_AUTO_INSTALL: "1"
+      DO_NOT_TRACK: "1"
+    volumes:
+      - ${CREATIVE_RENDER_SPOOL_HOST_DIR:-/opt/leadgen-render-spool}:/spool
+    restart: unless-stopped
+    healthcheck:
+      # `verify` makes ONE outbound connection and exits non-zero when the netless
+      # claim is not backed by a real block — an honest, fail-closed healthcheck.
+      test: ["CMD-SHELL", "python -m app.render_plane.spool verify >/dev/null 2>&1"]
+      interval: 60s
+      timeout: 20s
+      start_period: 30s
+      retries: 3
+    command: python -m app.render_plane.spool serve
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # Hardened DeepSeek Harness worker — profile-gated and INERT unless the service

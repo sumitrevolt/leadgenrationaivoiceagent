@@ -52,6 +52,64 @@ def _BEATS() -> str:
     )
 
 
+def _env_on(name: str, default: str = "0") -> bool:
+    """Fail-closed boolean env read (unset/invalid → today's behaviour)."""
+    return (os.environ.get(name, default) or default).strip().lower() in ("1", "true", "yes")
+
+
+def _legacy_beat_enabled() -> bool:
+    """`ENABLE_LEGACY_BEAT=1` — the only switch that keeps the Cloud-Run/Vertex-era
+    beat entries (worker.py:884 strips them otherwise). Read at call time so the
+    dormant group reflects the live flag, never an import-time snapshot."""
+    return _env_on("ENABLE_LEGACY_BEAT", "0")
+
+
+def _heartbeat_sharded() -> bool:
+    """B3 (T06 §11.3). `AUTOMATION_HEARTBEAT_SHARDED=0` (DEFAULT) = the legacy
+    single-file locked snapshot (today's behaviour). `=1` = each process writes
+    only its own lock-free shard."""
+    return _env_on("AUTOMATION_HEARTBEAT_SHARDED", "0")
+
+
+def _SHARD_DIR() -> str:
+    """Per-process heartbeat shards — the canonical shard directory.
+
+    Resolved through the runtime-data authority (the same store family as
+    ``_BEATS()``) instead of ``os.path.dirname(_BEATS())``: a bare dirname read
+    is invisible to the repo-wide runtime-data ratchet, so the shard directory
+    landed as an undeclared checkout writer. Authority resolution keeps the
+    shards in the same runtime store family the reader reads AND keeps the path
+    traceable to the authority. Byte-for-byte identical to the legacy dirname in
+    LEGACY mode (``data/job_heartbeats.d``).
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_heartbeats.d",
+            target_segments=("automation", "job_heartbeats.d"),
+        )
+    )
+
+
+def _max_gap_minutes() -> float:
+    """Largest expected cadence — the staleness yardstick for shard files."""
+    try:
+        return float(max(EXPECTED_GAP_MIN.values()) or 60)
+    except Exception:
+        return 60.0
+
+
+def _rec_at(rec: Any) -> datetime:
+    """Parse a heartbeat record's ``at`` → aware datetime (min sentinel on junk)."""
+    try:
+        at = datetime.fromisoformat(str((rec or {}).get("at") or ""))
+        return at if at.tzinfo is not None else at.replace(tzinfo=timezone.utc)
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
 # job -> max-gap (minutes) jiske baad OVERDUE (cadence + generous grace)
 EXPECTED_GAP_MIN = {
     "growth": 60,  # 15-min job, 1h grace
@@ -119,17 +177,52 @@ EXPECTED_GAP_MIN = {
     "heartbeat": 10 * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
     "content_approval_notify": 65
     * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
+    # --- T03 delivery + lifecycle + health (2026-09-11) ----------------------
+    # Dead-man coverage for the 4 video jobs (JOB_META + STAFF_JOBS + beat).
+    # Cadence-derived grace mirrors the sibling hourly jobs (3h) and daily jobs
+    # (30h). The delivery pair still heartbeats while gated off (the job runs and
+    # returns early), so an OFF flag never reads as `never_ran`.
+    "video_delivery": 180,  # hourly :15 Telegram delivery drain (gated VIDEO_TELEGRAM_DELIVERY_ENABLED); 3h grace
+    "video_delivery_retry": 180,  # every 15m retry drain (same gate); 3h grace
+    "video_health": 180,  # hourly :35 read-only end-to-end health probe; 3h grace
+    "video_lifecycle_reconcile": 30 * 60,  # daily 04:45 read-only reconcile sweep
+    # T02 render plane (2026-09-11): VPS-side lease reap + enqueue + bridge.
+    # every 5m cadence → 30m grace, mirroring the sibling 5-min job `flow_cron`.
+    # Always-on (no gate flag) so it heartbeats every tick regardless.
+    "render_plane_lease": 30,  # every 5m render-plane maintenance (lease reap + enqueue + bridge); 30m grace
     # ---- 2026-09-10: dead-man blind spots closed (24x7 migration audit) --------
-    # These jobs were DECLARED in app/worker.py beat_schedule but absent from this
-    # registry, so they could NEVER surface as overdue — a silent failure class.
-    # Gaps below are deliberately GENEROUS (worst case = late alarm, never a false
-    # one); tighten after one observed cycle. Note: a job with no recorded run gets
-    # status "never_ran" (health() :749), NOT "overdue" — so jobs that are dormant
-    # because ENABLE_LEGACY_BEAT=0 strips them (app/worker.py:884) will report
-    # honestly as never_ran rather than firing a false overdue alarm.
+    # `process-voice-followups` is the ONE legacy-era beat entry that
+    # `worker.py:885` KEEPS when the legacy beat is stripped (production-critical
+    # transactional callback drain) — so it stays registered here unconditionally.
+    "process-voice-followups": 180,
+    # content_os.* are added to beat AFTER worker.py's legacy-strip (app/worker.py
+    # :902-914), so they stay registered here. When CONTENT_OS_ENABLED is off they
+    # surface as `gated_inert` (health()), NOT `never_ran` — a distinct, honest
+    # status. The legacy Cloud-Run/Vertex entries now live in `_LEGACY_GAP_MIN`
+    # below (conditionally merged), see B5.
+    "content_os.daily_video_run": 30 * 60,  # daily 09:00 (INERT unless CONTENT_OS_ENABLED=1)
+    "content_os.scan_inbox": 30,  # every 2 min
+    "content_os.notify_owner": 180,  # every 15 min
+}
+
+
+# --------------------------------------------------------------------------- #
+# B5 (T06 §11.5) — legacy dead-man contradiction.
+#
+# `worker.py:884` STRIPS these Cloud-Run/Vertex-era beat entries unless
+# ENABLE_LEGACY_BEAT=1, so in production they can never run — yet they used to
+# sit in EXPECTED_GAP_MIN and report `never_ran` forever (the permanent false
+# alarm the team-lead flagged). They are now merged into EXPECTED_GAP_MIN ONLY
+# when the legacy beat is actually enabled, so EXPECTED_GAP_MIN stays the SINGLE
+# source of expected cadence (no second registry); when excluded they surface
+# via `legacy_dormant_jobs()` with status `legacy_dormant`.
+#
+# Rollback: `ENABLE_LEGACY_BEAT=1` (+ restart) restores the previous
+# fully-populated registry; the dormant group simply empties.
+# --------------------------------------------------------------------------- #
+_LEGACY_GAP_MIN: dict[str, int] = {
     "crm-sync": 180,  # */15 → 3h grace
     "process-call-queue": 180,  # hourly :00
-    "process-voice-followups": 180,  # ONLY legacy job kept when ENABLE_LEGACY_BEAT=0
     "daily-lead-scraping": 30 * 60,  # daily 06:00 IST
     "daily-report": 30 * 60,
     "weekly-report": 8 * 24 * 60,
@@ -143,10 +236,12 @@ EXPECTED_GAP_MIN = {
     "vertex-continuous-check": 180,
     "vertex-knowledge-update": 30 * 60,
     "vertex-train-all": 8 * 24 * 60,
-    "content_os.daily_video_run": 30 * 60,  # daily 09:00 (INERT unless CONTENT_OS_ENABLED=1)
-    "content_os.scan_inbox": 30,  # every 2 min
-    "content_os.notify_owner": 180,  # every 15 min
 }
+# NOTE: "process-voice-followups" is deliberately NOT in _LEGACY_GAP_MIN —
+# worker.py:885 KEEPS it when the legacy beat is stripped (production-critical
+# transactional callback drain), so it stays registered in EXPECTED_GAP_MIN.
+if _legacy_beat_enabled():
+    EXPECTED_GAP_MIN.update(_LEGACY_GAP_MIN)
 
 
 # --------------------------------------------------------------------------- #
@@ -261,18 +356,53 @@ def _SKIPS() -> str:
     )
 
 
-def record_engine_skip(
-    job: str, engine: str, reason: str = "budget_exhausted", **extra: Any
-) -> None:
-    """Record that a mega-job SKIPPED one of its engines. Never raises.
+# B4 (T06 §11.4) — engine-outcome vocabulary. A mega-job engine ends in exactly
+# one of these; every engine that is dispatched (or deliberately not dispatched)
+# records one, so NO engine can stop running silently.
+_ENGINE_OUTCOME_STATUSES = frozenset({"ran", "skipped_budget", "skipped_not_reached", "failed"})
+# Only these two count as "work did NOT run" — they degrade health(). `ran` and
+# `failed` are recorded (visibility) but are NOT skips: an engine that raised is
+# a different failure than one that never ran, and counting `ran` as a skip would
+# make every healthy content run degrade the dashboard.
+_ENGINE_SKIP_STATUSES = frozenset({"skipped_budget", "skipped_not_reached"})
 
-    Why this exists: `team_scheduler._run_content_engine` closes the coroutine and
-    returns False when the wall-clock budget is gone — with no exception and no
-    line naming the engine. Prod evidence 2026-08-09: the `content` job exceeded
-    its 420s budget on **15 consecutive daily runs** (2026-07-18 → 2026-08-01,
-    452–530s each), silently dropping every engine queued behind the overrun, and
-    nothing anywhere recorded which ones. That is an entire class of "automation
-    quietly stopped" that no dashboard could show.
+
+def _skip_status_for_reason(reason: str) -> str:
+    """Normalise a free-text skip reason onto the outcome vocabulary."""
+    r = (reason or "").strip().lower()
+    if "not_reached" in r or "not-reached" in r or "not reached" in r:
+        return "skipped_not_reached"
+    return "skipped_budget"
+
+
+def _is_engine_skip_record(rec: dict[str, Any]) -> bool:
+    """True for a record that represents un-run work.
+
+    Legacy records (written before the outcome vocabulary) carry no `status`
+    and were all skips, so an absent status counts as a skip. `ran`/`failed`
+    are excluded so they never inflate the skip rollup or degrade health().
+    """
+    st = str(rec.get("status") or "").strip()
+    if not st:
+        return True
+    return st in _ENGINE_SKIP_STATUSES
+
+
+def record_engine_outcome(job: str, engine: str, status: str, **extra: Any) -> None:
+    """Record ONE engine's terminal outcome for a mega-job. Never raises.
+
+    `status ∈ {ran, skipped_budget, skipped_not_reached, failed}`. This is the
+    canonical writer; `record_engine_skip` is a thin back-compat caller.
+
+    Why this exists: `team_scheduler._run_content_engine` used to close the
+    coroutine and return False when the wall-clock budget was gone — no
+    exception, no line naming the engine. Prod evidence 2026-08-09: the `content`
+    job exceeded its 420s budget on **15 consecutive daily runs** (2026-07-18 →
+    2026-08-01, 452–530s), silently dropping every engine queued behind the
+    overrun. The `customer_crm`/`service_reminders`/… blocks were worse: a bare
+    `try/except: pass` around `if budget.ok():` meant a skip was recorded
+    NOWHERE. Now every engine records an outcome, so no engine can be skipped
+    without a recorded reason.
 
     The warning is emitted BEFORE any persistence attempt on purpose: the write
     path below is best-effort, and a storage failure must not also swallow the
@@ -280,32 +410,62 @@ def record_engine_skip(
     """
     job_s = str(job or "?")[:40]
     engine_s = str(engine or "?")[:40]
-    reason_s = str(reason or "")[:60]
-    logger.warning(
-        "[automation-health] job '%s' SKIPPED engine '%s' (%s) - work did not run",
-        job_s,
-        engine_s,
-        reason_s,
-    )
+    status_s = str(status or "").strip()[:24] or "unknown"
+    if status_s not in _ENGINE_OUTCOME_STATUSES:
+        status_s = "unknown"
+    if status_s in _ENGINE_SKIP_STATUSES:
+        logger.warning(
+            "[automation-health] job '%s' SKIPPED engine '%s' (%s) - work did not run",
+            job_s,
+            engine_s,
+            status_s,
+        )
+    elif status_s == "failed":
+        logger.warning(
+            "[automation-health] job '%s' engine '%s' FAILED - work did not complete",
+            job_s,
+            engine_s,
+        )
     try:
         rec: dict[str, Any] = {
             "job": job_s,
             "engine": engine_s,
-            "reason": reason_s,
+            "status": status_s,
             "at": _now().isoformat(timespec="seconds"),
         }
         for k, v in (extra or {}).items():
+            if v is None:
+                continue
             rec[str(k)[:24]] = v if isinstance(v, int | float | bool) else str(v)[:120]
         path = _SKIPS()
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.warning("[automation-health] engine-skip record failed: %s", e)
+        logger.warning("[automation-health] engine-outcome record failed: %s", e)
+
+
+def record_engine_skip(
+    job: str, engine: str, reason: str = "budget_exhausted", **extra: Any
+) -> None:
+    """Back-compat caller: record that a mega-job SKIPPED one of its engines.
+
+    Kept so existing callers/tests keep working; it now delegates to
+    ``record_engine_outcome`` with the normalised skip status. The original
+    ``reason`` string is preserved verbatim on the record.
+    """
+    record_engine_outcome(
+        job, engine, _skip_status_for_reason(reason), reason=reason, **extra
+    )
 
 
 def recent_engine_skips(hours: int = 48, limit: int = 200) -> list[dict[str, Any]]:
-    """Engine skips within the window, newest last. Never raises."""
+    """Engine skips within the window, newest last. Never raises.
+
+    The ledger also carries non-skip outcomes (`ran`/`failed`, B4) so every
+    engine's terminal state is recorded; those are filtered out here so this
+    rollup keeps meaning "work did NOT run".
+    """
     out: list[dict[str, Any]] = []
     try:
         cutoff = _now() - timedelta(hours=max(1, int(hours or 48)))
@@ -316,6 +476,8 @@ def recent_engine_skips(hours: int = 48, limit: int = 200) -> list[dict[str, Any
             try:
                 rec = json.loads(line)
             except Exception:
+                continue
+            if not isinstance(rec, dict) or not _is_engine_skip_record(rec):
                 continue
             try:
                 at = datetime.fromisoformat(str(rec.get("at") or ""))
@@ -408,26 +570,200 @@ def record_run(
         os.makedirs(os.path.dirname(_RUNS()) or ".", exist_ok=True)
         with open(_RUNS(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        # latest-per-job snapshot (fast reads) — READ-MODIFY-WRITE, isliye
-        # cross-process lock + atomic replace (web 2 workers + celery workers
-        # ek saath record_run kar sakte = snapshot corrupt ho sakta tha).
-        from app.utils.file_lock import file_lock
+        # `job_runs.jsonl` above is ALWAYS the authoritative heartbeat (lock-free,
+        # atomic append). The block below is only the fast-read snapshot cache.
+        if _heartbeat_sharded():
+            # B3 (T06 §11.3): write ONLY our own per-pid shard, atomically, with
+            # NO cross-process lock — removes the contention every job completion
+            # caused on the shared `job_heartbeats.json`. A lost/late shard is
+            # harmless because health() falls back to the jsonl above.
+            _write_shard(rec)
+        else:
+            # latest-per-job snapshot (fast reads) — READ-MODIFY-WRITE, isliye
+            # cross-process lock + atomic replace (web 2 workers + celery workers
+            # ek saath record_run kar sakte = snapshot corrupt ho sakta tha).
+            from app.utils.file_lock import file_lock
 
-        with file_lock(_BEATS()):
-            beats: dict[str, Any] = {}
-            try:
-                if os.path.exists(_BEATS()):
-                    with open(_BEATS(), encoding="utf-8") as f:
-                        beats = json.load(f) or {}
-            except Exception:
-                beats = {}
-            beats[rec["job"]] = rec
-            tmp = f"{_BEATS()}.tmp.{os.getpid()}"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(beats, f, ensure_ascii=False)
-            os.replace(tmp, _BEATS())
+            with file_lock(_BEATS()):
+                beats: dict[str, Any] = {}
+                try:
+                    if os.path.exists(_BEATS()):
+                        with open(_BEATS(), encoding="utf-8") as f:
+                            beats = json.load(f) or {}
+                except Exception:
+                    beats = {}
+                beats[rec["job"]] = rec
+                # Temp built from the CANONICAL resolved snapshot path (not a
+                # hardcoded `data/` name) so the atomic replace stays inside the
+                # authority's store family and the write is traceable to the
+                # runtime-data ratchet.
+                tmp = f"{_BEATS()}.tmp.{os.getpid()}"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(beats, f, ensure_ascii=False)
+                os.replace(tmp, _BEATS())
     except Exception:
         pass
+
+
+def _write_shard(rec: dict[str, Any]) -> None:
+    """B3: atomically replace THIS process's shard. Never raises.
+
+    Only our own file is read-modify-written, so no cross-process lock is needed
+    (two processes never touch the same shard). os.replace is atomic, so a reader
+    never sees a torn file.
+    """
+    try:
+        d = _SHARD_DIR()
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, f"{os.getpid()}.json")
+        beats: dict[str, Any] = {}
+        try:
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    beats = json.load(f) or {}
+        except Exception:
+            beats = {}
+        if not isinstance(beats, dict):
+            beats = {}
+        beats[rec["job"]] = rec
+        # Temp built from the CANONICAL shard directory (not a bare f-string on
+        # ``path``) so the atomic replace stays inside the authority's store
+        # family and the write is traceable to the runtime-data ratchet. Same
+        # directory as the destination, so os.replace stays atomic.
+        tmp = os.path.join(_SHARD_DIR(), f"{os.getpid()}.json.tmp.{os.getpid()}")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(beats, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception as e:
+        logger.debug("[automation-health] shard write skipped: %s", e)
+
+
+def _read_shards() -> dict[str, Any]:
+    """B3: merge every live per-process shard. Never raises.
+
+    A missing/corrupt shard is skipped. A shard whose newest entry is older than
+    `max(gap) × 2` is ignored, so a dead process's last heartbeat cannot mask a
+    real one. When two shards carry the same job, the newer `at` wins.
+    """
+    out: dict[str, Any] = {}
+    try:
+        d = _SHARD_DIR()
+        if not os.path.isdir(d):
+            return out
+        cutoff = _now() - timedelta(minutes=_max_gap_minutes() * 2)
+        for fn in os.listdir(d):
+            if not fn.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(d, fn), encoding="utf-8") as f:
+                    shard = json.load(f) or {}
+                if not isinstance(shard, dict):
+                    continue
+                newest = max((_rec_at(r) for r in shard.values()), default=None)
+                if newest is None or newest < cutoff:
+                    continue  # stale shard — a dead process's last heartbeat
+                for job, r in shard.items():
+                    prev = out.get(job)
+                    if prev is None or _rec_at(r) >= _rec_at(prev):
+                        out[job] = r
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug("[automation-health] shard read skipped: %s", e)
+    return out
+
+
+def _latest_runs_from_jsonl(jobs: set[str]) -> dict[str, Any]:
+    """B3 durability fallback: latest authoritative run per job from the jsonl.
+
+    `job_runs.jsonl` is the source of truth, so when a shard is lost/late this
+    lets health() still see the run — a lost shard can therefore never produce a
+    false dead-man alarm. Never raises.
+    """
+    out: dict[str, Any] = {}
+    if not jobs:
+        return out
+    try:
+        for line in _tail_lines(_RUNS(), 5000):
+            line = (line or "").strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(rec, dict):
+                continue
+            job = str(rec.get("job") or "")
+            if job in jobs:
+                out[job] = rec  # tail order = chronological → last (latest) wins
+    except Exception:
+        pass
+    return out
+
+
+def _load_beats() -> dict[str, Any]:
+    """Load the latest-per-job snapshot for health().
+
+    Always reads the legacy single file (so a partial/rolled-back deploy still
+    reads correctly). When sharding is on, live shards are merged on top (newer
+    wins) and any job still missing falls back to the authoritative jsonl.
+    Never raises.
+    """
+    beats: dict[str, Any] = {}
+    try:
+        if os.path.exists(_BEATS()):
+            with open(_BEATS(), encoding="utf-8") as f:
+                beats = json.load(f) or {}
+    except Exception:
+        beats = {}
+    if not isinstance(beats, dict):
+        beats = {}
+    if _heartbeat_sharded():
+        for job, r in _read_shards().items():
+            prev = beats.get(job)
+            if prev is None or _rec_at(r) >= _rec_at(prev):
+                beats[job] = r
+        missing = [j for j in EXPECTED_GAP_MIN if j not in beats]
+        for job, r in _latest_runs_from_jsonl(set(missing)).items():
+            beats.setdefault(job, r)
+    return beats
+
+
+def legacy_dormant_jobs() -> list[dict[str, Any]]:
+    """B5: legacy beat entries that are stripped in production. Never raises.
+
+    When ENABLE_LEGACY_BEAT=0 (default) `worker.py:884` removes these from beat,
+    so they can never run — they must surface as `legacy_dormant`, not as a
+    permanent `never_ran` false alarm. When the legacy beat is enabled the list
+    is empty (they are back in EXPECTED_GAP_MIN and evaluate normally).
+    """
+    try:
+        if _legacy_beat_enabled():
+            return []
+        return [
+            {
+                "job": job,
+                "status": "legacy_dormant",
+                "expected_gap_min": gap,
+                "reason": "ENABLE_LEGACY_BEAT=0 strips this job from beat (app/worker.py:884)",
+            }
+            for job, gap in _LEGACY_GAP_MIN.items()
+        ]
+    except Exception:
+        return []
+
+
+def _gated_inert(job: str) -> bool:
+    """B5: a registered job that is intentionally inert because its flag is off.
+
+    `content_os.*` entries are added to beat AFTER the legacy strip, so they are
+    registered here, but they no-op unless CONTENT_OS_ENABLED=1. They must read
+    `gated_inert`, not `never_ran`.
+    """
+    if not job.startswith("content_os."):
+        return False
+    return not _env_on("CONTENT_OS_ENABLED", "0")
 
 
 def _tail_lines(path: str, max_lines: int) -> list[str]:
@@ -724,13 +1060,10 @@ def wiring_gaps() -> list[dict[str, Any]]:
 
 def health() -> dict[str, Any]:
     """Per-job: last run, ok, overdue? + overall status. Kabhi raise nahi."""
-    beats: dict[str, Any] = {}
-    try:
-        if os.path.exists(_BEATS()):
-            with open(_BEATS(), encoding="utf-8") as f:
-                beats = json.load(f) or {}
-    except Exception:
-        beats = {}
+    # B3: `_load_beats()` merges the legacy snapshot with (flag-gated) live
+    # shards and falls back to the authoritative jsonl — behaviour is identical
+    # to the old single-file read when AUTOMATION_HEARTBEAT_SHARDED is unset.
+    beats: dict[str, Any] = _load_beats()
     # ONE authoritative instant for the whole evaluation.
     #
     # `marker_still_active(now=_now())` already used the injected seam, but
@@ -746,6 +1079,19 @@ def health() -> dict[str, Any]:
     never_ran: list[str] = []
     for job, gap_min in EXPECTED_GAP_MIN.items():
         b = beats.get(job)
+        # B5: a registered job that is inert because its flag is off reads
+        # `gated_inert`, NOT `never_ran` (content_os.* — added to beat after the
+        # legacy strip, so they cannot be excluded from the registry).
+        if _gated_inert(job):
+            jobs.append(
+                {
+                    "job": job,
+                    "last_run": (b or {}).get("at") if b else None,
+                    "status": "gated_inert",
+                    "note": "CONTENT_OS_ENABLED=0 — registered but inert",
+                }
+            )
+            continue
         # User mandate HARD OFF (CLAUDE §5): platform_dial must not cry wolf as
         # never_ran/overdue while intentionally killed. Surface mandate_paused.
         if job == "platform_dial":
@@ -916,6 +1262,11 @@ def health() -> dict[str, Any]:
         "ok": not unhealthy,
         "overdue": overdue,
         "never_ran": never_ran,
+        # B5: legacy jobs stripped from beat in production surface here as
+        # `legacy_dormant` instead of a permanent `never_ran` false alarm. They
+        # are NOT part of `overdue`/`never_ran` and never degrade `ok` — they
+        # cannot run by design, so their absence is not an incident.
+        "legacy_dormant": legacy_dormant_jobs(),
         "queue": q,
         "queue_available": not queue_unknown,
         "queue_backlogged": backlogged,

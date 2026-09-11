@@ -205,6 +205,55 @@ def _today() -> str:
     return time.strftime("%Y-%m-%d")
 
 
+def _utc_day() -> str:
+    """UTC day key — MUST match the day the novelty lineage is keyed on.
+
+    `service.enqueue_generate` stamps lineage with `_utc_day()`; if this module
+    seeded the selector with a LOCAL day the two could disagree across a midnight
+    boundary and make consecutive-day comparison unreliable.
+    """
+    import datetime as _dt
+
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+
+
+def _local_render_status() -> dict[str, Any]:
+    """Local-render surface for the operator view. Never raises.
+
+    Owned by the parallel render-plane wave; if that module is not present yet
+    this reports honestly rather than guessing.
+    """
+    try:
+        from app.marketing import video_health
+
+        return video_health.local_render_status()
+    except Exception as e:
+        return {"status": "unknown", "reason": f"video_health unavailable: {str(e)[:100]}"}
+
+
+def _gate_snapshot() -> dict[str, Any]:
+    """Flag state for every gate this producer depends on. Never raises."""
+    out: dict[str, Any] = {
+        "DAILY_VIDEO_RECIPE_cold_start": (
+            os.getenv("DAILY_VIDEO_RECIPE", "offer_announcement").strip() or "offer_announcement"
+        )
+    }
+    try:
+        from app.marketing.creative_os import flags
+
+        out.update(flags.flag_snapshot())
+    except Exception as e:
+        out["flag_snapshot_error"] = str(e)[:120]
+    try:
+        from app.marketing import video_delivery
+
+        out["VIDEO_TELEGRAM_DELIVERY_ENABLED"] = video_delivery.enabled()
+        out["telegram_ops_group_configured"] = bool(video_delivery.ops_group_id())
+    except Exception as e:
+        out["delivery_flag_error"] = str(e)[:120]
+    return out
+
+
 # --------------------------------- state ----------------------------------- #
 def _load_state() -> dict[str, str]:
     try:
@@ -431,42 +480,94 @@ def _enqueue_classic(client_id: str, day: str) -> dict[str, Any]:
 
 
 def _enqueue_advanced(client: dict[str, Any]) -> dict[str, Any]:
-    """Creative OS already persists a spec and dispatches to the video queue."""
+    """Creative OS path — the SELECTOR picks recipe/template/hook, not the env default.
+
+    `DAILY_VIDEO_RECIPE` is now only the COLD-START default for tenants with
+    fewer than 2 lineage entries (design OI-5 / P0-3). Learning is CONSUMED here
+    (it biases the selector, advisory-only); the four canonical learning FEEDS
+    (QA / approval / rejection / engagement) live in `service` + `video_delivery`
+    and fire for this run too. The novelty gate runs inside `enqueue_generate`
+    on the in-memory spec, before any store/queue write.
+    """
     cid = str(client.get("id") or "")
     try:
         from app.marketing.creative_os import flags
+        from app.marketing.creative_os import selector
         from app.marketing.creative_os.service import enqueue_generate
 
-        recipe = (
-            os.getenv("DAILY_VIDEO_RECIPE", "offer_announcement").strip() or "offer_announcement"
-        )
+        niche = str(client.get("niche") or "general").strip()
+        day = _utc_day()
+
+        # Advisory learning bias — never forces a recipe, never mutates prompts.
+        stats: dict[str, Any] = {}
         if flags.learning_enabled():
             try:
-                from app.marketing.creative_os.learning import suggest_next_creative_strategy
+                from app.marketing.creative_os.learning import get_tenant_recipe_stats
 
-                strategy = suggest_next_creative_strategy(cid)
-                if strategy.get("prefer_recipe"):
-                    recipe = strategy["prefer_recipe"]
-                    logger.info(
-                        "[daily_video] Learned recipe '%s' selected for tenant %s", recipe, cid
-                    )
+                stats = get_tenant_recipe_stats(cid) or {}
             except Exception as e:
-                logger.debug("[daily_video] learning strategy skip: %s", e)
+                logger.debug("[daily_video] learning stats skip: %s", e)
+
+        # Persisted Creative DNA (read-only); {} when the tenant has no profile.
+        profile = None
+        try:
+            from app.marketing.creative_os import social_profile as _sp
+
+            profile = _sp.get_profile(cid)
+        except Exception as e:
+            logger.debug("[daily_video] social profile skip: %s", e)
+
+        cold_start = (
+            os.getenv("DAILY_VIDEO_RECIPE", "offer_announcement").strip() or "offer_announcement"
+        )
+        sel = selector.select_creative(
+            tenant_id=cid,
+            day=day,
+            learning_stats=stats,
+            profile=profile,
+            niche=niche,
+            cold_start_recipe=cold_start,
+        )
+        if not sel.get("ok"):
+            return {
+                "ok": False,
+                "engine": ENGINE_ADVANCED,
+                "error": str(sel.get("error") or "selector_failed")[:160],
+            }
+
+        recipe = str(sel.get("recipe") or cold_start)
+        template_id = str(sel.get("template_id") or "")
+        hook_variant = str(sel.get("hook_variant") or "")
+        sp_version = str(getattr(profile, "profile_version", "") or "")
 
         out = enqueue_generate(
             tenant_id=cid,
             business_name=str(client.get("business_name") or "").strip(),
             recipe=recipe,
             offer=str(client.get("offer") or "").strip(),
-            niche=str(client.get("niche") or "general").strip(),
+            niche=niche,
             language=str(client.get("language") or "hinglish").strip(),
             platform="instagram",
             aspect_ratio="9:16",
             provider="hyperframes",
+            template_id=template_id,
+            hook_variant=hook_variant,
+            social_profile_version=sp_version,
         )
         out = dict(out or {})
         out["engine"] = ENGINE_ADVANCED
         out["recipe_selected"] = recipe
+        out["template_selected"] = template_id
+        out["hook_selected"] = hook_variant
+        out["selection_reason"] = str(sel.get("reason") or "")
+        out["selector"] = {
+            k: sel.get(k) for k in ("seed", "rotation_index", "cold_start", "reason")
+        }
+        out["learning_sample_count"] = int(stats.get("sample_count") or 0)
+        # The novelty gate's verdict is returned by enqueue_generate when it
+        # refuses; surface the reason so the operator sees WHY, not just "no video".
+        if not out.get("ok") and out.get("outcome") == "near_duplicate":
+            out["novelty_blocked"] = True
         return out
     except Exception as e:
         logger.warning(f"[daily_video] advanced enqueue failed for {cid}: {e}")
@@ -595,6 +696,10 @@ def status() -> dict[str, Any]:
         "max_per_run": max_per_run(),
         "advanced_fail_window": advanced_fail_window(),
         "advanced_block_days": advanced_block_days(),
+        # Creative-engine + delivery gates + the local-render plane (T03). The
+        # operator answer to "kyun generic / kyun nahi chala" needs the flag state.
+        "gates": _gate_snapshot(),
+        "local_render": _local_render_status(),
         "clients": [],
     }
     try:

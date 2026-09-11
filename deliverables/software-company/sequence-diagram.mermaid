@@ -1,0 +1,165 @@
+%% System Design — video_personalization_v2 · sequence diagrams
+%% repo: leadgenrationaivoiceagent @ 33189b70
+
+---
+title: (a) Per-customer personalised video path
+---
+sequenceDiagram
+    autonumber
+    participant SCH as Scheduler (staff-daily-video-daily)
+    participant DV as daily_video.run_daily
+    participant SEL as CreativeSelector
+    participant SP as SocialProfileService
+    participant LS as LearningStore
+    participant SVC as creative_os.service
+    participant BR as brief.resolve_brief
+    participant RE as recipes.build_scene_plan
+    participant NG as NoveltyGate
+    participant ST as CreativeStore
+    participant CEL as Celery render_creative_os_task
+    participant HF as HyperFramesProvider
+    participant GUARD as NetworkGuard
+    participant QA as qa + enterprise_qa
+    participant AP as approval.bind_approval
+    participant VD as VideoDelivery
+    participant TG as Telegram (egress only)
+    participant DL as DeliveryLedger
+
+    SCH->>DV: run_daily()
+    DV->>SEL: select_creative(tenant_id, day, learning_stats, profile)
+    SEL->>SP: get_profile(tenant_id)
+    SP-->>SEL: SocialProfile (DNA) | needs_customer_input
+    SEL->>LS: get_tenant_recipe_stats(tenant_id)   %% advisory only
+    LS-->>SEL: prefer_recipe / sample_count
+    SEL-->>DV: {recipe, template_id, hook_variant, seed, reason}
+
+    DV->>SVC: enqueue_generate(recipe, template_id, hook_variant, verified_quote, force)
+    SVC->>BR: resolve_brief(...)   %% entitlement + verified brand facts (fail-closed)
+    BR-->>SVC: brief | blocked | needs_customer_input
+    SVC->>RE: build_scene_plan(recipe, dna, variant)   %% varied copy
+    RE-->>SVC: scenes[]
+    SVC->>NG: check(spec, tenant_id, N=7)
+
+    alt near_duplicate
+        NG-->>SVC: {ok:false, error:"near_duplicate"}
+        SVC->>SEL: select_creative(rotation_index+1)
+        SEL-->>SVC: next candidate
+        Note over SVC,NG: bounded K<=6 rotations
+        alt all rotations exhausted and not force
+            SVC-->>DV: {ok:false, outcome:"near_duplicate"}
+        end
+    end
+
+    NG->>NG: accept(spec) -> append CreativeLineage
+    SVC->>ST: save_record(spec) + budget.record_attempt
+    SVC->>DL: log_event("creative_os_queued")
+    SVC->>CEL: enqueue render_creative_os_task(task_id=creative_os:{id}:rev0)
+
+    CEL->>SVC: process_generation(tenant, creative)
+    SVC->>HF: generate(spec)
+    HF->>GUARD: build_isolation()
+    GUARD-->>HF: {argv_prefix, env, method, enforced}
+    HF-->>SVC: artifact + manifest_hash + network_isolation
+    SVC->>QA: run_qa() ; enterprise_qa.evaluate()
+    QA-->>SVC: classification (CUSTOMER_APPROVABLE | DRAFT_ONLY | ...)
+    SVC->>LS: record_learning(kind="qa", verified=True)
+    SVC->>DL: log_event("video_ready")
+    SVC-->>CEL: status=approval_pending
+
+    Note over AP: Owner approves in dashboard
+    SVC->>AP: approve_exact(tenant, creative)
+    AP-->>SVC: approval bundle (exact hash + live bytes)
+    SVC->>LS: record_learning(kind="approval", verified=True)
+
+    SVC->>VD: deliver_video(tenant, creative)
+    VD->>SVC: resolve_output_path(tenant, creative)
+    SVC-->>VD: artifact path + sha256
+    VD->>TG: sendVideo(customer_thread) ; sendVideo(ops_group)
+    TG-->>VD: message_id | error
+    alt delivery failed
+        VD->>VD: enqueue_retry(receipt)
+    end
+    VD->>DL: log_event("video_delivered", key=receipt)
+    VD->>LS: record_learning(kind="engagement")  %% verified only if source verifiable
+
+---
+title: (b) Local-render-worker <-> VPS data plane (resumable, idempotent)
+---
+sequenceDiagram
+    autonumber
+    participant W as LocalRenderWorker
+    participant CL as RenderPlaneClient
+    participant API as RenderPlaneAPI (VPS)
+    participant JS as RenderPlaneJobStore
+    participant DC as DevControlClaims (reuse)
+    participant RC as RenderPlaneReconcile
+    participant LP as LeasePolicy (reuse)
+    participant TR as RenderTransport
+    participant HF as HyperFramesProvider
+    participant GUARD as NetworkGuard
+    participant DL as DeliveryLedger
+    participant SVC as creative_os.service
+
+    Note over W: worker start
+    W->>W: recover_journal()  %% re-lease own in-flight jobs
+
+    W->>CL: lease_next(worker_id)
+    CL->>API: POST /api/render-plane/lease
+    API->>JS: lease_next(worker, lease_seconds)
+    JS->>DC: atomic_claim(job_id, worker, lease_seconds)
+    DC-->>JS: True (single winner) / False (skip)
+    JS-->>API: {job, lease_token, expires_at}
+    API-->>CL: job payload
+    CL-->>W: RenderJob
+
+    loop every lease/2
+        W->>API: POST /heartbeat(job_id, lease_token)
+        API->>JS: heartbeat(...)
+        JS->>DC: atomic_heartbeat(job_id, worker)
+    end
+
+    W->>TR: fetch(spec, assets)  %% resumable by offset, sha256-verified
+    TR->>API: GET /render-plane/inputs/{job_id} (Range)
+    API-->>TR: bytes (verified)
+
+    W->>HF: generate(spec)
+    HF->>GUARD: build_isolation()
+    GUARD-->>HF: enforced=True (container_netns_none | netns) | False (proxy_blackhole / best-effort)
+    Note over HF: no egress needed during render — T02 labels honestly (PARTIAL); T07 enforces via network_mode:none renderer + spool
+    HF-->>W: artifact + manifest_hash
+
+    alt network lost mid-render
+        Note over W,HF: render continues locally (offline-safe)
+        W->>API: heartbeat retry with backoff
+        Note over W,API: resumes heartbeat on reconnect
+    end
+
+    W->>TR: upload(artifact)  %% chunked, resumable
+    TR->>API: PUT /render-plane/artifact/{job_id} (Content-Range)
+    alt upload interrupted
+        TR->>API: resume from last acknowledged offset
+    end
+
+    W->>CL: complete(job_id, revision, attempt, sha256, manifest_hash)
+    CL->>API: POST /complete
+    API->>JS: complete(...)
+    alt same (job_id, revision, sha256) already done
+        JS-->>API: {ok:true, idempotent:true}
+    else same (job_id, revision) different sha256
+        JS-->>API: {ok:false, error:"artifact_conflict"}
+    else first completion
+        JS-->>API: {ok:true, artifact recorded}
+    end
+    JS->>DL: log_event("render_plane_completed")
+    JS->>SVC: handoff -> process_generation(tenant, creative)  %% -> QA -> approval
+
+    alt worker crash (no restart)
+        Note over RC: reconcile tick (hourly)
+        RC->>LP: plan_lease_reclaim(job, now)
+        LP-->>RC: requeue with backoff (60s*2^n, 15m cap, jitter)
+        RC->>JS: state=queued, next_eligible_at=now+backoff
+    end
+
+    alt VPS restart
+        Note over JS: job rows + leases durable; expired leases reclaimed next tick
+    end

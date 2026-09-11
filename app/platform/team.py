@@ -821,9 +821,12 @@ def team_status() -> dict[str, Any]:
 
         wf_agent = live_workforce.get(key)
         if wf_agent:
-            if wf_agent.get("status") in ("ACTIVE", "LOCAL_ACTIVE", "RESCUED_ACTIVE"):
-                state = "working"
-                last_mins = 0.5
+            # TRUST REAL EVENTS, NOT FAKE JSON STATUS.
+            # The workforce_live_status.json was previously populated by a
+            # synthetic orchestrator that reported all 31 agents as ACTIVE
+            # regardless of real activity. That data is now NOT_INSTRUMENTED.
+            # Only use the JSON file for `last_action` detail when a real
+            # log_event does NOT exist — never to override state.
             if not le:
                 le = {
                     "action": wf_agent.get("combo", "OmniRoute"),
@@ -833,6 +836,8 @@ def team_status() -> dict[str, Any]:
                 }
             elif wf_agent.get("last_action"):
                 le["detail"] = f"[{wf_agent.get('combo', '')}] {wf_agent.get('last_action', '')}"
+
+        # END workforce JSON block
 
         members.append(
             {
@@ -858,14 +863,14 @@ def team_status() -> dict[str, Any]:
         "as_of": now_utc.replace(tzinfo=timezone.utc).isoformat(),
         "members": members,
         "totals": {
-            "actions_today": max(total_today, int(workforce_totals.get("actions_today", 0))),
+            "actions_today": total_today,
             "errors_today": sum(per_member_errors.values()),
             "working_members": sum(1 for m in members if m["state"] == "working"),
             "active_members": sum(1 for m in members if m["state"] != "offline"),
             "staff_count": len(members),
-            "peer_rescues_count": workforce_totals.get("peer_rescues_count", 0),
-            "workforce_status": workforce_totals.get("status", "RUNNING_24_7_PARALLEL"),
-            "cycle": workforce_totals.get("cycle", 0),
+            "peer_rescues_count": 0,
+            "workforce_status": "REAL_EVENTS_ONLY",
+            "cycle": 0,
         },
     }
 

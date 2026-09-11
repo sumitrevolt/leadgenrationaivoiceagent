@@ -1,5 +1,5 @@
 # =============================================================================
-# Dockerfile.video — worker-video ONLY.
+# Dockerfile.video — the NETLESS `renderer` service (T07).
 #
 # Derives FROM the already-built application image so the Python runtime, the
 # lockfile-pinned venv and the application code are byte-identical to every other
@@ -9,6 +9,11 @@
 # It exists so that toolchain does NOT land in the web app, the scheduler, or the
 # general worker: Chromium plus its shared libraries is several hundred MB, and
 # the web container has no reason to carry a browser.
+#
+# T07: this image is what the `renderer` service runs — the `network_mode: none`
+# hermetic render step — and it bakes `CREATIVE_RENDER_NETLESS=1`. `worker-video`
+# was DEMOTED to the thin, networked orchestrator and uses the base app image, so
+# the toolchain lives ONLY here (see §9.1 / §12 A3).
 #
 # Build (tag must match APP_VERSION so the deploy skew check still passes):
 #   docker build -f Dockerfile.video \
@@ -99,6 +104,28 @@ RUN test -f ./node_modules/hyperframes/bin/hyperframes.mjs \
 # lives at /opt so it survives the /app bind-mount used in compose.
 ENV CREATIVE_HYPERFRAMES_ROOT=/opt/video_renderer/hyperframes
 
+# --- T07: netless renderer (RC5 enforcement) --------------------------------
+# CREATIVE_RENDER_NETLESS=1 is the runtime-asserted RC5 fact read by
+# network_guard.build_isolation() (mode "container_netns_none"). It is baked HERE,
+# not only in compose, because this image runs netless and nowhere else: the
+# `renderer` service is its only consumer and it runs `network_mode: none`, so the
+# container genuinely has no network interface. If some future service ever used
+# this image WITHOUT `network_mode: none`, the flag would be a lie —
+# app.render_plane.spool.verify_netless() is what catches exactly that (it makes
+# one outbound connection and reports the truth rather than trusting the flag).
+ENV CREATIVE_RENDER_NETLESS=1 \
+    CREATIVE_RENDER_SPOOL_ROOT=/spool
+
+# The filesystem spool the netless renderer exchanges jobs/artifacts through: the
+# networked orchestrator writes a job file, the renderer writes the artifact +
+# result back. Declared as a volume so BOTH containers mount the SAME host
+# directory — this is the entire transport, and it needs no network at all.
+# NOTE: create + own the directory BEFORE `VOLUME`. Docker DISCARDS any change to
+# a path made in a layer after its `VOLUME` instruction, so `VOLUME` first would
+# silently drop the mkdir/chown and leave the spool unwritable.
+RUN mkdir -p /spool && chown -R appuser:appgroup /spool
+VOLUME ["/spool"]
+
 # Group is `appgroup`, NOT `appuser` — the base image creates uid/gid 999 with
 # different names, and `appuser:appuser` fails the whole build.
 # /home/appuser/.cache holds the Chrome fetched above (as root) and MUST be
@@ -108,5 +135,7 @@ RUN chown -R appuser:appgroup /opt/video_renderer /home/appuser
 WORKDIR /app
 USER appuser
 
-# No HEALTHCHECK/EXPOSE override: this is a Celery worker, and compose already
-# supplies the worker healthcheck. Command comes from compose.
+# No EXPOSE: the netless renderer has no network interface to expose.
+# No HEALTHCHECK override either: the base file supplies an honest one
+# (`python -m app.render_plane.spool verify`), which fails when the netless claim
+# is not backed by a real egress block. Command comes from compose.

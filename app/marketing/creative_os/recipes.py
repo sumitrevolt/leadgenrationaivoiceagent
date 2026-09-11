@@ -51,6 +51,107 @@ def list_recipes() -> list[str]:
     return sorted(RECIPES.keys())
 
 
+# Copy variants per recipe. Index 0 is the "base" phrasing (the original,
+# unchanged copy). Higher indices rotate the HOOK line among safe, non-factual
+# alternatives so consecutive days read differently. Variant selection is
+# deterministic (``build_scene_plan(variant=...)`` or ``dna["variant"]``).
+COPY_VARIANTS: dict[str, list[str]] = {
+    "offer_announcement": ["base", "question_hook", "benefit_hook"],
+    "problem_solution": ["base", "cost_hook", "time_hook"],
+    "service_showcase": ["base", "range_hook", "quality_hook"],
+    "faq_reel": ["base", "pricing_q", "booking_q"],
+    "festival_local": ["base", "countdown_hook", "blessing_hook"],
+    "educational_tip": ["base", "myth_hook", "habit_hook"],
+    "before_after": ["base", "transform_hook", "result_hook"],
+    "testimonial": ["base", "outcome_hook", "trust_hook"],
+}
+
+# recipe -> variant name -> {"hi": template, "en": template}. Templates use
+# {biz}/{offer}/{niche} only — they never introduce a price, metric or claim.
+_VARIANT_HOOKS: dict[str, dict[str, dict[str, str]]] = {
+    "offer_announcement": {
+        "question_hook": {
+            "hi": "{biz} ke paas kya naya hai? {offer}",
+            "en": "What's new at {biz}? {offer}",
+        },
+        "benefit_hook": {
+            "hi": "{biz} — {offer} se seedha fayda",
+            "en": "{biz} — get more with {offer}",
+        },
+    },
+    "problem_solution": {
+        "cost_hook": {
+            "hi": "{niche} me deri ka asli kharcha?",
+            "en": "The real cost of waiting on {niche}?",
+        },
+        "time_hook": {
+            "hi": "Time bachao — {biz} smart tareeke se",
+            "en": "Save time — {biz} does it smarter",
+        },
+    },
+    "service_showcase": {
+        "range_hook": {
+            "hi": "{biz} me {niche} ki poori range",
+            "en": "The full {niche} range at {biz}",
+        },
+        "quality_hook": {
+            "hi": "Quality pehle — {biz} ka vaada",
+            "en": "Quality first — the {biz} promise",
+        },
+    },
+    "faq_reel": {
+        "pricing_q": {
+            "hi": "{niche} ka price kaise tay hota hai?",
+            "en": "How is {niche} pricing decided?",
+        },
+        "booking_q": {
+            "hi": "{biz} par booking kaise karein?",
+            "en": "How do I book with {biz}?",
+        },
+    },
+    "festival_local": {
+        "countdown_hook": {
+            "hi": "Tyohar aa gaya — {biz} par slots bhar rahe hain",
+            "en": "Festive season is here — slots at {biz} are filling",
+        },
+        "blessing_hook": {
+            "hi": "Aapke ghar khushiyan — {biz} ki taraf se",
+            "en": "Warm wishes to your home — from {biz}",
+        },
+    },
+    "educational_tip": {
+        "myth_hook": {
+            "hi": "{niche} ka ek common myth",
+            "en": "A common myth about {niche}",
+        },
+        "habit_hook": {
+            "hi": "{niche} me ek chhoti aadat, bada farq",
+            "en": "One small {niche} habit, a big difference",
+        },
+    },
+    "before_after": {
+        "transform_hook": {
+            "hi": "Dekho — {biz} ka transformation",
+            "en": "See the transformation — {biz}",
+        },
+        "result_hook": {
+            "hi": "Pehle aur baad — {biz} ke saath",
+            "en": "Before and after — with {biz}",
+        },
+    },
+    "testimonial": {
+        "outcome_hook": {
+            "hi": "Ek customer ki baat — {biz}",
+            "en": "A customer's words — {biz}",
+        },
+        "trust_hook": {
+            "hi": "Bharosa — {biz} ke customers ki zubaani",
+            "en": "Trust — in {biz} customers' own words",
+        },
+    },
+}
+
+
 def recipe_allowed(
     recipe: str, *, source_asset_ids: list[str] | None = None, verified_quote: str = ""
 ) -> dict[str, Any]:
@@ -79,14 +180,31 @@ def build_scene_plan(
     tip: str = "",
     faq_q: str = "",
     faq_a: str = "",
+    dna: dict[str, Any] | None = None,
+    variant: int = 0,
 ) -> list[SceneSpec]:
-    """Deterministic structured scenes for a recipe. Never returns free-form blob only."""
+    """Deterministic structured scenes for a recipe. Never returns free-form blob only.
+
+    ``dna`` (a ``SocialProfile.to_dna()`` dict) and ``variant`` additively vary
+    the HOOK line only — the offer, business name and CTA facts are unchanged.
+    With no ``dna``/``variant`` this is byte-for-byte the original behaviour.
+    """
     name = (recipe or "").strip().lower()
     if name not in RECIPES:
         name = "offer_announcement"
     meta = RECIPES[name]
     dur = float(meta.get("default_duration_s") or 4.0)
     biz = (business_name or "Business").strip()
+    dna = dict(dna or {})
+    variants = COPY_VARIANTS.get(name) or ["base"]
+    dna_variant = dna.get("variant")
+    if isinstance(dna_variant, int) and not isinstance(dna_variant, bool):
+        v_idx = dna_variant % len(variants)
+    else:
+        v_idx = int(variant or 0) % len(variants)
+    variant_name = variants[v_idx]
+    lang = str(dna.get("language_hint") or language or "hinglish").strip()
+    hook_variant = str(dna.get("hook_variant") or "").strip()
     off = (offer or "").strip() or f"{niche} services"
     call = (cta or "").strip() or "Call ya WhatsApp karo — aaj hi"
     texts = _texts_for(
@@ -94,13 +212,23 @@ def build_scene_plan(
         biz=biz,
         offer=off,
         niche=niche,
-        language=language,
+        language=lang,
         cta=call,
         festival=festival,
         tip=tip,
         faq_q=faq_q,
         faq_a=faq_a,
+        variant_name=variant_name,
     )
+    # Frame the hook with the tenant's tone — non-factual opener only.
+    if texts and dna:
+        try:
+            from app.marketing.creative_os.social_profile import apply_to_copy
+
+            texts[0] = apply_to_copy(dna, texts[0], role="hook", language=lang)
+        except Exception:  # pragma: no cover - defensive
+            pass
+    _ = hook_variant  # recorded on the spec by the caller; copy is variant-driven
     roles = list(meta["roles"])
     scenes: list[SceneSpec] = []
     for i, role in enumerate(roles):
@@ -115,7 +243,18 @@ def build_scene_plan(
     return scenes
 
 
-def _texts_for(
+def _variant_hook(recipe: str, variant_name: str, *, hi: bool, biz: str, offer: str, niche: str) -> str:
+    """Return the variant hook line, or "" when the variant has no override."""
+    spec = (_VARIANT_HOOKS.get(recipe) or {}).get(variant_name)
+    if not spec:
+        return ""
+    template = spec.get("hi") if hi else spec.get("en")
+    if not template:
+        return ""
+    return template.format(biz=biz, offer=offer, niche=niche)
+
+
+def _base_texts(
     recipe: str,
     *,
     biz: str,
@@ -197,7 +336,50 @@ def _texts_for(
     ]
 
 
+def _texts_for(
+    recipe: str,
+    *,
+    biz: str,
+    offer: str,
+    niche: str,
+    language: str,
+    cta: str,
+    festival: str,
+    tip: str,
+    faq_q: str,
+    faq_a: str,
+    variant_name: str = "base",
+) -> list[str]:
+    """Base copy for a recipe, with an optional variant override on the HOOK line.
+
+    The override only ever replaces scene[0]; the offer / business / CTA facts in
+    the remaining scenes are untouched.
+    """
+    texts = _base_texts(
+        recipe,
+        biz=biz,
+        offer=offer,
+        niche=niche,
+        language=language,
+        cta=cta,
+        festival=festival,
+        tip=tip,
+        faq_q=faq_q,
+        faq_a=faq_a,
+    )
+    if variant_name and variant_name != "base" and texts:
+        hi = language in ("hinglish", "hi")
+        override = _variant_hook(
+            recipe, variant_name, hi=hi, biz=biz, offer=offer, niche=niche
+        )
+        if override:
+            texts = list(texts)
+            texts[0] = override
+    return texts
+
+
 __all__ = [
+    "COPY_VARIANTS",
     "RECIPES",
     "build_scene_plan",
     "list_recipes",

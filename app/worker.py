@@ -50,21 +50,53 @@ celery_app = Celery(
 # consume karta. Flag OFF (default) = sab default queue = aaj jaisa.
 # NOTE: routing SEND-side evaluate hota hai (beat/app) — isliye flag compose
 # me scheduler+app+worker sab pe set hai, warna heavy task default me jayega.
+#
+# T06 §11.2 (B2) — RESOURCE-CLASS SPLIT (flag-gated, default = today):
+# `worker-heavy` runs `--concurrency=1`, so all 8 heavy jobs serialise. Four of
+# them are NETWORK/LLM-bound (each holds one outbound request at a time → they
+# parallelise safely); four are ML (torch, RAM+CPU-bound → stay serial). Split
+# only the routing when `CELERY_HEAVY_LLM_QUEUE=1`:
+#   * LLM jobs  → `heavy_llm`  (new `worker-heavy-llm`, conc 2, 1500m)
+#   * ML jobs   → `heavy`      (unchanged, conc 1)
+# HEAVY_STAFF_JOBS membership is UNCHANGED (ML ∪ LLM), so no job changes
+# semantics — only its queue when the flag is on. `worker-heavy` also consumes
+# `heavy_llm` (docker-compose.vps.yml), so a missing LLM consumer can never
+# strand jobs. Flag OFF (default) = all 8 → `heavy` = byte-for-byte today.
+# NOTE: this split is NOT asserted memory-safe (single 16GB/4-core VPS). See
+# §11.2 — enabling requires the `docker stats`/`free -m` validation gate.
 # ---------------------------------------------------------------------------
-HEAVY_STAFF_JOBS = {
-    "qa",
-    "trainer",
+HEAVY_LLM_JOBS = {
     "blog",
     "content",
-    "hot_queue_brief",
-    "hot_queue_owner_pack",
     "digest",
     "prospect",
 }
+HEAVY_ML_JOBS = {
+    "qa",
+    "trainer",
+    "hot_queue_brief",
+    "hot_queue_owner_pack",
+}
+# Membership UNCHANGED vs. before B2 — HEAVY_STAFF_JOBS is exactly the union of
+# the two resource classes, so no job gains or loses heavy-queue routing.
+HEAVY_STAFF_JOBS = HEAVY_ML_JOBS | HEAVY_LLM_JOBS
 
 
 def _heavy_queue_enabled() -> bool:
     return os.environ.get("CELERY_HEAVY_QUEUE", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _heavy_llm_queue_enabled() -> bool:
+    """B2: route LLM-bound heavy jobs to the dedicated `heavy_llm` queue.
+
+    Fail-closed: unset/`0` (default) = LLM jobs stay on `heavy` = today's
+    behaviour. Only meaningful together with `CELERY_HEAVY_QUEUE=1`.
+    """
+    return os.environ.get("CELERY_HEAVY_LLM_QUEUE", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 def _is_heavy_worker() -> bool:
@@ -77,7 +109,10 @@ def _is_heavy_worker() -> bool:
 
 
 def _route_staff_task(name, args, kwargs, options, task=None, **kw):
-    """Router fn: heavy staff-jobs → 'heavy' queue (sirf flag ON pe)."""
+    """Router fn: heavy staff-jobs → 'heavy' (ya 'heavy_llm' B2 flag ON pe).
+
+    Flag OFF (default) = exactly today: all HEAVY_STAFF_JOBS → 'heavy'.
+    """
     try:
         if (
             name == "app.tasks.staff_jobs.run_staff_job"
@@ -85,6 +120,9 @@ def _route_staff_task(name, args, kwargs, options, task=None, **kw):
             and args
             and str(args[0]) in HEAVY_STAFF_JOBS
         ):
+            # B2: only when explicitly enabled AND the job is network/LLM-bound.
+            if _heavy_llm_queue_enabled() and str(args[0]) in HEAVY_LLM_JOBS:
+                return {"queue": "heavy_llm"}
             return {"queue": "heavy"}
     except (TypeError, IndexError) as _e:
         logger.debug("_route_staff_task routing failed, using default queue: %s", _e)
@@ -690,6 +728,49 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=9, minute=45),
         "args": ("daily_video",),
     },
+    # --- T03 delivery + lifecycle + health (2026-09-11) ----------------------
+    # JOB_META-registered by T03 but previously with NO dispatch path (never in
+    # STAFF_JOBS → `run_staff_job` rejected them as "unknown job"; no beat entry
+    # → they never fired on the Celery production topology). Wired here so the
+    # six-registry parity contract holds. Every key is `staff-*`, so these
+    # SURVIVE the ENABLE_LEGACY_BEAT strip below (worker.py:~922-928 keeps every
+    # `staff-` prefixed key) — they run in production WITHOUT ENABLE_LEGACY_BEAT.
+    "staff-video-delivery-hourly": {
+        # hourly :15 — approved video → Telegram customer + ops (egress only).
+        # No-ops unless VIDEO_TELEGRAM_DELIVERY_ENABLED=1.
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=15),
+        "args": ("video_delivery",),
+    },
+    "staff-video-delivery-retry-15m": {
+        # every 15m — bounded due-retry drain for the delivery queue (same gate).
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute="*/15"),
+        "args": ("video_delivery_retry",),
+    },
+    "staff-video-health-hourly": {
+        # hourly :35 — read-only end-to-end video automation health probe.
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=35),
+        "args": ("video_health",),
+    },
+    "staff-video-lifecycle-reconcile-daily": {
+        # daily 04:45 — read-only stuck-stage reconcile sweep across tenants.
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=4, minute=45),
+        "args": ("video_lifecycle_reconcile",),
+    },
+    "staff-render-plane-lease-5m": {
+        # every 5m — T02/T07 render-plane maintenance: reclaim expired render
+        # leases, enqueue render jobs for queued creatives (so the local worker
+        # has something to lease), and bridge finished renders into QA. Bounded +
+        # idempotent, never raises. `staff-` prefix → survives the
+        # ENABLE_LEGACY_BEAT strip below (worker.py keeps every `staff-` key), so
+        # it runs in production WITHOUT ENABLE_LEGACY_BEAT.
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute="*/5"),
+        "args": ("render_plane_lease",),
+    },
     "staff-midday-prospect-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=14, minute=30),
@@ -912,6 +993,16 @@ celery_app.conf.beat_schedule["content_os.scan_inbox"] = {
 celery_app.conf.beat_schedule["content_os.notify_owner"] = {
     "task": "content_os.notify_owner",
     "schedule": crontab(minute="*/15"),
+    "args": (),
+}
+
+# Render plane (T02) — lease reclamation + completion bridge. Idempotent and
+# safe to run often; the task is internally flag-gated (no-op when the render
+# plane is not built) and never raises. Wired per design E7 / §9 so expired
+# leases are reclaimed and a finished local render re-enters QA exactly once.
+celery_app.conf.beat_schedule["render_plane.lease_maintenance"] = {
+    "task": "app.tasks.video_jobs.render_plane_lease_task",
+    "schedule": crontab(minute="*/5"),
     "args": (),
 }
 

@@ -129,3 +129,85 @@ Optional cleanup if the app is still unstable (**backup first**):
 
 - C3 (MCP discovery loop, playwright server) is a **cosmetic background retry**, not the cause of the launch failure. Disabling the playwright MCP server in `config.yaml` would silence it; not required to restore the app.
 - Multi-machine rollout: the same launcher works per machine. The `%LOCALAPPDATA%`-relative paths make it portable; only a Hermes install path override (`-HermesApp`) is needed if the app is installed elsewhere.
+
+---
+
+## 7. ADDENDUM — re-tested 2026-09-10 (empirical correction)
+
+Re-tested end-to-end. **Two claims in sections 3–4 are not borne out by observation.** Read this
+section before trusting them.
+
+### 7.1 Pre-starting 9119 does NOT make the desktop attach
+
+The core premise — "start a machine-level server on 9119 and the desktop will attach to it instead
+of spawning its own child" — **did not happen.**
+
+Observed sequence (2026-09-10):
+
+1. Machine-level server started and verified listening:
+   `hermes.exe serve --skip-build --host 127.0.0.1 --port 9119` → pid 29444,
+   log `HERMES_BACKEND_READY port=9119`, `GET /api/health` → 200.
+2. Desktop launched **after** 9119 was confirmed listening.
+3. Desktop spawned its own backend anyway — `desktop.log`:
+   `HERMES_BACKEND_READY port=54935`.
+
+`%APPDATA%\Hermes\backend-ownership.json` after the launch contained exactly one entry, and it is
+the desktop's child — **no 9119 entry at all**:
+
+```json
+{
+  "backends": [
+    {
+      "nonce": "87d429f715d4364410f5f7a69860dedc",
+      "pid": 23088,
+      "profile": "default",
+      "command": "...\\venv\\Scripts\\python.exe -m hermes_cli.main --profile default serve --host 127.0.0.1 --port 0",
+      "parentPid": 35572,
+      "parentStartMarker": "winms:1789023497711"
+    }
+  ]
+}
+```
+
+The desktop hardcodes `--profile default ... --port 0` for its child; there is no port setting in
+any `%APPDATA%\Hermes\*.json` to override it. A manually started 9119 server is never registered in
+`backend-ownership.json`, so the desktop cannot discover it.
+
+**No environment override exists either.** A full recursive grep of the Hermes install
+(`%LOCALAPPDATA%\hermes\hermes-agent`, `*.py` / `*.ts` / `*.js` / `*.json` / `*.md`, 29 min scan)
+for `HERMES_*BACKEND*` returns only two symbols:
+
+```
+     26  HERMES_BACKEND_READY        <- log marker emitted by `serve`, not a setting
+      7  HERMES_COMPUTER_USE_BACKEND <- unrelated feature (computer-use)
+```
+
+There is no `HERMES_BACKEND_PORT`, no `HERMES_BACKEND_URL`, no attach/endpoint variable. Combined
+with the absence of a port key in `%APPDATA%\Hermes\*.json`, this closes the question: **the
+desktop's child port is not externally configurable in this build.** Stop looking for the flag.
+
+**Consequence:** step 1–3 of `scripts/start-hermes-omniroute.ps1` are still worth running (9119 is
+a required health-check endpoint), but they do **not** prevent the `--port 0` child. The launcher's
+own header comment claiming "profile launches attach to the single machine-level server" is
+**wrong for this build**.
+
+### 7.2 The `--port 0` child did NOT exit within ~3.5 minutes
+
+Section 2/3 states the child exits with code 1 roughly 3.5 min after "Finalizing desktop startup",
+taking the desktop down. **Not reproduced.**
+
+- Desktop launched 12:28 IST, log: `Hermes backend is ready. Finalizing desktop startup` (06:59:01Z).
+- At 12:38 IST (≈10 min later) the GUI window was still alive:
+  `pid 35572, title='Hermes', 139.3 MB, MainWindowHandle != 0`, with its backend on 54935 running.
+
+Treat the "dies in 3.5 min" behaviour as **intermittent, not deterministic.** Do not assume the
+desktop is broken just because it runs on an OS-assigned port.
+
+### 7.3 Practical guidance
+
+- Health checks should assert **9119 is listening** (that is the machine-level server) and treat the
+  desktop's own child port as observable-but-not-required.
+- Do not kill the desktop's child backend to "force" attachment — the desktop will simply respawn
+  another `--port 0` child.
+- If the goal is a single shared backend, the change has to come from Hermes itself (an `--isolated`
+  / attach flag honoured by the desktop), not from pre-starting a port.
