@@ -1032,3 +1032,127 @@ class TestDemoReadinessRegressions:
                 await s.handle()
         opener = [m for m in s.hist if m["role"] == "assistant"][0]["content"]
         assert "AI assistant" in opener
+
+
+# ---------------------------------------------------------------------------
+# Provider protocol contract — PDF §2.2 / §3.1 / §3.2 (2026-09-11)
+#
+# Three criteria were only partially met before this change:
+#   * `start` carried accountSid/direction in the contract but we dropped them
+#   * outbound media shipped a <160-byte runt frame per utterance, which the
+#     vendor documents as causing audible gaps
+#   * mark names were reused (`bot-{chunk_num}`) and inbound acks were only
+#     logged, so nothing tied an ack to one utterance and `clear` left the
+#     registry dangling
+# ---------------------------------------------------------------------------
+class TestProviderProtocolContract:
+    async def test_start_captures_account_sid_and_direction(self):
+        ws = _FakeWS()
+        s = _session(ws)
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-contract-1",
+                "start": {
+                    "streamSid": "MZ-contract-1",
+                    "accountSid": "AC-contract-1",
+                    "callSid": "CA-contract-1",
+                    "direction": "inbound",
+                    "from": "919876543210",
+                    "to": "918069879757",
+                    "mediaFormat": {
+                        "encoding": "audio/x-mulaw",
+                        "sampleRate": 8000,
+                        "bitRate": 64,
+                        "bitDepth": 8,
+                    },
+                    "customParameters": {},
+                },
+            }
+        )
+        ws.enqueue_stop()
+        with patch.object(s, "_say", new_callable=AsyncMock):
+            await s.handle()
+        assert s.stream_sid == "MZ-contract-1"
+        assert s.call_sid == "CA-contract-1"
+        assert s.account_sid == "AC-contract-1"
+        assert s.direction == "inbound"
+
+    async def test_start_captures_snake_case_account_and_direction(self):
+        ws = _FakeWS()
+        s = _session(ws)
+        ws.enqueue(
+            {
+                "event": "start",
+                "streamSid": "MZ-contract-2",
+                "start": {
+                    "account_sid": "AC-contract-2",
+                    "call_sid": "CA-contract-2",
+                    "direction": "outbound",
+                },
+            }
+        )
+        ws.enqueue_stop()
+        with patch.object(s, "_say", new_callable=AsyncMock):
+            await s.handle()
+        assert s.account_sid == "AC-contract-2"
+        assert s.call_sid == "CA-contract-2"
+        assert s.direction == "outbound"
+
+    async def test_outbound_media_payloads_are_multiples_of_160(self):
+        """PDF §3.1: a payload that is not a multiple of 160 bytes gaps audio."""
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-framing-1"
+        # 200 bytes = one full 160-byte frame + a 40-byte runt that must be padded.
+        await s._send_mulaw_audio(b"\x7f" * 200, s._playback_generation)
+        frames = [m for m in ws.sent if m.get("event") == "media"]
+        assert len(frames) == 2, frames
+        for m in frames:
+            raw = base64.b64decode(m["media"]["payload"])
+            assert len(raw) >= MULAW_FRAME_BYTES
+            assert len(raw) % MULAW_FRAME_BYTES == 0
+
+    async def test_mark_names_are_unique_per_utterance(self):
+        """PDF §3.2: the ack echoes mark.name, so the label identifies one utterance."""
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-mark-1"
+        await s._send_mulaw_audio(b"\x7f" * 160, s._playback_generation)
+        await s._send_mulaw_audio(b"\x7f" * 160, s._playback_generation)
+        names = [m["mark"]["name"] for m in ws.sent if m.get("event") == "mark"]
+        assert len(names) == 2
+        assert len(set(names)) == 2, f"mark names must be unique, got {names}"
+
+    async def test_mark_ack_resolves_the_pending_mark(self):
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-mark-2"
+        await s._send_mulaw_audio(b"\x7f" * 160, s._playback_generation)
+        name = next(m["mark"]["name"] for m in ws.sent if m.get("event") == "mark")
+        assert name in s._pending_marks
+        ws.enqueue({"event": "mark", "streamSid": "MZ-mark-2", "mark": {"name": name}})
+        ws.enqueue_stop()
+        await s.handle()
+        assert name not in s._pending_marks
+
+    async def test_clear_resolves_pending_marks_and_stops_playback(self):
+        """Barge-in must drop unplayed audio AND its outstanding marks."""
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-clear-1"
+        await s._send_mulaw_audio(b"\x7f" * 320, s._playback_generation)
+        assert s._pending_marks, "a mark should be awaiting an ack"
+        await s._barge_in()
+        assert s._pending_marks == {}
+        assert s._speaking is False
+        assert any(m.get("event") == "clear" for m in ws.sent)
+
+    async def test_unknown_mark_ack_never_raises(self):
+        """After a clear the provider acks marks we have already resolved."""
+        ws = _FakeWS()
+        s = _session(ws)
+        ws.enqueue({"event": "mark", "streamSid": "MZ-ghost", "mark": {"name": "ghost"}})
+        ws.enqueue_stop()
+        await s.handle()
+        assert s._pending_marks == {}

@@ -314,6 +314,15 @@ class SmartfloStreamSession:
         self.call_sid: str | None = None
         self.from_number: str | None = None
         self.to_number: str | None = None
+        # PDF §2.2 start-frame metadata. These were parsed for streamSid/callSid
+        # only, so accountSid + direction were never captured even though the
+        # contract carries them; they are now recorded for audit/triage.
+        self.account_sid: str | None = None
+        self.direction: str | None = None
+        # Outbound mark registry (PDF §3.2). mark.name -> in-flight playback ack.
+        # Needed so `clear` can resolve dangling marks instead of leaking state.
+        self._pending_marks: dict[str, dict[str, Any]] = {}
+        self._mark_seq = 0
         self.hist: list[dict[str, str]] = []
         self._closed = False
         self._started_at = datetime.now(timezone.utc)
@@ -406,6 +415,13 @@ class SmartfloStreamSession:
                 or start.get("stream_sid")
             )
             self.call_sid = _extract_call_id(data, start)
+            self.account_sid = (
+                start.get("accountSid")
+                or start.get("account_sid")
+                or data.get("accountSid")
+                or data.get("account_sid")
+            )
+            self.direction = start.get("direction") or data.get("direction")
             self.from_number = start.get("from")
             self.to_number = start.get("to")
             # Pull niche/client from customParameters (if set in Smartflo portal)
@@ -420,7 +436,8 @@ class SmartfloStreamSession:
             )
             logger.info(
                 f"[smartflo-stream] start streamSid={self.stream_sid} "
-                f"callSid={self.call_sid} from={self.from_number} "
+                f"callSid={self.call_sid} accountSid={self.account_sid} "
+                f"direction={self.direction} from={self.from_number} "
                 f"to={self.to_number} niche={self.niche}"
             )
             # Resolve client name
@@ -474,7 +491,9 @@ class SmartfloStreamSession:
                 await self._cleanup()
 
         elif event == "mark":
-            logger.debug(f"[smartflo-stream] mark: {data.get('mark', {}).get('name')}")
+            # Playback-complete ack for one of our outbound marks (PDF §3.2).
+            # A burst of these also arrives right after we send `clear`.
+            self._resolve_mark(str((data.get("mark") or {}).get("name") or ""))
 
     # ------------------------------------------------------------------ #
     # Inbound audio: mulaw 8kHz → PCM16 8kHz → upsample → VAD → STT
@@ -751,9 +770,53 @@ class SmartfloStreamSession:
         except Exception as e:
             logger.warning(f"[smartflo-stream] TTS/send failed: {e}")
 
+    # ------------------------------------------------------------------ #
+    # Mark registry (playback-completion acks) — PDF §3.2
+    # ------------------------------------------------------------------ #
+    def _register_mark(self, name: str, chunks: int) -> None:
+        """Record an outbound mark awaiting the provider's completion ack."""
+        if not name:
+            return
+        self._pending_marks[name] = {
+            "chunks": int(chunks),
+            "sent_at": time.monotonic(),
+        }
+
+    def _resolve_mark(self, name: str) -> dict[str, Any] | None:
+        """Resolve a pending mark from the provider's ack. Never raises.
+
+        Returns the pending entry, or None when the name is unknown — which is
+        NORMAL after a ``clear``: the provider acks the marks it discarded, and
+        those were already resolved locally, so a stale ack must never be read
+        as proof that audio actually played.
+        """
+        entry = self._pending_marks.pop(name, None)
+        if entry is None:
+            logger.debug(f"[smartflo-stream] mark ack for unknown/cleared name={name!r}")
+            return None
+        waited_ms = (time.monotonic() - float(entry.get("sent_at") or 0.0)) * 1000.0
+        logger.debug(
+            f"[smartflo-stream] mark ack name={name} chunks={entry.get('chunks')} "
+            f"after={waited_ms:.0f}ms"
+        )
+        return entry
+
+    def _clear_pending_marks(self, reason: str) -> int:
+        """Resolve (drop) every pending mark — playback was abandoned."""
+        n = len(self._pending_marks)
+        if n:
+            self._pending_marks.clear()
+            logger.debug(
+                f"[smartflo-stream] {n} pending mark(s) resolved locally ({reason})"
+            )
+        return n
+
     def _cancel_playback(self) -> None:
         """Cancel an in-flight TTS/playback task (idempotent, never raises)."""
         self._playback_generation += 1
+        # Buffer is being abandoned: resolve every pending mark locally so no
+        # waiter can hang on an ack that will never describe played audio.
+        self._clear_pending_marks("playback_cancelled")
         self._speaking = False
         task = self._play_task
         self._play_task = None
@@ -798,6 +861,15 @@ class SmartfloStreamSession:
             return
         self._speaking = True
         chunk_num = 1
+        # PDF §3.1: every outbound media payload MUST be at least 160 bytes and
+        # an exact multiple of 160, otherwise the provider inserts audible gaps.
+        # A TTS buffer is essentially never a multiple of 160, so pad the tail
+        # with µ-law silence (0xFF = G.711 zero) instead of shipping a runt
+        # frame. Without this the trailing 1-159 bytes of every utterance were
+        # malformed per the vendor contract.
+        _rem = len(mulaw) % MULAW_FRAME_BYTES
+        if _rem:
+            mulaw += b"\xff" * (MULAW_FRAME_BYTES - _rem)
         for offset in range(0, len(mulaw), MULAW_FRAME_BYTES):
             if not self._speaking or generation != self._playback_generation:
                 break  # barge-in cancelled playback
@@ -823,14 +895,20 @@ class SmartfloStreamSession:
             chunk_num += 1
             await asyncio.sleep(FRAME_MS / 1000.0)  # pace at real-time
         self._speaking = False
-        # Send mark to signal end of playback
+        # Send a UNIQUE mark per utterance (PDF §3.2): the provider echoes
+        # mark.name back once that audio has finished playing, so a reused
+        # label could not be attributed to one utterance. Register it so that a
+        # `clear` can resolve it locally instead of dangling forever.
+        self._mark_seq += 1
+        _mark_name = f"bot-{self._mark_seq}"
+        self._register_mark(_mark_name, chunk_num)
         if self.stream_sid:
             try:
                 await self._send(
                     {
                         "event": "mark",
                         "streamSid": self.stream_sid,
-                        "mark": {"name": f"bot-{chunk_num}"},
+                        "mark": {"name": _mark_name},
                     }
                 )
             except Exception:
@@ -1013,6 +1091,10 @@ class SmartfloStreamSession:
                 extra_transcript={
                     "provider": "tata_smartflo",
                     "stream_sid": self.stream_sid,
+            "account_sid": self.account_sid,
+            "direction": self.direction,
+                    "account_sid": self.account_sid,
+                    "direction": self.direction,
                     "call_sid": self.call_sid,
                     "from": self.from_number,
                     "to": self.to_number,
@@ -1064,6 +1146,8 @@ class SmartfloStreamSession:
         record = {
             "provider": "tata_smartflo",
             "stream_sid": self.stream_sid,
+            "account_sid": self.account_sid,
+            "direction": self.direction,
             "call_sid": self.call_sid,
             "from": self.from_number,
             "to": self.to_number,

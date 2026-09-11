@@ -382,6 +382,52 @@ def admin_kill_engaged() -> bool:
     return admin_kill_status().engaged
 
 
+# Flags that ASSERT a live dialling posture. If any of these is ON while the kill
+# switch is ENGAGED the system contradicts itself: the operator believes calling
+# is live while every dial path refuses.
+_LIVE_POSTURE_FLAGS = (
+    "VOICE_LAUNCH_CAMPAIGN",  # campaign master gate (dial loop)
+    "PLATFORM_DIAL_DAILY",  # daily 11:30 IST self-sale cold-call batch
+)
+
+
+def launch_state_conflict() -> dict[str, Any] | None:
+    """Describe a self-contradictory calling posture, or ``None`` if consistent.
+
+    Why this exists (2026-09-11 prod finding): ``VOICE_LAUNCH_KILL`` was a true
+    token in production (``admin_kill_status() -> engaged=True ENV_ENGAGED``)
+    while ``PLATFORM_DIAL_DAILY`` was ON. Every dial path therefore refused
+    (``/api/telephony/smartflo/test-call`` returns ``placed:false`` for
+    ``admin_kill_engaged``, and ``place_call`` refuses too), yet nothing said so
+    out loud — a HALTED dialer read as "calling LIVE". A silently-halted dialer
+    and a silently-live one are equally dangerous during an incident, so the
+    contradiction is now reported instead of inferred.
+
+    Never raises: a reporting helper must not become a new failure mode.
+    """
+    try:
+        status = admin_kill_status()
+        if not status.engaged:
+            return None
+        asserted = [f for f in _LIVE_POSTURE_FLAGS if _flag_on(f, default=False)]
+        if not asserted:
+            return None
+        return {
+            "kill_engaged": True,
+            "kill_source": status.source,
+            "kill_reason": status.reason,
+            "asserted_live_flags": asserted,
+            "detail": (
+                "admin kill switch is ENGAGED (source="
+                f"{status.source} reason={status.reason}) while "
+                f"{', '.join(asserted)} is ON - every dial path will refuse, "
+                "so calling is NOT live."
+            ),
+        }
+    except Exception:
+        return None
+
+
 def daily_cap(kind: str = "campaign") -> int:
     """Attempts/IST-day ceiling. campaign default 100 (hard-clamped ≤100),
     test allowlist default 25 (separate quota)."""

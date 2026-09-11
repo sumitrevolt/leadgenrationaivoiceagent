@@ -49,6 +49,7 @@ BYPASS_MARKER = "real_finalize_stream_session"
 _CONSENT_LEDGER = "app.telephony.consent_ledger"
 _POST_CALL_HOOKS = "app.telephony.post_call_hooks"
 _SMARTFLO_STREAM = "app.telephony.smartflo_stream"
+_SMARTFLO_WEBHOOKS = "app.telephony.smartflo_webhooks"
 _INTERACTION_LOG = "app.platform.interaction_log"
 _OBJECTION_EXTRACTOR = "app.platform.objection_extractor"
 _VOICE_FOLLOWUP = "app.telephony.voice_followup"
@@ -70,6 +71,7 @@ class RecordedWriters:
         self.transcripts: list[dict[str, Any]] = []
         self.followups: list[dict[str, Any]] = []
         self.webhooks: list[dict[str, Any]] = []
+        self.cdrs: list[dict[str, Any]] = []
 
     @property
     def opt_out_phones(self) -> list[str]:
@@ -84,6 +86,7 @@ class RecordedWriters:
         self.transcripts.clear()
         self.followups.clear()
         self.webhooks.clear()
+        self.cdrs.clear()
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return (
@@ -91,6 +94,32 @@ class RecordedWriters:
             f"finalized={len(self.finalized)} interactions={len(self.interactions)} "
             f"transcripts={len(self.transcripts)}>"
         )
+
+
+def isolate_cdr_writer(
+    monkeypatch: Any, rec: RecordedWriters | None = None
+) -> RecordedWriters:
+    """Stop a test from appending to the REAL ``data/cdr/smartflo_cdr.jsonl``.
+
+    2026-09-11 finding: ``tests/test_smartflo_webhook_payload.py`` and
+    ``tests/test_smartflo_e2e.py`` drive ``smartflo_webhook()`` directly, and its
+    ``_log_cdr`` side effect appended a genuine CDR row per call. That file is
+    the operator's ONLY evidence that a real Smartflo call happened — and 8,405
+    of its 8,611 rows turned out to be test artifacts, which makes a real-call
+    CDR unverifiable at a glance.
+
+    This patches that single writer and nothing else, so the webhook tests keep
+    their real payload-parsing / metering / qualification behaviour. It does NOT
+    weaken anything: the recorder captures the row, so an assertion on "what
+    would have been written" still works.
+    """
+    rec = rec if rec is not None else RecordedWriters()
+
+    async def _fake_log_cdr(*args: Any, **kwargs: Any) -> None:
+        rec.cdrs.append({"args": list(args), **kwargs})
+
+    _set(monkeypatch, f"{_SMARTFLO_WEBHOOKS}._log_cdr", _fake_log_cdr)
+    return rec
 
 
 def _set(monkeypatch: Any, target: str, value: Any) -> bool:
@@ -156,6 +185,12 @@ def install(
         rec.interactions.append(dict(kwargs))
 
     _set(monkeypatch, f"{_INTERACTION_LOG}.record", _fake_interaction_record)
+
+    # -- 2b. Smartflo CDR ledger: smartflo_webhooks._log_cdr ->
+    # data/cdr/smartflo_cdr.jsonl. See `isolate_cdr_writer` for why this is
+    # separately callable: the webhook contract tests reach the same writer
+    # WITHOUT going through this fixture.
+    isolate_cdr_writer(monkeypatch, rec)
 
     # -- 3. end-of-call finalize / billing ---------------------------------- #
     if allow_real_finalize:
