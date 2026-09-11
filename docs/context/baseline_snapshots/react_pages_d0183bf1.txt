@@ -1,0 +1,7 @@
+admin-dashboard/src/pages/Automations.tsx
+admin-dashboard/src/pages/Calls.tsx
+admin-dashboard/src/pages/Dashboard.tsx
+admin-dashboard/src/pages/Leads.tsx
+admin-dashboard/src/pages/Login.tsx
+admin-dashboard/src/pages/NotFound.tsx
+admin-dashboard/src/pages/Settings.tsx

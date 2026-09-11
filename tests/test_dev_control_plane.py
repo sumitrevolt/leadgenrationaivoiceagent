@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -235,7 +236,27 @@ def test_healthy_providers_excludes_cooling_and_disabled():
 
 # ---------------------------------------------------------------- hard invariant gate
 def test_dev_control_gate_invariants_hold():
+    """The gate is clean for an env CONSISTENT with the catalog snapshot, and
+    invariant #1 actually FIRES when a configured flagship's key is absent.
+
+    ``MODEL_CATALOG[p]["configured"]`` is a snapshot of the live env taken at
+    import time (``registry._configured``), so passing a bare ``{}`` is not "a
+    clean env" -- it is an env that disagrees with that snapshot and therefore
+    legitimately trips invariant #1 (e.g. when ANTHROPIC_API_KEY happens to be
+    present in the ambient environment). Mirror the snapshot instead.
+    """
+    from app.dev_control.registry import _ENV_KEY, MODEL_CATALOG
     from scripts.dev_control_gate import invariants
 
-    violations = invariants(env={})
-    assert violations == [], f"invariant gate reported: {violations}"
+    consistent = {
+        _ENV_KEY[p]: "present"
+        for p, meta in MODEL_CATALOG.items()
+        if meta.get("configured") and p in _ENV_KEY
+    }
+    assert invariants(env=consistent) == []
+
+    # ...and prove the invariant is not vacuous: drop each key in turn.
+    for key in consistent:
+        broken = {k: v for k, v in consistent.items() if k != key}
+        fired = [x for x in invariants(env=broken) if key in x]
+        assert fired, f"invariant #1 did not fire for a configured flagship missing {key}"

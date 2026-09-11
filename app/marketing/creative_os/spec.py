@@ -73,6 +73,15 @@ class CreativeSpec:
     # unchanged; validated against the provider's exact allowlist, never used
     # as a path.
     template_id: str = ""
+    # --- Creative-engine core (additive; defaults keep old records loadable) ---
+    # `hook_variant` is the selector's chosen hook register (recorded for audit).
+    hook_variant: str = ""
+    # `selection_reason` explains WHY the selector picked this recipe/template.
+    selection_reason: str = ""
+    # `novelty` carries the gate's verdict (fingerprint + comparison set).
+    novelty: dict[str, Any] = field(default_factory=dict)
+    # `social_profile_version` pins which Creative DNA produced the copy.
+    social_profile_version: str = ""
     model_name: str = "ffmpeg-template"
     model_version: str = "pinned"
     seed: int = 0
@@ -152,6 +161,8 @@ class CreativeSpec:
             "failure_reason",
             "output_hash",
             "status",  # workflow state must not invalidate content hashes
+            "novelty",  # the gate's verdict is workflow metadata, not content
+            "selection_reason",  # audit-only; describes the pick, not the copy
         ):
             d.pop(drop, None)
         return json.dumps(d, sort_keys=True, ensure_ascii=False, separators=(",", ":"))

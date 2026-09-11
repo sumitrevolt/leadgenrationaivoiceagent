@@ -1253,6 +1253,82 @@ STORES: list[dict[str, Any]] = [
             "durably persists dispatched envelopes."
         ),
     ),
+    # ------------------------------------------------ ratchet classification 2026-09-11
+    # Three findings the ratchet reported as NEW unresolved (task: classify, do
+    # NOT re-baseline) belong to stores that had no family yet, so the allowlist
+    # could not bind them — the allowlist↔manifest link is mandatory. Declared
+    # here so the access is reviewed, owned and scheduled, exactly like the
+    # devcontrol.external_missions precedent. All three are NON-authoritative:
+    # losing them degrades internal tooling/telemetry, never customer, money or
+    # consent authority — hence REBUILDABLE_CACHE and deployment_blocker=False.
+    _e(
+        store_id="admin.task_ledger",
+        display_name="Admin/board task ledger (SQLite)",
+        legacy_paths=["data/admin_tasks.db"],
+        writer_modules=["app/admin/services/task_ledger.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="operations",
+        durability_class="rebuildable",
+        concurrency_model="single-process SQLite (WAL); os.makedirs parent on demand",
+        target_runtime_subpath="admin/admin_tasks.db",
+        migration_tier=TIER_1,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-11 with the ratchet classification batch. Internal "
+            "admin/board task ledger (tasks + kanban); holds no customer, money or "
+            "consent authority, so a lost file degrades task tracking rather than "
+            "destroying authoritative business state. Live in the checkout until "
+            "cutover."
+        ),
+    ),
+    _e(
+        store_id="automation.omniroute_combo_state",
+        display_name="OmniRoute combo watchdog state (14 canonical combos)",
+        legacy_paths=["data/omniroute_combo_state.json"],
+        writer_modules=[
+            "docs/openclaw/scripts/omniroute_combo_watchdog.py",
+            "app/platform/omniroute_combo_health.py",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="automation",
+        durability_class="rebuildable",
+        concurrency_model="single writer (watchdog beat); read-only health adapter",
+        target_runtime_subpath="automation/omniroute_combo_state.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-11. Consecutive-failure counters for the 14 canonical "
+            "OmniRoute combos, written by the test-proven watchdog and READ by "
+            "app/platform/omniroute_combo_health.py. Fully rebuildable — the "
+            "watchdog re-probes and regenerates it; an absent/stale file reads as "
+            "'not instrumented', never as a green tile."
+        ),
+    ),
+    _e(
+        store_id="ops.owner_feed",
+        display_name="Owner feed event log (append-only JSONL)",
+        legacy_paths=["data/owner_feed_events.jsonl"],
+        writer_modules=["app/utils/owner_feed.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="rebuildable",
+        concurrency_model="multi-process append under file_lock",
+        target_runtime_subpath="ops/owner_feed_events.jsonl",
+        migration_tier=TIER_1,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-11. Append-only owner-visibility event log "
+            "(OWNER_TELEGRAM_FEED_DESIGN T-02). Schema-validated, deduped and "
+            "fail-closed on truth; events are notifications, not authority, so a "
+            "lost log loses history but not business state."
+        ),
+    ),
 ]
 
 

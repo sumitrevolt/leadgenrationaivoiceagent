@@ -43,6 +43,10 @@ AGENT_JOBS: dict[str, frozenset[str]] = {
             "weekly_marketing",
             "social_drain",
             "daily_video",
+            # T03 (2026-09-11): JOB_META owner=isha. Missing here = a silent hole
+            # in the Owner OS control plane — pausing Isha would NOT stop these.
+            "video_delivery",
+            "video_delivery_retry",
         }
     ),
 }

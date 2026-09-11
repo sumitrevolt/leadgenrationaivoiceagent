@@ -14,6 +14,7 @@ from app.marketing.creative_os.assets import get_asset, register_asset, sha256_f
 from app.marketing.creative_os.brief import resolve_brief
 from app.marketing.creative_os.budget import count_attempts_today, record_attempt
 from app.marketing.creative_os.licence import assert_provider_allowed
+from app.marketing.creative_os.learning import CreativeLearningLink, record_learning
 from app.marketing.creative_os.providers import generate_with_fallback
 from app.marketing.creative_os.qa import run_qa
 from app.marketing.creative_os.recipes import build_scene_plan, recipe_allowed
@@ -80,6 +81,112 @@ def _enqueue_celery(tenant_id: str, creative_id: str, revision: int) -> dict[str
         return {"ok": False, "error": f"enqueue_failed:{str(e)[:120]}"}
 
 
+def _utc_day() -> str:
+    import datetime as _dt
+
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+
+
+def _template_valid(template_id: str) -> bool:
+    """A template id is valid only if it is literally a key in the registry."""
+    try:
+        from app.marketing.creative_os.hyperframes_templates import TEMPLATE_REGISTRY
+
+        return str(template_id) in TEMPLATE_REGISTRY
+    except Exception:  # pragma: no cover - defensive
+        return False
+
+
+def _learning_stats(tenant_id: str) -> dict[str, Any]:
+    try:
+        from app.marketing.creative_os.learning import get_tenant_recipe_stats
+
+        return get_tenant_recipe_stats(tenant_id)
+    except Exception:
+        return {}
+
+
+def _profile_dna(tenant_id: str) -> tuple[dict[str, Any], str]:
+    """Return ``(dna, profile_version)`` from the persisted SocialProfile."""
+    try:
+        from app.marketing.creative_os import social_profile as sp
+
+        prof = sp.get_profile(tenant_id)
+        if prof:
+            return sp.to_dna(prof), str(prof.profile_version or "")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("[creative_os] social profile skip (%s): %s", tenant_id, exc)
+    return {}, ""
+
+
+def _build_spec(
+    *,
+    tenant_id: str,
+    recipe: str,
+    business_name: str,
+    niche: str,
+    offer: str,
+    language: str,
+    cta: str,
+    platform: str,
+    aspect_ratio: str,
+    provider: str,
+    brand_revision: str,
+    source_asset_ids: list[str],
+    publish_targets: list[str],
+    seed: int,
+    template_id: str,
+    hook_variant: str,
+    selection_reason: str,
+    social_profile_version: str,
+    dna: dict[str, Any],
+    variant: int,
+    licence_snapshot: dict[str, Any],
+) -> CreativeSpec:
+    """Build an in-memory CreativeSpec (no persistence, no queue write)."""
+    scenes = build_scene_plan(
+        recipe,
+        business_name=business_name,
+        offer=offer,
+        niche=niche,
+        language=language,
+        cta=cta,
+        dna=dna,
+        variant=variant,
+    )
+    return CreativeSpec(
+        creative_id=CreativeSpec.new_id(),
+        tenant_id=tenant_id,
+        goal=niche or "general",
+        audience=business_name,
+        offer=offer or "",
+        language=language,
+        platform=platform,
+        aspect_ratio=aspect_ratio,
+        recipe=recipe,
+        brand_revision=brand_revision,
+        source_asset_ids=list(source_asset_ids or []),
+        script=" | ".join(s.text for s in scenes),
+        scenes=scenes,
+        captions={"primary": scenes[0].text if scenes else business_name},
+        cta=cta or (scenes[-1].text if scenes else ""),
+        claims=[],
+        provider=provider,
+        template_id=template_id or "",
+        hook_variant=hook_variant or "",
+        selection_reason=selection_reason or "",
+        social_profile_version=social_profile_version or "",
+        model_name="ffmpeg-template" if provider == "deterministic" else provider,
+        model_version="pinned" if provider == "deterministic" else "unpinned",
+        seed=int(seed or 0),
+        prompt_version="1",
+        licence_snapshot=licence_snapshot or {},
+        approval_revision=0,
+        publish_targets=list(publish_targets or []),
+        status="queued",
+    )
+
+
 def enqueue_generate(
     *,
     tenant_id: str,
@@ -96,8 +203,19 @@ def enqueue_generate(
     source_asset_ids: list[str] | None = None,
     brand_revision: str = "v1",
     seed: int = 0,
+    # --- Creative-engine core (all keyword-only, back-compatible) ---
+    template_id: str = "",
+    hook_variant: str = "",
+    verified_quote: str = "",
+    force: bool = False,
+    social_profile_version: str = "",
 ) -> dict[str, Any]:
-    """API entry: validate + persist queued CreativeSpec + Celery enqueue. No FFmpeg."""
+    """API entry: validate + persist queued CreativeSpec + Celery enqueue. No FFmpeg.
+
+    Pipeline: brief (fail-closed) → selector fills template/hook → recipe gate →
+    build spec → novelty gate (with bounded re-selection) → persist → enqueue.
+    The novelty gate runs on the in-memory spec, BEFORE any store/queue write.
+    """
     try:
         if not flags.os_enabled():
             return {"ok": False, "error": "CREATIVE_OS_ENABLED off"}
@@ -135,7 +253,11 @@ def enqueue_generate(
         cta_use = str(getattr(brief, "cta", "") or cta or "").strip()
         lang_use = str(getattr(brief, "language", "") or language or "hinglish").strip()
 
-        allow = recipe_allowed(recipe, source_asset_ids=source_asset_ids or [])
+        allow = recipe_allowed(
+            recipe,
+            source_asset_ids=source_asset_ids or [],
+            verified_quote=verified_quote or "",
+        )
         if not allow.get("ok"):
             return allow
 
@@ -154,48 +276,156 @@ def enqueue_generate(
                 "budget": flags.tenant_gen_budget(),
             }
 
-        scenes = build_scene_plan(
-            recipe,
-            business_name=biz_name,
-            offer=offer_use,
-            niche=niche_use,
-            language=lang_use,
-            cta=cta_use,
-        )
-        spec = CreativeSpec(
-            creative_id=CreativeSpec.new_id(),
-            tenant_id=tenant_id,
-            goal=niche_use or "general",
-            audience=biz_name,
-            offer=offer_use or "",
-            language=lang_use,
-            platform=platform,
-            aspect_ratio=aspect_ratio,
-            recipe=recipe,
-            brand_revision=brand_revision,
-            source_asset_ids=list(source_asset_ids or []),
-            script=" | ".join(s.text for s in scenes),
-            scenes=scenes,
-            captions={"primary": scenes[0].text if scenes else biz_name},
-            cta=cta_use or (scenes[-1].text if scenes else ""),
-            claims=[],
-            provider=provider,
-            model_name="ffmpeg-template" if provider == "deterministic" else provider,
-            model_version="pinned" if provider == "deterministic" else "unpinned",
-            seed=int(seed or 0),
-            prompt_version="1",
-            licence_snapshot=lic.get("snapshot") or {},
-            approval_revision=0,
-            publish_targets=list(publish_targets or []),
-            status="queued",
-        )
-        errs = spec.validate()
-        if errs:
-            return {"ok": False, "error": "spec_invalid", "details": errs}
-        spec.compute_input_hashes()
+        dna, sp_version = _profile_dna(tenant_id)
+        if social_profile_version:
+            sp_version = social_profile_version
+
+        # Selector fills the template/hook when the caller did not supply them.
+        selection_reason = ""
+        if not template_id or not hook_variant:
+            from app.marketing.creative_os import selector
+
+            sel = selector.select_creative(
+                tenant_id=tenant_id,
+                day=_utc_day(),
+                recipe_hint=recipe,
+                learning_stats=_learning_stats(tenant_id),
+                niche=niche_use,
+                source_asset_ids=source_asset_ids,
+                verified_quote=verified_quote or "",
+            )
+            if sel.get("ok"):
+                recipe = str(sel.get("recipe") or recipe)
+                template_id = template_id or str(sel.get("template_id") or "")
+                hook_variant = hook_variant or str(sel.get("hook_variant") or "")
+                selection_reason = str(sel.get("reason") or "")
+                dna = {**dna, "hook_variant": hook_variant}
+
+        if template_id and not _template_valid(template_id):
+            return {"ok": False, "error": f"unknown_template:{template_id}"}
+
+        from app.marketing.creative_os import novelty
+
+        novelty_on = flags.novelty_enabled()
+        day = _utc_day()
+        max_rotations = 6
+        tried: list[dict[str, Any]] = []
+        winner: CreativeSpec | None = None
+        forced_override = False
+        novelty_verdict: dict[str, Any] = {}
+
+        for rot in range(0, max_rotations + 1):
+            spec = _build_spec(
+                tenant_id=tenant_id,
+                recipe=recipe,
+                business_name=biz_name,
+                niche=niche_use,
+                offer=offer_use,
+                language=lang_use,
+                cta=cta_use,
+                platform=platform,
+                aspect_ratio=aspect_ratio,
+                provider=provider,
+                brand_revision=brand_revision,
+                source_asset_ids=list(source_asset_ids or []),
+                publish_targets=list(publish_targets or []),
+                seed=int(seed or 0) + rot,
+                template_id=template_id,
+                hook_variant=hook_variant,
+                selection_reason=selection_reason,
+                social_profile_version=sp_version,
+                dna=dna,
+                variant=rot,
+                licence_snapshot=lic.get("snapshot") or {},
+            )
+            errs = spec.validate()
+            if errs:
+                return {"ok": False, "error": "spec_invalid", "details": errs}
+            spec.compute_input_hashes()
+
+            if not novelty_on:
+                winner = spec
+                novelty_verdict = {"ok": True, "skipped": "CREATIVE_NOVELTY_ENABLED off"}
+                break
+
+            verdict = novelty.check(spec, tenant_id, n=novelty.DEFAULT_LOOKBACK, day=day, force=False)
+            if verdict.get("ok"):
+                winner = spec
+                novelty_verdict = verdict
+                break
+
+            if force:
+                # Operator override: keep this spec, flag it, audit it.
+                forced_override = True
+                winner = spec
+                novelty_verdict = verdict
+                break
+
+            tried.append(
+                {
+                    "rotation_index": rot,
+                    "recipe": recipe,
+                    "template_id": template_id,
+                    "hook_variant": hook_variant,
+                    "reason": verdict.get("reason"),
+                }
+            )
+            if rot >= max_rotations:
+                break
+            # Re-select with the next rotation index and rebuild.
+            from app.marketing.creative_os import selector as _selector
+
+            sel2 = _selector.select_creative(
+                tenant_id=tenant_id,
+                day=day,
+                recipe_hint="",
+                learning_stats=_learning_stats(tenant_id),
+                niche=niche_use,
+                rotation_index=rot + 1,
+                source_asset_ids=source_asset_ids,
+                verified_quote=verified_quote or "",
+            )
+            if not sel2.get("ok"):
+                break
+            recipe = str(sel2.get("recipe") or recipe)
+            template_id = str(sel2.get("template_id") or template_id)
+            hook_variant = str(sel2.get("hook_variant") or hook_variant)
+            selection_reason = str(sel2.get("reason") or "rotation")
+            dna = {**dna, "hook_variant": hook_variant}
+
+        if winner is None:
+            return {
+                "ok": False,
+                "outcome": "near_duplicate",
+                "error": "near_duplicate",
+                "tried": tried,
+            }
+
+        spec = winner
+        spec.novelty = {
+            "fingerprint": novelty_verdict.get("fingerprint") or {},
+            "against": novelty_verdict.get("against") or [],
+            "cross_tenant": novelty_verdict.get("cross_tenant") or {},
+            "forced": bool(forced_override),
+            "rotations": len(tried),
+        }
 
         record_attempt(tenant_id, creative_id=spec.creative_id, kind="initial", revision=0)
         save_record(spec)
+        # Only the WINNING spec reaches the lineage ledger.
+        novelty.accept(spec, tenant_id, day=day, forced=forced_override)
+        if forced_override:
+            try:
+                from app.marketing import delivery_ledger
+
+                delivery_ledger.log_event(
+                    tenant_id,
+                    "novelty_blocked",
+                    detail=f"{spec.creative_id}:forced",
+                    meta={"forced": True},
+                )
+            except Exception:
+                pass
 
         enq = _enqueue_celery(tenant_id, spec.creative_id, 0)
         if not enq.get("ok"):
@@ -226,6 +456,10 @@ def enqueue_generate(
             "status": "queued",
             "revision": 0,
             "aspect_ratio": spec.aspect_ratio,
+            "recipe": spec.recipe,
+            "template_id": spec.template_id,
+            "hook_variant": spec.hook_variant,
+            "forced": bool(forced_override),
         }
     except Exception as e:
         logger.warning(f"[creative_os] enqueue_generate failed: {e}")
@@ -365,6 +599,31 @@ def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
 
         spec.qa_results = qa
 
+        # Learning feed #1 — QA verdict. Advisory only: it biases the selector's
+        # recipe choice later; it never mutates prompts or spends.
+        try:
+            grade = qa.get("enterprise") or {}
+            record_learning(
+                CreativeLearningLink(
+                    creative_id=creative_id,
+                    revision=int(spec.approval_revision or 0),
+                    tenant_id=tenant_id,
+                    platform=spec.platform,
+                    recipe=spec.recipe,
+                    metrics={
+                        "enterprise_class": 1.0 if grade.get("customer_approvable") else 0.0
+                    },
+                    source="creative_os_qa",
+                    verified=True,
+                    kind="qa",
+                    note=",".join(list(qa.get("blockers") or [])[:5])[:400],
+                    at=time.time(),
+                    day=_utc_day(),
+                )
+            )
+        except Exception as exc:  # pragma: no cover - a feed must never break a render
+            logger.debug("[creative_os] qa learning feed skip: %s", exc)
+
         if spec.provider in ENTERPRISE_DELIVERABLE_PROVIDERS and not (
             qa.get("enterprise") or {}
         ).get("customer_approvable"):
@@ -486,7 +745,27 @@ def approve_exact(tenant_id: str, creative_id: str, *, actor: str = "admin") -> 
         if status not in APPROVABLE:
             return {"ok": False, "error": f"status_blocks_approval:{status}"}
         spec = CreativeSpec.from_dict(rec.get("spec") or {})
-        return bind_approval(spec, actor=actor, record=rec)
+        out = bind_approval(spec, actor=actor, record=rec)
+        # Learning feed #2 — approval (verified operator decision).
+        if out.get("ok"):
+            try:
+                record_learning(
+                    CreativeLearningLink(
+                        creative_id=creative_id,
+                        revision=int(spec.approval_revision or 0),
+                        tenant_id=tenant_id,
+                        platform=spec.platform,
+                        recipe=spec.recipe,
+                        source="creative_os_approval",
+                        verified=True,
+                        kind="approval",
+                        at=time.time(),
+                        day=_utc_day(),
+                    )
+                )
+            except Exception as exc:  # pragma: no cover - never break approval
+                logger.debug("[creative_os] approval learning feed skip: %s", exc)
+        return out
     except Exception as e:
         return {"ok": False, "error": str(e)[:160]}
 
@@ -580,6 +859,25 @@ def request_changes(tenant_id: str, creative_id: str, *, note: str = "") -> dict
         save_record(
             spec, extra={"approval": None, "job_id": spec.job_id, "approval_history": history}
         )
+        # Learning feed #3 — rejection (verified operator decision + reason).
+        try:
+            record_learning(
+                CreativeLearningLink(
+                    creative_id=creative_id,
+                    revision=int(spec.approval_revision or 0),
+                    tenant_id=tenant_id,
+                    platform=spec.platform,
+                    recipe=spec.recipe,
+                    source="creative_os_rejection",
+                    verified=True,
+                    kind="rejection",
+                    note=str(note or "")[:400],
+                    at=time.time(),
+                    day=_utc_day(),
+                )
+            )
+        except Exception as exc:  # pragma: no cover - never break regeneration
+            logger.debug("[creative_os] rejection learning feed skip: %s", exc)
         return {
             "ok": True,
             "creative_id": creative_id,
@@ -666,6 +964,41 @@ def resolve_output_path(tenant_id: str, creative_id: str) -> dict[str, Any]:
     }
 
 
+def record_engagement(
+    tenant_id: str,
+    creative_id: str,
+    *,
+    revision: int = 0,
+    platform: str = "",
+    metrics: dict[str, float] | None = None,
+    verified: bool = False,
+    source: str = "",
+) -> dict[str, Any]:
+    """Learning feed #4 — post-publish engagement.
+
+    Called by the delivery path once a video is live. ``verified`` MUST be True
+    only when the metrics come from a verifiable source; an unverified import is
+    recorded but never treated as evidence. Advisory only — never spends.
+    """
+    try:
+        link = CreativeLearningLink(
+            creative_id=str(creative_id or ""),
+            revision=int(revision or 0),
+            tenant_id=str(tenant_id or ""),
+            platform=str(platform or ""),
+            metrics={k: float(v) for k, v in (metrics or {}).items()},
+            source=str(source or "engagement_import"),
+            verified=bool(verified),
+            kind="engagement",
+            note="",
+            at=time.time(),
+            day=_utc_day(),
+        )
+        return record_learning(link)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:160]}
+
+
 __all__ = [
     "approve_exact",
     "customer_view",
@@ -675,6 +1008,7 @@ __all__ = [
     "process_generation",
     "publish_gate",
     "quarantine",
+    "record_engagement",
     "request_changes",
     "resolve_output_path",
 ]

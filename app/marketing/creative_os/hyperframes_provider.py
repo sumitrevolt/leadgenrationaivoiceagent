@@ -30,7 +30,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from app.marketing.creative_os import flags
+from app.marketing.creative_os import flags, network_guard
 from app.marketing.creative_os.assets import get_asset
 from app.marketing.creative_os.hyperframes_templates import (
     RESOLUTION_PRESETS,
@@ -304,10 +304,98 @@ def _bind_agency(c: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _bind_makeover(c: dict[str, Any]) -> dict[str, str]:
+    """Before/after transformation arc (photo-led).
+
+    The two captions are the SCENE copy for the recipe's ``before``/``after``
+    roles (which the brief gate has already cleared), never an invented claim.
+    When the recipe carries no such role the caption stays empty and the
+    composition drops that line — the consented photo still carries the arc.
+    """
+    return {
+        "business_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:120],
+        "city": c["city"],
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "hook_line": c["hook"],
+        "hook_sub": c["tagline"] if c["hook"] else "",
+        "before_line": c["before"] or c["problem"],
+        "after_line": c["after"] or c["showcase"],
+        "services_json": json.dumps(c["body_items"], ensure_ascii=False),
+        "offer_title": _clean(c["brand"].get("offer_badge"), 40),
+        "offer_sub": c["offer_sub"],
+        "cta_text": c["cta_text"],
+        "cta_channel": c["channel"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
+def _bind_salon_service(c: dict[str, Any]) -> dict[str, str]:
+    """Treatment / service-menu showcase.
+
+    ``menu_json`` carries the same brief-gated service list the other binders use
+    (brand ``services`` / KB facts). It never invents a price: the template
+    renders a name + optional subtitle only, and an empty subtitle is omitted.
+    """
+    return {
+        "business_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:120],
+        "city": c["city"],
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "intro_line": c["hook"],
+        "intro_sub": c["tagline"] if c["hook"] else "",
+        "menu_json": json.dumps(c["body_items"], ensure_ascii=False),
+        "speciality_line": c["showcase"],
+        "offer_title": _clean(c["brand"].get("offer_badge"), 40),
+        "offer_sub": c["offer_sub"],
+        "cta_text": c["cta_text"],
+        "cta_channel": c["channel"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
+def _bind_bridal_package(c: dict[str, Any]) -> dict[str, str]:
+    """Wedding-season package spotlight.
+
+    ``package_json`` lists the package inclusions the brief gate cleared; an
+    empty list renders no inclusion rows rather than a fabricated tier.
+    """
+    return {
+        "business_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:120],
+        "city": c["city"],
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "season_line": c["hook"],
+        "season_sub": c["tagline"] if c["hook"] else "",
+        "package_json": json.dumps(c["body_items"], ensure_ascii=False),
+        "highlight_line": c["showcase"],
+        "offer_title": _clean(c["brand"].get("offer_badge"), 40),
+        "offer_sub": c["offer_sub"],
+        "cta_text": c["cta_text"],
+        "cta_channel": c["channel"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
 _BINDERS: dict[str, Any] = {
     "beauty_luxury_offer_v1": _bind_beauty,
     "local_service_promo_v1": _bind_local_service,
     "agency_product_launch_v1": _bind_agency,
+    "makeover_before_after_v1": _bind_makeover,
+    "salon_service_v1": _bind_salon_service,
+    "bridal_package_v1": _bind_bridal_package,
 }
 
 
@@ -364,6 +452,12 @@ def build_manifest(
     showcase = _clean(b.get("tagline"), 160) or scene_text("proof", 1) or scene_text("body", 1)
     offer_sub = _clean(spec.offer, 220) or scene_text("offer", -1)
     cta_text = _clean(spec.cta, 160)
+    # Role-addressed scene copy for the templates that render a specific beat
+    # (makeover before/after, problem→solution). Empty when the recipe carries no
+    # such role — the composition then omits that element rather than inventing it.
+    problem_line = scene_text("problem", -1)
+    before_line = scene_text("before", -1)
+    after_line = scene_text("after", -1)
 
     body_items = []
     for sc in scenes:
@@ -417,6 +511,10 @@ def build_manifest(
         "photos_json": photos_json,
         "footer": footer,
         "brand": b,
+        # Role-addressed copy (empty when the recipe has no such role).
+        "problem": problem_line,
+        "before": before_line,
+        "after": after_line,
     }
 
     binder = _BINDERS.get(tpl["template_id"])
@@ -516,6 +614,55 @@ def _node_bin() -> str:
     return os.getenv("CREATIVE_HYPERFRAMES_NODE", "").strip() or (shutil.which("node") or "node")
 
 
+def _verified_isolation(iso: dict[str, Any]) -> dict[str, Any]:
+    """Fail-closed correction of a flag-ASSERTED isolation claim (A2 / RC5).
+
+    ``network_guard.build_isolation()`` returns the netless branch
+    (``container_netns_none``, ``enforced=True``) on the strength of the bare
+    ``CREATIVE_RENDER_NETLESS=1`` flag alone — an *assertion*, not proof. This
+    project's standing rule is that a bare flag is never accepted as proof, so
+    before the render path may label an artifact ``hermetic`` we run the SAME
+    egress probe the render plane already trusts
+    (``render_plane.spool.verify_netless``): one real outbound ``connect()`` that
+    must FAIL.
+
+    * verified   -> the claim stands (``hermetic``); the probe result is recorded.
+    * unverified -> DEGRADE honestly to ``network_best_effort`` (``enforced=False``)
+      so the artifact is never mislabelled, and record why. Rendering still
+      proceeds (existing non-strict behaviour); under strict mode the now
+      un-enforced decision trips the existing ``network_isolation_unavailable``
+      refusal — fail-closed, never a fake-green.
+
+    The ``netns`` mode is left untouched: its proof already ran a real probe
+    (``unshare --net -- true`` exited 0). ``proxy_blackhole`` / ``network_allowed``
+    are already labelled best-effort. Never raises.
+    """
+    if str(iso.get("method")) != network_guard.METHOD_CONTAINER_NETLESS:
+        return iso
+    try:
+        from app.render_plane.spool import verify_netless
+
+        check = verify_netless()
+    except Exception as exc:  # cannot verify => cannot claim hermetic
+        check = {
+            "netless_requested": True,
+            "netless_verified": False,
+            "detail": f"verify_error:{type(exc).__name__}",
+        }
+    verification = {
+        "netless_requested": bool(check.get("netless_requested")),
+        "netless_verified": bool(check.get("netless_verified")),
+        "detail": check.get("detail"),
+    }
+    out = dict(iso)
+    out["verify"] = verification
+    if not verification["netless_verified"]:
+        out["enforced"] = False
+        out["label"] = network_guard.LABEL_BEST_EFFORT
+        out["unverified_netless"] = True
+    return out
+
+
 def _run_renderer(
     *,
     project_dir: Path,
@@ -553,6 +700,31 @@ def _run_renderer(
         str(output_path),
     ]
 
+    # ---- network isolation (RC5) ------------------------------------------------
+    # `network_disabled()` was a declared-but-unused flag; here it actually gates
+    # the render. The guard decides AT CALL TIME which primitive is available and
+    # reports honestly whether it ran — `enforced` is True only when a real
+    # primitive (netns prefix / netless container) applied. Strict mode refuses to
+    # render un-isolated rather than ship an artifact it cannot vouch for.
+    #
+    # A2: the netless branch is asserted from a BARE flag, which is not proof.
+    # `_verified_isolation` runs the canonical egress probe and DEGRADES the
+    # claim to best-effort unless a real block is verified, so we never label an
+    # artifact `hermetic` on the strength of an env var alone.
+    if network_disabled():
+        iso = _verified_isolation(network_guard.build_isolation())
+    else:
+        iso = network_guard.no_isolation("network_allowed")
+    if iso.get("argv_prefix"):
+        argv = list(iso["argv_prefix"]) + argv
+    child_env = network_guard.apply_isolation_env(_hermetic_env(), iso)
+    if network_guard.strict_requested() and not iso.get("enforced"):
+        raise RenderError(
+            "network_isolation_unavailable",
+            f"{iso.get('method')}:{(iso.get('probe') or {}).get('detail', '')}",
+        )
+    isolation_evidence = network_guard.isolation_evidence(iso)
+
     popen_kw: dict[str, Any] = {}
     if sys.platform == "win32":
         popen_kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -565,7 +737,7 @@ def _run_renderer(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=str(root),
-        env=_hermetic_env(),
+        env=child_env,
         shell=False,
         **popen_kw,
     )
@@ -585,6 +757,10 @@ def _run_renderer(
     return {
         "elapsed_ms": elapsed_ms,
         "stdout_tail": (out or b"").decode("utf-8", "replace")[-400:],
+        "network_isolation": isolation_evidence,
+        "isolation_label": isolation_evidence["label"],
+        # A2: the egress-probe result behind the label (netless claims only).
+        "isolation_verification": iso.get("verify"),
     }
 
 
@@ -694,6 +870,19 @@ class HyperFramesProvider:
             "photo_count": len(json.loads(manifest["variables"]["photos_json"] or "[]")),
             "renderer_version": _pinned_version(),
         }
+        # Isolation evidence travels WITH the artifact. `enforced is False` is
+        # labelled `network_best_effort` — the design forbids calling an
+        # un-enforced render "hermetic" (PRD §2 RC5 / C7).
+        iso_evidence = dict(run.get("network_isolation") or {})
+        if not iso_evidence:
+            iso_evidence = network_guard.isolation_evidence(
+                network_guard.no_isolation("unknown")
+            )
+        asset["network_isolation"] = {
+            "method": iso_evidence.get("method"),
+            "enforced": bool(iso_evidence.get("enforced")),
+        }
+        asset["isolation_label"] = iso_evidence.get("label")
         return normalized_response(
             ok=True,
             provider=self.name,

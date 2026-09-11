@@ -81,6 +81,45 @@
       "headless_cli": false,
       "heartbeat": "hub buzz webhook (HMAC, COORD_HUB_BUZZ_SECRET)",
       "status": "registered"
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw Desktop",
+      "project": "this repo — workspace-dev / mission workspace",
+      "worktree": "OpenClaw workspace or dedicated mission worktree; verify lease before edits",
+      "channel": "#admin (coordination) / #dev (results)",
+      "buzzlock_tool": "OPENCLAW",
+      "buzzlock_enrolled": false,
+      "harness": "OpenClaw Tray GUI + local gateway; Telegram ingress is Hermes-owned",
+      "headless_cli": true,
+      "heartbeat": "process observed; hub HMAC enrollment pending Owner OS",
+      "status": "observed-not-attested"
+    },
+    {
+      "id": "workbuddy",
+      "name": "WorkBuddy Desktop",
+      "project": "this repo — dedicated WorkBuddy mission worktree",
+      "worktree": "WorkBuddy Worktrees/<mission>; never edit the primary dirty checkout without lease",
+      "channel": "#build (progress) / #dev (results)",
+      "buzzlock_tool": "WORKBUDDY",
+      "buzzlock_enrolled": false,
+      "harness": "WorkBuddyAI GUI + local codebuddy sidecar; publishes events through the Staff Bus",
+      "headless_cli": true,
+      "heartbeat": "process observed; hub HMAC enrollment pending Owner OS",
+      "status": "observed-not-attested"
+    },
+    {
+      "id": "chatgpt-desktop",
+      "name": "ChatGPT Desktop / Codex",
+      "project": "this repo — Codex project tasks and isolated worktrees",
+      "worktree": "Codex worktree/local project per task; use one lease per file/task",
+      "channel": "#admin (coordination) / #dev (results)",
+      "buzzlock_tool": "CODEX",
+      "buzzlock_enrolled": false,
+      "harness": "ChatGPT desktop task UI + Codex app-server; Telegram ingress is Hermes-owned",
+      "headless_cli": false,
+      "heartbeat": "desktop process and task list observed; hub HMAC enrollment pending Owner OS",
+      "status": "observed-not-attested"
     }
   ]
 }

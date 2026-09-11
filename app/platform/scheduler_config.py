@@ -249,6 +249,42 @@ JOB_META: dict[str, dict[str, str]] = {
     "whatsapp_automation": {"label": "WhatsApp automation", "cadence": "hourly", "owner": "marketing"},
     "heartbeat": {"label": "Owner alive heartbeat", "cadence": "every 5m", "owner": "platform"},
     "content_approval_notify": {"label": "Content approval notify", "cadence": "hourly :40", "owner": "marketing"},
+    # --- T03 delivery + lifecycle + health (2026-09-11) -----------------------
+    # Telegram result delivery (egress only), its retry drain, the end-to-end
+    # video health probe, and a lifecycle reconcile sweep. All four are inert
+    # unless their gate flag is on.
+    "video_delivery": {
+        "label": "Approved video → Telegram customer + ops (gated VIDEO_TELEGRAM_DELIVERY_ENABLED)",
+        "cadence": "hourly :15",
+        "owner": "isha",
+    },
+    "video_delivery_retry": {
+        "label": "Video delivery retry-queue drain (gated VIDEO_TELEGRAM_DELIVERY_ENABLED)",
+        "cadence": "every 15m",
+        "owner": "isha",
+    },
+    "video_health": {
+        "label": "Video automation end-to-end health probe (artifact + freshness)",
+        "cadence": "hourly :35",
+        "owner": "kavya",
+    },
+    "video_lifecycle_reconcile": {
+        "label": "Video lifecycle reconcile (stuck stages + evidence bundle)",
+        "cadence": "daily 04:45",
+        "owner": "platform",
+    },
+    # --- T02 render plane (2026-09-11) ---------------------------------------
+    # VPS-side render-plane maintenance. Without a beat it never runs, so expired
+    # render leases are never reclaimed, no render job is ever created for a
+    # queued creative (the local worker has nothing to lease), and a finished
+    # render never re-enters QA. Owner=platform (maintenance, not a customer
+    # lane). Idempotent + bounded → NOT in RUN_DUE_EXCLUDE (a catch-up run is
+    # harmless; only real-message senders are excluded).
+    "render_plane_lease": {
+        "label": "Render-plane lease reap + queued-job enqueue + completion bridge (idempotent; always-on)",
+        "cadence": "every 5m",
+        "owner": "platform",
+    },
 }
 
 
@@ -265,6 +301,11 @@ RUN_DUE_EXCLUDE = {
     "hq_auto_chase",
     "reply_auto_send",
     "trial_nudge",  # outbound customer email — no catch-up flood (BLK-02 2026-08-23)
+    # T03: both send real Telegram messages to the customer / ops group. A
+    # catch-up flood after a restart is exactly the wrong recovery — the normal
+    # hourly tick drains the retry queue anyway.
+    "video_delivery",
+    "video_delivery_retry",
 }
 
 

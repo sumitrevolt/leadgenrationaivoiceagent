@@ -3352,3 +3352,67 @@ Verification Evidence:  Portal endpoint id 2265 is Enabled and static to wss://l
 Risks:                  Outbound call did not queue or ring. Do not retry until Tata activates/validates the demo account and DID. The production code fix exists in commit 2124a107 but is not included in the deployed image; do not deploy the intervening history without a reviewed, explicit release.
 Remaining:              Tata-side account/DID activation or extension; then deploy the isolated E.164 caller-ID fix via a reviewed release and execute exactly one consented test call.
 Next Highest Priority:  Obtain Tata activation confirmation, then re-run the single Call-to-Call test and verify a Smartflo stream transcript.
+
+---
+
+## Loop Run — 2026-09-11 (P0 — Eliminate fake workforce telemetry)
+
+- **Date:** 2026-09-11 ~00:15 IST
+- **Goal:** Eliminate synthetic workforce telemetry that was rendering as real worker activity on Owner Command Center.
+- **Inspected:**
+  - `scripts/autonomous_workforce_orchestrator.py` — was generating FAKE data: `actions_today += cycle_num * 31` every 15s, all 31 agents reported as `LOCAL_ACTIVE`, 6 desktop apps hardcoded "ACTIVE".
+  - Windows scheduled task `\LeadGen-Workforce-Orchestrator-Keepalive` — restarted the fake orchestrator every 5 min.
+  - `app/platform/team.py` — `team_status()` used fake JSON to override agent state to "working".
+  - `app/api/admin_dashboard.py` — `get_workforce_live()` returned synthetic data without truth gate.
+  - `app/api/owner_command_center.py` — OCC workforce block surfaced fake data.
+- **Problems Found:**
+  1. **Fake telemetry inflation** — `actions_today` grew by 31 every 15 seconds regardless of real work. Reached 277,528.
+  2. **Synthetic agent status** — all 31 agents shown as `LOCAL_ACTIVE` even with zero real dispatch.
+  3. **Hardcoded desktop apps** — 6 apps (hermes, claude, workbuddy, openclaw, verdant, buzz) hardcoded "ACTIVE" regardless of actual process state.
+  4. **Scheduled task keepalive** — re-started the orchestrator if killed.
+  5. **No truth gate** — `evidence_kind=inference_probe_only` was set but never checked by readers.
+- **Changed:**
+  1. **`scripts/autonomous_workforce_orchestrator.py`** — gutted. `main()` is INERT: writes `status=NOT_INSTRUMENTED, active_workers=0, actions_today=0, evidence_kind=inference_probe_only` then exits. `while True` loop deleted. Helper functions retained for tests.
+  2. **Scheduled task** — DISABLED via `schtasks /change /tn "\LeadGen-Workforce-Orchestrator-Keepalive" /disable`.
+  3. **`app/platform/team.py`** — removed fake JSON state override. `workforce_status` now reports `REAL_EVENTS_ONLY`. `actions_today` from `agent_events` table only.
+  4. **`app/api/admin_dashboard.py`** — `get_workforce_live()` gates on `evidence_kind != "inference_probe_only"`. `trigger_workforce_cycle()` returns `ok=False` with deprecation message.
+  5. **`app/api/owner_command_center.py`** — OCC workforce block shows `NOT_INSTRUMENTED` when probe-only.
+- **Tests Run:**
+  - `tests/test_owner_command_center.py` → 12/12 PASS
+  - `tests/test_admin_modules.py` → 52/52 PASS
+  - `tests/test_workforce_omniroute_auth.py` → 4/4 PASS
+  - `scripts/prod_check.py` → ALL CHECKS PASSED (1425 routes, 65 pages 0 gaps)
+- **Verification Evidence:**
+  - `data/workforce_live_status.json` → `status=NOT_INSTRUMENTED, active_workers=0, actions_today=0, evidence_kind=inference_probe_only`
+  - `team_status()["totals"]["workforce_status"]` → `REAL_EVENTS_ONLY`
+  - Scheduled task state → `Disabled`
+  - OCC endpoint `/api/occ/overview` → 401 (admin auth required, route exists)
+- **Risks:**
+  - `agent_events` table still contains ~2000 rows from synthetic orchestrator — will stop growing now.
+  - Real worker activity tracking requires Celery/team.log_event integration (not yet wired).
+- **Remaining / Owner gates:**
+  - Deploy OCC + Admin to prod (owner `git push` + `scripts/deploy_vps.sh`)
+  - Hot Queue `/app/inbox` still #1 business blocker
+- **Next Highest Priority:**
+  1. Deploy OCC + Admin to prod
+  2. Integrate admin task ledger with real worker processes
+  3. Reconcile 31-agent executable truth (12 pilot vs 31 registered)
+
+---
+
+## Loop Run
+
+- **Date:** 2026-09-11 (evening IST)
+- **Goal:** Close out the T01–T07 video-personalization wave — verify the two in-flight deliverables, prove the whole render/video surface green, and root-cause the two RED dev-control tests.
+- **Inspected:** `tests/test_network_isolation.py`; `deliverables/software-company/video-personalization-design-2026-09-11.md` §13; `app/render_plane/{jobstore,spool,worker,api,client,transport}.py`; `scripts/dev_control_gate.py:48-56,90-168`; `app/dev_control/registry.py:36-38,70`; `tests/conftest.py:36-40,364-371`; `tests/test_dev_control_plane.py:65,237`.
+- **Problems Found:**
+  1. **Design-doc stale tense.** Errata E2 read "T05 *has been asked to* remove it" while the removal was already done and verified.
+  2. **`test_dev_control_gate_invariants_hold` RED and non-hermetic — root-caused.** `scripts/dev_control_gate.py:55` reads the *passed* `env` for the key, but `MODEL_CATALOG[name]["configured"]` is a snapshot of the **live process env taken at import** (`registry.py:36-38` → `:70`). So `invariants(env={})` = "an env that *disagrees* with the snapshot" → invariant #1 legitimately fires. A probe printed `ANTHROPIC_API_KEY='sk-451bbb…'` alongside `ANTHROPIC_BASE_URL` / `CLAUDE_PROJECT_DIR` / `CLAUDE_SESSION_ID` → the value comes from the **Claude Code harness environment**, present only outside the sandbox (sandboxed path scrubs it — which is why a plain `python -c` reports UNSET while pytest reports SET). **No project code sets it.** The previously-open "unknown injection point" is CLOSED.
+  3. **`test_create_task_record_is_idempotent` RED — root-caused.** Module-level function with **no `db` fixture**; `conftest.py:36-40` points `DATABASE_URL` at a **persistent** `%TEMP%/leadgen_test.db` and only the `db` fixture creates/drops tables → the hardcoded `idem-plane-1` row survives into the next run → `reused=True`.
+  4. **Gate observation (reported, NOT changed).** With `env=None` — the production path, `dev_control_gate.py:160` — both sides of invariant #1 read the same `os.environ`, so it can **never** fire. It is effectively a *drift detector* for a caller-supplied env, not a config validator.
+- **Changed:** one line of errata wording (doc, E2 → verified state); dispatched both test-hermeticity fixes to software-engineer-3 (in flight). **No gate / registry code touched.**
+- **Tests Run:** 14 video+render suites (265 tests) in one run; `tests/test_network_isolation.py` standalone; `tests/test_dev_control_plane.py` standalone.
+- **Verification Evidence:** **265 collected → 263 passed / 2 honest skips / 0 failures**; `test_network_isolation.py` = **21 tests → 19 pass / 2 skip** (skips are the honest win32 no-`unshare` and docker-cannot-start cases); both RED tests reproduced with exact assertion text (`invariant gate reported: ["flagship 'claude' configured without ANTHROPIC_API_KEY set"]`; `reused=True`).
+- **Risks:** invariant #1's design smell is unfixed by design — making `configured` derive from the passed `env` would turn it into a **tautology** (a real weakening), so it stays an owner decision. T07's netless egress block is still **never exercised end-to-end** (docker cannot start on this host) — must be asserted on VPS/CI.
+- **Remaining / Owner gates:** rclone OAuth (`setup_gdrive_rclone.ps1`); `admin_finish_20260911.ps1` as Administrator; D: relocation decision; runtime-data ratchet baseline (regenerating accepts 13 findings); Hermes PID 31700.
+- **Next Highest Priority:** land + independently verify the two test fixes (fresh QA pass), then owner decision on invariant #1's design.

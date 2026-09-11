@@ -1,0 +1,105 @@
+=== mtimes ===
+-rw-r--r-- 1 Ratanshila 197121  59290 2026-09-11 18:20:44.289208600 +0530 app/platform/automation_health.py
+-rw-r--r-- 1 Ratanshila 197121  18812 2026-09-11 18:20:14.406706100 +0530 app/platform/scheduler_config.py
+-rw-r--r-- 1 Ratanshila 197121 114431 2026-09-11 18:20:25.018255400 +0530 app/platform/team_scheduler.py
+-rw-r--r-- 1 Ratanshila 197121  42692 2026-09-11 18:20:33.787696000 +0530 app/platform/today_overview.py
+-rw-r--r-- 1 Ratanshila 197121  24985 2026-09-11 18:20:29.247039800 +0530 app/tasks/staff_jobs.py
+-rw-r--r-- 1 Ratanshila 197121  44181 2026-09-11 18:20:39.661072000 +0530 app/worker.py
+-rw-r--r-- 1 Ratanshila 197121   4549 2026-09-11 15:39:54.226518000 +0530 tests/test_scheduler_multi_registry_parity.py
+=== sha256 (twice, 6s apart) ===
+cb5a3e359d229daecfd414c71bf8d05464ebcf70e34a483ca6b294fec1fcda5c *app/platform/team_scheduler.py
+aa7c1b95de1d044372a20256aacc14aaa918cb90ead8fd7369d220784709f803 *app/tasks/staff_jobs.py
+44c37c8e4fc699156db84e2612f70b20adcae92f2fd8d8e81b2efada7790d0f7 *app/worker.py
+cb5a3e359d229daecfd414c71bf8d05464ebcf70e34a483ca6b294fec1fcda5c *app/platform/team_scheduler.py
+aa7c1b95de1d044372a20256aacc14aaa918cb90ead8fd7369d220784709f803 *app/tasks/staff_jobs.py
+44c37c8e4fc699156db84e2612f70b20adcae92f2fd8d8e81b2efada7790d0f7 *app/worker.py
+=== sweep script ===
+"""Sweep for the `render_plane_lease_task` defect class (optimised).
+
+That defect: a Celery task is DEFINED, its docstring claims it runs on a beat,
+but nothing ever references it -- so its side effects are unreachable.
+
+Heuristic: SUSPECT when neither the fully-qualified task name nor the function
+name appears anywhere outside its own defining module.
+
+Tests are excluded on purpose: tests/test_render_plane_resume.py referenced
+`render_plane_lease_task`, which made it *look* wired when it was not.
+
+Optimised: read each file ONCE into a corpus, then test every task against it.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import re
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
+APP = REPO / "app"
+
+NAME_RE = re.compile(r"""name\s*=\s*["'](app\.[A-Za-z0-9_.]+)["']""")
+
+SKIP_DIRS = {
+    ".venv", "venv", "node_modules", "__pycache__", ".git", "_scratch",
+    "data", "docs", "frontend", "admin-dashboard", "deliverables",
+    "command_center", "agent-os", "deploy", "designs", "evals",
+    "video_renderer", "logs", "config", "analysis", ".workbuddy-ai",
+}
+
+
+def collect(base: pathlib.Path) -> list[pathlib.Path]:
+    if not base.is_dir():
+        return []
+    return [p for p in base.rglob("*.py") if not (SKIP_DIRS & set(p.parts))]
+
+
+app_files = collect(APP)
+search_files = collect(APP) + collect(REPO / "scripts") + [
+    p for p in REPO.glob("*.py") if p.is_file()
+]
+
+# --- pass 1: find task declarations
+tasks: list[tuple[str, str, pathlib.Path]] = []
+for p in app_files:
+    try:
+        text = p.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    for m in NAME_RE.finditer(text):
+        fq = m.group(1)
+        tasks.append((fq, fq.rsplit(".", 1)[-1], p))
+
+# --- pass 2: read the corpus ONCE
+corpus: list[tuple[pathlib.Path, str]] = []
+for p in search_files:
+    if "tests" in p.parts or p.name.startswith("test_"):
+        continue
+    try:
+        corpus.append((p, p.read_text(encoding="utf-8", errors="replace")))
+    except OSError:
+        continue
+
+print(f"app files: {len(app_files)} | search corpus: {len(corpus)} | tasks: {len(tasks)}")
+print()
+
+suspect: list[tuple[str, str, pathlib.Path]] = []
+for fq, func, owner in tasks:
+    dispatch_re = re.compile(rf"\b{re.escape(func)}\s*(?:\.delay|\.apply_async|\.apply|\.s\()")
+    name_re = re.compile(rf"\b{re.escape(func)}\b")
+    hit = False
+    for p, text in corpus:
+        if p == owner:
+            continue
+        if fq in text or dispatch_re.search(text) or name_re.search(text):
+            hit = True
+            break
+    if not hit:
+        suspect.append((fq, func, owner))
+
+print("=" * 78)
+print(f"SUSPECT tasks (no reference outside own module, tests excluded): {len(suspect)}")
+print("=" * 78)
+for fq, func, owner in sorted(suspect, key=lambda r: r[0]):
+    print(f"  {fq}")
+    print(f"      defined at {owner.relative_to(REPO)}:{func}")
+if not suspect:
+    print("  (none)")

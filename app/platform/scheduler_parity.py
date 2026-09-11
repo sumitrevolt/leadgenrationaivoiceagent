@@ -56,6 +56,58 @@ INTENTIONAL_EXCEPTIONS: tuple[RegistryException, ...] = (
         owner="marketing",
         safety="Separate beat entry dispatches it; parity exception logged for audit",
     ),
+    # ---- EXPECTED_GAP_MIN extras: beat-only entries, never STAFF_JOBS ---------
+    # These are dead-man watched because they ARE scheduled beat entries, but they
+    # are NOT `run_staff_job` jobs (so they can never be STAFF_JOBS members):
+    # `process-voice-followups` is the ONE legacy-era entry `worker.py` KEEPS when
+    # ENABLE_LEGACY_BEAT=0; `content_os.*` are registered onto beat AFTER that
+    # strip (worker.py:~940-954). Pre-existing gap (present at HEAD 33189b70);
+    # documented here so `unexplained_diffs()` is empty and the parity guard keeps
+    # its signal for genuinely unexplained drift.
+    RegistryException(
+        job_id="process-voice-followups",
+        registry="EXPECTED_GAP_MIN",
+        relation="extra",
+        reason=(
+            "Kept beat entry (production-critical transactional callback drain) "
+            "dispatched by its own task — never a STAFF_JOBS member."
+        ),
+        owner="platform",
+        safety="Own beat entry; dead-man watched via EXPECTED_GAP_MIN",
+    ),
+    RegistryException(
+        job_id="content_os.daily_video_run",
+        registry="EXPECTED_GAP_MIN",
+        relation="extra",
+        reason=(
+            "ContentOS beat task registered after the legacy strip; dispatched by "
+            "its own task, not run_staff_job."
+        ),
+        owner="isha",
+        safety="Own beat entry; INERT unless CONTENT_OS_ENABLED=1",
+    ),
+    RegistryException(
+        job_id="content_os.scan_inbox",
+        registry="EXPECTED_GAP_MIN",
+        relation="extra",
+        reason=(
+            "ContentOS beat task registered after the legacy strip; dispatched by "
+            "its own task, not run_staff_job."
+        ),
+        owner="isha",
+        safety="Own beat entry; INERT unless CONTENT_OS_ENABLED=1",
+    ),
+    RegistryException(
+        job_id="content_os.notify_owner",
+        registry="EXPECTED_GAP_MIN",
+        relation="extra",
+        reason=(
+            "ContentOS beat task registered after the legacy strip; dispatched by "
+            "its own task, not run_staff_job."
+        ),
+        owner="isha",
+        safety="Own beat entry; INERT unless CONTENT_OS_ENABLED=1",
+    ),
 )
 
 # Jobs that MUST stay in RUN_DUE_EXCLUDE (unsafe catch-up).

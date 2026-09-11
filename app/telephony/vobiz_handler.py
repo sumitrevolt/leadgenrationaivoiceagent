@@ -139,6 +139,10 @@ class VobizClient:
             "to": to,
             "answer_url": answer_url,
         }
+        # Recording gate (VOBIZ_CALL_RECORD=1): forward record flag to Vobiz payload.
+        # Env must be explicitly set; default = no recording (fail-closed).
+        if os.environ.get("VOBIZ_CALL_RECORD", "").strip().lower() in ("1", "true", "yes", "on"):
+            payload["record"] = True
         payload.update(extra)
         try:
             import httpx  # lazy — keep module import light

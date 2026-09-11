@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creative Video Command Center — LeadGen AI</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="/design-system/styles.css">
+<style>
+  /* Evidence Console — dark-first, mono-forward, semantic colours.
+     Palette mirrors frontend/owner_command_center.html so the consoles agree. */
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card-2:#334155; --line:#475569;
+    --text:#f1f5f9; --muted:#94a3b8;
+    --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+    --indigo:#6366f1; --purple:#a855f7; --cyan:#06b6d4;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;min-height:100vh}
+
+  .topbar{position:sticky;top:0;z-index:30;background:var(--card);border-bottom:1px solid var(--line);
+    padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#6366f1,#a855f7);
+    display:grid;place-items:center;font-size:16px}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--card-2);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--text);font-family:var(--mono);font-size:12px}
+  .btn{border:1px solid var(--line);background:var(--card-2);border-radius:9px;padding:7px 13px;
+    cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text)}
+  .btn:hover{border-color:var(--indigo)}
+  .btn.primary{background:var(--indigo);border-color:var(--indigo);color:#fff}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  a.btn{text-decoration:none;display:inline-flex;align-items:center}
+  .kbd{border:1px solid var(--line);background:var(--card-2);border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:rgba(99,102,241,.2);color:var(--indigo)}
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;
+    font-family:inherit;background:var(--bg);color:var(--text)}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:18px}
+  .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:20px 2px 10px;display:flex;align-items:center;gap:7px}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+  .card h3{margin:0 0 10px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+
+  .kpi-row{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .kpi .lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .kpi .val{font-size:26px;font-weight:800;margin-top:5px;line-height:1;font-family:var(--mono)}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:5px}
+  .kpi.ok .val{color:var(--green)} .kpi.warn .val{color:var(--amber)} .kpi.err .val{color:var(--red)}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);
+    font-size:11px;text-transform:uppercase;white-space:nowrap}
+  .tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .mono{font-family:var(--mono);font-size:12px}
+  .nm{font-weight:800}
+
+  .pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block}
+  .pill.ok{background:rgba(34,197,94,.15);color:var(--green)}
+  .pill.warn{background:rgba(245,158,11,.15);color:var(--amber)}
+  .pill.err{background:rgba(239,68,68,.15);color:var(--red)}
+  .pill.muted{background:var(--card-2);color:var(--muted)}
+  .pill.blue{background:rgba(59,130,246,.15);color:var(--blue)}
+  .pill.indigo{background:rgba(99,102,241,.18);color:var(--indigo)}
+
+  /* ran vs produced — deliberately two separate columns, never collapsed */
+  .rp{display:flex;gap:6px;align-items:center}
+  .rp .tick{font-family:var(--mono);font-size:11px;font-weight:700}
+  .rp .yes{color:var(--green)} .rp .no{color:var(--muted)}
+
+  .stepper{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+  .stage{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card-2)}
+  .stage .sn{font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted)}
+  .stage .ss{font-size:12.5px;font-weight:800;margin-top:4px}
+  .stage.passed{border-color:rgba(34,197,94,.5)} .stage.passed .ss{color:var(--green)}
+  .stage.failed{border-color:rgba(239,68,68,.5)} .stage.failed .ss{color:var(--red)}
+  .stage.pending .ss{color:var(--amber)}
+  .stage.not_reached .ss{color:var(--muted)}
+
+  .tl{list-style:none;margin:0;padding:0}
+  .tl li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:baseline}
+  .tl li:last-child{border-bottom:none}
+  .tl .at{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .tl .lb{font-weight:600}
+  .tl .mid{font-family:var(--mono);font-size:11px;color:var(--cyan)}
+
+  .opsnote{font-size:11.5px;font-weight:700;color:var(--amber);margin:6px 0 2px}
+  .ev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  .ev{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:11px}
+  .ev .k{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .ev .v{font-family:var(--mono);font-size:12.5px;margin-top:5px;word-break:break-all}
+  .lbls{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .spin{vertical-align:-2px;margin-right:7px;width:13px;height:13px;border:2px solid rgba(99,102,241,.25);
+    border-top-color:var(--indigo);border-radius:50%;display:inline-block;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .drawer{display:none;position:fixed;inset:0;background:rgba(2,6,23,.72);z-index:60;padding:24px;overflow:auto}
+  .drawer.show{display:block}
+  .drawer .panel{max-width:920px;margin:0 auto;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:18px}
+  .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .fld{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted);font-weight:700}
+  .fld input,.fld select{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--text);
+    padding:7px 10px;font-size:12.5px;font-family:inherit}
+  .honest{font-size:11px;color:var(--muted);margin-top:14px;text-align:center}
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:80;display:flex;
+    flex-direction:column;gap:8px;width:min(92vw,440px)}
+  .toast{background:#1e293b;color:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;
+    font-size:12.5px;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+  .toast.err{background:#7f1d1d;border-color:#b91c1c} .toast.ok{background:#14532d;border-color:#15803d}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">🎞</span><span>Creative Video Command Center</span></div>
+  <div class="spacer"></div>
+  <span class="chip" id="healthPill">● —</span>
+  <span class="chip">🕐 <b id="lastUpdate">—</b></span>
+  <a class="btn" href="/app/admin" title="Admin dashboard">← Admin</a>
+  <button class="btn" id="btnRefresh">🔄 Refresh</button>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button class="btn primary" id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- ================= L1 ================= -->
+  <h2 class="col-title">L1 · Automation Health — "ran" vs "produced"</h2>
+  <div class="hint">
+    <b>ran</b> = a heartbeat exists. <b>produced</b> = an artifact actually exists AND is fresh.
+    A job that only <b>ran</b> is <span class="pill warn">warn</span>, never green — that distinction
+    is the whole point of this panel.
+  </div>
+  <div class="kpi-row" id="l1Kpis">
+    <div class="kpi"><div class="lbl">Health</div><div class="val">–</div><div class="sub">loading…</div></div>
+  </div>
+  <div class="card">
+    <h3>Automations</h3>
+    <div id="l1Body"><div class="empty"><span class="spin"></span> Health load ho raha hai…</div></div>
+  </div>
+
+  <!-- ================= L2 ================= -->
+  <h2 class="col-title">L2 · Tenants — ek nazar me</h2>
+  <div class="hint">Server-owned tenants only (server-side scoping). Click a row to drill into L3.</div>
+  <div class="card" style="padding:0">
+    <div id="l2Body"><div class="empty"><span class="spin"></span> Tenants load ho rahe hain…</div></div>
+  </div>
+
+  <!-- ================= L3 ================= -->
+  <h2 class="col-title">L3 · Lifecycle &amp; Customer Timeline</h2>
+  <div class="card">
+    <h3 id="l3Title">Kisi tenant pe click karo</h3>
+    <div class="hint" id="l3Hint">9-stage projection + the customer-facing timeline. Genuine delivery is keyed on
+      <b class="mono">video_delivered</b> only.</div>
+    <div id="l3Body"><div class="empty">L2 se ek tenant chuno.</div></div>
+  </div>
+
+  <!-- ================= L4 ================= -->
+  <h2 class="col-title">L4 · Evidence Panel</h2>
+  <div class="card">
+    <h3>Asset evidence</h3>
+    <div class="hint">Asset id daalo (ya L3 me kisi creative ke asset pe click karo). Panel sirf server-owned tenants me dhoondhta hai.</div>
+    <div class="row2">
+      <div class="fld"><span>Asset id</span><input id="assetInput" placeholder="asset_…" /></div>
+      <button class="btn primary" id="assetGo">Load evidence</button>
+    </div>
+    <div id="l4Body" style="margin-top:12px"><div class="empty">Abhi koi asset load nahi hua.</div></div>
+  </div>
+
+  <div class="honest">
+    Read-only surface (GETs are side-effect-free, safe to poll). The only mutating action is
+    <b>Enqueue generation</b>, which is flag-gated and fail-closed.
+  </div>
+</div>
+
+<div class="drawer" id="drawer"><div class="panel" id="drawerPanel"></div></div>
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "/api/admin/video";
+
+  // ---- Auth: same Bearer pattern as the rest of the admin console ----------
+  function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+    document.getElementById("tokToggle").classList.remove("on");
+    loadAll();
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+
+  // Envelope-aware fetch: every endpoint answers {ok, data, error}.
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var body = null;
+    try{ body = await r.json(); }catch(_e){}
+    if(!r.ok){
+      var d = body && (body.detail || body.error);
+      throw new Error(d || ("HTTP " + r.status));
+    }
+    if(body && typeof body === "object" && "ok" in body && body.ok === false){
+      throw new Error(body.error || "request failed");
+    }
+    return (body && "data" in body) ? body.data : body;
+  }
+
+  function tone(status){
+    if(status === "ok") return "ok";
+    if(status === "gated_inert") return "muted";
+    if(status === "warn") return "warn";
+    return "err";
+  }
+  function tick(v){
+    return '<span class="tick ' + (v ? "yes" : "no") + '">' + (v ? "✓" : "✗") + "</span>";
+  }
+
+  // ============================ L1 ============================
+  function renderL1(h){
+    var ok = !!h.ok;
+    document.getElementById("healthPill").innerHTML =
+      '<span style="color:' + (ok ? "var(--green)" : "var(--amber)") + '">●</span> ' +
+      (ok ? "ALL HEALTHY" : (h.degraded && h.degraded.length ? "DEGRADED: " + esc(h.degraded.join(", ")) : "DEGRADED"));
+    document.getElementById("healthPill").className = "chip";
+
+    var rows = h.automations || [];
+    var produced = rows.filter(function(r){ return r.produced; }).length;
+    var ran = rows.filter(function(r){ return r.ran; }).length;
+    var kpis = [
+      {lbl:"Automations", val: rows.length, sub:"video pipeline", cls:""},
+      {lbl:"Ran", val: ran, sub:"heartbeat present", cls:""},
+      {lbl:"Produced", val: produced, sub:"fresh artifact", cls: produced ? "ok" : "warn"},
+      {lbl:"Degraded", val: (h.degraded || []).length, sub:"warn/down/unknown", cls: (h.degraded||[]).length ? "err" : "ok"}
+    ];
+    document.getElementById("l1Kpis").innerHTML = kpis.map(function(c){
+      return '<div class="kpi ' + c.cls + '"><div class="lbl">' + esc(c.lbl) + '</div>' +
+        '<div class="val">' + esc(c.val) + '</div><div class="sub">' + esc(c.sub) + '</div></div>';
+    }).join("");
+
+    if(!rows.length){ document.getElementById("l1Body").innerHTML = '<div class="empty">Koi automation report nahi hui.</div>'; return; }
+    var html = '<table class="tbl"><thead><tr><th>Automation</th><th>Status</th><th>Ran</th><th>Produced</th>' +
+      '<th>Artifact age</th><th>Reason</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      html += '<tr><td class="nm">' + esc(r.automation) + '</td>' +
+        '<td><span class="pill ' + tone(r.status) + '">' + esc(r.status) + '</span></td>' +
+        '<td class="rp">' + tick(r.ran) + '</td>' +
+        '<td class="rp">' + tick(r.produced) + '</td>' +
+        '<td class="mono">' + (r.artifact_age_s == null ? "–" : Math.round(r.artifact_age_s) + "s") + '</td>' +
+        '<td class="mono">' + esc(r.reason) + '</td></tr>';
+    });
+    document.getElementById("l1Body").innerHTML = html + "</tbody></table>";
+  }
+
+  // ============================ L2 ============================
+  function renderL2(d){
+    var tenants = (d && d.tenants) || [];
+    if(!tenants.length){
+      document.getElementById("l2Body").innerHTML =
+        '<div class="empty">Abhi koi video tenant nahi hai (honest empty — koi row invent nahi ki gayi).</div>';
+      return;
+    }
+    var html = '<table class="tbl"><thead><tr><th>Tenant</th><th>Creatives</th><th>Complete</th>' +
+      '<th>Stuck</th><th>Events</th><th>Value</th><th>Bound</th><th>Retries</th><th></th></tr></thead><tbody>';
+    tenants.forEach(function(t){
+      var stuck = t.stuck && Object.keys(t.stuck).length
+        ? Object.keys(t.stuck).map(function(k){ return esc(k) + ":" + esc(t.stuck[k]); }).join(" · ")
+        : "–";
+      html += '<tr><td class="nm mono">' + esc(t.tenant_id) + '</td>' +
+        '<td class="mono">' + esc(t.creatives == null ? "–" : t.creatives) + '</td>' +
+        '<td class="mono">' + esc(t.complete == null ? "–" : t.complete) + '</td>' +
+        '<td class="mono">' + stuck + '</td>' +
+        '<td class="mono">' + esc(t.events_total == null ? "–" : t.events_total) + '</td>' +
+        '<td>' + (t.value_delivered ? '<span class="pill ok">yes</span>' : '<span class="pill muted">no</span>') + '</td>' +
+        '<td>' + (t.bound ? '<span class="pill ok">bound</span>' : '<span class="pill muted">–</span>') + '</td>' +
+        '<td class="mono">' + esc(t.pending_retries == null ? "–" : t.pending_retries) + '</td>' +
+        '<td><button class="btn" data-tenant="' + esc(t.tenant_id) + '">L3 →</button></td></tr>';
+    });
+    document.getElementById("l2Body").innerHTML = html + "</tbody></table>";
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tenant]"), function(b){
+      b.onclick = function(){ loadL3(b.getAttribute("data-tenant")); };
+    });
+  }
+
+  // ============================ L3 ============================
+  function renderL3(d){
+    document.getElementById("l3Title").textContent = "Tenant · " + (d.tenant_id || "—");
+    if(!d.found){
+      document.getElementById("l3Body").innerHTML =
+        '<div class="empty">Server is tenant ka owner nahi hai (honest empty — koi cross-tenant data nahi).</div>';
+      return;
+    }
+    var html = "";
+
+    var lc = d.lifecycle || {};
+    var items = lc.items || [];
+    if(items.length){
+      html += '<div style="font-weight:800;margin-bottom:8px">Creatives (' + items.length + ')</div>';
+      items.forEach(function(c){
+        var steps = (c.stages || []).map(function(s){
+          var st = String(s.status || "");
+          return '<div class="stage ' + esc(st) + '"><div class="sn">' + esc(s.stage) + '</div>' +
+            '<div class="ss">' + esc(st) + '</div></div>';
+        }).join("");
+        html += '<div class="card" style="margin-top:10px"><h3 class="mono">' + esc(c.creative_id) + '</h3>' +
+          '<div class="hint">status: <b class="mono">' + esc(c.status || "–") + '</b>' +
+          (c.failed_stage ? ' · stuck at <b class="mono">' + esc(c.failed_stage) + '</b>' : " · complete") + '</div>' +
+          '<div class="stepper">' + (steps || '<div class="empty">Koi stage data nahi.</div>') + '</div></div>';
+      });
+    } else {
+      html += '<div class="empty">Is tenant ke liye koi creative record nahi.</div>';
+    }
+
+    // Customer timeline — genuine delivery keyed on video_delivered only.
+    var tl = d.timeline || [];
+    html += '<div style="font-weight:800;margin:16px 0 8px">Customer timeline ' +
+      '<span class="pill indigo">customer_visible</span></div>';
+    if(tl.length){
+      html += '<ul class="tl">' + tl.map(function(e){
+        return '<li><span class="at">' + esc(e.at || "") + '</span>' +
+          '<span class="lb">' + esc(e.label_hi || e.event) + '</span>' +
+          (e.message_id ? '<span class="mid">msg ' + esc(e.message_id) + '</span>' : "") + '</li>';
+      }).join("") + '</ul>';
+    } else {
+      html += '<div class="empty">Customer-facing events abhi nahi hain.</div>';
+    }
+
+    // Ops timeline — INTERNAL, never a customer delivery.
+    var ops = d.ops_timeline || [];
+    html += '<div class="opsnote">⚠ Internal / Ops events — NOT customer-visible (incl. ' +
+      '<span class="mono">video_delivered_ops</span>). Ye customer delivery nahi hain.</div>';
+    if(ops.length){
+      html += '<ul class="tl">' + ops.map(function(e){
+        return '<li><span class="at">' + esc(e.at || "") + '</span>' +
+          '<span class="lb mono">' + esc(e.event) + '</span>' +
+          '<span class="pill muted">internal</span></li>';
+      }).join("") + '</ul>';
+    } else {
+      html += '<div class="empty">Koi internal event nahi.</div>';
+    }
+
+    html += '<div class="row2" style="margin-top:14px"><button class="btn primary" id="genBtn">⚡ Enqueue generation (gated)</button></div>';
+    document.getElementById("l3Body").innerHTML = html;
+    document.getElementById("genBtn").onclick = function(){ openGenerate(d.tenant_id); };
+  }
+
+  // ============================ L4 ============================
+  function renderL4(d){
+    if(!d.found){
+      document.getElementById("l4Body").innerHTML =
+        '<div class="empty">Asset nahi mila (honest empty — server-owned tenants me nahi hai). ' +
+        'label: <span class="pill muted">' + esc(d.label || "UNKNOWN") + '</span></div>';
+      return;
+    }
+    var e = d.evidence || {};
+    var ni = e.network_isolation || {};
+    var labelTone = e.label === "PRODUCTION-PROVEN" ? "ok" : (e.label === "UNKNOWN" ? "muted" : "warn");
+    document.getElementById("l4Body").innerHTML =
+      '<div class="row2"><span class="pill ' + labelTone + '">' + esc(e.label || "UNKNOWN") + '</span>' +
+      '<span class="pill muted mono">' + esc(e.tenant_id) + " / " + esc(e.creative_id) + '</span></div>' +
+      '<div class="ev-grid" style="margin-top:12px">' +
+        '<div class="ev"><div class="k">output_hash</div><div class="v">' + esc(e.output_hash || "—") + '</div></div>' +
+        '<div class="ev"><div class="k">bundle_hash</div><div class="v">' + esc(e.bundle_hash || "—") + '</div></div>' +
+        '<div class="ev"><div class="k">delivery message_id</div><div class="v">' + esc(e.message_id || "—") + '</div></div>' +
+        '<div class="ev"><div class="k">network_isolation</div><div class="v">' +
+          'method: ' + esc(ni.method || "probe-only") + '<br>enforced: ' + esc(String(!!ni.enforced)) + '</div></div>' +
+      '</div>' +
+      '<div class="lbls"><span class="pill ' + labelTone + '">' + esc(e.label || "UNKNOWN") + '</span>' +
+      (ni.enforced ? "" : '<span class="pill warn">PARTIAL — isolation probe-only</span>') + '</div>';
+  }
+
+  // ============================ Generate ============================
+  function openGenerate(tenantId){
+    var p = document.getElementById("drawerPanel");
+    p.innerHTML = '<h3 style="margin:0 0 4px">⚡ Enqueue generation</h3>' +
+      '<div class="hint">Flag-gated (<span class="mono">CREATIVE_OS_ENABLED</span>). Off ho to honest error, fake success nahi.</div>' +
+      '<div class="row2" style="margin-top:10px">' +
+      '<div class="fld"><span>Tenant</span><input id="gTenant" value="' + esc(tenantId || "") + '" /></div>' +
+      '<div class="fld"><span>Business name</span><input id="gBiz" placeholder="verified business name" /></div>' +
+      '<div class="fld"><span>Recipe</span><input id="gRecipe" value="offer_announcement" /></div>' +
+      '<div class="fld"><span>Niche</span><input id="gNiche" value="general" /></div>' +
+      '<div class="fld"><span>Platform</span><input id="gPlatform" value="instagram" /></div>' +
+      '<div class="fld"><span>Aspect</span><input id="gAspect" value="9:16" /></div>' +
+      '</div>' +
+      '<div class="row2" style="margin-top:14px"><button class="btn primary" id="gGo">Enqueue</button>' +
+      '<button class="btn" id="gCancel">Cancel</button></div>' +
+      '<div id="gOut" class="hint" style="margin-top:10px"></div>';
+    document.getElementById("drawer").classList.add("show");
+    document.getElementById("gCancel").onclick = function(){ document.getElementById("drawer").classList.remove("show"); };
+    document.getElementById("gGo").onclick = async function(){
+      var q = new URLSearchParams({
+        tenant_id: document.getElementById("gTenant").value.trim(),
+        business_name: document.getElementById("gBiz").value.trim(),
+        recipe: document.getElementById("gRecipe").value.trim(),
+        niche: document.getElementById("gNiche").value.trim(),
+        platform: document.getElementById("gPlatform").value.trim(),
+        aspect_ratio: document.getElementById("gAspect").value.trim()
+      });
+      var out = document.getElementById("gOut");
+      out.textContent = "Enqueue ho raha hai…";
+      try{
+        var d = await callApi(API + "/generate?" + q.toString(), { method:"POST", headers: hdrs() });
+        out.innerHTML = '<span class="pill ok">enqueued</span> <span class="mono">' + esc(JSON.stringify(d)) + '</span>';
+        toast("Generation enqueued ✓", "ok");
+        loadAll();
+      }catch(err){
+        out.innerHTML = '<span class="pill err">failed</span> <span class="mono">' + esc(String(err.message || err)) + '</span>';
+        toast("Enqueue failed: " + (err.message || err), "err");
+      }
+    };
+  }
+  document.getElementById("drawer").onclick = function(ev){
+    if(ev.target === this) this.classList.remove("show");
+  };
+
+  // ============================ Loaders ============================
+  async function loadL1(){
+    try{
+      var d = await callApi(API + "/health", { headers: hdrs() });
+      renderL1(d);
+    }catch(err){
+      document.getElementById("l1Body").innerHTML = '<div class="empty">Health load fail: ' + esc(String(err.message || err)) + '</div>';
+    }
+  }
+  async function loadL2(){
+    try{
+      var d = await callApi(API + "/customers", { headers: hdrs() });
+      renderL2(d);
+    }catch(err){
+      document.getElementById("l2Body").innerHTML = '<div class="empty">Tenants load fail: ' + esc(String(err.message || err)) + '</div>';
+    }
+  }
+  async function loadL3(tenantId){
+    document.getElementById("l3Title").textContent = "Tenant · " + tenantId;
+    document.getElementById("l3Body").innerHTML = '<div class="empty"><span class="spin"></span> L3 load ho raha hai…</div>';
+    try{
+      var d = await callApi(API + "/customers/" + encodeURIComponent(tenantId), { headers: hdrs() });
+      renderL3(d);
+    }catch(err){
+      document.getElementById("l3Body").innerHTML = '<div class="empty">L3 load fail: ' + esc(String(err.message || err)) + '</div>';
+    }
+  }
+  async function loadL4(assetId){
+    document.getElementById("l4Body").innerHTML = '<div class="empty"><span class="spin"></span> Evidence load ho raha hai…</div>';
+    try{
+      var d = await callApi(API + "/assets/" + encodeURIComponent(assetId), { headers: hdrs() });
+      renderL4(d);
+    }catch(err){
+      document.getElementById("l4Body").innerHTML = '<div class="empty">Evidence load fail: ' + esc(String(err.message || err)) + '</div>';
+    }
+  }
+
+  function loadAll(){
+    document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
+    loadL1();
+    loadL2();
+  }
+  document.getElementById("btnRefresh").onclick = loadAll;
+  document.getElementById("assetGo").onclick = function(){
+    var v = document.getElementById("assetInput").value.trim();
+    if(v) loadL4(v); else toast("Asset id daalo", "err");
+  };
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

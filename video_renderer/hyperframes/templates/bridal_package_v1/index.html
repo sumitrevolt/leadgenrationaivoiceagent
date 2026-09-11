@@ -1,0 +1,388 @@
+<!doctype html>
+<!--
+  bridal_package_v1 — wedding-season package spotlight.
+
+  Contract:
+    1080x1920, 30fps, 6 scenes, 25.4s.
+    Every on-screen value arrives through a declared `data-bind` variable. There
+    is NO price, date, countdown, rating or testimonial in this file: the package
+    renders as INCLUSION rows, and a row with no label is dropped. An unfilled
+    optional element is removed rather than left as a blank slot.
+
+  Distinct from the other compositions: this one is an INVITATION — an arched
+  frame, a serif display face and a wax-seal medallion. It shares no stylesheet
+  with any other template.
+
+  Assets: local only, no CDN, no external CSS. Photos (when present) are absolute
+  paths the Python provider resolved from the tenant's consented asset registry.
+-->
+<html lang="en" data-composition-variables='[
+  {"id":"business_name","type":"string","label":"Business name","default":""},
+  {"id":"monogram","type":"string","label":"Monogram","default":""},
+  {"id":"tagline","type":"string","label":"Tagline","default":""},
+  {"id":"city","type":"string","label":"City","default":""},
+  {"id":"primary_color","type":"color","label":"Brand primary","default":"#7f1d1d"},
+  {"id":"accent_color","type":"color","label":"Brand accent","default":"#f5d17a"},
+  {"id":"season_line","type":"string","label":"Season headline","default":""},
+  {"id":"season_sub","type":"string","label":"Season subline","default":""},
+  {"id":"package_json","type":"string","label":"Package inclusions JSON","default":"[]"},
+  {"id":"highlight_line","type":"string","label":"Highlight headline","default":""},
+  {"id":"offer_title","type":"string","label":"Offer label","default":""},
+  {"id":"offer_sub","type":"string","label":"Offer headline","default":""},
+  {"id":"cta_text","type":"string","label":"CTA text","default":""},
+  {"id":"cta_channel","type":"string","label":"CTA channel","default":"whatsapp"},
+  {"id":"contact_display","type":"string","label":"Contact display","default":""},
+  {"id":"photos_json","type":"string","label":"Photo paths JSON","default":"[]"},
+  {"id":"footer_note","type":"string","label":"Footer note","default":""}
+]'>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    /* Self-contained design system (bridal invitation). */
+    :root {
+      --brand: #7f1d1d;
+      --accent: #f5d17a;
+      --ink: #fdf6ea;
+      --ink-dim: rgba(253, 246, 234, 0.64);
+      --base-0: #120a0a;
+      --base-1: #1e1210;
+      --safe-x: 84px;
+      --safe-top: 200px;
+      --safe-bottom: 280px;
+      --serif: "Georgia", "Times New Roman", "Noto Serif", serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1080px; height: 1920px; background: var(--base-0);
+      font-family: "LG Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ink); overflow: hidden; -webkit-font-smoothing: antialiased;
+    }
+    #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+    .clip { position: absolute; inset: 0; }
+
+    .bg { position: absolute; inset: 0; background: var(--base-0); }
+    .bg-glow {
+      position: absolute; inset: -10%;
+      background:
+        radial-gradient(42% 32% at 50% 12%, color-mix(in srgb, var(--accent) 30%, transparent) 0%, transparent 62%),
+        radial-gradient(46% 36% at 50% 92%, color-mix(in srgb, var(--brand) 52%, transparent) 0%, transparent 66%);
+      filter: blur(32px) saturate(120%);
+      animation: glow 18s ease-in-out 2 alternate both;
+    }
+    @keyframes glow {
+      0%   { transform: translate3d(0, -1.6%, 0) scale(1.05); }
+      100% { transform: translate3d(0, 2%, 0) scale(1.12); }
+    }
+    .bg-ornament {
+      position: absolute; inset: 0; opacity: .1;
+      background-image:
+        radial-gradient(circle at 50% 50%, transparent 58%, color-mix(in srgb, var(--accent) 60%, transparent) 59%, transparent 60%),
+        radial-gradient(circle at 50% 50%, transparent 72%, color-mix(in srgb, var(--accent) 45%, transparent) 73%, transparent 74%);
+      background-size: 220px 220px; background-position: center;
+    }
+    .bg-vignette {
+      position: absolute; inset: 0;
+      background: radial-gradient(70% 56% at 50% 46%, transparent 0%, rgba(0,0,0,.58) 76%, rgba(0,0,0,.92) 100%);
+    }
+
+    .stage {
+      position: absolute; left: var(--safe-x); right: var(--safe-x);
+      top: var(--safe-top); bottom: var(--safe-bottom);
+      display: flex; flex-direction: column; justify-content: center;
+    }
+
+    .display { font-family: var(--serif); font-weight: 700; line-height: 1.08; letter-spacing: .01em; text-wrap: balance; }
+    .headline { font-weight: 700; line-height: 1.08; letter-spacing: -.01em; text-wrap: balance; }
+    .sub { font-size: 34px; line-height: 1.42; color: var(--ink-dim); }
+    .eyebrow {
+      font-size: 29px; font-weight: 700; letter-spacing: .46em; text-transform: uppercase;
+      color: var(--accent); opacity: .94;
+    }
+    .rule {
+      height: 3px; width: 150px; border-radius: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent); transform-origin: center;
+    }
+
+    /* ---- arch (intro) ---- */
+    .arch {
+      position: relative; margin: 0 auto; width: 620px; height: 800px;
+      border-radius: 310px 310px 26px 26px;
+      border: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
+      background: linear-gradient(170deg, rgba(255,255,255,.1), rgba(255,255,255,.02));
+      box-shadow: 0 40px 110px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.2);
+      display: grid; place-items: center; gap: 0;
+    }
+    .arch .inner { display: grid; gap: 34px; place-items: center; text-align: center; padding: 0 60px; }
+    .arch .mono {
+      width: 210px; height: 210px; border-radius: 50%; display: grid; place-items: center;
+      font-family: var(--serif); font-size: 88px; font-weight: 700;
+      color: #1a0f08;
+      background: radial-gradient(circle at 34% 28%, #fff3d1, var(--accent) 60%, #b98a2c);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.22), 0 26px 70px color-mix(in srgb, var(--accent) 40%, transparent);
+      animation: pop .72s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    /* ---- package inclusion rows ---- */
+    .pkg { display: flex; flex-direction: column; gap: 16px; }
+    .pkg-row {
+      display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 24px;
+      padding: 24px 32px; border-radius: 20px;
+      background: linear-gradient(150deg, rgba(255,255,255,.085), rgba(255,255,255,.025));
+      border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+    }
+    .pkg-row .tick {
+      width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center;
+      border: 2px solid color-mix(in srgb, var(--accent) 62%, transparent);
+      color: var(--accent); font-size: 32px; font-weight: 700;
+    }
+    .pkg-row .label { font-size: 40px; font-weight: 700; line-height: 1.16; }
+    .pkg-row .note { font-size: 26px; color: var(--ink-dim); margin-top: 6px; }
+
+    /* ---- seal (highlight) ---- */
+    .seal {
+      position: relative; margin: 0 auto; width: 620px; height: 620px; border-radius: 50%;
+      display: grid; place-items: center; text-align: center; padding: 90px;
+      background: radial-gradient(circle at 40% 32%, color-mix(in srgb, var(--accent) 22%, var(--base-1)), var(--base-1));
+      border: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
+      box-shadow: 0 40px 110px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.16);
+    }
+    .seal .halo {
+      position: absolute; inset: -26px; border-radius: 50%;
+      border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent);
+      animation: spin 24s linear 2 both;
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
+
+    .badge {
+      display: inline-flex; align-items: center; padding: 18px 40px; border-radius: 999px;
+      font-size: 30px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      color: #1a0f08; background: linear-gradient(120deg, var(--accent), color-mix(in srgb, var(--accent) 62%, #b98a2c));
+      box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 34%, transparent);
+    }
+
+    .cta {
+      display: flex; align-items: center; justify-content: center; gap: 26px;
+      padding: 40px 56px; border-radius: 999px; font-size: 46px; font-weight: 700;
+      background: linear-gradient(120deg, var(--brand), color-mix(in srgb, var(--brand) 58%, #000));
+      box-shadow: 0 26px 64px color-mix(in srgb, var(--brand) 54%, transparent);
+      animation: ctaPulse 1.9s ease-in-out 3 both;
+    }
+    @keyframes ctaPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+    .cta svg { width: 52px; height: 52px; flex: 0 0 auto; }
+    .footer-line {
+      position: absolute; left: var(--safe-x); right: var(--safe-x); bottom: 150px;
+      text-align: center; font-size: 27px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim);
+    }
+
+    .fade-in { animation: fadeIn .66s ease both; }
+    .pop { animation: pop .66s cubic-bezier(.34,1.56,.64,1) both; }
+    .wipe { animation: wipe .8s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translate3d(0,58px,0); } to { opacity: 1; transform: none; } }
+    @keyframes pop { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+    @keyframes wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    .w { display: inline-block; will-change: transform, opacity; }
+    .rise .w { animation: wordRise .74s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes wordRise {
+      from { opacity: 0; transform: translate3d(0,46px,0) rotate(1.4deg); filter: blur(7px); }
+      to   { opacity: 1; transform: none; filter: blur(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root" data-composition-id="root" data-no-timeline data-start="0"
+       data-width="1080" data-height="1920" data-fps="30" data-duration="25.4">
+
+    <div class="bg">
+      <div class="bg-glow"></div>
+      <div class="bg-ornament"></div>
+      <div class="bg-vignette"></div>
+    </div>
+
+    <!-- ============================================== 1. intro (0→3.6) -->
+    <div id="scene-intro" class="clip" data-start="0" data-duration="3.6" data-track-index="1">
+      <div class="stage">
+        <div class="arch">
+          <div class="inner">
+            <div class="mono" data-bind="monogram"></div>
+            <h1 class="display" data-fit="brand" data-bind="business_name"
+                style="animation:slideUp .92s cubic-bezier(.22,1,.36,1) .32s both;"></h1>
+            <div class="rule wipe" style="animation-delay:.8s;"></div>
+            <p class="sub" data-bind="tagline" data-optional
+               style="animation:fadeIn .8s ease .98s both;"></p>
+            <div class="eyebrow" data-bind="city" data-optional
+                 style="animation:fadeIn .8s ease 1.2s both;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================= 2. season (3.6→8.0) -->
+    <div id="scene-season" class="clip" data-start="3.6" data-duration="4.4" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:38px;">
+        <div class="eyebrow" data-bind="city" data-suffix=" ·" data-optional
+             style="animation:fadeIn .6s ease both;"></div>
+        <h2 class="display rise" data-fit="hook" data-bind="season_line" data-words></h2>
+        <div class="rule wipe" style="animation-delay:.6s;"></div>
+        <p class="sub" data-bind="season_sub" data-optional
+           style="max-width:820px;animation:slideUp .9s cubic-bezier(.22,1,.36,1) .7s both;"></p>
+      </div>
+    </div>
+
+    <!-- ============================================ 3. package (8.0→13.6) -->
+    <div id="scene-package" class="clip" data-start="8.0" data-duration="5.6" data-track-index="1">
+      <div class="stage" style="gap:30px;">
+        <div class="eyebrow fade-in">The package</div>
+        <div class="pkg" id="pkg-list"></div>
+      </div>
+    </div>
+
+    <!-- ========================================== 4. highlight (13.6→17.8) -->
+    <div id="scene-highlight" class="clip" data-start="13.6" data-duration="4.2" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:30px;">
+        <div class="seal pop">
+          <div class="halo"></div>
+          <h2 class="display" data-fit="showcase" data-bind="highlight_line"></h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================= 5. offer (17.8→21.4) -->
+    <div id="scene-offer" class="clip" data-start="17.8" data-duration="3.6" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:34px;">
+        <div class="badge pop" data-bind="offer_title" data-optional></div>
+        <h2 class="display" data-fit="offer" data-bind="offer_sub" data-optional
+            style="animation:slideUp .82s cubic-bezier(.22,1,.36,1) .28s both;"></h2>
+        <div class="rule wipe" style="animation-delay:.7s;"></div>
+      </div>
+    </div>
+
+    <!-- ================================================= 6. CTA (21.4→25.4) -->
+    <div id="scene-cta" class="clip" data-start="21.4" data-duration="4.0" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:44px;">
+        <h2 class="display" data-fit="cta" data-bind="cta_text"
+            style="animation:slideUp .86s cubic-bezier(.22,1,.36,1) both;"></h2>
+        <div class="cta" style="animation-delay:.46s;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path id="cta-glyph" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span data-bind="contact_display"></span>
+        </div>
+        <div class="eyebrow" data-bind="business_name"
+             style="animation:fadeIn .8s ease .88s both;"></div>
+      </div>
+      <div class="footer-line" data-bind="footer_note" data-optional
+           style="animation:fadeIn .8s ease 1.08s both;"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var V = {};
+      try { V = (window.__hyperframes && window.__hyperframes.getVariables()) || {}; }
+      catch (e) { V = {}; }
+
+      var S = function (k) { return String(V[k] == null ? "" : V[k]).trim(); };
+
+      function parseList(key) {
+        try {
+          var raw = JSON.parse(S(key) || "[]");
+          return Array.isArray(raw) ? raw : [];
+        } catch (e) { return []; }
+      }
+
+      var root = document.documentElement;
+      if (S("primary_color")) root.style.setProperty("--brand", S("primary_color"));
+      if (S("accent_color")) root.style.setProperty("--accent", S("accent_color"));
+
+      document.querySelectorAll("[data-bind]").forEach(function (el) {
+        var val = S(el.getAttribute("data-bind"));
+        if (!val) {
+          if (el.hasAttribute("data-optional")) el.remove();
+          return;
+        }
+        var suffix = el.getAttribute("data-suffix") || "";
+        if (el.hasAttribute("data-words")) {
+          el.textContent = "";
+          val.split(/\s+/).forEach(function (word, i) {
+            var s = document.createElement("span");
+            s.className = "w";
+            s.textContent = word;
+            s.style.animationDelay = (0.06 + i * 0.055).toFixed(3) + "s";
+            el.appendChild(s);
+            el.appendChild(document.createTextNode(" "));
+          });
+        } else {
+          el.textContent = val + suffix;
+        }
+      });
+
+      var LADDER = {
+        brand:    [[14, 80], [24, 66], [34, 54], [999, 46]],
+        hook:     [[26, 96], [42, 78], [64, 62], [999, 52]],
+        showcase: [[22, 62], [40, 52], [999, 44]],
+        offer:    [[22, 84], [38, 68], [58, 56], [999, 48]],
+        cta:      [[20, 72], [34, 60], [999, 50]]
+      };
+      document.querySelectorAll("[data-fit]").forEach(function (el) {
+        var rungs = LADDER[el.getAttribute("data-fit")];
+        if (!rungs) return;
+        var n = (el.textContent || "").length;
+        for (var i = 0; i < rungs.length; i++) {
+          if (n <= rungs[i][0]) { el.style.fontSize = rungs[i][1] + "px"; break; }
+        }
+      });
+
+      // ---- package inclusion rows --------------------------------------
+      // A row exists only when it has a LABEL. No tier, price or date is drawn.
+      var pkg = document.getElementById("pkg-list");
+      if (pkg) {
+        parseList("package_json").slice(0, 4).forEach(function (item, i) {
+          var label = String(item && item.title ? item.title : "").trim();
+          if (!label) return;
+          var row = document.createElement("div");
+          row.className = "pkg-row";
+          row.style.animation =
+            "slideUp .82s cubic-bezier(.22,1,.36,1) " + (0.16 + i * 0.16).toFixed(2) + "s both";
+
+          var tick = document.createElement("div");
+          tick.className = "tick";
+          tick.textContent = "\u2713";
+
+          var body = document.createElement("div");
+          var lab = document.createElement("div");
+          lab.className = "label";
+          lab.textContent = label;
+          body.appendChild(lab);
+
+          var note = String(item && item.subtitle ? item.subtitle : "").trim();
+          if (note) {
+            var nt = document.createElement("div");
+            nt.className = "note";
+            nt.textContent = note;
+            body.appendChild(nt);
+          }
+
+          row.appendChild(tick);
+          row.appendChild(body);
+          pkg.appendChild(row);
+        });
+      }
+
+      if (S("cta_channel").toLowerCase() === "call") {
+        var g = document.getElementById("cta-glyph");
+        if (g) {
+          g.setAttribute("d",
+            "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6" +
+            " 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81" +
+            "a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45" +
+            "c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z");
+        }
+      }
+
+      document.documentElement.setAttribute("data-lg-bound", "1");
+    })();
+  </script>
+</body>
+</html>

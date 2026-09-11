@@ -169,6 +169,115 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
         "Video render succeeded, pending approval",
         True,
     ),
+    # Creative-engine core (T01) — the novelty gate refused a near-duplicate of a
+    # recent video (or an operator forced one through). Internal/ops + audit: the
+    # customer is never shown gate jargon, so it is not customer_visible.
+    # Deliberately in NEITHER _VALUE_EVENTS nor _FAILURE_EVENTS — a blocked/forced
+    # novelty event is a deliberate guard action, not delivered value and not a
+    # failure needing attention.
+    "novelty_blocked": (
+        "🛡️",
+        "",
+        "Novelty gate blocked a near-duplicate creative (audit)",
+        False,
+    ),
+    # Creative-engine core (T01) — these two Creative OS lifecycle transitions
+    # were emitted by service.enqueue_generate / process_generation but had NO
+    # LABELS entry, so log_event() silently discarded them. Registered here so
+    # the transitions are actually recorded. Both are internal lifecycle, NOT
+    # delivered value and NOT failures, so customer_visible=False and neither is
+    # in _VALUE_EVENTS nor _FAILURE_EVENTS.
+    "creative_os_queued": (
+        "🎬",
+        "",
+        "Creative OS creative queued for render",
+        False,
+    ),
+    "creative_os_preview_ready": (
+        "🎥",
+        "",
+        "Creative OS preview rendered, pending approval",
+        False,
+    ),
+    # Delivery + lifecycle + health (T03, 2026-09-11) — per-customer Telegram
+    # delivery and the local-render data plane. Additive only; every event obeys
+    # the same rule as the block above: `customer_visible` is True ONLY when the
+    # CUSTOMER actually received something.
+    #
+    # `video_delivered` is the one event in this block the customer genuinely
+    # received (a finished video landed in their Telegram thread), so it is
+    # customer_visible=True and is counted as delivered VALUE. Everything else
+    # here is ops/audit: the customer is never shown gate/infra jargon.
+    "video_delivered": (
+        "📤",
+        "Aapka video aapko bhej diya gaya",
+        "Video delivered to customer (Telegram receipt)",
+        True,
+    ),
+    # T03 truthfulness guard: the ops-group is an INTERNAL review surface, not the
+    # customer. An ops-group receipt must never be logged as `video_delivered`
+    # (which is customer_visible=True and reads "aapko bhej diya gaya") — that
+    # would tell the shop owner their video arrived when only the ops group saw
+    # it. Ops receipts get their own non-customer-visible event instead.
+    "video_delivered_ops": (
+        "📤",
+        "",
+        "Video delivered to the ops group (internal receipt)",
+        False,
+    ),
+    "video_delivery_failed": (
+        "⚠️",
+        "",
+        "Video delivery failed — queued for retry",
+        False,
+    ),
+    "video_delivery_retry_scheduled": (
+        "↩️",
+        "",
+        "Video delivery retry scheduled",
+        False,
+    ),
+    "video_delivery_exhausted": (
+        "🚫",
+        "",
+        "Video delivery retries exhausted — needs operator attention",
+        False,
+    ),
+    # Local-render data plane (T02 emits these; registered here so the audit
+    # trail is never silently discarded). Internal lifecycle → not customer-visible.
+    "render_plane_queued": ("🧾", "", "Render-plane job queued", False),
+    "render_plane_leased": ("📦", "", "Render-plane job leased by a worker", False),
+    "render_plane_completed": ("🏁", "", "Render-plane render completed", False),
+    "render_plane_failed": ("⚠️", "", "Render-plane render failed", False),
+    "render_plane_reclaimed": ("♻️", "", "Render-plane expired lease reclaimed", False),
+    # SocialProfile (Creative DNA) analysis. New customer-data collection →
+    # internal/audit only, never customer-visible.
+    "social_profile_analyzed": (
+        "🧬",
+        "",
+        "Social profile analyzed (Creative DNA)",
+        False,
+    ),
+    "social_profile_updated": (
+        "🧬",
+        "",
+        "Social profile updated (Creative DNA)",
+        False,
+    ),
+    # Capture flow (P0-5) — the customer SUPPLIES consent-flagged proof; they do
+    # not RECEIVE anything, so these stay internal/audit (never customer_visible).
+    "capture_asset_registered": (
+        "📷",
+        "",
+        "Capture asset registered (consent-flagged)",
+        False,
+    ),
+    "capture_quote_registered": (
+        "💬",
+        "",
+        "Verified quote registered (consent-flagged)",
+        False,
+    ),
     # Loop-social-6 (2026-07-11) — canonical social-delivery event enum (Phase 9).
     # Additive only: `social_setup_completed` (existing, per-customer aggregate)
     # kept; `social_account_connected` is the finer-grained per-platform connect
@@ -246,9 +355,16 @@ _VALUE_EVENTS = {
     "post_published",
     "lead_captured",
     "followup_sent",
+    # T03: a finished video actually reaching the customer is delivered value —
+    # the honest reading of this set ("did this customer RECEIVE output?").
+    "video_delivered",
 }
 
 # Events that mean "something broke and needs attention" (for at-risk / failures).
+# NOTE (T03): `video_delivery_failed` is deliberately NOT added here. A delivery
+# failure is queued and retried automatically (never silently dropped), so an
+# in-flight retry is not an incident. Retry exhaustion is surfaced by the video
+# health probe (`video_health.health()`), not by the customer at-risk rollup.
 _FAILURE_EVENTS = {"post_failed", "automation_failed"}
 
 
@@ -368,9 +484,21 @@ def log_event(
     """Append one ledger event for a customer. Never raises. Returns True if
     written. `key` = idempotency token: if an event with the same key already
     exists for this client, the write is SKIPPED (safe re-runs / backfills).
-    Unknown event types are ignored (returns False)."""
+    Unknown event types are rejected with a WARNING (never a silent drop, never
+    a raise) and return False."""
     cid = str(client_id or "").strip()
-    if not cid or event not in EVENT_TYPES:
+    if not cid:
+        return False
+    if event not in EVENT_TYPES:
+        # Not a silent failure: an unregistered event type is a real defect
+        # (a caller emitting a label the registry does not know), so it is
+        # surfaced. Contract preserved — no raise, return value unchanged.
+        logger.warning(
+            "delivery_ledger log_event REJECTED unknown event type %r (client=%s, actor=%s)",
+            event,
+            cid,
+            actor,
+        )
         return False
     try:
         # Probe then re-resolve at each I/O site — no local bind.

@@ -157,6 +157,21 @@ STAFF_JOBS = (
     "whatsapp_automation",  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND=1); BLK-02 2026-08-23)
     "heartbeat",  # every 5m: owner alive check (self_improve revive gate)
     "content_approval_notify",  # hourly :40: bounded pending-approval EMAIL sweep (gated CONTENT_APPROVAL_NOTIFY; INERT off)
+    # --- T03 delivery + lifecycle + health (2026-09-11) ----------------------
+    # These 4 were registered in scheduler_config.JOB_META by T03 but had NO
+    # dispatch path: absent from STAFF_JOBS (so `run_staff_job` rejected them as
+    # "unknown job"), no `_run_job_inner` branch, and no Celery beat entry.
+    # Registered here so all SIX registries agree:
+    #   STAFF_JOBS ↔ JOB_META ↔ _last_ran ↔ EXPECTED_GAP_MIN ↔ JOB_INFO ↔ beat.
+    # All four bodies are INERT until their gate flag is on (delivery pair) or
+    # read-only / always-safe (health, reconcile).
+    "video_delivery",  # hourly :15 approved video → Telegram customer + ops (gated VIDEO_TELEGRAM_DELIVERY_ENABLED; INERT off)
+    "video_delivery_retry",  # every 15m delivery retry-queue drain (same gate; INERT off)
+    "video_health",  # hourly :35 end-to-end video automation health probe (read-only; never raises)
+    "video_lifecycle_reconcile",  # daily 04:45 read-only stuck-stage reconcile sweep (never mutates)
+    # T02 render plane (2026-09-11): VPS-side lease reap + enqueue + completion
+    # bridge. Idempotent + bounded; always-on (no gate flag).
+    "render_plane_lease",  # every 5m: reclaim expired render leases + enqueue queued creatives + bridge done renders
 )
 
 

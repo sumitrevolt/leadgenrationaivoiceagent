@@ -154,3 +154,12 @@ __all__ = [
     "ComplianceAuditLog",
     "ComplianceDecision",
 ]
+
+# ---------------------------------------------------------------------------
+# Render-plane store model. RenderJobRow lives with its store
+# (app/render_plane/jobstore.py) rather than under app/models/, but it must be
+# imported here so it lands in Base.metadata BEFORE the web process runs
+# create_all() (app/models/base.py:239). Without this the `render_jobs` table is
+# never created at boot and the lease-based render plane fails at runtime.
+# ---------------------------------------------------------------------------
+from app.render_plane import jobstore as _render_plane_jobstore  # noqa: F401,E402

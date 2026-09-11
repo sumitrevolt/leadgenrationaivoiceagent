@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1410 operations)
+## Endpoint Index — auto-generated from OpenAPI (1443 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -327,6 +327,34 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `PATCH ` `/api/admin/users/{user_id}` — Update User
 - `DELETE` `/api/admin/users/{user_id}/picture` — Delete Profile Picture
 - `POST  ` `/api/admin/users/{user_id}/picture` — Upload Profile Picture
+
+### Admin Command Center  (25)
+
+- `GET   ` `/admin/api/docker/containers` — Containers
+- `GET   ` `/admin/api/docker/containers/{name}` — Container
+- `GET   ` `/admin/api/docker/containers/{name}/logs` — Logs
+- `POST  ` `/admin/api/docker/containers/{name}/restart` — Restart
+- `POST  ` `/admin/api/docker/containers/{name}/start` — Start
+- `POST  ` `/admin/api/docker/containers/{name}/stop` — Stop
+- `GET   ` `/admin/api/docker/networks` — Networks
+- `GET   ` `/admin/api/docker/stats` — Stats
+- `GET   ` `/admin/api/docker/volumes` — Volumes
+- `GET   ` `/admin/api/system/health` — System Health
+- `GET   ` `/admin/api/system/ports` — System Ports
+- `GET   ` `/admin/api/system/processes` — System Processes
+- `GET   ` `/admin/api/tasks` — Get Tasks
+- `POST  ` `/admin/api/tasks` — Create New Task
+- `POST  ` `/admin/api/tasks/auto-assign` — Auto Assign Unassigned
+- `GET   ` `/admin/api/tasks/duplicates` — Find Duplicates
+- `GET   ` `/admin/api/tasks/kanban` — Kanban
+- `GET   ` `/admin/api/tasks/worker/{worker_name}` — Worker Tasks
+- `DELETE` `/admin/api/tasks/{task_id}` — Delete Existing Task
+- `PUT   ` `/admin/api/tasks/{task_id}` — Update Existing Task
+- `GET   ` `/admin/api/workers` — List Workers
+- `GET   ` `/admin/api/workers/idle` — Idle Workers
+- `GET   ` `/admin/api/workers/{name}` — Get Worker Route
+- `POST  ` `/admin/api/workers/{name}/kill` — Kill Worker Route
+- `POST  ` `/admin/api/workers/{name}/restart` — Restart Worker
 
 ### Admin Customers  (1)
 
@@ -402,6 +430,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/voice/gemini-keys` — Validate + save voice Gemini keys (no restart)
 - `GET   ` `/api/admin/voice/latency` — Voice agent per-turn latency rollup (P50/P95) — proves call speed
 - `GET   ` `/api/admin/voice/self-test` — Built-in voice self-test (personas + stack + live)
+
+### Admin Video  (5)
+
+- `GET   ` `/api/admin/video/assets/{asset_id}` — Video Asset L4
+- `GET   ` `/api/admin/video/customers` — Video Customers L2
+- `GET   ` `/api/admin/video/customers/{tenant_id}` — Video Customer L3
+- `POST  ` `/api/admin/video/generate` — Video Generate
+- `GET   ` `/api/admin/video/health` — Video Health L1
 
 ### AgentCapacity  (2)
 
@@ -984,12 +1020,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (78)
+### Frontend  (80)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
 - `GET   ` `/app/admin/db` — Admin Db Explorer Page
+- `GET   ` `/app/admin/video` — Video Command Center Page
 - `GET   ` `/app/affiliates` — Affiliates Page
 - `GET   ` `/app/agent-tools` — Agent Tools Page
 - `GET   ` `/app/agents` — Agents Page
@@ -1037,6 +1074,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/ops` — Ops Page
 - `GET   ` `/app/outreach` — Outreach Page
 - `GET   ` `/app/owner` — Owner Os Page
+- `GET   ` `/app/owner-command-center` — Owner Command Center Page
 - `GET   ` `/app/plugins` — Customer Plugins Page
 - `GET   ` `/app/revenue-kit` — Revenue Kit Page
 - `GET   ` `/app/segments` — Segments Page
@@ -1655,6 +1693,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 ### Owner Brief  (1)
 
 - `GET   ` `/api/admin/owner-brief` — Owner Brief
+
+### Owner Command Center  (1)
+
+- `GET   ` `/api/occ/overview` — Owner Command Center Overview
 
 ### Owner Copilot  (7)
 

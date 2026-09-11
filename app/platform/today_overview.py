@@ -271,6 +271,31 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Roz ka video (09:45)",
         "kya": "Har marketing client ke liye roz 1 naya AI video ad banata hai (approval ke liye bhejta hai)",
     },
+    # T03 delivery + lifecycle + health (2026-09-11) — same parity guard as
+    # product_one_health below: these are real scheduled jobs, so the 'Aaj' tab
+    # must never render a raw job-key.
+    "video_delivery": {
+        "label": "Video delivery (hourly :15)",
+        "kya": "Approve hua video customer ke Telegram thread + ops group pe bhejta hai (gated VIDEO_TELEGRAM_DELIVERY_ENABLED)",
+    },
+    "video_delivery_retry": {
+        "label": "Video delivery retry (har 15 min)",
+        "kya": "Jo video delivery fail hui thi uska bounded retry-queue drain (same gate)",
+    },
+    "video_health": {
+        "label": "Video health probe (hourly :35)",
+        "kya": "Video automation ka end-to-end health — artifact + freshness + verified (read-only)",
+    },
+    "video_lifecycle_reconcile": {
+        "label": "Video lifecycle reconcile (04:45)",
+        "kya": "Har tenant ka video kahan atka (stuck stage) — read-only report, kuch badalta nahi",
+    },
+    # T02 render plane (2026-09-11) — same parity guard: a real scheduled job, so
+    # the 'Aaj' tab must never render a raw job-key.
+    "render_plane_lease": {
+        "label": "Render plane maintenance (har 5 min)",
+        "kya": "Expired render leases reclaim karta hai, queued creatives ke liye render job banata hai, aur finished render ko QA me wapas bhejta hai (idempotent)",
+    },
     "platform_dial": {
         "label": "Platform auto-dialer (11:30)",
         "kya": "Outbound campaign auto-dial loop",
