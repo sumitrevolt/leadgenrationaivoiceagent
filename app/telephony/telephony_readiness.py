@@ -203,6 +203,27 @@ def run_checks() -> dict[str, Any]:
         5,
     )
 
+    # Voice launch posture (2026-09-11): a HALTED dialer must never score as
+    # "ready". Catches the case where a live-posture flag is ON while the admin
+    # kill switch is ENGAGED — every dial path refuses, so nothing is live.
+    try:
+        from app.telephony.voice_launch import admin_kill_status, launch_state_conflict
+
+        _conflict = launch_state_conflict()
+        _kill = admin_kill_status()
+        add(
+            "voice_launch_posture",
+            _conflict is None,
+            (
+                _conflict["detail"]
+                if _conflict
+                else f"kill switch disengaged (source={_kill.source})"
+            ),
+            15,
+        )
+    except Exception as exc:
+        add("voice_launch_posture", False, f"posture check error: {exc}", 15)
+
     score = sum(c["weight"] for c in checks.values() if c["ok"])
     total = sum(c["weight"] for c in checks.values())
     missing = [k for k, c in checks.items() if not c["ok"]]
@@ -215,6 +236,12 @@ def run_checks() -> dict[str, Any]:
         actions.append("pip install edge-tts>=7.2.0 (image rebuild)")
     if "caller_id" in missing:
         actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
+    if "voice_launch_posture" in missing:
+        actions.append(
+            "Voice launch posture contradict karti hai: admin kill switch ENGAGED hai "
+            "par PLATFORM_DIAL_DAILY/VOICE_LAUNCH_CAMPAIGN ON hai — koi bhi dial "
+            "path refuse karega. Kill switch disengage karo ya live-posture flag OFF."
+        )
     if not actions:
         actions.append(
             f"{provider.title()} calling ready — kal 10am–7pm IST window me test karo ✅"

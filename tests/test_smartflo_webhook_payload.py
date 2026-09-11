@@ -40,6 +40,20 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_smartflo_cdr_writer(monkeypatch):
+    """Never append a test row to the real data/cdr/smartflo_cdr.jsonl.
+
+    ``smartflo_webhook()`` really calls ``_log_cdr``. That JSONL is the
+    operator's only evidence for a real Smartflo call, so a test-written row
+    makes a real call unverifiable (2026-09-11: 8,405 of 8,611 rows were test
+    artifacts). Only this one writer is redirected.
+    """
+    from tests._stream_runtime_isolation import isolate_cdr_writer
+
+    return isolate_cdr_writer(monkeypatch)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

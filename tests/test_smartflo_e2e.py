@@ -32,6 +32,18 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_smartflo_cdr_writer(monkeypatch):
+    """Never append a test row to the real data/cdr/smartflo_cdr.jsonl.
+
+    This module's whole point is "webhook handler logs CDR" — but asserting it
+    must not write a phantom CDR into the file that real-call evidence lives in.
+    """
+    from tests._stream_runtime_isolation import isolate_cdr_writer
+
+    return isolate_cdr_writer(monkeypatch)
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

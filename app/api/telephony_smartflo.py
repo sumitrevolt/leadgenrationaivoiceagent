@@ -150,6 +150,20 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
                 pass
             return
 
+    # Optional provider-IP allowlist — INERT by design: unset = current behaviour.
+    # Armed = fail-CLOSED (see _client_ip_allowed). Data-file/env driven so the
+    # owner can pin Tata's egress without a code deploy.
+    _allow_ips = os.environ.get("SMARTFLO_WS_ALLOW_IPS", "").strip()
+    if _allow_ips and not _client_ip_allowed(websocket, _allow_ips):
+        logger.warning(
+            "[smartflo-stream] rejected: client IP not in SMARTFLO_WS_ALLOW_IPS"
+        )
+        try:
+            await websocket.close(code=1008)
+        except Exception:
+            pass
+        return
+
     # Extract call metadata from query params
     call_id = websocket.query_params.get("call_id", "")
     from_number = websocket.query_params.get("from", "")
@@ -376,6 +390,53 @@ async def smartflo_status(user: User = Depends(require_admin)) -> dict[str, Any]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _client_ip_allowed(websocket: WebSocket, spec: str) -> bool:
+    """True when the connecting peer falls inside ``spec`` (comma-separated IP/CIDR).
+
+    Why (2026-09-11 audit): with ``SMARTFLO_WS_SECRET`` / ``SMARTFLO_WS_REQUIRE_SECRET``
+    unset in production, the voice-stream endpoint accepted ANY internet client —
+    and a single ``start`` frame drives real EdgeTTS/LLM spend plus a metered
+    record. Tata's Voice Bot config only accepts a WSS URL, so there is no token
+    to require; pinning the provider's egress is the practical control.
+
+    Trust model: the app sits behind Caddy, so the transport peer is the proxy.
+    We therefore read the **last** X-Forwarded-For hop — the one Caddy appends,
+    which a client cannot forge. Earlier hops ARE attacker-controlled and are
+    deliberately ignored, so ``X-Forwarded-For: <allowed>`` cannot smuggle a
+    connection in.
+
+    Fail-CLOSED: any parse/lookup error returns False, so a malformed allowlist
+    can never silently degrade into an open door.
+    """
+    import ipaddress
+
+    try:
+        fwd = (websocket.headers.get("x-forwarded-for") or "").split(",")
+        hops = [h.strip() for h in fwd if h.strip()]
+        peer = ""
+        try:
+            peer = (websocket.client.host if websocket.client else "") or ""
+        except Exception:
+            peer = ""
+        candidate = hops[-1] if hops else peer
+        if not candidate:
+            return False
+        nets = [
+            ipaddress.ip_network(p.strip(), strict=False)
+            for p in spec.split(",")
+            if p.strip()
+        ]
+        if not nets:
+            return False
+        try:
+            ip = ipaddress.ip_address(candidate)
+        except ValueError:
+            return False
+        return any(ip in n for n in nets)
+    except Exception:
+        return False
+
+
 def _verify_hmac(token: str, secret: str) -> bool:
     """Verify an HMAC-SHA256 token. Format: <data>.<hex_signature>."""
     if not token or "." not in token:
