@@ -33,10 +33,13 @@ pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 # Fixtures
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
-def _clear_deps():
+def _clear_deps(monkeypatch):
     """Ensure dependency overrides are clean before each test."""
     from app.api.auth_deps import get_current_user, require_admin
 
+    # Every successful test-call case represents the operator's own explicit
+    # consented test number.  Production must have the same allowlist entry.
+    monkeypatch.setenv("COMPLIANCE_ALLOWLIST", "9876543210")
     app.dependency_overrides.pop(require_admin, None)
     app.dependency_overrides.pop(get_current_user, None)
     yield
@@ -171,6 +174,24 @@ class TestValidation:
             with TestClient(app, raise_server_exceptions=False) as c:
                 r = c.post("/api/telephony/smartflo/test-call", json={"to": ""})
         assert r.status_code == 422
+
+
+class TestComplianceGate:
+    def test_unallowlisted_number_is_blocked_before_provider_call(self, monkeypatch):
+        """Admin access alone cannot originate a call to an arbitrary number."""
+        from starlette.testclient import TestClient
+
+        monkeypatch.delenv("COMPLIANCE_ALLOWLIST", raising=False)
+        _override_admin()
+        with _mock_client_available() as mocked:
+            with TestClient(app, raise_server_exceptions=False) as c:
+                r = c.post(
+                    "/api/telephony/smartflo/test-call",
+                    json={"to": "9876543210"},
+                )
+        assert r.status_code == 409
+        assert "COMPLIANCE_ALLOWLIST" in r.json()["detail"]
+        mocked.return_value.place_call.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
