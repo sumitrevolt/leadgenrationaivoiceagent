@@ -40,6 +40,20 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_smartflo_cdr_writer(monkeypatch):
+    """Never append a test row to the real data/cdr/smartflo_cdr.jsonl.
+
+    ``smartflo_webhook()`` really calls ``_log_cdr``. That JSONL is the
+    operator's only evidence for a real Smartflo call, so a test-written row
+    makes a real call unverifiable (2026-09-11: 8,405 of 8,611 rows were test
+    artifacts). Only this one writer is redirected.
+    """
+    from tests._stream_runtime_isolation import isolate_cdr_writer
+
+    return isolate_cdr_writer(monkeypatch)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -290,6 +304,38 @@ class TestMetering:
             }
         )
         assert captured["client_id"] == "jiya-makeover"
+
+    def test_call_sid_is_used_when_no_call_id_key(self, monkeypatch):
+        """Convergence with the stream path's dedupe key.
+
+        The media `start` frame names the provider call id `callSid`
+        (integration.txt v11 §2.2) and `smartflo_stream._extract_call_id` reads it.
+        This webhook never looked at that key, so a status payload carrying only
+        `callSid` metered under the literal "unknown" — which breaks the
+        `call_meter:{call_id}` dedupe against the stream path AND collapses every
+        such call onto a single dedupe key (one bill for many calls).
+        """
+        captured = {}
+
+        async def fake_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
+            captured["call_id"] = call_id
+            return True
+
+        monkeypatch.setattr(sw, "meter_call_completion", fake_meter)
+        _call({"callSid": "CA-from-start-frame", "$call_status": "completed"})
+        assert captured["call_id"] == "CA-from-start-frame"
+
+    def test_call_id_still_wins_over_call_sid(self, monkeypatch):
+        """The new fallback must not change behaviour when `call_id` is present."""
+        captured = {}
+
+        async def fake_meter(call_id=None, client_id=None, client_name="", duration_seconds=0, campaign_id=None):
+            captured["call_id"] = call_id
+            return True
+
+        monkeypatch.setattr(sw, "meter_call_completion", fake_meter)
+        _call({"$call_id": "CA-primary", "callSid": "CA-secondary", "$call_status": "completed"})
+        assert captured["call_id"] == "CA-primary"
 
     def test_falls_back_to_duration_when_no_billsec(self, monkeypatch):
         captured = {}
