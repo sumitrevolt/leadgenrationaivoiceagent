@@ -209,6 +209,70 @@ def redact_url(url: str) -> str:
         return url
 
 
+class UvicornAccessRedactionFilter(logging.Filter):
+    """Redact credentials from uvicorn's OWN access log records.
+
+    WHY THIS EXISTS (2026-09-11 prod finding): the module-level redaction above
+    runs inside *our* formatter classes, so it never touches lines emitted by
+    uvicorn's access logger — which carries its own formatter. A live prod
+    ``leadgen_app`` log therefore contained:
+
+        INFO: 172.16.1.3:0 - "POST /api/wa/selfhost/webhook?token=<live token> HTTP/1.1" 200 OK
+
+    i.e. a real webhook token in plaintext in container logs. This filter closes
+    that hole at the ``LogRecord`` level, so it applies no matter which formatter
+    or handler uvicorn (or anything else) attaches afterwards.
+
+    Fail-safe by construction: any error leaves the record untouched — a logging
+    filter must never drop or corrupt a log line.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        try:
+            # uvicorn logs: logger.info('%s - "%s %s HTTP/%s" %d', client, method,
+            #               full_path, http_version, status) — args[2] is the path
+            #               and is the only field that can carry a query string.
+            args = record.args
+            if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
+                redacted = redact_url(args[2])
+                if redacted != args[2]:
+                    record.args = args[:2] + (redacted,) + args[3:]
+                    # Already handled — running the generic pass over a string that
+                    # now contains "[REDACTED]" would re-match and emit "[REDACTED]]".
+                    return True
+            # Fallback: generic redaction over the interpolated line, for any
+            # credential shape that is not a query-string param.
+            msg = record.getMessage()
+            redacted_msg = redact_message(msg)
+            if redacted_msg != msg:
+                record.msg = redacted_msg
+                record.args = ()
+        except Exception:
+            pass
+        return True
+
+
+_access_log_redaction_installed = False
+
+
+def install_access_log_redaction() -> None:
+    """Attach :class:`UvicornAccessRedactionFilter` to uvicorn's loggers.
+
+    Idempotent and never raises. Called from :func:`setup_logger`, which every
+    module already invokes, so no new startup wiring is required.
+    """
+    global _access_log_redaction_installed
+    if _access_log_redaction_installed:
+        return
+    try:
+        filt = UvicornAccessRedactionFilter()
+        for name in ("uvicorn.access", "uvicorn.error", "uvicorn"):
+            logging.getLogger(name).addFilter(filt)
+        _access_log_redaction_installed = True
+    except Exception:
+        pass
+
+
 def _log_redact_enabled() -> bool:
     """Default ON. `LOG_REDACT_MESSAGES=0` (or false/no/off) disables for a
     debug window — never leave OFF permanently in production."""
@@ -349,6 +413,11 @@ def setup_logger(
         Configured logger instance
     """
     logger = logging.getLogger(name)
+
+    # Attach the uvicorn access-log redaction filter (idempotent). Must run
+    # BEFORE the "already configured" early-return below, otherwise a logger
+    # created first would skip it.
+    install_access_log_redaction()
 
     # Avoid duplicate handlers
     if logger.handlers:

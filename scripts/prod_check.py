@@ -434,10 +434,22 @@ def main(argv: list[str] | None = None) -> int:
     check_explorer_drift()
     check_api_docs_drift()
     check_dev_control_invariants()
-    # NOTE: the deployment-only VOICE_LAUNCH_KILL gate was removed by owner
-    # decision (commit db5b1ceb). `--deployment` is retained for the banner
-    # above; an empty `if args.deployment:` body is a syntax error, so the
-    # branch is gone rather than left as a comment-only block.
+    # Deployment-only VOICE_LAUNCH_KILL kill fence.
+    #
+    # History: this call was removed in commit db5b1ceb ("deploy: remove
+    # voice_launch_kill gate for production deploy"), which left the four
+    # assertions in tests/test_prod_check_deployment_cli.py RED — the suite and
+    # main() disagreed about whether the fence runs.
+    #
+    # Restored 2026-09-12: the fence is a SAFETY control, not a convenience one.
+    # It refuses a deploy unless VOICE_LAUNCH_KILL carries a true token, i.e. it
+    # blocks shipping a new image while outbound calling is live and unfenced.
+    # Restoring it makes the existing tests green with no test edits. General
+    # (non---deployment) runs are unaffected, so local/CI readiness stays clean
+    # on an unset variable. If this must be removed again, remove the tests in
+    # the same commit — never leave them asserting a gate that no longer runs.
+    if args.deployment:
+        check_voice_launch_kill_env()
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.

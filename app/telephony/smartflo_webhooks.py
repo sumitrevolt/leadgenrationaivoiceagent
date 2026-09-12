@@ -180,7 +180,27 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
     # Smartflo documents variables with a ``$`` sigil; accept both forms.
     data = _normalize_keys(body)
 
-    call_id = str(_pick(data, "call_id", "callId", "callid", "uuid", "id", default="unknown"))
+    call_id = str(
+        _pick(
+            data,
+            "call_id",
+            "callId",
+            "callid",
+            "uuid",
+            "id",
+            # The media `start` frame names this field `callSid` (integration.txt
+            # v11 §2.2) and the stream path extracts it via
+            # `smartflo_stream._CALL_ID_KEYS`. This webhook never looked at it, so
+            # a payload carrying only `callSid` used to meter under the literal
+            # "unknown" — which both breaks the `call_meter:{call_id}` dedupe
+            # against the stream path AND collapses every such call onto ONE
+            # dedupe key (one bill for many calls). Appended LAST so payloads that
+            # already carry `call_id`/`uuid`/`id` are unaffected.
+            "callSid",
+            "call_sid",
+            default="unknown",
+        )
+    )
     ref_id = str(_pick(data, "ref_id", "refId", "refid", default=""))
     status = str(
         _pick(

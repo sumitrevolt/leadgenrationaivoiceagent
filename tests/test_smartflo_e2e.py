@@ -14,6 +14,7 @@ Verifies the complete chain: admin API → provider → webhook → CDR + billin
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,6 +24,7 @@ import pytest
 # ---------------------------------------------------------------------------
 try:
     from app.main import app
+    from app.telephony.compliance import IST
     from app.telephony.smartflo_webhooks import get_recent_webhooks
 
     _IMPORT_OK = True
@@ -30,6 +32,18 @@ except ImportError:
     _IMPORT_OK = False
 
 pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_smartflo_cdr_writer(monkeypatch):
+    """Never append a test row to the real data/cdr/smartflo_cdr.jsonl.
+
+    This module's whole point is "webhook handler logs CDR" — but asserting it
+    must not write a phantom CDR into the file that real-call evidence lives in.
+    """
+    from tests._stream_runtime_isolation import isolate_cdr_writer
+
+    return isolate_cdr_writer(monkeypatch)
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +58,39 @@ def _clear_deps_and_webhooks():
     yield
     app.dependency_overrides.clear()
     _RECENT_WEBHOOKS.clear()
+
+
+class _InWindowClock:
+    """`datetime` stand-in jiska `.now()` fixed 12:00 IST (in-window) deta hai."""
+
+    def now(self, tz=None):
+        pinned = datetime(2026, 1, 15, 12, 0, tzinfo=IST)
+        return pinned.astimezone(tz) if tz is not None else pinned
+
+
+@pytest.fixture(autouse=True)
+def _pin_compliance_clock(monkeypatch):
+    """ComplianceGate ka calling-window check deterministic banao.
+
+    /test-call endpoint andar `get_compliance_gate().check(...)` bina `now` call
+    karta hai, aur gate real wall-clock padhta hai (compliance.py:374) — isliye
+    09:00-21:00 IST window ke bahar (observed 21:45 IST) ye suite
+    `outside_calling_hours` se red hoti thi. Gate ka clock source hi pin kar diya:
+    window logic waise hi genuinely chalti rahe, sirf checked instant fixed ho.
+    """
+    from app.telephony import compliance as _c
+
+    monkeypatch.setattr(_c, "datetime", _InWindowClock())
+
+
+@pytest.fixture(autouse=True)
+def _kill_switch_off(monkeypatch):
+    """Admin kill switch OFF — test checkout me `data/voice_launch_kill.json`
+    MISSING hai, aur gate fail-CLOSED hone ke kaaran `admin_kill_engaged()=True`
+    real dial rok deta hai (compliance window fix ke baad yahi next blocker tha).
+    Test-only seam; window/dial-gate logic untouched (cf. same fixture in
+    tests/test_smartflo_call_type_gating.py)."""
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
 
 
 def _override_admin():
