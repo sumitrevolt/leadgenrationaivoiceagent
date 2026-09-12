@@ -431,13 +431,20 @@ async def _dial_vobiz_campaign(
 ) -> dict:
     import re
 
-    from app.api.telephony_vobiz import start_stream_call
+    from app.api.telephony_vobiz import start_stream_call, stream_provider_ready
     from app.telephony import voice_launch as vl
-    from app.telephony.vobiz_handler import VobizClient
 
-    client = VobizClient()
-    if not dry_run and not client.available():
-        return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": "vobiz_not_configured"}
+    # Provider-aware fail-fast. Vobiz used to be hardcoded here, so on the
+    # Smartflo rail this returned `vobiz_not_configured` before dialling a
+    # single lead even with Tata Smartflo fully configured; dropping the check
+    # entirely instead burns a daily-cap slot + a breaker strike per lead.
+    ready, ready_error = stream_provider_ready()
+    if not dry_run and not ready:
+        return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": ready_error}
+
+    # Result contract this loop depends on (start_stream_call): placed=True → ok;
+    # error exactly "compliance_blocked" (pre-dial refusal, NOT a provider
+    # failure) → skip; anything else → fail.
 
     # ── Controlled-launch safety spine (2026-07-17, app/telephony/voice_launch.py) ──
     # spine_on = VOICE_LAUNCH_CAMPAIGN=1 → full enforcement (per-lead fail-closed

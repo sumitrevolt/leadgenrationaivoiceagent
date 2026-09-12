@@ -357,6 +357,52 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
     assert len(fake_campaign_db.updates) == 2
 
 
+def test_smartflo_compliance_block_is_a_skip_not_a_failure(
+    kill_disengaged, monkeypatch, fake_campaign_db
+):
+    """End-to-end on the Smartflo rail: a provider pre-dial refusal must reach the
+    dialer as ``error == "compliance_blocked"`` so the lead counts as SKIPPED.
+
+    This is the production default path (spine INERT). If the refusal is reported
+    as a generic failure instead, ``voice_launch.record_provider_result`` counts
+    it toward the consecutive-failure counter — enough in a row trips the circuit
+    breaker and pauses a campaign that was doing nothing wrong.
+    """
+    from app.tasks import calling as ct
+
+    monkeypatch.delenv("VOICE_LAUNCH_CAMPAIGN", raising=False)  # spine OFF
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+    monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+
+    class _BlockedSmartfloClient:
+        def available(self):
+            return True
+
+        async def place_call(self, **kwargs):
+            return {"status_code": 0, "body": {"error": "compliance_blocked: dnd_scrub"}}
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _BlockedSmartfloClient
+    )
+
+    async def _fast_sleep(_):
+        return None
+
+    monkeypatch.setattr(ct.asyncio, "sleep", _fast_sleep)
+
+    leads = [_FakeCampaignLead("lead_1", "9876543210")]
+
+    result = asyncio.run(
+        ct._dial_vobiz_campaign(fake_campaign_db, leads, False, "promotional", "", False)
+    )
+
+    assert result["ok"] == 0
+    assert result["skip"] == 1  # compliance refusal = skip, never fail
+    assert result["fail"] == 0
+    assert fake_campaign_db.commits == 0  # nothing dialled → no call_attempts write
+
+
 def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
     kill_disengaged, monkeypatch, fake_campaign_db
 ):

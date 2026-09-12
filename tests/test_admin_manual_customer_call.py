@@ -100,3 +100,85 @@ def test_manual_stream_call_surfaces_compliance_block(client: TestClient, monkey
     detail = response.json()["error"]["message"]
     assert detail["error"] == "Call blocked by compliance gate (TCCCPR/TRAI)."
     assert detail["compliance"]["reason"] == "dnd_blocked"
+
+
+def test_manual_stream_call_uses_the_smartflo_rail_when_tata_is_active(
+    client: TestClient, monkeypatch
+) -> None:
+    """The admin manual-call card is the owner's primary dial surface. It used to
+    hardcode VobizClient and 503 on a Smartflo-only prod, so a correctly
+    configured Smartflo account could not place a manual AI call at all."""
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+    monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+
+    captured: dict[str, object] = {}
+
+    class _FakeSmartfloClient:
+        def available(self):
+            return True
+
+        async def place_call(self, **kwargs):
+            captured.update(kwargs)
+            return {"status_code": 200, "body": {"success": True, "ref_id": "SF_REF_1"}}
+
+    class _BoomVobizClient:
+        def __init__(self):
+            raise AssertionError("Smartflo rail must not instantiate VobizClient")
+
+    monkeypatch.setattr("app.api.telephony_vobiz.VobizClient", _BoomVobizClient)
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartfloClient
+    )
+
+    response = client.post(
+        "/api/telephony/vobiz/stream-call",
+        json={
+            "to": "+918459433410",
+            "niche": "ai_marketing",
+            "call_type": "transactional",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["placed"] is True
+    assert body["provider"] == "tata_smartflo"
+    assert body["stream_token"]
+    assert captured["to"] == "+918459433410"
+    assert captured["call_type"] == "transactional"
+    assert captured["custom_identifier"]["niche"] == "ai_marketing"
+
+
+def test_manual_stream_call_surfaces_a_smartflo_compliance_block(
+    client: TestClient, monkeypatch
+) -> None:
+    """Same 422 contract as the Vobiz rail — a pre-dial refusal must never look
+    like a placed call."""
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+    monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+
+    class _BlockedSmartfloClient:
+        def available(self):
+            return True
+
+        async def place_call(self, **kwargs):
+            return {"status_code": 0, "body": {"error": "compliance_blocked: dnd_blocked"}}
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _BlockedSmartfloClient
+    )
+
+    response = client.post(
+        "/api/telephony/vobiz/stream-call",
+        json={
+            "to": "+918459433410",
+            "niche": "ai_marketing",
+            "call_type": "promotional",
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["error"]["message"]
+    assert detail["error"] == "Call blocked by compliance gate (TCCCPR/TRAI)."

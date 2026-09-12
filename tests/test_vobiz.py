@@ -4,6 +4,8 @@ No network — VobizClient methods are monkeypatched; tests always pass an
 explicit `message` so the LLM path is never exercised.
 """
 
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -102,6 +104,187 @@ class TestTestCall:
         )
         assert r.status_code == 200
         assert r.json()["placed"] is False
+
+
+class TestStartStreamCallRouting:
+    def test_routes_to_smartflo_when_active_provider_is_tata(self, monkeypatch):
+        from app.api import telephony_vobiz as mod
+
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+        monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+        monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+        monkeypatch.setenv("TATA_SMARTFLO_ENABLED", "1")
+
+        class _BoomVobizClient:
+            def __init__(self):
+                raise AssertionError("Smartflo route must not instantiate VobizClient")
+
+        captured = {}
+
+        class _FakeSmartfloClient:
+            def available(self):
+                return True
+
+            async def place_call(self, **kwargs):
+                captured.update(kwargs)
+                return {"status_code": 200, "body": {"success": True, "ref_id": "SF_REF_1"}}
+
+        monkeypatch.setattr(mod, "VobizClient", _BoomVobizClient)
+        monkeypatch.setattr(
+            "app.telephony.tata_smartflo_handler.TataSmartfloClient",
+            _FakeSmartfloClient,
+        )
+
+        result = asyncio.run(
+            mod.start_stream_call(
+                to="+919876543210",
+                niche="salon",
+                client_id="client_1",
+                call_type="transactional",
+                lead_id="lead_1",
+            )
+        )
+
+        assert result["placed"] is True
+        assert result["provider"] == "tata_smartflo"
+        assert result["stream_token"]
+        assert captured["to"] == "+919876543210"
+        assert captured["call_type"] == "transactional"
+        assert captured["custom_identifier"]["niche"] == "salon"
+        assert captured["custom_identifier"]["client_id"] == "client_1"
+        assert captured["custom_identifier"]["crm_lead_id"] == "lead_1"
+
+    def test_smartflo_compliance_block_is_surfaced_as_compliance_blocked(self, monkeypatch):
+        """TataSmartfloClient refuses a pre-dial call with
+        ``{"status_code": 0, "body": {"error": "compliance_blocked: ..."}}`` — it
+        has NO ``blocked`` key (that is the Vobiz contract). The campaign dialer
+        counts the lead as SKIPPED on that exact string, and
+        ``voice_launch.record_provider_result`` excludes ONLY that reason from the
+        consecutive-failure counter. Losing it turns a legally-correct refusal
+        into a provider FAILURE, trips the circuit breaker and pauses the run."""
+        from app.api import telephony_vobiz as mod
+
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+        monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+        monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+
+        class _BlockedSmartfloClient:
+            def available(self):
+                return True
+
+            async def place_call(self, **kwargs):
+                return {
+                    "status_code": 0,
+                    "body": {"error": "compliance_blocked: dial_gate: dnd_scrub"},
+                }
+
+        monkeypatch.setattr(
+            "app.telephony.tata_smartflo_handler.TataSmartfloClient",
+            _BlockedSmartfloClient,
+        )
+
+        result = asyncio.run(mod.start_stream_call(to="+919876543210", niche="salon"))
+
+        assert result["placed"] is False
+        assert result["error"] == "compliance_blocked"
+        assert result["provider"] == "tata_smartflo"
+
+    def test_smartflo_rejection_surfaces_a_provider_error(self, monkeypatch):
+        """A real provider rejection MUST stay distinguishable from a compliance
+        block, otherwise a broken dial hides from the circuit breaker."""
+        from app.api import telephony_vobiz as mod
+
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+        monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+        monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+
+        class _RejectingSmartfloClient:
+            def available(self):
+                return True
+
+            async def place_call(self, **kwargs):
+                return {"status_code": 422, "body": {"message": "Provide a vaild caller_id."}}
+
+        monkeypatch.setattr(
+            "app.telephony.tata_smartflo_handler.TataSmartfloClient",
+            _RejectingSmartfloClient,
+        )
+
+        result = asyncio.run(mod.start_stream_call(to="+919876543210"))
+
+        assert result["placed"] is False
+        assert result["error"] == "smartflo_http_422"
+
+    def test_smartflo_without_creds_fails_with_a_named_error(self, monkeypatch):
+        from app.api import telephony_vobiz as mod
+
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+
+        class _UnconfiguredSmartfloClient:
+            def available(self):
+                return False
+
+        monkeypatch.setattr(
+            "app.telephony.tata_smartflo_handler.TataSmartfloClient",
+            _UnconfiguredSmartfloClient,
+        )
+
+        result = asyncio.run(mod.start_stream_call(to="+919876543210"))
+
+        assert result == {"placed": False, "error": "tata_smartflo_not_configured"}
+
+
+class TestResolveStreamProvider:
+    """The stream-call routing decision lives in ONE place so start_stream_call
+    and the campaign dialer can never disagree about the active provider."""
+
+    @staticmethod
+    def _clear(monkeypatch):
+        for name in (
+            "TELEPHONY_PROVIDER",
+            "TATA_SMARTFLO_API_TOKEN",
+            "TATA_SMARTFLO_API_KEY",
+            "TATA_SMARTFLO_ENABLED",
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+    def test_explicit_smartflo_wins(self, monkeypatch):
+        from app.api.telephony_vobiz import resolve_stream_provider
+
+        self._clear(monkeypatch)
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+        assert resolve_stream_provider() == "tata_smartflo"
+
+    def test_explicit_vobiz_wins_even_with_tata_creds(self, monkeypatch):
+        from app.api.telephony_vobiz import resolve_stream_provider
+
+        self._clear(monkeypatch)
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "vobiz")
+        monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+        monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+        monkeypatch.setenv("TATA_SMARTFLO_ENABLED", "1")
+        assert resolve_stream_provider() == "vobiz"
+
+    def test_unknown_explicit_provider_falls_back_to_vobiz(self, monkeypatch):
+        from app.api.telephony_vobiz import resolve_stream_provider
+
+        self._clear(monkeypatch)
+        monkeypatch.setenv("TELEPHONY_PROVIDER", "sip")
+        assert resolve_stream_provider() == "vobiz"
+
+    def test_unset_needs_both_creds_and_the_enable_flag(self, monkeypatch):
+        from app.api.telephony_vobiz import resolve_stream_provider
+
+        self._clear(monkeypatch)
+        assert resolve_stream_provider() == "vobiz"
+
+        monkeypatch.setenv("TATA_SMARTFLO_API_TOKEN", "test-token")
+        monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "test-key")
+        # Creds alone are not enough — the enable flag is the arming gate.
+        assert resolve_stream_provider() == "vobiz"
+
+        monkeypatch.setenv("TATA_SMARTFLO_ENABLED", "1")
+        assert resolve_stream_provider() == "tata_smartflo"
 
 
 class TestStatus:

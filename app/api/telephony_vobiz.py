@@ -285,6 +285,77 @@ def _wss_host() -> str:
     return base.split("://", 1)[-1].rstrip("/") or "leadsgenai.in"
 
 
+def resolve_stream_provider() -> str:
+    """Active provider for outbound stream (AI) calls: ``tata_smartflo`` | ``vobiz``.
+
+    Single source of truth for the routing decision — mirrors
+    ``telephony_service._detect_provider`` MINUS the SIP lane (stream calls have
+    no SIP handler):
+
+      * ``TELEPHONY_PROVIDER`` explicitly names a provider → it wins. Any other
+        explicit value (``sip``/``simulation``/typo) falls back to Vobiz, the
+        legacy rail, exactly as before.
+      * unset → Tata Smartflo ONLY when its creds exist AND
+        ``TATA_SMARTFLO_ENABLED`` is armed; otherwise Vobiz.
+
+    Regression context (2026-09-12): ``start_stream_call`` used to construct
+    ``VobizClient`` unconditionally, so on Smartflo production every campaign /
+    auto-callback AI call was dialled on the wrong provider — and
+    ``_dial_vobiz_campaign`` bailed out with ``vobiz_not_configured`` before a
+    single lead was dialled. Never raises.
+    """
+    try:
+        explicit = (os.environ.get("TELEPHONY_PROVIDER") or "").strip().lower()
+        if explicit == "tata_smartflo":
+            return "tata_smartflo"
+        if explicit:
+            return "vobiz"
+        tata_configured = bool(
+            os.environ.get("TATA_SMARTFLO_API_TOKEN")
+            and os.environ.get("TATA_SMARTFLO_API_KEY")
+        )
+        tata_enabled = (os.environ.get("TATA_SMARTFLO_ENABLED") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        return "tata_smartflo" if (tata_configured and tata_enabled) else "vobiz"
+    except Exception as e:  # pragma: no cover — env read is the only work here
+        logger.warning(f"resolve_stream_provider failed ({e}) — defaulting to vobiz")
+        return "vobiz"
+
+
+def stream_provider_ready() -> tuple[bool, str]:
+    """Is the ACTIVE stream provider usable? Returns ``(ready, error)``.
+
+    Fail-fast pre-check for the campaign dialer: without it a misconfigured
+    provider burns a daily-cap slot AND a circuit-breaker strike on every lead
+    (each returns ``placed=False``). Provider-aware by construction — the old
+    hardcoded Vobiz check refused to dial at all on the Smartflo rail.
+
+    Never raises: an unusable provider counts as not ready.
+    """
+    provider = resolve_stream_provider()
+    try:
+        # Import from the DEFINING module at call time (never the module-level
+        # `VobizClient` binding) — that is the seam the campaign + kill-fence
+        # tests monkeypatch, and it keeps the routing decision swappable.
+        if provider == "tata_smartflo":
+            from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+            client: Any = TataSmartfloClient()
+        else:
+            from app.telephony.vobiz_handler import VobizClient as _VobizClient
+
+            client = _VobizClient()
+        if client.available():
+            return True, ""
+    except Exception as e:  # pragma: no cover — client ctor is env reads only
+        logger.warning(f"stream_provider_ready({provider}) failed: {e}")
+    return False, f"{provider}_not_configured"
+
+
 async def start_stream_call(
     to: str,
     niche: str = "general",
@@ -308,15 +379,76 @@ async def start_stream_call(
     karo bina real call lagaye. Return me "dry_run": True + stream_token.
     """
     try:
-        client = VobizClient()
-        if not client.available():
-            return {"placed": False, "error": "vobiz_not_configured"}
-
         # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — stable across a
         # mid-call WS reconnect so it still verifies AFTER _pop_pending removed
         # the pending state. Same string is the pending KEY and the URL token.
         token = _sign_stream_token(uuid.uuid4().hex[:10])
         niche_key = (niche or "general").strip() or "general"
+
+        if resolve_stream_provider() == "tata_smartflo":
+            from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+            client = TataSmartfloClient()
+            if not client.available():
+                return {"placed": False, "error": "tata_smartflo_not_configured"}
+
+            if dry_run:
+                return {
+                    "placed": True,
+                    "dry_run": True,
+                    "provider": "tata_smartflo",
+                    "stream_token": token,
+                }
+
+            custom_identifier = {
+                "source": "leadgen_stream",
+                "call_id": token,
+                "niche": niche_key,
+                "client_id": client_id or "",
+                "lead_phone": to,
+                "crm_lead_id": lead_id or "",
+            }
+            result = await client.place_call(
+                to=to,
+                call_type=call_type,
+                custom_identifier=custom_identifier,
+                callback_data=token,
+            )
+            body = result.get("body") or {}
+            # TataSmartfloClient NEVER sets a `blocked` key — that is the Vobiz
+            # contract (vobiz_handler.place_call -> {"status_code": 0, "blocked":
+            # True}). A pre-dial refusal comes back as {"status_code": 0, "body":
+            # {"error": "compliance_blocked: ..."}} and MUST be surfaced verbatim:
+            # _dial_vobiz_campaign classifies `error == "compliance_blocked"` as a
+            # SKIP (not a provider failure) and voice_launch.record_provider_result
+            # excludes ONLY that exact reason from the consecutive-failure counter.
+            # Losing it turned every compliance refusal into a provider FAILURE —
+            # enough in a row tripped the circuit breaker and paused the campaign.
+            err = str(body.get("error") or "")
+            if err.startswith("compliance_blocked"):
+                return {
+                    "placed": False,
+                    "error": "compliance_blocked",
+                    "provider": "tata_smartflo",
+                    "smartflo_response": result,
+                    "stream_token": token,
+                }
+            placed = result.get("status_code") == 200 and bool(body.get("success"))
+            response = {
+                "placed": placed,
+                "provider": "tata_smartflo",
+                "smartflo_response": result,
+                "stream_token": token,
+            }
+            if not placed:
+                # Give the dialer/breaker a reason (it logs + reports it on trip).
+                response["error"] = err or f"smartflo_http_{result.get('status_code')}"
+            return response
+
+        client = VobizClient()
+        if not client.available():
+            return {"placed": False, "error": "vobiz_not_configured"}
+
         await _store_pending(
             token,
             {
@@ -355,6 +487,7 @@ async def start_stream_call(
             return {
                 "placed": True,
                 "dry_run": True,
+                "provider": "vobiz",
                 "answer_url": answer_url,
                 "hangup_url": hangup_url,
                 "stream_token": token,
@@ -373,6 +506,7 @@ async def start_stream_call(
         placed = 200 <= int(result.get("status_code") or 0) < 300
         return {
             "placed": placed,
+            "provider": "vobiz",
             "vobiz_response": result,
             "answer_url": answer_url,
             "hangup_url": hangup_url,
@@ -383,19 +517,77 @@ async def start_stream_call(
         return {"placed": False, "error": str(e)}
 
 
+def _log_manual_stream_call(request: StreamCallRequest, placed: bool) -> None:
+    """Team activity: Swara ne call lagayi. Never raises, never blocks a dial."""
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "swara",
+            "call_placed",
+            f"Conversational call → {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
+            status="ok" if placed else "error",
+            meta={"client_id": str(getattr(request, "client_id", "") or "")},
+        )
+    except Exception:
+        pass
+
+
 @router.post("/stream-call")
 async def place_stream_call(
     request: StreamCallRequest,
     user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """Place an outbound call that streams two-way audio to our WS for a full
-    conversation (vs. /test-call which speaks one line and hangs up)."""
-    client = VobizClient()
-    if not client.available():
+    conversation (vs. /test-call which speaks one line and hangs up).
+
+    Provider-aware (2026-09-12): this used to hardcode ``VobizClient``, so on a
+    Smartflo-only prod the admin manual-call card returned 503 "Vobiz not
+    configured" even though Smartflo was the configured provider.
+    """
+    provider = resolve_stream_provider()
+    ready, ready_error = stream_provider_ready()
+    if not ready:
         raise HTTPException(
             status_code=503,
-            detail="Vobiz not configured (VOBIZ_AUTH_ID / VOBIZ_AUTH_TOKEN missing)",
+            detail=f"{ready_error} (active stream provider: {provider})",
         )
+
+    # ── Smartflo rail ──────────────────────────────────────────────────────── #
+    # No answer_url/hangup_url for Smartflo: the second leg is bound to the
+    # api_key in the portal, so per-call context rides custom_identifier and the
+    # AI WSS is the static endpoint. Delegating to start_stream_call keeps ONE
+    # routing + result-contract implementation (see the compliance_blocked note
+    # there).
+    if provider == "tata_smartflo":
+        result = await start_stream_call(
+            to=request.to,
+            niche=request.niche,
+            client_id=request.client_id,
+            call_type=request.call_type,
+            lead_id=request.lead_id,
+        )
+        if result.get("error") == "compliance_blocked":
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "Call blocked by compliance gate (TCCCPR/TRAI).",
+                    "compliance": (result.get("smartflo_response") or {}).get("body"),
+                },
+            )
+        placed_sf = bool(result.get("placed"))
+        if not placed_sf:
+            logger.warning(f"Smartflo stream-call not placed: {result}")
+        _log_manual_stream_call(request, placed_sf)
+        return {
+            "placed": placed_sf,
+            "provider": "tata_smartflo",
+            "smartflo_response": result.get("smartflo_response"),
+            "stream_token": result.get("stream_token"),
+        }
+
+    # ── Vobiz rail (unchanged) ────────────────────────────────────────────── #
+    client = VobizClient()
 
     # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — see start_stream_call.
     token = _sign_stream_token(uuid.uuid4().hex[:10])
@@ -435,18 +627,7 @@ async def place_stream_call(
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
         logger.warning(f"Vobiz stream-call not placed: {result}")
-    try:  # Team activity: Swara ne call lagayi
-        from app.platform.team import log_event
-
-        log_event(
-            "swara",
-            "call_placed",
-            f"Conversational call → {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
-            status="ok" if placed else "error",
-            meta={"client_id": str(getattr(request, "client_id", "") or "")},
-        )
-    except Exception:
-        pass
+    _log_manual_stream_call(request, placed)
     return {
         "placed": placed,
         "vobiz_response": result,
