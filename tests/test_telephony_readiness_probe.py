@@ -20,10 +20,11 @@ def test_probe_skipped_when_env_unset(monkeypatch):
 
 def test_probe_success_when_vobiz_accepts(monkeypatch):
     monkeypatch.setenv("VOBIZ_VERIFY_CALLER_ID_OUTBOUND", "1")
-    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911171366938")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911****6938")
 
     fake_client = AsyncMock()
-    fake_client.create_call.return_value = {"status": "success", "call_id": "c123"}
+    # place_call returns {"status_code": int, "body": dict}
+    fake_client.place_call.return_value = {"status_code": 200, "body": {"id": "c123"}}
 
     with patch("app.telephony.vobiz_handler.VobizClient", return_value=fake_client):
         res = _run(verify_outbound_connectivity())
@@ -33,12 +34,13 @@ def test_probe_success_when_vobiz_accepts(monkeypatch):
 
 def test_probe_fails_when_vobiz_rejects(monkeypatch):
     monkeypatch.setenv("VOBIZ_VERIFY_CALLER_ID_OUTBOUND", "1")
-    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911171366938")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911****6938")
 
     fake_client = AsyncMock()
-    fake_client.create_call.return_value = {
-        "status": "failed",
-        "error": "The from number 911171366938 is not owned by this account",
+    # place_call returns {"status_code": 0, "body": {"error": ...}} on rejection
+    fake_client.place_call.return_value = {
+        "status_code": 0,
+        "body": {"error": "The from number 911171366938 is not owned by this account"},
     }
 
     with patch("app.telephony.vobiz_handler.VobizClient", return_value=fake_client):
