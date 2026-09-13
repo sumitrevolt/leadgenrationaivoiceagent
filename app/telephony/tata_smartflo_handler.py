@@ -38,9 +38,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-SMARTFLO_C2C_ENDPOINT = (
-    "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
-)
+SMARTFLO_C2C_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -179,17 +177,13 @@ class TataSmartfloClient:
 
                 ok, reason = dial_gate_check(to, call_type)
                 if not ok:
-                    logger.warning(
-                        f"Tata Smartflo place_call blocked by dial_gate: {reason}"
-                    )
+                    logger.warning(f"Tata Smartflo place_call blocked by dial_gate: {reason}")
                     return {
                         "status_code": 0,
                         "body": {"error": f"compliance_blocked: dial_gate: {reason}"},
                     }
             except Exception as e:
-                logger.error(
-                    f"Tata Smartflo place_call: dial_gate error ({e}) — blocking dial."
-                )
+                logger.error(f"Tata Smartflo place_call: dial_gate error ({e}) — blocking dial.")
                 return {
                     "status_code": 0,
                     "body": {"error": f"compliance_blocked: dial_gate_error: {e}"},
@@ -209,15 +203,13 @@ class TataSmartfloClient:
                 decision = await get_compliance_gate().check(to, ct)
                 if not decision.allowed:
                     logger.warning(
-                        "Tata Smartflo place_call blocked by compliance: "
-                        f"{decision.reasons}"
+                        f"Tata Smartflo place_call blocked by compliance: {decision.reasons}"
                     )
                     return {
                         "status_code": 0,
                         "body": {
                             "error": (
-                                "compliance_blocked: "
-                                f"{'; '.join(decision.reasons) or 'blocked'}"
+                                f"compliance_blocked: {'; '.join(decision.reasons) or 'blocked'}"
                             )
                         },
                     }
@@ -234,9 +226,7 @@ class TataSmartfloClient:
                 from app.telephony.voice_launch import admin_kill_engaged
 
                 if admin_kill_engaged():
-                    logger.warning(
-                        "Tata Smartflo place_call blocked: admin kill switch engaged."
-                    )
+                    logger.warning("Tata Smartflo place_call blocked: admin kill switch engaged.")
                     return {
                         "status_code": 0,
                         "body": {"error": "compliance_blocked: admin_kill_engaged"},
@@ -299,9 +289,7 @@ class TataSmartfloClient:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=30.0, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.post(
                     SMARTFLO_C2C_ENDPOINT,
                     json=payload,
@@ -315,8 +303,7 @@ class TataSmartfloClient:
                 logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
             else:
                 logger.warning(
-                    f"Tata Smartflo call rejected: {resp.status_code} "
-                    f"{body.get('message', body)}"
+                    f"Tata Smartflo call rejected: {resp.status_code} {body.get('message', body)}"
                 )
             return {"status_code": resp.status_code, "body": body}
         except Exception as e:
