@@ -73,7 +73,7 @@ def get_token() -> str | None:
 
 
 def load_spec(path: str = SPEC_PATH) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
@@ -129,8 +129,8 @@ def plan(spec: dict[str, Any]) -> int:
         print(f"      kind={g['kind']}  access={g['access']}  {state}")
         if g.get("forum_topics"):
             print(f"      topics: {', '.join(g['forum_topics'])}")
-        print(f"      will set description, post+pin intro"
-              + (f", export invite link" if g['access'] == 'private' else ""))
+        print("      will set description, post+pin intro"
+              + (", export invite link" if g['access'] == 'private' else ""))
     print(f"\n[telegram_setup] {pending} entity/ies still need a chat_id before --apply.")
     return 0
 

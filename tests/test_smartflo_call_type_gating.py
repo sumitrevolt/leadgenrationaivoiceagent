@@ -240,7 +240,7 @@ async def test_payload_has_no_vobiz_only_fields(client, mock_post, bypass):
         await client.place_call(
             to=TEST_NUMBER,
             answer_url="https://api.leadsgenai.in/voice/answer",
-            call_type=str("promotional"),
+            call_type="promotional",
             CallbackData="call-abc-123",
             **bypass,
         )
