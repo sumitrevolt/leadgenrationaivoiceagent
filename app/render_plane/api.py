@@ -37,8 +37,8 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/render-plane", tags=["Render Plane"])
 
 FLAG_ENV = "CREATIVE_RENDER_PLANE_ENABLED"
-TOKEN_ENV = "RENDER_PLANE_WORKER_TOKEN"
-TOKEN_HEADER = "X-Render-Plane-Token"
+TOKEN_ENV = "RENDER_PLANE_WORKER_TOKEN"  # nosecret (env-var NAME, not a value)
+TOKEN_HEADER = "X-Render-Plane-Token"  # nosecret (header name)
 
 
 # --------------------------------------------------------------------- gates

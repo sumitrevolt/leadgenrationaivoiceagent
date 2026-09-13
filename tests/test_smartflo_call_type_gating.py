@@ -70,8 +70,8 @@ def client() -> TataSmartfloClient:
     """Configured (but non-networking) SmartFlo client."""
     c = TataSmartfloClient()
     # Credentials come from env/settings; force them so available() is True.
-    c.api_token = "unit-test-token"
-    c.api_key = "unit-test-key"
+    c.api_token = "unit-test-token"  # nosecret (dummy test fixture)
+    c.api_key = "unit-test-key"  # nosecret (dummy test fixture)
     c.did = "918012345678"
     return c
 

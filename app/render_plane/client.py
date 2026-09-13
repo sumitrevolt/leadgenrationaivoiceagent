@@ -18,8 +18,8 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 BASE_URL_ENV = "RENDER_PLANE_BASE_URL"
-TOKEN_ENV = "RENDER_PLANE_WORKER_TOKEN"
-TOKEN_HEADER = "X-Render-Plane-Token"
+TOKEN_ENV = "RENDER_PLANE_WORKER_TOKEN"  # nosecret (env-var NAME, not a value)
+TOKEN_HEADER = "X-Render-Plane-Token"  # nosecret (header name)
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 
 

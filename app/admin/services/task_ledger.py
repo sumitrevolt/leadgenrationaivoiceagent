@@ -163,12 +163,18 @@ def update_task(task_id: int, task_upd: TaskUpdate) -> Task | None:
         return None
     init_db()
     now = _utc_now().isoformat()
+    # Column allowlist: keys come from TaskUpdate's pydantic model (validated
+    # field names), and the f-string only interpolates these KNOWN identifiers —
+    # values remain fully parameterized (?).  # nosecurity
+    _TASK_UPDATE_FIELDS = {"title", "description", "owner", "priority", "status", "deadline", "evidence"}
     fields: list[str] = ["updated_at = ?"]
     params: list = [now]
 
     data = task_upd.model_dump(exclude_unset=True)
     for key, val in data.items():
         if val is not None:
+            if key not in _TASK_UPDATE_FIELDS:
+                raise ValueError(f"unknown task field: {key}")
             if hasattr(val, "value"):
                 val = val.value
             fields.append(f"{key} = ?")
