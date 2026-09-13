@@ -534,7 +534,7 @@ def check(
             j = jaccard(shingles, p.shingles)
             same_rt = bool(p.recipe == recipe and str(p.template_id or "") == template_id)
             within_window = _structural_hit(p, recipe, template_id, day, window_days)
-            prior_sets = set(frozenset(s) for s in (p.scene_shingles or []) if s)
+            prior_sets = {frozenset(s) for s in (p.scene_shingles or []) if s}
             matched = sum(1 for cs in cand_scene_sets if cs in prior_sets)
             scene_ratio = (matched / cand_scene_total) if cand_scene_total else 0.0
             this_scene_hit = bool(cand_scene_sets) and scene_ratio >= scene_thr

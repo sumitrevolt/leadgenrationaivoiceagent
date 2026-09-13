@@ -24,7 +24,6 @@ DESIGN RULES
 from __future__ import annotations
 
 import re
-
 from typing import Optional
 
 _CANONICAL_RE = re.compile(r"^leadsgen combo (\d+)$", re.IGNORECASE)
@@ -80,7 +79,7 @@ def canonical_combo_name(index: int) -> str:
     return f"leadsgen combo {int(index)}"
 
 
-def resolve_combo_index(ref: str) -> Optional[int]:
+def resolve_combo_index(ref: str) -> int | None:
     """Resolve any combo reference to its canonical integer 1..14, or None.
 
     Accepts canonical strings (``leadsgen combo 6``), bare integers/strings
@@ -108,7 +107,7 @@ def resolve_combo_index(ref: str) -> Optional[int]:
     return None
 
 
-def resolve_combo_ref(ref: str) -> Optional[str]:
+def resolve_combo_ref(ref: str) -> str | None:
     """Resolve any combo reference to its canonical ``leadsgen combo N`` string.
 
     Returns None when the ref cannot be mapped (caller must not invent a combo).

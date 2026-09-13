@@ -243,7 +243,7 @@ def _lease_token(job_id: str, worker: str, attempt: int) -> str:
     NOT the worker token: the shared secret is the HMAC key and is never emitted.
     """
     secret = (os.getenv("RENDER_PLANE_WORKER_TOKEN") or "").encode("utf-8")
-    msg = f"{job_id}|{worker}|{int(attempt or 0)}".encode("utf-8")
+    msg = f"{job_id}|{worker}|{int(attempt or 0)}".encode()
     return hmac.new(secret, msg, hashlib.sha256).hexdigest()[:32]
 
 

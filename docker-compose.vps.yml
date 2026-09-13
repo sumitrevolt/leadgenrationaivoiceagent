@@ -92,6 +92,7 @@ services:
       qdrant:
         condition: service_started
     volumes:
+      - ./config:/app/config:ro
       - ./data:/app/data        # persisted app data (brains, jsonl stores, logos)
       - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
@@ -393,10 +394,178 @@ services:
   # customer/payment/voice side effect). Rollout: start THIS one, verify the dev_workers row,
   # then add the other 5. Start:
   #   docker compose -f docker-compose.vps.yml --profile celery up -d worker-cli-operations
+  worker-cli-engineering:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_engineering
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
+    mem_limit: 256m
+    cpus: "0.25"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor engineering --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
+
+  worker-cli-platform:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_platform
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
+    mem_limit: 256m
+    cpus: "0.25"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor platform --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
+
+  worker-cli-guardian:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_guardian
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
+    mem_limit: 256m
+    cpus: "0.25"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor guardian --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
+
+  worker-cli-sales:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_sales
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
+    mem_limit: 256m
+    cpus: "0.25"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor sales --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
+
+  worker-cli-success:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_success
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
+    mem_limit: 256m
+    cpus: "0.25"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor success --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
+
   worker-cli-operations:
     profiles: ["celery"]
     image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_worker_cli_operations
+    healthcheck:
+      disable: true
+    networks: [leadgen_net]
     mem_limit: 512m
     cpus: "0.5"
     user: "0:0"

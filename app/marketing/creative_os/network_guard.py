@@ -146,7 +146,7 @@ def isolation_env_delta() -> tuple[dict[str, str], tuple[str, ...]]:
     Returned as a delta (not a full environment) so a caller can layer it on top
     of its own hermetic env without the delta silently reverting a hermetic blank.
     """
-    delta = {key: BLACKHOLE_PROXY for key in _PROXY_KEYS}
+    delta = dict.fromkeys(_PROXY_KEYS, BLACKHOLE_PROXY)
     delta["CREATIVE_NETWORK_BLACKHOLE"] = "1"
     # A render must never authenticate to a cloud provider.
     delta["HYPERFRAMES_API_KEY"] = ""

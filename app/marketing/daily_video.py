@@ -491,8 +491,7 @@ def _enqueue_advanced(client: dict[str, Any]) -> dict[str, Any]:
     """
     cid = str(client.get("id") or "")
     try:
-        from app.marketing.creative_os import flags
-        from app.marketing.creative_os import selector
+        from app.marketing.creative_os import flags, selector
         from app.marketing.creative_os.service import enqueue_generate
 
         niche = str(client.get("niche") or "general").strip()
