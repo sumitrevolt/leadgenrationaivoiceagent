@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ShieldAlert, Play, Pause, AlertTriangle, Activity } from 'lucide-react';
-import { Card, CardHeader, Badge, Button, ConfirmDialog } from '@/components/ui/primitives';
+import { ShieldAlert, Pause } from 'lucide-react';
+import { Card, Badge, Button } from '@/components/ui/primitives';
+import { ConfirmDialog } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
 export interface AgentStatus {

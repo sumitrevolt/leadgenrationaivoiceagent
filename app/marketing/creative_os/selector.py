@@ -63,7 +63,7 @@ _DEFAULT_TEMPLATE = "local_service_promo_v1"
 
 
 def _seed_for(tenant_id: str, day: str, rotation_index: int) -> int:
-    raw = f"{tenant_id}|{day}|{int(rotation_index)}".encode("utf-8")
+    raw = f"{tenant_id}|{day}|{int(rotation_index)}".encode()
     return int(hashlib.sha256(raw).hexdigest()[:12], 16)
 
 

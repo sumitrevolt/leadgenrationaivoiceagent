@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1443 operations)
+## Endpoint Index — auto-generated from OpenAPI (1447 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -2052,5 +2052,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 ### content-os  (1)
 
 - `POST  ` `/internal/render/done` — Render Done
+
+### telegram-setup  (4)
+
+- `GET   ` `/telegram/setup` — Read Setup
+- `GET   ` `/telegram/setup/` — Read Setup
+- `POST  ` `/telegram/setup/apply` — Apply Setup
+- `PATCH ` `/telegram/setup/groups/{group_id}` — Update Group
 
 <!-- AUTO-OPENAPI:END -->

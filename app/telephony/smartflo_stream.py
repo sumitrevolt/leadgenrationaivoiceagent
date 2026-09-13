@@ -1115,8 +1115,6 @@ class SmartfloStreamSession:
                 extra_transcript={
                     "provider": "tata_smartflo",
                     "stream_sid": self.stream_sid,
-            "account_sid": self.account_sid,
-            "direction": self.direction,
                     "account_sid": self.account_sid,
                     "direction": self.direction,
                     "call_sid": self.call_sid,

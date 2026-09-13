@@ -5,12 +5,13 @@ import type {
   DashboardMetrics,
   Lead,
   LeadInput,
-  LeadTemperature,
   ListQuery,
   Niche,
   Page,
   Session,
   SortDirection,
+  TelegramApplyResult,
+  TelegramGroup,
   User,
 } from '@/types';
 import { buildCalls, buildLeads } from './seed';
@@ -87,6 +88,11 @@ export interface ApiClient {
     ): Promise<AutomationRun>;
     runs(limit?: number): Promise<AutomationRun[]>;
   };
+  telegram: {
+    list(): Promise<TelegramGroup[]>;
+    update(id: string, patch: Partial<Pick<TelegramGroup, 'chatId' | 'inviteLink'>>): Promise<TelegramGroup>;
+    apply(): Promise<TelegramApplyResult>;
+  };
   /** Test hook: force a failure rate so error/retry UI can be exercised. */
   setFailureRate(rate: number): void;
   getFailureRate(): number;
@@ -102,12 +108,13 @@ interface StoreShape {
   calls: CallRecord[];
   runs: AutomationRun[];
   automations: AutomationDef[];
+  telegram: TelegramGroup[];
 }
 
 function freshStore(): StoreShape {
   const leads = buildLeads();
   const calls = buildCalls(leads);
-  return { leads, calls, runs: [], automations: defaultAutomations() };
+  return { leads, calls, runs: [], automations: defaultAutomations(), telegram: defaultTelegramGroups() };
 }
 
 function loadStore(): StoreShape {
@@ -125,6 +132,12 @@ function loadStore(): StoreShape {
       automations: base.automations.map((a) => {
         const saved = (parsed.automations ?? []).find((x) => x.id === a.id);
         return saved ? { ...a, enabled: saved.enabled, lastRun: saved.lastRun ?? null } : a;
+      }),
+      // Telegram *definitions* come from code (defaultTelegramGroups); owner-supplied
+      // chatId / inviteLink edits persist over the base definitions.
+      telegram: base.telegram.map((g) => {
+        const saved = (parsed.telegram ?? []).find((x) => x.id === g.id);
+        return saved ? { ...g, chatId: saved.chatId ?? null, inviteLink: saved.inviteLink ?? null } : g;
       }),
     };
   } catch {
@@ -397,6 +410,23 @@ function defaultAutomations(): AutomationDef[] {
   ];
 }
 
+/* ---------------- telegram enterprise catalogue ---------------- */
+
+function defaultTelegramGroups(): TelegramGroup[] {
+  return [
+    { id: 'marketing.announcements', product: 'marketing', key: 'announcements', kind: 'channel', name: 'LeadGen AI Marketing · Announcements', handle: 'LeadGenAIMarketingNews', purpose: 'One-way product updates: feature releases, pricing, maintenance, compliance/DPDP notices, outage status. Broadcast only.', audience: 'All subscribers — customers + prospects + public', access: 'public', adminRoles: ['founder', 'pm', 'bot_broadcast'], forumTopics: [], chatId: null, inviteLink: null },
+    { id: 'marketing.community', product: 'marketing', key: 'community', kind: 'supergroup', name: 'LeadGen AI Marketing · Community', handle: 'LeadGenAIMarketingCommunity', purpose: 'Peer discussions, use-cases, wins, growth tactics among SMB owners using the Marketing product.', audience: 'Customers + trial users + interested SMB owners', access: 'public', adminRoles: ['founder', 'community_manager', 'bot_welcome', 'bot_mod'], forumTopics: ['📣 intros', '💡 use-cases', '🚀 wins', '🛠 how-to', '📰 updates (mirror)'], chatId: null, inviteLink: null },
+    { id: 'marketing.support', product: 'marketing', key: 'support', kind: 'supergroup', name: 'LeadGen AI Marketing · Support', handle: null, purpose: 'Ticketed support: bugs, billing, incident updates. Customers only.', audience: 'Paying customers (verified post UPI)', access: 'private', adminRoles: ['founder', 'support_lead', 'support_agent', 'bot_support', 'bot_mod'], forumTopics: ['🎫 open-tickets', '💳 billing-UPI', '🐞 bugs', '🔥 incidents'], chatId: null, inviteLink: null },
+    { id: 'marketing.feedback', product: 'marketing', key: 'feedback', kind: 'supergroup', name: 'LeadGen AI Marketing · Feedback', handle: null, purpose: 'Feature requests, product feedback, beta access. Not for support.', audience: 'Customers + selected power users', access: 'private', adminRoles: ['founder', 'pm', 'community_manager', 'bot_welcome'], forumTopics: ['✨ requests (P0/P1/P2)', '🧪 beta', '📊 polls'], chatId: null, inviteLink: null },
+    { id: 'voice.announcements', product: 'voice', key: 'announcements', kind: 'channel', name: 'LeadGen AI Voice Agent · Announcements', handle: 'LeadGenAIVoiceNews', purpose: 'Voice-product releases, voice-quality/provider notices, compliance & DLT updates, outage status. Broadcast only.', audience: 'All subscribers — customers + prospects + public', access: 'public', adminRoles: ['founder', 'pm', 'bot_broadcast'], forumTopics: [], chatId: null, inviteLink: null },
+    { id: 'voice.community', product: 'voice', key: 'community', kind: 'supergroup', name: 'LeadGen AI Voice Agent · Community', handle: 'LeadGenAIVoiceCommunity', purpose: 'Peer discussions on AI telecalling, scripts, niche-band strategy, voice quality among SMB owners.', audience: 'Customers + trial users + interested SMB owners', access: 'public', adminRoles: ['founder', 'community_manager', 'bot_welcome', 'bot_mod'], forumTopics: ['📣 intros', '🎙 scripts', '🏷 niche-bands', '🛠 how-to', '📰 updates (mirror)'], chatId: null, inviteLink: null },
+    { id: 'voice.support', product: 'voice', key: 'support', kind: 'supergroup', name: 'LeadGen AI Voice Agent · Support', handle: null, purpose: 'Voice-agent support: call routing, DLT templates, billing, incidents.', audience: 'Paying customers (verified post UPI)', access: 'private', adminRoles: ['founder', 'support_lead', 'support_agent', 'bot_support', 'bot_mod'], forumTopics: ['🎫 open-tickets', '💳 billing-UPI', '📋 DLT-templates', '🐞 bugs', '🔥 incidents'], chatId: null, inviteLink: null },
+    { id: 'voice.feedback', product: 'voice', key: 'feedback', kind: 'supergroup', name: 'LeadGen AI Voice Agent · Feedback', handle: null, purpose: 'Voice-feature requests, beta, pronunciation/voice-model feedback.', audience: 'Customers + selected power users', access: 'private', adminRoles: ['founder', 'pm', 'community_manager', 'bot_welcome'], forumTopics: ['✨ requests (P0/P1/P2)', '🧪 beta-voices', '📊 polls'], chatId: null, inviteLink: null },
+    { id: 'cross.internal_admin', product: 'cross', key: 'internal_admin', kind: 'supergroup', name: 'LeadGen AI · Internal Ops', handle: null, purpose: 'Internal coordination, incident war-room, deploy notices, bot status, cross-product decisions. NO customers.', audience: 'Team only (founder, dev, support, PM)', access: 'private', adminRoles: ['founder', 'devops', 'pm', 'support_lead'], forumTopics: ['🚨 incidents', '🚀 deploys', '🤖 bot-status', '📋 decisions'], chatId: null, inviteLink: null },
+    { id: 'cross.owner_alerts', product: 'cross', key: 'owner_alerts', kind: 'supergroup', name: 'LeadGen AI · Owner Alerts', handle: null, purpose: 'Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state.', audience: 'Founder only (+ LeadGenBot)', access: 'private', adminRoles: ['founder', 'devops', 'bot_broadcast'], forumTopics: ['💰 payments', '❤️ health', '🔥 incidents'], chatId: null, inviteLink: null },
+  ];
+}
+
 /* ---------------- mock implementation ---------------- */
 
 const DEMO_USERS: Record<string, { password: string; user: User }> = {
@@ -437,11 +467,6 @@ function applySort<T extends Record<string, unknown>>(
   if (!sort) return items;
   const sorted = [...items].sort((x, y) => compare(x[sort], y[sort]));
   return dir === 'desc' ? sorted.reverse() : sorted;
-}
-
-/** Temperature is a derived band, so the API owns the invariant — never trust a client value. */
-function bandFor(score: number): LeadTemperature {
-  return score >= 72 ? 'hot' : score >= 45 ? 'warm' : 'cold';
 }
 
 function createMockApiClient(): ApiClient {
@@ -1038,6 +1063,34 @@ function createMockApiClient(): ApiClient {
       async runs(limit = 30) {
         await hop(latency(200));
         return store.runs.slice(0, limit);
+      },
+    },
+
+    telegram: {
+      async list() {
+        await hop(latency(300));
+        return store.telegram.map((g) => ({ ...g }));
+      },
+      async update(id, patch) {
+        await hop(latency(260));
+        const group = store.telegram.find((g) => g.id === id);
+        if (!group) throw new ApiError(`Unknown Telegram group "${id}".`, 404);
+        group.chatId = patch.chatId ?? null;
+        group.inviteLink = patch.inviteLink ?? null;
+        save();
+        return { ...group };
+      },
+      async apply() {
+        await hop(latency(400));
+        return {
+          mode: 'mock',
+          applied: false,
+          note: 'Demo seam: connect the live backend (app/api/telegram_setup.py) and set each group\'s chatId to apply the Bot-API bootstrap for real.',
+          groups: store.telegram.map((g) => ({
+            id: g.id,
+            status: g.chatId ? 'ready' : 'needs-chat-id',
+          })),
+        };
       },
     },
 

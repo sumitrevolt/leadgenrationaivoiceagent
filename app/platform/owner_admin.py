@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.config import settings
 from app.platform.admin_api import router as admin_router
 from app.platform.squad_billing import (
     daily_revenue_summary as squad_billing_daily_revenue_summary,
@@ -34,13 +35,21 @@ from app.platform.squad_whatsapp import check_wa_status
 # Initialize FastAPI app
 app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
 
-# CORS for owner-facing endpoints
+# CORS for owner-facing endpoints — NEVER wildcard + credentials.
+# Derive an explicit allowlist from settings.owner_admin_cors_origins; if that is
+# empty/misconfigured, fall back to the production domains so we can never silently
+# open "*". localhost/127.0.0.1 are appended so the owner's local runs work.
+_owner_cors = [o for o in (settings.owner_admin_cors_origins or []) if o and o != "*"]
+if not _owner_cors:
+    _owner_cors = ["https://leadsgenai.in", "https://www.leadsgenai.in"]
+_owner_cors = _owner_cors + ["http://localhost", "http://127.0.0.1"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # nosecurity - In prod: restrict to owner's IP/domain
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_owner_cors,
+    allow_credentials=True,  # Safe: origins are explicit, never "*"
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 # Include admin API routes

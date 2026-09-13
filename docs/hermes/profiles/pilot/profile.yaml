@@ -3,3 +3,11 @@ description: PILOT — sole Commander / Chief of Staff for the LeadGen AI bot fl
   evidence, escalates real decisions to the human Owner, keeps the Owner
   Command Center feed and Kanban in sync (same task objects).
 description_auto: false
+
+ui_meta:
+  hermes-bots:
+    telegram:
+      bindings:
+        - product: cross
+          key: internal_admin
+          as: pilot
