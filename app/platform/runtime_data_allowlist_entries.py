@@ -631,7 +631,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.csv",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "csv_path",
-        "path_pattern": "f\"data/hot_queue_for_owner_{today}.csv\"",
+        "path_pattern": 'f"data/hot_queue_for_owner_{today}.csv"',
         "store_id": "ops.hot_queue_owner_pack_csv",
         "access_modes": ["REWRITE"],
         "reason": (
@@ -653,7 +653,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.md",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "md_path",
-        "path_pattern": "f\"data/hot_queue_for_owner_{today}.md\"",
+        "path_pattern": 'f"data/hot_queue_for_owner_{today}.md"',
         "store_id": "ops.hot_queue_owner_pack_md",
         "access_modes": ["REWRITE"],
         "reason": (
@@ -1388,8 +1388,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "command_center.pilot_tasks",
         "access_modes": ["APPEND", "READ"],
         "reason": (
-            "Pilot dispatch patch script appends evidence to messages.jsonl. "
-            "Offline admin tooling."
+            "Pilot dispatch patch script appends evidence to messages.jsonl. Offline admin tooling."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
