@@ -17,6 +17,7 @@ Path B (programmatic). Requires a Telethon user session:
     snapshot (migration changes the id), then promote + capture the NEW chat_id.
   * Canonical id formatting via telethon.utils.get_peer_id (no hand-rolled -100).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -60,7 +61,9 @@ async def snapshot_titles(client):
         k = norm(d.title)
         prev = by_title.get(k)
         # Same-title duplicate (pre/post migration): supergroup/channel ko prefer karo
-        if prev is None or (isinstance(d.entity, types.Channel) and not isinstance(prev, types.Channel)):
+        if prev is None or (
+            isinstance(d.entity, types.Channel) and not isinstance(prev, types.Channel)
+        ):
             by_title[k] = d.entity
     return by_title
 
@@ -84,9 +87,18 @@ async def run(apply: bool):
     by_title = await snapshot_titles(client)
 
     rights = types.ChatAdminRights(
-        change_info=True, post_messages=True, edit_messages=True, delete_messages=True,
-        ban_users=True, invite_users=True, pin_messages=True, add_admins=True,
-        anonymous=False, manage_call=True, other=True, manage_topics=True,
+        change_info=True,
+        post_messages=True,
+        edit_messages=True,
+        delete_messages=True,
+        ban_users=True,
+        invite_users=True,
+        pin_messages=True,
+        add_admins=True,
+        anonymous=False,
+        manage_call=True,
+        other=True,
+        manage_topics=True,
     )
 
     ok = failed = 0
@@ -124,13 +136,19 @@ async def run(apply: bool):
         # owner-side MTProto toggle (idempotent: already-on pe error -> note only).
         if apply and e.get("forum_topics") and isinstance(ent, types.Channel):
             try:
-                await client(functions.channels.ToggleForumRequest(channel=ent, enabled=True, tabs=False))
+                await client(
+                    functions.channels.ToggleForumRequest(channel=ent, enabled=True, tabs=False)
+                )
                 print("    forum mode ON")
             except Exception as exc:  # noqa: BLE001
                 print("    forum note:", str(exc)[:90])
 
         try:
-            await client(functions.channels.EditAdminRequest(channel=ent, user_id=bot, admin_rights=rights, rank="bot"))
+            await client(
+                functions.channels.EditAdminRequest(
+                    channel=ent, user_id=bot, admin_rights=rights, rank="bot"
+                )
+            )
             print("    promoted to admin; chat_id=%s" % utils.get_peer_id(ent))
             e["chat_id"] = str(utils.get_peer_id(ent))
             ok += 1
@@ -141,7 +159,10 @@ async def run(apply: bool):
     if apply:
         with open(SPEC, "w", encoding="utf-8") as fh:
             yaml.safe_dump(spec, fh, allow_unicode=True, sort_keys=False)
-        print("spec updated (%d ok, %d failed) -> run: TELEGRAM_SETUP_ENABLED=1 python scripts/telegram_setup.py --apply" % (ok, failed))
+        print(
+            "spec updated (%d ok, %d failed) -> run: TELEGRAM_SETUP_ENABLED=1 python scripts/telegram_setup.py --apply"
+            % (ok, failed)
+        )
     else:
         print("dry-run (pass --apply to wire + update spec)")
     await client.disconnect()
