@@ -1,4 +1,5 @@
 """Task Ledger service: SQLite-backed task management with auto-assign and duplicate detection."""
+
 from __future__ import annotations
 
 import difflib
@@ -20,9 +21,19 @@ from app.admin.models import (
 
 # Known workers from Hermes profiles
 WORKERS = [
-    "board", "claude", "engineering", "guardian", "hunter",
-    "openclaw", "operations", "pilot", "platform", "sales",
-    "success", "verdant", "workbuddy",
+    "board",
+    "claude",
+    "engineering",
+    "guardian",
+    "hunter",
+    "openclaw",
+    "operations",
+    "pilot",
+    "platform",
+    "sales",
+    "success",
+    "verdant",
+    "workbuddy",
 ]
 
 DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "admin_tasks.db"
@@ -43,9 +54,18 @@ def _get_conn() -> sqlite3.Connection:
 
 def _row_to_task(row) -> Task:
     if isinstance(row, tuple):
-        row = {"id": row[0], "title": row[1], "description": row[2], "owner": row[3],
-               "priority": row[4], "status": row[5], "deadline": row[6], "evidence": row[7],
-               "created_at": row[8], "updated_at": row[9]}
+        row = {
+            "id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "owner": row[3],
+            "priority": row[4],
+            "status": row[5],
+            "deadline": row[6],
+            "evidence": row[7],
+            "created_at": row[8],
+            "updated_at": row[9],
+        }
     return Task(
         id=row["id"],
         title=row["title"],
@@ -166,7 +186,15 @@ def update_task(task_id: int, task_upd: TaskUpdate) -> Task | None:
     # Column allowlist: keys come from TaskUpdate's pydantic model (validated
     # field names), and the f-string only interpolates these KNOWN identifiers —
     # values remain fully parameterized (?).  # nosecurity
-    _TASK_UPDATE_FIELDS = {"title", "description", "owner", "priority", "status", "deadline", "evidence"}
+    _TASK_UPDATE_FIELDS = {
+        "title",
+        "description",
+        "owner",
+        "priority",
+        "status",
+        "deadline",
+        "evidence",
+    }
     fields: list[str] = ["updated_at = ?"]
     params: list = [now]
 
@@ -182,7 +210,7 @@ def update_task(task_id: int, task_upd: TaskUpdate) -> Task | None:
     params.append(task_id)
     conn = _get_conn()
     try:
-        conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id = ?", params)
+        conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id = ?", params)  # nosecurity — identifiers from _TASK_UPDATE_FIELDS allowlist, values parameterized
         conn.commit()
         row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         return _row_to_task(row)
@@ -318,7 +346,7 @@ def detect_duplicates(new_title: str, threshold: float = 0.75) -> list[dict]:
     init_db()
     conn = _get_conn()
     try:
-        rows = conn.execute("SELECT id, title FROM tasks").fetchall()
+        rows = conn.execute("SELECT id, title FROM tasks").fetchall()  # nosecurity — constant literal SQL, no user input
     finally:
         conn.close()
 
@@ -327,11 +355,13 @@ def detect_duplicates(new_title: str, threshold: float = 0.75) -> list[dict]:
     for row in rows:
         ratio = difflib.SequenceMatcher(None, new_lower, row["title"].lower()).ratio()
         if ratio >= threshold:
-            matches.append({
-                "task_id": row["id"],
-                "title": row["title"],
-                "similarity": round(ratio, 3),
-                "matched_title": new_title,
-            })
+            matches.append(
+                {
+                    "task_id": row["id"],
+                    "title": row["title"],
+                    "similarity": round(ratio, 3),
+                    "matched_title": new_title,
+                }
+            )
     matches.sort(key=lambda m: m["similarity"], reverse=True)
     return matches

@@ -74,9 +74,7 @@ def _log_ledger(tenant_id: str, event: str, detail: str = "") -> None:
     try:
         from app.marketing import delivery_ledger
 
-        delivery_ledger.log_event(
-            str(tenant_id or ""), event, detail=str(detail or "")[:200]
-        )
+        delivery_ledger.log_event(str(tenant_id or ""), event, detail=str(detail or "")[:200])
     except Exception as exc:
         logger.warning("[render_plane] ledger event %s skipped: %s", event, type(exc).__name__)
 

@@ -56,7 +56,9 @@ for _stream in (sys.stdout, sys.stderr):
 
 SPEC_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "config", "telegram", "setup_spec.yaml",
+    "config",
+    "telegram",
+    "setup_spec.yaml",
 )
 API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
@@ -83,9 +85,7 @@ def load_spec(path: str = SPEC_PATH) -> dict[str, Any]:
 def _api_call(token: str, method: str, params: dict[str, Any]) -> dict[str, Any]:
     url = API_BASE.format(token=token, method=method)
     data = json.dumps(params).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
-    )
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
@@ -129,8 +129,10 @@ def plan(spec: dict[str, Any]) -> int:
         print(f"      kind={g['kind']}  access={g['access']}  {state}")
         if g.get("forum_topics"):
             print(f"      topics: {', '.join(g['forum_topics'])}")
-        print("      will set description, post+pin intro"
-              + (", export invite link" if g['access'] == 'private' else ""))
+        print(
+            "      will set description, post+pin intro"
+            + (", export invite link" if g["access"] == "private" else "")
+        )
     print(f"\n[telegram_setup] {pending} entity/ies still need a chat_id before --apply.")
     return 0
 
@@ -150,8 +152,9 @@ def apply(spec: dict[str, Any], token: str) -> int:
             continue
         try:
             try:
-                _api_call(token, "setChatDescription",
-                          {"chat_id": cid, "description": _description(g)})
+                _api_call(
+                    token, "setChatDescription", {"chat_id": cid, "description": _description(g)}
+                )
             except RuntimeError as exc:
                 # Idempotent: identical description = "not modified" -> already set
                 if "not modified" in str(exc):
@@ -161,27 +164,32 @@ def apply(spec: dict[str, Any], token: str) -> int:
             if g.get("forum_topics") and g["kind"] == "supergroup":
                 for topic in g["forum_topics"]:
                     try:
-                        _api_call(token, "createForumTopic",
-                                  {"chat_id": cid, "name": topic[:128]})
+                        _api_call(token, "createForumTopic", {"chat_id": cid, "name": topic[:128]})
                     except RuntimeError as exc:
                         # Re-run pe duplicate topics tolerate karo (bootstrap script
                         # hai; rights-problems alag se dikhte hain as FAIL above)
                         print(f"        topic note ({g['name'][:24]}…): {str(exc)[:220]}")
             if g.get("intro"):
-                sent = _api_call(token, "sendMessage",
-                                 {"chat_id": cid, "text": g["intro"],
-                                  "disable_web_page_preview": True})
-                _api_call(token, "pinChatMessage",
-                          {"chat_id": cid,
-                           "message_id": sent["message_id"],
-                           "disable_notification": True})
+                sent = _api_call(
+                    token,
+                    "sendMessage",
+                    {"chat_id": cid, "text": g["intro"], "disable_web_page_preview": True},
+                )
+                _api_call(
+                    token,
+                    "pinChatMessage",
+                    {
+                        "chat_id": cid,
+                        "message_id": sent["message_id"],
+                        "disable_notification": True,
+                    },
+                )
             link = None
             if g["access"] == "private":
                 res = _api_call(token, "exportChatInviteLink", {"chat_id": cid})
                 # Bot API yahan plain string lautta hai (dict nahi)
                 link = res if isinstance(res, str) else (res or {}).get("invite_link")
-            print(f"  OK    {g['name']}"
-                  + (f"  invite={link}" if link else ""))
+            print(f"  OK    {g['name']}" + (f"  invite={link}" if link else ""))
             done += 1
         except RuntimeError as exc:
             print(f"  FAIL  {g['name']} — {exc}")
@@ -213,25 +221,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.validate:
         spec = load_spec()
         n = len(_all_groups(spec))
-        print(f"[telegram_setup] spec OK — {n} entities, "
-              f"{len(spec.get('admin_roles', {}))} roles")
+        print(f"[telegram_setup] spec OK — {n} entities, {len(spec.get('admin_roles', {}))} roles")
         return 0
 
     if args.plan:
         if not setup_enabled():
-            print("[telegram_setup] NOTE: TELEGRAM_SETUP_ENABLED not set — "
-                  "plan is safe regardless. (no network used)")
+            print(
+                "[telegram_setup] NOTE: TELEGRAM_SETUP_ENABLED not set — "
+                "plan is safe regardless. (no network used)"
+            )
         return plan(load_spec())
 
     # --apply
     if not setup_enabled():
-        print("[telegram_setup] REFUSED: set TELEGRAM_SETUP_ENABLED=1 to apply.",
-              file=sys.stderr)
+        print("[telegram_setup] REFUSED: set TELEGRAM_SETUP_ENABLED=1 to apply.", file=sys.stderr)
         return 3
     token = get_token()
     if not token:
-        print("[telegram_setup] REFUSED: TELEGRAM_BOT_TOKEN missing.",
-              file=sys.stderr)
+        print("[telegram_setup] REFUSED: TELEGRAM_BOT_TOKEN missing.", file=sys.stderr)
         return 3
     return apply(load_spec(), token)
 

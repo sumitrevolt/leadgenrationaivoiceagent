@@ -45,7 +45,9 @@ def _redact(text: str) -> str:
 class RenderPlaneClient:
     """Thin, never-raising HTTP client for the render-plane API."""
 
-    def __init__(self, *, base: str | None = None, token: str | None = None, timeout_s: float = 30.0):
+    def __init__(
+        self, *, base: str | None = None, token: str | None = None, timeout_s: float = 30.0
+    ):
         self._base = (base if base is not None else base_url()).rstrip("/")
         self._token = token if token is not None else worker_token()
         self._timeout = float(timeout_s)
@@ -57,7 +59,9 @@ class RenderPlaneClient:
             headers[TOKEN_HEADER] = self._token
         return headers
 
-    def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _request(
+        self, method: str, path: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         url = f"{self._base}{path}"
         try:
             import httpx
@@ -78,7 +82,10 @@ class RenderPlaneClient:
             return data
         except Exception as exc:
             # Redact: a transport error string must never carry the token.
-            return {"ok": False, "error": f"transport_error:{type(exc).__name__}:{_redact(str(exc))}"}
+            return {
+                "ok": False,
+                "error": f"transport_error:{type(exc).__name__}:{_redact(str(exc))}",
+            }
 
     # ------------------------------------------------------------------- calls
     def lease_next(self, worker: str, *, lease_seconds: int | None = None) -> dict[str, Any]:

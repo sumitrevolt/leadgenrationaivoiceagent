@@ -34,9 +34,7 @@ try:
 except ImportError as _exc:  # pragma: no cover - import guard only
     _IMPORT_ERR = str(_exc)
 
-pytestmark = pytest.mark.skipif(
-    not _IMPORT_OK, reason=f"handler not importable: {_IMPORT_ERR!r}"
-)
+pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason=f"handler not importable: {_IMPORT_ERR!r}")
 
 TEST_NUMBER = "+919876543210"
 
@@ -79,9 +77,7 @@ def client() -> TataSmartfloClient:
 @pytest.fixture(autouse=True)
 def _kill_switch_off():
     """Admin kill switch must never be the reason a test passes/fails."""
-    with patch(
-        "app.telephony.voice_launch.admin_kill_engaged", return_value=False
-    ):
+    with patch("app.telephony.voice_launch.admin_kill_engaged", return_value=False):
         yield
 
 
@@ -101,9 +97,7 @@ def _payload(mock_post: AsyncMock) -> dict:
 
 def _dial_gate(allowed: bool = True, reason: str = "ok"):
     """Patch context for ``app.telephony.dial_gate.check``."""
-    return patch(
-        "app.telephony.dial_gate.check", return_value=(allowed, reason)
-    )
+    return patch("app.telephony.dial_gate.check", return_value=(allowed, reason))
 
 
 def _compliance_gate(decision=None, raises: Exception | None = None):
@@ -264,9 +258,7 @@ async def test_payload_has_no_vobiz_only_fields(client, mock_post, bypass):
 async def test_callback_data_lowercase_param_also_merged(client, mock_post):
     """The documented ``callback_data`` spelling works identically."""
     with _dial_gate(True, "ok"), _compliance_gate()[0]:
-        await client.place_call(
-            to=TEST_NUMBER, callback_data="call-xyz-789", skip_compliance=True
-        )
+        await client.place_call(to=TEST_NUMBER, callback_data="call-xyz-789", skip_compliance=True)
 
     assert _payload(mock_post)["custom_identifier"]["call_id"] == "call-xyz-789"
 
@@ -328,9 +320,7 @@ async def test_unknown_call_type_falls_back_to_transactional(client, mock_post):
 # 9) FAIL-CLOSED: a gate exception blocks EVERY call type (no Vobiz laxness)
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("call_type", ["promotional", "transactional"])
-async def test_compliance_gate_error_blocks_every_call_type(
-    client, mock_post, call_type
-):
+async def test_compliance_gate_error_blocks_every_call_type(client, mock_post, call_type):
     """Vobiz only blocks on promo here; SmartFlo keeps strict fail-closed."""
     ctx, _ = _compliance_gate(raises=RuntimeError("gate exploded"))
     with _dial_gate(True, "ok"), ctx:
@@ -344,9 +334,10 @@ async def test_compliance_gate_error_blocks_every_call_type(
 @pytest.mark.parametrize("call_type", ["promotional", "transactional"])
 async def test_dial_gate_error_blocks_every_call_type(client, mock_post, call_type):
     ctx, _ = _compliance_gate()
-    with patch(
-        "app.telephony.dial_gate.check", side_effect=RuntimeError("dial_gate exploded")
-    ), ctx:
+    with (
+        patch("app.telephony.dial_gate.check", side_effect=RuntimeError("dial_gate exploded")),
+        ctx,
+    ):
         result = await client.place_call(to=TEST_NUMBER, call_type=call_type)
 
     assert result["status_code"] == 0
