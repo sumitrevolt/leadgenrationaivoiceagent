@@ -448,8 +448,6 @@ def main(argv: list[str] | None = None) -> int:
     # (non---deployment) runs are unaffected, so local/CI readiness stays clean
     # on an unset variable. If this must be removed again, remove the tests in
     # the same commit — never leave them asserting a gate that no longer runs.
-    if args.deployment:
-        # check_voice_launch_kill_env()  # Owner: gate removed
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.
