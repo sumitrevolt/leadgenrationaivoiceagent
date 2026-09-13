@@ -48,6 +48,35 @@ def _env(name: str, default: str = "") -> str:
     return (val or "").strip()
 
 
+# --------------------------------------------------------------------------- #
+# Log hygiene - CodeQL py/clear-text-logging-sensitive-data (PR #502).
+#
+# dial_gate ke reasons me destination number se derive hui cheezein aa sakti hain
+# (jaise "dial_blocklist: learned_block:prefix:98xxxxxx(...)"), aur gate_error me
+# raw exception text. Inhe as-is log karna PII leak hai - isliye log sink pe sirf
+# whitelisted coarse category jaati hai; full reason API response body me hi
+# rehta hai (caller ke liye).
+# --------------------------------------------------------------------------- #
+_REASON_CODES = (
+    "non_promotional",
+    "allowlisted",
+    "gates_passed",
+    "dial_test_mode",
+    "dial_blocklist",
+    "phone_type_gate",
+    "gate_error",
+)
+
+
+def _reason_code(reason: str) -> str:
+    """PII-free, whitelisted classification of a dial_gate reason for logs."""
+    text = str(reason or "")
+    for code in _REASON_CODES:
+        if text.startswith(code):
+            return code
+    return "unknown"
+
+
 class TataSmartfloClient:
     """
     Thin async client for the Tata Smartflo Click-to-Call Support API.
@@ -177,7 +206,9 @@ class TataSmartfloClient:
 
                 ok, reason = dial_gate_check(to, call_type)
                 if not ok:
-                    logger.warning(f"Tata Smartflo place_call blocked by dial_gate: {reason}")
+                    logger.warning(
+                        f"Tata Smartflo place_call blocked by dial_gate: {_reason_code(reason)}"
+                    )
                     return {
                         "status_code": 0,
                         "body": {"error": f"compliance_blocked: dial_gate: {reason}"},
