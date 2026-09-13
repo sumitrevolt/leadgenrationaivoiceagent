@@ -411,6 +411,17 @@ if [ "$UP_RC" -ne 0 ]; then
   echo "WARN: continuing to VERIFY; the observed end state decides."
 fi
 
+# Schema drift guard: apply any pending Alembic migrations BEFORE verifying /health.
+# (Root cause closed: this script previously had NO migration step, so prod could sit on
+#  an old alembic head - e.g. 025 - while the new image expected 026/027.)
+if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
+  echo "=== ALEMBIC UPGRADE (schema drift guard) ==="
+  if ! ( cd "$REPO" && bash scripts/vps_migrate.sh ); then
+    echo "FATAL: alembic upgrade head failed - refusing to verify a schema-stale deploy."
+    exit 1
+  fi
+fi
+
 sleep 22
 
 # -------------------------------------------------------------------- verify

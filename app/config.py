@@ -3,6 +3,8 @@ AI Voice Agent - B2B Lead Generation Platform
 Main Application Configuration
 """
 
+import json
+import re
 from functools import lru_cache
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
@@ -312,6 +314,24 @@ class Settings(BaseSettings):
 
     # Security
     cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
+
+    # Owner-admin surface CORS. NEVER wildcard + credentials. Stored as a raw
+    # string (comma/space/newline separated OR JSON list), parsed to a list by
+    # _parse_csv_lists below. Defaults to the production domains; override via
+    # OWNER_ADMIN_CORS_ORIGINS. An empty/misconfigured value falls back to the
+    # production domains — it can NEVER become "*".
+    owner_admin_cors_origins: str = Field(
+        default="https://leadsgenai.in, https://www.leadsgenai.in"
+    )
+
+    # Trusted-host enforcement for the MAIN app. Stored as a raw string
+    # (comma/space/newline separated OR JSON list), parsed to a list by
+    # _parse_csv_lists. Empty = DISABLED (fail-safe: no behavior change in prod
+    # until the owner sets TRUSTED_HOSTS). When non-empty AND production, main.py
+    # adds starlette TrustedHostMiddleware(allowed_hosts=...). localhost/127.0.0.1/
+    # testserver are ALWAYS permitted internally so probes/health and TestClient
+    # never break. Recommended prod value: leadsgenai.in,www.leadsgenai.in
+    trusted_hosts: str = Field(default="")
     rate_limit_per_minute: int = 100
     max_failed_login_attempts: int = 5
     account_lockout_minutes: int = 30
@@ -399,6 +419,28 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development"""
         return self.app_env == "development"
+
+    @model_validator(mode="after")
+    def _parse_csv_lists(self):
+        """Parse comma/space/newline/JSON string settings into lists.
+
+        pydantic-settings 2.x JSON-parses list env fields and rejects plain comma
+        strings, so owner_admin_cors_origins / trusted_hosts are typed `str` and
+        parsed here. Already-list values (programmatic construction) pass through.
+        """
+        for key in ("owner_admin_cors_origins", "trusted_hosts"):
+            v = getattr(self, key)
+            if isinstance(v, str):
+                v = v.strip()
+                if v.startswith("["):
+                    try:
+                        v = json.loads(v)
+                    except json.JSONDecodeError:
+                        v = [v]
+                else:
+                    v = [x.strip() for x in re.split(r"[,\s]+", v) if x.strip()]
+                setattr(self, key, v)
+        return self
 
     class Config:
         env_file = ".env"

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  MessagesSquare,
   PhoneCall,
   Settings,
   Users,
@@ -23,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/leads', label: 'Leads', icon: Users },
   { to: '/calls', label: 'Call Log', icon: PhoneCall },
   { to: '/automations', label: 'Automations', icon: Zap },
+  { to: '/telegram', label: 'Telegram', icon: MessagesSquare },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

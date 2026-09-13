@@ -12,5 +12,10 @@ ui_meta:
     title: board
     custom: true
     chat: '20260822_113553_079662'
+    telegram:
+      bindings:
+        - product: cross
+          key: internal_admin
+          as: board
 _ui_meta_revisions:
   hermes-bots: 1

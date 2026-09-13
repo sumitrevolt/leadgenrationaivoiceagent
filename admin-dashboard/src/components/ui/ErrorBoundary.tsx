@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/primitives';
@@ -19,7 +20,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    Sentry.captureException(error, { extra: errorInfo });
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   public render() {

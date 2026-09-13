@@ -16,6 +16,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -611,6 +612,16 @@ else:
 
 app.add_middleware(CORSMiddleware, **cors_config)
 
+# Trusted-host enforcement (enterprise hardening). DISABLED by default (fail-safe):
+# only active in production when TRUSTED_HOSTS is explicitly set by the owner.
+# localhost / 127.0.0.1 / testserver are ALWAYS permitted so internal probes,
+# health checks, and TestClient never break. Recommended prod value:
+# TRUSTED_HOSTS=leadsgenai.in,www.leadsgenai.in
+if settings.trusted_hosts:
+    _allowed_hosts = list(settings.trusted_hosts) + ["localhost", "127.0.0.1", "testserver"]
+    if is_production:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
+
 
 # PostHog web-analytics snippet auto-inject (G3) — OFF by default. POSTHOG_API_KEY
 # unset = har response untouched (turant passthrough). Never blocks boot.
@@ -647,6 +658,13 @@ app.include_router(
     analytics.router, prefix="/api", tags=["Analytics"]
 )  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+try:
+    from app.api.telegram_setup import router as telegram_setup_router
+
+    app.include_router(telegram_setup_router)  # /telegram/setup/* (fail-closed; owner-gated writes)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Telegram setup router not mounted: {_e}")
+
 # Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
 try:
     from app.api.buzz_mcp_tools import router as buzz_mcp_router

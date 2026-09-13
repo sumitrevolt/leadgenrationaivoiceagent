@@ -13,5 +13,19 @@ ui_meta:
     title: guardian
     custom: true
     chat: 20260821_122038_ce5335
+    telegram:
+      bindings:
+        - product: cross
+          key: internal_admin
+          as: devops
+        - product: cross
+          key: owner_alerts
+          as: devops
+    cli_worker:
+      enabled: true
+      headless: true
+      scope: vps_and_project
+      command: "python -m app.workers.cli_worker --supervisor guardian"  # placeholder; runtime fills real entrypoint
+      posts_to: internal_admin
 _ui_meta_revisions:
   hermes-bots: 1

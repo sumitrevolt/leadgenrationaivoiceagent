@@ -206,3 +206,31 @@ export interface Session {
   issuedAt: string;
   expiresAt: string;
 }
+
+/* ---- Telegram enterprise setup ---- */
+
+export type TelegramAccess = 'public' | 'private';
+export type TelegramKind = 'channel' | 'supergroup';
+
+export interface TelegramGroup {
+  id: string; // "<product>.<key>" e.g. "marketing.announcements"
+  product: 'marketing' | 'voice' | 'cross';
+  key: string; // announcements | community | support | feedback | internal_admin | owner_alerts
+  kind: TelegramKind;
+  name: string;
+  handle: string | null;
+  purpose: string;
+  audience: string;
+  access: TelegramAccess;
+  adminRoles: string[];
+  forumTopics: string[];
+  chatId: string | null; // owner fills after manual creation
+  inviteLink: string | null; // owner fills after manual creation
+}
+
+export interface TelegramApplyResult {
+  mode: 'mock' | 'live';
+  applied: boolean;
+  note: string;
+  groups: { id: string; status: string; detail?: string }[];
+}
