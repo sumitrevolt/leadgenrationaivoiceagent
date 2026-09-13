@@ -16,8 +16,8 @@ import pytest
 
 starlette_testclient = pytest.importorskip("starlette.testclient")
 
-from starlette.middleware.trustedhost import TrustedHostMiddleware  # noqa: E402
 from starlette.applications import Starlette  # noqa: E402
+from starlette.middleware.trustedhost import TrustedHostMiddleware  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #

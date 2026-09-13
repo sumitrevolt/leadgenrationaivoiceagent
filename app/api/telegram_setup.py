@@ -57,7 +57,7 @@ def _bot_token() -> str | None:
 def _load_spec() -> dict[str, Any]:
     if not SPEC_PATH.exists():
         raise HTTPException(status_code=500, detail=f"Spec not found: {SPEC_PATH}")
-    with open(SPEC_PATH, "r", encoding="utf-8") as fh:
+    with open(SPEC_PATH, encoding="utf-8") as fh:
         spec = yaml.safe_load(fh)
     if not isinstance(spec, dict):
         raise HTTPException(status_code=500, detail="Spec is not a mapping.")
