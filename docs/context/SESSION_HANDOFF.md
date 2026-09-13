@@ -1,5 +1,20 @@
 # SESSION HANDOFF — 2026-09-11 00:15 IST (COORDINAOTR: Hermes / LeadGen Admin)
 
+> Prior session entry preserved from `origin/master` (2026-09-07) during the master->main
+> integration. `SESSION_HANDOFF.md` is normally overwritten each session; this block is kept
+> verbatim so the OPS-WORKFORCE-TRUTH record is not lost. `## CRITICAL CHANGES THIS SESSION`
+> below is the current (2026-09-11) handoff.
+
+# SESSION HANDOFF — 2026-09-07 (Latest: workforce evidence correction)
+
+## 10:04 IST — OPS-WORKFORCE-TRUTH (LOCAL-ONLY)
+- Existing canonical tasks.json now records owner engineering, P1, deadline and handoff. No new fleet/dashboard/daemon.
+- Reproduced fabricated LOCAL_ACTIVE after both inference attempts failed. Now BLOCKED/FAILED, healed=false; empty completion fails; reasoning is not copied to output. Removed cycle*31 action inflation and hardcoded desktop ACTIVE claims. Counts reflect current-cycle inference responses, explicitly not task execution.
+- Focused workforce/auth/watchdog/council tests: 14 passed exit 0; secrets scan exit 0; diff check exit 0. prod_check ALL CHECKS PASSED exit 0, 1394 registered routes. Ledger read-back: 51 tasks, zero duplicate IDs, one OPS-WORKFORCE-TRUTH.
+- Running daemon has NOT been restarted: source fix is not live evidence. Next: add empty-completion/aggregate tests, finish gates, controlled local reload and read-back; then connect authorized ledger tasks to execution without model prose as proof.
+- App heartbeat leadgen-existing-ledger-follow-up ACTIVE hourly, same task, quiet when unchanged. Existing OS keepalive retained.
+- No production changes, customer sends, secret mutation, commit or deploy.
+
 ## CRITICAL CHANGES THIS SESSION
 
 ### P0 — FAKE TELEMETRY ELIMINATED (2026-09-11)

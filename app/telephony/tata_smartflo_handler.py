@@ -21,7 +21,8 @@ comes via webhooks. Webhook URL must be configured in the Smartflo portal.
 Env vars (from .env):
   TATA_SMARTFLO_API_TOKEN  - Bearer token from Smartflo portal
   TATA_SMARTFLO_API_KEY    - Click-to-Call Support API Key
-  TATA_SMARTFLO_DID        - Caller ID DID (bundled with license)
+  TATA_SMARTFLO_DID        - Optional display/status DID. The C2C API key
+                             owns the default DID/destination configuration.
 
 NOTE: Authorization header becomes MANDATORY after 30 Sep 2026.
       We always send it.
@@ -38,9 +39,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-SMARTFLO_C2C_ENDPOINT = (
-    "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
-)
+SMARTFLO_C2C_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -110,7 +109,8 @@ class TataSmartfloClient:
 
         Args:
             to:             Customer's phone number (10-12 digit Indian number)
-            caller_id:      DID to show to customer (defaults to TATA_SMARTFLO_DID)
+            caller_id:      Optional DID override. When omitted, Smartflo uses
+                            the DID configured on the C2C API key.
             call_timeout:   Max call duration in seconds (auto-hangup)
             customer_ring_timeout: Max seconds to ring customer (10-30)
             custom_identifier: Up to 10 custom key-value pairs for webhook correlation
@@ -262,9 +262,12 @@ class TataSmartfloClient:
                 },
             }
 
-        # Build clean 10-digit number for Smartflo API
+        # Build clean number for Smartflo API. For C2C Support, the API key is
+        # the source of truth for the configured DID and destination. Sending
+        # an env DID here can override that mapping and Smartflo rejects it
+        # when the DID is not valid for this particular key.
         to_clean = self._clean_number(to)
-        caller = caller_id or self.did
+        caller = (caller_id or "").strip()
 
         # CALL CORRELATION (2026-09-13): CallManager passes the internal call_id
         # as the Vobiz-spelled `CallbackData`. Smartflo has no such top-level
@@ -284,6 +287,9 @@ class TataSmartfloClient:
             "api_key": self.api_key,
             "async": 1,  # mandatory: Smartflo only supports async mode
         }
+        # `caller_id` is optional in Smartflo's C2C Support contract. Only send
+        # it when the caller explicitly requested an override; otherwise let
+        # the API key select its provisioned/verified DID.
         if caller:
             payload["caller_id"] = self._clean_caller_id(caller)
         if call_timeout:
@@ -299,9 +305,7 @@ class TataSmartfloClient:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=30.0, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.post(
                     SMARTFLO_C2C_ENDPOINT,
                     json=payload,
@@ -310,14 +314,12 @@ class TataSmartfloClient:
             body = self._safe_body(resp)
             if resp.status_code == 200 and body.get("success"):
                 ref_id = body.get("ref_id", "unknown")
-                logger.info(
-                    f"📞 Tata Smartflo call queued → ref_id={ref_id} "
-                    f"(to={to_clean[-4:]:>4})"
-                )
+                # CodeQL: do not log any part of the destination number —
+                # ref_id is sufficient correlation and is not PII.
+                logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
             else:
                 logger.warning(
-                    f"Tata Smartflo call rejected: {resp.status_code} "
-                    f"{body.get('message', body)}"
+                    f"Tata Smartflo call rejected: {resp.status_code} {body.get('message', body)}"
                 )
             return {"status_code": resp.status_code, "body": body}
         except Exception as e:

@@ -36,10 +36,13 @@ import argparse
 import json
 import os
 import sys
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from scripts.seed_omniroute_14combos import COMBOS_14, ROSTER_42
 
 try:
     import yaml  # type: ignore
@@ -124,7 +127,7 @@ class Manifest:
     self_healing: dict
 
     @classmethod
-    def load(cls, path: Path = MANIFEST_PATH) -> "Manifest":
+    def load(cls, path: Path = MANIFEST_PATH) -> Manifest:
         if not path.exists():
             raise FileNotFoundError(f"manifest not found at {path}")
         if yaml is None:
@@ -183,6 +186,11 @@ class Manifest:
             errs.append(
                 f"manifest: expected 14 combos, got {len(self.combos)}"
             )
+        canonical_names = {row[0] for row in COMBOS_14}
+        if len(ROSTER_42) != 42:
+            errs.append(f"catalog: expected 42 model slots, got {len(ROSTER_42)}")
+        if len(canonical_names) != 14:
+            errs.append(f"catalog: expected 14 canonical combos, got {len(canonical_names)}")
         # Each combo must satisfy provider ≥3
         for c in self.combos:
             ok, e = c.is_valid()
@@ -220,10 +228,18 @@ class OmniState:
     connections: list = field(default_factory=list)
 
     @classmethod
-    def load(cls) -> "OmniState":
+    def load(cls) -> OmniState:
         combos_raw: list = []
         connections: list = []
-        if OMNI_COMBOS_PATH.exists():
+        try:
+            with urllib.request.urlopen(
+                "http://127.0.0.1:20128/v1/combos", timeout=10
+            ) as response:
+                live_payload = json.loads(response.read().decode("utf-8", errors="replace"))
+            combos_raw = live_payload.get("data", [])
+        except Exception:
+            combos_raw = []
+        if not combos_raw and OMNI_COMBOS_PATH.exists():
             try:
                 combos_raw = json.loads(OMNI_COMBOS_PATH.read_text(encoding="utf-8")).get(
                     "combos", []
@@ -266,6 +282,9 @@ class ReconcileReport:
     kill_switches_total: int
     self_healing_rules_total: int
     provider_slot_total: int
+    model_slots_per_combo: int
+    total_model_slots: int
+    unique_catalog_provider_ids: int
     worker_scope_total: int
     validation_errors: list
 
@@ -282,6 +301,9 @@ class ReconcileReport:
             "kill_switches_total": self.kill_switches_total,
             "self_healing_rules_total": self.self_healing_rules_total,
             "provider_slot_total": self.provider_slot_total,
+            "model_slots_per_combo": self.model_slots_per_combo,
+            "total_model_slots": self.total_model_slots,
+            "unique_catalog_provider_ids": self.unique_catalog_provider_ids,
             "worker_scope_total": self.worker_scope_total,
             "validation_errors": self.validation_errors,
             "status": "OK" if not self.validation_errors else "DRIFT",
@@ -304,7 +326,9 @@ def reconcile(manifest: Manifest, omni: OmniState) -> ReconcileReport:
             continue
         omni_providers = set()
         for m in oc.get("models", []):
-            mp = m.get("model", "").split("/", 1)[0] if m.get("model") else None
+            mp = m.get("providerId")
+            if not mp and m.get("model"):
+                mp = m["model"].split("/", 1)[0]
             if mp:
                 omni_providers.add(mp)
         manifest_providers = set(c.providers)
@@ -333,6 +357,9 @@ def reconcile(manifest: Manifest, omni: OmniState) -> ReconcileReport:
         kill_switches_total=len(manifest.kill_switches),
         self_healing_rules_total=len(manifest.self_healing.get("rules", [])),
         provider_slot_total=provider_slot_total,
+        model_slots_per_combo=len(ROSTER_42),
+        total_model_slots=len(manifest.combos) * len(ROSTER_42),
+        unique_catalog_provider_ids=len({m["providerId"] for m in ROSTER_42}),
         worker_scope_total=worker_scope_total,
         validation_errors=m_errs,
     )
@@ -386,7 +413,7 @@ def emit_desktop_configs(manifest: Manifest, apply: bool) -> dict:
 def render_matrix(manifest: Manifest) -> str:
     lines: list = []
     lines.append("=" * 100)
-    lines.append("LeadGen AI — 14 Combos × 5 Desktop Apps × 42 Provider Slots")
+    lines.append("LeadGen AI — 14 Combos × 5 Desktop Apps × 42 Model Slots")
     lines.append("=" * 100)
     lines.append("")
     lines.append("DESKTOP APPS")
@@ -413,7 +440,11 @@ def render_matrix(manifest: Manifest) -> str:
         )
     lines.append("")
     total_slots = sum(c.provider_count for c in manifest.combos)
-    lines.append(f"TOTAL PROVIDER SLOTS: {total_slots}  (target=42 = 14x3)")
+    lines.append(
+        f"ROUTING PROVIDER REFERENCES: {total_slots}  | MODEL SLOTS: "
+        f"{len(manifest.combos) * len(ROSTER_42)} (14x42) | UNIQUE CATALOG PROVIDERS: "
+        f"{len({m['providerId'] for m in ROSTER_42})}"
+    )
     lines.append(f"KILL SWITCHES: {len(manifest.kill_switches)}")
     lines.append(
         f"SELF-HEALING RULES: {len(manifest.self_healing.get('rules', []))}"
@@ -495,7 +526,7 @@ def cmd_emit_router_registry(args: argparse.Namespace) -> int:
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="omniroute_combo_distributor",
-        description="LeadGen AI combo distributor (14×5×42) — autonomous self-healing engine.",
+        description="LeadGen AI combo distributor (14×5×42 model slots) — autonomous self-healing engine.",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -528,6 +559,10 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    # Windows PowerShell may expose cp1252; matrix output contains Unicode
+    # arrows and box-drawing characters, so keep the CLI non-failing there.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = build_argparser()
     args = parser.parse_args(argv)
     handlers = {

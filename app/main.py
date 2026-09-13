@@ -651,9 +651,7 @@ app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 try:
     from app.api.buzz_mcp_tools import router as buzz_mcp_router
 
-    app.include_router(
-        buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"]
-    )
+    app.include_router(buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"])
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Buzz MCP tools router not mounted: {_e}")
 # Telephony provider callbacks (Vobiz voice + status). Sentry's FastApiIntegration
@@ -713,7 +711,9 @@ try:
     from app.api.internal_media import router as content_internal_router
 
     app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
-    app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
+    app.include_router(
+        content_public_router, prefix="/api", tags=["ContentOS"]
+    )  # /api/content-os/*  (admin/owner)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentOS router not mounted: {_e}")
 try:
@@ -1254,6 +1254,13 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer flows router not mounted: {_e}")
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
+# NOTE (merge resolution): the Admin Command Center router (`app.admin.main:admin_router`,
+# paths /admin/api/*) was included TWICE after the master->main merge — once here via
+# `origin/master`'s module-level alias and once by `origin/main`'s guarded block above
+# (~line 1164). Both sides had exactly one mount; the merge doubled it. The guarded
+# `origin/main` mount is kept (every other include in this file is try/except-guarded with
+# a "not mounted" warning, so a broken admin module degrades instead of killing boot);
+# the unguarded duplicate was removed.
 try:
     from app.api.system_health import router as system_health_router
 

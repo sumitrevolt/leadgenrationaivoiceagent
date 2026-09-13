@@ -1,4 +1,5 @@
 """Task Ledger service: SQLite-backed task management with auto-assign and duplicate detection."""
+
 from __future__ import annotations
 
 import difflib
@@ -20,9 +21,19 @@ from app.admin.models import (
 
 # Known workers from Hermes profiles
 WORKERS = [
-    "board", "claude", "engineering", "guardian", "hunter",
-    "openclaw", "operations", "pilot", "platform", "sales",
-    "success", "verdant", "workbuddy",
+    "board",
+    "claude",
+    "engineering",
+    "guardian",
+    "hunter",
+    "openclaw",
+    "operations",
+    "pilot",
+    "platform",
+    "sales",
+    "success",
+    "verdant",
+    "workbuddy",
 ]
 
 DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "admin_tasks.db"
@@ -43,9 +54,18 @@ def _get_conn() -> sqlite3.Connection:
 
 def _row_to_task(row) -> Task:
     if isinstance(row, tuple):
-        row = {"id": row[0], "title": row[1], "description": row[2], "owner": row[3],
-               "priority": row[4], "status": row[5], "deadline": row[6], "evidence": row[7],
-               "created_at": row[8], "updated_at": row[9]}
+        row = {
+            "id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "owner": row[3],
+            "priority": row[4],
+            "status": row[5],
+            "deadline": row[6],
+            "evidence": row[7],
+            "created_at": row[8],
+            "updated_at": row[9],
+        }
     return Task(
         id=row["id"],
         title=row["title"],
@@ -321,11 +341,13 @@ def detect_duplicates(new_title: str, threshold: float = 0.75) -> list[dict]:
     for row in rows:
         ratio = difflib.SequenceMatcher(None, new_lower, row["title"].lower()).ratio()
         if ratio >= threshold:
-            matches.append({
-                "task_id": row["id"],
-                "title": row["title"],
-                "similarity": round(ratio, 3),
-                "matched_title": new_title,
-            })
+            matches.append(
+                {
+                    "task_id": row["id"],
+                    "title": row["title"],
+                    "similarity": round(ratio, 3),
+                    "matched_title": new_title,
+                }
+            )
     matches.sort(key=lambda m: m["similarity"], reverse=True)
     return matches

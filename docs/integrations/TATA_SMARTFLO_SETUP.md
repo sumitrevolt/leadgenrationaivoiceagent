@@ -53,9 +53,18 @@ every new call site is a new chance to forget them. Recorded in full at
 one fail-closed choke point; provider clients accept a dial ticket, not a bare number; billing
 identity mandatory; no second dial path. **Never make an ungated provider a failover target.**
 
+## 2026-09-09 official VOICE Streaming contract check (from `origin/master`)
+2026-09-09 official VOICE Streaming contract check: Smartflo sends `connected` → `start` → `media` → `stop` (and `dtmf`/provider `mark`) to the endpoint; the endpoint sends only bot `media`, `mark`, and `clear` back. The endpoint must not echo `connected` or `start`. Bot media is µ-law/8000 base64 and each payload must be at least 160 bytes or a 160-byte multiple.
+
 ## UNVERIFIED until the first live call (do not claim these work)
 
 1. Exact Smartflo WS event schema (`streamSid` vs `stream_sid`, `mediaFormat`, whether it expects our `connected`/`start` acks). → read the `start schema` log line after call #1.
+1b. (from `origin/master`) Live Smartflo WS event delivery and audio proof → read the `start schema` log line and capture `media_frames`, `caller_rms_max`, and a transcript after call #1. The event direction and packet contract are now confirmed from the official VOICE Streaming documents.
+
+⚠️ **Open question between the two entries above:** main's stream code sends a `start` ack
+(`smartflo_stream._send({"event": "start", ...})`) while the master entry reads the same vendor
+docs as "the endpoint must not echo `connected` or `start`". Not resolved from code here; the first
+live `start schema` capture decides. See `tests/test_smartflo_stream.py::TestStartEvent`.
 2. Dynamic-endpoint response field name (`wss_url`) and whether the demo tenant has Voice Bot / streaming enabled at all (Tata usually enables it per account).
 3. Click-to-Call "second leg" landing on the voice bot — the `api_key` destination must be the Voice Bot / streaming flow, not an agent extension.
 4. Whether Tata requires our VPS IP `72.61.245.204` in **Settings → IP Pool Whitelisting** for API calls (menu exists in the demo portal — add it up front).
@@ -219,3 +228,6 @@ already covered transitively by the P0-3 `finalize_stream_session` fix. Correcte
 - No conditional routing, no campaign A/B, no sentiment persistence, no `serve_agent` on this path.
 - `AUTO_QUALIFY_CALLS` defaults to `"0"` → qualification is wired but inert until enabled.
 - No live-call test with real credentials yet.
+
+## Known gaps after demo (backlog)
+Smartflo-path AI qualification/rewards (no `_auto_qualify` on this path yet — vobiz has it) · STT+LLM still run inline in the receive loop (only playback is async) · no HMAC enforced (`SMARTFLO_WS_REQUIRE_SECRET=0`) — fine for demo, arm before customer traffic.
