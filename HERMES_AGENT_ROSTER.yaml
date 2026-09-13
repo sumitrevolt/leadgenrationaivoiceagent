@@ -1,3 +1,6 @@
+# NOTE (2026-09-12): SUPERSEDED by docs/architecture/24X7_FINAL_DECISION_2026-09-12.md and
+# docs/architecture/24X7_ARCHITECTURE_RECORD.md section 4 (canonical = 9 bots -> 31 agents).
+# This file is an OLDER 8-bot view; kept for history only - do NOT treat as the registry.
 # HERMES AGENT ROSTER
 # Mapping of 31 project AI agents to 8 Hermes bots (control/orchestration layer)
 # Each agent is assigned to exactly one Hermes bot based on duties and ownership.
@@ -11,7 +14,7 @@ hermes_bots:
 
   - id: revenue_cro
     name: Revenue / CRO Bot
-    description: Owns ICP, prospect prioritization, offers, pricing, sales funnel, pipeline, conversion optimization, upsells, reactivation, revenue experiments. Primary KPI: verified collected revenue.
+    description: 'Owns ICP, prospect prioritization, offers, pricing, sales funnel, pipeline, conversion optimization, upsells, reactivation, revenue experiments. Primary KPI: verified collected revenue.'
     agents:
       - nikhil  # Revenue Ops - Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho
       - vidya   # FinOps / Cost - Per-tenant unit economics, margin-negative niche flag, LLM spend vs revenue trend. KPI: gross_margin_per_tenant
@@ -28,7 +31,7 @@ hermes_bots:
 
   - id: outreach_conversation
     name: Outreach & Conversation Bot
-    description: Owns WhatsApp, email, compliant outreach, follow-ups, reply classification, conversation continuation, handoff. Requirements: suppression-aware, opt-out aware, deduplicated, rate-limited, auditable, idempotent.
+    description: 'Owns WhatsApp, email, compliant outreach, follow-ups, reply classification, conversation continuation, handoff. Requirements: suppression-aware, opt-out aware, deduplicated, rate-limited, auditable, idempotent.'
     agents:
       - isha    # Marketing Executive - Clients ke liye AI social posts (FB/Insta captions), Google Business Profile tips, festival/offer content
       - zara    # Social Media Manager - Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)

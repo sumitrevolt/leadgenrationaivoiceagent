@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard';
 import Leads from '@/pages/Leads';
 import Calls from '@/pages/Calls';
 import Automations from '@/pages/Automations';
+import TelegramSetup from '@/pages/TelegramSetup';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/leads" element={<Leads />} />
             <Route path="/calls" element={<Calls />} />
             <Route path="/automations" element={<Automations />} />
+            <Route path="/telegram" element={<TelegramSetup />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
           </Route>

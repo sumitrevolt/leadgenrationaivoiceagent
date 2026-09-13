@@ -12,5 +12,22 @@ ui_meta:
     custom: true
     groups: []
     group: null
+    telegram:
+      bindings:
+        - product: voice
+          key: community
+          as: bot_welcome
+        - product: voice
+          key: support
+          as: bot_support
+        - product: marketing
+          key: community
+          as: bot_welcome
+    cli_worker:
+      enabled: true
+      headless: true
+      scope: vps_and_project
+      command: "python -m app.workers.cli_worker --supervisor sales"  # placeholder; runtime fills real entrypoint
+      posts_to: internal_admin
 _ui_meta_revisions:
   hermes-bots: 3

@@ -13,7 +13,8 @@
 #     WorkBuddy (ops/productivity), Verdant (research/QA).
 #   - 42 provider slots = 14 combos × 3 primary providers (priority failover).
 #   - Workers: VPS-runnable combos (leadgen-*, hermes-*) → can run in either;
-#     project-only combos are desktop-only by design.
+#     headless supervisor bots now own openclaw/verdant combos (vps_and_project);
+#     desktop apps stay owner-manual for interactive work (2026-09-12 re-scope).
 # =============================================================================
 
 version: 1
@@ -67,9 +68,11 @@ desktop_apps:
   - id: openclaw
     role: boss_and_governance
     description: >-
-      OpenClaw Desktop App — owner copilot, decision governance, kill fence,
-      council coordination. Limited tool surface (no exec/spawn) by design.
-    worker_scope: project_only
+      OpenClaw — owner copilot, decision governance, kill fence, council
+      coordination. Now headless-eligible (CLI/API supervisor bots can own its
+      combos); remains owner-manual for interactive work. Limited tool surface
+      (no exec/spawn) by design.
+    worker_scope: vps_and_project
     combos:
       - hermes-owner
       - hermes-research
@@ -77,9 +80,10 @@ desktop_apps:
   - id: verdant
     role: research_and_quality
     description: >-
-      Verdant Desktop App — research, experimentation, QA, model evaluation.
-      Lower priority combos; uses HuggingFace + Ollama-heavy free providers.
-    worker_scope: project_only
+      Verdant — research, experimentation, QA, model evaluation. Headless-eligible
+      (CLI/API supervisor bots can own its combos); uses HuggingFace + Ollama-heavy
+      free providers. Owner-manual for interactive experiments.
+    worker_scope: vps_and_project
     combos:
       - hermes-research
       - hermes-qa

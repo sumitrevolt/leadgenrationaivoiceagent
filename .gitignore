@@ -358,3 +358,11 @@ backups/
 .env.bak*
 /swara_smartflo_fix.patch
 *.env.bak
+
+# --- admin-dashboard TypeScript source that the broad rules above would swallow ---
+# `*.json` hid the dashboard's tsconfig.json and `lib/` hid src/lib/*, which is why
+# the React dashboard could never be type-checked or built (those files were never
+# committed). Keep the re-includes tightly scoped to admin-dashboard/ only.
+!admin-dashboard/tsconfig.json
+!admin-dashboard/src/lib/
+!admin-dashboard/src/lib/**
