@@ -12,5 +12,19 @@ ui_meta:
     title: operations
     custom: true
     chat: 20260821_121042_64781f
+    telegram:
+      bindings:
+        - product: cross
+          key: internal_admin
+          as: devops
+        - product: cross
+          key: owner_alerts
+          as: bot_broadcast
+    cli_worker:
+      enabled: true
+      headless: true
+      scope: vps_and_project
+      command: "python -m app.workers.cli_worker --supervisor operations"  # placeholder; runtime fills real entrypoint
+      posts_to: internal_admin
 _ui_meta_revisions:
   hermes-bots: 1

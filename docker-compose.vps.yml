@@ -388,6 +388,40 @@ services:
   # `CELERY_HEAVY_LLM_QUEUE` routing flag can never strand jobs in a queue with
   # no consumer (the hazard documented at the `worker` -Q note above).
   # ---------------------------------------------------------------------------
+  # 24x7 headless CLI supervisor worker (first of the approved 6). Registers in dev_workers,
+  # heartbeats every 60s, claims a QUEUED DevTask via claim_next. Safe: no-op executor (no
+  # customer/payment/voice side effect). Rollout: start THIS one, verify the dev_workers row,
+  # then add the other 5. Start:
+  #   docker compose -f docker-compose.vps.yml --profile celery up -d worker-cli-operations
+  worker-cli-operations:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_cli_operations
+    mem_limit: 512m
+    cpus: "0.5"
+    user: "0:0"
+    command: python -m app.workers.cli_worker --supervisor operations --interval 60
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      RUN_IN_PROCESS_SCHEDULER: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging:
+      driver: json-file
   worker-heavy:
     profiles: ["celery"]
     image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}

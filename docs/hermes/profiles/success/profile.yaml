@@ -11,5 +11,25 @@ ui_meta:
     title: success
     custom: true
     chat: 20260821_123050_2c577a
+    telegram:
+      bindings:
+        - product: marketing
+          key: feedback
+          as: bot_welcome
+        - product: voice
+          key: feedback
+          as: bot_welcome
+        - product: marketing
+          key: support
+          as: bot_support
+        - product: voice
+          key: support
+          as: bot_support
+    cli_worker:
+      enabled: true
+      headless: true
+      scope: vps_and_project
+      command: "python -m app.workers.cli_worker --supervisor success"  # placeholder; runtime fills real entrypoint
+      posts_to: internal_admin
 _ui_meta_revisions:
   hermes-bots: 3

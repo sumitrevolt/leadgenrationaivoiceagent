@@ -12,5 +12,16 @@ ui_meta:
     title: engineering
     custom: true
     chat: 20260822_113623_40eb3b
+    telegram:
+      bindings:
+        - product: cross
+          key: internal_admin
+          as: engineering
+    cli_worker:
+      enabled: true
+      headless: true
+      scope: vps_and_project
+      command: "python -m app.workers.cli_worker --supervisor engineering"  # placeholder; runtime fills real entrypoint
+      posts_to: internal_admin
 _ui_meta_revisions:
   hermes-bots: 1
