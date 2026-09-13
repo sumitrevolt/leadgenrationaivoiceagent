@@ -152,7 +152,7 @@ mypy_extensions==1.1.0
 nano-vectordb==0.0.4.3
 narwhals==2.24.0
 networkx==3.6.1
-numpy==1.26.3
+numpy==2.2.6
 oauthlib==3.3.1
 onnxruntime==1.26.0
 openai==2.41.0
