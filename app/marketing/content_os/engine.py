@@ -14,6 +14,7 @@ Design principles:
   * Reuses existing brand_kit, content_pack, reel_video, jingle, video_pipeline
     whenever possible; we only orchestrate around them.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -57,10 +58,11 @@ PROVEN_PATH_ALIAS = DATA_DIR
 @dataclass
 class RenderBrief:
     """A render request. Serializes to JSON; sent to renderer."""
+
     brief_id: str
-    owner_kind: str           # "leadgen" | "customer"
-    owner_slug: str           # "leadgen" or client slug
-    niche: str                # e.g., "dentist_pune", "salon_mumbai"
+    owner_kind: str  # "leadgen" | "customer"
+    owner_slug: str  # "leadgen" or client slug
+    niche: str  # e.g., "dentist_pune", "salon_mumbai"
     title: str
     hook: str
     cta_text: str
@@ -123,32 +125,40 @@ def _pick_leadsgen_briefs() -> list[RenderBrief]:
     """leadsgen self-promo briefs — sell THIS product by USING it."""
     today = _today_ist()
     angle_pool = [
-        ("automated-lead-machines",
-         "Local biz ko daily leads machine chahiye?",
-         "Free 90-sec audit lein",
-         "https://leadsgenai.in/audit"),
-        ("voice-agent-bhashini",
-         "AI telecaller jo Hindi me baat karta hai",
-         "Demo dekhein",
-         "https://leadsgenai.in/demo"),
-        ("combo-plan-promo",
-         "₹5,999 combo — marketing + voice ek plan me",
-         "Pricing dekhein",
-         "https://leadsgenai.in/pricing"),
+        (
+            "automated-lead-machines",
+            "Local biz ko daily leads machine chahiye?",
+            "Free 90-sec audit lein",
+            "https://leadsgenai.in/audit",
+        ),
+        (
+            "voice-agent-bhashini",
+            "AI telecaller jo Hindi me baat karta hai",
+            "Demo dekhein",
+            "https://leadsgenai.in/demo",
+        ),
+        (
+            "combo-plan-promo",
+            "₹5,999 combo — marketing + voice ek plan me",
+            "Pricing dekhein",
+            "https://leadsgenai.in/pricing",
+        ),
     ]
     out: list[RenderBrief] = []
     for i, (niche, hook, cta, url) in enumerate(angle_pool[:DAILY_BRIEFS_LEADSGEN]):
-        out.append(RenderBrief(
-            brief_id=f"leadgen-{today}-{i}",
-            owner_kind="leadgen",
-            owner_slug="leadgen",
-            niche=niche,
-            title="LeadGen AI Daily",
-            hook=hook,
-            cta_text=cta,
-            cta_url=url,
-            template="agency_product_launch_v1",
-        ))
+        out.append(
+            RenderBrief(
+                brief_id=f"leadgen-{today}-{i}",
+                owner_kind="leadgen",
+                owner_slug="leadgen",
+                niche=niche,
+                title="LeadGen AI Daily",
+                hook=hook,
+                cta_text=cta,
+                cta_url=url,
+                template="agency_product_launch_v1",
+            )
+        )
     return out
 
 
@@ -163,7 +173,9 @@ def _pick_customer_briefs() -> list[RenderBrief]:
         from app.marketing.brand_kit import list_active_clients  # type: ignore
         from app.marketing.niche_pack import next_pack_item  # type: ignore
     except Exception as e:
-        logger.info("[content_os] leadgen marketing deps unavailable (%s); skipping customer queue", e)
+        logger.info(
+            "[content_os] leadgen marketing deps unavailable (%s); skipping customer queue", e
+        )
         return out
 
     try:
@@ -184,17 +196,19 @@ def _pick_customer_briefs() -> list[RenderBrief]:
         if not item:
             continue
         for k in range(DAILY_BRIEFS_PER_CLIENT):
-            out.append(RenderBrief(
-                brief_id=f"{slug}-{today}-{k}",
-                owner_kind="customer",
-                owner_slug=str(slug),
-                niche=str(niche),
-                title=item.get("title") or "Daily Promo",
-                hook=item.get("hook") or "Acche se accha result chahiye?",
-                cta_text=item.get("cta_text") or "Book a slot",
-                cta_url=item.get("cta_url") or "https://leadsgenai.in/audit",
-                brand_kit=client.get("brand_kit"),
-            ))
+            out.append(
+                RenderBrief(
+                    brief_id=f"{slug}-{today}-{k}",
+                    owner_kind="customer",
+                    owner_slug=str(slug),
+                    niche=str(niche),
+                    title=item.get("title") or "Daily Promo",
+                    hook=item.get("hook") or "Acche se accha result chahiye?",
+                    cta_text=item.get("cta_text") or "Book a slot",
+                    cta_url=item.get("cta_url") or "https://leadsgenai.in/audit",
+                    brand_kit=client.get("brand_kit"),
+                )
+            )
     return out
 
 
@@ -284,6 +298,7 @@ def daily_video_run(*, force: bool = False) -> dict:
     # Hermes staff-log (best-effort; never raises).
     try:
         from app.platform.team import log_event  # type: ignore
+
         log_event(
             member="content",
             action="daily_video_run",
@@ -303,26 +318,32 @@ def run_for_client(slug: str) -> dict:
         return {"ok": False, "skipped": "CONTENT_OS_DISABLED"}
     try:
         from app.marketing.brand_kit import get_client  # type: ignore
+
         client = get_client(slug)
-    except Exception as e:
-        return {"ok": False, "error": f"unknown_client:{e}"}
+    except Exception:
+        # CodeQL: do not echo the exception into the API response — it can leak
+        # internal paths/state. Log server-side, return a stable opaque code.
+        logger.exception("run_for_client: failed to load client for slug '%s'", slug)
+        return {"ok": False, "error": "unknown_client"}
     if not client:
         return {"ok": False, "error": "unknown_client"}
 
     today = _today_ist()
     briefs = []
     for k in range(DAILY_BRIEFS_PER_CLIENT):
-        briefs.append(RenderBrief(
-            brief_id=f"{slug}-{today}-{k}-manual",
-            owner_kind="customer",
-            owner_slug=slug,
-            niche=client.get("niche") or "general",
-            title=f"{client.get('name') or slug} — Daily",
-            hook="Quick win in 60 seconds",
-            cta_text="Book",
-            cta_url="https://leadsgenai.in/start",
-            brand_kit=client.get("brand_kit"),
-        ))
+        briefs.append(
+            RenderBrief(
+                brief_id=f"{slug}-{today}-{k}-manual",
+                owner_kind="customer",
+                owner_slug=slug,
+                niche=client.get("niche") or "general",
+                title=f"{client.get('name') or slug} — Daily",
+                hook="Quick win in 60 seconds",
+                cta_text="Book",
+                cta_url="https://leadsgenai.in/start",
+                brand_kit=client.get("brand_kit"),
+            )
+        )
 
     out = []
     for b in briefs:

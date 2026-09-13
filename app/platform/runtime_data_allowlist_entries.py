@@ -631,7 +631,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.csv",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "csv_path",
-        "path_pattern": "f\"data/hot_queue_for_owner_{today}.csv\"",
+        "path_pattern": 'f"data/hot_queue_for_owner_{today}.csv"',
         "store_id": "ops.hot_queue_owner_pack_csv",
         "access_modes": ["REWRITE"],
         "reason": (
@@ -653,7 +653,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.md",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "md_path",
-        "path_pattern": "f\"data/hot_queue_for_owner_{today}.md\"",
+        "path_pattern": 'f"data/hot_queue_for_owner_{today}.md"',
         "store_id": "ops.hot_queue_owner_pack_md",
         "access_modes": ["REWRITE"],
         "reason": (
@@ -1388,8 +1388,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "command_center.pilot_tasks",
         "access_modes": ["APPEND", "READ"],
         "reason": (
-            "Pilot dispatch patch script appends evidence to messages.jsonl. "
-            "Offline admin tooling."
+            "Pilot dispatch patch script appends evidence to messages.jsonl. Offline admin tooling."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
@@ -1832,30 +1831,12 @@ ENTRIES: list[dict[str, Any]] = [
             "and the fail-closed reads."
         ),
     },
-    {
-        "allowlist_id": "sales.prospects.hunt_insert_vps.report",
-        "file": "data/hunter_leads/_hunt_insert_vps.py",
-        # No symbol; declared by exact line. The scanner resolved the literal
-        # '/opt/leadgen/data/HUN-002-leads.md' to its data root, so the declared
-        # pattern's basename must be that root.
-        "line_or_symbol": 174,
-        "path_pattern": "/opt/leadgen/data",
-        "store_id": "sales.prospects",
-        "access_modes": ["REWRITE"],
-        "reason": (
-            "One-shot VPS hunter-insert script writes its run report markdown "
-            "(HUN-002-leads.md) beside the hunter data root. Offline tooling; the "
-            "REWRITE is a report artifact, not the prospect store itself."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "sales",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": (
-            "Offline one-shot only; must not become a recurring writer of the "
-            "prospect store."
-        ),
-    },
+    # NOTE(2026-09-13): the "sales.prospects.hunt_insert_vps.report" declaration
+    # was removed — it pointed at data/hunter_leads/_hunt_insert_vps.py, an
+    # untracked gitignored scratch script that never exists in CI/VPS checkouts,
+    # so the declaration was permanently unbound ("file no longer exists"). The
+    # one-shot script still lives on the dev disk; if it ever becomes tracked
+    # tooling, re-declare it against its tracked path.
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

@@ -79,7 +79,13 @@ EXPECTED_BLOCKERS = 0
 # Baseline 839 -> 793: main-line smartflo/cutover reconcile paid down 46
 # 2026-09-04: 92 -> 94 re-pin. Added 2 classified allowlist entries for
 # automation.console_events (M2 console dispatcher).
-EXPECTED_ALLOWLIST_ENTRIES = 94
+# 2026-09-13: 94 -> 97 re-pin. The Sep-11 worktree merge (68abd40a) added 4
+# classified allowlist rows (admin.task_ledger.db,
+# automation.omniroute_combo_state.read, ops.owner_feed.read,
+# sales.prospects.hunt_insert_vps.report) without a re-pin; the unbound
+# hunt_insert_vps declaration was then removed (2026-09-13) — it declared
+# gitignored scratch that never exists in CI checkouts. Net: 94 -> 97.
+EXPECTED_ALLOWLIST_ENTRIES = 97
 EXPECTED_BASELINE_FINGERPRINTS = 793
 
 

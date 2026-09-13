@@ -358,3 +358,8 @@ backups/
 .env.bak*
 /swara_smartflo_fix.patch
 *.env.bak
+
+# Telegram user session + one-time creds (MTProto secrets - NEVER commit) 2026-09-13
+telegram_user.session
+telegram_user.session-journal
+tmp/tg_state.json

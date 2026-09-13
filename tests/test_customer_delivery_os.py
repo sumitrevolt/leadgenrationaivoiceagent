@@ -195,7 +195,7 @@ def test_command_center_navigation_cleanup():
     with TestClient(app) as client:
         resp = client.get("/app/command-center", follow_redirects=False)
     assert resp.status_code == 307
-    assert resp.headers["location"] == "/app/control-center"
+    assert resp.headers["location"] == "/app/owner-command-center"
 
 
 def test_delivery_ledger_records_automation_events():

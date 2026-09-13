@@ -38,9 +38,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-SMARTFLO_C2C_ENDPOINT = (
-    "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
-)
+SMARTFLO_C2C_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -48,6 +46,35 @@ def _env(name: str, default: str = "") -> str:
     if val is None or val == "":
         val = os.getenv(name, default)
     return (val or "").strip()
+
+
+# --------------------------------------------------------------------------- #
+# Log hygiene - CodeQL py/clear-text-logging-sensitive-data (PR #502).
+#
+# dial_gate ke reasons me destination number se derive hui cheezein aa sakti hain
+# (jaise "dial_blocklist: learned_block:prefix:98xxxxxx(...)"), aur gate_error me
+# raw exception text. Inhe as-is log karna PII leak hai - isliye log sink pe sirf
+# whitelisted coarse category jaati hai; full reason API response body me hi
+# rehta hai (caller ke liye).
+# --------------------------------------------------------------------------- #
+_REASON_CODES = (
+    "non_promotional",
+    "allowlisted",
+    "gates_passed",
+    "dial_test_mode",
+    "dial_blocklist",
+    "phone_type_gate",
+    "gate_error",
+)
+
+
+def _reason_code(reason: str) -> str:
+    """PII-free, whitelisted classification of a dial_gate reason for logs."""
+    text = str(reason or "")
+    for code in _REASON_CODES:
+        if text.startswith(code):
+            return code
+    return "unknown"
 
 
 class TataSmartfloClient:
@@ -180,16 +207,14 @@ class TataSmartfloClient:
                 ok, reason = dial_gate_check(to, call_type)
                 if not ok:
                     logger.warning(
-                        f"Tata Smartflo place_call blocked by dial_gate: {reason}"
+                        f"Tata Smartflo place_call blocked by dial_gate: {_reason_code(reason)}"
                     )
                     return {
                         "status_code": 0,
                         "body": {"error": f"compliance_blocked: dial_gate: {reason}"},
                     }
             except Exception as e:
-                logger.error(
-                    f"Tata Smartflo place_call: dial_gate error ({e}) — blocking dial."
-                )
+                logger.error(f"Tata Smartflo place_call: dial_gate error ({e}) — blocking dial.")
                 return {
                     "status_code": 0,
                     "body": {"error": f"compliance_blocked: dial_gate_error: {e}"},
@@ -209,15 +234,13 @@ class TataSmartfloClient:
                 decision = await get_compliance_gate().check(to, ct)
                 if not decision.allowed:
                     logger.warning(
-                        "Tata Smartflo place_call blocked by compliance: "
-                        f"{decision.reasons}"
+                        f"Tata Smartflo place_call blocked by compliance: {decision.reasons}"
                     )
                     return {
                         "status_code": 0,
                         "body": {
                             "error": (
-                                "compliance_blocked: "
-                                f"{'; '.join(decision.reasons) or 'blocked'}"
+                                f"compliance_blocked: {'; '.join(decision.reasons) or 'blocked'}"
                             )
                         },
                     }
@@ -234,9 +257,7 @@ class TataSmartfloClient:
                 from app.telephony.voice_launch import admin_kill_engaged
 
                 if admin_kill_engaged():
-                    logger.warning(
-                        "Tata Smartflo place_call blocked: admin kill switch engaged."
-                    )
+                    logger.warning("Tata Smartflo place_call blocked: admin kill switch engaged.")
                     return {
                         "status_code": 0,
                         "body": {"error": "compliance_blocked: admin_kill_engaged"},
@@ -299,9 +320,7 @@ class TataSmartfloClient:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=30.0, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.post(
                     SMARTFLO_C2C_ENDPOINT,
                     json=payload,
@@ -310,14 +329,12 @@ class TataSmartfloClient:
             body = self._safe_body(resp)
             if resp.status_code == 200 and body.get("success"):
                 ref_id = body.get("ref_id", "unknown")
-                logger.info(
-                    f"📞 Tata Smartflo call queued → ref_id={ref_id} "
-                    f"(to={to_clean[-4:]:>4})"
-                )
+                # CodeQL: do not log any part of the destination number —
+                # ref_id is sufficient correlation and is not PII.
+                logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
             else:
                 logger.warning(
-                    f"Tata Smartflo call rejected: {resp.status_code} "
-                    f"{body.get('message', body)}"
+                    f"Tata Smartflo call rejected: {resp.status_code} {body.get('message', body)}"
                 )
             return {"status_code": resp.status_code, "body": body}
         except Exception as e:
