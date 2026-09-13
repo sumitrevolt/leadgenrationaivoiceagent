@@ -58,8 +58,10 @@ from app.platform.worker_health import (  # noqa: F401  (re-exported for callers
     is_authoritative,
     is_stale,
     normalise_kind,
-    utcnow as _utcnow,
     worker_to_dict,
+)
+from app.platform.worker_health import (
+    utcnow as _utcnow,
 )
 
 

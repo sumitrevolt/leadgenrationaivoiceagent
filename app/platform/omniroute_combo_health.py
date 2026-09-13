@@ -134,7 +134,7 @@ def load_state(path: str | None = None) -> dict[str, Any]:
     """Read the watchdog's state file. Never raises; {} on any problem."""
     path = path or STATE_PATH
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError, TypeError):
         return {}

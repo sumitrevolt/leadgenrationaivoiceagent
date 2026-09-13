@@ -13,8 +13,8 @@ from app.marketing.creative_os.approval import bind_approval, can_publish_to_pos
 from app.marketing.creative_os.assets import get_asset, register_asset, sha256_file
 from app.marketing.creative_os.brief import resolve_brief
 from app.marketing.creative_os.budget import count_attempts_today, record_attempt
-from app.marketing.creative_os.licence import assert_provider_allowed
 from app.marketing.creative_os.learning import CreativeLearningLink, record_learning
+from app.marketing.creative_os.licence import assert_provider_allowed
 from app.marketing.creative_os.providers import generate_with_fallback
 from app.marketing.creative_os.qa import run_qa
 from app.marketing.creative_os.recipes import build_scene_plan, recipe_allowed

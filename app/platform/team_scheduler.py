@@ -845,8 +845,8 @@ async def _dispatch_content_engines(job: str, budget: Any) -> dict[str, str]:
         else:
             sem = asyncio.Semaphore(conc)
 
-            async def _one(nm: str) -> tuple[str, bool]:
-                async with sem:
+            async def _one(nm: str, _sem: asyncio.Semaphore = sem) -> tuple[str, bool]:
+                async with _sem:
                     return nm, await _run_one(nm)
 
             results = await asyncio.gather(*[_one(n) for n in names])
