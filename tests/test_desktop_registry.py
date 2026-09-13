@@ -59,7 +59,7 @@ def test_registry_loads_with_all_required_fields():
     out = reg.load_registry()
     assert out["ok"] is True
     assert out["version"] == 1
-    assert len(out["apps"]) == 6
+    assert len(out["apps"]) == 9
     ids = [a["id"] for a in out["apps"]]
     assert len(ids) == len(set(ids)), "app ids must be unique"
     for app in out["apps"]:
@@ -72,6 +72,9 @@ def test_registry_loads_with_all_required_fields():
         "cursor",
         "hermes",
         "buzz",
+        "openclaw",
+        "workbuddy",
+        "chatgpt-desktop",
     }
 
 
@@ -79,7 +82,7 @@ def test_registry_slice_shape():
     sl = reg.registry_slice()
     assert sl["ok"] is True
     assert sl["enabled"] is True
-    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 6
+    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 9
     assert "Read-only projection" in sl["note"]
     assert "error" in sl
 
@@ -128,7 +131,7 @@ def test_hub_snapshot_includes_registry_when_enabled(monkeypatch, tmp_path):
     dr = snap["desktop_registry"]
     assert dr["ok"] is True
     assert dr["enabled"] is True
-    assert len(dr["apps"]) == 6
+    assert len(dr["apps"]) == 9
 
 
 def test_hub_snapshot_registry_inert_when_flag_off(monkeypatch):
