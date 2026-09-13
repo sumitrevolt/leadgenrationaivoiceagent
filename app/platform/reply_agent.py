@@ -725,9 +725,23 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
             max_tokens=8,
             temperature=0.0,
         )
-        lab = (reply or "").strip().lower()
+        raw = (reply or "").strip().lower()
+        # OPS-024 (2026-09-07): EXACT match first, word-boundary match only as a
+        # fallback. The previous loop returned the first `_CATS` entry CONTAINED in
+        # the label, and "not_interested" contains "interested" — so every rejection
+        # was classified "interested": a sales draft, a Hot-Queue entry and (with
+        # WHATSAPP_AI_AUTOREPLY=1) an auto-sent sales pitch to someone who just said
+        # no. `_CATS` ORDER MUST NEVER DECIDE A VERDICT.
+        # `probe` collapses every separator (space/underscore/hyphen) to one space so
+        # "not_interested", "not interested" and "Not-Interested" are one verdict, while
+        # "not_interested" still fails the `\binterested\b` search (underscore = word
+        # char inside the token).
+        probe = re.sub(r"[^a-z0-9]+", " ", raw).strip()
+        compact = probe.replace(" ", "_")
+        if compact in _CATS:
+            return compact
         for c in _CATS:
-            if c in lab:
+            if re.search(rf"\b{re.escape(c.replace('_', ' '))}\b", probe):
                 return c
     except Exception as exc:
         logger.debug("reply classify err: %s", exc)
@@ -1586,9 +1600,11 @@ def autoreply_policy_warning(enabled: bool) -> str:
     change Oct 2025, reported effective 2026-01-15); task-scoped bots for
     support/bookings/orders remain allowed. This agent is task-scoped by
     construction (fixed 7-label classifier + a sales-reply drafter capped at 160
-    tokens), but with ``WHATSAPP_AI_AUTOREPLY=1`` the drafted intent set widens to
-    include ``other`` — i.e. open-ended inbound gets an open-ended LLM answer.
-    That is the single drift vector, so it must never be silent.
+    tokens). The one drift vector — ``WHATSAPP_AI_AUTOREPLY=1`` widening the drafted
+    intent set to include ``other`` — was **closed by OPS-016 (2026-09-07)**: the
+    drafted set is now flag-independent and never includes ``other``, so arming the
+    flag can no longer turn this into a general-purpose bot. The flag still deserves
+    a loud warning because it puts an LLM in the send path at all.
 
     Returns the warning text (empty string when the flag is off) so it is testable
     without triggering any network or file side effects.
@@ -1596,11 +1612,12 @@ def autoreply_policy_warning(enabled: bool) -> str:
     if not enabled:
         return ""
     msg = (
-        "WHATSAPP_AI_AUTOREPLY=1 — the AI is answering inbound 1:1 chats, INCLUDING "
-        "open-ended 'other' intents. Meta's WhatsApp Business API policy bars "
-        "GENERAL-PURPOSE AI chatbots (OPS-013, docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md). "
-        "Keep replies scoped to LeadGen sales inquiries (audit/demo/pricing) or the "
-        "number risks a platform ban."
+        "WHATSAPP_AI_AUTOREPLY=1 — the AI is answering inbound 1:1 chats directly. "
+        "Meta's WhatsApp Business API policy bars GENERAL-PURPOSE AI chatbots "
+        "(OPS-013, docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md). Scope is capped by "
+        "OPS-016: only interested/question/objection are drafted, open-ended 'other' "
+        "is never drafted and never auto-sent. Keep replies scoped to LeadGen sales "
+        "inquiries (audit/demo/pricing) or the number risks a platform ban."
     )
     logger.warning(msg)
     return msg
@@ -1622,6 +1639,10 @@ async def whatsapp_reply(
     (``{}`` on empty text). Auto-send OFF by DEFAULT (ban-safe, 1-click human send);
     set ``WHATSAPP_AI_AUTOREPLY=1`` to actually send the contextual reply back (opt-in;
     §5 bulk ``WHATSAPP_AUTO_SEND`` gate is separate + untouched).
+
+    Scope is **flag-independent** since OPS-016: only ``interested`` / ``question`` /
+    ``objection`` are ever drafted. Open-ended ``other`` inbound is never drafted and
+    never auto-answered, whether or not the flag is armed.
     """
     txt = (text or "").strip()
     frm = (from_number or "").strip()
@@ -1670,7 +1691,14 @@ async def whatsapp_reply(
         "on",
     }
     autoreply_policy_warning(_auto)  # OPS-013: never enable this silently.
-    _draft_intents = ("interested", "question", "objection") + (("other",) if _auto else ())
+    # OPS-016 (2026-09-07): `other` is PERMANENTLY excluded — even when auto-reply is
+    # armed. An open-ended inbound message must never receive an open-ended LLM
+    # answer: that is the exact shape Meta's "general-purpose AI chatbot" bar targets
+    # (docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md §5-A3). Scope therefore no longer
+    # depends on a flag — only the three sales-scoped intents are ever drafted.
+    # Identical behaviour to today whenever the flag is OFF (the default); the flag
+    # can no longer widen scope.
+    _draft_intents = ("interested", "question", "objection")
     draft = ""
     if intent in _draft_intents:
         try:
@@ -1683,7 +1711,9 @@ async def whatsapp_reply(
 
     # Gated auto-send: customer ko turant conversational jawab (default OFF). Never raises.
     auto_sent = False
-    if _auto and draft and intent not in ("unsubscribe", "not_interested", "ooo"):
+    # OPS-016: `other` is named explicitly here as defence-in-depth — if a future edit
+    # ever re-widens `_draft_intents`, open-ended inbound still must not auto-send.
+    if _auto and draft and intent not in ("unsubscribe", "not_interested", "ooo", "other"):
         try:
             from app.integrations.whatsapp import get_whatsapp_sender
 

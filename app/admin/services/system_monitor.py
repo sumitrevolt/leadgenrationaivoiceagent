@@ -106,9 +106,7 @@ def _processes_powershell() -> list[dict[str, Any]]:
             "-Command",
             r"Get-CimInstance Win32_Process | Select-Object Name, ProcessId, WorkingSet64 | Sort-Object WorkingSet64 -Descending | Select-Object -First 60 | ConvertTo-Json",
         ]
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=15, check=False
-        )
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=False)
         if proc.returncode != 0 or not proc.stdout.strip():
             return procs
 
@@ -200,9 +198,7 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "-Command",
             r"$os = Get-CimInstance Win32_OperatingSystem; $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; @{cpu_pct=[math]::Round($cpu,1); ram_total=[math]::Round($os.TotalVisibleMemorySize/1MB,2); ram_free=[math]::Round($os.FreePhysicalMemory/1MB,2)} | ConvertTo-Json",
         ]
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=15, check=False
-        )
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=False)
         if proc.returncode == 0 and proc.stdout.strip():
             import json
 
@@ -222,9 +218,7 @@ def _cpu_ram_disk_powershell() -> dict[str, float]:
             "-Command",
             r"$d = Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3 and DeviceID=\"C:\"'; @{total=[math]::Round($d.Size/1GB,2); free=[math]::Round($d.FreeSpace/1GB,2)} | ConvertTo-Json",
         ]
-        proc2 = subprocess.run(
-            cmd2, capture_output=True, text=True, timeout=15, check=False
-        )
+        proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=15, check=False)
         if proc2.returncode == 0 and proc2.stdout.strip():
             import json
 
@@ -322,9 +316,7 @@ def get_ports(ports: tuple[int, ...] = _KEY_PORTS) -> list[dict[str, Any]]:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.settimeout(0.5)
                     result = s.connect_ex(("127.0.0.1", port))
-                    results.append(
-                        {"port": port, "status": "open" if result == 0 else "closed"}
-                    )
+                    results.append({"port": port, "status": "open" if result == 0 else "closed"})
             except Exception:
                 results.append({"port": port, "status": "unknown"})
         return results

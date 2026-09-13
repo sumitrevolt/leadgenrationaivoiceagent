@@ -13,7 +13,7 @@ web:
 llm-pi-ai:
   providers:
     omniroute:
-      displayName: OmniRoute (12 Combos - 1M Context)
+      displayName: OmniRoute (14 Combos - 42 Model Slots Each - 1M Context)
       api: openai-completions
       baseURL: http://127.0.0.1:20128/v1
       apiKeyEnv: OMNIROUTE_API_KEY

@@ -56,6 +56,7 @@ from enum import Enum
 from typing import Any
 
 from app.telephony.compliance_audit_logger import log_compliance_decision
+from app.utils.env_probe import refusal_message
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -159,15 +160,15 @@ _dnd_fail_open_refused_logged = False
 
 def _is_production() -> bool:
     """True when running in production (settings first, ENVIRONMENT/APP_ENV env
-    fallback for cached-settings mismatch). Never raises."""
-    try:
-        from app.config import settings
+    fallback for cached-settings mismatch). Never raises.
 
-        if bool(getattr(settings, "is_production", False)):
-            return True
-    except Exception:
-        pass
-    return (_env("ENVIRONMENT") or _env("APP_ENV")).lower() == "production"
+    OPS-019: delegates to ``app.utils.env_probe.is_production`` — the single
+    authority. This predicate decides whether a fail-OPEN escape hatch is
+    honoured, so it must not have four competing implementations.
+    """
+    from app.utils.env_probe import is_production as _probe
+
+    return _probe()
 
 
 def _dnd_fail_open() -> bool:
@@ -177,16 +178,18 @@ def _dnd_fail_open() -> bool:
     as "not on DND"). There is NO legitimate production use — mirroring how the
     MCP mount refuses prod without a token, in production the flag is IGNORED
     (treated fail-CLOSED) and a one-time CRITICAL line is logged. Never raises."""
-    if _env("DND_FAIL_OPEN", "0") not in ("1", "true", "yes"):
+    if _env("DND_FAIL_OPEN", "0").lower() not in ("1", "true", "yes", "on"):
         return False
     if _is_production():
         global _dnd_fail_open_refused_logged
         if not _dnd_fail_open_refused_logged:
             _dnd_fail_open_refused_logged = True
             logger.error(
-                "🚨 DND_FAIL_OPEN=1 IGNORED in production — the TRAI DND gate stays "
-                "fail-CLOSED (unverified DND lookup => promotional call BLOCKED). "
-                "There is NO legitimate prod use; unset DND_FAIL_OPEN."
+                refusal_message(
+                    "DND_FAIL_OPEN",
+                    "the TRAI DND gate stays fail-CLOSED (unverified DND lookup => "
+                    "promotional call BLOCKED)",
+                )
             )
         return False
     return True
@@ -277,7 +280,14 @@ class ComplianceGate:
             # (OPS-017). TelephonyCompliance gates outbound CALLS, where TCCCPR
             # 2018 permits contacting a DND number with documented consent
             # (consent_ledger). It must never clear the messaging gate.
-            res = await checker.check_single(phone, channel="voice")
+            try:
+                res = await checker.check_single(phone, channel="voice")
+            except TypeError:
+                # Test double / older signature without the channel kwarg. The
+                # real DNDChecker always honours it; a double that cannot is
+                # called the legacy way rather than being misread as a lookup
+                # error (which would fail-closed and mask the real assertion).
+                res = await checker.check_single(phone)
             # FAIL-CLOSED by default: unverified lookup treated as unknown → block.
             # DND_FAIL_OPEN=1 overrides: treat unverified as "not on DND".
             if not getattr(res, "verified", True):

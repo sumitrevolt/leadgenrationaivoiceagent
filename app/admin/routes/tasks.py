@@ -1,4 +1,5 @@
 """REST API routes for Task Ledger."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -50,6 +51,7 @@ async def create_new_task(task_in: TaskCreate):
     task = create_task(task_in)
     if task_in.auto_assign and task.owner is None:
         from app.admin.services.task_ledger import auto_assign
+
         worker = auto_assign(task)
         if worker:
             task = update_task(task.id, TaskUpdate(owner=worker))

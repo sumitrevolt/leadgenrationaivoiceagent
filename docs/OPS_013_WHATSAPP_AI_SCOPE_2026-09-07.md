@@ -43,9 +43,32 @@ LeadGen sells an **AI WhatsApp agent**. If it behaves as an open-ended assistant
 |---|---|---|---|
 | **A1** | **Verify the VPS does not have it set:** `grep WHATSAPP_AI_AUTOREPLY /opt/leadgen/.env` — expect no match / `=0` | The flag is undocumented, so it would never show up in a config review. This is the single highest-value 10-second check in this document | 10 s |
 | **A2** | Keep it OFF until the agent's scope is written down and reviewed | Cheapest possible risk removal | 0 |
-| **A3** | Decide on the narrowing (OPS-016): when auto-reply is ON, still **exclude `other`** from `_draft_intents` | Removes the general-purpose exposure entirely while keeping `interested/question/objection` auto-replies | ~1 line, needs owner sign-off (changes behaviour) |
+| **A3** | Decide on the narrowing (OPS-016): when auto-reply is ON, still **exclude `other`** from `_draft_intents` | Removes the general-purpose exposure entirely while keeping `interested/question/objection` auto-replies | ~1 line, needs owner sign-off (changes behaviour) → **DONE 2026-09-07 cycle 12, see §7** |
 
-## 6. Honest limits
+## 6b. OPS-016 — A3 executed (2026-09-07, cycle 12)
+
+The drift vector is **closed**. `_draft_intents` is now flag-independent:
+
+```python
+_draft_intents = ("interested", "question", "objection")
+```
+
+- `other` is **never** drafted and **never** auto-sent, armed or not.
+- The auto-send guard additionally names `"other"` explicitly (`intent not in
+  ("unsubscribe", "not_interested", "ooo", "other")`) as defence-in-depth, so a future
+  edit that re-widens `_draft_intents` still cannot push open-ended replies.
+- **Zero behaviour change in the shipped default** (flag OFF): `other` was already
+  excluded there. The flag can no longer widen scope.
+- `autoreply_policy_warning()` text updated so it states the capped scope instead of
+  warning about a behaviour that no longer exists.
+- Regression guard: `tests/test_ops016_autoreply_scope.py` (14 behavioural tests).
+
+Executing A3 surfaced a **separate, more serious defect — see
+`docs/OPS_024_INTENT_CLASSIFY_EXACT_MATCH_2026-09-07.md`**: `not_interested` was
+classified `interested`, so rejections were auto-sent a sales pitch. Fixed in the same
+cycle.
+
+## 8. Honest limits
 
 - The verdict is based on **code inspection**, not on a review of real transcripts. A task-scoped prompt can still produce an off-scope reply; the guardrail is the 160-token cap and the fixed intent set, not a hard guarantee.
 - Sources for the policy are secondary (TechCrunch, 2Factor 2026 India guide, respond.io), not the Meta policy document itself. Before A3 or any decision to run auto-reply in production, read Meta's current Business Messaging Policy directly.

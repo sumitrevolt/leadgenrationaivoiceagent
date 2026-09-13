@@ -135,6 +135,8 @@ Needed from the provider, in writing: (a) scrubbing performed at send time, (b) 
 
 ## 7. Verification evidence
 
+- `pytest tests/test_dnd_carrier_scrub_channel_scope.py` → **15 passed** (OPS-017, §5.3)
+- Full combo (12 suites: compliance, automation-hardening, telephony-upgrades, consent-ledger ×2, dnd carrier scope, dnd opt-out, WA automation body, WA inbound session, OPS-013, suppression gates, ops token) → **72 passed, 1 failed** — the failure is the pre-existing `test_dnd_fail_open_honoured_outside_production` below
 - `pytest tests/test_dnd_optout_ledger.py` → **11 passed**
 - Regression: `test_suppression_compliance_gates` + `test_voice_compliance_slice_2026_07_05` + `test_whatsapp_automation_body` + `test_ops_readonly_token` → **61 passed**
 - `ruff check` → All checks passed · `check_secrets.py` → OK (50 files)
@@ -144,5 +146,7 @@ Needed from the provider, in writing: (a) scrubbing performed at send time, (b) 
 ## 8. Honest limits
 
 - Everything is **local-only and undeployed**; prod behaviour is unchanged.
+- **OPS-018 (owner, 10 s, highest urgency in this document): `grep DND_CARRIER_SCRUB /opt/leadgen/.env` on the VPS.** `scripts/vps_deploy_call_learn.py:23` and `scripts/vps_deploy_call_learn.bat:33` both run `env_set.py … DND_CARRIER_SCRUB=1`, and `docs/SESSION_LOG.md:1744` records cold-calling running with that flag. If it is `1` in production, then **until OPS-017 is deployed** the promotional WhatsApp §5 gate has been open — every number reads as "verified non-DND". Treat sends in that window as a compliance incident and review the send log. Requires SSH; the orchestrator must not do this.
+- OPS-017 fixes the messaging path **in code**, but only a deploy makes it live. A voice-only env flag and a shared checker were the root cause; the channel split is the fix.
 - The ledger uses a JSONL file. At scale this should become a Postgres table with a unique index on the normalised key — noted for the owner, not done unattended (schema migration).
 - §3.x sources are vendor/commercial guides, not TRAI primary text. They agree with each other and with TCCCPR 2018 as understood, but **legal confirmation is the owner's call** before D4 ships.
