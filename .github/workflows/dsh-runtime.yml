@@ -107,6 +107,11 @@ jobs:
       - name: Validate profile-gated production topology
         env:
           APP_VERSION: ${{ github.sha }}
+          # Interpolation-only dummy, never used to start anything: every DB-backed
+          # service in docker-compose.vps.yml declares POSTGRES_PASSWORD as a required
+          # variable, so "compose config" cannot render against the empty .env this step
+          # creates. Without it this topology check could never run at all.
+          POSTGRES_PASSWORD: ci-interpolation-dummy
         run: |
           # Compose still resolves env_file paths even with --no-env-resolution.
           : > .env
