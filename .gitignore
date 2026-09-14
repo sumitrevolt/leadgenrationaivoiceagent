@@ -233,7 +233,7 @@ config/openclaw/.local/
 _scratch/
 
 # Multi-agent task artifacts (docs/MULTI_AGENT_WORKFLOW.md section 4): README tracked, task dirs ephemeral
-_work/*/
+_work/
 
 # Local artifacts that must never ship
 source.tar.gz
@@ -348,6 +348,11 @@ command_center/data/
 pytest-of-Ratanshila/
 dsh-check/
 
+# Root-level scratch / one-off scripts from debug sessions
+gen_*.py
+overview.md
+last10*
+
 # Windows reserved-name artifact: created by a `> nul` redirect that git-bash
 # turned into a real 60-byte file. Never meaningful.
 nul
@@ -362,7 +367,8 @@ backups/
 # Telegram user session + one-time creds (MTProto secrets - NEVER commit) 2026-09-13
 telegram_user.session
 telegram_user.session-journal
-tmp/tg_state.json
+tmp/
+!tmp/.gitkeep
 
 # --- admin-dashboard TypeScript source that the broad rules above would swallow ---
 # `*.json` hid the dashboard's tsconfig.json and `lib/` hid src/lib/*, which is why
