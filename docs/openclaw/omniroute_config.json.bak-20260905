@@ -1,7 +1,7 @@
 {
   "omniroute": {
     "gatewayUrl": "http://127.0.0.1:18789",
-    "authToken": "2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz",
+    "authToken": "[REDACTED-ROTATE-AND-REISSUE]",
     "providerPool": "42_free_flagship",
     "comboCount": 14,
     "emailCount": 14,

@@ -1,0 +1,100 @@
+# =============================================================================
+# hermes-harness.yml — Hermes integration-surface contract gate.
+#
+# WHY THIS SHAPE (and not a "launch Hermes" job)
+# -----------------------------------------------------------------------------
+# Hermes is a LOCAL WINDOWS DESKTOP app (Electron GUI + a machine-level backend on
+# 127.0.0.1:9119) that talks to an OmniRoute gateway on 127.0.0.1:20128. GitHub-hosted
+# runners are Linux and cannot launch that GUI, and cannot reach either loopback port.
+# A workflow that tried would be permanently RED (no GUI) or permanently SKIPPED
+# (no matching self-hosted runner) — both are worse than no workflow.
+#
+# So this gate verifies the part that a runner CAN verify, deterministically:
+#   * every Hermes profile has profile.yaml AND config.yaml, both valid YAML;
+#   * every config pins the one gateway contract (provider omniroute, base_url
+#     http://127.0.0.1:20128/v1, key_env OMNIROUTE_API_KEY);
+#   * every model.default is a REAL OmniRoute alias / `leadsgen combo N` (fail-closed:
+#     an unknown model id fails rather than silently inventing a route);
+#   * the launcher scripts still declare the documented ports 9119 / 20128;
+#   * docs/hermes/mcp_servers.json still declares `leadgen_admin_harness`.
+# Implemented in scripts/hermes_harness_contract.py (also runnable locally).
+#
+# TRIGGER: PR + push touching the Hermes surface, a DAILY cron (so it is never
+#          permanently skipped), and workflow_dispatch.
+# PERMISSIONS: contents: read only (least privilege — it only reads tracked files).
+# TIMEOUT: 10 min (contract checks are seconds; the bound is a hang guard).
+# PROVES: the integration surface did not drift. Does NOT prove the GUI launches or
+#         that 9119/20128 are listening — that needs a Windows host, by design.
+# =============================================================================
+name: hermes-harness
+
+on:
+  pull_request:
+    paths:
+      - "docs/hermes/**"
+      - "scripts/hermes_harness_contract.py"
+      - "scripts/start-hermes-omniroute.ps1"
+      - "scripts/ensure-hermes-backend.ps1"
+      - "HERMES_CONTROL_PLANE.md"
+      - "HERMES_AGENT_ROSTER.yaml"
+      - ".github/workflows/hermes-harness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/hermes/**"
+      - "scripts/hermes_harness_contract.py"
+      - "scripts/start-hermes-omniroute.ps1"
+      - "scripts/ensure-hermes-backend.ps1"
+      - "HERMES_CONTROL_PLANE.md"
+      - "HERMES_AGENT_ROSTER.yaml"
+      - ".github/workflows/hermes-harness.yml"
+  schedule:
+    # Daily 03:00 UTC — keeps the gate live even in weeks with no Hermes edits, so it
+    # can never be "always skipped".
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hermes-harness-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  contract:
+    name: Hermes integration contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML (only dependency)
+        run: python -m pip install --quiet --disable-pip-version-check pyyaml
+
+      - name: Hermes contract checks (BLOCKING)
+        run: python scripts/hermes_harness_contract.py
+
+      # Advisory by design: prod liveness is owned by uptime.yml. This leg exists only
+      # to record whether the one publicly reachable health-triple endpoint answered on
+      # this run; it must not turn the contract gate red for a transient network blip.
+      - name: Prod health leg (advisory — uptime.yml owns prod liveness)
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          url="https://leadsgenai.in/health"
+          for i in 1 2 3 4 5; do
+            code="$(curl -s -o /tmp/h.json -w '%{http_code}' -m 10 "$url" || true)"
+            if [ "$code" = "200" ]; then
+              echo "::notice title=Hermes health-triple::prod leg 200: $(head -c 200 /tmp/h.json)"
+              exit 0
+            fi
+            echo "attempt $i: http=$code; retrying"
+            sleep $(( i * 2 ))
+          done
+          echo "::warning title=Hermes health-triple::prod leg unreachable after 5 attempts (advisory; not a contract failure)."
+          echo "NOTE: the other two legs (127.0.0.1:9119 Hermes backend, 127.0.0.1:20128 OmniRoute) are loopback-only and cannot be reached from a Linux runner."

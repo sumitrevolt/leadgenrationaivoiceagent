@@ -1,0 +1,94 @@
+# CODEOWNERS — single-writer / ownership map for LeadGen AI
+# =============================================================================
+# WHY THIS FILE EXISTS (added 2026-09-14 by the Engineering Assurance Team audit)
+#
+# Root cause of the owner-reported symptom "ek fix hota hai toh dusra tod jaata hai"
+# (fix one automation, break another): FIVE writers share this one working tree —
+# WorkBuddy/Nova, OpenClaw, ChatGPT Desktop, Codex, Hermes — and
+# `docs/context/AI_OPERATING_PROTOCOL.md:12` states a single-writer rule that
+# NOTHING ENFORCED. No CODEOWNERS, no CI check, no file lock existed.
+# `docs/context/CONCURRENT_WORKER_COLLISION_2026-09-10.md:74-79` documents a real
+# double-edit of app/dev_control/*, app/models/dev_task.py and app/main.py.
+#
+# This file is the enforcement point. It is INERT until branch protection is set to
+# "Require review from Code Owners" on `main`. That is an owner action.
+#
+# =============================================================================
+# HOW TO ACTIVATE (owner, GitHub UI → Settings → Branches → main):
+#   1. Enable "Require a pull request before merging"
+#   2. Enable "Require review from Code Owners"
+#   3. Enable "Dismiss stale pull request approvals when new commits are pushed"
+# Until step 2 is done, this file only DOCUMENTS ownership — it does not block.
+# =============================================================================
+# DEFAULT: every path is owned by the repo owner. Nothing is unowned.
+*                                   @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# COMPLIANCE / CONSENT SPINE — the surfaces that must NEVER be weakened.
+# Any change here needs explicit owner review. A PR that relaxes a gate here is
+# an ABORT, not a fix (see AGENTS.md §5 and docs/loop rules).
+# -----------------------------------------------------------------------------
+/app/telephony/compliance.py        @sumitrevolt
+/app/platform/auto_outreach.py      @sumitrevolt
+/app/integrations/whatsapp*.py      @sumitrevolt
+/app/platform/email_unsub.py        @sumitrevolt
+/app/utils/owner_feed.py            @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# CI / DEPLOY — change control. A defect here silently disables every other gate
+# (the 2026-09-14 audit found a required check named "prod_check + pytest" that
+# asserted only prod-check + pip-audit, so a RED pytest still greened the merge).
+# -----------------------------------------------------------------------------
+/.github/                           @sumitrevolt
+/scripts/deploy_vps.sh              @sumitrevolt
+/scripts/prod_check.py              @sumitrevolt
+/scripts/check_secrets.py           @sumitrevolt
+/docker-compose.vps.yml             @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# TASK / RUNTIME TRUTH (SSOT) — declared canonical in the PHASE-1 freeze.
+# A second ledger is forbidden (WORKER_ROSTER.md §3 E-01).
+# -----------------------------------------------------------------------------
+/app/models/dev_task.py             @sumitrevolt
+/app/models/dev_task_event.py       @sumitrevolt
+/app/dev_control/                   @sumitrevolt
+/app/platform/team.py               @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# OMNIROUTE — canonical combo identity is `leadsgen combo 1..14`.
+# Two competing schemes existed (seed_omniroute_14combos vs harness_*_12combos).
+# -----------------------------------------------------------------------------
+/app/platform/omniroute_client.py   @sumitrevolt
+/app/platform/omniroute_aliases.py  @sumitrevolt
+/app/platform/omniroute_combo_health.py  @sumitrevolt
+/config/desktop_apps/               @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# BILLING / REVENUE TRUTH — manual UPI is the only rail. PROVIDER_VERIFIED is
+# unreachable by design. `data/invoices.jsonl` is the money truth.
+# -----------------------------------------------------------------------------
+/app/billing/                       @sumitrevolt
+/app/platform/upi_payments.py       @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# AGENT WORKFORCE / VOICE — swara is FROZEN; DSH runtime is an owner gate.
+# -----------------------------------------------------------------------------
+/app/voice_agent/                   @sumitrevolt
+/app/telephony/                     @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# STATE / HANDOFF DOCS — the "what is true right now" surfaces. Keep them honest:
+# they were stale on 2026-09-14 (claimed local 33189b70 / prod 0b848b34 while the
+# actual values were local 20e4180b / prod 95245ce8).
+# -----------------------------------------------------------------------------
+/docs/context/                      @sumitrevolt
+/AGENTS.md                          @sumitrevolt
+/CLAUDE.md                          @sumitrevolt
+
+# -----------------------------------------------------------------------------
+# NOTE ON THE 367-FILE scripts/ PILE
+# scripts/* is deliberately NOT itemised here: it is the largest unclaimed
+# surface (367 .py files, many one-off probes). A CI check that rejects
+# out-of-workstream edits is the follow-up action; itemising 367 paths in this
+# file would be noise, not enforcement.
+# -----------------------------------------------------------------------------

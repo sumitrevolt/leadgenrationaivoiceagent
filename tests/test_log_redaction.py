@@ -72,7 +72,7 @@ from app.utils import logger as log_mod
         ),
         # OAuth refresh_token
         (
-            "token refresh: refresh_token=1//09-refresh_SECRET_LONG_STRING_HERE ok",
+            "token refresh: refresh_token=1//09-refresh_SECRET_LONG_STRING_HERE ok",  # nosecret - fixture that asserts redaction
             ("09-refresh_SECRET_LONG_STRING_HERE",),
             "[REDACTED]",
         ),

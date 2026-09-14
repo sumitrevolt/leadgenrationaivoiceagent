@@ -1,3 +1,9 @@
+> **⚠️ SUPERSEDED AS AUTHORITY (2026-09-14).** The single source of truth for the revenue sprint is now
+> [`7_DAY_REVENUE_PLAN.md`](7_DAY_REVENUE_PLAN.md). This file is retained as a **historical baseline input**.
+> Its ₹7,997 lifetime / ₹3,998 MRR figures are **STALE** (2026-08-22) and overstate the verified FY 2026-27
+> ledger truth (₹5,997 collected / 3 real invoices). Do **not** quote them as current. Its self-declared
+> "sole source of truth" claim is **retired**.
+
 # DAY 0 REVENUE BASELINE & TRUTH RECONCILIATION
 **Date:** 2026-08-22  
 **System:** LeadGen AI Automation / Voice Agent SaaS (https://leadsgenai.in)  

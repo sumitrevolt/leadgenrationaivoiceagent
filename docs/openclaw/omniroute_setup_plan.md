@@ -104,7 +104,7 @@ The 14 email accounts will each be configured with a subset of the 14 combos, pr
 
 ### Gateway Setup
 - Gateway port: 18789 (loopback 127.0.0.1)
-- Auth token: 2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz
+- Auth token: [REDACTED-ROTATE-AND-REISSUE]
 - All provider connections routed through gateway
 - Owner visibility via GUI with mouse tracking
 

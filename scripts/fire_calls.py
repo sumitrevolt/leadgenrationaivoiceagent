@@ -57,12 +57,14 @@ def _provider() -> str:
         from app.config import settings
 
         return (
-            (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "exotel")
+            (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz")
             .strip()
             .lower()
         )
     except Exception:
-        return (os.environ.get("TELEPHONY_PROVIDER") or "exotel").strip().lower()
+        # "exotel" was deleted 2026-06-18 — a stale default here chose a
+        # dead provider whenever settings failed to import.
+        return (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
 
 
 def get_db_conn():
@@ -236,12 +238,25 @@ async def fire_vobiz(
     return ok, skip, fail
 
 
-async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> tuple[int, int, int]:
+async def fire_queue(
+    prospects: list[dict],
+    dry_run: bool,
+    call_type: str,
+    provider: str | None = None,
+) -> tuple[int, int, int]:
+    """Queue-based dialer — provider-agnostic (CallManager picks the client).
+
+    Used for every non-Vobiz provider (tata_smartflo today). Compliance is
+    NOT bypassed here: CallManager.queue_call() runs dial_gate ->
+    ComplianceGate -> admin kill switch before anything is enqueued, and
+    the provider client re-checks the same gates inside place_call().
+    """
     from app.telephony.call_manager import CallManager, CallRequest
 
-    provider = _provider()
-    if provider not in ("exotel", "twilio"):
-        provider = "exotel"
+    provider = (provider or _provider()).strip().lower()
+    if provider not in ("vobiz", "tata_smartflo"):
+        print(f"ERROR: unsupported provider '{provider}' for the queue dialer.")
+        return 0, len(prospects), 0
 
     if dry_run:
         for p in prospects:
@@ -316,9 +331,16 @@ async def fire(
     if provider == "vobiz":
         ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type, client_id, platform)
     else:
-        ok, skip, fail = await fire_exotel(prospects, dry_run, call_type)
+        # tata_smartflo (and any future provider) -> the queue dialer, which
+        # builds the provider client through CallManager/_build_handler.
+        ok, skip, fail = await fire_queue(prospects, dry_run, call_type, provider)
     if not dry_run:
         print(f"\n=== placed/queued={ok}  blocked/skipped={skip}  failed={fail} ===")
+
+
+# Back-compat alias: the exotel path was deleted with the provider, but the
+# name is still referenced from ops scripts/notes. Signature is identical.
+fire_exotel = fire_queue
 
 
 async def main() -> None:

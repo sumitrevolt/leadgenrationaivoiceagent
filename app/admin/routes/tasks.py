@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.admin.models import (
     AutoAssignResult,
@@ -25,8 +25,15 @@ from app.admin.services.task_ledger import (
     list_tasks,
     update_task,
 )
+from app.api.auth_deps import require_admin
 
-router = APIRouter()
+# SECURITY (P0, 2026-09-14): every sibling admin router (docker/system/workers)
+# gates its endpoints with require_admin. This one did not — /admin/api/tasks
+# (list/kanban/create/update/delete/auto-assign/duplicates/worker) was callable
+# UNAUTHENTICATED, including the destructive DELETE and auto-assign writes.
+# Router-level dependency (not per-endpoint) so any endpoint added later is
+# protected by default. Regression-guarded by tests/test_admin_routes_auth.py.
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.get("/admin/api/tasks", response_model=list[Task])

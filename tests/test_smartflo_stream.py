@@ -269,7 +269,13 @@ class TestStartEvent:
         assert s.niche == "salon_spa"
         assert s.client_id == "jiya-makeover"
 
-    async def test_start_sends_ack(self):
+    async def test_start_does_not_send_ack(self):
+        """Spec v11 §3/§5: the endpoint must NOT echo `start` (or `connected`).
+
+        Only media / mark / clear are endpoint -> provider events. The old
+        `start` ack was out of contract; this test locks the corrected shape so
+        a future "let's be polite and ack" edit fails loudly.
+        """
         ws = _FakeWS()
         s = _session(ws)
         ws.enqueue(
@@ -281,9 +287,13 @@ class TestStartEvent:
         )
         ws.enqueue_stop()
         await s.handle()
-        acks = [m for m in ws.sent if m.get("event") == "start"]
-        assert len(acks) >= 1
-        assert acks[0].get("streamSid") == "MZ-test"
+        out_of_contract = [
+            m for m in ws.sent if m.get("event") in ("start", "connected", "stop")
+        ]
+        assert out_of_contract == []
+        assert all(
+            m.get("event") in ("media", "mark", "clear") for m in ws.sent
+        ), ws.sent
 
     async def test_start_sets_lead_phone_from_number(self):
         ws = _FakeWS()

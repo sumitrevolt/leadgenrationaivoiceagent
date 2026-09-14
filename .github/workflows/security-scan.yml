@@ -21,10 +21,13 @@ name: security-scan
 on:
   push:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+    # NOTE (2026-09-14): the previous `paths-ignore: ["docs/**","**/*.md","**/*.bak"]`
+    # SKIPPED THIS WHOLE WORKFLOW for exactly the paths where a live gateway token
+    # was committed (docs/openclaw/*.md + a .bak), so the leak was never scanned.
+    # `repo-scan` is documented as "fast + hamesha chalega" — the ignore contradicted
+    # its own stated intent. Removed: a security scan must run on doc changes too.
   pull_request:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
   schedule:
     - cron: "0 2 * * 1"   # har Mon 02:00 UTC — unchanged deps me naye CVE pakadne ke liye
   workflow_dispatch:
@@ -56,6 +59,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+
+      # (0) REPO-WIDE SECRET GATE — ENFORCING (added 2026-09-14).
+      # WHY `--all` and not the default changed-files mode: the incident vector was a
+      # live gateway token committed in commit 7ea9718b and never re-scanned, because
+      # the default mode only looks at files changed vs HEAD. A repo-wide scan is the
+      # only mode that can find a leak that is already in history.
+      # Runs BEFORE the slower Trivy install so a leak fails fast and cheap.
+      # Zero external deps: scripts/check_secrets.py uses only stdlib.
+      - name: Secret gate — repo-wide (ENFORCING)
+        run: python scripts/check_secrets.py --all
 
       - name: Install Trivy (latest)
         run: |

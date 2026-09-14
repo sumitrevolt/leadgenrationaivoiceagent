@@ -4,7 +4,7 @@
 **Path:** `C:\Users\Ratanshila\AppData\Roaming\Hermes` (create if not exists)
 
 ### Configuration Requirements:
-- Connect to OpenClaw gateway (port 18789, token: 2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz)
+- Connect to OpenClaw gateway (port 18789, token: [REDACTED-ROTATE-AND-REISSUE])
 - Enable FASTAPI_MCP_TOKEN (super_admin service-JWT: 1825d)
 - Integrate with omniroute provider pool (42 free flagship models)
 - Set up hotqueue/revenue-summary tool access (54 tools connected)
@@ -21,7 +21,7 @@
 1. Launch Hermes Desktop App
 2. Navigate to Settings → MCP Integration
 3. Enter gateway URL: `http://127.0.0.1:18789`
-4. Enter auth token: `2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz`
+4. Enter auth token: `[REDACTED-ROTATE-AND-REISSUE]`
 5. Enable FASTAPI_MCP_TOKEN: `1825d`
 6. Select omniroute combo: `leadgen-coding-primary` (default)
 7. Enable owner visibility: `ON`
@@ -138,7 +138,7 @@
 ### Integration Steps:
 1. Open OpenClaw Desktop App (already running)
 2. Gateway connected: `127.0.0.1:18789` ✓
-3. Auth token: `2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz` ✓
+3. Auth token: `[REDACTED-ROTATE-AND-REISSUE]` ✓
 4. All 5 desktop apps visible in dashboard
 5. Owner can observe all actions with mouse tracking
 6. Real-time provider status across all combos

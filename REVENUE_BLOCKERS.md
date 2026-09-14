@@ -1,3 +1,8 @@
+> **⚠️ SUPERSEDED AS AUTHORITY (2026-09-14).** The single source of truth for the revenue sprint is now
+> [`7_DAY_REVENUE_PLAN.md`](7_DAY_REVENUE_PLAN.md). This ranked-blocker matrix is retained as a **historical
+> input**. Note it predates the 2026-09-14 finding that **only two owner/console actions block revenue**
+> (Smartflo DID destination + UPI bank confirm) and that Telegram is **not** a revenue blocker.
+
 # TOP 10 REVENUE BLOCKERS (RANKED MATRIX)
 **Date:** 2026-08-22 (updated same day after live verification)
 **Framework:** `Score = (Revenue Impact [1-10] × Probability [1-10] × Fix Speed [1-10]) / Risk [1-5]`

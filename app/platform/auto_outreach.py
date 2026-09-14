@@ -530,21 +530,44 @@ def _valid_email(addr: str, check_mx: bool = True) -> bool:
     return True
 
 
-def _suppressed_email_set() -> set[str]:
-    """Bulk-load opt-out emails once per run/dashboard count. Never raises."""
+_UNREADABLE = object()
+"""Sentinel: the opt-out store could not be read.
+
+FAIL-CLOSED contract — a consent/opt-out gate must never fail OPEN. If the
+suppression store is unreadable we treat EVERY recipient as suppressed and
+block the send, mirroring the WhatsApp gate (`whatsapp.py`: an unreadable
+opt-out store returns ``opt_out_unreadable`` -> DENY). Do not replace this
+with an empty set: that is the fail-OPEN bug this sentinel exists to prevent.
+"""
+
+
+def _suppressed_email_set():
+    """Bulk-load opt-out emails once per run/dashboard count. Never raises.
+
+    Returns the suppressed-email ``set`` on success, or the ``_UNREADABLE``
+    sentinel on failure so callers fail CLOSED (block) instead of silently
+    emailing opted-out recipients.
+    """
     try:
         from app.platform import email_unsub
 
         return email_unsub.suppressed_emails()
     except Exception:
-        return set()
+        return _UNREADABLE
 
 
-def _is_suppressed_email(addr: str, suppressed: set[str] | None = None) -> bool:
-    """True when a recipient has opted out. Optional set keeps loops O(N)."""
+def _is_suppressed_email(addr: str, suppressed=None) -> bool:
+    """True when a recipient has opted out. Optional set keeps loops O(N).
+
+    FAIL-CLOSED: returns True (block the send) whenever the opt-out store is
+    unreadable, so an outage can never convert an opted-out recipient into a
+    sendable one.
+    """
     e = (addr or "").strip().lower()
     if not e:
         return False
+    if suppressed is _UNREADABLE:
+        return True  # FAIL-CLOSED: store unreadable -> treat as opted out
     try:
         if suppressed is not None:
             return e in suppressed
@@ -552,7 +575,7 @@ def _is_suppressed_email(addr: str, suppressed: set[str] | None = None) -> bool:
 
         return bool(email_unsub.is_suppressed(e))
     except Exception:
-        return False
+        return True  # FAIL-CLOSED: lookup failed -> treat as opted out
 
 
 # Follow-up timing: din-gaps + max touches.

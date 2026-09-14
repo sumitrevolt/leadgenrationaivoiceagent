@@ -5,17 +5,37 @@
 # a PR. This workflow flips GitHub's native auto-merge bit. GitHub then merges
 # the PR *itself* the moment required status checks pass — no polling, no gh
 # commands driven from a chat session, zero Claude tokens. After merge to main,
-# deploy-vps.yml deploys automatically (when DEPLOY_ENABLED=true) with in-wrapper
-# auto-rollback.
+# the release is run MANUALLY by the owner via the single deploy authority
+# `scripts/deploy_vps.sh` on the VPS. (`deploy-vps.yml` is gate-only and cannot
+# deploy — it has no build/deploy job any more; see its ONE DEPLOY AUTHORITY block.)
 #
 # SAFETY: nothing merges unless (a) the owner explicitly labels it `auto-merge`
-# AND (b) branch protection's required checks (the deploy-vps `gate` job) are
-# green. Draft PRs are ignored. Production deploy stays gated by DEPLOY_ENABLED.
+# AND (b) branch protection's required checks are green. Draft PRs are ignored.
+#
+# 🔴 (b) IS CURRENTLY VOID — VERIFIED 2026-09-14 (Engineering Assurance audit):
+#   GET /repos/sumitrevolt/leadgenrationaivoiceagent/branches/main/protection
+#     -> HTTP 404 "Branch not protected"   (required_status_checks = none)
+#   GET /repos/sumitrevolt/leadgenrationaivoiceagent/rulesets -> []  (none)
+#   repo.allow_auto_merge = true
+#   => applying the `auto-merge` label to any non-draft PR merges it IMMEDIATELY,
+#      with ZERO CI requirement — GitHub's native auto-merge has nothing to wait on.
+#   This workflow is HALF-INSTALLED: the token-saving automation is ON, and the gate
+#   it depends on was never installed. That is worse than no auto-merge at all,
+#   because the file reads as if it has a gate. Until the owner enables a `main`
+#   ruleset, the stopgap is to turn auto-merge OFF (Settings > General > Allow
+#   auto-merge = OFF) or simply stop applying the `auto-merge` label.
+#   Enabling the ruleset and keeping auto-merge enabled are MUTUALLY DEPENDENT.
 #
 # ONE-TIME SETUP (see docs/TOKEN_FREE_SHIP_PIPELINE.md):
-#   - Settings > General > "Allow auto-merge" = ON
-#   - Settings > Branches > protect `main`, require the `Gate (import + prod_check
-#     + lint)` check + at least the CI test job.
+#   - Settings > General > "Allow auto-merge" = ON            ✅ DONE (verified true)
+#   - Settings > Rules > Rulesets: protect `main`, require exactly these THREE
+#     context strings (they must match the job `name:` values verbatim):
+#         Lint + syntax + secrets
+#         prod_check + pytest            <- the ci.yml aggregator; the real merge authority
+#         harness real-redis integration
+#     ❌ NOT DONE — this is the missing half. Auto-merge is UNSAFE until it is done.
+#     (The merge authority is the ci.yml `tests` aggregator, NOT the deploy `gate`
+#      job, which no longer gates a release because this repo's deploy is manual.)
 # =============================================================================
 name: auto-merge
 

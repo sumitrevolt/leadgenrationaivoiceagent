@@ -31,7 +31,7 @@
 
 ## Parked (not in active 3)
 - **WS-SEC** voice FROZEN, DND/TRAI/DPDP fail-closed. Kill fence practiced (VLK=0 restored).
-- **WS-DSH** DSH_RUNTIME_ENABLED=0 (fail-closed); dsh-worker container running but runtime flag off.
+- **WS-DSH** ⚠️ **CORRECTED 2026-09-14 (live read-only prod probe 14:11Z): `DSH_RUNTIME_ENABLED=1` and `DSH_SHADOW_ENABLED=1` — the runtime IS ARMED, not fail-closed.** `docker exec leadgen_app printenv DSH_RUNTIME_ENABLED DSH_SHADOW_ENABLED` → `1 / 1`; `/health` → `"dsh_runtime_enabled":true,"dsh_shadow_enabled":true,"dsh_allowlist":["jiya_makeover"]`. So the allowlist is NARROW (a single agent), not empty. `leadgen_dsh_worker` runs `leadgen-dsh-worker:95245ce8` (same APP_VERSION as `leadgen_app`). This is consistent with the owner authorization in `memory/decisions.md` (ADR-183) — the earlier "=0 (fail-closed)" line was STALE. Promotion beyond `jiya_makeover`, widening the allowlist, and legacy-executor retirement remain OWNER gates.
 - **WS-UPI304** Guest bind + approved-unactivated admin queue.
 - **WS-AMAX** DUNNING_ENGINE=1 (observe, do not flip).
 - **WS-GOV** BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1 but agents UNARMED 30/30 (rollout held).

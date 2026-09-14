@@ -159,8 +159,11 @@ def main() -> None:
     p.add_argument("--niche", type=str, default="")
     args = p.parse_args()
 
-    if fc._provider() != "vobiz":
-        print(f"ERROR: provider={fc._provider()} — loop only supports vobiz stream path.")
+    if fc._provider() not in ("vobiz", "tata_smartflo"):
+        print(
+            f"ERROR: provider={fc._provider()} — loop supports "
+            "vobiz + tata_smartflo only."
+        )
         sys.exit(1)
 
     asyncio.run(

@@ -1,3 +1,8 @@
+> **⚠️ SUPERSEDED AS AUTHORITY (2026-09-14).** The single source of truth for the revenue sprint is now
+> [`7_DAY_REVENUE_PLAN.md`](../7_DAY_REVENUE_PLAN.md). This file is retained as the **autopilot engine doc**
+> (it describes `scripts/revenue_sprint_engine.py`), not as the blueprint. Its ₹5L/7-day goal matches the
+> blueprint; its guardrails remain valid.
+
 # Revenue Sprint Autopilot — ₹5L in 7 days (Hermes Desktop)
 
 > Owner-gated revenue sprint engine. It drives the **owner's Hermes Desktop CLI**

@@ -44,6 +44,24 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
         "Bearer header literal",
         re.compile(r"(?i)Authorization['\"]?\s*[:=]\s*['\"]Bearer\s+[A-Za-z0-9_\-\.]{20,}"),
     ),
+    # UNQUOTED credential after a label — the 2026-09-14 incident vector.
+    # A live gateway token sat in docs as `**Auth Token:** <40-char-value>` (no quotes),
+    # so the quoted-only generic pattern above could never match it. Requires a
+    # credential-ish label (space/_/- all allowed between words), then an optional
+    # quote/backtick/separator, then a 32+ char run that MUST contain both a letter
+    # and a digit (kills pure-word / pure-numeric noise). Placeholders (`<...>`,
+    # REDACTED, ..., example, changeme) are filtered by PLACEHOLDER below.
+    (
+        "unquoted credential after a key/token/secret label",
+        re.compile(
+            r"(?i)\b(?:auth[\s_-]?token|access[\s_-]?token|refresh[\s_-]?token"
+            r"|api[\s_-]?key|apikey|secret|password|passwd|bearer|token)\b"
+            r"[^\n]{0,24}?"
+            r"[`\"'\s:=]*"
+            r"(?=[A-Za-z0-9_\-]*[0-9])(?=[A-Za-z0-9_\-]*[A-Za-z])"
+            r"([A-Za-z0-9_\-]{32,})"
+        ),
+    ),
 ]
 
 # In values pe match ho to fake/placeholder maan ke skip

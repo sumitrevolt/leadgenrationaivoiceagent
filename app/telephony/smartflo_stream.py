@@ -487,13 +487,18 @@ class SmartfloStreamSession:
                             self.niche = _c["niche"]
                 except Exception:
                     pass
-            # Send start ack back to Smartflo
-            await self._send(
-                {
-                    "event": "start",
-                    "streamSid": self.stream_sid,
-                }
-            )
+            # DO NOT send a `start` ack (removed 2026-09-14).
+            # Official Tata Smartflo "Bi-Directional Audio Streaming Integration
+            # Document" (v11) settles what the earlier code only suspected:
+            #   §2 "Events Sent to the Vendor"  = connected / start / media / stop /
+            #      dtmf / mark  -> these are Smartflo -> ENDPOINT.
+            #   §3 "Events Received from the Vendor" = media / mark / clear ONLY.
+            #   §5: "Client to Vendor: Send connected -> start -> media -> stop.
+            #        Vendor to Client: Receive media -> mark -> clear."
+            # So the endpoint must send back ONLY media/mark/clear. The previous
+            # start ack was out-of-contract (and, lacking sequenceNumber/start,
+            # malformed if it had been parsed) on a handshake we had never
+            # observed live. Zero frames are the safe, spec-exact behaviour.
             # Greet
             await self._maybe_greet()
 

@@ -1,7 +1,7 @@
 # Agent Registry — AI Staff & Automation Agents
 
 > **Source of truth (code):** `app/platform/team.py` → `STAFF` dict · **UI:** `/app/team` · **API:** `GET /api/platform/team?product=marketing|voice`
-> **Updated:** 2026-06-20
+> **Updated:** 2026-09-14 (roster synced 19 → **31** against `app/platform/team.py → STAFF`)
 
 ---
 
@@ -42,6 +42,20 @@ Events logged → `agent_events` table · Dashboard 3-tier status: working / act
 | `ravi` | Ravi | marketing | SEO scout | Blog + Mon batch | In: niches×cities → Out: SEO pages |
 | `neha` | Neha | marketing | Pipeline ops | 11:00 IST | In: leads DB → Out: rescore + hot list |
 | `kiran` | Kiran | marketing | Campaign Optimizer | Weekly + 100-interaction threshold | In: transcripts/replies/outcomes → Out: A/B proposals (gated `CAMPAIGN_OPTIMIZER`) |
+| `ananya` | Ananya | voice | Appointment Booker | On-demand (booking campaigns / callbacks) | Appointment / site-visit / demo slot booking + calendar + reminders |
+| `riya` | Riya | voice | AI Receptionist | On-demand (inbound / mini-site widget) | Inbound calls — greeting, department routing, message taking, appointment (**no** sales pitch) |
+| `lekha` | Lekha | voice | Call Analytics Lead | Daily morning + on-demand (`/api/admin/web-calls/kpis`) | Call-centre KPIs — duration, qualified/booking rate, reply latency p50/p95, dead-air |
+| `raksha` | Raksha | voice | Human Escalation Manager | On-demand (live calls) | AI unsure / angry customer → route the call to a human (`app/telephony/call_transfer.py`) |
+| `anika` | Anika | marketing | Cadence Manager | Daily scheduled (`team_scheduler.py` `cadence.run_due()`) | Enrolled leads → per-day omnichannel sequence (email/SMS/WhatsApp/LinkedIn draft), gated `CADENCE_ENGINE` |
+| `priya` | Priya | marketing | CRM Sync Specialist | On-demand (each qualified lead, when the client connected a CRM) | Qualified leads → client's own Zoho/HubSpot, gated `CRM_SYNC` |
+| `zara` | Zara | marketing | Social Media Manager | Queue-driven (when approved content is publish-ready) | Approved content queue → per-client channels (Telegram / Postiz / Meta), gated `SOCIAL_ENGINE` |
+| `ira` | Ira | marketing | Journey Automation Manager | Event-driven (any wired hook fires) | Event rules (inquiry / booking / reply / pipeline) → journey actions + drafts, gated `JOURNEY_ENGINE` |
+| `arya` | Arya | platform | MCP Engineer | Hourly (gated `MCP_ENGINEER`) + `/api/platform/mcp/health` | 3-layer MCP surface (`/mcp`, `/api/mcp-product/v1/*`, A2A Agent Card) + dependency/gate/quota/rotation health pulse |
+| `aryan` | Aryan | platform | Dependency / Supply-chain Engineer | Weekly Sun 04:30 IST (gated `DEPS_AGENT`) | `pip-audit` (read-only), lock-file pinning hygiene, CVE → upgrade **proposals** |
+| `diya` | Diya | platform | Data-Integrity Engineer | Daily 10:30 IST (gated `DATA_INTEGRITY_AGENT`) | Lead/CRM quality — duplicate phone/email detection, missing-contact leads, prospect-store integrity |
+| `kabir` | Kabir | platform | DB Reliability Engineer | Daily 10:00 IST (gated `DBRE_AGENT`) | Postgres health — slow-query patterns, unused/bloating indexes, connection-pool pressure |
+
+> **Sync note (2026-09-14):** the roster above is now **31/31**, matching `app/platform/team.py → STAFF`. Previously this table listed only **19**; the 12 rows marked above were added verbatim from the `STAFF` entry (`name` / `product` / `title` / `schedule` / `duties`). The earlier rows keep their hand-authored `In: … → Out: …` phrasing; the 12 new ones use the `duties` field because no equivalent I/O line had been authored for them. **Re-check `STAFF` before trusting this table again** — the doc has no test pin.
 
 ---
 

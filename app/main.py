@@ -400,7 +400,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("✅ Startup complete - application ready")
 
-    # Outbound call queue processor (Vobiz) — polls Redis queue and dials.
+    # Outbound call queue processor (vobiz | tata_smartflo) — polls Redis
+    # queue and dials through the configured provider client.
     # Gated CALL_PROCESSOR=1 (default ON when telephony provider configured).
     _call_processor_task = None
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
@@ -410,7 +411,11 @@ async def lifespan(app: FastAPI):
                 .strip()
                 .lower()
             )
-            if provider == "vobiz":
+            # 2026-09-14: tata_smartflo is a first-class dial provider now
+            # (Vobiz -> Tata Smartflo migration). CallManager picks the right
+            # client via _build_handler(); the queue processor itself is
+            # provider-agnostic, so the same watchdog/session limits apply.
+            if provider in ("vobiz", "tata_smartflo"):
                 from app.telephony.call_manager import CallManager
 
                 _cm = CallManager(provider=provider)
@@ -961,7 +966,15 @@ try:
     #   /static/archify_console.css — shared design system
     #   /api/consoles/*             — APIs (bootstrap, business-config, knowledge,
     #                                 connections, automation templates, marketing launch)
-    # All routes are customer-JWT gated (require_customer) and never-500.
+    # AUTH TRUTH (corrected 2026-09-14 — the old line "All routes are
+    # customer-JWT gated (require_customer)" was FALSE and is why the
+    # unauthenticated /app/archify* demo pages survived review):
+    #   * /api/consoles/*   -> require_customer (tenant-scoped; guarded, never 500)
+    #   * /app/archify*     -> require_admin   (fabricated seed data — gated, F2)
+    #   * /app/voice-console, /app/marketing-console, /static/archify_console.*
+    #                       -> UNGATED static FileResponse. No tenant data is
+    #                          served; the HTML fetches /api/consoles/* for all
+    #                          real content, so an anonymous hit gets a shell.
     app.include_router(_product_consoles_router)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Product consoles router not mounted: {_e}")

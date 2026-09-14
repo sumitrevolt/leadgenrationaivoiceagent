@@ -173,7 +173,24 @@ jobs:
   tests:
     name: prod_check + pytest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    needs: [prod-check, pytest-job, pip-audit]
+    # 2026-09-14 (Engineering Assurance audit): the aggregator previously depended on
+    # only [prod-check, pytest-job, pip-audit], so `quality` ("Lint + syntax + secrets")
+    # and `harness-redis-integration` were NOT covered by the aggregator at all — a RED
+    # secrets scan or a skipped real-Redis suite still produced a green aggregate. Both
+    # are now dependencies AND asserted below. Per-job justification (each was inspected,
+    # not assumed):
+    #   * quality  -> ASSERT. Its blocking steps are real (compileall, check_secrets,
+    #                 security_scan, skill ratchet, queue-idempotency ratchet); the only
+    #                 non-blocking steps are mypy/ruff with an explicit `|| true` INSIDE
+    #                 the job (ci.yml:83-88), so the JOB result cannot go red for a
+    #                 cosmetic style reason. No job-level continue-on-error.
+    #   * harness-redis-integration -> ASSERT. Mandatory real-Redis gate with
+    #                 HARNESS_REQUIRE_REDIS=1 plus a fail-on-skip grep guard
+    #                 (ci.yml:255-256); a SKIPPED suite is converted to a failure.
+    #                 The only non-code failure mode is a bounded, retried Docker Hub
+    #                 pull (ci.yml:210-232) — and it was ALREADY a standalone required
+    #                 context, so asserting it here adds no new flake surface.
+    needs: [prod-check, pytest-job, pip-audit, quality, harness-redis-integration]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -182,8 +199,15 @@ jobs:
           echo "prod-check=${{ needs['prod-check'].result }}"
           echo "pytest-job=${{ needs['pytest-job'].result }}"
           echo "pip-audit=${{ needs['pip-audit'].result }}"
+          echo "quality=${{ needs['quality'].result }}"
+          echo "harness-redis-integration=${{ needs['harness-redis-integration'].result }}"
           test "${{ needs['prod-check'].result }}" = "success"
+          test "${{ needs['pytest-job'].result }}" = "success"
           test "${{ needs['pip-audit'].result }}" = "success"
+          # quality = real gate (blocking steps only; mypy/ruff are `|| true` inside).
+          test "${{ needs['quality'].result }}" = "success"
+          # harness real-redis = real gate (HARNESS_REQUIRE_REDIS=1 + fail-on-skip).
+          test "${{ needs['harness-redis-integration'].result }}" = "success"
 
   # Mandatory real-Redis integration gate for the durable harness audit backend.
   # Starts a real Redis with AOF + noeviction (the production durability posture)

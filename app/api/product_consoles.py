@@ -6,7 +6,20 @@ derived from tt-a1i/archify DESIGN.md — "The Evidence Console"):
   GET /app/voice-console      -> Product 1: Customer Configuration & Knowledge Panel
   GET /app/marketing-console  -> Product 2: Marketing Product Launch Panel
 
-Both are tenant-scoped by `require_customer` (JWT role=customer -> client_id).
+Tenant scoping is on the DATA, not on every route (corrected 2026-09-14 — this
+docstring previously claimed both consoles were `require_customer`-scoped, which
+was false and is why the unauthenticated /app/archify* pages escaped review):
+
+  * Every `/api/consoles/*` handler takes `client_id = Depends(require_customer)`
+    and is guarded, so it degrades to a partial payload instead of 500ing.
+  * `/app/voice-console`, `/app/marketing-console` and the static CSS/JS are
+    UNGATED FileResponses. They carry no tenant data — the HTML shells fetch
+    everything from `/api/consoles/*`, so an anonymous visitor gets an empty
+    shell and the customer JWT is what actually authorises any real data.
+  * The three `/app/archify*` demo pages are separately gated behind
+    `require_admin`: they serve hardcoded fabricated metrics ("CSAT 4.7",
+    "₹14.6L pipeline") and must never be shown to an anonymous visitor or a
+    customer. See the SECURITY (F2) comment above them.
 
 Design contract (matches Archify + project conventions):
   - **Truth before spectacle.** Every count, node state and "connected" claim is
@@ -34,6 +47,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app.api.auth_deps import require_admin
 from app.api.customer_auth import require_customer
 
 logger = logging.getLogger(__name__)
@@ -666,25 +680,34 @@ async def marketing_console_page():
     return FileResponse(str(_MARKETING_HTML), media_type="text/html")
 
 
+# SECURITY (F2, 2026-09-14): these three Archify demo pages contain HARDCODED
+# seed data (Tata/Mirae/Lakme/CureFit, CSAT 4.7, ₹14.6L pipeline) and make ZERO
+# API calls — they are a fabricated-data surface, not a real console. They were
+# served UNAUTHENTICATED. They are also unlinked (0 refs from any served page) and
+# their internal relative links 404 when served under /app/archify/*. Gate them
+# behind require_admin so no anonymous visitor or customer is ever shown fabricated
+# metrics. Real consoles live at /app/voice-console + /app/marketing-console.
+# Recommended follow-up (needs owner sign-off per docs/context/
+# FEATURE_PRESERVATION_MATRIX.md): delete these routes + the archify_* demo files.
 @router.get("/app/archify", include_in_schema=False)
-async def archify_home_page():
-    """Archify Enterprise Console Home."""
+async def archify_home_page(_user=Depends(require_admin)):
+    """Archify Enterprise Console Home (demo — admin-gated; fabricated seed data)."""
     if not _ARCHIFY_HOME_HTML.exists():
         raise HTTPException(status_code=404, detail="archify home not found")
     return FileResponse(str(_ARCHIFY_HOME_HTML), media_type="text/html")
 
 
 @router.get("/app/archify/marketing", include_in_schema=False)
-async def archify_marketing_page():
-    """Archify Dashboard 2 — Marketing Product Launch Panel."""
+async def archify_marketing_page(_user=Depends(require_admin)):
+    """Archify Dashboard 2 — Marketing Product Launch Panel (demo; fabricated seed data)."""
     if not _ARCHIFY_MKT_HTML.exists():
         raise HTTPException(status_code=404, detail="archify marketing not found")
     return FileResponse(str(_ARCHIFY_MKT_HTML), media_type="text/html")
 
 
 @router.get("/app/archify/customer", include_in_schema=False)
-async def archify_customer_page():
-    """Archify Dashboard 1 — Customer Configuration & Knowledge Panel."""
+async def archify_customer_page(_user=Depends(require_admin)):
+    """Archify Dashboard 1 — Customer Configuration & Knowledge Panel (demo; fabricated seed data)."""
     if not _ARCHIFY_CUST_HTML.exists():
         raise HTTPException(status_code=404, detail="archify customer not found")
     return FileResponse(str(_ARCHIFY_CUST_HTML), media_type="text/html")
