@@ -540,6 +540,27 @@ class TestGreeting:
 
 
 # ---------------------------------------------------------------------------
+# 8b. Conversation-control phrases
+# ---------------------------------------------------------------------------
+class TestConversationControlPhrases:
+    async def test_hearing_check_bypasses_sales_llm(self):
+        """A garbled Hindi "can you hear me?" must get a direct acknowledgement."""
+        s = _session()
+        s._speech_buf = [b"\x01\x00" * 800]
+        with patch.object(
+            s, "_stt", new=AsyncMock(return_value="क्या तुम भुजे सुन पर यो")
+        ), patch.object(s, "_llm_reply", new=AsyncMock()) as mock_llm, patch.object(
+            s, "_say", new=AsyncMock()
+        ) as mock_say:
+            await s._on_utterance()
+
+        mock_llm.assert_not_awaited()
+        mock_say.assert_awaited_once_with(
+            "Haan ji, main aapko sun rahi hoon. Aap apni requirement batayiye."
+        )
+
+
+# ---------------------------------------------------------------------------
 # 9. Compliance / billing regressions (P0-1, P0-2, P0-3)
 #
 # These three are here because the pre-existing DTMF test only asserted
