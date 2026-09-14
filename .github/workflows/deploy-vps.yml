@@ -35,13 +35,18 @@ env:
 
 jobs:
   gate:
-    name: Gate (import + prod_check + lint)
+    name: Gate (billing contract + golden eval)
+    # 2026-09-14 audit: removed steps already covered by CI (ci.yml):
+    #   - Import smoke / compileall  -> CI quality lane
+    #   - prod_check.py              -> CI prod-check lane
+    #   - Skill quality ratchet      -> CI quality lane
+    #   - Ruff lint                  -> CI quality lane
+    # CI runs these on EVERY push+PR. Duplicating them wastes ~5 min per push.
+    # What remains is UNIQUE to deploy: billing contract tests + golden eval.
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # hang guard - fast checks only; full pytest = parallel shard jobs (2026-08-10: full suite moved to parallel shard jobs)
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0  # skill CI compares this push with github.event.before
       - uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
@@ -59,17 +64,6 @@ jobs:
           # connection-worker leak (SQLAlchemy #13039) that a Linux cyclic-GC pass
           # segfaulted on (exit-139). httpx 0.28.1 handled by the conftest TestClient shim.
           pip install --no-deps "pytest-timeout==2.4.0"
-          pip install ruff
-      - name: Import smoke (catches syntax/import/route breakage)
-        run: python -c "import app.main; print('import OK')"
-      - name: Production check
-        run: python scripts/prod_check.py
-      - name: Skill quality + security ratchet
-        env:
-          SKILL_CI_BASE: ${{ github.event.before || '' }}
-        run: python scripts/skill_evals/check_repo_skills.py --base-ref "$SKILL_CI_BASE"
-      - name: Lint (ruff, non-blocking warnings)
-        run: ruff check app || true
       - name: Contract tests (billing/pricing truth â€” BLOCKING)
         # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
         run: pytest -q tests/test_billing_truth_2026.py
@@ -142,7 +136,7 @@ jobs:
     # opt-in behind DEPLOY_RETEST, and a skipped needed job would skip this gate).
     # The old name asserted a guarantee the lane never provided. Renamed to state
     # exactly what it checks. Do NOT re-broaden the name without adding the deps.
-    name: Release gate (import + prod_check + lint; pytest shards opt-in)
+    name: Release gate (billing contract + golden eval)
     # Shards are opt-in (DEPLOY_RETEST). A skipped needed job would skip this
     # gate and block build/deploy, so release-gate depends only on `gate`.
     # Required PR checks already covered the suite before merge.

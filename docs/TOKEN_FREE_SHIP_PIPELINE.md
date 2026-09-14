@@ -43,7 +43,7 @@ Do **not** rename `Lint + syntax + secrets`, `prod_check + pytest`, or
 
 1. **Settings → General →** enable **"Allow auto-merge"**.
 2. **Settings → Branches → add rule for `main`:** require pull request, and
-   require the status check **`Gate (import + prod_check + lint)`** (add the CI
+   require the status check **`Gate (billing contract + golden eval)`** (add the CI
    test job too). This is what makes auto-merge safe — nothing merges red.
 3. **Settings → Secrets and variables → Actions →** confirm secrets
    `VPS_HOST`, `VPS_DEPLOY_USER`, `VPS_SSH_KEY_DEPLOY` exist (hardened deploy id).
