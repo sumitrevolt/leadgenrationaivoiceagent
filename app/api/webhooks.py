@@ -89,8 +89,14 @@ async def whatsapp_webhook_verify(request: Request):
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge", "")
-    expected = _wa_verify_token()
-    if mode == "subscribe" and expected and token == expected:
+    try:
+        from app.integrations.whatsapp import verify_webhook_token
+
+        ok = mode == "subscribe" and verify_webhook_token(token, _wa_verify_token())
+    except Exception as _e:  # pragma: no cover - defensive
+        logger.warning(f"whatsapp webhook verify: token check failed ({_e}) -> deny")
+        ok = False
+    if ok:
         return PlainTextResponse(challenge)
     return PlainTextResponse("verification_failed", status_code=403)
 

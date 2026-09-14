@@ -39,6 +39,7 @@ from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.config import settings
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -299,7 +300,18 @@ async def dismiss_draft(
 # Meta webhook (PUBLIC — Meta servers call these)
 # --------------------------------------------------------------------------- #
 def _verify_token() -> str:
-    return (os.getenv("WHATSAPP_VERIFY_TOKEN", "") or "").strip()
+    """Meta webhook GET-handshake token — Settings first, raw env as fallback.
+
+    Settings (``whatsapp_verify_token``) is the container-safe read: only a subset of
+    the host env is injected into the app container, so a bare ``os.getenv`` can be
+    empty while the value IS configured — which silently 403s Meta's handshake. Mirrors
+    ``app/api/webhooks.py::_wa_verify_token``.
+    """
+    try:
+        tok = (getattr(settings, "whatsapp_verify_token", "") or "").strip()
+    except Exception:
+        tok = ""
+    return tok or (os.getenv("WHATSAPP_VERIFY_TOKEN", "") or "").strip()
 
 
 @router.get("/webhook")
@@ -307,14 +319,21 @@ async def webhook_verify(request: Request):
     """Meta webhook verification handshake.
 
     Meta GETs with hub.mode=subscribe, hub.verify_token=<yours>, hub.challenge=<n>.
-    Echo the challenge back (plain text) only if the verify token matches.
+    Echo the challenge back (plain text) only if the verify token matches — compared
+    with ``verify_webhook_token`` (constant-time, fail-CLOSED).
     """
     params = request.query_params
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge", "")
-    expected = _verify_token()
-    if mode == "subscribe" and expected and token == expected:
+    try:
+        from app.integrations.whatsapp import verify_webhook_token
+
+        ok = mode == "subscribe" and verify_webhook_token(token, _verify_token())
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("wa webhook verify: token check failed (%s) -> deny", exc)
+        ok = False
+    if ok:
         return PlainTextResponse(challenge)
     return PlainTextResponse("verification_failed", status_code=403)
 
@@ -334,18 +353,24 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
         raw = await request.body()
     except Exception:
         pass
-    # Verify signature (App Secret). Unconfigured -> allowed (loud warning expected).
+    # Verify signature (App Secret). FAIL-CLOSED on any error in this block: an
+    # exception here used to fall through and the payload was processed UNVERIFIED.
+    # The sibling handler (app/api/webhooks.py) already denies on error; this one now
+    # matches it. Unconfigured secret -> dev allows, production denies (inside
+    # verify_meta_signature).
     try:
         from app.integrations.whatsapp import verify_meta_signature
 
         sig = request.headers.get("X-Hub-Signature-256") or request.headers.get(
             "x-hub-signature-256"
         )
-        if not verify_meta_signature(raw, sig):
-            logger.warning("wa webhook: bad signature, ignoring payload")
-            return {"ok": False, "reason": "bad_signature"}
-    except Exception:
-        pass
+        verified = verify_meta_signature(raw, sig)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("wa webhook: signature verification error (%s) -> reject", exc)
+        verified = False
+    if not verified:
+        logger.warning("wa webhook: bad signature, ignoring payload")
+        return {"ok": False, "reason": "bad_signature"}
 
     try:
         import json

@@ -519,6 +519,25 @@ def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool
         return False
 
 
+def verify_webhook_token(got: str | None, expected: str | None) -> bool:
+    """Constant-time compare for Meta's ``hub.verify_token`` GET handshake.
+
+    Both Meta webhook routers (``/api/wa/webhook`` and ``/api/webhooks/whatsapp``)
+    compared this shared secret with a plain ``==``. The payload signature is already
+    compared with :func:`hmac.compare_digest`; the handshake token is the other half of
+    the same verification and belongs on the same primitive. Unset expected token ->
+    ``False`` (fail-CLOSED — the handshake must never pass without a configured token).
+    Never raises.
+    """
+    exp = str(expected or "").strip()
+    if not exp:
+        return False
+    try:
+        return hmac.compare_digest(str(got or ""), exp)
+    except Exception:
+        return False  # non-ASCII input raises TypeError -> deny
+
+
 @dataclass
 class WhatsAppMessage:
     """WhatsApp message data"""

@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from app.config import settings
 from app.utils.logger import setup_logger
 from app.worker import celery_app
 
@@ -42,14 +43,30 @@ def batch_limit() -> int:
     return int(os.getenv("WHATSAPP_AUTO_SEND_BATCH", "10"))
 
 
+def _env_or_setting(env_name: str, attr: str, default: str = "") -> str:
+    """Read a WhatsApp credential env-first, then from ``settings``.
+
+    The raw ``os.getenv`` reads that used to live here break in a container where only
+    a subset of the host env is injected: the value can be configured (in ``.env``,
+    which Settings loads) and still read empty, silently disabling the Cloud path.
+    Same env-then-Settings order as ``verify_meta_signature`` / ``is_active_provider``.
+    """
+    try:
+        return (os.getenv(env_name, "") or getattr(settings, attr, "") or default).strip()
+    except Exception:  # pragma: no cover - defensive
+        return default
+
+
 def _meta_config() -> dict:
     """Get Meta Cloud API config."""
     return {
-        "token": os.getenv("WHATSAPP_BUSINESS_TOKEN", "").strip(),
-        "phone_id": os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip(),
-        "account_id": os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID", "").strip(),
-        "business_number": os.getenv("WHATSAPP_BUSINESS_NUMBER", "").strip(),
-        "provider": os.getenv("WHATSAPP_PROVIDER", "cloud").strip(),
+        "token": _env_or_setting("WHATSAPP_BUSINESS_TOKEN", "whatsapp_business_token"),
+        "phone_id": _env_or_setting("WHATSAPP_PHONE_NUMBER_ID", "whatsapp_phone_number_id"),
+        "account_id": _env_or_setting(
+            "WHATSAPP_BUSINESS_ACCOUNT_ID", "whatsapp_business_account_id"
+        ),
+        "business_number": _env_or_setting("WHATSAPP_BUSINESS_NUMBER", "whatsapp_business_number"),
+        "provider": _env_or_setting("WHATSAPP_PROVIDER", "whatsapp_provider", "cloud"),
     }
 
 
@@ -89,7 +106,12 @@ async def send_template_message(
     if not cfg["token"] or not cfg["phone_id"]:
         return {"sent": False, "reason": "Meta credentials not configured"}
 
-    url = f"https://graph.facebook.com/v18.0/{cfg['phone_id']}/messages"
+    # Graph version comes from the SHARED constant (app/integrations/whatsapp.py) —
+    # this URL used to hardcode v18.0, so a WHATSAPP_GRAPH_VERSION override moved the
+    # campaign sender but silently left this task on the old version.
+    from app.integrations.whatsapp import GRAPH_API_VERSION
+
+    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{cfg['phone_id']}/messages"
 
     payload = {
         "messaging_product": "whatsapp",
