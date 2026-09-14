@@ -1,24 +1,26 @@
 """Full WhatsApp Automation — ENABLED (user decision, high risk acknowledged).
 
-This module provides fully automated WhatsApp messaging via Meta Cloud API.
+This module provides fully automated WhatsApp messaging via the GUARDED sender
+boundary (``app/integrations/whatsapp.py::get_whatsapp_sender``). It must never POST
+to a provider itself: every send here passes ``send_permitted`` (canary allowlist +
+opt-out ledger + ``WHATSAPP_AUTO_SEND`` / Owner-OS kill), the same gate as the rest
+of the codebase. See ``send_template_message`` for the 2026-09-14 bypass fix.
+
 ⚠️ WARNING: Cold/bulk auto-send = NUMBER BAN RISK (3 business days).
 User has explicitly accepted this risk.
 
 GATES (can be enabled/disabled via env):
 - WHATSAPP_AUTO_SEND=1           # Enable full automation
-- WHATSAPP_AUTO_SEND_HARD_OFF=0  # Emergency kill switch
+- WHATSAPP_AUTO_SEND_HARD_OFF=0  # Emergency kill switch (env)
 - WHATSAPP_AUTO_SEND_DAILY_CAP=50  # Daily message cap (conservative)
 - WHATSAPP_AUTO_SEND_BATCH=10     # Per-run batch limit
+- Owner-OS ``owner_whatsapp_outbound`` kill switch (runtime, engaged by emergency_stop)
 """
 
 import asyncio
-import json
 import os
 from datetime import datetime, timedelta, timezone
 
-import httpx
-
-from app.config import settings
 from app.utils.logger import setup_logger
 from app.worker import celery_app
 
@@ -26,13 +28,35 @@ logger = setup_logger(__name__)
 
 
 # ── Config ──────────────────────────────────────────────────────────
+def _owner_kill_engaged() -> bool:
+    """Owner-OS ``owner_whatsapp_outbound`` kill switch (runtime state, no .env edit).
+
+    This is what :func:`emergency_stop` engages. Unreadable -> not engaged HERE; the
+    sender boundary (``send_permitted`` -> ``auto_send_enabled``) is still the
+    authority and re-checks the same switch on every send.
+    """
+    try:
+        from app.platform import owner_os
+
+        return bool(owner_os.kill_engaged("owner_whatsapp_outbound"))
+    except Exception as e:  # noqa: BLE001 - probe, must never raise on a gate read
+        logger.warning(f"WA automation: owner kill switch unreadable ({e})")
+        return False
+
+
 def whatsapp_enabled() -> bool:
-    """Check if full WhatsApp automation is enabled."""
-    return os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-    ) and os.getenv("WHATSAPP_AUTO_SEND_HARD_OFF", "0").strip().lower() not in ("1", "true", "yes")
+    """Master gate for this module: env flags AND the Owner-OS runtime kill switch.
+
+    Kill first, so an engaged emergency stop cannot be undone by an env value (same
+    order as ``whatsapp_campaign.auto_send_enabled``). ``WHATSAPP_AUTO_SEND_HARD_OFF``
+    is kept as the env-level switch — the RUNTIME stop is the kill switch, never a
+    ``.env`` edit (see :func:`emergency_stop`).
+    """
+    if os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower() not in ("1", "true", "yes"):
+        return False
+    if os.getenv("WHATSAPP_AUTO_SEND_HARD_OFF", "0").strip().lower() in ("1", "true", "yes"):
+        return False
+    return not _owner_kill_engaged()
 
 
 def daily_cap() -> int:
@@ -41,41 +65,6 @@ def daily_cap() -> int:
 
 def batch_limit() -> int:
     return int(os.getenv("WHATSAPP_AUTO_SEND_BATCH", "10"))
-
-
-def _env_or_setting(env_name: str, attr: str, default: str = "") -> str:
-    """Read a WhatsApp credential env-first, then from ``settings``.
-
-    The raw ``os.getenv`` reads that used to live here break in a container where only
-    a subset of the host env is injected: the value can be configured (in ``.env``,
-    which Settings loads) and still read empty, silently disabling the Cloud path.
-    Same env-then-Settings order as ``verify_meta_signature`` / ``is_active_provider``.
-    """
-    try:
-        return (os.getenv(env_name, "") or getattr(settings, attr, "") or default).strip()
-    except Exception:  # pragma: no cover - defensive
-        return default
-
-
-def _meta_config() -> dict:
-    """Get Meta Cloud API config."""
-    return {
-        "token": _env_or_setting("WHATSAPP_BUSINESS_TOKEN", "whatsapp_business_token"),
-        "phone_id": _env_or_setting("WHATSAPP_PHONE_NUMBER_ID", "whatsapp_phone_number_id"),
-        "account_id": _env_or_setting(
-            "WHATSAPP_BUSINESS_ACCOUNT_ID", "whatsapp_business_account_id"
-        ),
-        "business_number": _env_or_setting("WHATSAPP_BUSINESS_NUMBER", "whatsapp_business_number"),
-        "provider": _env_or_setting("WHATSAPP_PROVIDER", "whatsapp_provider", "cloud"),
-    }
-
-
-def _headers() -> dict:
-    cfg = _meta_config()
-    return {
-        "Authorization": f"Bearer {cfg['token']}",
-        "Content-Type": "application/json",
-    }
 
 
 # ── Template Management ─────────────────────────────────────────────
@@ -95,52 +84,46 @@ def _get_template_name(purpose: str) -> str:
 async def send_template_message(
     to_phone: str,
     template_name: str,
+    template_params: list = None,
     language: str = "en",
-    components: list = None,
 ) -> dict:
-    """Send a template message via Meta Cloud API."""
+    """Send a template message THROUGH the guarded sender boundary (§5).
+
+    BYPASS CLOSED (2026-09-14). This function used to assemble the Meta Cloud Graph
+    ``/messages`` URL itself (host + phone-id) and POST the payload with ``httpx``. That
+    made this module the one automated WhatsApp sender in the repo that never called
+    :func:`app.integrations.whatsapp.send_permitted` — so it bypassed the canary
+    allowlist, the opt-out ledger and the Owner-OS kill switch, and the egress ratchet in
+    ``tests/test_whatsapp_auto_send_gate.py`` could not see it either (that ratchet only
+    scanned for the WAHA text-send endpoint). The send now goes through
+    ``get_whatsapp_sender()``, which picks Cloud or WAHA and enforces the gate at two
+    levels (public method + egress backstop).
+
+    Returns this module's historical shape — ``{"sent": bool, ...}`` — because
+    ``run_whatsapp_batch`` counts with ``result.get("sent")``; a refusal therefore comes
+    back as ``{"sent": False, "reason": <gate reason>}`` and never as success.
+    """
     if not whatsapp_enabled():
         return {"sent": False, "reason": "WHATSAPP_AUTO_SEND not enabled"}
 
-    cfg = _meta_config()
-    if not cfg["token"] or not cfg["phone_id"]:
-        return {"sent": False, "reason": "Meta credentials not configured"}
+    # Lazy import (send-path idiom): keeps task import cheap and lets tests patch the
+    # selector. The selector decides Cloud vs self-host WAHA — this module no longer
+    # needs to know, and no longer needs WhatsApp credentials of its own.
+    from app.integrations.whatsapp import get_whatsapp_sender
 
-    # Graph version comes from the SHARED constant (app/integrations/whatsapp.py) —
-    # this URL used to hardcode v18.0, so a WHATSAPP_GRAPH_VERSION override moved the
-    # campaign sender but silently left this task on the old version.
-    from app.integrations.whatsapp import GRAPH_API_VERSION
-
-    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{cfg['phone_id']}/messages"
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to_phone,
-        "type": "template",
-        "template": {
-            "name": template_name,
-            "language": {"code": language},
-        },
-    }
-
-    if components:
-        payload["template"]["components"] = components
-
+    sender = get_whatsapp_sender()
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, headers=_headers(), json=payload)
-
-        if response.status_code // 100 == 2:
-            return {"sent": True, "response": response.json()}
-        else:
-            logger.warning(f"WhatsApp send failed {response.status_code}: {response.text[:200]}")
-            return {
-                "sent": False,
-                "reason": f"API error {response.status_code}: {response.text[:200]}",
-            }
-    except Exception as e:
+        res = await sender.send_template_message(
+            to_phone, template_name, list(template_params or []), language
+        )
+    except Exception as e:  # noqa: BLE001 - a send must never crash the batch runner
         logger.error(f"WhatsApp send exception: {e}")
         return {"sent": False, "reason": str(e)[:150]}
+
+    if res.get("error"):
+        logger.warning(f"WhatsApp send blocked/failed: {res.get('error')}")
+        return {"sent": False, "reason": str(res["error"])[:150]}
+    return {"sent": True, "response": res}
 
 
 # ── Automated Flows ────────────────────────────────────────────────
@@ -150,16 +133,9 @@ async def auto_send_lead_followup(lead_phone: str, lead_name: str = "") -> dict:
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("lead_followup")
-    components = [
-        {
-            "type": "body",
-            "parameters": [
-                {"type": "text", "text": lead_name or "Customer"},
-            ],
-        }
-    ]
-
-    return await send_template_message(lead_phone, template, components=components)
+    return await send_template_message(
+        lead_phone, template, template_params=[lead_name or "Customer"]
+    )
 
 
 async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> dict:
@@ -168,16 +144,9 @@ async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> di
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("post_call")
-    components = [
-        {
-            "type": "body",
-            "parameters": [
-                {"type": "text", "text": niche or "your business"},
-            ],
-        }
-    ]
-
-    return await send_template_message(lead_phone, template, components=components)
+    return await send_template_message(
+        lead_phone, template, template_params=[niche or "your business"]
+    )
 
 
 async def auto_send_daily_tip(phone: str, tip: str) -> dict:
@@ -186,9 +155,7 @@ async def auto_send_daily_tip(phone: str, tip: str) -> dict:
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("daily_tip")
-    components = [{"type": "body", "parameters": [{"type": "text", "text": tip[:1024]}]}]
-
-    return await send_template_message(phone, template, components=components)
+    return await send_template_message(phone, template, template_params=[tip[:1024]])
 
 
 # ── Batch Runner (for scheduler) ───────────────────────────────────
@@ -481,20 +448,50 @@ def run_whatsapp_automation():
 
 
 # ── Emergency Stop ─────────────────────────────────────────────────
-def emergency_stop():
-    """Set hard off flag."""
-    import subprocess
+def emergency_stop(
+    by: str = "whatsapp_automation.emergency_stop",
+    reason: str = "application emergency_stop()",
+) -> dict:
+    """Stop all automated WhatsApp sends NOW — via runtime state, never by editing `.env`.
 
-    subprocess.run(
-        [
-            "bash",
-            "-c",
-            "sed -i 's/WHATSAPP_AUTO_SEND_HARD_OFF=0/WHATSAPP_AUTO_SEND_HARD_OFF=1/' .env",
-        ],
-        cwd="/opt/leadgen",
-        capture_output=True,
-    )
-    logger.warning("WHATSAPP EMERGENCY STOP ACTIVATED")
+    WHAT THIS REPLACED (2026-09-14). The old body ran
+    ``subprocess.run(["bash", "-c", "sed -i 's/WHATSAPP_AUTO_SEND_HARD_OFF=0/...=1/' .env"],
+    cwd="/opt/leadgen", capture_output=True)``. Three reasons application code must not
+    do that — all of them why the "emergency stop" was not one:
+
+    1. **It could not take effect.** ``.env`` is read when the container is CREATED.
+       A process keeps the environment it started with, so ``os.getenv`` inside the
+       running worker never sees the edited value — the flag only changed after a
+       recreate, i.e. exactly when the emergency was already over.
+    2. **It usually failed silently.** The app does not run from the host checkout, so
+       the relative ``.env`` path generally did not exist there; ``capture_output=True``
+       with no return-code check turned that into a no-op with no signal.
+    3. **It wrote the file that holds the API keys/secrets** (§5 secrets rule). One bad
+       substitution or a partial write corrupts every credential in it — an app bug must
+       not be able to damage the credential store.
+
+    The replacement is the Owner-OS kill switch ``owner_whatsapp_outbound``, which is a
+    runtime state file (``data/owner_kill_switches.jsonl``) consulted at SEND time by
+    ``whatsapp_campaign.auto_send_enabled()`` (and by :func:`whatsapp_enabled` here), so
+    engaging it stops the very next send — no restart, no file edit. The env-level
+    ``WHATSAPP_AUTO_SEND_HARD_OFF`` remains available to operators; this function simply
+    no longer pretends to change it.
+
+    Returns the store's result: ``{"ok": True, ...}`` on success; ``{"ok": False, ...}``
+    when the switch could not be set (never a silent success).
+    """
+    try:
+        from app.platform import owner_os
+
+        res = owner_os.set_kill_switch("owner_whatsapp_outbound", True, by=by, reason=reason)
+        if not res.get("ok"):
+            logger.error(f"WHATSAPP EMERGENCY STOP did not engage the kill switch: {res}")
+            return res
+    except Exception as e:  # noqa: BLE001 - report, never raise into an emergency path
+        logger.error(f"WHATSAPP EMERGENCY STOP failed to engage owner_whatsapp_outbound: {e}")
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    logger.warning("WHATSAPP EMERGENCY STOP ACTIVATED (owner_whatsapp_outbound engaged)")
+    return res
 
 
 __all__ = [

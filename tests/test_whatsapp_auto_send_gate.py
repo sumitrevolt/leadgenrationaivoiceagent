@@ -553,8 +553,12 @@ def test_block_stats_count_reasons_and_carry_no_pii(monkeypatch):
 def test_no_provider_egress_outside_the_guarded_boundary():
     """RATCHET. Every real WhatsApp egress must live inside the two integration modules,
     behind send_permitted(). If a future change adds a raw WAHA `sendText` POST or a
-    Meta `/messages` POST anywhere else, this fails — which is exactly how the original
-    defect would have been caught before it reached prod.
+    Meta Cloud `/messages` POST anywhere else, this fails — which is exactly how the
+    original defect would have been caught before it reached prod.
+
+    The Meta pattern was added 2026-09-14: `app/tasks/whatsapp_automation.py` assembled
+    the Graph `/messages` URL itself and POSTed with httpx, so it never passed
+    send_permitted() — and the WAHA-only pattern that existed here could not see it.
 
     Scoped to WhatsApp messaging only: meta_graph.py and social_engine/providers.py post
     to the Facebook/Instagram *page* Graph endpoints, which are a different product.
@@ -564,8 +568,12 @@ def test_no_provider_egress_outside_the_guarded_boundary():
 
     root = pathlib.Path(__file__).resolve().parents[1] / "app"
     allowed = {"integrations/whatsapp.py", "integrations/whatsapp_selfhost.py"}
-    # WAHA text-send endpoint, or the Meta messages endpoint reached from a whatsapp module.
-    waha_send = re.compile(r"""["'][^"']*/api/sendText""")
+    # WAHA text-send endpoint, or the Meta Cloud messages endpoint. Both patterns are
+    # LINE-scoped (no `[^"']*` across newlines): the old quote-prefixed WAHA pattern could
+    # start at an unrelated `"` in a docstring and then run for hundreds of lines into a
+    # prose mention of the endpoint, which is a false positive, not a bypass.
+    waha_send = re.compile(r"""/api/sendText""")
+    meta_messages = re.compile(r"""graph\.facebook\.com/[^\n]*/messages""")
 
     offenders = []
     for path in root.rglob("*.py"):
@@ -576,7 +584,7 @@ def test_no_provider_egress_outside_the_guarded_boundary():
             src = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:  # pragma: no cover - unreadable file
             continue
-        if waha_send.search(src):
+        if waha_send.search(src) or meta_messages.search(src):
             offenders.append(rel)
 
     assert offenders == [], (
