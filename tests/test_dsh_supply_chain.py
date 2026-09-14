@@ -67,7 +67,7 @@ def test_dsh_worker_lock_closure_covers_app_config_imports() -> None:
     canonical = _pins(ROOT / "requirements.lock.txt")
     isolated = _pins(ROOT / "requirements-dsh.lock.txt")
     assert canonical["pydantic_settings"] == "2.15.0"
-    assert canonical["python_dotenv"] == "1.2.2"
+    assert canonical["python_dotenv"] == "1.2.3"
     assert isolated["pydantic_settings"] == canonical["pydantic_settings"]
     assert isolated["python_dotenv"] == canonical["python_dotenv"]
     for module_name in ("pydantic_settings", "python_dotenv"):

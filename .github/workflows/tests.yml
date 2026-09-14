@@ -60,15 +60,15 @@ jobs:
 
       # ISSUE-237 evidence capture. Purely informational — `|| true` on both commands
       # so this step can never change the build outcome. Falsified already: the lock's
-      # own pairing is CORRECT (pydantic 2.13.4 declares pydantic-core==2.46.4, and the
-      # lock pins exactly 2.46.4), so #237 is NOT a bad lock pin. Remaining hypothesis
+      # own pairing is CORRECT (pydantic 2.13.5 declares pydantic-core==2.46.5, and the
+      # lock pins exactly 2.46.5), so #237 is NOT a bad lock pin. Remaining hypothesis
       # is resolver drift introduced by the unpinned install above. Delete this step
       # once #237 is closed.
       - name: ISSUE-237 dependency drift diagnostic (never fails)
         run: |
           echo "=== ISSUE-237 AFTER annotate-failures install ==="
           pip freeze | grep -iE "^(pydantic|pydantic-core|pydantic_core|pytest-github-actions-annotate-failures)" || true
-          echo "--- pydantic's own declared pydantic-core pin (expect ==2.46.4) ---"
+          echo "--- pydantic's own declared pydantic-core pin (expect ==2.46.5) ---"
           python -c "import importlib.metadata as m; print([r for r in (m.requires('pydantic') or []) if 'core' in r.lower()])" || true
           echo "--- pip check (informational; non-zero tolerated) ---"
           pip check || true
