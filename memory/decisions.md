@@ -2926,3 +2926,22 @@ equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both
 **Decision:** `config/desktop_apps/combo_distribution.yaml` now describes only `leadsgen combo 1..14`, maps all 14 unique emails, distinguishes 42 model slots from 33 provider IDs, and assigns all 14 combos to each of the five desktop surfaces. `scripts/sync_all_combos_all_apps.py` purges known legacy routing IDs from active Hermes caches/config and OpenClaw defaults, while preserving unrelated native provider catalogs and audit history. OpenClaw defaults to canonical Project-Best combo 12. Distributor reconciliation now reads live `/v1/combos` before the stale snapshot fallback and compares authoritative `providerId` before parsing the model path.
 
 **Verification:** live reconciliation: manifest=14, gateway=14, missing both ways=0, provider mismatches=0, status=OK. Active DSH, WorkBuddy, OpenClaw, Hermes and Verdant configs have zero checked legacy routing references; focused suite 20 pass + 1 documented xfail; preflight ruff/secrets/pytest PASS; `prod_check.py` ALL CHECKS PASSED (1394 routes). No production deploy, commit, push, `.env`, provider-account, or API-key mutation.
+
+## ADR-194 — OmniRoute provider-health rotation (2026-09-14, LOCAL)
+
+**Decision:** 16/21 OmniRoute providers are 100% expired (224/294 connections dead). Structure is correct (14 combos × 14 emails × 21 providers = 588 slots, all return HTTP 200) but rotation burns through 16 dead providers before landing on nvidia — causing 19–26s latency and single-model concentration.
+
+**Remediation (ordered):**
+1. Disable 16 dead providers in gateway config (hours, ₹0, p50 ~25s → ~5-8s)
+2. Raise `OMNIROUTE_TIMEOUT_SECONDS` 30→60 (env only, minutes)
+3. Remove `leadgen.swara_live` from OmniRoute routing (voice 3s budget, 19-26s is 6-8× over; already fail-open → zero functional loss)
+4. Reduce gateway `retryDelayMs` 1000→250 + cap `maxRetries`
+5. Health-aware rotation (permanent fix, days of work)
+6. Fix `isActive: True` hardcode in seed script (`seed_omniroute_14combos.py:253`)
+7. Optional: re-auth 2-3 providers for diversity (owner-gated, graded: 14 credentials each)
+
+**Key insight:** `isActive: true` means "enabled", NOT "valid". Real signal = `testStatus: active`. 294/294 isActive but only 70/294 testStatus active.
+
+**Verification:** 14/14 combos HTTP 200 (live-proven). 3 combos fire-tested (1, 13, 14) — all land on `nvidia/nemotron-3-super-120b-a12b`. p50=18.85s, max=21.1s. Architect's 3/3 claims independently verified (seed isActive hardcode, OMNIROUTE_TIMEOUT_SECONDS default 30, first_token_timeout_s 3.0s).
+
+**Full ADR:** `deliverables/engineering-assurance/adr-omniroute-provider-health-2026-09-14.md`
