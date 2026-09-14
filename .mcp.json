@@ -1,15 +1,15 @@
 {
   "mcpServers": {
     "leadgen_admin_harness": {
-      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "command": ".venv/Scripts/python.exe",
       "args": [
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\leadgen_admin_harness_mcp.py"
+        "scripts/leadgen_admin_harness_mcp.py"
       ]
     },
     "buzz": {
-      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "command": ".venv/Scripts/python.exe",
       "args": [
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\buzz_mcp.py"
+        "scripts/buzz_mcp.py"
       ],
       "env": {
         "BUZZ_RELAY": "ws://127.0.0.1:3100"
@@ -34,14 +34,14 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        "."
       ]
     },
     "graphify": {
-      "command": "C:\\Users\\Ratanshila\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\graphify-mcp.exe",
+      "command": "graphify-mcp",
       "args": [
         "--graph",
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\app\\graphify-out\\graph.json"
+        "app/graphify-out/graph.json"
       ]
     }
   }
