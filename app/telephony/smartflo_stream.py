@@ -71,6 +71,31 @@ logger = setup_logger(__name__)
 _CALL_ID_KEYS = ("callSid", "call_sid", "callId", "call_id", "callid", "uuid", "id")
 
 
+def _is_hearing_check(text: str) -> bool:
+    """Recognise a caller checking whether the bot can hear them.
+
+    Whisper often transcribes this short Hindi phrase imperfectly (for example,
+    ``क्या तुम भुजे सुन पर यो``).  Sending it to the sales brain produced a
+    generic discovery question, which sounds like the bot is deaf despite STT
+    and audio playback both working.
+    """
+    normalized = (text or "").casefold().strip()
+    if not normalized:
+        return False
+    devanagari_check = "सुन" in normalized and any(
+        token in normalized for token in ("क्या", "किया", "तुम", "मुझे", "आप")
+    )
+    roman_check = (
+        ("kya" in normalized and "sun" in normalized)
+        or ("mujhe" in normalized and "sun" in normalized)
+        or any(
+            phrase in normalized
+            for phrase in ("can you hear", "can u hear", "do you hear", "are you hearing")
+        )
+    )
+    return devanagari_check or roman_check
+
+
 def _extract_call_id(data: dict[str, Any], start: dict[str, Any]) -> str:
     """Resolve the provider call id from a Smartflo media ``start`` frame.
 
@@ -572,8 +597,13 @@ class SmartfloStreamSession:
         logger.info(f"[smartflo-stream] user: {text.strip()}")
         self.hist.append({"role": "user", "content": text.strip()})
 
-        # LLM reply
-        reply = await self._llm_reply(text.strip())
+        # A hearing-check is a conversational control phrase, not a sales
+        # discovery question.  Keep it deterministic so minor STT corruption
+        # cannot make Swara sound deaf or evasive on a live call.
+        if _is_hearing_check(text):
+            reply = "Haan ji, main aapko sun rahi hoon. Aap apni requirement batayiye."
+        else:
+            reply = await self._llm_reply(text.strip())
         if not reply:
             return
         logger.info(f"[smartflo-stream] bot: {reply[:120]}")
