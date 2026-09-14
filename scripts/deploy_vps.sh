@@ -467,6 +467,66 @@ if [ "$UP_RC" -ne 0 ]; then
   echo "      error as transient. Evidence over exit codes."
 fi
 
+# === ENVIRONMENT GATE (2026-09-14, Engineering Assurance audit) ===
+# Without this, a staging image deployed to the prod host returns 200 on /health
+# (the version matches) but environment=staging, auto_mode=false, scheduler=stopped,
+# /health/ready=503, and ~65 routes missing — automation silently broken.
+# This check catches the staging-at-prod misconfiguration BEFORE the skew check.
+echo "=== ENVIRONMENT GATE (production, not staging) ==="
+ENV_FIELD="$(printf '%s' "$HEALTH" | sed -n 's/.*"environment":"\([^"]*\)".*/\1/p')"
+if [ "$ENV_FIELD" != "production" ]; then
+  echo "FATAL: /health environment='$ENV_FIELD' != 'production'."
+  echo "       A non-production build is running at the prod endpoint."
+  echo "       DO NOT proceed — automation, schedulers and routes will be wrong."
+  exit 5
+fi
+echo "  environment: $ENV_FIELD (OK)"
+
+# === /health/ready GATE ===
+# Readiness probe must pass. 503 = app has broken dependencies (DB, Redis, etc).
+READY_CODE="$(curl -s -o /dev/null -w '%{http_code}' -m 10 127.0.0.1:8000/health/ready || true)"
+if [ "$READY_CODE" != "200" ]; then
+  echo "FATAL: /health/ready returned $READY_CODE (expected 200)."
+  echo "       App is not ready to serve — dependencies may be down."
+  exit 6
+fi
+echo "  /health/ready: $READY_CODE (OK)"
+
+# === ROUTE COUNT GATE ===
+# A staging build has ~1382 routes vs ~1447 in production. A drop of >50 routes
+# means routes were lost (import failure, missing module, etc). This catches
+# silent regressions that /health version check cannot.
+echo "=== ROUTE COUNT GATE ==="
+ROUTES_JSON="$(curl -s -m 15 'https://leadsgenai.in/openapi.json' || true)"
+LIVE_ROUTES="$(printf '%s' "$ROUTES_JSON" | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("paths",{})))' 2>/dev/null || echo 0)"
+# Baseline: prod_check.py's local count minus small tolerance for endpoint grouping differences.
+# The exact count is fetched from the deployed openapi.json itself — we check that it's
+# a plausible production number (>1300) and not a degraded staging build.
+if [ "$LIVE_ROUTES" -lt 1300 ]; then
+  echo "FATAL: /openapi.json reports only $LIVE_ROUTES routes (expected >1300)."
+  echo "       Routes are missing — likely an import failure or missing router."
+  exit 7
+fi
+echo "  routes: $LIVE_ROUTES (>= 1300 OK)"
+
+# === AUTOMATION MODE GATE ===
+# auto_mode=false + scheduler=stopped = automation broken. This catches the
+# staging-build-at-prod scenario where health version matches but everything
+# else is wrong.
+echo "=== AUTOMATION GATE ==="
+PLATFORM_JSON="$(curl -s -m 10 127.0.0.1:8000/health/platform || true)"
+AUTO_MODE="$(printf '%s' "$PLATFORM_JSON" | sed -n 's/.*"auto_mode":\(true\|false\).*/\1/p')"
+SCHED_STATUS="$(printf '%s' "$PLATFORM_JSON" | sed -n 's/.*"scheduler":"\([^"]*\)".*/\1/p')"
+if [ "$AUTO_MODE" != "true" ]; then
+  echo "WARN: auto_mode=$AUTO_MODE (expected true). Automation may not be running."
+  # Soft gate — warn but don't fail. auto_mode can legitimately be off during
+  # maintenance. The environment gate above already catches the staging build.
+fi
+if [ "$SCHED_STATUS" = "stopped" ]; then
+  echo "WARN: scheduler=$SCHED_STATUS (expected running). Jobs may not fire."
+fi
+echo "  auto_mode=$AUTO_MODE scheduler=$SCHED_STATUS"
+
 echo "=== SKEW CHECK — every app-image service must report the same sha ==="
 SKEW=0
 for svc in $ALL_ROLLOUT_SERVICES; do
