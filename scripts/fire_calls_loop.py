@@ -19,15 +19,19 @@ import datetime
 import os
 import sys
 
-_BASE = (
-    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BASE)
-os.chdir(_BASE)
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(_BASE, ".env"), override=True)
+# .env resolution: container me /app/.env nahi hota — actual file /opt/leadgen/.env
+# pe hai (VPS install path). Multiple locations try karo, first existing wins.
+for _env_dir in (_BASE, "/opt/leadgen", "/app"):
+    _env_path = os.path.join(_env_dir, ".env")
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path, override=True)
+        break
+os.chdir(_BASE)
 
 _scripts = os.path.join(_BASE, "scripts")
 if _scripts not in sys.path:
