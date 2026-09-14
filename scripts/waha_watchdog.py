@@ -3,27 +3,34 @@
 
 WHY THIS FILE IS NOW TRACKED (2026-09-14)
 -----------------------------------------
-It ran on the VPS as a bare ``python3 waha_watchdog.py`` process and existed ONLY
-there, so nothing in CI could see it. The production copy polled
-``http://localhost:3111`` while the WAHA container publishes host port **3002**, and
-therefore wrote ``{"waha_status": "UNKNOWN", "raw": {"error": "Connection refused"}}``
-to ``data/wa_health_check.json`` for weeks — a pure false negative that looked
-identical to "the session status is unreadable". Both halves are fixed here:
+It ran on the VPS as a bare ``python3 waha_watchdog.py`` process and existed ONLY there,
+so nothing could diff it. Two hardcoded host ports drifted apart with no reviewer able to
+see it: the checked-in WAHA compose (``deploy/compose/docker-compose.waha.yml``) publishes
+``127.0.0.1:3111:3000``, while the copy running on the VPS pointed at ``3002``. Whichever
+side was wrong, the observable result was the same — every poll wrote
+``{"waha_status": "UNKNOWN", "raw": {"error": "Connection refused"}}`` to
+``data/wa_health_check.json``: a pure false negative that looked identical to "the session
+status is unreadable". Both halves are fixed here:
 
-* every host/path/port is configurable (env var first, then the VPS default);
-* ``SCAN_QR_CODE`` / ``UNPAIRED`` (reachable, but nobody is logged in) is reported as
-  its own ``logged_out`` state — never as "unreachable" (see ``classify()``).
+* every host/path/port is configurable (env var first, then a documented default), so a
+  host that maps a different port sets ``WAHA_WATCHDOG_URL`` instead of editing the file;
+* ``SCAN_QR_CODE`` / ``UNPAIRED`` (reachable, but nobody is logged in) is reported as its
+  own ``logged_out`` state — never as "unreachable" (see ``classify()``).
 
 Launch + supervision: ``scripts/WAHA_WATCHDOG.md``.
 
 Config (env var -> default):
-    WAHA_WATCHDOG_URL          WAHA base URL                  http://127.0.0.1:3002
+    WAHA_WATCHDOG_URL          WAHA base URL                  http://127.0.0.1:3111
     WAHA_WATCHDOG_SESSION      WAHA session name              default
     WAHA_WATCHDOG_ENV_FILE     .env holding the API key       /opt/leadgen/.env
     WAHA_WATCHDOG_HEALTH_FILE  health JSON written each poll  /opt/leadgen/data/wa_health_check.json
     WAHA_WATCHDOG_LOG_FILE     append-only log                /opt/leadgen/data/waha_watchdog.log
     WAHA_WATCHDOG_INTERVAL     seconds between polls          60
     WAHA_WATCHDOG_TIMEOUT      per-request timeout seconds    10
+
+The default URL is the HOST-published port from the checked-in WAHA compose
+(``127.0.0.1:3111:3000``; in-network the app uses ``http://waha:3000``). If the VPS maps
+WAHA somewhere else, set ``WAHA_WATCHDOG_URL`` — do not hardcode a port here again.
 
 The WAHA API key is READ, never carried: ``WAHA_API_KEY`` from the environment, else
 from the ``.env`` file above. No hardcoded fallback — the VPS copy had one and it was
@@ -37,7 +44,7 @@ import os
 import urllib.error
 import urllib.request
 
-DEFAULT_WAHA_URL = "http://127.0.0.1:3002"
+DEFAULT_WAHA_URL = "http://127.0.0.1:3111"
 DEFAULT_SESSION = "default"
 DEFAULT_ENV_FILE = "/opt/leadgen/.env"
 DEFAULT_HEALTH_FILE = "/opt/leadgen/data/wa_health_check.json"

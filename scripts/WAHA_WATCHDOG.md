@@ -24,17 +24,20 @@ here — it is an owner/VPS decision, same class as the other host-supervision c
 
 ## History (why the file is in git now)
 
-It used to exist only on the VPS. The production copy polled `http://localhost:3111`
-while the WAHA container publishes host port **3002**, so every poll wrote
+It used to exist only on the VPS, so nothing could diff it. Two hardcoded host ports had
+drifted apart: the checked-in WAHA compose
+(`deploy/compose/docker-compose.waha.yml`) publishes `127.0.0.1:3111:3000`, while the copy
+running on the VPS pointed at `3002`. Whichever side was wrong, the observable result was
+the same — every poll wrote
 
 ```json
 {"waha_status": "UNKNOWN", "raw": {"error": "Connection refused"}}
 ```
 
-to `data/wa_health_check.json` — a false negative that was invisible for weeks, because
-an untracked file cannot be reviewed, tested or diffed, and `UNKNOWN` (service down)
-looked exactly like an unreadable session status. The watchdog now distinguishes the two
-states explicitly.
+to `data/wa_health_check.json`: a false negative invisible for weeks, because an untracked
+file cannot be reviewed, tested or diffed, and `UNKNOWN` (service unreachable) looked
+exactly like an unreadable session status. The watchdog now distinguishes those states
+explicitly and takes the URL from configuration instead of a literal.
 
 ## Configuration
 
@@ -42,7 +45,7 @@ Env var first, then the default shown (defaults match this VPS layout).
 
 | Env var | Default | Meaning |
 | --- | --- | --- |
-| `WAHA_WATCHDOG_URL` | `http://127.0.0.1:3002` | WAHA base URL. 3002 is the **host-published** port; in-network the container talks to `waha:3000`. |
+| `WAHA_WATCHDOG_URL` | `http://127.0.0.1:3111` | WAHA base URL. The default is the **host-published** port from the checked-in WAHA compose (`127.0.0.1:3111:3000`); in-network the app talks to `waha:3000`. **If your VPS maps WAHA to a different host port, set this variable** — do not hardcode it in the script again. |
 | `WAHA_WATCHDOG_SESSION` | `default` | WAHA session name. |
 | `WAHA_WATCHDOG_ENV_FILE` | `/opt/leadgen/.env` | File the API key is read from when `WAHA_API_KEY` is not in the environment. |
 | `WAHA_WATCHDOG_HEALTH_FILE` | `/opt/leadgen/data/wa_health_check.json` | Health record written on every poll. |
@@ -60,7 +63,7 @@ One JSON object per poll in `WAHA_WATCHDOG_HEALTH_FILE`:
 ```json
 {
   "timestamp_ist": "2026-09-14T12:00:00+05:30",
-  "waha_url": "http://127.0.0.1:3002",
+  "waha_url": "http://127.0.0.1:3111",
   "state": "logged_out",
   "actionable": "owner_scan_qr",
   "reachable": true,

@@ -2,9 +2,10 @@
 
 REGRESSION THIS LOCKS DOWN (2026-09-14)
 ---------------------------------------
-The watchdog lived ONLY on the VPS (untracked, so invisible to review and CI). It polled
-``http://localhost:3111`` while the WAHA container publishes host port **3002**, so every
-poll wrote::
+The watchdog lived ONLY on the VPS (untracked, so invisible to review and CI), and the
+host port in it had drifted from the one the checked-in compose publishes
+(``deploy/compose/docker-compose.waha.yml`` => ``127.0.0.1:3111:3000``; the VPS copy said
+3002). Every poll therefore wrote::
 
     {"waha_status": "UNKNOWN", "raw": {"error": "Connection refused"}}
 
@@ -175,11 +176,15 @@ def test_base_url_and_session_are_env_configured(monkeypatch):
     assert http.calls == [("GET", "http://waha-host:3999/api/sessions/canary")]
 
 
-def test_default_url_targets_the_published_host_port():
-    """3111 was the wrong port that caused the false negative; 3002 is what the WAHA
-    container publishes on the host."""
-    assert wd.DEFAULT_WAHA_URL == "http://127.0.0.1:3002"
-    assert not wd.DEFAULT_WAHA_URL.endswith("3111")
+def test_default_url_targets_the_published_host_port(monkeypatch):
+    """The default must match what the checked-in WAHA compose publishes
+    (``deploy/compose/docker-compose.waha.yml`` => ``127.0.0.1:3111:3000``). The untracked
+    VPS copy had drifted to 3002 — a mismatch nobody could diff, which is the whole reason
+    this file is tracked now."""
+    assert wd.DEFAULT_WAHA_URL == "http://127.0.0.1:3111"
+    # ...and the default is only a default: the port stays env-configurable.
+    monkeypatch.setenv("WAHA_WATCHDOG_URL", "http://127.0.0.1:3002")
+    assert wd.waha_url() == "http://127.0.0.1:3002"
 
 
 # --------------------------------------------------------------------------- #
@@ -194,7 +199,7 @@ def test_failed_session_is_restarted(monkeypatch):
     assert rec["state"] == "failed"
     assert rec["actionable"] == "watchdog_restart"
     assert rec["restart_ok"] is True
-    assert http.posts == ["http://127.0.0.1:3002/api/sessions/default/restart"]
+    assert http.posts == ["http://127.0.0.1:3111/api/sessions/default/restart"]
 
 
 def test_failed_restart_is_flagged_actionable(monkeypatch):
