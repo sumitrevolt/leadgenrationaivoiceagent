@@ -530,6 +530,7 @@ def record_run(
     error_message: str = "",
     trigger: str = "",
     started_at: str = "",
+    status: str = "",
 ) -> None:
     """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast.
 
@@ -541,6 +542,11 @@ def record_run(
       - error_message  : str(exception), ~300 char cap
       - trigger        : run ka source ("scheduler" etc.)
       - started_at     : run start ISO-UTC (duration `s` ke saath timeline reconstruct)
+      - status         : explicit run outcome when the caller KNOWS something the
+                         `ok` boolean cannot express — currently only
+                         "gated_inert" (job ka master flag OFF tha, koi kaam nahi
+                         hua). health() isko authoritative maanta hai, isliye a
+                         gated-off run can never read as `ok` = "work done".
     """
     try:  # W1.13: per-job Prometheus counters (independent try — heartbeat pe asar na ho)
         from app.platform import job_metrics
@@ -566,6 +572,8 @@ def record_run(
             rec["trigger"] = str(trigger)[:20]
         if started_at:
             rec["started_at"] = str(started_at)[:40]
+        if status:
+            rec["status"] = str(status)[:40]
         # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
         os.makedirs(os.path.dirname(_RUNS()) or ".", exist_ok=True)
         with open(_RUNS(), "a", encoding="utf-8") as f:
@@ -766,6 +774,47 @@ def _gated_inert(job: str) -> bool:
     return not _env_on("CONTENT_OS_ENABLED", "0")
 
 
+# Jobs whose master gate is a subsystem ACCESSOR rather than a bare env name.
+# The accessor is the OWNER of the flag, so this table never re-declares a flag
+# name (health() already consults `platform_dial.enabled()` the same way). Only
+# jobs whose body is a no-op when the accessor returns False belong here: the
+# accessor IS the job's gate, so reading it here cannot disagree with the body.
+_GATED_JOB_ACCESSORS: dict[str, tuple[str, str]] = {
+    # job -> (module to import, accessor). Gate flag in comments for greppability.
+    "gsc_rank": ("app.integrations.gsc", "enabled"),  # GSC_ENABLED (+ creds)
+    "daily_video": ("app.marketing.daily_video", "enabled"),  # DAILY_VIDEO_ENABLED
+    "video_delivery": (
+        "app.marketing.video_delivery",
+        "enabled",
+    ),  # VIDEO_TELEGRAM_DELIVERY_ENABLED
+    "video_delivery_retry": ("app.marketing.video_delivery", "enabled"),  # same gate
+    "social_drain": ("app.social_engine.engine", "enabled"),  # SOCIAL_ENGINE
+}
+
+
+def gated_inert(job: str) -> bool:
+    """True when `job`'s OWN master gate says the job is inert right now.
+
+    A gated job still runs (beat fires, body returns) but does NO work, so the
+    wrapper used to record a plain success — "gate off" was indistinguishable
+    from "work done" (2026-09-14 audit). `_run_job_direct` consults this to
+    record an explicit `gated_inert` heartbeat instead.
+
+    FAIL-OPEN: import/attr/call error returns False (= not inert), so a broken
+    accessor can never mask a genuinely running (or failing) job as inert.
+    """
+    entry = _GATED_JOB_ACCESSORS.get(str(job or ""))
+    if not entry:
+        return False
+    mod_name, attr = entry
+    try:
+        import importlib
+
+        return not bool(getattr(importlib.import_module(mod_name), attr)())
+    except Exception:
+        return False
+
+
 def _tail_lines(path: str, max_lines: int) -> list[str]:
     """File ke END se ~max_lines lines — bounded read (chunk-wise backward), file
     kitni bhi badi ho poora load NAHI karta. Kabhi raise nahi, fail = []."""
@@ -829,6 +878,12 @@ def run_history(
             continue
         if status_f in ("failed", "fail") and rec.get("ok"):
             continue
+        # A gated-off run is neither ok nor failed: it did no work by design.
+        # Without this, recording it non-success (ok=False) would surface every
+        # intentionally-inert job under `status="failed"` / `failures_first` — a
+        # brand-new false RED in place of the false green we just removed.
+        if status_f in ("failed", "fail") and str(rec.get("status") or "") == "gated_inert":
+            continue
         out.append(rec)
         # failures_first ke liye thoda extra chahiye (sort ke baad top-limit); warna
         # newest-first me pehle limit hi kaafi hai.
@@ -838,7 +893,7 @@ def run_history(
             break
     if failures_first:
         # stable sort: failed (0) pehle, ok (1) baad — group ke andar newest-first bana rahe
-        out.sort(key=lambda r: 0 if not r.get("ok") else 1)
+        out.sort(key=lambda r: 1 if (r.get("ok") or r.get("status") == "gated_inert") else 0)
     return out[:limit]
 
 
@@ -1165,6 +1220,23 @@ def health() -> dict[str, Any]:
                         continue
                 except Exception:
                     pass
+            # Explicit record-level status wins over the ok-derived one. A job that
+            # ran on schedule with its master gate OFF did NO work: it must not read
+            # as `ok` ("work done") nor as `last_failed` ("it broke"), and it is NOT
+            # overdue either (the beat fired — the gate is off by design, same
+            # treatment as `_gated_inert` above).
+            if str(b.get("status") or "") == "gated_inert":
+                jobs.append(
+                    {
+                        "job": job,
+                        "last_run": b.get("at"),
+                        "last_ok": b.get("ok"),
+                        "duration_s": b.get("s"),
+                        "status": "gated_inert",
+                        "note": b.get("note") or "master gate off — registered but inert",
+                    }
+                )
+                continue
             # Captured instant, not a fresh read: re-reading here would let a
             # long evaluation compare different jobs against different "now"s.
             is_over = now - last > timedelta(minutes=gap_min)

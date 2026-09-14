@@ -996,15 +996,25 @@ celery_app.conf.beat_schedule["content_os.notify_owner"] = {
     "args": (),
 }
 
-# Render plane (T02) — lease reclamation + completion bridge. Idempotent and
-# safe to run often; the task is internally flag-gated (no-op when the render
-# plane is not built) and never raises. Wired per design E7 / §9 so expired
-# leases are reclaimed and a finished local render re-enters QA exactly once.
-celery_app.conf.beat_schedule["render_plane.lease_maintenance"] = {
-    "task": "app.tasks.video_jobs.render_plane_lease_task",
-    "schedule": crontab(minute="*/5"),
-    "args": (),
-}
+# Render plane (T02) — lease reclamation + completion bridge.
+#
+# NO BEAT ENTRY HERE ON PURPOSE. There used to be a second schedule,
+# `render_plane.lease_maintenance` (task `render_plane_lease_task`, */5), which ran
+# the SAME work as `staff-render-plane-lease-5m`: both land on
+# `app.tasks.video_jobs._render_plane_lease_async(max_retries=3, limit=200,
+# enqueue=True)` at the same cadence (see the `render_plane_lease` branch in
+# `team_scheduler._run_job_inner` — its comment says it is "the SAME logic the
+# Celery task render_plane_lease_task runs"). That was a duplicate render-plane
+# sweep every 5 minutes, 288/day. It was NOT harmlessly dead: it is registered
+# AFTER the ENABLE_LEGACY_BEAT strip above, so it survived the strip and fired.
+#
+# The `staff-` entry is the one kept — `run_staff_job` → `team_scheduler._run_job`
+# gives it the owner_os gates, agent-claim check, boot-grace, idempotency, DLQ and
+# the dead-man heartbeat (`EXPECTED_GAP_MIN["render_plane_lease"]`).
+#
+# The task `render_plane_lease_task` itself stays registered (manual/backfill
+# entrypoint; covered by tests/test_render_plane_resume.py). Do NOT re-add a beat
+# entry for it.
 
 
 # Task definitions

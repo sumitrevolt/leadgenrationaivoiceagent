@@ -381,6 +381,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
     _ok = True
     _err_class = ""
     _err_msg = ""
+    _gate_status = ""
     _log_id = ""
     try:
         from app.platform.automation_log_service import log_event as _log_auto
@@ -436,6 +437,26 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         _res = await _run_job_inner(job)
         _ok = _res is not False
 
+        # Gate-off must never read as "work done" (2026-09-14 audit). A job whose
+        # master gate is OFF still runs — the beat fires, the body returns True —
+        # but it did NO work, so the heartbeat recorded a plain success and the
+        # admin/dead-man surface could not tell "gate off" from "job ran fine".
+        # Record an explicit `gated_inert` instead.
+        #
+        # ok=False is safe here: health()'s overall status keys on
+        # overdue/queue/dead/engines_skipped/outputs_stale — never on one job's
+        # `last_failed` — and health() surfaces the explicit status ahead of the
+        # ok-derived one. run_history() excludes the marker from its failed view.
+        if _ok:
+            try:
+                from app.platform import automation_health as _ah_gate
+
+                if _ah_gate.gated_inert(job):
+                    _gate_status = "gated_inert"
+                    _ok = False
+            except Exception:
+                pass
+
         # Routine bridge: complete task
         if _routine_task_id:
             try:
@@ -475,6 +496,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
                     job,
                     _ok,
                     _duration,
+                    status=_gate_status,
                     error_class=_err_class,
                     error_message=_err_msg,
                     trigger="scheduler",
