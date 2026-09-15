@@ -38,24 +38,49 @@
 # Prints the id on stdout; returns non-zero (and prints nothing) if it cannot be
 # proven, because guessing here would run the gate against unknown code.
 gate_pinned_image() {
-  local ref="${1:-leadgen_app}"
-  local id=""
-  id="$(docker inspect -f '{{.Image}}' "$ref" 2>/dev/null || true)"
-  case "$id" in
-    sha256:*) ;;
-    *)
-      echo "FATAL: cannot resolve a pinned image id from container '$ref'." >&2
-      echo "       Refusing to run a gate against an unproven image." >&2
-      return 1
-      ;;
-  esac
-  printf '%s\n' "$id"
+  # 2026-09-15: the app is served by systemd (no `leadgen_app` container), so
+  # when no explicit ref is given, fall back through the pinned worker/scheduler
+  # containers that carry the immutable image id. ADR-097 is preserved: only a
+  # sha256 id from a LIVE container is ever accepted - never a tag, never latest.
+  local -a refs=()
+  local ref="${1:-}"
+  if [ -n "$ref" ]; then
+    refs=("$ref")
+  else
+    refs=(leadgen_app leadgen_worker leadgen_worker_heavy leadgen_scheduler leadgen_worker_video)
+  fi
+  local r id tried=""
+  for r in "${refs[@]}"; do
+    id="$(docker inspect -f '{{.Image}}' "$r" 2>/dev/null || true)"
+    case "$id" in
+      sha256:*)
+        printf '%s\n' "$id"
+        return 0
+        ;;
+    esac
+    tried="$tried $r"
+  done
+  echo "FATAL: cannot resolve a pinned image id from any container:$tried." >&2
+  echo "       Refusing to run a gate against an unproven image." >&2
+  return 1
 }
 
 # Human-readable tag of the same container, for the log line only. A tag is
 # never used to RUN anything here.
 gate_image_tag() {
-  docker inspect -f '{{.Config.Image}}' "${1:-leadgen_app}" 2>/dev/null || true
+  # Mirror of gate_pinned_image's fallback chain, for the log line only.
+  local -a refs=()
+  local ref="${1:-}"
+  if [ -n "$ref" ]; then
+    refs=("$ref")
+  else
+    refs=(leadgen_app leadgen_worker leadgen_worker_heavy leadgen_scheduler leadgen_worker_video)
+  fi
+  local r
+  for r in "${refs[@]}"; do
+    docker inspect -f '{{.Config.Image}}' "$r" 2>/dev/null && return 0
+  done
+  return 0
 }
 
 # gate_run_image <image> <candidate_dir> <repo_root> <python args...>
