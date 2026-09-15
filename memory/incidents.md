@@ -151,3 +151,31 @@ Triage rule: assign one primary ID only after evidence; optional secondary IDs m
 [2026-09-07] **Workforce resilience patch bypassed credential ownership.** Concurrent OPS-014 correctly reduced parallelism and added bounded 503 retry, but its resolver attempted to read raw API keys from OmniRoute SQLite/Docker when env provisioning was absent. Broad exception handling initially made the regression test false-green by swallowing the forbidden-call assertion. Fix: call-observation test proved one extraction attempt; DB/Docker branches removed; resolver now accepts only explicit per-combo/global environment credentials and otherwise fails closed to documented local fallback. Four contracts cover no extraction, env override, workers=4 and one 2s 503 retry. OPS-014 remains BLOCKED on OPS-013 for real-inference proof.
 
 [2026-09-06] **Council-ledger sync accumulated duplicate blocked-reason notes on every apply.** `plan_tasks()` appended `09-06 council: <reason>` unconditionally and updated timestamps even when status/note already matched. Five prior applies produced five identical segments in several tasks, while the script still claimed idempotency. Fix: normalize note segments with order-preserving exact dedupe, append the marker only when absent, update timestamps only on a real status/note change, and emit `NO-OP GATE` otherwise. Red-first regression reproduced count 3; green test proves second sync returns byte-equivalent task state. Canonical apply created timestamped backups, kept 38 tasks/9 bots/0 duplicate IDs, and immediate second dry-run showed all 10 gates no-op with zero new messages. Prevention: idempotency means second-run state equality, not merely stable task IDs.
+
+## 2026-09-15: Prod Environment Wrong — Staging Build Serving Production Traffic
+
+**Severity:** HIGH — production was serving `environment: staging`, `version: dev`, scheduler appeared stopped, `/health/ready` = 503.
+
+**Root cause:** 3-layer `.env` misconfiguration:
+1. `APP_ENV=staging` (should be `production`) — 2 occurrences in `.env` (lines 19, 567)
+2. `APP_VERSION` unset — code fell back to `"dev"`
+3. `DATABASE_URL=...@pgbouncer:6432` — Docker DNS name unresolvable from host (systemd app runs on host, not in Docker network)
+
+**Architecture insight:** The live production app runs via **systemd `leadgen.service`** (uvicorn on host:8000), NOT via Docker container. Docker `app` service can't start because port 8000 is occupied. Systemd reads `.env` directly; compose `environment:` block overrides don't apply.
+
+**Fix applied (autopilot, 2026-09-15T01:02Z):**
+1. Backup `.env.bak-autopilot-20260915` (pre-fix)
+2. `APP_ENV=staging` → `APP_ENV=production` (both lines)
+3. Added `APP_VERSION=cdc28e0d` (VPS HEAD)
+4. `DATABASE_URL`: `@pgbouncer:6432` → `@127.0.0.1:5432`
+5. `systemctl restart leadgen.service`
+
+**Post-fix verification:**
+- `/health` → `environment: production`, `version: cdc28e0d` ✅
+- `/health/ready` → 200, database healthy ✅
+- All public pages → 200 ✅
+- Scheduler/Docker workers at `95245ce8` (separate, unaffected) ✅
+
+**Landmine added:** Systemd app + Docker compose dual-path architecture. `.env` must have host-compatible values (127.0.0.1 for DB) since systemd reads it directly. Compose `environment:` block only affects Docker containers.
+
+**Version skew note:** Systemd app = `cdc28e0d`, Docker workers/scheduler = `95245ce8`. This is the current operating model — deploy script builds Docker images but systemd holds port 8000. `scripts/vps_app_container_swap.sh` exists for cutover but hasn't been run.
