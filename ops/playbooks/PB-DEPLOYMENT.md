@@ -3,7 +3,8 @@
 - **Purpose**: Ship code to prod safely with provenance + rollback, every time.
 - **Trigger**: any production deploy request.
 - **Scope**: verify -> build -> deploy -> probe -> record.
-- **Prereqs**: kill fence for voice (VOICE_LAUNCH_KILL TRUE_TOKEN), prod_check --deployment PASS, secrets scan clean.
+- **Prereqs**: `prod_check.py --deployment` PASS, secrets scan clean, `.env` `APP_ENV=production` + `APP_VERSION` = target sha.
+  (The old "kill fence for voice (VOICE_LAUNCH_KILL TRUE_TOKEN)" prereq was DELETED 2026-09-15: it was dead code AND self-blocking — it passed only when the kill switch was ENGAGED, which is never the case on a live campaign. See CLAUDE.md Ops facts.)
 
 ## Strategy
 1. REPO TRUTH: fetch origin, confirm target sha on main (branch protection; PR-only).

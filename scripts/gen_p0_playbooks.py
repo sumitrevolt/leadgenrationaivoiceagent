@@ -175,7 +175,7 @@ PB["PB-DEPLOYMENT"] = """# PB-DEPLOYMENT — Deployment Playbook (P0)
 - **Purpose**: Ship code to prod safely with provenance + rollback, every time.
 - **Trigger**: any production deploy request.
 - **Scope**: verify -> build -> deploy -> probe -> record.
-- **Prereqs**: kill fence for voice (VOICE_LAUNCH_KILL TRUE_TOKEN), prod_check --deployment PASS, secrets scan clean.
+- **Prereqs**: prod_check --deployment PASS, secrets scan clean, .env APP_ENV=production + APP_VERSION = target sha.
 
 ## Strategy
 1. REPO TRUTH: fetch origin, confirm target sha on main (branch protection; PR-only).

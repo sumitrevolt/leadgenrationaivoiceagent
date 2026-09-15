@@ -118,10 +118,10 @@ export RUNTIME_DATA_GATE_CANDIDATE RUNTIME_DATA_GATE_REPO
 # shellcheck source=scripts/_runtime_data_guard.sh
 . "$_script_dir/_runtime_data_guard.sh" || exit 91
 
-# Proof that the calling-safety environment reaches the gate container at all.
-# Booleans only — the token itself is never printed. Without this, a missing
-# `.env` injection would surface as "VOICE_LAUNCH_KILL: UNSET" and get "fixed"
-# by exporting it in the operator's shell, proving nothing about production.
+# Proof that PRODUCTION's environment reaches the gate container at all.
+# Booleans only — no value is ever printed. The gate evaluates ENV-dependent
+# checks, so an un-injected `.env` would make them report on nothing while
+# still looking green.
 echo "=== gate environment proof (booleans only, no values) ==="
 gate_kill_env_proof "$CANDIDATE_DIR" "$REPO" || {
   echo "FATAL: could not prove the gate container environment. Refusing to deploy."
@@ -268,12 +268,10 @@ if ! docker image inspect "$CANDIDATE_IMAGE" >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------- canonical deployment gate
-# Runs in the CANDIDATE image, so the dependencies, the code and the classifier
-# are the ones about to serve traffic. One authority: the same checker CI runs,
-# plus the deploy-only gates. A private voice-kill check in this script would be
-# a second authority and a bypass waiting to happen, so the classification stays
-# in prod_check.py. VOICE_LAUNCH_KILL is read there from the environment; it is
-# never echoed.
+# Runs in the CANDIDATE image, so the dependencies and the code are the ones
+# about to serve traffic. One authority: the same checker CI runs, plus the
+# deploy-only gates. A private calling-safety check in this script would be a
+# second authority and a bypass waiting to happen.
 echo "=== deployment gate: prod_check.py --deployment (candidate image) ==="
 if ! gate_run_image "$CANDIDATE_IMAGE" "$CANDIDATE_DIR" "$REPO" scripts/prod_check.py --deployment; then
   echo "FATAL: deployment gate failed — refusing to deploy."

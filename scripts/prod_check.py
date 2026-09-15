@@ -256,63 +256,29 @@ def _automation_wiring_gaps() -> list[str]:
         gaps.extend(cpa.PROBLEMS)
     except Exception:
         pass
-    return gaps
-
-
-#: Kept local on purpose: coupling the deployment gate to app.telephony would
-#: drag the runtime import graph into a script that must stay light.
-_VLK_TRUE = ("1", "true", "yes", "on", "true_token")
-_VLK_FALSE = ("0", "false", "no", "off")
-
-
-def classify_voice_launch_kill_env(value: str | None) -> str:
-    """Class of the raw VOICE_LAUNCH_KILL setting. Pure: no I/O, no logging.
-
-    Returns one of UNSET / TRUE_TOKEN / FALSE_TOKEN / INVALID_TOKEN. The value
-    itself is never returned, logged or embedded in a message.
-    """
-    v = (value or "").strip().lower()
-    if not v:
-        return "UNSET"
-    if v in _VLK_TRUE:
-        return "TRUE_TOKEN"
-    if v in _VLK_FALSE:
-        return "FALSE_TOKEN"
-    return "INVALID_TOKEN"
-
-
-def check_voice_launch_kill_env() -> dict[str, str]:
-    """Deployment gate for the voice kill switch ENV authority.
-
-    Preflight is STRICTER than runtime, and deliberately so:
-
-      * TRUE_TOKEN  — kill explicitly engaged. The only shippable state.
-      * UNSET       — deployment cannot prove explicit calling refusal.
-      * FALSE_TOKEN — runtime treats this as ENV_DISENGAGED, which means the
-                      file-based emergency toggle is INERT: an operator could
-                      write {"kill": true} and nothing would happen. Shipping
-                      that silently is the hazard, so it blocks rather than warns.
-      * INVALID_TOKEN — the reader fails closed on it, but malformed config
-                      must not reach production.
-
-    Classifies the ENV layer only; it never reads, writes or creates the kill file.
-    """
-    classification = classify_voice_launch_kill_env(os.environ.get("VOICE_LAUNCH_KILL"))
-    reason = {
-        "TRUE_TOKEN": "EXPLICITLY_ENGAGED",
-        "UNSET": "ENV_NOT_CONFIGURED",
-        "FALSE_TOKEN": "ENV_EXPLICITLY_DISENGAGED",
-        "INVALID_TOKEN": "ENV_INVALID",
-    }[classification]
-    status = "PASS" if classification == "TRUE_TOKEN" else "BLOCKER"
-    if status == "BLOCKER":
-        PROBLEMS.append(f"voice_launch_kill_env: {classification} ({reason})")
-    return {
-        "check": "voice_launch_kill_env",
-        "classification": classification,
-        "status": status,
-        "reason": reason,
-    }
+    return gaps# NOTE (2026-09-15): the `--deployment` VOICE_LAUNCH_KILL preflight that used to
+# live here (`check_voice_launch_kill_env` / `classify_voice_launch_kill_env`)
+# was DELETED, deliberately. Do not re-add it.
+#
+# It was a SELF-BLOCKING control. Its policy was "PASS only on a TRUE token",
+# i.e. refuse to ship unless the kill switch was ENGAGED — but `VOICE_LAUNCH_KILL=0`
+# is the normal, documented state of a live calling campaign (verified on prod
+# 2026-09-15: `/opt/leadgen/.env` -> VOICE_LAUNCH_KILL=0). Wired correctly it
+# would have blocked EVERY release of a healthy platform.
+#
+# Its invocation had already been lost in commit db5b1ceb, so it executed
+# nowhere, while its docstring and two test files still asserted it was MANDATORY.
+# That is precisely the "gate that reads as green because it never runs" failure
+# this file's other checks exist to prevent — so the fix is deletion, not a
+# silent re-wire.
+#
+# No calling-safety gate was lost. The runtime kill switch
+# (`app/telephony/voice_launch.admin_kill_status()`) is unchanged and still fails
+# CLOSED on every unrecognised, unset or unreadable value, and `deploy_vps.sh`
+# keeps every fail-closed gate (runtime-data guard, environment / /health/ready /
+# route-count, skew). See deliverables/engineering-assurance/ for the plan that
+# makes the kill FILE authoritative (which needs an external bind mount first —
+# flipping to file-authority before that mount exists stops ALL calling).
 
 
 def check_production_config() -> None:
@@ -434,20 +400,6 @@ def main(argv: list[str] | None = None) -> int:
     check_explorer_drift()
     check_api_docs_drift()
     check_dev_control_invariants()
-    # Deployment-only VOICE_LAUNCH_KILL kill fence.
-    #
-    # History: this call was removed in commit db5b1ceb ("deploy: remove
-    # voice_launch_kill gate for production deploy"), which left the four
-    # assertions in tests/test_prod_check_deployment_cli.py RED — the suite and
-    # main() disagreed about whether the fence runs.
-    #
-    # Restored 2026-09-12: the fence is a SAFETY control, not a convenience one.
-    # It refuses a deploy unless VOICE_LAUNCH_KILL carries a true token, i.e. it
-    # blocks shipping a new image while outbound calling is live and unfenced.
-    # Restoring it makes the existing tests green with no test edits. General
-    # (non---deployment) runs are unaffected, so local/CI readiness stays clean
-    # on an unset variable. If this must be removed again, remove the tests in
-    # the same commit — never leave them asserting a gate that no longer runs.
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.

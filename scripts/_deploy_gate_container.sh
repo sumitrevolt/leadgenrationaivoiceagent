@@ -141,13 +141,15 @@ gate_run() {
   gate_run_image "$image" "$candidate" "$repo" "$@"
 }
 
-# Non-secret proof that the calling-safety environment actually reaches the
-# gate container. Prints booleans only — never the token, never any value.
+# Non-secret proof that PRODUCTION's environment actually reaches the gate
+# container. Prints booleans only — never a value, never the token.
 #
-# This exists because the deployment gate reads VOICE_LAUNCH_KILL from the
-# ENVIRONMENT: if `.env` were not injected, `prod_check --deployment` would
-# report UNSET and the operator would "fix" it by exporting the variable in
-# their shell, proving nothing about what production will actually run with.
+# WHY (restated 2026-09-15, when the ENV kill-fence preflight was deleted): the
+# gate evaluates ENV-dependent checks — calling posture, compliance flags. If
+# `.env` were not injected, those checks would silently evaluate against an
+# EMPTY environment and report on nothing, and the operator would "fix" it by
+# exporting the variable in their own shell, proving nothing about what
+# production will actually run with. The consumer changed; the hazard did not.
 gate_kill_env_proof() {
   local candidate="$1"
   local repo="$2"
@@ -160,3 +162,4 @@ print("VOICE_LAUNCH_KILL_IS_TRUE_TOKEN=" + ("1" if (v or "").strip().lower() in 
 print("PLATFORM_DIAL_DAILY=" + (os.environ.get("PLATFORM_DIAL_DAILY") or "<unset>"))
 '
 }
+

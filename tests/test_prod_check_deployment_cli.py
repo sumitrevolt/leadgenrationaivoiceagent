@@ -5,10 +5,33 @@ Two modes, one checker:
     python scripts/prod_check.py               general repository readiness
     python scripts/prod_check.py --deployment  actual pre-deploy gate
 
-The voice-kill ENV gate runs ONLY in deployment mode. Wiring it
-unconditionally would make every local and CI readiness run red on an unset
-variable; leaving it unwired would ship a gate that never executes. Neither is
-acceptable, so the context is explicit and testable.
+REWRITTEN 2026-09-15 — what this file no longer tests, and why
+--------------------------------------------------------------
+This module used to be dominated by a ``VOICE_LAUNCH_KILL`` ENV preflight harness
+(``_main`` plus a spy on ``check_voice_launch_kill_env``). That preflight was a
+SELF-BLOCKING control: it passed only on a TRUE token, i.e. it refused to ship
+unless the kill switch was ENGAGED — while ``VOICE_LAUNCH_KILL=0`` is the normal,
+documented state of a live calling campaign (prod-verified 2026-09-15). Wired
+correctly it would have blocked every healthy release, and its invocation had
+already been lost in commit db5b1ceb, so four assertions here were RED against a
+gate that ran nowhere. The preflight is deleted; see the NOTE in
+``scripts/prod_check.py`` for the full reasoning and why it must not return.
+
+Four fence-specific tests were removed with it (two here, the classification and
+blocker-policy suite in the now-deleted ``test_voice_launch_kill_preflight.py``).
+No assertion about RELEASE SAFETY was dropped: the tests below are the ones that
+actually protect a deploy, and they were never about the voice kill switch at all.
+
+WHAT REMAINS IS THE REAL CONTRACT
+---------------------------------
+  * ``--deployment`` exists on the published CLI, and an unrecognised flag does
+    not silently degrade to general mode (a typo must fail, not skip the gate);
+  * ``deploy_vps.sh`` invokes the canonical preflight EXACTLY once, inside the
+    candidate image;
+  * that preflight runs BEFORE every operation that mutates production;
+  * the runtime-data guard runs before the build, the gate, and the pull.
+
+Does not run GitHub Actions or a real deploy. Script text is the contract.
 """
 
 from __future__ import annotations
@@ -19,90 +42,11 @@ import sys
 
 import pytest
 
-from scripts import prod_check
-
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts" / "prod_check.py"
 
 
-def _main(monkeypatch, argv, env_value):
-    """Call the real main() with a controlled argv and ENV class."""
-    if env_value is None:
-        monkeypatch.delenv("VOICE_LAUNCH_KILL", raising=False)
-    else:
-        monkeypatch.setenv("VOICE_LAUNCH_KILL", env_value)
-    monkeypatch.setattr(prod_check, "PROBLEMS", [], raising=False)
-    monkeypatch.setattr(prod_check, "WARNINGS", [], raising=False)
-    calls: list = []
-    real = prod_check.check_voice_launch_kill_env
-
-    def spy():
-        calls.append(1)
-        return real()
-
-    monkeypatch.setattr(prod_check, "check_voice_launch_kill_env", spy)
-    # Only the voice-kill wiring is under test; the heavy repo checks are not.
-    for name in (
-        "check_sources_parse",
-        "check_stale_pycache",
-        "check_app_imports",
-        "check_routes",
-        "check_production_config",
-        "check_frontend_wiring",
-        "check_explorer_drift",
-        "check_api_docs_drift",
-        "check_dev_control_invariants",
-    ):
-        monkeypatch.setattr(prod_check, name, lambda: None, raising=False)
-    rc = prod_check.main(argv)
-    vk = [p for p in prod_check.PROBLEMS if "voice_launch_kill_env" in p]
-    return rc, len(calls), vk
-
-
-def test_general_mode_does_not_run_the_deployment_gate(monkeypatch):
-    rc, calls, vk = _main(monkeypatch, [], None)
-    assert calls == 0, "deployment-only gate ran in general mode"
-    assert vk == []
-    assert rc == 0
-
-
-def test_deployment_mode_true_token_passes(monkeypatch):
-    rc, calls, vk = _main(monkeypatch, ["--deployment"], "true")
-    assert calls == 1, "gate must run exactly once"
-    assert vk == []
-    assert rc == 0
-
-
-@pytest.mark.parametrize(
-    ("value", "reason"),
-    [
-        (None, "ENV_NOT_CONFIGURED"),
-        ("false", "ENV_EXPLICITLY_DISENGAGED"),
-        ("maybe", "ENV_INVALID"),
-    ],
-)
-def test_deployment_mode_blocks_unsafe_env(monkeypatch, value, reason):
-    rc, calls, vk = _main(monkeypatch, ["--deployment"], value)
-    assert calls == 1
-    assert len(vk) == 1, vk
-    assert reason in vk[0]
-    assert rc != 0, "deployment preflight must fail closed"
-
-
-def test_unknown_argument_is_rejected(monkeypatch):
-    """An unrecognised flag must never silently degrade to general mode."""
-    with pytest.raises(SystemExit) as exc:
-        _main(monkeypatch, ["--deploymnet"], None)  # typo on purpose
-    assert exc.value.code != 0
-
-
-@pytest.mark.parametrize("value", ["s3cr3t-token-value", "off"])
-def test_cli_output_leaks_no_raw_token(monkeypatch, capsys, value):
-    _main(monkeypatch, ["--deployment"], value)
-    blob = capsys.readouterr().out + " ".join(prod_check.PROBLEMS)
-    assert value not in blob
-    assert "VOICE_LAUNCH_KILL=" not in blob
-    assert "voice_launch_kill.json" not in blob
+# ------------------------------------------------------------ published CLI
 
 
 def test_real_cli_accepts_the_deployment_flag():
@@ -115,6 +59,22 @@ def test_real_cli_accepts_the_deployment_flag():
         timeout=180,
     )
     assert "--deployment" in (r.stdout + r.stderr)
+
+
+def test_unknown_argument_is_rejected():
+    """An unrecognised flag must never silently degrade to general mode.
+
+    A typo that falls through to general mode runs a weaker checker while
+    reporting success — the exact shape of a gate that is bypassed by accident.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT), "--deploymnet"],  # typo on purpose
+        capture_output=True,
+        text=True,
+        cwd=str(REPO),
+        timeout=180,
+    )
+    assert r.returncode != 0, r.stdout + r.stderr
 
 
 # --------------------------------------------- deploy_vps.sh ordering proof
@@ -199,3 +159,17 @@ def test_runtime_data_guard_precedes_the_deployment_gate_and_the_build():
         n for n, ln in lines if "git pull --ff-only" in ln and not ln.strip().startswith("echo")
     )
     assert guard < build < gate < pull, (guard, build, gate, pull)
+
+
+@pytest.mark.parametrize("flag", ["--deployment"])
+def test_deployment_flag_help_text_mentions_pre_deploy_gates(flag):
+    """The flag must describe itself as the pre-deploy gate, not a variant."""
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO),
+        timeout=180,
+    )
+    assert flag in r.stdout
+    assert "pre-deploy" in r.stdout or "before an actual production deploy" in r.stdout
