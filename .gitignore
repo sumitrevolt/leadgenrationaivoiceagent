@@ -377,3 +377,27 @@ tmp/
 !admin-dashboard/tsconfig.json
 !admin-dashboard/src/lib/
 !admin-dashboard/src/lib/**
+
+# Agnes scratch / work / artifacts (agent runtime, never commit)
+.agnes/
+# One-off session backup + diagnostic scripts (2026-09-15 cleanup).
+# These were untracked local artifacts polluting `git status`. Reversible: delete
+# the lines to re-track. Policy = docs/CONTEXT_HYGIENE_POLICY.md (one-off
+# diagnostics stay untracked; reusable tools go under scripts/canary/ or scripts/).
+*.bak-plt*
+scripts/check_base.py
+scripts/check_db.py
+scripts/check_llm.py
+scripts/check_state.py
+scripts/check_state2.py
+scripts/check_state3.py
+scripts/hourly_audit.py
+scripts/ops_rev_recon.py
+scripts/ops_rev_recon2.py
+scripts/ops_rev_recon3.py
+scripts/ops_rev_recon4.py
+scripts/prospect_stats.py
+scripts/test_llm.py
+scripts/vobiz_monitor.py
+deliverables/cleanup_admin_script.ps1
+
