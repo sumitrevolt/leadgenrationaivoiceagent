@@ -10,7 +10,7 @@ echo [%date% %time%] Vobiz go-live > "%LOG%"
 "%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "cd /opt/leadgen && python3 scripts/env_set.py TELEPHONY_PROVIDER=vobiz VOBIZ_CALLER_ID=+911171366938 DLT_APPROVED=1 TELEPHONY_READY_ALERTS=1" >> "%LOG%" 2>&1
 if errorlevel 1 goto fail
 
-"%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "cd /opt/leadgen && docker compose -f docker-compose.vps.yml up -d --no-deps app worker && sleep 18" >> "%LOG%" 2>&1
+"%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "cd /opt/leadgen && docker compose -f docker-compose.vps.yml up -d --no-deps worker && systemctl restart leadgen && sleep 18" >> "%LOG%" 2>&1
 if errorlevel 1 goto fail
 
 "%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "docker exec leadgen_app python3 scripts/vobiz_go_live.py" >> "%LOG%" 2>&1

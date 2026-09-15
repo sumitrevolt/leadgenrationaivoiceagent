@@ -14,7 +14,7 @@ echo "== flag SELF_IMPROVE_LOOP=1 =="
 python3 scripts/env_set.py SELF_IMPROVE_LOOP=1 2>&1 | tail -2 || true
 
 echo "== recreate app+worker+scheduler =="
-docker compose -f docker-compose.vps.yml --profile celery up -d app worker scheduler 2>&1 | tail -6
+docker compose -f docker-compose.vps.yml --profile celery up -d worker scheduler && systemctl restart leadgen 2>&1 | tail -6
 
 sleep 16
 echo "== health (x2, boot-grace lesson) =="

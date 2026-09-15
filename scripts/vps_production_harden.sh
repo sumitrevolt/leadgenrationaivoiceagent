@@ -40,7 +40,7 @@ grep -E '^(ENVIRONMENT|APP_ENV|PLAN_RATE_LIMIT|TEAM_AUTOMATION)=' "$ENV_FILE" ||
 
 echo "=== rebuild app ==="
 docker compose -f docker-compose.vps.yml build app
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 sleep 16
 
 echo "=== health ==="

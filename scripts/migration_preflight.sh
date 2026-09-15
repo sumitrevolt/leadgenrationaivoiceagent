@@ -11,9 +11,9 @@
 # FAIL-CLOSED: agar alembic khud chal hi na paaye (DB unreachable, compose gadbad)
 # to exit 1 — kabhi bhi aisa deploy bless mat karo jo verify nahi hua.
 #
-# Usage (VPS pe, /opt/leadgen se, `up -d --no-deps app` se PEHLE):
+# Usage (VPS pe, /opt/leadgen se, `systemctl restart leadgen` se PEHLE):
 #   bash scripts/migration_preflight.sh \
-#     && docker compose -f docker-compose.vps.yml up -d --no-deps app
+#     && systemctl restart leadgen
 #
 # Exit: 0 = DB current == code head(s)  (safe to recreate)
 #       1 = mismatch (pehle `alembic upgrade head` chalao)  OR  alembic error
@@ -74,7 +74,7 @@ if [ -n "${missing}" ]; then
   echo ""
   echo "     docker compose -f ${COMPOSE_FILE} run --rm ${ALEMBIC_SERVICE} alembic upgrade head"
   echo ""
-  echo "   Phir yeh preflight dobara chalao, tab 'up -d --no-deps app'."
+  echo "   Phir yeh preflight dobara chalao, tab 'systemctl restart leadgen'."
   echo "=================================================================="
   exit 1
 fi

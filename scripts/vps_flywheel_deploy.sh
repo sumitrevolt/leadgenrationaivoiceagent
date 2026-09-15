@@ -51,7 +51,7 @@ bash "$_enable" /opt/leadgen/.env
 
 # Restart to pick up the new env only — no rebuild, no pull.
 echo "===APPLY ENV (restart app, no rebuild)==="
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 
 # ------------------------------------------------- read-only verification
 sleep 16

@@ -7,7 +7,7 @@ git fetch --all -q
 git reset --hard origin/main -q
 echo "COMMIT: $(git log --oneline -1)"
 docker compose -f docker-compose.vps.yml build app
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 sleep 18
 curl -sf http://127.0.0.1:8000/health
 echo

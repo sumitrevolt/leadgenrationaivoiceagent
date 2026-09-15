@@ -38,7 +38,7 @@ def main() -> int:
             [
                 "bash",
                 "-lc",
-                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker worker-heavy",
+                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps worker worker-heavy && systemctl restart leadgen",
             ],
             check=True,
             timeout=120,

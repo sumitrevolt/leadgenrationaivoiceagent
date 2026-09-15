@@ -48,7 +48,7 @@ def main() -> int:
         "git clean -fd frontend/explorer.html",
         "git pull origin main",
         "docker compose -f docker-compose.vps.yml build app 2>&1 | tail -8",
-        "docker compose -f docker-compose.vps.yml up -d --no-deps app",
+        "systemctl restart leadgen",
         "sleep 18",
         'curl -s https://leadsgenai.in/health | python3 -c "import sys,json; '
         "d=json.load(sys.stdin); print('HEALTH:', d.get('environment'), d.get('status'))\"",

@@ -23,7 +23,7 @@ def main() -> int:
         "VOBIZ_CALL_RECORD=1 AUTO_QUALIFY_CALLS=1 DND_CARRIER_SCRUB=1 "
         "TELEPHONY_PROVIDER=vobiz DLT_APPROVED=1"
     )
-    run("docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate app worker")
+    run("docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate worker && systemctl restart leadgen")
     print("sleep 22...")
     import time
 

@@ -66,7 +66,7 @@ User "haan" bole tab hi proceed karo.
 
 ### Hostinger SSH:
 - `git push --force` = `main` branch ka history rewrite = CI/deploy broken
-- `pkill -9 uvicorn` = leadgen_app container process down — systemd DISABLED hai, KOI service auto-restart nahi karega; recover = `docker compose -f docker-compose.vps.yml up -d --no-deps app` (2026-07-05)
+- `pkill -9 uvicorn` = the systemd unit `leadgen` dies — and it **auto-restarts** (`Restart=always`, `RestartSec=5`; PRODUCTION-PROVEN 2026-09-15), so wait ~5s then `systemctl status leadgen`. Still down → `systemctl restart leadgen`. There is **no `leadgen_app` container** since 2026-09-15, so `up -d --no-deps app` is NOT a recovery path: it cannot bind :8000 while the unit holds it, and the health check would pass off the OLD process. (Supersedes the 2026-07-05 note.)
 
 ### Data files:
 - `data/*.jsonl` = production data. Delete = leads/invoices gone forever.

@@ -5,7 +5,7 @@ description: The gated env-flag catalog for LeadGen AI automation engines — wh
 
 # Automation Flags (additive · safe-to-flip)
 
-Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitignored) → **container recreate** (`docker compose -f docker-compose.vps.yml up -d --no-deps app`, NOT sirf `restart` — env_file reload ke liye recreate chahiye) → verify.
+Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitignored) → **`systemctl restart leadgen`** — systemd re-reads `EnvironmentFile=/opt/leadgen/.env` on every process start, so a restart IS the env reload here → verify. (There is no `leadgen_app` container since 2026-09-15, so a container recreate is not the mechanism.)
 
 **Live registry = `GET /api/growth/infra/flags`** (single source of truth, on/off/unset dikhata). Master list = `AUTOMATION_FLAGS` in `app/api/growth.py` — ab **~100+ flags** (engines + new F–M capabilities + URL-valued integrations). Naya flag wahaan add karo warna flags-endpoint pe nahi dikhega.
 
@@ -49,10 +49,10 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 ## Procedure
 1. **Backup**: `cp .env .env.bak_$(date +%s)`.
 2. `.env` me flag add (base64-over-ssh se — secret kabhi plain argv pe nahi).
-3. `docker compose -f docker-compose.vps.yml up -d --no-deps app` (recreate = env reload). Worker/scheduler ko flag chahiye to unhe bhi recreate.
-4. `docker exec leadgen_app printenv <FLAG>` → confirm value.
+3. `systemctl restart leadgen` (process replace = env reload). Worker/scheduler ko flag chahiye to unhe `docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps worker scheduler` — wo containers hain, unke liye recreate hi sahi hai.
+4. Confirm the flag the LIVE process actually sees (host process, not a container): `tr '\0' '\n' < /proc/$(systemctl show -p MainPID --value leadgen)/environ | grep '^<FLAG>='`.
 5. Smoke: manual API trigger ya next scheduled run → `data/*.jsonl` output.
-6. Rollback: `.env.bak_*` restore + recreate.
+6. Rollback: `.env.bak_*` restore + `systemctl restart leadgen`.
 
 ## Verify
 `GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Codex fabricate nahi kar sakta): `UPI_VPA` (manual UPI payments), `POLLINATIONS_API_KEY`, Vobiz DID/recharge + DLT, R2/B2 offsite creds.
@@ -64,5 +64,5 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
   - **Standard** (free + draft-only / ban-safe): `NICHE_ROTATION`, `REPLY_AGENT`, `JOURNEY_ENGINE`, `CADENCE_ENGINE`, `SALES_ENGINE`, `EVAL_GATE`, `AGENT_MEMORY` — Procedure (upar) + smoke = enough.
   - **High-risk** (outbound spend / ban / compliance): `AUTO_EMAIL_OUTREACH` (deliverability), `WHATSAPP_AUTO_SEND` / `SMS_DLT_ENABLED` / `MISSED_CALL_CALLBACK` / cold-calling (BAN / DLT ₹10L). Pehle readiness probe (`scripts/setup_status.py` / `/api/activation/readiness`) + compliance pre-reqs (DLT templates · opt-in · DND scrub · 9am–7pm) **fail-CLOSED** — bina ready KABHI flip nahi.
 - **Secrets**: URL/key-valued flags (`NTFY_URL`, `LITELLM_*`, `TURNSTILE_*_SECRET_KEY`) sirf `.env` (gitignored) + base64-over-ssh — plain argv / committed file / AGENTS.md me KABHI nahi (`scripts/check_secrets.py`).
-- **Rollback (NAMED)** — already in Procedure step 6: `.env.bak_*` restore + `docker compose -f docker-compose.vps.yml up -d --no-deps app` (worker/scheduler bhi agar unko flag chahiye). Worst case `TEAM_AUTOMATION=0` = scheduler stop.
-- **Evidence (flip done)**: `docker exec leadgen_app printenv <FLAG>` (value confirm) + `GET /api/growth/infra/flags` desired state + real `data/*.jsonl` output ya engine-event post-trigger.
+- **Rollback (NAMED)** — already in Procedure step 6: `.env.bak_*` restore + `systemctl restart leadgen` (worker/scheduler bhi `up -d --no-deps` se, agar unko flag chahiye). Worst case `TEAM_AUTOMATION=0` = scheduler stop.
+- **Evidence (flip done)**: the live process's own env (Procedure step 4) + `GET /api/growth/infra/flags` desired state + real `data/*.jsonl` output ya engine-event post-trigger.

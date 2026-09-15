@@ -157,5 +157,5 @@ else:
     print("  cd /opt/leadgen && nano .env")
     print("  # MCP_PRODUCT=1, MCP_ENGINEER=1, FASTAPI_MCP_TOKEN=<openssl rand -hex 32>")
     print("  docker compose -f docker-compose.vps.yml build app")
-    print("  docker compose -f docker-compose.vps.yml up -d --no-deps app worker scheduler")
+    print("  docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler && systemctl restart leadgen")
     sys.exit(0)

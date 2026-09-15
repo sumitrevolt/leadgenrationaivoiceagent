@@ -123,7 +123,7 @@ done
 final_status=$(docker inspect -f '{{.State.Status}}' "$APP_CONTAINER" 2>/dev/null)
 if [ "$final_status" != "running" ]; then
   log "SAFETY NET: container still not running — force starting via compose..."
-  docker compose -f "$COMPOSE_FILE" up -d app >/dev/null 2>&1
+  systemctl restart leadgen >/dev/null 2>&1
   sleep 8
   safety_health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$INTERNAL_HEALTH" 2>/dev/null)
   log "SAFETY NET result: health=$safety_health"

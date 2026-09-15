@@ -13,7 +13,7 @@ echo === [2] Git add + commit + push ===
 if %ERRORLEVEL% NEQ 0 (echo GIT PUSH FAILED & exit /b 1)
 
 echo === [3] VPS pull + build + deploy ===
-"C:\PROGRA~1\Git\usr\bin\ssh.exe" -i C:\Users\Ratanshila\.ssh\id_rsa -o StrictHostKeyChecking=no root@72.61.245.204 "cd /opt/leadgen && git pull origin main && docker compose -f docker-compose.vps.yml build app 2>&1 | tail -20 && docker compose -f docker-compose.vps.yml up -d --no-deps app && sleep 18 && curl -sf http://localhost:8000/health | python3 -c \"import sys,json; d=json.load(sys.stdin); print('ENV:', d.get('environment','?')); print('OK' if d.get('environment')=='production' else 'WARN: not production')\""
+"C:\PROGRA~1\Git\usr\bin\ssh.exe" -i C:\Users\Ratanshila\.ssh\id_rsa -o StrictHostKeyChecking=no root@72.61.245.204 "cd /opt/leadgen && git pull origin main && docker compose -f docker-compose.vps.yml build app 2>&1 | tail -20 && systemctl restart leadgen && sleep 18 && curl -sf http://localhost:8000/health | python3 -c \"import sys,json; d=json.load(sys.stdin); print('ENV:', d.get('environment','?')); print('OK' if d.get('environment')=='production' else 'WARN: not production')\""
 if %ERRORLEVEL% NEQ 0 (echo VPS DEPLOY FAILED & exit /b 1)
 
 echo === DONE ===

@@ -399,7 +399,7 @@ def walk_phase(phase_n: int) -> None:
     print()
     print("Next steps (do these by hand on the VPS):")
     print("  1. Recreate the app container:")
-    print("     docker compose -f docker-compose.vps.yml up -d --no-deps app")
+    print("     systemctl restart leadgen")
     print("  2. Verify health:")
     print("     curl -fsS http://127.0.0.1:8000/health")
     print("  3. Verify readiness regression:")

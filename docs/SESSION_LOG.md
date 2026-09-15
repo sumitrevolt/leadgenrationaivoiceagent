@@ -1807,4 +1807,36 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
  -   S u c c e s s f u l l y   p r o c e s s e d   t h e   H o t   Q u e u e   i t e m   ' B l o c k e d   R e c o r d   B i z '   ( I D :   4 f 2 0 4 8 f 5 9 f 1 5 ) .  
  -   V e r i f i e d   t h e   a c t i o n   v i a    p p . p l a t f o r m . a u t o _ o u t r e a c h . m a r k _ h o t _ q u e u e _ c a n d i d a t e .  
  R e v e n u e   r e m a i n s   R s   7 , 9 9 7   v e r i f i e d .  
- 
+ ---
+## 2026-09-15 â€” PLT-156 cold-call loop unblocked + machine cleanup + WAHA/Meta truth [Owner-Operator]
+
+### PLT-156 root-cause chain (PROVEN in prod log)
+- **Symptom:** host call loop (`/opt/leadgen/scripts/fire_calls_loop.py`) ran to batch 47 but every batch `ok=0 skip=3` â€” re-selecting the SAME top-3 `call_attempts=0` leads forever.
+- **Three stacked causes:**
+  1. `InMemoryCache.set()` missing `nx`/`xx` kwargs. Host loop's Redis is unreachable (`Warning: Error -3 connecting to leadgen_redis:6339 â€” using in-memory fallback`), so every `session_idem_claim()` call hit the fallback â†’ a pre-existing partial patch on host had added only `nx` (no `xx`, no "OK"/None return).
+  2. `get_prospects()` always fetched the same top-N (`call_attempts=0 ORDER BY lead_score DESC LIMIT 3`) with no rotation and no dedup of duplicate phone rows.
+  3. On skip paths, `call_attempts` was never bumped, so the same leads stayed eligible and re-claimed every batch.
+- **Fix (3 surgical files, applied to HOST `/opt/leadgen` via SCP + backup + restart, NOT via deploy_vps.sh):**
+  - `app/cache/__init__.py` â€” `InMemoryCache.set()` now Redis-semantics: `nx`/`xx` aware, returns "OK"/None, clears stale TTL on no-TTL SET.
+  - `scripts/fire_calls.py` â€” `get_prospects(limit, niche, exclude=None)`: wider fetch window + per-run `exclude` set + phone10 dedup.
+  - `scripts/fire_calls_loop.py` â€” per-run `tried: set[str]` of phone10s, passed as `exclude` to `get_prospects` after each batch.
+- **Verification (prod log `/opt/leadgen/data/call_loop.log`):** new PID `1586089`. Batch 1 = 3 fresh leads (Beyond Travels / Rajlaxmi / Dreams on Interiors), batch 2 = 3 DIFFERENT leads (DECOR BEE / DesignAxis / Kaasa Homes) â†’ rotation PROVEN. Readiness 97/100 provider=vobiz.
+- **Remaining block (OWNER-GATED, not code):** every call returns `FAIL {'error': 'The from number 918069879757 is not owned by this account'}` â€” the configured Vobiz DID `918069879757` is not linked to the active Vobiz account. Owner must update `VOBIZ_FROM_NUMBER` or re-claim the DID in the Vobiz console. Code path is fully ready to dial once that is fixed.
+- **Backups on VPS:** `*.bak-plt156-20260915_083124` for all 3 files. **Local git:** changes are in the working tree (`scripts/fire_calls.py`, `scripts/fire_calls_loop.py`, `app/cache/__init__.py`, `tests/test_inmemory_cache_nx.py`); GitHub PR + `deploy_vps.sh` image build remain OWNER-gated (loop was unblocked via direct host edit to avoid a 5-service rebuild).
+
+### Machine disk/RAM audit + cleanup (owner-approved)
+- **C: free 52GB; RAM ~0.9GB free of 15.8GB** (many agents: WorkBuddyAIÃ—4, Hermes, AgnesCode, Docker, WSL).
+- Disk hogs: `.vscode\extensions` 5.6GB, `.rustup`+`.cargo` 4.6GB, `.cache` 2GB, Docker `ext4.vhdx`.
+- **Quarantined then hard-deleted 5 redundant project copies** (~750MB): `buzz-local`, `_rel24x7` (stale leadgen checkout), `leadgen-backup-20260830` (empty/partial), `leadgen_smartflo_compliance` (broken-git snapshot, all work < main), `leadgen_ops` (empty). Manifest saved to `.agnes/work/`. KEEPERS untouched: `Documents\leadgenrationaivoiceagent` (main), `Documents\buzz` (LIVE relay compose, :3100 HTTP 200), `Documents\leadsgenai-brain` (separate repo).
+- **Moved to `cache_cleanup_quarantine_20260915`** (reversible): pip cache (110MB, deleted separately), `.vscode\extensions` (68-extension manifest saved), `.cache\{codex-runtimes,pre-commit,pkg,claude,huggingface,opencode,...}`.
+- **venv integrity confirmed:** Python 3.11.14 + fastapi 0.141.1 + sqlalchemy 2.0.52, `prod_check` 1435 routes PASS, 941 test files. `pip check` warnings = by-design `--no-deps` install + lock-pinned tolerable drift. Nothing to install.
+
+### Buzz relay recovery
+- Root cause: `buzz-relay` container was never created because compose pins un-pullable `minio` RELEASE tags (Docker access-denied). Aliased local `minio:latest`/`ghcr.io/block/buzz:main` and brought relay up â†’ `:3100/_liveness` = HTTP 200 (container `buzz-prod-relay-1` healthy). `buzz-keycloak` still unhealthy (separate, parked).
+
+### WAHA / ENG-161 truth
+- WAHA `:3002` = HTTP 401 is **NOT** a plain QR re-scan: owner's WhatsApp Business account shows **"Account in review"** (Meta ToS check, requested 2026-09-15, ~24h). Gateway stays 401 until Meta clears it. **Owner-gated.** Scheduled re-probe task for 2026-09-16 ~09:30 IST.
+
+### Prod lineage correction
+- Live `/health` = `cdc28e0d` (2026-09-15). `git fetch` confirms **`cdc28e0d` IS an ancestor of `origin/main` (`e77f8e08`)** â€” today's fetch re-converged the 2026-09-14 "DIVERGED" warning; main = prod + 5 docs/security commits. Build/deploy branches off `origin/main`, not stale local refs.
+

@@ -23,7 +23,7 @@ if ! git merge-base --is-ancestor {COMMIT} HEAD 2>/dev/null; then
   git cherry-pick {COMMIT} || {{ git cherry-pick --abort; exit 1; }}
 fi
 docker compose -f docker-compose.vps.yml build app
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 docker compose -f docker-compose.vps.yml --profile celery up -d worker scheduler
 sleep 14
 curl -sf http://127.0.0.1:8000/health | head -c 200

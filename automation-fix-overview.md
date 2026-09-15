@@ -1,3 +1,8 @@
+> **⚠️ SUPERSEDED AS AUTHORITY (2026-09-14).** The single source of truth for the revenue sprint is now
+> [`7_DAY_REVENUE_PLAN.md`](7_DAY_REVENUE_PLAN.md). This file is retained as a **historical automation-fix
+> log**. **Correction:** its §6 claim *"Removed the diagnostic step"* (ISSUE-237) is **FALSE** — the step was
+> still present at `.github/workflows/tests.yml:67-75` as of 2026-09-14 (its own comment says #237 was falsified).
+
 # Automation Setup Fix — Overview
 
 ## Summary

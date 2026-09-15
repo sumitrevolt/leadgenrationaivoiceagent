@@ -77,7 +77,7 @@ def main() -> int:
     recreate = (
         f"cd /opt/leadgen && APP_VERSION={pin} docker compose "
         f"-f docker-compose.vps.yml --profile celery up -d --no-deps "
-        f"app worker worker-heavy worker-video scheduler"
+        f"worker worker-heavy worker-video scheduler && systemctl restart leadgen"
     )
     print(f"RECREATE with APP_VERSION={pin}")
     subprocess.run(["bash", "-lc", recreate], check=True)

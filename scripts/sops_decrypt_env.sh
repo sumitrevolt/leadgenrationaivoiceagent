@@ -65,4 +65,4 @@ sops --config "$SOPS_CONFIG" \
 chmod 600 "$OUT_ENV"
 
 echo "DONE. .env restored at: $OUT_ENV"
-echo "Ab app restart karo: docker compose -f docker-compose.vps.yml up -d --force-recreate app"
+echo "Ab app restart karo: systemctl restart leadgen"

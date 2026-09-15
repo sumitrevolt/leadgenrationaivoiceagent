@@ -1,43 +1,31 @@
 #!/usr/bin/env bash
-# Swap the live app: systemd uvicorn -> Docker container (leadgen_app).
-# ~30-60s downtime. AUTO-ROLLBACK to systemd if /health/ready != 200.
-# Image must already be built+verified (scripts/vps_build_verify.sh -> OK).
+# =============================================================================
+# RETIRED 2026-09-15 -- DO NOT RUN. This script reversed the serving topology.
+#
+# It used to: `systemctl stop leadgen` -> `docker compose up -d app` ->
+# `systemctl disable leadgen`. That is the OPPOSITE of the owner decision of
+# 2026-09-15: the systemd unit `leadgen` IS the authoritative server for
+# 127.0.0.1:8000, with EnvironmentFile=/opt/leadgen/.env.
+#
+# Why running it is actively harmful:
+#   * `systemctl disable leadgen` stops the unit coming back after a reboot, so
+#     a crash or reboot silently drops production onto a container that
+#     docker-compose.vps.yml publishes as 127.0.0.1:8000:8080 -- the very port
+#     the unit owns. Whichever side loses the race, :8000 ends up serving an
+#     image whose tag nobody pinned.
+#   * scripts/deploy_vps.sh now uses `systemctl restart leadgen` as its app
+#     rollout step. With the unit disabled and the port held by a container,
+#     that restart fails, so every later deploy exits 10.
+#
+# The app is NOT a container. Use the canonical release path instead:
+#     bash scripts/deploy_vps.sh
+# =============================================================================
 set -uo pipefail
-cd /opt/leadgen
-COMPOSE="docker compose -f docker-compose.vps.yml"
-
-echo "=== image present? ==="
-docker images ghcr.io/sumitrevolt/leadgenrationaivoiceagent --format '{{.Repository}}:{{.Tag}} {{.Size}}' | head -3
-
-echo "=== stop systemd leadgen (frees :8000) ==="
-systemctl stop leadgen
-sleep 2
-
-echo "=== start app container ==="
-$COMPOSE up -d app
-
-echo "=== wait for /health/ready (up to ~90s) ==="
-ok=0
-for i in $(seq 1 30); do
-  code=$(curl -s -o /tmp/cready.json -w '%{http_code}' http://127.0.0.1:8000/health/ready 2>/dev/null || echo 000)
-  if [ "$code" = "200" ]; then ok=1; break; fi
-  sleep 3
-done
-echo "----- /health/ready (HTTP $code) -----"
-cat /tmp/cready.json 2>/dev/null | head -c 900; echo
-
-if [ "$ok" = "1" ]; then
-  systemctl disable leadgen 2>/dev/null || true   # keep installed for rollback, but no boot auto-start (avoid :8000 clash)
-  echo ""
-  echo "✅ APP_CONTAINER_OK — live app now runs in Docker (leadgen_app), on Postgres+Redis."
-  echo "   Rollback if ever needed: $COMPOSE stop app ; systemctl enable --now leadgen"
-else
-  echo ""
-  echo "❌ HEALTH NOT 200 — AUTO-ROLLBACK to systemd"
-  $COMPOSE stop app
-  systemctl start leadgen
-  sleep 6
-  curl -s -o /dev/null -w 'rollback /health: %{http_code}\n' http://127.0.0.1:8000/health 2>/dev/null || true
-  echo "ROLLED BACK to systemd uvicorn. Logs: docker compose -f docker-compose.vps.yml logs --tail=80 app"
-  exit 1
-fi
+echo "REFUSED: scripts/vps_app_container_swap.sh is RETIRED (2026-09-15)." >&2
+echo "" >&2
+echo "It would flip production from the authoritative systemd unit 'leadgen'" >&2
+echo "back onto a Docker container on the same 127.0.0.1:8000, and would run" >&2
+echo "'systemctl disable leadgen', which breaks every later deploy." >&2
+echo "" >&2
+echo "Use the canonical release path:  bash scripts/deploy_vps.sh" >&2
+exit 1

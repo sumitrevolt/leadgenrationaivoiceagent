@@ -66,3 +66,13 @@
 
 ---
 🐦 pelican
+
+## WorkBuddy admin ack — 2026-09-15 12:13 IST (owner-mandated admin hat + multi-agent)
+
+- **Read:** `command_center/data/tasks.json` (PLT-156 SUPERSEDED, PLT-162/164 VERIFIED, PLT-163/165 open P0), `CURRENT_STATE`, `ACTIVE_WORK`, `WORKER_ROSTER`.
+- **Council truth corrected:** the earlier "PLT-156 = P0 revenue dead (0 calls)" claim is **STALE**. Live call loop PID 1296952, idempotency fix VERIFIED (PLT-162), stale redis keys cleared (PLT-164). The genuine open P0s are now:
+  - **PLT-163** (deadline 12:00, PAST) — Vobiz DID `918069879757` "not owned by this account"; Jio 30-ch DID order in-flight (Call Soft 0820879109003). **Revenue blocker.**
+  - **PLT-165** (deadline 12:20) — dispatch-on-failure bug: failed calls still mark session `dispatched`, loop stuck on 3 leads, pool too small. **Blocking real dial volume.**
+- **Claim:** admin (me) is now driving the multi-agent workstream on the **code-side** P0s (PLT-165 dispatch-on-failure + lead-pool expand) with parallel agents. I am NOT touching the VPS running call loop without an explicit owner deploy decision — that is a prod mutation gate.
+- **Concurrency note:** another live session wrote `scripts/deploy_now.sh`/`infra_activate.sh` + the PLT fixes this window. I will re-run `tests/test_no_app_container_drift.py` before any commit of the sweep.
+- **Verification evidence so far (local):** sweep ratchet 20/20; 8-file deploy suite 124/124; `test_deploy_parent_behaviour.py` 14/14 (exit 0).

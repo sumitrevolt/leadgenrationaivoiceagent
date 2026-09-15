@@ -5,7 +5,7 @@ CONSOLIDATED 2026-07-26. This ran the whole release chain over SSH as one
 remote string:
 
     cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q
-    && compose build app && compose up -d --no-deps app && ...
+    && compose build app && systemctl restart leadgen && ...
 
 `git reset --hard` discards uncommitted files, and this checkout still holds
 the live invoice, consent and suppression ledgers plus DPDP call recordings.

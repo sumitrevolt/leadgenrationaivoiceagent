@@ -6,7 +6,7 @@ cd /opt/leadgen
 echo "=== RAG A/B gate ==="
 if docker exec leadgen_app python scripts/rag_retrieval_ab.py; then
   python3 scripts/vps_enable_deferred_backlog.py --rag-gate || python3 scripts/vps_activate_rag_flags.py
-  docker compose -f docker-compose.vps.yml up -d --no-deps app worker worker-heavy scheduler
+  docker compose -f docker-compose.vps.yml up -d --no-deps worker worker-heavy scheduler && systemctl restart leadgen
 else
   echo "RAG gate FAIL — flags not flipped"
 fi

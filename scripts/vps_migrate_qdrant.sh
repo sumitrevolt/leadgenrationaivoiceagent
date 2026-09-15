@@ -19,7 +19,7 @@ else
 fi
 
 echo "=== Recreate app + workers ==="
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps worker worker-heavy
 
 sleep 8

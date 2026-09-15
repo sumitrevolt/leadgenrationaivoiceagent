@@ -168,3 +168,22 @@ and read the diff. Do not revert another worker's edit — escalate instead.**
 Append a dated block to `SESSION_HANDOFF.md`:
 `## <agent-name> ack — YYYY-MM-DD HH:MM IST` with: what you read, what you claim, and your
 verification evidence. Silence is treated as acknowledgement of §2 (stop-work list).
+
+## 8. PLT-163 owner/console open items (from did-research, 2026-09-15 12:15 IST)
+
+The smallest unblocking path for real dial volume is **Smartflo console**: set DID `+918069879757` destination → VOICE Bot endpoint, then flip `.env` `TELEPHONY_PROVIDER=tata_smartflo` + `TATA_SMARTFLO_ENABLED=1` + canonical deploy. Vobiz code-side cannot add a DID; owner must confirm which number is truly owned on the account (911171366938 revoked per `docs/HERMES_OWNER_ADMIN_STATUS_2026-08-30.md:39`).
+
+**Owner/console answers needed:**
+1. Jio Call Soft 0820879109003 — delivered? Which DID + SIP creds actually provisioned?
+2. Vobiz console — which number is truly owned on the account today?
+3. Is `DLT_APPROVED=1` live (promo lane on any non-140 DID), and is the Smartflo `destination` field confirmed non-null (re-probe `GET /v1/my_number` from VPS before commit)?
+
+**Deliverable:** `deliverables/engineering-assurance/owner-decision-pack-did-plumbing-2026-09-15.md`.
+
+---
+
+## 9. Admin claim re-PLT-165 dispatch-on-failure (workbuddy admin, 2026-09-15 12:15 IST)
+
+- PLT-165 code fix (release session slot + idem claim on generic FAIL in `fire_vobiz`) is in-flight by agent `plt165-fix`.
+- **Do NOT commit the PLT-165 fix until** the concurrent session that last touched `fire_calls.py` is known to be idle — otherwise a second-session overwrite on the same file becomes another collision.
+- No deploy of the PLT-165 fix yet — local-only per owner mandate.

@@ -41,7 +41,7 @@ echo STEP 4/6: VPS - git pull >> "%LOG%"
 
 echo STEP 5/6: VPS - docker build + recreate app container >> "%LOG%"
 "C:\PROGRA~1\Git\usr\bin\ssh.exe" -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 "cd /opt/leadgen && docker compose -f docker-compose.vps.yml build app" >> "%LOG%" 2>&1
-"C:\PROGRA~1\Git\usr\bin\ssh.exe" -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 "cd /opt/leadgen && docker compose -f docker-compose.vps.yml up -d --no-deps app" >> "%LOG%" 2>&1
+"C:\PROGRA~1\Git\usr\bin\ssh.exe" -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 "cd /opt/leadgen && systemctl restart leadgen" >> "%LOG%" 2>&1
 
 echo STEP 6/6: wait 16s + verify health >> "%LOG%"
 ping -n 17 127.0.0.1 >nul

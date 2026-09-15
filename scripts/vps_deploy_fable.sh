@@ -11,7 +11,7 @@ echo "HEAD=$(git rev-parse --short HEAD)"
 echo "--- build (shared image) ---"
 $CF build app 2>&1 | tail -25
 echo "--- recreate app worker worker-heavy scheduler ---"
-$CF up -d app worker worker-heavy scheduler 2>&1 | tail -25
+$CF up -d worker worker-heavy scheduler && systemctl restart leadgen 2>&1 | tail -25
 
 echo "--- boot grace 18s ---"
 sleep 18

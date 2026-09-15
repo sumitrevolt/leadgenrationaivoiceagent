@@ -21,7 +21,7 @@ else
 fi
 
 echo "[set_kv] recreating app (no rebuild)..."
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 echo "[set_kv] boot-grace 12s..."
 sleep 12
 if curl -fsS http://127.0.0.1:8000/health >/dev/null; then

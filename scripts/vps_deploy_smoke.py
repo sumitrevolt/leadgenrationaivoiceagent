@@ -20,7 +20,7 @@ git checkout main
 git pull origin main
 echo "HEAD: $(git log -1 --oneline)"
 docker compose -f docker-compose.vps.yml build app
-docker compose -f docker-compose.vps.yml up -d --no-deps app
+systemctl restart leadgen
 sleep 16
 echo "--- health ---"
 curl -sf http://127.0.0.1:8000/health

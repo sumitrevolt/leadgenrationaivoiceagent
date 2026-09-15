@@ -51,9 +51,9 @@ for VAR in PLAN_RATE_LIMIT REQUEST_GUARD; do
   fi
 done
 
-# 6) Reload app container for new env vars
-echo "$(ts) Recreating app container for new env..." | tee -a "$LOG"
-docker compose -f docker-compose.vps.yml up -d --no-deps app 2>&1 | tail -5 | tee -a "$LOG"
+# 6) Restart the authoritative app (systemd unit `leadgen`) so new env vars apply
+echo "$(ts) Restarting leadgen (systemd) for new env..." | tee -a "$LOG"
+systemctl restart leadgen 2>&1 | tail -5 | tee -a "$LOG"
 
 # 7) Metrics dir for node_exporter textfile collector
 mkdir -p /opt/leadgen/backups/metrics

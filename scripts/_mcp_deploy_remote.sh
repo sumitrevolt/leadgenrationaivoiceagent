@@ -38,7 +38,7 @@ docker compose -f docker-compose.vps.yml build app 2>&1 | tail -20
 
 echo ""
 echo "=== [4/6] recreate app + worker + scheduler ==="
-docker compose -f docker-compose.vps.yml up -d --no-deps app worker scheduler 2>&1 | tail -20
+docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler && systemctl restart leadgen 2>&1 | tail -20
 
 echo ""
 echo "=== [5/6] wait 16s for app warm-up ==="

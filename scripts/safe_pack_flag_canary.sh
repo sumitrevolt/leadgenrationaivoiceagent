@@ -79,6 +79,6 @@ done
 echo "NEXT (manual):"
 echo "  cd /opt/leadgen"
 echo "  export APP_VERSION=\$(docker inspect -f '{{.Config.Image}}' leadgen_app | sed 's/.*://')"
-echo "  docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate app worker scheduler"
+echo "  docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate worker scheduler && systemctl restart leadgen"
 echo "  curl -sS http://127.0.0.1:8000/health"
 echo "ROLLBACK: cp -a $BAK $ENV_FILE && recreate with same APP_VERSION"
