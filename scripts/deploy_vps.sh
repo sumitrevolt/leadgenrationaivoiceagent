@@ -159,6 +159,45 @@ elif [ "$DISK_USED_PCT" -ge "$DISK_WARN_PCT" ]; then
   echo "WARN: disk ${DISK_USED_PCT}% >= warn ${DISK_WARN_PCT}% — proceeding, but this deploy's retention step matters more than usual."
 fi
 
+# === .ENV GUARD (2026-09-15, autopilot incident) ===
+# Systemd leadgen.service reads .env directly (host uvicorn on :8000). If .env
+# has APP_ENV=staging or missing APP_VERSION, prod serves wrong environment and
+# automation silently breaks (scheduler stopped, /health/ready 503). Docker
+# compose 'environment:' block only overrides INSIDE containers — systemd on
+# host gets raw .env values. This guard catches .env misconfig BEFORE deploy.
+echo "=== .ENV GUARD ==="
+ENV_APP_ENV="$(grep -E '^APP_ENV=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2)"
+ENV_APP_VER="$(grep -E '^APP_VERSION=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2)"
+ENV_DB_URL="$(grep -E '^DATABASE_URL=' "$REPO/.env" 2>/dev/null | head -1)"
+ENV_ERRORS=0
+if [ "$ENV_APP_ENV" != "production" ]; then
+  echo "FATAL: .env has APP_ENV='$ENV_APP_ENV' (expected 'production')."
+  echo "       Systemd leadgen.service reads .env directly — staging env ="
+  echo "       automation broken, wrong routes, /health/ready 503."
+  echo "       FIX: sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env"
+  ENV_ERRORS=$((ENV_ERRORS + 1))
+fi
+if [ -z "$ENV_APP_VER" ] || [ "$ENV_APP_VER" = "dev" ]; then
+  echo "FATAL: .env has APP_VERSION='$ENV_APP_VER' (must be a commit SHA)."
+  echo "       Systemd reads this — 'dev' means unknown provenance in prod."
+  echo "       FIX: echo 'APP_VERSION=$VER' >> .env"
+  ENV_ERRORS=$((ENV_ERRORS + 1))
+fi
+if echo "$ENV_DB_URL" | grep -q '@pgbouncer:'; then
+  echo "FATAL: .env DATABASE_URL uses Docker DNS '@pgbouncer:6432'."
+  echo "       Systemd runs on HOST, not in Docker network — cannot resolve."
+  echo "       FIX: sed -i 's|@pgbouncer:6432|@127.0.0.1:5432|' .env"
+  ENV_ERRORS=$((ENV_ERRORS + 1))
+fi
+if [ "$ENV_ERRORS" -gt 0 ]; then
+  echo "       $ENV_ERRORS .env issue(s) found. Fix before deploy."
+  if [ "$DRY_RUN" != "1" ]; then
+    exit 8
+  fi
+  echo "DRY_RUN=1 — would have exited here for real."
+fi
+echo "  APP_ENV=$ENV_APP_ENV, APP_VERSION=$ENV_APP_VER (OK)"
+
 if [ "$DRY_RUN" = "1" ]; then
   echo "=== BUILD CACHE (current — read-only preview, nothing deleted) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
@@ -478,7 +517,7 @@ if [ "$ENV_FIELD" != "production" ]; then
   echo "FATAL: /health environment='$ENV_FIELD' != 'production'."
   echo "       A non-production build is running at the prod endpoint."
   echo "       DO NOT proceed — automation, schedulers and routes will be wrong."
-  exit 5
+  exit 9
 fi
 echo "  environment: $ENV_FIELD (OK)"
 
