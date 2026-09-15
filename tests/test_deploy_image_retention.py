@@ -12,8 +12,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "deploy_vps.sh"
 
-FIVE = {
-    "app": "9b09a808",
+# 2026-09-15: `app` removed. Production serves :8000 from the systemd unit
+# `leadgen` (host uvicorn), not from a container, so there is no app-container tag
+# to capture. See EXPECTED_SERVICES in scripts/deploy_image_retention.py.
+FOUR = {
     "worker": "9b09a808",
     "scheduler": "9b09a808",
     "worker-heavy": "9b09a808",
@@ -69,7 +71,7 @@ def test_rebuilt_older_tag_with_newest_created_at_cannot_displace_previous():
 
 def test_inconsistent_pre_deploy_service_tags_fail_closed():
     mod = _load_retention()
-    skewed = dict(FIVE)
+    skewed = dict(FOUR)
     skewed["worker"] = "a3fbc8bb"
     with pytest.raises(ValueError, match="inconsistent"):
         mod.assert_consistent_running_tags(skewed)
@@ -77,8 +79,7 @@ def test_inconsistent_pre_deploy_service_tags_fail_closed():
 
 def test_prefix_compatible_service_tags_pass():
     mod = _load_retention()
-    compat = dict(FIVE)
-    compat["app"] = "9b09a8081234567890abcdef1234567890abcdef"
+    compat = dict(FOUR)
     compat["scheduler"] = "9b09a8081234567890abcdef1234567890abcdef"
     compat["worker"] = "9b09a8081234567890abcdef1234567890abcdef"
     compat["worker-heavy"] = "9b09a808"
@@ -88,18 +89,18 @@ def test_prefix_compatible_service_tags_pass():
 
 def test_one_missing_or_empty_service_tag_fails():
     mod = _load_retention()
-    incomplete = dict(FIVE)
+    incomplete = dict(FOUR)
     del incomplete["worker-video"]
     with pytest.raises(ValueError, match="incomplete service mapping"):
         mod.assert_consistent_running_tags(incomplete)
 
-    empty = dict(FIVE)
+    empty = dict(FOUR)
     empty["scheduler"] = ""
     with pytest.raises(ValueError, match="invalid/missing/malformed"):
         mod.assert_consistent_running_tags(empty)
 
-    missing_token = dict(FIVE)
-    missing_token["app"] = "MISSING"
+    missing_token = dict(FOUR)
+    missing_token["scheduler"] = "MISSING"
     with pytest.raises(ValueError, match="invalid/missing/malformed"):
         mod.assert_consistent_running_tags(missing_token)
 
@@ -114,7 +115,7 @@ def test_latest_or_malformed_previous_tag_fails():
             running_before_tag="not_a_sha!",
             stored_rollback_tag=None,
         )
-    latest_map = dict.fromkeys(FIVE, "latest")
+    latest_map = dict.fromkeys(FOUR, "latest")
     with pytest.raises(ValueError, match="invalid/missing/malformed"):
         mod.assert_consistent_running_tags(latest_map)
 
@@ -187,7 +188,7 @@ def test_missing_protected_artifact_refuses_before_lineage_write(tmp_path: Path)
             "--images-json",
             json.dumps(images_missing_rollback),
             "--running-json",
-            json.dumps(FIVE),
+            json.dumps(FOUR),
             "--require-running-json",
             "--write-lineage",
             str(lineage),
@@ -280,7 +281,7 @@ def test_successful_path_writes_lineage_and_removes_only_unprotected(tmp_path: P
             "--images-json",
             json.dumps(images),
             "--running-json",
-            json.dumps(FIVE),
+            json.dumps(FOUR),
             "--require-running-json",
             "--write-lineage",
             str(lineage),

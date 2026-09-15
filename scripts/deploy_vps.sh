@@ -29,7 +29,16 @@ COMPOSE=docker-compose.vps.yml
 # Every service runs the same app image. Only `app` builds it; miss one during
 # recreation and version skew can still occur. DSH worker is a separately built
 # hardened image but shares APP_VERSION provenance and must deploy in lockstep.
-SERVICES="app worker scheduler worker-heavy worker-video"
+#
+# `app` is deliberately NOT in this list (2026-09-15, owner decision: systemd is
+# the authoritative serving path). Production serves :8000 from the systemd unit
+# `leadgen` — EnvironmentFile=/opt/leadgen/.env, host uvicorn — NOT from a
+# container, so no `leadgen_app` container exists and the
+# `127.0.0.1:8000:8080` publish declared for `app` in docker-compose.vps.yml can
+# never bind while that unit holds the port. Keeping `app` here made the skew
+# check fail closed on a service that cannot run. The app is rolled by
+# `systemctl restart leadgen` after the live checkout moves; see below.
+SERVICES="worker scheduler worker-heavy worker-video"
 DSH_SERVICES="dsh-worker"
 ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"
 DRY_RUN="${DRY_RUN:-0}"
@@ -166,9 +175,15 @@ fi
 # compose 'environment:' block only overrides INSIDE containers — systemd on
 # host gets raw .env values. This guard catches .env misconfig BEFORE deploy.
 echo "=== .ENV GUARD ==="
-ENV_APP_ENV="$(grep -E '^APP_ENV=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2)"
-ENV_APP_VER="$(grep -E '^APP_VERSION=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2)"
-ENV_DB_URL="$(grep -E '^DATABASE_URL=' "$REPO/.env" 2>/dev/null | head -1)"
+# NOTE: the `|| true` on each read is LOAD-BEARING, not defensive noise.
+# _runtime_data_guard.sh is SOURCED above and runs `set -euo pipefail`, which
+# LEAKS into this script (its own header only claims `set -uo pipefail`). Without
+# the `|| true`, a key that is ABSENT makes grep return 1, pipefail propagates
+# that, and `-e` aborts the whole script with rc=1 and NO output — so the FATAL
+# diagnostics below could never print for the exact case they exist to catch.
+ENV_APP_ENV="$(grep -E '^APP_ENV=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+ENV_APP_VER="$(grep -E '^APP_VERSION=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+ENV_DB_URL="$(grep -E '^DATABASE_URL=' "$REPO/.env" 2>/dev/null | head -1 || true)"
 ENV_ERRORS=0
 if [ "$ENV_APP_ENV" != "production" ]; then
   echo "FATAL: .env has APP_ENV='$ENV_APP_ENV' (expected 'production')."
@@ -180,7 +195,7 @@ fi
 if [ -z "$ENV_APP_VER" ] || [ "$ENV_APP_VER" = "dev" ]; then
   echo "FATAL: .env has APP_VERSION='$ENV_APP_VER' (must be a commit SHA)."
   echo "       Systemd reads this — 'dev' means unknown provenance in prod."
-  echo "       FIX: echo 'APP_VERSION=$VER' >> .env"
+  echo "       FIX: sed -i 's/^APP_VERSION=.*/APP_VERSION=$VER/' .env"
   ENV_ERRORS=$((ENV_ERRORS + 1))
 fi
 if echo "$ENV_DB_URL" | grep -q '@pgbouncer:'; then
@@ -288,6 +303,29 @@ if [ "$LIVE_SHA" != "$CANDIDATE_SHA" ]; then
 fi
 echo "LIVE_SHA=$(git -C "$REPO" rev-parse --short HEAD) (gated)"
 
+# ------------------------------------------------ .env: APP_VERSION must be SET
+# `.env` is read by BOTH docker compose (every app-image service interpolates
+# `${APP_VERSION:?...}`) and the systemd unit (`EnvironmentFile`). The .ENV GUARD
+# above only VALIDATES that it is a sha; nothing ever updated it, so every release
+# left compose interpolating the PREVIOUS tag and /health reporting the previous
+# version. Replace in place — `>>` would create a duplicate key (EnvironmentFile
+# is last-wins, so it would appear to work while polluting the file).
+#
+# This MUST happen before the compose rollout below, which interpolates it.
+if [ -z "${VER:-}" ]; then
+  echo "FATAL: VER is unset — refusing to write APP_VERSION into .env."
+  exit 10
+fi
+echo "=== .env: pin APP_VERSION=$VER ==="
+sed -i "s/^APP_VERSION=.*/APP_VERSION=$VER/" "$REPO/.env"
+ENV_VER_NOW="$(grep -E '^APP_VERSION=' "$REPO/.env" | head -1 | cut -d= -f2 || true)"
+if [ "$ENV_VER_NOW" != "$VER" ]; then
+  echo "FATAL: .env APP_VERSION='$ENV_VER_NOW' != '$VER' after sed — refusing deploy."
+  echo "       Expected exactly one '^APP_VERSION=' line in $REPO/.env."
+  exit 10
+fi
+echo "  .env APP_VERSION=$ENV_VER_NOW"
+
 # ------------------------------------------------------------------------ up
 echo "=== UP (all app-image services — prevents skew) ==="
 
@@ -327,23 +365,40 @@ _resolve_compose_container() {
     return 0
   fi
 
-  # 2) Compose service label (project-prefixed names still carry this label)
+  # 2) Compose service label (project-prefixed names still carry this label).
+  #    Docker's `label=k=v` filter matches v as a SUBSTRING, so `service=app`
+  #    also returns app_vobiz / app_staging. Never trust the filter alone: read
+  #    the label back and require EXACT equality, otherwise a service silently
+  #    resolves to an unrelated orphan container and the skew check compares the
+  #    wrong APP_VERSION. Proven on prod 2026-09-15: `app` resolved to
+  #    leadgen_app_vobiz (:8b7fd7c3), which poisoned the pre-deploy lineage and
+  #    forced `exit 4` on a release that was otherwise fine.
+  #    Prefer an exact match already on $VER, else the first exact match.
+  local _lbl=""
+  local _exact=""
+  local _exact_ver=""
   while IFS= read -r id; do
     [ -z "$id" ] && continue
-    if [ -n "${VER:-}" ]; then
+    _lbl="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$id" 2>/dev/null || true)"
+    [ "$_lbl" = "$svc" ] || continue
+    [ -n "$_exact" ] || _exact="$id"
+    if [ -n "${VER:-}" ] && [ -z "$_exact_ver" ]; then
       img="$(docker inspect -f '{{.Config.Image}}' "$id" 2>/dev/null || true)"
       case "$img" in
-        *:"$VER")
-          printf '%s\n' "$id"
-          return 0
-          ;;
+        *:"$VER") _exact_ver="$id" ;;
       esac
     fi
-    printf '%s\n' "$id"
-    return 0
   done <<EOF
 $(docker ps -aq --filter "label=com.docker.compose.service=${svc}" 2>/dev/null)
 EOF
+  if [ -n "$_exact_ver" ]; then
+    printf '%s\n' "$_exact_ver"
+    return 0
+  fi
+  if [ -n "$_exact" ]; then
+    printf '%s\n' "$_exact"
+    return 0
+  fi
 
   # 3) Legacy bare container_name (compose file still sets these on prod today)
   legacy="$(_legacy_name_for_service "$svc")"
@@ -459,6 +514,30 @@ if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
     echo "FATAL: alembic upgrade head failed - refusing to verify a schema-stale deploy."
     exit 1
   fi
+fi
+
+# ------------------------------------ app rollout: restart the systemd unit
+# The app is served by systemd (`leadgen`), NOT by a container, so rolling it is
+# not a compose operation and `app` is absent from SERVICES above. The unit is
+# restarted HERE — after every fail-closed gate (runtime-data guard, deployment
+# gate, live pull, lineage capture, compose rollout, alembic) has passed — because
+# EnvironmentFile is a snapshot taken at process start and app/main.py never
+# re-reads .env: new code on disk is not live until the process is replaced.
+# Restarting earlier would move production and THEN abort on a later gate, which
+# is a partial deploy — worse than the failure it was meant to fix. It must still
+# precede the /health verify below, which reads this very process.
+# Guarded on the unit existing so the script still works on a host that has not
+# adopted the systemd serving path. Exit 10 is distinct from the other refusal
+# exits (1/2/3/4/5/7/8) so a failed release is diagnosable from its code alone.
+if systemctl cat leadgen >/dev/null 2>&1; then
+  echo "=== app rollout: systemctl restart leadgen ==="
+  if ! systemctl restart leadgen; then
+    echo "FATAL: systemctl restart leadgen failed — prod is NOT running the gated code."
+    exit 10
+  fi
+  echo "  systemctl restart leadgen -> OK"
+else
+  echo "=== app rollout: no systemd unit 'leadgen' — app is container-managed ==="
 fi
 
 sleep 22

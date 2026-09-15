@@ -19,8 +19,18 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+# 2026-09-15: `app` REMOVED. Production serves :8000 from the systemd unit
+# `leadgen` (host uvicorn, EnvironmentFile=/opt/leadgen/.env), not from a
+# container, so there is no `app` container to capture a tag from and
+# scripts/deploy_vps.sh no longer puts `app` in $SERVICES. Leaving it here made
+# --assert-running-only refuse EVERY release with rc=2
+# ("incomplete service mapping: missing=['app'] extra=[]"), which aborts the
+# deploy after the live checkout has already moved.
+# KEEP THIS IN LOCKSTEP WITH $SERVICES in scripts/deploy_vps.sh — the
+# pre-deploy lineage capture passes exactly $SERVICES as the running-json.
+# tests/test_deploy_vps_app_rollout.py asserts the two sets match.
 EXPECTED_SERVICES: frozenset[str] = frozenset(
-    {"app", "worker", "scheduler", "worker-heavy", "worker-video"}
+    {"worker", "scheduler", "worker-heavy", "worker-video"}
 )
 _FORBIDDEN_TAGS: frozenset[str] = frozenset({"", "MISSING", "latest", "<none>"})
 # Short or full hex SHA tags only (deploy APP_VERSION form).

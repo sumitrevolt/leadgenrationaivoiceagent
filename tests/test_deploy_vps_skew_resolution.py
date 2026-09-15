@@ -102,7 +102,13 @@ def test_cleanup_ghosts_also_uses_compose_service_resolve():
 def test_safety_invariants_still_present():
     t = _text()
     assert "set -uo pipefail" in t
-    assert 'SERVICES="app worker scheduler worker-heavy worker-video"' in t
+    # 2026-09-15: `app` was REMOVED from SERVICES on purpose. Production serves
+    # :8000 from the systemd unit `leadgen` (host uvicorn), so no `leadgen_app`
+    # container can exist and the skew check must not demand one. The app is
+    # rolled by `systemctl restart leadgen` instead. Replacement invariants live
+    # in tests/test_deploy_vps_app_rollout.py.
+    assert 'SERVICES="worker scheduler worker-heavy worker-video"' in t
+    assert 'SERVICES="app ' not in t
     assert 'DSH_SERVICES="dsh-worker"' in t
     assert 'ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"' in t
     # APP_VERSION mandatory / latest refusal

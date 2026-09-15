@@ -183,7 +183,17 @@ def _sandbox(tmp_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathli
     scripts.mkdir(parents=True)
     (repo / "data").mkdir()
     (repo / "data" / "invoices.jsonl").write_text("live ledger\n", encoding="utf-8")
-    (repo / ".env").write_text("VOICE_LAUNCH_KILL=1\nPLATFORM_DIAL_DAILY=0\n", encoding="utf-8")
+    # The parent's .ENV GUARD reads .env directly (as the systemd unit does) and
+    # requires APP_ENV=production plus an APP_VERSION sha. A sandbox .env without
+    # them aborts the parent AT THE GUARD, so every ordering assertion below would
+    # be measuring the guard rather than the release contract.
+    (repo / ".env").write_text(
+        "VOICE_LAUNCH_KILL=1\n"
+        "PLATFORM_DIAL_DAILY=0\n"
+        "APP_ENV=production\n"
+        f"APP_VERSION={FAKE_SHA[:7]}\n",
+        encoding="utf-8",
+    )
     (repo / "docker-compose.vps.yml").write_text("services: {}\n", encoding="utf-8")
 
     log = tmp_path / "commands.log"
