@@ -75,7 +75,19 @@ FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a
 ARG APP_VERSION=latest
 ENV APP_VERSION=${APP_VERSION}
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# OS security patches — root-cause fix, not a symptom patch.
+# The base image is pinned by digest for reproducibility, which ALSO freezes its
+# Debian packages. That is how this image accumulated 42 fixable HIGH/CRITICAL
+# CVEs (debian 13.5) and kept `security-scan`'s fail-closed Trivy gate red on
+# every push — while every Python package scanned clean. Bumping the digest only
+# re-freezes the problem; `apt-get upgrade` re-applies available security fixes
+# at build time so the image self-patches.
+# Verified 2026-09-15 on the exact pinned digest: debian 13.5 -> 13.7 and
+# `trivy image --severity HIGH,CRITICAL --ignore-unfixed` (the CI's own flags)
+# went 42 findings / exit 1  ->  0 findings / exit 0.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     ffmpeg libsndfile1 espeak-ng curl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/* && apt-get clean
 ENV TZ=Asia/Kolkata
