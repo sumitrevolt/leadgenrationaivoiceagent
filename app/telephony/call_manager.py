@@ -1,6 +1,6 @@
 """
 Call Manager
-Unified call orchestration for Vobiz
+Unified call orchestration for Tata SmartFlo (Vobiz removed 2026-09-15).
 """
 
 import asyncio
@@ -21,9 +21,8 @@ logger = setup_logger(__name__)
 
 
 class TelephonyProvider(Enum):
-    """Supported telephony providers"""
+    """Supported telephony providers (Vobiz removed 2026-09-15)"""
 
-    VOBIZ = "vobiz"
     TATA_SMARTFLO = "tata_smartflo"
 
 
@@ -34,15 +33,9 @@ def _build_handler(provider: str) -> Any:
     Kept at module level (and provider-in → client-out) so provider routing is
     unit-testable without constructing a full ``CallManager``.
 
-    Args:
-        provider: Normalized provider id ("vobiz" | "tata_smartflo").
-
-    Returns:
-        The provider client instance (``VobizClient`` or ``TataSmartfloClient``).
-
-    Note:
-        Unknown/stale provider strings (legacy "exotel"/"twilio" still sitting in
-        .env) fall back to Vobiz with a warning — they must NEVER raise.
+    Vobiz removed 2026-09-15 — Tata SmartFlo is the sole provider. Any
+    other/stale provider string (legacy "exotel"/"twilio"/"vobiz") raises
+    loudly rather than silently falling back to a dead provider.
     """
     key = (provider or "").strip().lower()
 
@@ -51,12 +44,11 @@ def _build_handler(provider: str) -> Any:
 
         return TataSmartfloClient()
 
-    if key != TelephonyProvider.VOBIZ.value:
-        logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
-
-    from app.telephony.vobiz_handler import VobizClient
-
-    return VobizClient()
+    raise ValueError(
+        f"Unsupported telephony provider '{provider}' — "
+        "Vobiz was REMOVED 2026-09-15. Set TELEPHONY_PROVIDER=tata_smartflo "
+        "(+ TATA_SMARTFLO_ENABLED=1)."
+    )
 
 
 @dataclass
@@ -110,14 +102,17 @@ class CallManager:
     """
 
     def __init__(self, provider: str | None = None):
-        provider = (provider or settings.default_telephony or "vobiz").strip().lower()
-
-        # Defensive: an unknown/stale provider (e.g. legacy "exotel"/"twilio" still
-        # sitting in .env) must NEVER crash the whole app — fall back to Vobiz (the
-        # default provider) with a warning.
+        # Vobiz removed 2026-09-15 — Tata SmartFlo is the sole provider.
+        # An unknown/stale provider string (legacy "exotel"/"twilio"/"vobiz")
+        # now raises immediately so operators see the failure, not a silent
+        # dead-provider fallback.
+        provider = (provider or settings.default_telephony or "tata_smartflo").strip().lower()
         if provider not in (p.value for p in TelephonyProvider):
-            logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
-            provider = TelephonyProvider.VOBIZ.value
+            raise ValueError(
+                f"Unsupported telephony provider '{provider}'. "
+                "Vobiz was REMOVED 2026-09-15. "
+                "Set TELEPHONY_PROVIDER=tata_smartflo (+ TATA_SMARTFLO_ENABLED=1)."
+            )
 
         self.handler = _build_handler(provider)
 
@@ -708,7 +703,7 @@ class CallManager:
                 _row = _CL(
                     id=str(_uuid.uuid4()),
                     call_sid=str(call_id),
-                    provider=getattr(context, "provider", "vobiz"),
+                    provider=getattr(context, "provider", "tata_smartflo"),
                     direction=_CD.OUTBOUND,
                     lead_id=getattr(context, "lead_id", None) or None,
                     campaign_id=getattr(context, "campaign_id", None) or None,

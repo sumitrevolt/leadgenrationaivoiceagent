@@ -8,9 +8,9 @@ provider keys.
 
 Provider selection (in priority order):
     1. TELEPHONY_PROVIDER env / setting, if explicitly set to one of:
-       "vobiz" | "sip" | "none" | "simulation".
+       "sip" | "tata_smartflo" | "none" | "simulation".
     2. Auto-detect: pick whichever provider's keys actually exist
-       (sip -> vobiz).
+       (sip -> tata_smartflo). Vobiz removed 2026-09-15.
     3. Else -> "simulation" mode (no keys needed).
 
 Usage:
@@ -124,11 +124,10 @@ class TelephonyService:
 
     def _build_handler(self, provider: str):
         """Construct the underlying provider handler. Imports are local so a
-        missing module for one provider never breaks the others."""
-        if provider == "vobiz":
-            from app.telephony.vobiz_handler import VobizClient
+        missing module for one provider never breaks the others.
 
-            return VobizClient()
+        Vobiz removed 2026-09-15 — 'vobiz' now raises (owner config must
+        migrate to tata_smartflo)."""
         if provider == "sip":
             from app.telephony.sip_handler import SIPHandler
 

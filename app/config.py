@@ -82,21 +82,11 @@ class Settings(BaseSettings):
     # fallback otherwise. Env knobs: GEMINI_TTS / GEMINI_TTS_VOICE / GEMINI_TTS_MODEL.
 
     # Telephony
-    # Exotel removed 2026-06-18, Twilio removed 2026-07-07 — provider is now
-    # Vobiz-only (see vobiz_* below).
-    default_telephony: str = "vobiz"  # vobiz
+    # Exotel removed 2026-06-18, Twilio removed 2026-07-07, Vobiz + Jio
+    # removed 2026-09-15 — provider is now Tata SmartFlo-only (see tata_* below).
+    default_telephony: str = "tata_smartflo"
 
-    # Vobiz (India-native SIP trunk + voice API — primary trunk for P3)
-    vobiz_auth_id: str = ""
-    vobiz_auth_token: str = ""
-    vobiz_trunk_id: str = ""
-    vobiz_trunk_domain: str = ""
-    vobiz_sip_user: str = ""
-    vobiz_sip_pass: str = ""
-    vobiz_sip_realm: str = ""
-    vobiz_caller_id: str = ""
-
-    # Tata Tele Smartflo (secondary trunk — C2C + voice streaming).
+    # Tata Tele Smartflo (sole telephony provider — C2C + voice streaming).
     # Purely additive typed mirrors of the TATA_SMARTFLO_* / trunk env vars.
     # Existing readers use _env() (getattr(settings, lower) -> os.getenv
     # fallback), so these fields are backwards-compatible and change no

@@ -1,9 +1,10 @@
 """Telephony Readiness Monitor (Tara) — calling launch ke liye system HAR WAQT
 taiyaar hai ya nahi, hourly verify.
 
-Telephony aa rahi hai (Vobiz) — calling start se pehle system taiyaar hai ya nahi, hourly verify.
+Telephony aa rahi hai (Tata SmartFlo — Vobiz/Jio removed 2026-09-15) — calling
+start se pehle system taiyaar hai ya nahi, hourly verify.
 Checks (sab local/config — koi paid API call nahi):
-  Vobiz creds (VOBIZ_AUTH_ID/TOKEN) · caller-ID (VOBIZ_CALLER_ID) ·
+  SmartFlo creds (TATA_SMARTFLO_API_TOKEN/KEY) · DID (TATA_SMARTFLO_DID) ·
   TTS (edge-tts) · STT (GROQ key) · LLM chain · compliance flags.
 
 Score 0-100 + missing list + Hinglish next-actions. Watchdog-job me wired (Tara
@@ -55,8 +56,8 @@ def _sync_run(coro):
 
 
 def _active_provider() -> str:
-    """Live telephony provider — vobiz (outbound stream)."""
-    return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+    """Live telephony provider — tata_smartflo (Vobiz/Jio removed 2026-09-15)."""
+    return (_env("TELEPHONY_PROVIDER") or "tata_smartflo").strip().lower()
 
 
 def _alerts_enabled() -> bool:
@@ -71,31 +72,33 @@ def run_checks() -> dict[str, Any]:
         checks[key] = {"ok": bool(ok), "why": why, "weight": weight}
 
     provider = _active_provider()
-    vobiz_id = _env("VOBIZ_AUTH_ID")
-    vobiz_tok = _env("VOBIZ_AUTH_TOKEN")
+    # Vobiz removed 2026-09-15 — Tata SmartFlo is the sole provider now.
+    tata_token = _env("TATA_SMARTFLO_API_TOKEN")
+    tata_key = _env("TATA_SMARTFLO_API_KEY")
+    tata_did = _env("TATA_SMARTFLO_DID")
+    tata_creds = bool(tata_token and tata_key)
+    tata_enabled = os.environ.get("TATA_SMARTFLO_ENABLED", "0").strip().lower() in (
+        "1", "true", "yes",
+    )
 
     add(
         "provider_creds",
-        bool(vobiz_id and vobiz_tok),
-        "VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN",
+        tata_creds,
+        "TATA_SMARTFLO_API_TOKEN + TATA_SMARTFLO_API_KEY",
         20,
     )
-    # NOTE: non-empty caller_id ≠ owned caller_id. The Vobiz API may accept
-    # a caller-ID in the payload but reject it at call-time with "not owned by
-    # this account". The outbound_probe (above) catches this when armed.
-    add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID set (ownership verified by outbound_probe)", 15)
+    add("did", bool(tata_did), "TATA_SMARTFLO_DID (bundled DID)", 15)
 
-    # Synthetic Verification check — caller-ID ownership probe.
+    # Synthetic Verification check — DID connectivity probe.
     # 2026-08-30 FIX: previous code hardcoded outbound_ok=True which gave a
-    # false-green readiness score even when the caller-ID was NOT owned by the
-    # account (prod failure: "The from number 911171366938 is not owned by this
-    # account"). Now defaults to False; only passes when the probe explicitly
+    # false-green readiness score even when the DID was NOT bound correctly.
+    # Now defaults to False; only passes when the probe explicitly
     # succeeds or is not configured (weight=0).
-    vobiz_verify_outbound = _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND").lower() in (
+    smartflo_verify_outbound = _env("SMARTFLO_VERIFY_CALLER_ID_OUTBOUND").lower() in (
         "1", "true", "yes",
     )
-    probe_w = 20 if vobiz_verify_outbound else 0
-    if vobiz_verify_outbound:
+    probe_w = 20 if smartflo_verify_outbound else 0
+    if smartflo_verify_outbound:
         try:
             from app.telephony.telephony_readiness_probe import (
                 verify_outbound_connectivity,
@@ -108,49 +111,20 @@ def run_checks() -> dict[str, Any]:
         except Exception as exc:
             add("outbound_probe", False, f"probe error: {exc}", probe_w)
     else:
-        # Probe not armed — weight=0 so it does NOT affect the score, but we
-        # record the honest state so operators see it in the readiness report.
         add(
             "outbound_probe",
             True,
-            "skipped (VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0 — weight=0, not scored)",
+            "skipped (SMARTFLO_VERIFY_CALLER_ID_OUTBOUND=0 — weight=0, not scored)",
             0,
         )
 
-    add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
-    # Jio Mobile SIP trunk (INERT-by-default — sirf tab active jab JIO_TRUNK_ENABLED=1)
-    jio_host = _env("JIO_SIP_HOST")
-    jio_user = _env("JIO_SIP_USER")
-    jio_pass = _env("JIO_SIP_PASS")
-    jio_creds = bool(jio_host and jio_user and jio_pass)
-    jio_enabled = _env("JIO_TRUNK_ENABLED").lower() in ("1", "true", "yes")
-    # Real gate sirf armed pe (weight 5 if jio_enabled else 0)
-    jio_w = 5 if jio_enabled else 0
-    add("jio_sip_creds", jio_creds, "JIO_SIP_HOST + JIO_SIP_USER + JIO_SIP_PASS", jio_w)
-    add("jio_sip_did", bool(_env("JIO_SIP_DID")), "JIO_SIP_DID (mobile DID)", jio_w)
-    add("jio_sip_enabled",
-        jio_enabled,
-        "JIO_TRUNK_ENABLED=1 (INERT default — live test ke baad arming)",
-        jio_w,
-    )
-    # Tata Tele Smartflo Pro (₹1,250/license/month unlimited)
-    tata_token = _env("TATA_SMARTFLO_API_TOKEN")
-    tata_key = _env("TATA_SMARTFLO_API_KEY")
-    tata_did = _env("TATA_SMARTFLO_DID")
-    tata_creds = bool(tata_token and tata_key)
-    tata_enabled = os.environ.get("TATA_SMARTFLO_ENABLED", "0").strip().lower() in (
-        "1", "true", "yes",
-    )
-    tata_w = 10 if tata_enabled else 0
-    add("tata_smartflo_creds", tata_creds, "TATA_SMARTFLO_API_TOKEN + API_KEY", tata_w)
-    add("tata_smartflo_did", bool(tata_did), "TATA_SMARTFLO_DID (bundled DID)", tata_w)
     add(
         "tata_smartflo_enabled",
         tata_enabled,
         "TATA_SMARTFLO_ENABLED=1 (INERT default — live test ke baad arming)",
-        tata_w,
+        10,
     )
-    telephony_ok = bool(vobiz_id and vobiz_tok)
+    telephony_ok = tata_creds
     # Voice AI chain
     tts_ok = False
     try:
@@ -229,13 +203,13 @@ def run_checks() -> dict[str, Any]:
     missing = [k for k, c in checks.items() if not c["ok"]]
     actions = []
     if "provider_creds" in missing:
-        actions.append("VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo (.env)")
+        actions.append("TATA_SMARTFLO_API_TOKEN + TATA_SMARTFLO_API_KEY set karo (.env)")
+    if "did" in missing:
+        actions.append("TATA_SMARTFLO_DID set karo (SmartFlo console se bundled DID copy karo)")
     if "stt_groq" in missing:
         actions.append("GROQ_API_KEY set karo — STT weak link")
     if "tts_edge" in missing:
         actions.append("pip install edge-tts>=7.2.0 (image rebuild)")
-    if "caller_id" in missing:
-        actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
     if "voice_launch_posture" in missing:
         actions.append(
             "Voice launch posture contradict karti hai: admin kill switch ENGAGED hai "
@@ -260,17 +234,8 @@ async def run_watch() -> dict[str, Any]:
     """Hourly (watchdog) — log under Tara; score girne pe gated alert. Kabhi raise nahi."""
     try:
         res = run_checks()
-        # Vobiz balance snapshot (best-effort)
-        try:
-            from app.telephony.vobiz_handler import VobizClient
-
-            vc = VobizClient()
-            if vc.available():
-                bal = await vc.get_balance()
-                if isinstance(bal, dict):
-                    res["vobiz_balance"] = bal.get("body") or bal
-        except Exception:
-            pass
+        # Vobiz balance snapshot removed 2026-09-15 (Vobiz deletion; SmartFlo
+        # is flat-rate with no PAYG balance to poll).
         prev_score = None
         try:
             if os.path.exists(_LOG):

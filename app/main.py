@@ -400,22 +400,17 @@ async def lifespan(app: FastAPI):
 
     logger.info("✅ Startup complete - application ready")
 
-    # Outbound call queue processor (vobiz | tata_smartflo) — polls Redis
-    # queue and dials through the configured provider client.
+    # Outbound call queue processor (Tata SmartFlo — Vobiz + Jio removed 2026-09-15)
     # Gated CALL_PROCESSOR=1 (default ON when telephony provider configured).
     _call_processor_task = None
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
         try:
             provider = (
-                (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz")
+                (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "tata_smartflo")
                 .strip()
                 .lower()
             )
-            # 2026-09-14: tata_smartflo is a first-class dial provider now
-            # (Vobiz -> Tata Smartflo migration). CallManager picks the right
-            # client via _build_handler(); the queue processor itself is
-            # provider-agnostic, so the same watchdog/session limits apply.
-            if provider in ("vobiz", "tata_smartflo"):
+            if provider == "tata_smartflo":
                 from app.telephony.call_manager import CallManager
 
                 _cm = CallManager(provider=provider)

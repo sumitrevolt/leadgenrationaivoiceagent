@@ -165,27 +165,22 @@ def _log(rec: dict[str, Any]) -> None:
 
 
 async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
-    """Vobiz connect-leg: owner ko call lagao. Lazy import, creds nahi = graceful
-    skip. Never raises. (Calls DLT/recharge-blocked abhi — structural wiring.)"""
+    """SmartFlo connect-leg: owner ko call lagao. Lazy import, creds nahi = graceful
+    skip. Never raises. Vobiz removed 2026-09-15 — now routes via Tata SmartFlo C2C."""
     try:
-        import os
+        from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
-        from app.telephony.vobiz_handler import VobizClient
-
-        client = VobizClient()
+        client = TataSmartfloClient()
         if not client.available():
-            return {"initiated": False, "reason": "vobiz_not_configured"}
-        base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
-        answer_url = f"{base}/api/webhooks/vobiz/answer" if base else ""
+            return {"initiated": False, "reason": "smartflo_not_configured"}
         result = await client.place_call(
             to=owner10,
-            answer_url=answer_url,
             call_type="transactional",
         )
         if result.get("status_code") in (200, 201, 202):
-            sid = str((result.get("body") or {}).get("id") or "")
+            sid = str((result.get("body") or {}).get("ref_id") or (result.get("body") or {}).get("id") or "")
             return {"initiated": True, "call_sid": sid}
-        return {"initiated": False, "reason": f"vobiz status {result.get('status_code')}"}
+        return {"initiated": False, "reason": f"smartflo status {result.get('status_code')}"}
     except Exception as e:
         logger.warning(f"[call_transfer] connect-leg failed: {e}")
         return {"initiated": False, "reason": str(e)[:200]}

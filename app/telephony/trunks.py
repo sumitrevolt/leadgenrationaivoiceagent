@@ -1,13 +1,10 @@
 """Provider-agnostic SIP trunk dispatcher.
 
 Purpose:
-- Single source for trunk selection (Vobiz / Jio Mobile SIP / future).
-- Round-robin + LCR-lite (cheapest-first) by weight.
+- Single source for trunk selection (Tata SmartFlo — sole live provider).
+- Vobiz + Jio Mobile SIP removed 2026-09-15 (owner mandate).
 - Fail-OPEN: pick_trunk() never raises; returns (provider, caller_id) or
   ("none", "") when nothing is configured.
-- INERT by default for new providers — flag must be explicitly set.
-
-Plan doc: docs/coordination/JIO_SIP_SETUP_PLAN.md (2026-08-27).
 
 Usage:
     from app.telephony.trunks import pick_trunk, list_active_trunks
@@ -66,44 +63,10 @@ def _env_float(name: str, default: float) -> float:
 def list_active_trunks() -> list[Trunk]:
     """Return all CONFIGURED+ENABLED trunks. Used by readiness + dispatcher.
     Never raises. Order = provider name (stable).
+
+    Vobiz + Jio removed 2026-09-15 — Tata SmartFlo is the sole provider.
     """
     out: list[Trunk] = []
-    # --- Vobiz (PAYG) ---
-    vobiz_ok = bool(_env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN"))
-    if vobiz_ok:
-        out.append(
-            Trunk(
-                name="vobiz",
-                enabled=True,  # vobiz is always-on when creds present
-                caller_id=_env("VOBIZ_CALLER_ID"),
-                weight=50,  # default; tunable later
-                cps_limit=2,
-                max_concurrent=5,
-                cost_per_min_inr=0.45,
-                notes="Vobiz India-native SIP; ₹0.45/min PAYG; handles DLT/140",
-            )
-        )
-    # --- Jio Mobile SIP (Sai Service Centre reseller) ---
-    jio_creds = bool(_env("JIO_SIP_HOST") and _env("JIO_SIP_USER") and _env("JIO_SIP_PASS"))
-    jio_enabled = _env_bool("JIO_TRUNK_ENABLED", False)
-    if jio_creds and jio_enabled:
-        out.append(
-            Trunk(
-                name="jio_mobile",
-                enabled=True,
-                caller_id=_env("JIO_SIP_DID"),
-                weight=_env_int("JIO_TRUNK_WEIGHT", 50),
-                cps_limit=_env_int("JIO_SIP_CPS_LIMIT", 2),
-                max_concurrent=_env_int("JIO_SIP_MAX_CONCURRENT", 10),
-                cost_per_min_inr=0.0,
-                notes=(
-                    "Jio Mobile SIP (Sai Service Centre); ₹9,990/mo flat 10ch unlimited. "
-                    "⚠️ mobile DID is NOT a 140-series CLI → transactional/service/"
-                    "reactivation/inbound lanes ONLY — never cold-promo (TRAI)."
-                ),
-                lanes=frozenset({"transactional"}),
-            )
-        )
     # --- Tata Tele Smartflo Pro (₹1,250/license/month, unlimited India) ---
     tata_creds = bool(_env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY"))
     tata_enabled = _env_bool("TATA_SMARTFLO_ENABLED", False)
@@ -178,42 +141,9 @@ def pick_trunk(lead: Any = None) -> tuple[str, str]:
 def freeswitch_gateway_xml(trunk: Trunk) -> str:
     """Render a FreeSWITCH gateway XML for the given trunk.
     Caller writes to sip-gateways/{name}.xml and `reloadxml`.
+
+    Vobiz + Jio removed 2026-09-15 — only Tata SmartFlo remains.
     """
-    if trunk.name == "jio_mobile":
-        auth_mode = _env("JIO_SIP_AUTH_MODE", "ip").lower()
-        host = _env("JIO_SIP_HOST")
-        realm = _env("JIO_SIP_REALM") or host
-        user = _env("JIO_SIP_USER")
-        password = _env("JIO_SIP_PASS")
-        from_domain = _env("JIO_SIP_FROM_DOMAIN", "leadsgenai.in")
-        transport = _env("JIO_SIP_TRANSPORT", "udp").lower()
-        if auth_mode == "ip":
-            # IP-auth: no registration, no creds
-            params = f"""    <param name="realm" value="{realm}"/>
-    <param name="proxy" value="{host}"/>
-    <param name="from-domain" value="{from_domain}"/>
-    <param name="register" value="false"/>"""
-        else:
-            # Registration-based
-            params = f"""    <param name="realm" value="{realm}"/>
-    <param name="proxy" value="{host}"/>
-    <param name="from-domain" value="{from_domain}"/>
-    <param name="register" value="true"/>
-    <param name="username" value="{user}"/>
-    <param name="password" value="{password}"/>"""
-        return f"""<include>
-  <gateway name="jio_mobile">
-{params}
-    <param name="caller-id-in-from" value="true"/>
-    <param name="contact-params" value=""/>
-    <param name="codec-prefs" value="PCMA,PCMU,G729"/>
-    <param name="transport" value="{transport}"/>
-    <param name="sip-ip" value="$${{local_ip_v4}}"/>
-    <param name="rtp-ip" value="$${{local_ip_v4}}"/>
-    <param name="expire-seconds" value="600"/>
-  </gateway>
-</include>
-"""
     if trunk.name == "tata_smartflo":
         # Tata Smartflo uses Click-to-Call REST API (not raw SIP gateway).
         # For FreeSWITCH SIP gateway integration (future), configure with:
@@ -249,21 +179,7 @@ def freeswitch_gateway_xml(trunk: Trunk) -> str:
   </gateway>
 </include>
 """
-    if trunk.name == "vobiz":
-        # Vobiz uses API-mode place_call, not gateway — but if a future
-        # migration wants FreeSWITCH-based, here's a skeleton.
-        host = _env("VOBIZ_TRUNK_DOMAIN")
-        return f"""<!-- Vobiz trunk: prefer API place_call mode. This gateway stub
-     is only used if you migrate to FreeSWITCH SIP-to-SIP. -->
-<include>
-  <gateway name="vobiz_sip">
-    <param name="realm" value="{host}"/>
-    <param name="proxy" value="{host}"/>
-    <param name="register" value="false"/>
-  </gateway>
-</include>
-"""
-    raise ValueError(f"Unknown trunk: {trunk.name}")
+    raise ValueError(f"Unknown trunk: {trunk.name} — Vobiz/Jio removed 2026-09-15")
 
 
 __all__ = ["Trunk", "list_active_trunks", "pick_trunk", "freeswitch_gateway_xml"]
