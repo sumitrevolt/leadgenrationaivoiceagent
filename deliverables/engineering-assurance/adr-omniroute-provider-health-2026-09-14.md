@@ -37,9 +37,29 @@ landing on `nvidia`.
 - **D-2 — single-model concentration risk.** Combos 1, 13 and 14 all resolve to the *same* model
   (`nvidia/nemotron-3-super-120b-a12b`). Effective diversity today is **1 model**, not 588 slots. If the
   `nvidia` free tier expires, the entire lane dies at once.
-- **D-3 — the seed hardcodes `isActive: True`.** `scripts/seed_omniroute_14combos.py:253` writes
-  `"isActive": True` unconditionally. Re-seeding re-marks dead connections as active — so the 224-expired
-  state will **regenerate itself** after any re-seed unless this is fixed.
+- ~~**D-3 — the seed hardcodes `isActive: True`.** … Re-seeding re-marks dead connections as active — so the
+  224-expired state will **regenerate itself** after any re-seed unless this is fixed.~~
+
+  > ### 🔴 D-3 RETRACTED (2026-09-15, verified by lead)
+  >
+  > **This claim is false.** The `"isActive": True` at `scripts/seed_omniroute_14combos.py:253` is a field on
+  > the **combo** payload written to the `combos` table — it is **not** a provider connection.
+  >
+  > The script issues exactly **two** SQL statements, both verified by grepping every `INSERT INTO` /
+  > `UPDATE` in the file:
+  > - `INSERT INTO combos (…)` — `:262` and `:278` (aliases)
+  > - `UPDATE api_keys SET allowed_combos = …` — `:290`
+  >
+  > It **never writes to any provider-connection table**, never touches `testStatus`, and has no
+  > `connections` reference at all. Therefore re-seeding **cannot** regenerate, repair, or influence the
+  > 224-expired credential state in any direction.
+  >
+  > `isActive: True` on the combos is in fact **correct and PROVEN**: all 14 combos return HTTP 200
+  > (14/14, two independent runs, 2026-09-14/15). Combos are active; it is the underlying *credentials* that
+  > are expired — and those live in a different table this script does not touch.
+  >
+  > **Action A3 below is withdrawn** — there is no landmine to fix here. The provider-expiry remediation
+  > stays where it belongs: the gateway (A2/§5 of the runbook), not this seeder.
 - **D-4 — gateway retry config inflates latency.** The seeded combo config sets `maxRetries: 3` and
   `retryDelayMs: 1000` (`scripts/seed_omniroute_14combos.py:241-242`). Walking 16 dead providers with 3
   retries × 1 s delay each is a sufficient explanation for 19–26 s p50.
@@ -162,8 +182,9 @@ Five arguments, in order of weight:
   no code. Removes first-hop timeouts at current p50 (D-5).
 - **A2 — Feed the existing watchdog into ops, not into the request path.** Surface
   `data/omniroute_combo_state.json` (already produced) in the owner brief / OCC. Read-only, zero risk.
-- **A3 — Fix the seed** so re-seeding cannot re-mark dead connections active (D-3):
-  `scripts/seed_omniroute_14combos.py:253` should derive `isActive` from actual verification, not hardcode.
+- ~~**A3 — Fix the seed** so re-seeding cannot re-mark dead connections active (D-3)…~~
+  **WITHDRAWN (2026-09-15)** — D-3 was false; see the retraction above. `seed_omniroute_14combos.py` only
+  writes `combos` and `api_keys.allowed_combos`, so there is nothing to fix. **Do not "fix" `:253`.**
 - **A4 — Gate `leadgen.swara_live` off** (see D3).
 
 ### D3 — Is 19–26 s acceptable? Which task types must leave OmniRoute?
