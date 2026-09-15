@@ -78,8 +78,24 @@ trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 …
 > the same image reports 209 findings — those are `affected` / `fix_deferred` (no patch exists) and
 > are **not** what the gate measures. Do not confuse the two numbers.
 
-**Status:** push triggered `security-scan` — image rebuild in progress. Gate result pending
-(`PARTIAL` until the run completes).
+**✅ VERIFIED IN CI — the gate now passes.** Run `34924552875` on `ac63bdfe`:
+
+```
+RUN: completed/success
+  success  Build image from Dockerfile.lock (PR/push path)
+  success  Trivy image scan (HIGH/CRITICAL — FAIL CLOSED, table)   ← previously failure
+  success  Trivy image scan (JSON artifact)
+  success  SBOM (CycloneDX, SHA-labelled)
+```
+
+`PRODUCTION-PROVEN` end-to-end: the fail-closed Trivy gate that had been red on every push now
+passes in the real pipeline, not just in the isolated test.
+
+> Note on run history: the `3bcd5fd4` run was `cancelled` — not a failure. The `security-scan`
+> workflow uses `concurrency: cancel-in-progress`, so pushing `ac63bdfe` while `3bcd5fd4` was still
+> building cancelled the older run. Only the newest commit is ever scanned. This is expected, but it
+> does mean **a red scan can be cancelled away by the next push** — worth knowing before treating a
+> missing `security-scan` result as a pass.
 
 ---
 
