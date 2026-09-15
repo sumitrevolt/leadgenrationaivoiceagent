@@ -169,7 +169,7 @@ phonenumbers==8.13.28
 pillow==12.3.0
 pipmaster==1.1.13
 pluggy==1.6.0
-portalocker==3.2.0
+portalocker==4.3.0
 prompt_toolkit==3.0.53
 propcache==0.5.2
 Protego==0.6.2
