@@ -1,0 +1,24 @@
+# Hermes profile config — `verdant`
+# Added 2026-09-14 (Engineering Assurance audit): this profile had a `profile.yaml`
+# but NO `config.yaml`, so it had no model/provider binding and could not route.
+# verdant's profile.yaml binds it `as: devops` on internal_admin, so it maps to the
+# ops lane: `hermes-ops` is a REAL OmniRoute legacy alias
+# (app/platform/omniroute_aliases.py:46 -> canonical `leadsgen combo 5`).
+# Aliases are display/consistency only, never a routing authority.
+model:
+  default: hermes-ops
+  provider: omniroute
+  base_url: http://127.0.0.1:20128/v1
+  key_env: OMNIROUTE_API_KEY
+  max_tokens: 4096
+providers:
+  omniroute:
+    name: OmniRoute
+    base_url: http://127.0.0.1:20128/v1
+    key_env: OMNIROUTE_API_KEY
+    model: hermes-ops
+    discover_models: true
+plugins:
+  enabled: []
+_config_version: 40
+agent: {}

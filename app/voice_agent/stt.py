@@ -107,6 +107,32 @@ class GoogleSTT(STTProvider):
         return transcript
 
 
+
+class GroqSTT(STTProvider):
+    """Groq whisper-large-v3 free STT via free_ai.transcribe_audio chain.
+
+    Delegates to the existing OpenAI-compatible Groq audio.transcriptions endpoint
+    (free tier, GROQ_API_KEY env). Falls through gracefully (returns "") if no key.
+    """
+
+    async def transcribe(
+        self,
+        audio_data: bytes,
+        audio_format: str = "wav",
+        language: str | None = None,
+    ) -> str:
+        from app.voice_agent.free_ai import transcribe_audio
+
+        mime = f"audio/{audio_format}" if audio_format != "wav" else "audio/wav"
+        text, _ = await transcribe_audio(
+            wav_bytes=audio_data,
+            language=language or "hi",
+            filename=f"audio.{audio_format}",
+            mime=mime,
+        )
+        return text
+
+
 class SpeechToText:
     """
     Unified Speech-to-Text interface
@@ -120,6 +146,10 @@ class SpeechToText:
             self._provider = DeepgramSTT()
         elif provider == "google":
             self._provider = GoogleSTT()
+        elif provider in ("groq", "whisper", "free"):
+            # 2026-09-15: Groq whisper-large-v3 free STT (via free_ai chain).
+            # Also accepts "whisper"/"free" as aliases (matches STT_CHAIN naming).
+            self._provider = GroqSTT()
         else:
             raise ValueError(f"Unknown STT provider: {provider}")
 

@@ -87,6 +87,7 @@ async def run_loop(
     call_type = "transactional" if transactional else "promotional"
     batch_n = 0
     total_ok = total_skip = total_fail = 0
+    tried: set[str] = set()  # PLT-156: per-run rotation
 
     print(
         f"[loop] START batch_size={batch_size} platform={platform} "
@@ -105,14 +106,12 @@ async def run_loop(
             break
 
         batch_n += 1
-        # 2026-08-30 HOTFIX (PILOT): platform mode pehle niche='ai_marketing' force
-        # karta tha -> sirf 4 uncontacted ai_marketing leads => loop hamesha leads=0
-        # (pool: 18,670 uncontacted across coaching/dental/b2b_suppliers/... ).
-        # Ab niche filter sirf tab lagta hai jab user --niche de; platform pitch ka
-        # LABEL fire_vobiz() me hi decide hota hai (niche='ai_marketing' for CALL),
-        # prospect SELECTION sab niches se hota hai.
+        # 2026-09-15: Vobiz provider FULLY REMOVED — loop now routes via
+        # fire_queue (CallManager → SmartFlo provider client) for ALL providers.
+        # The --platform flag is retained for CLI compat but is a no-op:
+        # CallRequest uses the prospect's own niche (niche=p.get("niche") or "general").
         niche_filter = ""
-        prospects = fc.get_prospects(batch_size, niche_filter)
+        prospects = fc.get_prospects(batch_size, niche_filter, exclude=tried)
         print(f"\n[loop] === BATCH {batch_n} | {win_msg} | leads={len(prospects)} ===")
 
         if not prospects:
@@ -133,12 +132,17 @@ async def run_loop(
             except Exception as e:
                 print(f"[loop] readiness warn: {e}")
 
-        ok, skip, fail = await fc.fire_vobiz(
-            prospects, dry_run=False, call_type=call_type, client_id="", platform=platform
+        ok, skip, fail = await fc.fire_queue(
+            prospects, dry_run=False, call_type=call_type
         )
         total_ok += ok
         total_skip += skip
         total_fail += fail
+        # PLT-156: mark all prospects in this batch as tried (rotation)
+        for _p in prospects:
+            _p10 = fc.phone10(_p.get("phone", ""))
+            if _p10:
+                tried.add(_p10)
         print(
             f"[loop] batch {batch_n} done: ok={ok} skip={skip} fail={fail} | totals ok={total_ok}"
         )
@@ -163,10 +167,10 @@ def main() -> None:
     p.add_argument("--niche", type=str, default="")
     args = p.parse_args()
 
-    if fc._provider() not in ("vobiz", "tata_smartflo"):
+    if fc._provider() != "tata_smartflo":
         print(
-            f"ERROR: provider={fc._provider()} — loop supports "
-            "vobiz + tata_smartflo only."
+            f"ERROR: provider={fc._provider()} — Vobiz was REMOVED 2026-09-15. "
+            "Set TELEPHONY_PROVIDER=tata_smartflo (+ TATA_SMARTFLO_ENABLED=1) in /opt/leadgen/.env."
         )
         sys.exit(1)
 

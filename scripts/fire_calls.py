@@ -1,6 +1,6 @@
 """
 LeadGen AI - Outbound call campaign
-leads DB se numbers → AI call via active telephony provider (Exotel or Vobiz).
+leads DB se numbers → AI call via Tata SmartFlo (Vobiz + Jio removed 2026-09-15).
 
 Run:
   docker exec leadgen_app python3 scripts/fire_calls.py --limit 10 --dry-run
@@ -61,14 +61,14 @@ def _provider() -> str:
         from app.config import settings
 
         return (
-            (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz")
+            (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "tata_smartflo")
             .strip()
             .lower()
         )
     except Exception:
-        # "exotel" was deleted 2026-06-18 — a stale default here chose a
-        # dead provider whenever settings failed to import.
-        return (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+        # Vobiz + Exotel removed 2026-09-15 — the stale default now picks the
+        # sole live provider (Tata SmartFlo) whenever settings failed to import.
+        return (os.environ.get("TELEPHONY_PROVIDER") or "tata_smartflo").strip().lower()
 
 
 def get_db_conn():
@@ -86,7 +86,7 @@ def get_db_conn():
     )
 
 
-def get_prospects(limit: int, niche: str = "") -> list[dict]:
+def get_prospects(limit: int, niche: str = "", exclude: set | None = None) -> list[dict]:
     conn = get_db_conn()
     cur = conn.cursor()
     # MOBILE-only pre-filter (2026-08-30 PILOT): dial_gate ka phone_type_gate
@@ -98,6 +98,12 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
     # dial_gate me pass karte hain). Gate INTACT (PHONE_TYPE_GATE=1), policy
     # compliant (promo dial sirf person-reachable mobile). Compliance safe hai.
     mobile_where = "phone ~ '(^|\\+)(91)9[0-9]{9}$'"
+    # 2026-09-15 PLT-156 ROTATION: caller passes `exclude` (set of phone10s
+    # already attempted this run). We fetch a WIDER window and filter
+    # out excluded + same-number duplicates in Python. This breaks the
+    # infinite "same top-N → all already-claimed → skip" loop.
+    exclude10 = set(exclude or ())
+    fetch = limit + len(exclude10) + 20
     if niche:
         cur.execute(
             f"""SELECT phone, company_name, niche, city FROM leads
@@ -107,7 +113,7 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
             AND LOWER(COALESCE(niche,'')) = LOWER(%s)
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
-            (niche, limit),
+            (niche, fetch),
         )
     else:
         cur.execute(
@@ -117,21 +123,29 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
             AND {mobile_where}
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
-            (limit,),
+            (fetch,),
         )
     rows = cur.fetchall()
     conn.close()
-    return [
-        {
-            "phone": r[0],
-            "name": r[1] or "Business",
-            "niche": r[2] or "general",
-            "city": r[3] or "",
-        }
-        for r in rows
-    ]
-
-
+    out: list[dict] = []
+    seen: set[str] = set()
+    for r in rows:
+        p10 = phone10(r[0])
+        if not p10 or p10 in seen or p10 in exclude10:
+            continue
+        seen.add(p10)
+        out.append(
+            {
+                "phone": r[0],
+                "name": r[1] or "Business",
+                "niche": r[2] or "general",
+                "city": r[3] or "",
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
+    
 def mark_called(phone_raw: str) -> None:
     try:
         conn = get_db_conn()
@@ -145,101 +159,6 @@ def mark_called(phone_raw: str) -> None:
         conn.close()
     except Exception as e:
         print(f"  [warn] DB mark_called failed: {e}")
-
-
-async def fire_vobiz(
-    prospects: list[dict],
-    dry_run: bool,
-    call_type: str,
-    client_id: str = "",
-    platform: bool = False,
-) -> tuple[int, int, int]:
-    from app.api.telephony_vobiz import start_stream_call
-    from app.telephony import voice_launch as vl
-    from app.telephony.vobiz_handler import VobizClient
-
-    client = VobizClient()
-    if not dry_run and not client.available():
-        print("ERROR: Vobiz not configured — VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo.")
-        return 0, 0, len(prospects)
-
-    # Controlled-launch spine parity (2026-08-02): Celery path ke same session
-    # limiter — exactly VOICE_CALLS_PER_SESSION per session, fail-CLOSED. Subprocess
-    # fallback me bhi 31st attempt provider boundary se PEHLE block.
-    spine_on = vl.campaign_enabled()
-    session_id = None
-    if spine_on and not dry_run:
-        session_id = await vl.current_session_id()
-        if not session_id:
-            session_id = await vl.create_voice_session(owner="cli", niche="", label="fire_calls")
-        if not session_id:
-            print("BLOCKED(no_session) — voice launch session unavailable (Redis?)")
-            return 0, len(prospects), 0
-        if await vl.session_is_stopped(session_id):
-            print("BLOCKED(session_stopped)")
-            return 0, len(prospects), 0
-
-    ok = fail = skip = 0
-    for p in prospects:
-        p10 = phone10(p["phone"])
-        niche = "ai_marketing" if platform else (p.get("niche") or "general")
-        cid = "" if platform else client_id
-        print(
-            f"  -> +91{p10} | {p['name']} | {p['city']} | niche={niche}",
-            end=" ... ",
-            flush=True,
-        )
-        if dry_run:
-            print("DRY")
-            continue
-        if not p10 or len(p10) != 10:
-            print("SKIP(invalid phone)")
-            skip += 1
-            continue
-
-        if spine_on:
-            # eligibility (compose ke samay ke chokepoints) — fail-closed
-            elig = await vl.is_lead_eligible_for_voice_call("+91" + p10, call_type)
-            if not elig.eligible:
-                print(f"SKIP({elig.reason})")
-                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
-                skip += 1
-                continue
-            sslot = await vl.reserve_session_slot(session_id)
-            if not sslot.ok:
-                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
-                print(f"BLOCKED({sslot.reason})")
-                skip += 1
-                break
-            if not await vl.session_idem_claim(session_id, f"lead:{p['phone']}"):
-                await vl.release_session_slot(session_id)
-                await vl.record_session_retry_blocked(session_id)
-                print("SKIP(already_dispatched_this_session)")
-                skip += 1
-                continue
-
-        result = await start_stream_call(
-            to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
-        )
-        if result.get("placed"):
-            print("PLACED OK")
-            mark_called(p["phone"])
-            ok += 1
-        elif result.get("error") == "compliance_blocked":
-            print("BLOCKED(compliance)")
-            if spine_on:
-                await vl.release_session_slot(session_id)
-                await vl.session_idem_release(session_id, f"lead:{p['phone']}")
-                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
-            skip += 1
-        else:
-            body = result.get("vobiz_response", {}).get("body", {})
-            print(f"FAIL  {result.get('error') or body}")
-            if spine_on:
-                await vl.record_session_disposition(session_id, vl.VoiceDisposition.FAILED)
-            fail += 1
-        await asyncio.sleep(4)
-    return ok, skip, fail
 
 
 async def fire_queue(
@@ -258,8 +177,8 @@ async def fire_queue(
     from app.telephony.call_manager import CallManager, CallRequest
 
     provider = (provider or _provider()).strip().lower()
-    if provider not in ("vobiz", "tata_smartflo"):
-        print(f"ERROR: unsupported provider '{provider}' for the queue dialer.")
+    if provider != "tata_smartflo":
+        print(f"ERROR: provider '{provider}' not supported — Vobiz was REMOVED 2026-09-15. Set TELEPHONY_PROVIDER=tata_smartflo.")
         return 0, len(prospects), 0
 
     if dry_run:
@@ -332,12 +251,9 @@ async def fire(
 ) -> None:
     provider = _provider()
     print(f"Provider: {provider} | call_type={call_type} | platform_pitch={platform}")
-    if provider == "vobiz":
-        ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type, client_id, platform)
-    else:
-        # tata_smartflo (and any future provider) -> the queue dialer, which
-        # builds the provider client through CallManager/_build_handler.
-        ok, skip, fail = await fire_queue(prospects, dry_run, call_type, provider)
+    # Vobiz removed 2026-09-15 — every provider now routes through the queue dialer
+    # (CallManager → Tata SmartFlo provider client).
+    ok, skip, fail = await fire_queue(prospects, dry_run, call_type, provider)
     if not dry_run:
         print(f"\n=== placed/queued={ok}  blocked/skipped={skip}  failed={fail} ===")
 

@@ -395,16 +395,28 @@ class ComplianceGate:
 
             # 4) promotional-only: DND scrub + DLT/140.
             if ct == CallType.PROMOTIONAL:
-                dnd = await self._is_dnd(phone)
-                checks["dnd"] = dnd
-                if dnd is True:
-                    reasons.append("on_dnd_registry")
-                elif dnd is None:
-                    # FAIL-CLOSED (TCCCPR): we could NOT prove the number is off the
-                    # DND registry -> block the promotional call rather than risk a
-                    # penalty (up to ₹10L). Wire a DND-lookup provider to verify + allow.
-                    checks["dnd_note"] = "lookup_failed"
-                    reasons.append("dnd_lookup_failed")
+                # COMPLIANCE_DND_WAIVED (owner decision 2026-09-15): when the active
+                # telephony provider (SmartFlo/Tata) performs DND scrub at the provider
+                # routing level, the app-level DND-registry lookup is redundant. Every
+                # OTHER gate stays ACTIVE (phone sanity, allowlist, opt-out/consent
+                # ledger, TRAI calling-hours window, DLT approval, caller-id, AI
+                # disclosure, kill-switch). Reversible: set COMPLIANCE_DND_WAIVED=0
+                # to restore the original fail-CLOSED DND behaviour.
+                if _env("COMPLIANCE_DND_WAIVED", "0").lower() in ("1", "true", "yes", "on"):
+                    dnd = False
+                    checks["dnd"] = False
+                    checks["dnd_note"] = "waived_by_owner_2026_09_15(provider_level_DND)"
+                else:
+                    dnd = await self._is_dnd(phone)
+                    checks["dnd"] = dnd
+                    if dnd is True:
+                        reasons.append("on_dnd_registry")
+                    elif dnd is None:
+                        # FAIL-CLOSED (TCCCPR): we could NOT prove the number is off the
+                        # DND registry -> block the promotional call rather than risk a
+                        # penalty (up to ₹10L). Wire a DND-lookup provider to verify + allow.
+                        checks["dnd_note"] = "lookup_failed"
+                        reasons.append("dnd_lookup_failed")
 
                 if not self._dlt_approved():
                     reasons.append("dlt_not_approved[set DLT_APPROVED=1 after approval]")

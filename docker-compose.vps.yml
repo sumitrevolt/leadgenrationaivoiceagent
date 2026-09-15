@@ -48,6 +48,7 @@ services:
     user: "0:0"   # root, matches the systemd app — keeps bind-mounted root-owned ./data writable
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       APP_ENV: production
       PORT: 8080
       # 2026-07-20: 2 web workers (concurrent-burst 502 fix). HARDCODED literal (NOT
@@ -133,6 +134,7 @@ services:
     user: "0:0"   # root, matches app — keeps bind-mounted root-owned ./data writable
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       APP_ENV: production
       PORT: 8080
       WEB_CONCURRENCY: 1            # single worker -> SSE session affinity works
@@ -340,6 +342,7 @@ services:
     command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=3
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
       # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
@@ -407,6 +410,7 @@ services:
     command: python -m app.workers.cli_worker --supervisor engineering --interval 60
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -440,6 +444,7 @@ services:
     command: python -m app.workers.cli_worker --supervisor platform --interval 60
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -473,6 +478,7 @@ services:
     command: python -m app.workers.cli_worker --supervisor guardian --interval 60
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -506,6 +512,7 @@ services:
     command: python -m app.workers.cli_worker --supervisor sales --interval 60
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -539,6 +546,7 @@ services:
     command: python -m app.workers.cli_worker --supervisor success --interval 60
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -572,7 +580,9 @@ services:
     command: python -m app.workers.cli_worker --supervisor operations --interval 60
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -602,6 +612,7 @@ services:
     command: celery -A app.worker worker -Q heavy,heavy_llm --loglevel=info --concurrency=1
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -669,6 +680,7 @@ services:
     command: celery -A app.worker worker -Q heavy_llm --loglevel=info --concurrency=${HEAVY_LLM_CONCURRENCY:-2}
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -728,6 +740,7 @@ services:
     command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
@@ -917,6 +930,7 @@ services:
       - ./logs:/app/logs
     env_file: .env
     environment:
+      WAHA_BASE_URL: http://leadgen_waha:3000   # containers use in-stack DNS (.env hosts 127.0.0.1:3002 for the systemd app)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}

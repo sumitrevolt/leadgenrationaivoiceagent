@@ -1,0 +1,23 @@
+# Hermes profile config — `claude`
+# Added 2026-09-14 (Engineering Assurance audit): this profile had a `profile.yaml`
+# but NO `config.yaml`, so it had no model/provider binding and could not route.
+# Model id `claude-code` is a REAL OmniRoute legacy alias
+# (app/platform/omniroute_aliases.py:54 -> canonical `leadsgen combo 1`).
+# Aliases are display/consistency only, never a routing authority.
+model:
+  default: claude-code
+  provider: omniroute
+  base_url: http://127.0.0.1:20128/v1
+  key_env: OMNIROUTE_API_KEY
+  max_tokens: 4096
+providers:
+  omniroute:
+    name: OmniRoute
+    base_url: http://127.0.0.1:20128/v1
+    key_env: OMNIROUTE_API_KEY
+    model: claude-code
+    discover_models: true
+plugins:
+  enabled: []
+_config_version: 40
+agent: {}

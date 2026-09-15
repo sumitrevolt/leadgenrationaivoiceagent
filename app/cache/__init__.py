@@ -122,15 +122,33 @@ class InMemoryCache:
         value: str,
         ex: int | None = None,
         px: int | None = None,
-    ):
+        nx: bool = False,
+        xx: bool = False,
+    ) -> str | None:
+        """Redis-compatible SET: returns "OK" on write, None on no-op, so callers
+        passing nx/xx (voice_launch session_idem_claim) behave the same on the
+        in-memory fallback. nx=only-if-absent, xx=only-if-present (an expired key
+        counts as absent)."""
         import time
 
-        self._cache[key] = value
+        now = time.time()
+        exists = key in self._cache and (
+            key not in self._expiry or self._expiry.get(key, 0) >= now
+        )
+        if nx and exists:
+            return None
+        if xx and not exists:
+            return None
 
+        self._cache[key] = value
         if ex:
-            self._expiry[key] = time.time() + ex
+            self._expiry[key] = now + ex
         elif px:
-            self._expiry[key] = time.time() + (px / 1000)
+            self._expiry[key] = now + (px / 1000)
+        else:
+            # Redis semantics: a SET with no new TTL clears any existing TTL.
+            self._expiry.pop(key, None)
+        return "OK"
 
     async def delete(self, key: str):
         self._cache.pop(key, None)
