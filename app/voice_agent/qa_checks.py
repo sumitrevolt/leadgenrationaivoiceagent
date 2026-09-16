@@ -43,8 +43,8 @@ _SOFT_NO_RE = [re.compile(p) for p in _SOFT_NO_PATTERNS]
 
 # Permission / timing ask — Gong: permission-opener converts ~5–10x better.
 _PERMISSION_PATTERNS = [
-    r"(?:do|ek|2)\s*minute",
-    r"baat\s+kar\s+sak",  # baat kar sakti/sakte hoon
+    r"(?:do|ek|2)\s*min(?:ute)?",
+    r"baat\s+kar\s*sak",  # baat kar sakti / karsakti (live collapsed spelling)
     r"busy\s+(?:to|ho|hain)",
     r"abhi\s+(?:sahi\s+)?(?:samay|time)",
     r"theek\s+(?:samay|time)\s+hai",
