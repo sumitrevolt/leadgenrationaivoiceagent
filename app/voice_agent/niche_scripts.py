@@ -239,7 +239,9 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
 _PERMISSION_TOKENS = (
     "do minute",
     "ek minute",
+    "min baat kar",  # short numeric form ("2 min baat karsakti hu")
     "baat kar sak",
+    "baat karsak",  # collapsed spelling (no space) seen on live Smartflo openers
     "abhi busy",
     "abhi sahi samay",
     "convenient",

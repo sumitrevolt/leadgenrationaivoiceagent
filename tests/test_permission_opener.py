@@ -45,6 +45,30 @@ def test_disclosure_plus_permission_compose(monkeypatch):
     assert check_missing_permission([{"role": "assistant", "content": opener}]) is None
 
 
+def test_permission_not_doubled_for_collapsed_spelling(monkeypatch):
+    """LIVE REGRESSION (2026-09-16): the real Smartflo inbound opener asked permission
+    as "Kya mai apse 2 min baat karsakti hu?" - collapsed verb, short numeric unit.
+    The old token list ("baat kar sak", "do minute") missed it, so ensure_permission_ask
+    appended a SECOND ask and the greeting doubled to ~6.5s of dead air before the
+    caller could speak. Guard: an opener that already asks must pass through unchanged."""
+    monkeypatch.setenv("PERMISSION_OPENER", "1")
+    base = (
+        "Namaste! Main LeadGen AI se Swara bol rahi hu. Mai apki baat sun aur samjh sakti hu. "
+        "Kya mai apse 2 min baat karsakti hu? Aapki kya madad kar sakti hoon?"
+    )
+    assert ensure_permission_ask(base) == base
+
+
+def test_qa_has_permission_ask_detects_collapsed_spelling():
+    """Same live phrasing must be recognised by the shared QA detector, otherwise
+    the opener would skip the ask while QA flagged it as missing."""
+    from app.voice_agent.qa_checks import has_permission_ask
+
+    assert has_permission_ask("Kya mai apse 2 min baat karsakti hu?")
+    assert has_permission_ask("kya do minute baat kar sakti hoon?")
+    assert not has_permission_ask("Namaste, main Swara hoon")
+
+
 def test_kb_min_score_default():
     """D-12: KB score gate default raised 0.05 -> 0.35 (regression guard)."""
     from app.voice_agent import telecaller_brain as tb
