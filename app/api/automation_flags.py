@@ -530,7 +530,4 @@ AUTOMATION_FLAGS = [
     # ledger grows ~255k/year. The authoritative job record is automation_logs; this
     # is a duplicate audit trail. Set 0 to stop writing it without touching the jobs.
     "ROUTINE_TASK_LEDGER",
-    # --- 31-Agent activation flags (owner-mandated, maximum automation) ---
-    "LEAD_SCORING",  # neha: lead scoring engine (auto-score prospects)
-    "REPLY_AGENT",  # riya: inbound reply agent (auto-classify + draft responses)
 ]
