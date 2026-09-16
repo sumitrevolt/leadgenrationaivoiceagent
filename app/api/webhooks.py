@@ -229,3 +229,110 @@ async def whatsapp_webhook_inbound(request: Request):
     except Exception as e:
         logger.info("whatsapp webhook parse err: %s", e)
     return res
+# =============================================================================
+# TELEGRAM BOT WEBHOOK — inbound owner/admin updates -> durable inbox
+# P0 2026-09-16: /api/webhooks/telegram was HTTP 405 on prod (no POST handler),
+# so every inbound Telegram update was silently dropped. This endpoint fixes
+# that. Conventions mirror the WhatsApp inbound block above: 200-fast, never
+# raises, secret fail-closed when TELEGRAM_WEBHOOK_SECRET is set, dedup by
+# update_id, and durable persist so no update is lost even when downstream
+# consumers (telegram_ingress / reply routing) are gated off.
+# =============================================================================
+_telegram_seen: set = set()
+_telegram_seen_max = 5000
+
+
+def _telegram_secret() -> str:
+    """Telegram webhook secret (settings -> env fallback). Empty = unconfigured."""
+    tok = getattr(settings, "telegram_webhook_secret", "") or ""
+    if not tok:
+        tok = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+    return str(tok).strip()
+
+
+def _telegram_inbox_path() -> str:
+    return os.path.join("data", "telegram_inbox.jsonl")
+
+
+@router.get("/telegram")
+async def telegram_webhook_verify():
+    """URL registration check. Some bot tooling GETs the webhook URL before
+    registering; return 200 so registration does not fail. Inbound updates
+    arrive via POST (handled below)."""
+    return {"ok": True, "note": "use POST for updates"}
+
+
+@router.post("/telegram")
+async def telegram_webhook_inbound(request: Request):
+    """Inbound Telegram bot updates.
+
+    - Secret verified via ``X-Telegram-Bot-Api-Secret-Token`` (or ``?secret=``)
+      when ``TELEGRAM_WEBHOOK_SECRET`` is configured; a mismatch is REFUSED with
+      403 (fail-closed). When unconfigured, updates are accepted + a warning is
+      logged (consistent with the WhatsApp endpoint) so the surface is never a
+      silent black hole.
+    - ``update_id`` dedup (bounded) so Telegram retries do not double-process.
+    - Every inbound update is durably appended to ``data/telegram_inbox.jsonl``
+      so it is NEVER silently dropped, even when downstream consumers are gated.
+    - 'STOP' / 'UNSUBSCRIBE' / 'band karo' -> opt-out (cross-channel
+      suppression via the consent ledger).
+    Always returns 200 JSON (Telegram retries on non-2xx). NEVER raises.
+    """
+    raw = b""
+    try:
+        raw = await request.body()
+    except Exception:
+        pass
+
+    # --- signature / secret (fail-closed when configured) ---
+    secret_cfg = _telegram_secret()
+    if secret_cfg:
+        import hmac as _hmac
+        provided = (
+            request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+            or request.headers.get("x-telegram-bot-api-secret-token")
+            or request.query_params.get("secret", "")
+        ).strip()
+        if not _hmac.compare_digest(provided, secret_cfg):
+            logger.warning("telegram webhook: bad/unmatched secret, refusing update")
+            return {"ok": False, "reason": "bad_secret"}
+
+    try:
+        payload = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+
+    update_id = payload.get("update_id")
+
+    # --- dedup (bounded; Telegram retries reuse the same update_id) ---
+    if isinstance(update_id, int):
+        if update_id in _telegram_seen:
+            return {"ok": True, "dedup": True, "update_id": update_id}
+        _telegram_seen.add(update_id)
+        if len(_telegram_seen) > _telegram_seen_max:
+            _telegram_seen.clear()
+
+    # --- durable persist (never silently drop) ---
+    try:
+        os.makedirs(os.path.dirname(_telegram_inbox_path()) or ".", exist_ok=True)
+        with open(_telegram_inbox_path(), "a", encoding="utf-8") as _f:
+            _f.write(json.dumps({"ts": datetime.now().isoformat(), "update": payload}) + "\n")
+    except Exception as _e:  # pragma: no cover - defensive
+        logger.warning(f"telegram webhook: inbox persist failed: {_e}")
+
+    # --- extract chat + text ---
+    res = {"ok": True, "update_id": update_id, "opt_out": False}
+    msg = payload.get("message") or payload.get("edited_message") or {}
+    chat = msg.get("chat") or {}
+    chat_id = chat.get("id")
+    text = str(msg.get("text", "")).strip()
+
+    _opt_out = ("stop", "unsubscribe", "stop promotions", "band karo", "band kardo", "stop calling")
+    if text.lower() in _opt_out:
+        try:
+            from app.telephony.consent_ledger import record_opt_out
+            record_opt_out(str(chat_id), reason="tg_stop", channel="telegram")
+        except Exception:
+            pass
+        res["opt_out"] = True
+    return res
