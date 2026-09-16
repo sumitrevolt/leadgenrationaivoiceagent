@@ -165,8 +165,8 @@ def run_checks() -> dict[str, Any]:
     add("dnd_config", telephony_ok, "compliance gate creds available", 5)
     add(
         "compliance_flags",
-        os.environ.get("WHATSAPP_AUTO_SEND", "0") != "1",
-        "ban-risky auto-send OFF (TRAI-safe posture)",
+        os.environ.get("SALES_AUTOPILOT_WHATSAPP_ENABLED", "0") != "1",
+        "cold/bulk WA auto-send OFF (ban-safe posture)",
         5,
     )
     # Latency knobs present (Phase-3)

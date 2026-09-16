@@ -178,6 +178,10 @@ _NOINPUT_MS = float(os.environ.get("SMARTFLO_NOINPUT_MS", "12000"))
 
 # Send timeout (WS backpressure guard)
 _SEND_TIMEOUT_S = 3.0
+_STT_PROVIDER_DEADLINE_S = 4.0
+_REPLY_DEADLINE_S = 10.0
+_TTS_DEADLINE_S = 8.0
+_MAX_UTTERANCE_MS = 12000.0
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +377,16 @@ class SmartfloStreamSession:
         # bot spoke → barge-in could never fire. Now _say() schedules a task
         # and the loop keeps consuming frames.
         self._play_task: asyncio.Task | None = None
+        self._turn_task: asyncio.Task | None = None
+        self._pending_utterance: bytes | None = None
+        self._telecaller_init_task: asyncio.Task | None = None
+        self._brain_init_task: asyncio.Task | None = None
+        self._buffer_ms = 0.0
+        self._stt_bias: str | None = None
+        self._turns = 0
+        self._stt_empty = 0
+        self._reply_timeouts = 0
+        self._greeting_active = False
 
         # Diagnostics
         self._media_frames = 0
@@ -397,7 +411,7 @@ class SmartfloStreamSession:
             f"(STT={STT_AVAILABLE} TTS={TTS_AVAILABLE} audioop={_AUDIOOP_OK})"
         )
         try:
-            while True:
+            while not self._closed:
                 raw = await asyncio.wait_for(self.ws.receive_text(), timeout=60.0)
                 await self._on_event(raw)
         except asyncio.TimeoutError:
@@ -558,19 +572,25 @@ class SmartfloStreamSession:
         if rms > self._caller_rms_max:
             self._caller_rms_max = rms
 
+        # Retain one following utterance while AI works, without an unbounded
+        # audio backlog. Control frames (stop/DTMF) never wait behind a turn.
+        if self._closed or self._pending_utterance is not None:
+            return
+        duration_ms = len(mulaw) * 1000.0 / SMARTFLO_SAMPLE_RATE
         is_speech = rms >= _VAD_RMS
 
         if is_speech:
             self._had_speech = True
             self._speech_buf.append(pcm_16k)
-            self._speech_ms += FRAME_MS
+            self._speech_ms += duration_ms
+            self._buffer_ms += duration_ms
             self._silence_ms = 0.0
 
             # Barge-in detection
             playback_active = self._speaking or (
                 self._play_task is not None and not self._play_task.done()
             )
-            if playback_active:
+            if playback_active and not self._greeting_active:
                 self._barge_frames += 1
                 if self._barge_frames >= 3:  # ~60ms of speech = barge-in
                     await self._barge_in()
@@ -578,7 +598,12 @@ class SmartfloStreamSession:
                 self._barge_frames = 0
         else:
             self._barge_frames = max(0, self._barge_frames - 1)
-            self._silence_ms += FRAME_MS
+            self._silence_ms += duration_ms
+            if self._had_speech:
+                # Preserve pauses inside words/sentences for Whisper. Removing
+                # every quiet packet splices unrelated sounds together.
+                self._speech_buf.append(pcm_16k)
+                self._buffer_ms += duration_ms
 
             # Utterance boundary: had speech + enough trailing silence
             if (
@@ -586,21 +611,54 @@ class SmartfloStreamSession:
                 and self._speech_ms >= _MIN_SPEECH_MS
                 and self._silence_ms >= _SILENCE_MS
             ):
-                await self._on_utterance()
+                self._queue_utterance()
+        if self._buffer_ms >= _MAX_UTTERANCE_MS:
+            self._queue_utterance()
 
-    async def _on_utterance(self) -> None:
-        """Process a completed user utterance: STT → LLM → TTS → send."""
-        if not self._speech_buf:
-            return
+    def _take_utterance(self) -> bytes:
         pcm_16k = b"".join(self._speech_buf)
         self._speech_buf = []
         self._speech_ms = 0.0
         self._silence_ms = 0.0
         self._had_speech = False
+        self._buffer_ms = 0.0
+        return pcm_16k
+
+    def _queue_utterance(self) -> None:
+        pcm = self._take_utterance()
+        if self._turn_task is None or self._turn_task.done():
+            self._turn_task = asyncio.create_task(self._run_turns(pcm))
+        else:
+            self._pending_utterance = pcm
+
+    async def _run_turns(self, pcm: bytes) -> None:
+        while pcm and not self._closed:
+            await self._on_utterance(pcm)
+            pcm = self._pending_utterance or b""
+            self._pending_utterance = None
+
+    async def _on_utterance(self, pcm_16k: bytes | None = None) -> None:
+        """Process a completed user utterance: STT → LLM → TTS → send."""
+        if pcm_16k is None:
+            pcm_16k = self._take_utterance()
+        if not pcm_16k or self._closed:
+            return
+        self._turns += 1
+        started = time.monotonic()
 
         # STT
-        text = await self._stt(pcm_16k)
+        try:
+            text = await asyncio.wait_for(
+                self._stt(pcm_16k), timeout=3 * _STT_PROVIDER_DEADLINE_S + 0.5
+            )
+        except Exception as exc:
+            logger.warning("[smartflo-stream] STT turn failed type=%s", type(exc).__name__)
+            text = ""
+        stt_ms = int((time.monotonic() - started) * 1000)
         if not text or not text.strip():
+            self._stt_empty += 1
+            logger.warning("[smartflo-stream] turn=%s stt_empty=true stt_ms=%s", self._turns, stt_ms)
+            await self._say("Maaf kijiye, awaaz saaf nahi aayi. Ek baar phir kahiye?")
             return
         logger.info(f"[smartflo-stream] user: {text.strip()}")
         self.hist.append({"role": "user", "content": text.strip()})
@@ -611,9 +669,25 @@ class SmartfloStreamSession:
         if _is_hearing_check(text):
             reply = "Haan ji, main aapko sun rahi hoon. Aap apni requirement batayiye."
         else:
-            reply = await self._llm_reply(text.strip())
+            try:
+                reply = await asyncio.wait_for(
+                    self._llm_reply(text.strip()), timeout=_REPLY_DEADLINE_S
+                )
+            except asyncio.TimeoutError:
+                self._reply_timeouts += 1
+                logger.warning("[smartflo-stream] reply deadline turn=%s", self._turns)
+                reply = "Maaf kijiye, jawab dene mein dikkat aa rahi hai. Apna sawaal dobara batayenge?"
+            except Exception as exc:
+                logger.warning("[smartflo-stream] reply failed type=%s", type(exc).__name__)
+                reply = "Maaf kijiye, apna sawaal dobara batayenge?"
         if not reply:
+            reply = "Maaf kijiye, apna sawaal dobara batayenge?"
+        if self._closed:
             return
+        logger.info(
+            "[smartflo-stream] turn=%s stt_ms=%s reply_ready_ms=%s",
+            self._turns, stt_ms, int((time.monotonic() - started) * 1000),
+        )
         logger.info(f"[smartflo-stream] bot: {reply[:120]}")
         self.hist.append({"role": "assistant", "content": reply})
 
@@ -628,24 +702,23 @@ class SmartfloStreamSession:
         if not STT_AVAILABLE:
             logger.warning("[smartflo-stream] STT unavailable")
             return ""
-        try:
-            # Try Groq Whisper first (free, fast)
-            if _OPENAI_SDK_OK and _groq_key():
-                return await self._groq_stt(pcm_16k)
-        except Exception as e:
-            logger.debug(f"[smartflo-stream] Groq STT failed: {e}")
-        try:
-            # Gemini audio-in (multimodal)
-            if _GENAI_OK:
-                return await self._gemini_stt(pcm_16k)
-        except Exception as e:
-            logger.debug(f"[smartflo-stream] Gemini STT failed: {e}")
-        try:
-            # Local whisper/fallback
-            if _LOCAL_STT_OK:
-                return await self._local_stt(pcm_16k)
-        except Exception as e:
-            logger.debug(f"[smartflo-stream] local STT failed: {e}")
+        for name, available, transcribe in (
+            ("groq", _OPENAI_SDK_OK and bool(_groq_key()), self._groq_stt),
+            ("gemini", _GENAI_OK, self._gemini_stt),
+            ("local", _LOCAL_STT_OK, self._local_stt),
+        ):
+            if not available:
+                continue
+            try:
+                text = await asyncio.wait_for(
+                    transcribe(pcm_16k), timeout=_STT_PROVIDER_DEADLINE_S
+                )
+                if text and text.strip():
+                    return text.strip()
+            except Exception as exc:
+                logger.warning(
+                    "[smartflo-stream] STT provider=%s failed type=%s", name, type(exc).__name__
+                )
         return ""
 
     async def _groq_stt(self, pcm_16k: bytes) -> str:
@@ -674,15 +747,20 @@ class SmartfloStreamSession:
 
     async def _gemini_stt(self, pcm_16k: bytes) -> str:
         """Gemini multimodal audio-in STT."""
-        from app.voice_agent.free_ai import gemini_audio_transcribe
+        from app.telephony.vobiz_stream import VobizStreamSession
 
-        return await gemini_audio_transcribe(pcm_16k, sample_rate=16000)
+        return await VobizStreamSession._gemini_transcribe(self, pcm_16k)
 
     async def _local_stt(self, pcm_16k: bytes) -> str:
         """Local vosk/faster-whisper STT fallback."""
-        from app.voice_agent.free_ai import local_stt
+        from app.telephony.vobiz_stream import VobizStreamSession
 
-        return await local_stt(pcm_16k, sample_rate=16000)
+        return await VobizStreamSession._whisper_transcribe(self, pcm_16k)
+
+    def _get_stt_bias(self) -> str:
+        from app.telephony.vobiz_stream import VobizStreamSession
+
+        return VobizStreamSession._get_stt_bias(self)
 
     # ------------------------------------------------------------------ #
     # LLM reply (reuse telecaller_brain / free_ai)
@@ -706,13 +784,23 @@ class SmartfloStreamSession:
         try:
             if self._telecaller is None and not getattr(self, "_telecaller_tried", False):
                 self._telecaller_tried = True
-                from app.voice_agent.telecaller_brain import TelecallerBrain
 
-                self._telecaller = TelecallerBrain(
-                    niche=self.niche,
-                    client_id=self.client_id,
-                    client_name=self.client_name,
+                def build_telecaller():
+                    from app.voice_agent.telecaller_brain import TelecallerBrain
+
+                    return TelecallerBrain(
+                        niche=self.niche,
+                        client_id=self.client_id,
+                        client_name=self.client_name,
+                    )
+
+                self._telecaller_init_task = asyncio.create_task(
+                    asyncio.to_thread(build_telecaller)
                 )
+            if self._telecaller is None and self._telecaller_init_task is not None:
+                # A reply deadline must not discard cold initialization; the
+                # next turn reuses the same result instead of disabling Swara.
+                self._telecaller = await asyncio.shield(self._telecaller_init_task)
             if self._telecaller:
                 # Signature is reply(history, user_text) - argument order matters.
                 reply = await self._telecaller.reply(self.hist, user_text)
@@ -727,12 +815,17 @@ class SmartfloStreamSession:
             if self._brain is None and not getattr(self, "_brain_tried", False):
                 self._brain_tried = True
                 try:
-                    from app.voice_agent.llm_brain import LLMBrain
+                    def build_brain():
+                        from app.voice_agent.llm_brain import LLMBrain
 
-                    self._brain = LLMBrain()
+                        return LLMBrain()
+
+                    self._brain_init_task = asyncio.create_task(asyncio.to_thread(build_brain))
                 except Exception as e:
                     logger.warning(f"[smartflo-stream] LLMBrain unavailable: {e}")
                     self._brain = None
+            if self._brain is None and self._brain_init_task is not None:
+                self._brain = await asyncio.shield(self._brain_init_task)
             if self._brain is not None:
                 _g = None
                 gin = None
@@ -796,13 +889,19 @@ class SmartfloStreamSession:
             return
         if self._closed:
             return
+        # The mandatory initial disclosure must finish, even if the caller
+        # speaks over its synthesis/playback. Keep the receive loop independent.
+        if self._greeting_active and self._play_task is not None:
+            await self.wait_playback()
+            if self._closed:
+                return
         self._cancel_playback()
         generation = self._playback_generation
         self._play_task = asyncio.create_task(self._speak_task(text, generation))
 
     async def _speak_task(self, text: str, generation: int) -> None:
         try:
-            pcm_16k = await self._tts(text)
+            pcm_16k = await asyncio.wait_for(self._tts(text), timeout=_TTS_DEADLINE_S)
             if not pcm_16k or self._closed or generation != self._playback_generation:
                 return
             # Downsample 16kHz → 8kHz, encode to mulaw
@@ -815,6 +914,9 @@ class SmartfloStreamSession:
             raise
         except Exception as e:
             logger.warning(f"[smartflo-stream] TTS/send failed: {e}")
+        finally:
+            if generation == self._playback_generation:
+                self._greeting_active = False
 
     # ------------------------------------------------------------------ #
     # Mark registry (playback-completion acks) — PDF §3.2
@@ -897,9 +999,11 @@ class SmartfloStreamSession:
         # Decode MP3 → PCM16 via pydub
         from pydub import AudioSegment
 
-        seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
-        seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
-        return seg.raw_data
+        def decode() -> bytes:
+            seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
+            return seg.set_frame_rate(16000).set_channels(1).set_sample_width(2).raw_data
+
+        return await asyncio.to_thread(decode)
 
     async def _send_mulaw_audio(self, mulaw: bytes, generation: int) -> None:
         """Send mulaw audio to Smartflo in 160-byte chunks with chunk counter."""
@@ -1042,7 +1146,7 @@ class SmartfloStreamSession:
         """Caller-supplied or default opener, BEFORE AI-disclosure /
         permission-ask normalisation. Mirrors ``vobiz_stream._opening_line_raw``."""
         return self._caller_opening_line or (
-            f"Namaste! Main {self.client_name} se Swara bol rahi hu. Mai apki baat sun aur samjh sakti hu. "
+            f"Namaste! Main {self.client_name} ki AI assistant Swara hoon. "
             "Aapki kya madad kar sakti hoon?"
         )
 
@@ -1072,6 +1176,7 @@ class SmartfloStreamSession:
             opener = raw
         self.hist.append({"role": "assistant", "content": opener})
         await self._say(opener)
+        self._greeting_active = True
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -1100,6 +1205,22 @@ class SmartfloStreamSession:
         if self._closed:
             return
         self._closed = True
+        self._pending_utterance = None
+        self._take_utterance()
+        turn = self._turn_task
+        if turn is not None and turn is not asyncio.current_task() and not turn.done():
+            turn.cancel()
+            await asyncio.gather(turn, return_exceptions=True)
+        init_tasks = [t for t in (self._telecaller_init_task, self._brain_init_task) if t]
+        for task in init_tasks:
+            if not task.done():
+                task.cancel()
+        if init_tasks:
+            await asyncio.gather(*init_tasks, return_exceptions=True)
+        logger.info(
+            "[smartflo-stream] summary direction=%s frames=%s turns=%s stt_empty=%s reply_timeouts=%s",
+            self.direction, self._media_frames, self._turns, self._stt_empty, self._reply_timeouts,
+        )
         # Stop any in-flight playback before tearing down the socket
         self._cancel_playback()
         # Persist transcript (best-effort)
