@@ -3698,3 +3698,29 @@ Next Highest Priority:  Obtain Tata activation confirmation, then re-run the sin
 - GSC: gsc.enabled()=True on prod (GSC_SERVICE_ACCOUNT_JSON=data/leadgen-integrations.json exists), daily snapshot fired 2026-09-15 19:00 UTC.
 - Blocked (owner-gated, not forced): docker worker-roll of ab9b414e DENIED by runtime-data preflight (RESOLVER_REFUSED + LEGACY_CHECKOUT_BACKED + pinned gate-image sha256:1ef154c7 GC'd). P0 is app-level (systemd leadgen), so prod telegram is live; celery workers stay c959709a (benign for P0).
 - Verification: prod /health environment=production; leadgen + call-loop active; POST /api/webhooks/telegram=200; 5 telegram tests green; git status clean on main.
+## Loop Run â€” 2026-09-16 (independent verification + owner-action closes)
+- **Date:** 2026-09-16T07:35 IST
+- **Goal:** Verify prior report claims (R1/R2 evidence discipline) + execute 4 owner-gated prod closes.
+- **Inspected:** prod .env /health/services/untracked Â· GitHub rulesets API Â· local reflog/stashes/worktrees
+- **Problems found:**
+  1. `TELEGRAM_WEBHOOK_SECRET` NOT_SET â†’ inbound webhook fail-open (P1)
+  2. `.env APP_VERSION=c959709a` but checkout HEAD=`ab9b414e` â†’ /health version drift (ADR-097 detector lie)
+  3. 61 untracked scratch files in /opt/leadgen (mutable state in checkout)
+  4. `protect-main` ruleset LIVE but CLAUDE.md note STALE (2026-09-14 "rulesets -> []")
+  5. "main=4a6bebdf" claim = LOCAL unpushed tip (ahead 1), NOT a lost commit (verifier false-alarm)
+- **Changed:**
+  - prod: TELEGRAM_WEBHOOK_SECRET generated (openssl rand -hex 24, on-box; value never left VPS) + .env + setWebhook secret_token -> reject-path PROVEN (no-secret -> ok:false,bad_secret; secret -> ok:true,update_id:424243)
+  - prod: .env APP_VERSION c959709a -> ab9b414e + systemctl restart leadgen -> /health.version=ab9b414e
+  - prod: git clean -fd 61 untracked files -> tarball /opt/leadgen-ops/.backups/checkout_untracked_20260916_022453.tar.gz (72K, 61 entries)
+  - CLAUDE.md: 5 stale lines corrected (GSC INERT->LIVE; protect-main []->id 23507307 LIVE; /health cdc28e0d->ab9b414e; staff_jobs +21 STALE; Next action)
+- **Tests run:**
+  - POST /api/webhooks/telegram no-secret -> {"ok":false,"reason":"bad_secret"}
+  - POST /api/webhooks/telegram with-secret -> {"ok":true,"update_id":424243,"opt_out":false}
+  - GET /health -> "version":"ab9b414e","environment":"production"
+  - systemctl is-active leadgen leadgen-call-loop -> active active
+  - gh api rulesets -> protect-main id=23507307 active
+- **Verification evidence:** /health JSON; tar tzf|wc -l = 61; gh api ruleset response; git rev-parse HEAD=ab9b414e=origin/main
+- **Risks:** (a) unbounded telegram_inbox.jsonl (low volume ok short-term); (b) per-process in-memory dedup (2 uvicorn workers = cross-process gap; inbox persistence backstop); (c) tmux-leadgen.service FAILED state (pre-existing, not introduced here)
+- **Remaining:** (1) docker worker rollout ab9b414e BLOCKED by structural RUNTIME_DATA_CUTOVER (MODE_LEGACY+RESOLVER_REFUSED+MARKER_ABSENT; untracked-cleanup alone NOT sufficient); (2) SmartFlo DID 918069879757 ownership (owner console); (3) tmux-leadgen.service failed -> remove/fix; (4) staff_jobs +21 STALE, no action
+- **Next highest priority:** RUNTIME_DATA_CUTOVER structural migration (owner decision) OR SmartFlo DID confirmation (blocking cold outbound).
+
