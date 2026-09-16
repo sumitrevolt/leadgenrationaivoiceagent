@@ -1,7 +1,7 @@
 """Unit tests for free_ai realtime LLM RACE (LLM_REALTIME_RACE, 2026-08-23).
 
 Owner directive: "enterprise grade chat, 1 second bhi dead-air nahi". Live prod
-evidence (turn_metrics 2026-08-23): sequential ladder me llm_first 2189-6839ms â€”
+evidence (turn_metrics 2026-08-23): sequential ladder me llm_first 2189-6839ms —
 ek stalled primary poora _CALL_TIMEOUT_S=8s kha sakta tha. Race = top-2 providers
 SIMULTANEOUS, first content token wins, loser cancelled.
 """
@@ -40,7 +40,7 @@ class _FakeStream:
 
 
 def _install_fakes(monkeypatch, mode: str, events: dict[str, list]):
-    """mode = 'fast' | 'slow' | 'boom' | 'empty' â€” sab providers ke liye uniform."""
+    """mode = 'fast' | 'slow' | 'boom' | 'empty' — sab providers ke liye uniform."""
 
     class _Completions:
         async def create(self, **kwargs):
@@ -87,7 +87,7 @@ async def test_race_winner_streams_and_loser_cancelled(monkeypatch):
     events: dict[str, list] = {"trip": [], "reset": [], "metric": []}
     _install_fakes(monkeypatch, "fast", events)
 
-    # groq fast, cerebras slow-create (loser) â€” per-provider override.
+    # groq fast, cerebras slow-create (loser) — per-provider override.
     def make_client(provider: str):
         if provider == "cerebras":
 
