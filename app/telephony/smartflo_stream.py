@@ -460,6 +460,9 @@ class SmartfloStreamSession:
             # Pull niche/client from customParameters (if set in Smartflo portal)
             params = start.get("customParameters") or start.get("custom_parameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
+            # Enterprise: LeadGen AI's own DID must pitch ai_marketing, not generic discovery
+            if (self.to_number or "").strip().endswith("918069879757") or self.niche == "general":
+                self.niche = "ai_marketing"
             self.client_id = params.get("client_id") or self.client_id
             self._lead_phone = (
                 params.get("lead_phone")
@@ -1039,7 +1042,7 @@ class SmartfloStreamSession:
         """Caller-supplied or default opener, BEFORE AI-disclosure /
         permission-ask normalisation. Mirrors ``vobiz_stream._opening_line_raw``."""
         return self._caller_opening_line or (
-            f"Namaste! Main {self.client_name} se Swara bol rahi hu. Mai apki baat sun aur samjh sakti hu. Kya mai apse 2 min baat karsakti hu? "
+            f"Namaste! Main {self.client_name} se Swara bol rahi hu. Mai apki baat sun aur samjh sakti hu. "
             "Aapki kya madad kar sakti hoon?"
         )
 
