@@ -1039,7 +1039,7 @@ class SmartfloStreamSession:
         """Caller-supplied or default opener, BEFORE AI-disclosure /
         permission-ask normalisation. Mirrors ``vobiz_stream._opening_line_raw``."""
         return self._caller_opening_line or (
-            f"Namaste! Main {self.client_name} ki AI assistant bol rahi hoon. "
+            f"Namaste! Main {self.client_name} se Swara bol rahi hu. Mai apki baat sun aur samjh sakti hu. Kya mai apse 2 min baat karsakti hu? "
             "Aapki kya madad kar sakti hoon?"
         )
 
