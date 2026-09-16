@@ -142,7 +142,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "compliance.dpdp_audit",
         # REPLACE added 2026-07-27 (owner-authorised operation correction, not a
         # new store): `_atomic_write_lines(path, lines)` writes
-        # `path + ".tmp_dpdp"` and then `os.replace(tmp, path)` â€” the durable
+        # `path + ".tmp_dpdp"` and then `os.replace(tmp, path)` — the durable
         # authority is rewritten atomically. The entry always covered this file;
         # only the declared operation set was under-stated.
         "access_modes": ["APPEND", "READ", "CREATE", "REPLACE"],
@@ -256,7 +256,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "dev-control",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Must move with devcontrol.external_missions.store â€” a read that "
+            "Must move with devcontrol.external_missions.store — a read that "
             "outlives its writer's root points at an empty directory and reports "
             "'no such mission' instead of failing."
         ),
@@ -556,7 +556,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": (
             "Temp and target must stay on ONE filesystem or os.replace stops "
-            "being atomic and an interrupted flip leaves truncated JSON â€” which "
+            "being atomic and an interrupted flip leaves truncated JSON — which "
             "the fail-closed reader treats as ENGAGED, so the failure mode is "
             "safe but must not become routine."
         ),
