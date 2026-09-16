@@ -3689,3 +3689,12 @@ Next Highest Priority:  Obtain Tata activation confirmation, then re-run the sin
   - `fire_calls.py` + `app/telephony/*` Vobiz removal edits still uncommitted in working tree (parallel-agent handoff hold)
   - GitHub branch protection: `main` ruleset still 404 (CI checks advisory)
 - **Next Highest Priority:** SAL-157/SCC-158 resumption + commit parallel-agent Vobiz-removal edits
+
+
+## 2026-09-16 — P0 telegram webhook close + branch cleanup + GSC live
+- Goal: Close P0 (POST /api/webhooks/telegram 405->200), finish merge-all-PRs+branches+cleanup, confirm GSC live.
+- P0: added GET+POST /telegram to app/api/webhooks.py (secret fail-closed via X-Telegram-Bot-Api-Secret-Token, bounded update_id dedup, durable data/telegram_inbox.jsonl, STOP opt-out -> consent_ledger). tests/test_telegram_webhook.py 5/5 green. Commit ab9b414e. PROD verified: GET 200, POST 200 ok:true, inbox writing.
+- Branch cleanup: 6 open PRs squash-merged (5 dependabot + #511 codex). 45 stale remote branches deleted (19 merged + 8 superseded + 11 Vobiz-era + 2 ops-merged + PR heads); tips in docs/evidence/BRANCH_TIPS_PRE_CLEANUP_20260916.json (reversible via `git branch <n> <sha>`). 3 stale local branches deleted, _rel24x7 worktree pruned. protect-main ruleset live (deletion + non_fast_forward).
+- GSC: gsc.enabled()=True on prod (GSC_SERVICE_ACCOUNT_JSON=data/leadgen-integrations.json exists), daily snapshot fired 2026-09-15 19:00 UTC.
+- Blocked (owner-gated, not forced): docker worker-roll of ab9b414e DENIED by runtime-data preflight (RESOLVER_REFUSED + LEGACY_CHECKOUT_BACKED + pinned gate-image sha256:1ef154c7 GC'd). P0 is app-level (systemd leadgen), so prod telegram is live; celery workers stay c959709a (benign for P0).
+- Verification: prod /health environment=production; leadgen + call-loop active; POST /api/webhooks/telegram=200; 5 telegram tests green; git status clean on main.

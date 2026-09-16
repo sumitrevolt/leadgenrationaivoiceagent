@@ -110,6 +110,8 @@ Poora repo har session dobara mat padho — ek **Graphify code knowledge-graph**
 
 ## Current State (Tier-1 working memory — max 40 lines, monthly prune → decisions.md)
 
+> 🔴 **CORRECTED 2026-09-16 (live):** P0 `POST /api/webhooks/telegram` CLOSED — 405→200 LIVE on prod (commit `ab9b414e`, fresh handler in `app/api/webhooks.py`: secret fail-closed + `update_id` dedup + durable `data/telegram_inbox.jsonl` + STOP opt-out; 5 tests green; prod verified POST=200 ok:true + inbox writing). **GSC LIVE** (`gsc.enabled()=True`; daily snapshot fired 2026-09-15 19:00 UTC — the "INERT" line below is now stale). **Branch cleanup done:** 6 PRs merged + 45 stale remote branches deleted (tips reversible via `docs/evidence/BRANCH_TIPS_PRE_CLEANUP_20260916.json`), `protect-main` ruleset LIVE. Main = `ac8ae50c..ab9b414e`; local only `main` + `codex/voice-hearing-check`. **OPEN (owner-gated, not forced):** docker worker-roll of `ab9b414e` DENIED by runtime-data preflight (RESOLVER_REFUSED + LEGACY_CHECKOUT_BACKED + pinned gate-image GC’d) — celery workers stay `c959709a`; P0 is app-level (systemd `leadgen`) so prod telegram is live regardless.
+
 **Sprint goal:** GTM 0→1 — pehle paid customers on Marketing product (jiya makeover = only real paying customer); mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint), 1st paid target ≤7d from 2026-07-02.
 
 **Last 3 significant decisions:**
