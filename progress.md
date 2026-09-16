@@ -3698,13 +3698,13 @@ Next Highest Priority:  Obtain Tata activation confirmation, then re-run the sin
 - GSC: gsc.enabled()=True on prod (GSC_SERVICE_ACCOUNT_JSON=data/leadgen-integrations.json exists), daily snapshot fired 2026-09-15 19:00 UTC.
 - Blocked (owner-gated, not forced): docker worker-roll of ab9b414e DENIED by runtime-data preflight (RESOLVER_REFUSED + LEGACY_CHECKOUT_BACKED + pinned gate-image sha256:1ef154c7 GC'd). P0 is app-level (systemd leadgen), so prod telegram is live; celery workers stay c959709a (benign for P0).
 - Verification: prod /health environment=production; leadgen + call-loop active; POST /api/webhooks/telegram=200; 5 telegram tests green; git status clean on main.
-## Loop Run â€” 2026-09-16 (independent verification + owner-action closes)
+## Loop Run — 2026-09-16 (independent verification + owner-action closes)
 - **Date:** 2026-09-16T07:35 IST
 - **Goal:** Verify prior report claims (R1/R2 evidence discipline) + execute 4 owner-gated prod closes.
 - **Inspected:** prod .env /health/services/untracked Â· GitHub rulesets API Â· local reflog/stashes/worktrees
 - **Problems found:**
-  1. `TELEGRAM_WEBHOOK_SECRET` NOT_SET â†’ inbound webhook fail-open (P1)
-  2. `.env APP_VERSION=c959709a` but checkout HEAD=`ab9b414e` â†’ /health version drift (ADR-097 detector lie)
+  1. `TELEGRAM_WEBHOOK_SECRET` NOT_SET → inbound webhook fail-open (P1)
+  2. `.env APP_VERSION=c959709a` but checkout HEAD=`ab9b414e` → /health version drift (ADR-097 detector lie)
   3. 61 untracked scratch files in /opt/leadgen (mutable state in checkout)
   4. `protect-main` ruleset LIVE but CLAUDE.md note STALE (2026-09-14 "rulesets -> []")
   5. "main=4a6bebdf" claim = LOCAL unpushed tip (ahead 1), NOT a lost commit (verifier false-alarm)
@@ -3725,7 +3725,7 @@ Next Highest Priority:  Obtain Tata activation confirmation, then re-run the sin
 - **Next highest priority:** RUNTIME_DATA_CUTOVER structural migration (owner decision) OR SmartFlo DID confirmation (blocking cold outbound).
 
 
-## Loop Run â€” 2026-09-16T08:39 IST (re-verification of the 4-item prod-execution report + nuance corrections)
+## Loop Run — 2026-09-16T08:39 IST (re-verification of the 4-item prod-execution report + nuance corrections)
 - **Date:** 2026-09-16T08:39 IST
 - **Goal:** Independently verify the prior session's 4-item prod report (R1/R2 primitive-evidence discipline, no prose trust).
 - **Inspected:** prod SSH read-only (.env/health/untracked/services/backups/git) + local git forensics + GitHub rulesets API + origin/main source grep.
@@ -3734,12 +3734,12 @@ Next Highest Priority:  Obtain Tata activation confirmation, then re-run the sin
   2. **APP_VERSION** CONFIRMED: `/health` version=`ab9b414e` env=`production` Â· `.env APP_VERSION=ab9b414e`.
   3. **Untracked clean** CONFIRMED: `/opt/leadgen git status --porcelain` untracked = **0** Â· backup tarball `checkout_untracked_20260916_022453.tar.gz` = 73285 B present.
   4. **staff_jobs +21 = STALE** CONFIRMED: `git grep STAFF_JOBS_VALID origin/main -- app/` empty; prod runtime clean.
-- **Nuance #1 (MATERIAL CORRECTION to prior report):** prior line "celery workers stay `c959709a`" was IMPRECISE â€” no container is tagged `c959709a`. `c959709a` was only the stale `.env APP_VERSION` *string*. Actual prod image tags: `leadgen_worker`/`worker_heavy`/`worker_video`/`scheduler` = `1ef154c7ba9b`; 6x `worker_cli_*` = `d08f07c5`; `app_vobiz`+`mcp` = `8b7fd7c3`; new `app_staging` = `28ba5d4e`. **Conclusion unchanged**: none at `ab9b414e`, worker-roll still BLOCKED.
-- **Nuance #2 (precision):** "`STAFF_JOBS_VALID` imported nowhere" â€” true for APP RUNTIME, NOT literally: `docs/openclaw/scripts/tmp_metrics.py:15` still imports it (would raise `ImportError` if run). It is a non-shipped docs/dev script, not the prod runtime path, so the "prod clean" intent holds.
-- **Nuance #3 (now CLOSED):** `protect-main` ruleset re-verified this loop via authenticated GitHub API â€” `rulesets` = 1 entry, id=`23507307`, name=`protect-main`, target=`branch`, enforcement=`active` (created 2026-09-16T04:47 IST). **LIVE CONFIRMED**; the "not protected / rulesets -> []" 2026-09-14 note is definitively STALE.
+- **Nuance #1 (MATERIAL CORRECTION to prior report):** prior line "celery workers stay `c959709a`" was IMPRECISE — no container is tagged `c959709a`. `c959709a` was only the stale `.env APP_VERSION` *string*. Actual prod image tags: `leadgen_worker`/`worker_heavy`/`worker_video`/`scheduler` = `1ef154c7ba9b`; 6x `worker_cli_*` = `d08f07c5`; `app_vobiz`+`mcp` = `8b7fd7c3`; new `app_staging` = `28ba5d4e`. **Conclusion unchanged**: none at `ab9b414e`, worker-roll still BLOCKED.
+- **Nuance #2 (precision):** "`STAFF_JOBS_VALID` imported nowhere" — true for APP RUNTIME, NOT literally: `docs/openclaw/scripts/tmp_metrics.py:15` still imports it (would raise `ImportError` if run). It is a non-shipped docs/dev script, not the prod runtime path, so the "prod clean" intent holds.
+- **Nuance #3 (now CLOSED):** `protect-main` ruleset re-verified this loop via authenticated GitHub API — `rulesets` = 1 entry, id=`23507307`, name=`protect-main`, target=`branch`, enforcement=`active` (created 2026-09-16T04:47 IST). **LIVE CONFIRMED**; the "not protected / rulesets -> []" 2026-09-14 note is definitively STALE.
 - **rc=90 root cause RECONFIRMED structural:** prod `data/` = 2.8 GB lives INSIDE the git checkout; `scripts/runtime_data_preflight.py` tokens `MODE_LEGACY`/`MODE_EXTERNAL` + `RESOLVER_REFUSED` + `MARKER_INVALID`/`MARKER_UNREADABLE` present. Untracked-cleanup alone does NOT unblock the docker worker-roll. Not forcing it was the CORRECT call (fail-closed Â§5 gate).
 - **Git/push claims CONFIRMED:** `git ls-remote origin main` = `a14fcfaa` = `4a6bebdf` (parent) = `ab9b414e` (grandparent), all on `origin/main`. `a14fcfaa` touched `CLAUDE.md` (+6) + `progress.md` (+35) -> CLAUDE.md corrections genuinely committed.
-- **Parallel-agent dirty files in working tree (NOT touched, NOT committed):** `app/telephony/telephony_readiness.py` (M â€” `WHATSAPP_AUTO_SEND`->`SALES_AUTOPILOT_WHATSAPP_ENABLED` flag rename) + `app/utils/telegram_egress.py` (untracked, new 13.5K egress helper). These belong to a concurrent agent stream; per R7 no `git add -A`.
+- **Parallel-agent dirty files in working tree (NOT touched, NOT committed):** `app/telephony/telephony_readiness.py` (M — `WHATSAPP_AUTO_SEND`->`SALES_AUTOPILOT_WHATSAPP_ENABLED` flag rename) + `app/utils/telegram_egress.py` (untracked, new 13.5K egress helper). These belong to a concurrent agent stream; per R7 no `git add -A`.
 - **Tests run:** read-only SSH probes (no prod mutation) + `gh api rulesets` + `git grep` on origin/main + `git ls-remote`.
 - **Verification evidence:** /health JSON Â· untracked=0 Â· tarball 73285 B Â· `gh api` ruleset id=23507307 active Â· `git ls-remote` a14fcfaa Â· `git grep` app/ = empty.
 - **Risks:** (a) `telegram_inbox.jsonl` unbounded (no rotation); (b) per-process in-memory dedup (2 uvicorn workers = cross-process double-process window; inbox persistence is the backstop); (c) `tmux-leadgen.service` FAILED (pre-existing).
