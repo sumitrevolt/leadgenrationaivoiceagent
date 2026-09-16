@@ -402,3 +402,6 @@ scripts/vobiz_monitor.py
 deliverables/cleanup_admin_script.ps1
 $(docker
 /1
+# shell/PowerShell redirect artifacts (never commit)
+$/null
+/safe
