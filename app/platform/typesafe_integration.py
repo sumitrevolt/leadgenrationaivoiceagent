@@ -10,7 +10,20 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # TypeSafe API configuration
-TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", "241d1117d72428e4219b3678f7e5d4bdf97_bc46e2459837b670dd45f7c15ebecb90a3c4b9aece3981d20e565a16c5fe72c5")
+#
+# SECURITY (2026-09-17): a LIVE ~100-char API key was hardcoded here as the
+# `os.getenv(...)` FALLBACK DEFAULT (introduced in 7317f990). That is worse than
+# a plain literal, because `check_secrets.py` could not see it: its generic
+# pattern requires `KEY = "<value>"`, and the getenv form is `KEY = os.getenv(`
+# — so all 12 patterns missed it and `--all` reported "[OK] no secrets detected"
+# across 4272 files while the key sat in plain sight.
+#
+# The literal has been REMOVED. Read order:
+#   1. env var TYPEsafe_API_KEY   (production: /opt/leadgen/.env)
+#   2. "" (empty) -> the integration is INERT, not silently authenticated.
+# The exposed key is in git history (7317f990) and MUST be revoked/rotated by
+# the owner — deleting the line here does NOT un-expose it.
+TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", "").strip() or ""
 TYPEsafe_BASE_URL = "https://api.typesafe.ai/v1"
 
 @dataclass
@@ -38,9 +51,14 @@ class TypeSafeClient:
     """TypeSafe API client for AI judgments"""
     
     def __init__(self, api_key: str = TYPEsafe_API_KEY):
-        self.api_key = api_key
+        self.api_key = (api_key or "").strip()
         self.base_url = TYPEsafe_BASE_URL
         self._initialized = False
+        # Fail-closed: with no key configured the client stays INERT and never
+        # sends an unauthenticated/blank-Authorization request. Callers already
+        # treat `success=False` as "judgment unavailable" and fall back, so this
+        # degrades quietly instead of silently issuing broken calls.
+        self.enabled = bool(self.api_key)
     
     def initialize(self) -> TypeSafeResponse:
         """Initialize and test connection"""

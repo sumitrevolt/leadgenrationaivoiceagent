@@ -62,7 +62,54 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
             r"([A-Za-z0-9_\-]{32,})"
         ),
     ),
+    # 2026-09-17 HOLE CLOSED — env-lookup FALLBACK literal.
+    #
+    # This is the single most common way a real key leaks into source, and until
+    # now the scanner was BLIND to it. `os.getenv("KEY", "<live-value>")` did not
+    # match ANY of the patterns above, because the generic pattern requires a
+    # quote immediately after `=`, while the getenv form is `KEY = os.getenv(`.
+    # Proof: `python scripts/check_secrets.py --all` scanned 4272 files and
+    # printed "[OK] no secrets detected" while
+    # app/platform/typesafe_integration.py:13 held a live ~100-char key
+    # (commit 7317f990) and scripts/hourly_audit.py:12 held a live 32-char key.
+    # All 12 prior patterns missed both — `--all` mode was never the problem.
+    #
+    # Shape matched: <label><opt quoted><opt .get><( quoted-var , "LITERAL" )
+    # A literal of >=20 chars that is NOT a placeholder and is not obviously a
+    # non-secret (see FALLBACK_ALLOW below) is treated as a leak.
+    (
+        "env-lookup fallback literal (getenv/os.environ.get default)",
+        re.compile(
+            r"(?i)\b\w*(?:api[_-]?key|apikey|secret|token|passwd|password|webhook[_-]?secret"
+            r"|access[_-]?key|private[_-]?key)\w*"
+            r"\s*[=:]\s*"
+            r"(?:os\.(?:getenv|environ\.get)|getenv|environ\.get)"
+            r"\(\s*"
+            r"['\"][A-Za-z0-9_]*['\"]\s*,\s*"
+            r"['\"]([^'\"]{20,})['\"]"
+        ),
+    ),
 ]
+
+# env-fallback literals that are LEGITIMATELY non-secret — false-positive allowlist.
+# Anything matching here means "this default is fine", so the pattern above is skipped.
+# Kept deliberately TIGHT: a URL/path/hostname/empty-string default is normal config;
+# an opaque high-entropy blob is not.
+FALLBACK_ALLOW = re.compile(
+    r"(?i)^(?:"
+    r"https?://"                    # base URLs are config, not secrets
+    r"|/[\w./-]+"                   # absolute paths
+    r"|[\w.-]+\.(?:com|org|net|in|io|local|internal)(?::\d+)?"  # hostnames
+    r"|(?:localhost|127\.0\.0\.1)(?::\d+)?"
+    r"|(?:none|null|true|false|debug|info|warning|error|production|development|staging|test)"
+    r"|(?:utf-?8|ascii|latin-?1)"
+    r"|(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)"
+    r"|(?:application/json|text/\w+|application/\w+\+\w+)"
+    r"|(?:Asia/[A-Za-z_]+|UTC|GMT[+-]?\d*|IST|en[-_]IN|hi[-_]IN)"
+    r"|(?:[a-z_]+_db|[a-z_]+_table|[a-z_]+_dir|[a-z_]+_path|[a-z_]+_file)"
+    r"|(?:[a-z_]+_host|[a-z_]+_url|[a-z_]+_port|[a-z_]+_endpoint|[a-z_]+_region)"
+    r")$"
+)
 
 # In values pe match ho to fake/placeholder maan ke skip
 PLACEHOLDER = re.compile(
@@ -181,12 +228,19 @@ def scan_file(rel: str, redact: bool = False) -> list[str]:
             continue
         for label, pat in PATTERNS:
             m = pat.search(line)
-            if m and not PLACEHOLDER.search(line):
-                if redact:
-                    findings.append(f"{rel}:{i}: {label}")  # value NEVER printed
-                else:
-                    findings.append(f"{rel}:{i}: {label}: {m.group(0)[:48]}...")
-                break
+            if not m or PLACEHOLDER.search(line):
+                continue
+            # Non-secret fallback defaults (URLs/paths/hostnames/modes) are normal
+            # config — skip only for the env-lookup pattern, where group(1) is the
+            # literal. Other patterns keep their original strict behaviour.
+            if label.startswith("env-lookup fallback literal") and m.groups():
+                if FALLBACK_ALLOW.match((m.group(1) or "").strip()):
+                    continue
+            if redact:
+                findings.append(f"{rel}:{i}: {label}")  # value NEVER printed
+            else:
+                findings.append(f"{rel}:{i}: {label}: {m.group(0)[:48]}...")
+            break
     return findings
 
 
