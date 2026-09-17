@@ -64,20 +64,24 @@ def _is_flagged(line: str) -> bool:
 # matched by cs.PLACEHOLDER (`dummy`, `example`, `aaaa`, `1234567890`, ...), or
 # the scanner's placeholder filter correctly suppresses them and the test would
 # be asserting the wrong thing. High-entropy, clearly-not-real random strings.
+#
+# Each line carries a `nosecret` marker: this suite deliberately contains the
+# leak SHAPE, so check_secrets.py must skip these lines or it self-triggers and
+# turns CI red. The marker is the scanner's documented escape hatch.
 
 LEAKS = {
     "typesafe shape (~100-char)": (
-        'TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", '
+        'TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", '  # nosecret
         '"y7q2v9n4x8k3m6p1w5r0t2j4h6g8s1d3f5b7l9c0z2a4e6i8o1u3")'
     ),
     "waha shape (32-char)": (
-        'WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "m4k8p2v6n1x9q3w7e5r0t2y4")'
+        'WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "m4k8p2v6n1x9q3w7e5r0t2y4")'  # nosecret
     ),
     "generic hex blob": (
-        'STRIPE_SECRET = os.getenv("STRIPE_SECRET", "9f3a2b8c7d6e5f4a1b2c3d4e5f6a7b8c9d0e")'
+        'STRIPE_SECRET = os.getenv("STRIPE_SECRET", "9f3a2b8c7d6e5f4a1b2c3d4e5f6a7b8c9d0e")'  # nosecret
     ),
     "webhook secret": (
-        'SMARTFLO_WEBHOOK_SECRET = os.environ.get("SMARTFLO_WEBHOOK_SECRET", '
+        'SMARTFLO_WEBHOOK_SECRET = os.environ.get("SMARTFLO_WEBHOOK_SECRET", '  # nosecret
         '"whsec_p7k2m9v4n1x6q3w8e5r0t2y7u4i1o6a3s8d5f0g2")'
     ),
 }
@@ -94,7 +98,7 @@ def test_env_fallback_literal_is_flagged(name: str) -> None:
 
 def test_typefaced_getenv_form_is_flagged() -> None:
     """The original 7317f990 shape, abridged to a synthetic value."""
-    line = 'TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", "k3m7p1v5n9x2q6w8e4r0t2y7u1")'
+    line = 'TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", "k3m7p1v5n9x2q6w8e4r0t2y7u1")'  # nosecret
     assert _is_flagged(line)
 
 
