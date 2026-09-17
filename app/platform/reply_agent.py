@@ -1496,7 +1496,14 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 import urllib.parse as _urlparse_reply
 
 
-def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
+async def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
+    """P0 HOTFIX 2026-09-17: this body awaits `_wa_mod.send_one(...)` but the
+    function was never declared `async`, so the whole module raised
+    `SyntaxError: 'await' outside async function` at import time — which broke
+    pytest collection for 11 reply-agent test modules. Declaring it async is the
+    correct minimal fix: every production call site (`team_scheduler.py`) already
+    awaits it. See docs/P0_REPAIR_2026-09-17.md."""
+
     """Interested/question replies ko calling queue me flag karo.
 
     Gated: REPLY_AGENT (must be ON).  KABHI raise nahi karta.

@@ -1,4 +1,4 @@
-﻿"""Tests for owner_upi_confirm.py â€” manual UPI confirmation flow (M3, P2).
+"""Tests for owner_upi_confirm.py â€” manual UPI confirmation flow (M3, P2).
 
 Run: pytest tests/test_owner_upi_confirm.py -v
 """

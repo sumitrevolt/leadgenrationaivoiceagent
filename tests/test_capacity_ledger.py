@@ -1,4 +1,4 @@
-﻿"""Tests for capacity_ledger.py â€” 97Ã— gap computation (M2, P1).
+"""Tests for capacity_ledger.py â€” 97Ã— gap computation (M2, P1).
 
 Run: pytest tests/test_capacity_ledger.py -v
 """

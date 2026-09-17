@@ -1,4 +1,4 @@
-﻿"""Tests for kpi_ledger.py â€” verified vs claimed metrics (M5, P4).
+"""Tests for kpi_ledger.py â€” verified vs claimed metrics (M5, P4).
 
 Run: pytest tests/test_kpi_ledger.py -v
 """

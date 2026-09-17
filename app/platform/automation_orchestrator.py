@@ -510,14 +510,12 @@ class AutomationOrchestrator:
             return existing, False
 
         task_id = f"task_{uuid.uuid4().hex[:8]}"
-        # M1 EXECUTION PROOF (crore-strategy): prove agent is executing
-        try:
-            from app.platform.dev_workers import get_prover
-            prover = get_prover()
-            worker_id = prover.claim(task_id, lease_token)
-            logger.info(f"[orchestrator] Execution proof: {worker_id} claimed {task_id}")
-        except Exception as e:
-            logger.warning(f"[orchestrator] dev_workers claim failed (non-fatal): {e}")
+        # NOTE: the M1 execution proof is written by `dispatch_task` (via
+        # `_dev_worker_claim`), NOT here. Claiming at submit time would write a
+        # `dev_workers` row for work that was never dispatched — and would make a
+        # kill-switch-blocked task look like it had executed. The old code here
+        # also referenced an undefined `lease_token`, so it raised NameError on
+        # every submit and the "non-fatal" handler swallowed it silently.
 
         record = TaskRecord(
             task_id=task_id,

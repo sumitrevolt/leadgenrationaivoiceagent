@@ -1528,7 +1528,11 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.platform import reply_agent
 
-                reply_agent.auto_forward_positive_replies(limit=10)
+                # P0 HOTFIX 2026-09-17: auto_forward_positive_replies is `async def`
+                # (it awaits WhatsApp send). It was previously called WITHOUT await,
+                # which silently returned a coroutine and did nothing — while ALSO
+                # making app.platform.reply_agent unimportable (SyntaxError).
+                await reply_agent.auto_forward_positive_replies(limit=10)
             except Exception:
                 pass
         elif job == "watchdog":

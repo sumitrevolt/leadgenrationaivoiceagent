@@ -943,7 +943,8 @@ class GitHubLeadHunter:
             readme_url = repo.get("readme_url")
             if readme_url:
                 # Could fetch README, but skip for now to avoid extra API calls
-            
+                pass
+
             return GitHubProjectLead(
                 repo_name=repo.get("full_name", ""),
                 owner=repo.get("owner", {}).get("login", ""),
