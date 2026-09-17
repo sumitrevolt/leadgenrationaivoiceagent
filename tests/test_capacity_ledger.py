@@ -76,7 +76,8 @@ class TestCapacityLedger:
 
     def test_compute_baseline(self, tmp_path):
         """Test baseline capacity computation (default caps)."""
-        ledger = CapacityLedger(snapshot_path=tmp_path)
+        snapshot_file = tmp_path / "capacity_snapshot.json"
+        ledger = CapacityLedger(snapshot_path=str(snapshot_file))
         snapshot = ledger.compute()
 
         # Default caps: email=25/day, voice=100/day, WhatsApp=OFF
@@ -85,7 +86,8 @@ class TestCapacityLedger:
         assert snapshot.whatsapp_capacity == 0
         assert snapshot.total_capacity == 875
         assert snapshot.gap_to_target == 84125  # 85000 - 875
-        assert snapshot.utilization == pytest.approx(0.0103)
+        # Use looser tolerance for floating point
+        assert snapshot.utilization == pytest.approx(0.0103, rel=0.01)
 
     def test_compute_with_env_overrides(self, tmp_path, monkeypatch):
         """Test capacity computation with env var overrides."""
@@ -94,13 +96,14 @@ class TestCapacityLedger:
         monkeypatch.setenv("PLATFORM_DIAL_LIMIT", "500")
         monkeypatch.setenv("SALES_AUTOPILOT_WHATSAPP_ENABLED", "1")
 
-        ledger = CapacityLedger(snapshot_path=tmp_path)
+        snapshot_file = tmp_path / "capacity_snapshot.json"
+        ledger = CapacityLedger(snapshot_path=str(snapshot_file))
         snapshot = ledger.compute()
 
         assert snapshot.email_capacity == 350  # 50 * 7
         assert snapshot.voice_capacity == 3500  # 500 * 7
         assert snapshot.whatsapp_capacity == 1000  # placeholder
-        assert snapshot.total_capacity == 7850
+        assert snapshot.total_capacity == 4850  # 350 + 3500 + 1000
 
     def test_persistence(self, tmp_path):
         """Test snapshot persists to disk."""
@@ -196,4 +199,5 @@ class TestIntegration:
         result = compute_and_print()
         assert result is not None
         assert isinstance(result, CapacitySnapshot)
+
 

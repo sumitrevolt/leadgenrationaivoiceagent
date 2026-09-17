@@ -69,6 +69,8 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
 # 0). NEVER raises — returns a plain dict of true numbers.
 # ----------------------------------------------------------------------------
 from app.api.admin_dashboard_builders import (  # noqa: F401  (helpers extracted 2026-06-20)
+from app.platform.kpi_ledger import get_ledger
+
     _automation_snapshot,
     _build_command_center,
     _build_from_db,

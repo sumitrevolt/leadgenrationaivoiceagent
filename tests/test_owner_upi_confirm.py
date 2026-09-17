@@ -321,3 +321,4 @@ class TestIntegration:
         )
         assert total_confirmed == 7998.0  # 1999 + 5999
 
+

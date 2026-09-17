@@ -252,3 +252,4 @@ class TestIntegration:
         assert len(records) == 1
         assert records[0].value == 42.0
 
+
