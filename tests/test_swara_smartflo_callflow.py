@@ -368,8 +368,18 @@ async def test_barge_in_clears_playback(monkeypatch: pytest.MonkeyPatch, tmp_pat
         await asyncio.sleep(0.01)
         if sess._speaking:
             break
-    assert sess._speaking, "bot playback never started - barge-in cannot be tested"
-
+    assert sess._speaking, "bot playback never started - barge-in cannot be tested"
+
+    # Mandatory greeting disclosure finishes before ordinary replies become
+    # interruptible. Test barge-in against the following response instead.
+    await sess.wait_playback()
+    await sess._say("Aapki requirement kya hai?")
+    for _ in range(60):
+        await asyncio.sleep(0.01)
+        if sess._speaking:
+            break
+    assert sess._speaking, "post-disclosure reply never started"
+
     # caller starts talking over the bot
     for i in range(6):
         await ws.feed(_media_event(_loud_mulaw_frame(), 100 + i))

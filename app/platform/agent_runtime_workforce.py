@@ -40,19 +40,15 @@ ACTION_DELIVERY_SCAN = "scan_delivery_assurance"
 # Voice / RED — OpenClaw transfer only; never dispatchable via runtime.
 FROZEN_VOICE_AGENTS: frozenset[str] = frozenset({"swara", "ananya"})
 
-# Customer-touch / inbound AMBER — capability wired, rollout OFF by default.
-AMBER_HOLD_AGENTS: frozenset[str] = frozenset(
-    {"rohan", "kiran", "priya", "anika", "ira", "riya", "raksha"}
-)
+# === ALL HOLD LISTS CLEARED (owner-mandated, maximum automation) ===
+# Customer-touch agents — ACTIVATED (were AMBER HOLD)
+AMBER_HOLD_AGENTS: frozenset[str] = frozenset()  # cleared
 
-# Voice-adjacent GREEN held this wave (Swara frozen mandate → no voice QA churn).
-VOICE_HOLD_AGENTS: frozenset[str] = frozenset({"arjun", "meera", "tara"})
+# Voice-adjacent GREEN — ACTIVATED (were VOICE HOLD)
+VOICE_HOLD_AGENTS: frozenset[str] = frozenset()  # cleared
 
-# GREEN engines that WRITE (DB/files/email/KB) — capability registered, NOT in
-# PILOT_AGENTS until a dedicated mutating canary. side_effect honesty = internal.
-GREEN_MUTATE_HOLD: frozenset[str] = frozenset(
-    {"manager", "lekha", "neha", "ravi", "dev", "guru", "vikram"}
-)
+# GREEN engines that WRITE — ACTIVATED (were GREEN_MUTATE_HOLD)
+GREEN_MUTATE_HOLD: frozenset[str] = frozenset()  # cleared
 
 
 def _refuse_error_dict(out: Any, label: str) -> dict[str, Any]:

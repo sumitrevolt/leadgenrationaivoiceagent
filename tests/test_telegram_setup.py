@@ -61,3 +61,17 @@ def test_find_group_mapping():
     assert cross_admin.get("key") == "internal_admin"
 
     assert ts._find_group(spec, "nope.unknown") is None
+
+
+@pytest.mark.parametrize("exit_code", [0, 1, 3])
+def test_apply_reports_subprocess_outcome(monkeypatch, exit_code):
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("TELEGRAM_SETUP_ENABLED", "1")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setattr(ts.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        returncode=exit_code, stdout="summary", stderr=""
+    ))
+    result = ts.apply_setup()
+    assert result["applied"] is (exit_code == 0)
+    assert result["exit_code"] == exit_code

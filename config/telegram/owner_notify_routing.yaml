@@ -1,0 +1,44 @@
+# Owner-notify routing map (M4 T03) — declarative, source → group.
+# Consumed by app/platform/owner_feed_digest.py. chat_ids are NEVER here; they live
+# in config/telegram/setup_spec.yaml and are resolved by telegram_egress.
+#
+# Evidence label: CODE-PRESENT.
+version: 1
+updated: "2026-09-16"
+
+# severity → destination group id (must resolve via setup_spec.yaml)
+severity_routing:
+  P0: owner_alerts        # immediate — payments, incidents
+  P1: internal_admin      # digest — deploys, bot-status, health
+  info: internal_admin    # digest only
+
+# Source-level overrides: which feed `source` value maps to (provenance).
+source_groups:
+  bot_fleet: internal_admin
+  prod: internal_admin
+  hermes: internal_admin
+  guardian: owner_alerts
+  workforce: internal_admin    # but ALWAYS UNVERIFIED (truth gate)
+  telegram_egress: internal_admin
+
+# P0 topics that must go out immediately even outside quiet hours.
+immediate_topics:
+  - payments
+  - incidents
+
+# Quiet hours (IST, 24h). Digest still queues; only P0 bypasses.
+quiet_hours:
+  start_ist: 22
+  end_ist: 7
+  p0_bypass: true
+
+# Hourly digest behaviour.
+digest:
+  enabled: true
+  schedule: "hourly"          # systemd timer, NOT PM2
+  tail_line: "verified {verified} / unverified {unverified}"
+  max_items: 25
+
+# Truth gate — sources that must never be reported as verified.
+force_unverified_sources:
+  - workforce

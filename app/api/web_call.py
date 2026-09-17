@@ -389,6 +389,32 @@ async def _filler_b64() -> str | None:
     return await _edge_tts_mp3_b64(text)
 
 
+async def _reply_with_optional_filler(reply, websocket, user_text: str, *, enabled: bool):
+    """Prepare a mic-turn filler alongside the answer; never wait for filler TTS.
+
+    Cancel and drain the filler before returning the answer so its audio cannot
+    arrive after answer playback has begun. Text turns do no filler work.
+    """
+
+    async def _send_filler():
+        try:
+            audio = await _filler_b64()
+            if audio:
+                await websocket.send_json(
+                    {"type": "filler", "audio_b64": audio, "heard": user_text, "test_mode": True}
+                )
+        except Exception:
+            pass  # Optional audio must never fail the real answer.
+
+    filler = asyncio.create_task(_send_filler()) if enabled else None
+    try:
+        return await reply
+    finally:
+        if filler is not None:
+            filler.cancel()
+            await asyncio.gather(filler, return_exceptions=True)
+
+
 def _web_call_edge_enabled() -> bool:
     """FREE EdgeTTS Swara voice on test-call — default ON; WEB_CALL_EDGE_TTS=0 se band."""
     import os
@@ -1504,22 +1530,6 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 except Exception as e:
                     logger.debug(f"web-call: voice-tools path skip ({e}).")
 
-                # FILLER — sirf mic/audio turns pe; text test-call pe EdgeTTS filler
-                # 6s block karta hai → WS tester timeout / dead air.
-                if data.get("audio_b64"):
-                    try:
-                        filler_audio = await _filler_b64()
-                        await websocket.send_json(
-                            {
-                                "type": "filler",
-                                "audio_b64": filler_audio,
-                                "heard": user_text,
-                                "test_mode": True,
-                            }
-                        )
-                    except Exception:
-                        pass  # filler fail = ignore, LLM reply abhi bhi aayega
-
                 tc_reply = ""
                 # Web-call TEST MODE = text-first; LLM stream+TTS phone ke liye hai.
                 # USE_LLM_STREAM_TTS=1 pe stream path fast_path skip + 14s hang (tune loop).
@@ -1532,13 +1542,19 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     _use_stream=use_llm_stream,
                     _turn_timing=_turn_timing,
                     _websocket=websocket,
+                    _filler_enabled=bool(data.get("audio_b64")),
                 ) -> str:
                     nonlocal tc_reply
                     if _use_stream:
                         return await _brain_turn_stream()
                     _t_llm = time.monotonic()
                     try:
-                        tc_reply = await _tcbrain.reply(_history, _user_text)
+                        tc_reply = await _reply_with_optional_filler(
+                            _tcbrain.reply(_history, _user_text),
+                            _websocket,
+                            _user_text,
+                            enabled=_filler_enabled,
+                        )
                     except Exception as e:
                         tc_reply = ""
                         logger.warning(

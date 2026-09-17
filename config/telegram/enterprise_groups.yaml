@@ -1,0 +1,61 @@
+# Enterprise Telegram Setup for LeadGen AI
+# =========================================
+# This adds worker coordination groups on top of the existing 10 enterprise chats.
+
+# Product 1 + 2 groups already in spec: 10 chats (2 channels + 8 supergroups)
+# NEW: Worker coordination groups (3 groups)
+
+cross_product:
+  # ... existing internal_admin and owner_alerts ...
+  
+  - key: workers_coordination
+    kind: supergroup
+    name: LeadGen AI · Worker Coordination
+    purpose: Cross-worker coordination, task handoffs, status updates between the 9 worker CLI agents.
+    target_audience: Worker agents + founder + PM
+    access: private
+    admins:
+      - founder
+      - pm
+      - bot_broadcast
+    forum_topics:
+      - 📊 worker-status
+      - 🔄 task-handoffs
+      - ⚡ urgent
+    chat_id: ''  # TODO: owner creates + fills
+    invite_link: null
+
+  - key: agents_coordination
+    kind: supergroup
+    name: LeadGen AI · Agents Coordination
+    purpose: 31-agent coordination, Boss verdict, hierarchical runs, skill sharing.
+    target_audience: Agent operators + founder
+    access: private
+    admins:
+      - founder
+      - pm
+      - bot_broadcast
+    forum_topics:
+      - 🤖 agent-status
+      - 📋 assignments
+      - 🎯 verdicts
+    chat_id: ''  # TODO: owner creates + fills
+    invite_link: null
+
+  - key: admin_command_center
+    kind: supergroup
+    name: LeadGen AI · Admin Command Center
+    purpose: Owner/admin operational commands, deployment notices, kill-switch status, revenue truth.
+    target_audience: Founder + devops + PM
+    access: private
+    admins:
+      - founder
+      - devops
+      - bot_broadcast
+    forum_topics:
+      - 🚀 deploys
+      - 💰 revenue
+      - 🛑 kill-switch
+      - 📈 metrics
+    chat_id: ''  # TODO: owner creates + fills
+    invite_link: null

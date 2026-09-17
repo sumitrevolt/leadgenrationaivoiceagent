@@ -311,6 +311,50 @@ def get_starter_price_inr() -> int:
 
 
 # --------------------------------------------------------------------------- #
+# ANNUAL-FIRST (crore-strategy T04, PRD §4b/§7 A4). Cash-flow lever: annual = 10×
+# monthly (2 mahine free baked in). The checkout should DEFAULT to annual so prepay
+# (the real ₹1 Cr cash-timing unlock) is the path of least resistance. This helper
+# makes NO price change — it only reports the recommended default billing cycle.
+# --------------------------------------------------------------------------- #
+ANNUAL_FIRST_DEFAULT = True
+
+
+def recommended_billing_cycle(plan_key: str = "starter") -> str:
+    """Return the recommended default cycle for a plan: "annual" (preferred) or "monthly".
+
+    Annual-first is ON by default (env ``ANNUAL_FIRST`` can force it off). Never raises;
+    unknown plans fall back to the global default. NO price change — display default only.
+    """
+    try:
+        import os
+
+        enabled = os.getenv("ANNUAL_FIRST", "").strip().lower()
+        if enabled in ("0", "false", "no", "off"):
+            return "monthly"
+        for p in PACKAGES:
+            if str(p.get("key") or "").strip().lower() == str(plan_key or "").strip().lower():
+                if int(p.get("price_inr_year") or 0) > 0:
+                    return "annual"
+                return "monthly"
+        return "annual" if ANNUAL_FIRST_DEFAULT else "monthly"
+    except Exception:
+        return "annual" if ANNUAL_FIRST_DEFAULT else "monthly"
+
+
+def annual_savings_note(plan_key: str = "starter") -> str:
+    """Return the annual-first upsell note for a plan. Never raises."""
+    try:
+        for p in PACKAGES:
+            if str(p.get("key") or "").strip().lower() == str(plan_key or "").strip().lower():
+                note = str(p.get("annual_note") or "").strip()
+                if note:
+                    return note
+    except Exception:
+        pass
+    return "Saal bhar ka ek saath: 2 mahine FREE"
+
+
+# --------------------------------------------------------------------------- #
 # FREE TRIAL (₹0, 7 din, marketing-lite) — funnel-leak fix: paid-only signup
 # se hesitant SMBs nikal jaate the. Trial = ZERO payment, limited features.
 # --------------------------------------------------------------------------- #

@@ -203,7 +203,7 @@ def apply_setup() -> dict[str, Any]:
 
     return {
         "mode": "live",
-        "applied": True,
+        "applied": proc.returncode == 0,
         "exit_code": proc.returncode,
         "stdout": proc.stdout,
         "stderr": proc.stderr,

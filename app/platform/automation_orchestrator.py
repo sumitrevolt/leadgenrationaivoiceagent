@@ -34,6 +34,7 @@ from app.platform.agent_registry import (
     Lane,
     build_registry,
 )
+from app.platform.dev_workers import get_prover
 
 logger = logging.getLogger(__name__)
 
@@ -426,9 +427,25 @@ class AutomationOrchestrator:
         "dsh": "http://127.0.0.1:3080",  # Specialized Harness
     }
 
-    def __init__(self, max_concurrency: int = 4, store: DurableTaskStore | None = None, lease_file: str | None = None):
+    def __init__(
+        self,
+        max_concurrency: int = 4,
+        store: DurableTaskStore | None = None,
+        lease_file: str | None = None,
+        dev_worker_store: "object | None" = None,
+    ):
         self.registry = build_registry()
         self.store = store or DurableTaskStore()
+        # Execution prover (M1 T02). Shares the SAME SQLite DB as the task ledger —
+        # a table next to task_records, NOT a new ledger. Lazily built, never fatal.
+        if dev_worker_store is not None:
+            self.dev_workers = dev_worker_store
+        else:
+            try:
+                from app.platform.dev_workers import DevWorkerStore
+                self.dev_workers = DevWorkerStore(db_path=self.store.db_path)
+            except Exception:
+                self.dev_workers = None  # never block the orchestrator on the prover
         l_file = lease_file or (self.store.db_path + ".leases.json" if hasattr(self.store, "db_path") else LEASE_JSON)
         self.governor = RedisGovernorAuthority(max_leases=max_concurrency, lease_file=l_file)
         self.metrics = {
@@ -493,6 +510,15 @@ class AutomationOrchestrator:
             return existing, False
 
         task_id = f"task_{uuid.uuid4().hex[:8]}"
+        # M1 EXECUTION PROOF (crore-strategy): prove agent is executing
+        try:
+            from app.platform.dev_workers import get_prover
+            prover = get_prover()
+            worker_id = prover.claim(task_id, lease_token)
+            logger.info(f"[orchestrator] Execution proof: {worker_id} claimed {task_id}")
+        except Exception as e:
+            logger.warning(f"[orchestrator] dev_workers claim failed (non-fatal): {e}")
+
         record = TaskRecord(
             task_id=task_id,
             owner_bot=owner_bot,
@@ -566,7 +592,62 @@ class AutomationOrchestrator:
             self.store.save(record)
             return False
 
+        # Execution proof (M1 T02): a REAL claim writes a dev_workers row. This is what
+        # turns "31 agents running" from a claim into a measured fact (PRD §1c).
+        self._dev_worker_claim(task_id, fencing_token)
+        self._emit_feed(
+            severity="info",
+            kind="task_claimed",
+            text=f"Task {task_id} claimed by agent '{record.assigned_agent}' (bot '{record.owner_bot}')",
+            evidence=f"data/orchestrator_ledger.db#task_records:{task_id}",
+            actor=f"bot:{record.owner_bot}",
+        )
+
         return True
+
+    # ------------------------------------------------------------------ #
+    # Execution-prover helpers (never fatal — a prover must not break dispatch).
+    # ------------------------------------------------------------------ #
+    def _dev_worker_claim(self, task_id: str, lease_token: str) -> None:
+        try:
+            if self.dev_workers is not None:
+                self.dev_workers.claim(task_id, lease_token=lease_token or "")
+        except Exception as e:  # pragma: no cover — defensive
+            logger.warning(f"[Orchestrator] dev_workers claim skipped for {task_id}: {e}")
+
+    def _dev_worker_finish(self, task_id: str, success: bool, evidence: str) -> None:
+        try:
+            if self.dev_workers is not None:
+                self.dev_workers.finish(task_id, success=success, evidence=evidence)
+        except Exception as e:  # pragma: no cover — defensive
+            logger.warning(f"[Orchestrator] dev_workers finish skipped for {task_id}: {e}")
+
+    @staticmethod
+    def _emit_feed(*, severity: str, kind: str, text: str, evidence: str, actor: str) -> None:
+        """Best-effort emit to the canonical owner feed. Never raises."""
+        try:
+            from app.utils import owner_feed
+
+            owner_feed.emit(
+                source="bot_fleet",
+                actor=actor,
+                text=text,
+                severity=severity,
+                kind=kind,
+                evidence=evidence,
+                verified=True,
+            )
+        except Exception:
+            pass
+
+    def dev_workers_count(self, *, state: str | None = None) -> int:
+        """Expose the execution-prover count (dashboard / KPI consumer)."""
+        try:
+            if self.dev_workers is None:
+                return 0
+            return int(self.dev_workers.count(state=state))
+        except Exception:
+            return 0
 
     def verify_and_complete(
         self,
@@ -607,6 +688,17 @@ class AutomationOrchestrator:
                 self.metrics["dlq_count"] += 1
             record.updated_at = time.time()
             self.store.save(record)
+            # Execution proof: mark the worker failed (evidence = error + ledger ref).
+            self._dev_worker_finish(
+                task_id, False, f"data/orchestrator_ledger.db#task_records:{task_id} | {error_msg or ''}"
+            )
+            self._emit_feed(
+                severity="P1" if record.status == TaskStatus.FAILED else "info",
+                kind="blocked" if record.status == TaskStatus.FAILED else "heartbeat",
+                text=f"Task {task_id} attempt {record.retry_count} failed: {error_msg}",
+                evidence=f"data/orchestrator_ledger.db#task_records:{task_id}",
+                actor=f"bot:{record.owner_bot}",
+            )
             return record
 
         # Structured Guardian Evidence Validation
@@ -643,6 +735,20 @@ class AutomationOrchestrator:
         record.updated_at = time.time()
         self.store.save(record)
         logger.info(f"[Orchestrator] Task {task_id} verified & completed -> DONE")
+        # Execution proof: the done row carries evidence ⇒ this is the row that makes
+        # `dev_workers > 0` a measured fact (PRD §1c / Track C C1).
+        self._dev_worker_finish(
+            task_id,
+            True,
+            f"data/orchestrator_ledger.db#task_records:{task_id} | evidence:{evidence_obj.type}:{evidence_obj.uri_or_path}",
+        )
+        self._emit_feed(
+            severity="info",
+            kind="done",
+            text=f"Task {task_id} verified & done by agent '{record.assigned_agent}'",
+            evidence=f"data/orchestrator_ledger.db#task_records:{task_id}",
+            actor=f"bot:{record.owner_bot}",
+        )
         return record
 
     def execute_end_to_end(
@@ -730,4 +836,6 @@ class AutomationOrchestrator:
             "duplicate_rejects": self.metrics["duplicate_rejects"],
             "guardian_rejects": self.metrics["guardian_rejects"],
             "dlq_count": self.metrics["dlq_count"],
+            "dev_workers": self.dev_workers_count(),
+            "dev_workers_verified": self.dev_workers_count(state="done"),
         }

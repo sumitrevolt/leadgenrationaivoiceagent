@@ -5,8 +5,22 @@ _next_discovery_line returned "" (blank) or the SAME closing again (repeat), so 
 agent stalled. Shared TelecallerBrain => guards ALL agents/niches.
 """
 
+import pytest
+
 from app.voice_agent import telecaller_brain as tb
 from app.voice_agent.telecaller_brain import TelecallerBrain
+
+
+@pytest.fixture(autouse=True)
+def _offline_brain(monkeypatch):
+    """Script-only tests must not depend on workstation provider credentials."""
+    from app.platform import obsidian_sync
+    from app.voice_agent import free_ai, gemini_keys
+
+    monkeypatch.setattr(free_ai, "PROVIDERS_AVAILABLE", {"groq": True})
+    monkeypatch.setattr(gemini_keys, "active_key", lambda: "")
+    monkeypatch.setattr(tb.settings, "gemini_api_key", "")
+    monkeypatch.setattr(obsidian_sync, "brain_context", lambda *a, **k: "")
 
 
 def _brain():

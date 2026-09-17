@@ -1,0 +1,151 @@
+%% System Design — crore-strategy (₹1 Cr/month integrated automation)
+%% Stage 2 (Architect) · 2026-09-16 · repo: leadgenrationaivoiceagent
+%% Four key flows: (a) lead->payment, (b) task dispatch+retry+DLQ, (c) alert->Telegram, (d) deploy
+
+---
+title: (a) Lead -> Payment happy path (M3 -> M1 -> M4)
+---
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant PS as public_site.py /audit
+    participant PILOT as Pilot (bot)
+    participant ORCH as AutomationOrchestrator
+    participant GOV as RedisGovernorAuthority
+    participant STORE as DurableTaskStore
+    participant DW as dev_workers (NEW)
+    participant ROHAN as Rohan (agent)
+    participant OWNER as Owner /app/inbox
+    participant UPI as upi_payments
+    participant CONF as owner_upi_confirm (NEW)
+    participant INV as gst_invoice
+    participant FEED as owner_feed.py
+    participant NOTIFY as owner_notify (NEW)
+    participant TG as Telegram owner_alerts
+
+    C->>PS: GET /audit (16-question GBP self-audit)
+    PS-->>C: teaser score
+    PS->>PILOT: lead captured (embed_widget)
+    PILOT->>ORCH: submit_task(owner_bot="sales", assigned_agent="rohan", idempotency_key)
+    ORCH->>ORCH: validate owner_bot in HERMES_BOTS(9)
+    ORCH->>ORCH: validate assigned_agent in build_registry()/STAFF(31)
+    ORCH->>GOV: acquire(max_leases=4)
+    ORCH->>STORE: get_by_idempotency_key(key) -> None (new)
+    ORCH->>STORE: save(TaskRecord READY)
+    ORCH->>STORE: update_cas(READY -> RUNNING, fencing_token)
+    ORCH->>DW: claim(task_id, lease_token) + heartbeat  %% execution proof (NEW)
+    ORCH->>ROHAN: dispatch qualify_lead
+    ROHAN->>ROHAN: dedupe + score lead
+    ROHAN->>FEED: emit(FeedEvent source="bot_fleet" kind="done" verified=True)
+    ROHAN->>STORE: status=DONE
+    ORCH->>GOV: release(task_id)
+    OWNER->>OWNER: sees warm lead in /app/inbox
+    OWNER->>C: send /pay/{order_ref} link (1-click)
+    C->>UPI: pay via UPI (tn=order_ref)
+    UPI->>CONF: submit -> pending
+    OWNER->>CONF: confirm bank credit (ONE manual step)
+    CONF->>CONF: payment_verification_method = "owner_confirmed_upi" (NEVER PROVIDER_VERIFIED)
+    CONF->>INV: issue GST invoice
+    INV->>INV: append data/invoices.jsonl  %% money truth
+    CONF->>NOTIFY: AlertRecord(severity="P0", topic="payments")
+    NOTIFY->>TG: sendMessage (chat_id from setup_spec.yaml)
+
+---
+title: (b) Bot -> Agent task dispatch + retry + DLQ (M1)
+---
+sequenceDiagram
+    autonumber
+    participant PILOT as Pilot (bot)
+    participant ORCH as AutomationOrchestrator
+    participant GOV as RedisGovernorAuthority
+    participant STORE as DurableTaskStore
+    participant DW as dev_workers (NEW)
+    participant FEED as owner_feed.py
+
+    PILOT->>ORCH: submit_task(owner_bot, assigned_agent, idempotency_key)
+    alt kill switch active (AUTOMATION_STOP_NEW_CLAIMS)
+        ORCH-->>PILOT: refuse claim
+    else
+        ORCH->>ORCH: validate owner_bot in HERMES_BOTS(9)
+        ORCH->>ORCH: validate assigned_agent in build_registry()/STAFF(31)
+        ORCH->>STORE: get_by_idempotency_key(key)
+        alt duplicate key
+            STORE-->>ORCH: existing TaskRecord
+            ORCH-->>PILOT: return existing (no re-execute)
+        else new key
+            ORCH->>GOV: acquire(max_leases=4)
+            ORCH->>STORE: save(READY)
+            ORCH->>STORE: update_cas(READY -> RUNNING, fencing_token)
+            ORCH->>DW: claim(task_id, lease_token) + heartbeat
+            alt success
+                DW->>STORE: status=DONE + evidence
+                ORCH->>FEED: emit(kind="done", verified=True)
+            else failure
+                DW->>STORE: retry_count++
+                alt retry_count < max_retries
+                    STORE->>STORE: status=READY (retry)
+                else
+                    STORE->>STORE: status=FAILED, dlq_count++ (DLQ)
+                end
+            end
+            ORCH->>GOV: release(task_id)
+        end
+    end
+    Note over ORCH,STORE: recover_stale_running_tasks(): heartbeat>60s -> reap lease -> retry/DLQ
+
+---
+title: (c) Alert -> Telegram delivery (M4)
+---
+sequenceDiagram
+    autonumber
+    participant SRC as Source (bot_fleet pull | prod /health | hermes | guardian | workforce)
+    participant BRIDGE as owner_feed_bridge (L3)
+    participant FEED as owner_feed.py (L2 store)
+    participant DIGEST as owner_feed_digest (L4)
+    participant NOTIFY as owner_notify (L1 egress)
+    participant TG as Telegram (owner_alerts / internal_admin)
+
+    SRC->>BRIDGE: gather events
+    BRIDGE->>FEED: emit(build_event(...))
+    Note over FEED: workforce source forced verified=False (FORCE_UNVERIFIED)
+    FEED->>FEED: append data/owner_feed_events.jsonl
+    FEED->>DIGEST: route
+    alt severity == P0 / incident
+        DIGEST->>NOTIFY: send_owner() IMMEDIATE
+    else P1 / info
+        DIGEST->>NOTIFY: hourly digest (one message)
+    end
+    NOTIFY->>NOTIFY: env creds + rate-limit + dedupe_key(1h)
+    alt evidence missing
+        NOTIFY->>TG: text tagged UNVERIFIED
+    else
+        NOTIFY->>TG: sendMessage
+    end
+    Note over NOTIFY,TG: fail-open on outage; digest tail = "verified X / unverified Y"; NEVER adds getUpdates (Hermes owns ingress)
+
+---
+title: (d) A deploy (M6)
+---
+sequenceDiagram
+    autonumber
+    participant ENG as Engineer
+    participant DEP as scripts/deploy_vps.sh (single authority)
+    participant GUARD as _runtime_data_guard.sh
+    participant DOCK as docker compose
+    participant SYS as systemd unit leadgen
+    participant HEALTH as /health
+
+    ENG->>DEP: bash deploy_vps.sh <sha>  (DRY_RUN=1 prints plan)
+    DEP->>DEP: refuse APP_VERSION=latest (must be SHA)
+    DEP->>GUARD: source (protect invoices/consent/182MB DPDP recordings)
+    DEP->>DEP: git pull (live checkout moves)
+    DEP->>DOCK: build app image (APP_VERSION=$VER)
+    DEP->>DOCK: up -d worker scheduler worker-heavy worker-video dsh-worker  %% app NOT in list
+    DEP->>DEP: alembic upgrade
+    DEP->>SYS: systemctl restart leadgen   %% THE app deploy step
+    SYS->>HEALTH: serve 127.0.0.1:8000
+    DEP->>HEALTH: verify version == $VER
+    DEP->>DOCK: per-container skew check (compose service + exact label match)
+    DEP->>DEP: smoke + image retention + rollback tag
+    DEP-->>ENG: exit 0 only if ALL pass (else non-zero)
+    Note over ENG,HEALTH: NEVER "docker compose up -d app" (guaranteed false success)

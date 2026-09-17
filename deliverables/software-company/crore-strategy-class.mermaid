@@ -1,0 +1,220 @@
+%% System Design — crore-strategy (₹1 Cr/month integrated automation)
+%% Stage 2 (Architect) · 2026-09-16 · class diagram
+%% Contracts live in app/platform/contracts.py (NEW). Existing classes are reused, not replaced.
+
+classDiagram
+    %% ---------- NEW / contract data types ----------
+    class TaskRecord {
+        +str task_id
+        +str owner_bot
+        +str assigned_agent
+        +str priority
+        +str status
+        +int version
+        +str fencing_token
+        +int retry_count
+        +int max_retries
+        +str idempotency_key
+        +dict input_payload
+        +str evidence
+        +str error_message
+        +float last_heartbeat
+        +float created_at
+        +float updated_at
+    }
+
+    class DevWorkerRecord {
+        +str worker_id
+        +str task_id
+        +str lease_token
+        +float heartbeat_at
+        +float claimed_at
+        +str state
+        +str evidence
+    }
+
+    class FeedEvent {
+        +str ts
+        +str source
+        +str actor
+        +str severity
+        +str kind
+        +str text
+        +str evidence
+        +bool verified
+        +str dedupe_key
+    }
+
+    class KpiRecord {
+        +str ts
+        +str metric
+        +float value
+        +bool verified
+        +str evidence
+        +str window
+        +str source
+    }
+
+    class AlertRecord {
+        +str ts
+        +str severity
+        +str topic
+        +str text
+        +str evidence
+        +str dedupe_key
+        +str chat_id
+        +bool verified
+    }
+
+    class CapacityRecord {
+        +str ts
+        +str channel
+        +int cap_per_day
+        +int contacts_week
+        +int compliance_blocked
+        +float gap_to_target_x
+        +str note
+    }
+
+    %% ---------- EXISTING infra (REUSED, not replaced) ----------
+    class AutomationOrchestrator {
+        +dict~str,str~ HERMES_BOTS
+        +dict~str,str~ ROUTER_HIERARCHY
+        +submit_task(owner_bot, assigned_agent, priority, input_payload, idempotency_key, provider, model, deadline_s) tuple
+        +is_kill_switch_active() bool
+        +recover_stale_running_tasks() None
+        +run_once() dict
+    }
+
+    class DurableTaskStore {
+        +str db_path
+        +str ledger_file
+        +get(task_id) TaskRecord
+        +get_by_idempotency_key(key) TaskRecord
+        +save(record) None
+        +update_cas(task_id, expected_version, new_status, new_fencing_token) bool
+        +all_tasks() list
+    }
+
+    class RedisGovernorAuthority {
+        +int max_leases
+        +acquire(task_id) str
+        +release(task_id) None
+        +reap_stale_leases() list
+        +active_leases_count() int
+    }
+
+    class TeamRegistry {
+        +dict~str,dict~ STAFF
+        +team_status() dict
+        +kpi_aggregate() dict
+        +log_event(...) bool
+        +today_actions_from_events() int
+    }
+
+    class OwnerFeed {
+        +build_event(source, actor, text, severity, kind, evidence, verified, dedupe_key) dict
+        +emit(event) bool
+        +append_event(event) bool
+        +read_events(path, limit) list
+    }
+
+    class GstInvoice {
+        +issue(...) dict
+        +stats() dict
+    }
+
+    class CallAnalytics {
+        +duration_stats(...) dict
+        +qualified_rate(...) float
+        +booking_rate(...) float
+        +reply_latency_p50_p95(...) dict
+    }
+
+    class Compliance {
+        +promo_window() tuple
+        +is_within_window(now) bool
+        +dnd_check(number) str
+    }
+
+    %% ---------- NEW services ----------
+    class DevWorkerProver {
+        +claim(task_id, lease_token) DevWorkerRecord
+        +heartbeat(task_id) bool
+        +complete(task_id, state, evidence) bool
+        +active_workers() int
+    }
+
+    class OwnerNotify {
+        +send_owner(text, severity, evidence, dedupe_key) bool
+        +_rate_limit_ok(dedupe_key) bool
+        +_post_telegram(chat_id, text) bool
+    }
+
+    class OwnerFeedBridge {
+        +pull_bot_fleet() list
+        +pull_prod_health() list
+        +push_from_worker(event) bool
+        +gather() list
+    }
+
+    class OwnerFeedDigest {
+        +route(event) str
+        +immediate(alert) bool
+        +hourly_digest() str
+        +verified_unverified_line() str
+    }
+
+    class OwnerUpiConfirm {
+        +list_pending() list
+        +confirm(order_ref, owner_actor) dict
+        +_issue_invoice(...) dict
+    }
+
+    class CapacityLedger {
+        +read_caps() list
+        +snapshot() CapacityRecord
+        +gap_to_target_x() float
+    }
+
+    class KpiLedger {
+        +record(kpi) bool
+        +verified_series(metric, window) list
+        +claimed_series(metric, window) list
+        +snapshot() dict
+    }
+
+    class LoggingRotation {
+        +rotating_handler(path, max_bytes, backups) Handler
+    }
+
+    %% ---------- relationships ----------
+    AutomationOrchestrator *-- DurableTaskStore : owns (1..1)
+    AutomationOrchestrator *-- RedisGovernorAuthority : owns (1..1)
+    AutomationOrchestrator --> TeamRegistry : validates assigned_agent against STAFF(31)
+    AutomationOrchestrator --> TaskRecord : creates/updates (1..N)
+    AutomationOrchestrator --> DevWorkerProver : delegates claim/heartbeat
+    DevWorkerProver --> DevWorkerRecord : persists (1..1 per task)
+    TaskRecord "1" --> "1" DevWorkerRecord : execution proof
+
+    OwnerFeedBridge --> OwnerFeed : emits FeedEvent
+    OwnerFeed --> FeedEvent : persists (1..N)
+    OwnerFeedDigest --> OwnerFeed : reads
+    OwnerFeedDigest --> OwnerNotify : routes
+    OwnerNotify --> AlertRecord : builds
+    OwnerNotify --> Compliance : (no gate weakened)
+
+    OwnerUpiConfirm --> GstInvoice : issues invoice on confirm
+    GstInvoice --> KpiRecord : stats() -> revenue KPI (verified)
+    OwnerUpiConfirm --> OwnerNotify : payment alert (P0)
+
+    CapacityLedger --> CapacityRecord : snapshot
+    CapacityLedger --> Compliance : asserts window/DND untouched
+    KpiLedger --> KpiRecord : persists (1..N)
+    KpiLedger --> DevWorkerProver : reads tasks_done
+    KpiLedger --> GstInvoice : reads revenue
+    KpiLedger --> CallAnalytics : reads voice KPIs
+    KpiLedger --> CapacityLedger : reads capacity gap
+
+    TeamRegistry --> OwnerFeed : log_event -> FeedEvent
+    LoggingRotation ..> AutomationOrchestrator : used by logger.py

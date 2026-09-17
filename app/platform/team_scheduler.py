@@ -1521,7 +1521,7 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.platform import auto_outreach
 
-                auto_outreach.multi_channel_followup(limit=25)
+                await auto_outreach.multi_channel_followup(limit=25)
             except Exception:
                 pass
             # Auto-forward positive replies to calling queue

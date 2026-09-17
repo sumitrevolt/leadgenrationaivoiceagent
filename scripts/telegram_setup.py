@@ -4,8 +4,8 @@
 WHAT THIS DOES
 --------------
 Reads ``config/telegram/setup_spec.yaml`` and, for every chat whose ``chat_id``
-is filled in, *configures* it: sets description, creates forum topics, posts +
-pins the intro message, and exports an invite link for private chats.
+is filled in, *configures* it: sets description and reconciles forum topics +
+pinned intro using a durable action ledger. Existing private invites are reused.
 
 WHAT IT CANNOT DO
 ----------------
@@ -35,8 +35,10 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 try:
@@ -61,6 +63,7 @@ SPEC_PATH = os.path.join(
     "setup_spec.yaml",
 )
 API_BASE = "https://api.telegram.org/bot{token}/{method}"
+STATE_PATH = Path(SPEC_PATH).parents[2] / "data" / "telegram_setup_state.json"
 
 
 # --------------------------------------------------------------------------- #
@@ -130,8 +133,8 @@ def plan(spec: dict[str, Any]) -> int:
         if g.get("forum_topics"):
             print(f"      topics: {', '.join(g['forum_topics'])}")
         print(
-            "      will set description, post+pin intro"
-            + (", export invite link" if g["access"] == "private" else "")
+            "      will reconcile existing topic/intro IDs, then set description + pin intro"
+            + (", reuse invite link" if g["access"] == "private" else "")
         )
     print(f"\n[telegram_setup] {pending} entity/ies still need a chat_id before --apply.")
     return 0
@@ -141,6 +144,50 @@ def plan(spec: dict[str, Any]) -> int:
 # Apply (live)
 # --------------------------------------------------------------------------- #
 def apply(spec: dict[str, Any], token: str) -> int:
+    """Serialize local runs and persist effects before retrying is possible.
+
+    Existing chats require reconciled topic_ids / intro_message_id in the spec.
+    Only a manually verified empty chat may set bootstrap_empty_verified=true.
+    Ambiguous remote outcomes remain pending until manually reconciled in state.
+    Keep this ledger on durable storage; a lost ledger is not safe to recreate.
+    """
+    lock = STATE_PATH.with_suffix(".lock")
+    try:
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        print("[telegram_setup] REFUSED: active/stale setup lock; reconcile before retry")
+        return 1
+    except OSError as exc:
+        print(f"[telegram_setup] FAIL: setup ledger unavailable: {exc}")
+        return 1
+    try:
+        os.close(fd)
+        state = json.loads(STATE_PATH.read_text(encoding="utf-8")) if STATE_PATH.exists() else {}
+        if not isinstance(state, dict):
+            raise ValueError("setup ledger must be an object")
+        return _apply_locked(spec, token, state)
+    except (OSError, ValueError) as exc:
+        print(f"[telegram_setup] FAIL: setup ledger unavailable: {exc}")
+        return 1
+    finally:
+        lock.unlink()
+
+
+def _save_state(state: dict[str, Any]) -> None:
+    fd, name = tempfile.mkstemp(dir=STATE_PATH.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(state, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, STATE_PATH)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
+def _apply_locked(spec: dict[str, Any], token: str, state: dict[str, Any]) -> int:
     groups = _all_groups(spec)
     done, skipped, failed = 0, 0, 0
     print(f"[telegram_setup] APPLY — configuring {len(groups)} entities\n")
@@ -151,6 +198,26 @@ def apply(spec: dict[str, Any], token: str) -> int:
             skipped += 1
             continue
         try:
+            entry = state.setdefault(str(cid), {})
+            topics = g.get("forum_topics", []) if g["kind"] == "supergroup" else []
+            if entry.get("pending"):
+                raise RuntimeError("ambiguous previous action; reconcile setup ledger before retry")
+            known_topics = entry.setdefault("topic_ids", {})
+            for topic, topic_id in (g.get("topic_ids") or {}).items():
+                _reconcile_id(known_topics, topic, topic_id)
+            if g.get("intro_message_id") is not None:
+                _reconcile_id(entry, "intro_message_id", g["intro_message_id"])
+            if not g.get("bootstrap_empty_verified") and (
+                any(not known_topics.get(topic) for topic in topics)
+                or (g.get("intro") and not entry.get("intro_message_id"))
+            ):
+                raise RuntimeError("unknown existing setup; reconcile topic_ids/intro_message_id first")
+            # Never rotate the primary invite link on a routine setup run.
+            link = g.get("invite_link")
+            if g["access"] == "private" and not link:
+                link = _api_call(token, "getChat", {"chat_id": cid}).get("invite_link")
+                if not link:
+                    raise RuntimeError("private invite missing; owner must create/paste an invite link")
             try:
                 _api_call(
                     token, "setChatDescription", {"chat_id": cid, "description": _description(g)}
@@ -161,41 +228,54 @@ def apply(spec: dict[str, Any], token: str) -> int:
                     pass
                 else:
                     raise
-            if g.get("forum_topics") and g["kind"] == "supergroup":
-                for topic in g["forum_topics"]:
-                    try:
-                        _api_call(token, "createForumTopic", {"chat_id": cid, "name": topic[:128]})
-                    except RuntimeError as exc:
-                        # Re-run pe duplicate topics tolerate karo (bootstrap script
-                        # hai; rights-problems alag se dikhte hain as FAIL above)
-                        print(f"        topic note ({g['name'][:24]}…): {str(exc)[:220]}")
+            for topic in topics:
+                if known_topics.get(topic):
+                    continue
+                entry["pending"] = {"method": "createForumTopic", "topic": topic}
+                _save_state(state)
+                result = _api_call(token, "createForumTopic", {"chat_id": cid, "name": topic[:128]})
+                known_topics[topic] = result["message_thread_id"]
+                entry.pop("pending")
+                _save_state(state)
             if g.get("intro"):
-                sent = _api_call(
-                    token,
-                    "sendMessage",
-                    {"chat_id": cid, "text": g["intro"], "disable_web_page_preview": True},
-                )
-                _api_call(
-                    token,
-                    "pinChatMessage",
-                    {
-                        "chat_id": cid,
-                        "message_id": sent["message_id"],
-                        "disable_notification": True,
-                    },
-                )
-            link = None
-            if g["access"] == "private":
-                res = _api_call(token, "exportChatInviteLink", {"chat_id": cid})
-                # Bot API yahan plain string lautta hai (dict nahi)
-                link = res if isinstance(res, str) else (res or {}).get("invite_link")
-            print(f"  OK    {g['name']}" + (f"  invite={link}" if link else ""))
+                if not entry.get("intro_message_id"):
+                    entry["pending"] = {"method": "sendMessage"}
+                    _save_state(state)
+                    sent = _api_call(
+                        token,
+                        "sendMessage",
+                        {"chat_id": cid, "text": g["intro"], "disable_web_page_preview": True},
+                    )
+                    entry["intro_message_id"] = sent["message_id"]
+                    entry.pop("pending")
+                    _save_state(state)
+                if not entry.get("intro_pinned"):
+                    _api_call(
+                        token,
+                        "pinChatMessage",
+                        {
+                            "chat_id": cid,
+                            "message_id": entry["intro_message_id"],
+                            "disable_notification": True,
+                        },
+                    )
+                    entry["intro_pinned"] = True
+            _save_state(state)
+            print(f"  OK    {g['name']}")
             done += 1
-        except RuntimeError as exc:
+        except (RuntimeError, OSError, ValueError, KeyError) as exc:
             print(f"  FAIL  {g['name']} — {exc}")
             failed += 1
     print(f"\n[telegram_setup] done={done} skipped={skipped} failed={failed}")
-    return 1 if failed else 0
+    return 1 if failed or skipped else 0
+
+
+def _reconcile_id(target: dict[str, Any], key: str, value: Any) -> None:
+    if type(value) is not int or value <= 0:
+        raise RuntimeError(f"invalid reconciled ID for {key}")
+    if target.get(key) is not None and target[key] != value:
+        raise RuntimeError(f"reconciled ID conflicts with saved ledger for {key}")
+    target[key] = value
 
 
 def _description(g: dict[str, Any]) -> str:
@@ -204,7 +284,7 @@ def _description(g: dict[str, Any]) -> str:
         parts.append(f"Audience: {g['target_audience']}")
     if g.get("access"):
         parts.append(f"Access: {g['access']}")
-    return "\n".join(p for p in parts if p)[:256]
+    return "\n".join(p for p in parts if p)[:255]
 
 
 # --------------------------------------------------------------------------- #

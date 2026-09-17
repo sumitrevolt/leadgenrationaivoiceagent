@@ -460,13 +460,11 @@ def setup_logger(
 
     # File handler if specified
     if log_file:
-        # Ensure log directory exists
-        log_dir = os.path.dirname(log_file)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        # Bounded rotating handler (crore-strategy T05, M6). Previously a plain
+        # FileHandler grew unbounded → prod disk-blowup risk (ARCH §8 R8).
+        from app.utils.logging_rotation import build_file_handler
 
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(level)
+        file_handler = build_file_handler(log_file, level=level)
 
         # Always use JSON for file logs
         file_handler.setFormatter(JSONFormatter())
@@ -503,10 +501,11 @@ def get_call_logger(call_id: str) -> logging.Logger:
     if not os.path.exists(date_dir):
         os.makedirs(date_dir)
 
-    # File handler for this call
+    # File handler for this call — bounded (crore-strategy T05, M6).
     log_file = os.path.join(date_dir, f"{call_id}.log")
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setLevel(logging.DEBUG)
+    from app.utils.logging_rotation import build_file_handler
+
+    file_handler = build_file_handler(log_file, level=logging.DEBUG)
 
     file_format = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s", datefmt="%H:%M:%S.%f"

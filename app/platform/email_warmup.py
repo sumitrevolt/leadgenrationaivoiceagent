@@ -47,7 +47,8 @@ _MIN_SENDS_FOR_RATE = 20  # chhote sample pe pause mat karo (1 bounce / 5 sends 
 _MIN_SENDS_FOR_COMPLAINT_RATE = 100
 _MIN_SENDS_FOR_UNSUB_RATE = 100
 # (week_index_from_1, cap) — wk4+ = base cap (caller ka).
-_RAMP = {1: 5, 2: 15, 3: 25}
+# UPDATED: faster ramp for maximum automation — wk1 conservative, wk3 already at base
+_RAMP = {1: 10, 2: 25, 3: 40}
 
 
 def _is_unsub_reason(reason: str) -> bool:
@@ -169,6 +170,41 @@ def unsub_rate_7d(state: dict[str, Any] | None = None) -> tuple[float, int, int]
     return round(rate, 3), sent, unsubs
 
 
+def _auto_recover(st: dict[str, Any]) -> None:
+    """When a pause has expired AND rates are now below threshold, clear the pause.
+
+    Prevents the re-pause cycle where warmup resumes for 1 send, gets a new
+    complaint, and pauses again for 24h. Only clears when ALL rates are safe.
+    Never raises.
+    """
+    try:
+        if not is_paused(st):
+            return  # not paused — nothing to recover
+        # Check if pause has expired (is_paused returns False when expired)
+        raw = str(st.get("paused_until") or "")
+        if not raw:
+            return
+        until = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        if _now() < until:
+            return  # still paused, don't touch
+        # Pause expired — check if rates are now safe
+        b_rate, b_sent, b_bounced = bounce_rate_7d(st)
+        c_rate, c_sent, c_complaints = complaint_rate_7d(st)
+        u_rate, u_sent, u_unsubs = unsub_rate_7d(st)
+        bounce_ok = b_sent < _MIN_SENDS_FOR_RATE or b_rate < BOUNCE_PAUSE_PCT
+        complaint_ok = c_sent < _MIN_SENDS_FOR_COMPLAINT_RATE or c_rate < COMPLAINT_PAUSE_PCT
+        unsub_ok = u_sent < _MIN_SENDS_FOR_UNSUB_RATE or u_rate < UNSUB_PAUSE_PCT
+        if bounce_ok and complaint_ok and unsub_ok:
+            st.pop("paused_until", None)
+            st.pop("paused_reason", None)
+            _save(st)
+            logger.info("[warmup] auto-recovered: all rates below threshold after pause expiry")
+    except Exception:
+        pass
+
+
 def effective_cap(base_cap: int) -> int:
     """Outreach ka aaj ka cap. Flag OFF => base_cap as-is (zero behaviour change)."""
     try:
@@ -176,6 +212,9 @@ def effective_cap(base_cap: int) -> int:
         if not _enabled():
             return base
         st = _load()
+        # Auto-recover: if pause expired AND rates safe, clear pause
+        _auto_recover(st)
+        st = _load()  # reload after potential recovery
         if is_paused(st):
             return 0
         days = max(0, (_now().date() - _start_date(st)).days)

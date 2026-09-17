@@ -1,5 +1,4 @@
-"""
-Webhooks API
+"""Webhooks API
 (Stripe deleted 2026-07-10, Exotel+Razorpay removed 2026-06-18, Twilio removed 2026-07-07 —
 payments via manual UPI; voice via Vobiz telephony/webhooks.py)
 """
@@ -162,7 +161,7 @@ async def whatsapp_webhook_inbound(request: Request):
                                 _runner.suppress(frm, reason="opt_out_inbound")
                             except Exception:
                                 pass
-                        # TCCCPR: revocation sab commercial comms pe — voice ledger bhi.
+                        # TCCCPR: revocation sab commercial comms pe - voice ledger bhi.
                         try:
                             from app.telephony.consent_ledger import record_opt_out
 
@@ -229,6 +228,8 @@ async def whatsapp_webhook_inbound(request: Request):
     except Exception as e:
         logger.info("whatsapp webhook parse err: %s", e)
     return res
+
+
 # =============================================================================
 # TELEGRAM BOT WEBHOOK — inbound owner/admin updates -> durable inbox
 # P0 2026-09-16: /api/webhooks/telegram was HTTP 405 on prod (no POST handler),

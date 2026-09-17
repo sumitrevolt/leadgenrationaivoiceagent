@@ -1548,18 +1548,30 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
                 )
                 result["flagged_for_calling"] += 1
 
-                # Generate WhatsApp follow-up link (1-click, ban-safe)
+                # MAXIMUM AUTOMATION: send via WAHA if ready, else store link
                 wa_msg = (
                     f"Namaste {biz} ji 🙏 Aapne email pe interest dikhaya — "
                     f"shukriya! Agar baat karni ho to yahan se shuru karein: "
                     f"leadsgenai.in/audit"
                 )
                 wa_link = f"https://wa.me/91{phone10}?text={_urlparse_reply.quote(wa_msg)}"
+                auto_wa = False
+                try:
+                    from app.marketing import whatsapp_campaign as _wa_mod
+                    if _wa_mod.auto_ready():
+                        _wres = await _wa_mod.send_one(f"+91{phone10}", wa_msg)
+                        auto_wa = bool(_wres.get("sent"))
+                        if auto_wa:
+                            result["auto_sent"] = result.get("auto_sent", 0) + 1
+                except Exception:
+                    auto_wa = False
                 prospector.set_prospect_fields(
                     pid,
                     {
                         "wa_followup_generated": True,
                         "wa_followup_link": wa_link,
+                        "wa_followup_auto": auto_wa,
+                        "wa_followup_sent": auto_wa,
                         "updated_at": datetime.now(timezone.utc).isoformat(),
                     },
                 )

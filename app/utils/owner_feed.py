@@ -259,6 +259,62 @@ def iter_events(path: str | os.PathLike | None = None) -> Iterable[dict[str, Any
     yield from events
 
 
+async def mirror_p0_to_telegram(event: dict[str, Any]) -> bool:
+    """Mirror P0/P1 events to Telegram owner_alerts group. Never raises.
+
+    Called from daily_owner_brief or ad-hoc after emit(). Fire-and-forget.
+    """
+    try:
+        sev = str(event.get("severity") or "")
+        if sev not in ("P0", "P1"):
+            return False
+        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+            return False
+        from app.utils.telegram_egress import send_to_group
+
+        emoji = "🔴" if sev == "P0" else "🟡"
+        text = (
+            f"{emoji} {sev} [{event.get('source', '?')}/{event.get('actor', '?')}]\n"
+            f"{event.get('text', '')}\n"
+        )
+        evidence = (event.get("evidence") or "").strip()
+        if evidence:
+            text += f"\nEvidence: {evidence}"
+        result = await send_to_group("owner_alerts", text)
+        return bool(result.get("sent"))
+    except Exception:
+        return False
+
+
+async def mirror_to_telegram(
+    events: list[dict[str, Any]] | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Mirror recent P0/P1 events to Telegram. Returns {sent: n, failed: n}.
+
+    Called from daily_owner_brief or manual trigger. Never raises.
+    """
+    result: dict[str, Any] = {"sent": 0, "failed": 0}
+    try:
+        if events is None:
+            events, _ = read_events(limit=limit * 5)  # read more to find P0/P1
+        p0_events = [
+            e for e in (events or [])
+            if str(e.get("severity") or "") in ("P0", "P1")
+        ][-limit:]  # most recent N
+        if not p0_events:
+            return result
+        for ev in p0_events:
+            ok = await mirror_p0_to_telegram(ev)
+            if ok:
+                result["sent"] += 1
+            else:
+                result["failed"] += 1
+    except Exception:
+        pass
+    return result
+
+
 __all__ = [
     "SEVERITIES",
     "KINDS",
@@ -269,4 +325,6 @@ __all__ = [
     "feed_path",
     "read_events",
     "iter_events",
+    "mirror_p0_to_telegram",
+    "mirror_to_telegram",
 ]

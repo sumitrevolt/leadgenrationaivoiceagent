@@ -54,8 +54,8 @@ Exhaustive re-sweep (top SaaS blueprint repos + 2026 infra/AI-agent/data refs, a
 
 | # | Item | Sev | Status |
 |---|------|-----|--------|
-| 1 | **Alembic migration-safety**: deploy `alembic upgrade head \|\| true` (silent fail) → **hard-gated auto-rollback**; new `.github/workflows/migrations.yml` (Postgres round-trip + single-head + `alembic check` + Squawk DDL-lint, advisory) | HIGH | âœ… BUILT |
-| 2 | **Public guardrails**: `guardrails.py` (PII-redact + injection-block) wired into public `chatbot.py` (was voice-only). Flag `PUBLIC_GUARDRAILS`, fail-open | MED | âœ… BUILT |
+| 1 | **Alembic migration-safety**: deploy `alembic upgrade head \|\| true` (silent fail) → **hard-gated auto-rollback**; new `.github/workflows/migrations.yml` (Postgres round-trip + single-head + `alembic check` + Squawk DDL-lint, advisory) | HIGH | ✅ BUILT |
+| 2 | **Public guardrails**: `guardrails.py` (PII-redact + injection-block) wired into public `chatbot.py` (was voice-only). Flag `PUBLIC_GUARDRAILS`, fail-open | MED | ✅ BUILT |
 | 3 | **Qdrant snapshot backup**: live-dir tar → consistent snapshot-API + `.sha256` (tar fallback) in `vps_backup.sh` | MED | âœ… BUILT |
 | 4 | **PG restore-drill content-integrity**: `pg_restore_drill.sh` ab critical-table existence + non-empty core check ("backups green but empty" guard) + content metric | MED | âœ… BUILT |
 | 5 | Fider feedback/roadmap board | LOW | â³ DEFER — zero paying customers yet; +1 container RAM. Once-you-have-customers lever |
@@ -387,7 +387,7 @@ The target is **"consolidate the core, distribute only the risk, monetize the ed
 The end-state, expressed as the minimum that maximizes leverage. **Bold = change from today.** Everything else = keep.
 
 - **Edge:** **Cloudflare (Tunnel + WAF + Turnstile + CDN)** → Caddy → FastAPI.
-- **Compute:** FastAPI monolith on Docker Compose (single origin now → **+1 cheap warm-DR origin** at $10kâ€“100k MRR → managed multi-AZ only at $10M ARR).
+- **Compute:** FastAPI monolith on Docker Compose (single origin now → **+1 cheap warm-DR origin** at $10k–100k MRR → managed multi-AZ only at $10M ARR).
 - **Datastore:** Postgres 16 (+ PgBouncer) as the core — business + **vectors (pgvector/pgvectorscale)** + billing queue-of-record + **logical-replication DR**; Redis Ã—2 (broker/state/cache); Qdrant **retired into pgvector when justified**; **FalkorDB only if graph-RAG pilot wins**.
 - **Async:** Celery (worker+beat) + event-sourced `process_engine` + dead-man trio. **No Temporal/Kafka** until $10M ARR.
 - **AI:** Free-stack failover breaker **+ LiteLLM gateway (cost keys/routing) + Mem0 memory + OpenLLMetry traces + DeepEval gate + semantic cache ON**. STT Groq Whisper, TTS EdgeTTS unchanged.
@@ -403,10 +403,10 @@ The end-state, expressed as the minimum that maximizes leverage. **Bold = change
 ## Prioritized 90-Day Roadmap (so this is executable, not theoretical)
 
 **Week 1 (â‚¹0, unblock + protect):** Razorpay live keys + webhook Â· Cloudflare Tunnel + Turnstile Â· Sentry + PostHog ON. → *Revenue possible + origin protected + visibility.*
-**Weeks 2â€“3 (AI safety + cache):** OpenLLMetry→Tempo Â· DeepEval CI gate Â· `SEMANTIC_CACHE` ON + metrics Â· SOPS-encrypt `.env`. → *AI observed, gated, cached, secrets safe.*
-**Weeks 4â€“6 (memory + margin + DR):** Mem0 on Qdrant Â· LiteLLM activate (cost keys) Â· warm-DR replica off-box Â· PITR `--apply`. → *Product depth + margin view + survivable.*
-**Weeks 7â€“10 (moat + agents):** Metered MCP endpoint + A2A Agent Card Â· SRE + FinOps + Security engineer agents Â· close the self-improve eval loop. → *New revenue channel + safe autonomy.*
-**Weeks 11â€“13 (finish + measure):** pytest blocking gate + image-CVE Â· Celery-exporter/Flower Â· pgvector migration spike (if corpus warrants) Â· single Grafana exec pane. → *Hardened, consolidated, instrumented.*
+**Weeks 2–3 (AI safety + cache):** OpenLLMetry→Tempo · DeepEval CI gate · `SEMANTIC_CACHE` ON + metrics · SOPS-encrypt `.env`. → *AI observed, gated, cached, secrets safe.*
+**Weeks 4–6 (memory + margin + DR):** Mem0 on Qdrant · LiteLLM activate (cost keys) · warm-DR replica off-box · PITR `--apply`. → *Product depth + margin view + survivable.*
+**Weeks 7–10 (moat + agents):** Metered MCP endpoint + A2A Agent Card · SRE + FinOps + Security engineer agents · close the self-improve eval loop. → *New revenue channel + safe autonomy.*
+**Weeks 11–13 (finish + measure):** pytest blocking gate + image-CVE · Celery-exporter/Flower · pgvector migration spike (if corpus warrants) · single Grafana exec pane. → *Hardened, consolidated, instrumented.*
 
 ---
 

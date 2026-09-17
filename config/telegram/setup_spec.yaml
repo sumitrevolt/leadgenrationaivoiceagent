@@ -1,320 +1,234 @@
 version: 1
 platform: LeadGen AI
 base_url: https://leadsgenai.in
-compliance_note: 'Opt-in only. No scraping, no bulk-add, no cold-DM. DPDP Act 2023
-  + TRAI TCCCPR apply. Bots MUST disclose they are automated. No PII/tokens/OTP in
-  any chat (bots strip + warn). Manual-UPI payment truth: never claim "auto-paid".'
+compliance_note: 'Opt-in only. No scraping, no bulk-add, no cold-DM. DPDP Act 2023 + TRAI TCCCPR apply.'
+
 admin_roles:
   founder:
     label: Founder / Owner
     scope: all chats
-    perms:
-    - full
-    - manage_admins
-    - delete
-    - ban
-    - post
-    - pin
+    perms: [full, manage_admins, delete, ban, post, pin]
   pm:
     label: Product Manager
-    scope: announcements(P1,P2), feedback, internal_admin
-    perms:
-    - post
-    - pin
-    - moderate
-    - manage_topics
+    scope: announcements, feedback, internal_admin, workers_coordination, agents_coordination, admin_command_center
+    perms: [post, pin, moderate, manage_topics]
   community_manager:
     label: Community Manager
     scope: community, feedback
-    perms:
-    - moderate
-    - manage_topics
-    - pin
-    - ban
+    perms: [moderate, manage_topics, pin, ban]
   support_lead:
     label: Support Lead
     scope: support
-    perms:
-    - full_support
-    - escalate
-    - ban
+    perms: [full_support, escalate, ban]
   support_agent:
     label: Support Agent
     scope: support
-    perms:
-    - reply
-    - close_ticket
-    - label
+    perms: [reply, close_ticket, label]
   devops:
     label: Dev / Ops
-    scope: internal_admin, owner_alerts
-    perms:
-    - post
-    - bot_status
-    - deploy_notice
-  bot_welcome:
-    label: LeadGenBot (welcome/consent)
-    scope: community, support, feedback
-    perms:
-    - send
-    - no_admin
-  bot_mod:
-    label: LeadGenBot (moderation)
-    scope: community, support, feedback
-    perms:
-    - delete_msgs
-    - ban
-    - no_admin_promote
-  bot_support:
-    label: LeadGenBot (ticket intake)
-    scope: support
-    perms:
-    - send
-    - no_admin
+    scope: internal_admin, owner_alerts, admin_command_center
+    perms: [post, bot_status, deploy_notice]
   bot_broadcast:
     label: LeadGenBot (broadcast)
-    scope: announcements
-    perms:
-    - post_via_cms
-    - no_admin
+    scope: announcements, workers_coordination, agents_coordination, admin_command_center
+    perms: [post_via_cms, no_admin]
+
 products:
-- id: marketing
-  name: AI Automated Marketing
-  pricing: Main Rs 1,999/mo · Combo/Advanced Rs 5,999/mo (voice callback = 500-min
-    feature)
-  groups:
-  - key: announcements
-    kind: channel
-    name: LeadGen AI Marketing · Announcements
-    handle: LeadGenAIMarketingNews
-    purpose: 'One-way product updates: feature releases, pricing changes, scheduled
-      maintenance, compliance/DPDP notices, outage status. Broadcast only.'
-    target_audience: All subscribers — customers + prospects + public
-    access: public
-    admins:
-    - founder
-    - pm
-    - bot_broadcast
-    comments_enabled: false
-    intro: 'Official LeadGen AI (Marketing) announcements. Subscribe for releases,
-      pricing & status. Support: t.me/LeadGenAIMarketingSupport'
-    chat_id: '-1004485447096'
-    invite_link: null
-  - key: community
-    kind: supergroup
-    name: LeadGen AI Marketing · Community
-    handle: LeadGenAIMarketingCommunity
-    purpose: Peer discussions, use-cases, wins, growth tactics among SMB owners using
-      the Marketing product.
-    target_audience: Customers + trial users + interested SMB owners
-    access: public
-    admins:
-    - founder
-    - community_manager
-    - bot_welcome
-    - bot_mod
-    forum_topics:
-    - 📣 intros
-    - 💡 use-cases
-    - 🚀 wins
-    - 🛠 how-to
-    - 📰 updates (mirror)
-    rules:
-    - No cold DM / scraping of members
-    - No PII (use ticket ID in Support)
-    - AI replies are labeled automated
-    chat_id: '-1004475752582'
-    invite_link: null
-  - key: support
-    kind: supergroup
-    name: LeadGen AI Marketing · Support
-    purpose: 'Ticketed support: bugs, billing, incident updates. Customers only.'
-    target_audience: Paying customers (verified post UPI)
-    access: private
-    admins:
-    - founder
-    - support_lead
-    - support_agent
-    - bot_support
-    - bot_mod
-    forum_topics:
-    - 🎫 open-tickets
-    - 💳 billing-UPI
-    - 🐞 bugs
-    - 🔥 incidents
-    rules:
-    - Reference your ticket ID, not PII
-    - No tokens/OTP/passwords in chat (bot strips)
-    - 'SLA: first reply < 4 business hrs'
-    chat_id: '-1004464035633'
-    invite_link: https://t.me/+RFUpYWGZvT5lODQ1
-  - key: feedback
-    kind: supergroup
-    name: LeadGen AI Marketing · Feedback
-    purpose: Feature requests, product feedback, beta access. Not for support.
-    target_audience: Customers + selected power users
-    access: private
-    admins:
-    - founder
-    - pm
-    - community_manager
-    - bot_welcome
-    forum_topics:
-    - ✨ requests (P0/P1/P2)
-    - 🧪 beta
-    - 📊 polls
-    rules:
-    - Label requests P0/P1/P2
-    - Support issues → Support group
-    chat_id: '-1003932745917'
-    invite_link: https://t.me/+Qes7Yj-g3G43Njll
-- id: voice
-  name: AI Voice Calling Agent
-  pricing: Rs 4,999 / 9,999 / 19,999 per niche-band/mo (DLT-gated cold outbound)
-  groups:
-  - key: announcements
-    kind: channel
-    name: LeadGen AI Voice Agent · Announcements
-    handle: LeadGenAIVoiceNews
-    purpose: Voice-product releases, voice-quality/provider notices, compliance &
-      DLT updates, outage status. Broadcast only.
-    target_audience: All subscribers — customers + prospects + public
-    access: public
-    admins:
-    - founder
-    - pm
-    - bot_broadcast
-    comments_enabled: false
-    intro: 'Official LeadGen AI (Voice Calling Agent) announcements. Support: t.me/LeadGenAIVoiceSupport'
-    chat_id: '-1003935454293'
-    invite_link: null
-  - key: community
-    kind: supergroup
-    name: LeadGen AI Voice Agent · Community
-    handle: LeadGenAIVoiceCommunity
-    purpose: Peer discussions on AI telecalling, scripts, niche-band strategy, voice
-      quality among SMB owners.
-    target_audience: Customers + trial users + interested SMB owners
-    access: public
-    admins:
-    - founder
-    - community_manager
-    - bot_welcome
-    - bot_mod
-    forum_topics:
-    - 📣 intros
-    - 🎙 scripts
-    - 🏷 niche-bands
-    - 🛠 how-to
-    - 📰 updates (mirror)
-    rules:
-    - No cold DM / scraping of members
-    - DLT/consent rules apply to YOUR outbound, not this group
-    - AI replies are labeled automated
-    chat_id: '-1004421485309'
-    invite_link: null
-  - key: support
-    kind: supergroup
-    name: LeadGen AI Voice Agent · Support
-    purpose: 'Voice-agent support: call routing, DLT templates, billing, incidents.'
-    target_audience: Paying customers (verified post UPI)
-    access: private
-    admins:
-    - founder
-    - support_lead
-    - support_agent
-    - bot_support
-    - bot_mod
-    forum_topics:
-    - 🎫 open-tickets
-    - 💳 billing-UPI
-    - 📋 DLT-templates
-    - 🐞 bugs
-    - 🔥 incidents
-    rules:
-    - Reference your ticket ID, not PII
-    - No tokens/OTP/passwords in chat (bot strips)
-    - 'SLA: first reply < 4 business hrs'
-    chat_id: '-1003906410254'
-    invite_link: https://t.me/+ZQVr02PewhcyNGM1
-  - key: feedback
-    kind: supergroup
-    name: LeadGen AI Voice Agent · Feedback
-    purpose: Voice-feature requests, beta, pronunciation/voice-model feedback.
-    target_audience: Customers + selected power users
-    access: private
-    admins:
-    - founder
-    - pm
-    - community_manager
-    - bot_welcome
-    forum_topics:
-    - ✨ requests (P0/P1/P2)
-    - 🧪 beta-voices
-    - 📊 polls
-    rules:
-    - Label requests P0/P1/P2
-    - Support issues → Support group
-    chat_id: '-1004376116363'
-    invite_link: https://t.me/+0TR9sLVyt_IxNjY1
+  - id: marketing
+    name: AI Automated Marketing
+    pricing: Main Rs 1,999/mo + Combo/Advanced Rs 5,999/mo
+    groups:
+      - key: announcements
+        kind: channel
+        name: LeadGen AI Marketing - Announcements
+        handle: LeadGenAIMarketingNews
+        purpose: One-way product updates: feature releases, pricing changes, scheduled maintenance, compliance/DPDP notices, outage status.
+        target_audience: All subscribers - customers + prospects + public
+        access: public
+        admins: [founder, pm, bot_broadcast]
+        comments_enabled: false
+        intro: Official LeadGen AI (Marketing) announcements. Subscribe for releases, pricing & status.
+        chat_id: '-1004485447096'
+        intro_message_id: 8
+      - key: community
+        kind: supergroup
+        name: LeadGen AI Marketing - Community
+        handle: LeadGenAIMarketingCommunity
+        purpose: Peer discussions, use-cases, wins, growth tactics among SMB owners using the Marketing product.
+        target_audience: Customers + trial users + interested SMB owners
+        access: public
+        admins: [founder, community_manager, bot_broadcast]
+        forum_topics: [intros, use-cases, wins, how-to, updates-mirror]
+        chat_id: '-1004475752582'
+        topic_ids:
+          intros: 8
+          'use-cases': 9
+          wins: 10
+          'how-to': 11
+          'updates-mirror': 12
+      - key: support
+        kind: supergroup
+        name: LeadGen AI Marketing - Support
+        purpose: Ticketed support: bugs, billing, incident updates. Customers only.
+        target_audience: Paying customers (verified post UPI)
+        access: private
+        admins: [founder, support_lead, support_agent, bot_broadcast]
+        forum_topics: [open-tickets, billing-UPI, bugs, incidents]
+        chat_id: '-1004464035633'
+        topic_ids:
+          'open-tickets': 6
+          'billing-UPI': 7
+          bugs: 8
+          incidents: 9
+        invite_link: https://t.me/+RFUpYWGZvT5lODQ1
+      - key: feedback
+        kind: supergroup
+        name: LeadGen AI Marketing - Feedback
+        purpose: Feature requests, product feedback, beta access. Not for support.
+        target_audience: Customers + selected power users
+        access: private
+        admins: [founder, pm, community_manager, bot_broadcast]
+        forum_topics: [requests-P0-P1-P2, beta, polls]
+        chat_id: '-1003932745917'
+        topic_ids:
+          'requests-P0-P1-P2': 5
+          beta: 6
+          polls: 7
+        invite_link: https://t.me/+Qes7Yj-g3G43Njll
+  - id: voice
+    name: AI Voice Calling Agent
+    pricing: Rs 4,999 / 9,999 / 19,999 per niche-band/mo
+    groups:
+      - key: announcements
+        kind: channel
+        name: LeadGen AI Voice Agent - Announcements
+        handle: LeadGenAIVoiceNews
+        purpose: Voice-product releases, voice-quality/provider notices, compliance & DLT updates, outage status.
+        target_audience: All subscribers - customers + prospects + public
+        access: public
+        admins: [founder, pm, bot_broadcast]
+        comments_enabled: false
+        intro: Official LeadGen AI (Voice Calling Agent) announcements.
+        chat_id: '-1003935454293'
+        intro_message_id: 5
+      - key: community
+        kind: supergroup
+        name: LeadGen AI Voice Agent - Community
+        handle: LeadGenAIVoiceCommunity
+        purpose: Peer discussions on AI telecalling, scripts, niche-band strategy, voice quality.
+        target_audience: Customers + trial users + interested SMB owners
+        access: public
+        admins: [founder, community_manager, bot_broadcast]
+        forum_topics: [intros, scripts, niche-bands, how-to, updates-mirror]
+        chat_id: '-1004421485309'
+        topic_ids:
+          intros: 8
+          scripts: 9
+          'niche-bands': 10
+          'how-to': 11
+          'updates-mirror': 12
+      - key: support
+        kind: supergroup
+        name: LeadGen AI Voice Agent - Support
+        purpose: Voice-agent support: call routing, DLT templates, billing, incidents.
+        target_audience: Paying customers (verified post UPI)
+        access: private
+        admins: [founder, support_lead, support_agent, bot_broadcast]
+        forum_topics: [open-tickets, billing-UPI, DLT-templates, bugs, incidents]
+        chat_id: '-1003906410254'
+        topic_ids:
+          'open-tickets': 7
+          'billing-UPI': 8
+          'DLT-templates': 9
+          bugs: 10
+          incidents: 11
+        invite_link: https://t.me/+ZQVr02PewhcyNGM1
+      - key: feedback
+        kind: supergroup
+        name: LeadGen AI Voice Agent - Feedback
+        purpose: Voice-feature requests, beta, pronunciation/voice-model feedback.
+        target_audience: Customers + selected power users
+        access: private
+        admins: [founder, pm, community_manager, bot_broadcast]
+        forum_topics: [requests-P0-P1-P2, beta-voices, polls]
+        chat_id: '-1004376116363'
+        topic_ids:
+          'requests-P0-P1-P2': 5
+          'beta-voices': 6
+          polls: 7
+        invite_link: https://t.me/+0TR9sLVyt_IxNjY1
 cross_product:
-- key: internal_admin
-  kind: supergroup
-  name: LeadGen AI · Internal Ops
-  purpose: Internal coordination, incident war-room, deploy notices, bot status, cross-product
-    decisions. NO customers.
-  target_audience: Team only (founder, dev, support, PM)
-  access: private
-  admins:
-  - founder
-  - devops
-  - pm
-  - support_lead
-  forum_topics:
-  - 🚨 incidents
-  - 🚀 deploys
-  - 🤖 bot-status
-  - 📋 decisions
-  rules:
-  - 'Secret-free: no tokens/passwords/OTP (bot strips + warns)'
-  - Customer PII only as ticket ID, never raw
-  chat_id: '-1004460536807'
-  invite_link: https://t.me/+FTKorPoHfDswOTE1
-- key: owner_alerts
-  kind: supergroup
-  name: LeadGen AI · Owner Alerts
-  purpose: 'Critical alerts mirror to founder: health, payment-received (UPI), incident,
-    kill-switch state. Telegram mirror of the ntfy owner feed.'
-  target_audience: Founder only (+ LeadGenBot)
-  access: private
-  admins:
-  - founder
-  - devops
-  - bot_broadcast
-  forum_topics:
-  - 💰 payments
-  - ❤️ health
-  - 🔥 incidents
-  rules:
-  - Alerts only — no discussion
-  - Secret-free
-  chat_id: '-1003878635977'
-  invite_link: https://t.me/+FbbUvbVEQ_8zZWI1
+  - key: internal_admin
+    kind: supergroup
+    name: LeadGen AI - Internal Ops
+    purpose: Internal coordination, incident war-room, deploy notices, bot status, cross-product decisions. NO customers.
+    target_audience: Team only (founder, dev, support, PM)
+    access: private
+    admins: [founder, devops, pm, support_lead]
+    forum_topics: [incidents, deploys, bot-status, decisions]
+    chat_id: '-1004460536807'
+    topic_ids:
+      incidents: 6
+      deploys: 7
+      'bot-status': 8
+      decisions: 9
+    invite_link: https://t.me/+FTKorPoHfDswOTE1
+  - key: owner_alerts
+    kind: supergroup
+    name: LeadGen AI - Owner Alerts
+    purpose: Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state.
+    target_audience: Founder only (+ LeadGenBot)
+    access: private
+    admins: [founder, devops, bot_broadcast]
+    forum_topics: [payments, health, incidents]
+    chat_id: '-1003878635977'
+    topic_ids:
+      payments: 5
+      health: 6
+      incidents: 7
+    invite_link: https://t.me/+FbbUvbVEQ_8zZWI1
+  - key: workers_coordination
+    kind: supergroup
+    name: LeadGen AI - Worker Coordination
+    purpose: Cross-worker coordination, task handoffs, status updates between the 9 worker CLI agents.
+    target_audience: Worker agents + founder + PM
+    access: private
+    admins: [founder, pm, devops, bot_broadcast]
+    forum_topics: [worker-status, task-handoffs, urgent]
+    chat_id: ''
+    invite_link: null
+  - key: agents_coordination
+    kind: supergroup
+    name: LeadGen AI - Agents Coordination
+    purpose: 31-agent coordination, Boss verdict, hierarchical runs, skill sharing, agent health.
+    target_audience: Agent operators + founder
+    access: private
+    admins: [founder, pm, devops, bot_broadcast]
+    forum_topics: [agent-status, assignments, verdicts, skill-share]
+    chat_id: ''
+    invite_link: null
+  - key: admin_command_center
+    kind: supergroup
+    name: LeadGen AI - Admin Command Center
+    purpose: Owner/admin operational commands, deployment notices, kill-switch status, revenue truth, system health.
+    target_audience: Founder + devops + PM
+    access: private
+    admins: [founder, devops, bot_broadcast]
+    forum_topics: [deploys, revenue, kill-switch, metrics, system-health]
+    chat_id: ''
+    invite_link: null
 moderation:
   join_policy: Voluntary opt-in only. No scraping, no bulk-add, no cold-DM.
-  on_join: WelcomeBot posts rules + consent notice; member must tap /start (or react)
-    before posting. Bots identify as automated (AI disclosure).
   anti_abuse:
-    spam_phishing_scam: bot_mod auto-deletes + bans; CM reviews
+    spam_phishing_scam: bot auto-deletes + bans
     harassment_illegal: ban + report to Telegram
-  pii_rule: No PII in chat; Support uses ticket ID. Secret-free everywhere.
-  escalation: Support → Internal Ops → Founder (war-room if incident)
+  pii_rule: No PII in chat. Support uses ticket ID. Secret-free everywhere.
+  escalation: Support -> Internal Ops -> Founder (war-room if incident)
   opt_out: Respect leave/unsubscribe; never message a departed member.
-  incident: Internal Ops war-room → Announcements channel status post.
 compliance:
   dpdp_2023: Lawful purpose, consent, data minimization, erasure on leave.
-  trai_tccctr: No UCC; opt-in; honor DND + 09:00–21:00 for any outbound.
+  trai_tccctr: No UCC; opt-in; honor DND + 09:00-21:00 for any outbound.
   ai_disclosure: Every automated reply labels itself as a bot.
-  payment_truth: Manual UPI only; never claim 'auto-paid'.
-  no_cold_outreach: No cold Telegram/WhatsApp adds (mirrors existing ban).
-  tenant_isolation: No cross-customer PII leakage in shared groups.
+  payment_truth: Manual UPI only; never claim auto-paid.
+  no_cold_outreach: No cold Telegram/WhatsApp adds.
+  tenant_isolation: No cross-customer PII leakage.

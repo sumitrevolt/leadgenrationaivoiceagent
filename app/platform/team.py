@@ -850,7 +850,15 @@ def team_status() -> dict[str, Any]:
                 "schedule": info["schedule"],
                 "state": state,
                 "last_active_mins": last_mins,
-                "today_actions": max(per_member_today.get(key, 0), int(wf_agent.get("cycle", 1)) if wf_agent else 0),
+                # HONESTY FIX (crore-strategy T01, ARCH §M1): `today_actions` derives ONLY
+                # from REAL recorded events (per_member_today, built from log_event rows).
+                # The previous `max(..., wf_agent.get("cycle", 1))` fallback read `cycle`
+                # from data/workforce_live_status.json — a global counter that MANUFACTURED
+                # activity (its own note says "previously ... generated FAKE telemetry").
+                # That directly contradicted this function's rule above: "TRUST REAL EVENTS,
+                # NOT FAKE JSON STATUS". Removed so a dashboard can never show work that
+                # never happened. See docs/architecture/EVENT_CONTRACTS.md.
+                "today_actions": per_member_today.get(key, 0),
                 "today_errors": per_member_errors.get(key, 0),
                 "last_activity": le,
                 "combo": (wf_agent.get("combo") if wf_agent else "leadsgen combo 1"),

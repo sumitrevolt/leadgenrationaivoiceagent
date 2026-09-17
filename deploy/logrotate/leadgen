@@ -1,0 +1,29 @@
+# logrotate policy for LeadGen AI (M6 T05) — install at /etc/logrotate.d/leadgen
+# Belt + suspenders alongside app/utils/logging_rotation.py's RotatingFileHandler.
+#
+# Install:  sudo cp deploy/logrotate/leadgen /etc/logrotate.d/leadgen
+# Evidence label: CODE-PRESENT.
+
+/opt/leadgen/var/log/*.log {
+    daily
+    rotate 14
+    maxsize 10M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+}
+
+/opt/leadgen/var/log/calls/*/*.log {
+    daily
+    rotate 7
+    maxsize 10M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+}
