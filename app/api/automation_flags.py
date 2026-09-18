@@ -73,7 +73,6 @@ AUTOMATION_FLAGS = [
     "VOICE_TRAIN_BATCH",  # calls-per-batch before a training pause (default 30 → pause@30/60/90)
     "VOICE_CIRCUIT_FAIL_THRESHOLD",  # consecutive provider failures before circuit breaker trips (default 5)
     "VOICE_RECORDING_REQUIRED",  # 1 = recording MANDATORY; unhealthy recordings dir blocks new dials (fail-closed). Default OFF (graceful)
-    "OUTREACH_CAMPAIGN_VARIANTS",  # cold email uses Kiran champion/challenger copy (impression/reply tracked)
     "VOICE_CAMPAIGN_VARIANTS",  # Swara phone/web greeting uses voice_opening champion/challenger
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)
     "AUTO_INVOICE",
@@ -188,7 +187,6 @@ AUTOMATION_FLAGS = [
     "INDIAMART_CRM_KEY",  # IndiaMART official Lead Manager API (seller's own leads) — inert without key
     "CALL_TRANSFER",
     "OUTREACH_AB",
-    "OUTREACH_AUDIT_LED",  # cold-email leads with a personalized audit-gap hook (additive, no cap change) — OFF default
     "UPI_AUTO_ACTIVATE",  # self-serve UPI submit auto-activates plan immediately (reconcile later) — OFF default
     "UPI_AUTO_ACTIVATE_CLIENTS",  # comma tenant allowlist required when UPI_AUTO_ACTIVATE=1; empty=fail-closed; '*'=all
     "SERVICE_REMINDERS",
