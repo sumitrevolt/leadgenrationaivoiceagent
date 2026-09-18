@@ -123,10 +123,10 @@ class Score:
     Criteria is a LIST (not dict) — e.g., ["low", "medium", "high"]
     """
 
-    def __init__(self, question: str, criteria: list[str] | dict[str, str], instructions: str = ""):
+    def __init__(self, question: str, criteria: list[str], instructions: str = ""):
         self.question = question
         # Accept both list and dict for backward compat, but prefer list
-        self.criteria: list[str] | dict[str, str] = criteria
+        self.criteria: list[str] = criteria
         self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
@@ -234,9 +234,7 @@ class TypeSafeClient:
         """Compatibility wrapper around system_one for a single Noul question."""
         return self.system_one(state, {"q": Noul(question)})
 
-    def score(
-        self, question: str, state: dict[str, Any], criteria: dict[str, str]
-    ) -> TypeSafeResponse:
+    def score(self, question: str, state: dict[str, Any], criteria: list[str]) -> TypeSafeResponse:
         """Compatibility wrapper around system_one for a single Score question."""
         return self.system_one(state, {"q": Score(question, criteria)})
 
@@ -266,9 +264,7 @@ def typesafe_noul(question: str, state: dict[str, Any]) -> TypeSafeResponse:
     return get_typesafe_client().noul(question, state)
 
 
-def typesafe_score(
-    question: str, state: dict[str, Any], criteria: dict[str, str]
-) -> TypeSafeResponse:
+def typesafe_score(question: str, state: dict[str, Any], criteria: list[str]) -> TypeSafeResponse:
     return get_typesafe_client().score(question, state, criteria)
 
 
