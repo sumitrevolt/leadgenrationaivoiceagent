@@ -322,7 +322,7 @@ async def smartflo_test_call(
             "next_steps": [
                 "Call blocked by compliance gate (TCCCPR/TRAI) — not dialled.",
                 f"Reason: {block_reason}",
-                "Transactional calls are only allowed 09:00-21:00 IST.",
+                "Outbound campaign calls are only allowed 09:00-20:00 IST (transactional 09:00-21:00).",
                 "Check VOICE_LAUNCH_KILL / DIAL_TEST_MODE / COMPLIANCE_ALLOWLIST.",
             ],
         }

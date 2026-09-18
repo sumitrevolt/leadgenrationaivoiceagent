@@ -22,7 +22,16 @@ import json
 
 from app.platform import automation_health as ah
 
-_ARMED_FLAGS = ("GSC_ENABLED", "CRM_SYNC", "CRM_SYNC_PULL", "SOCIAL_ENGINE", "WHATSAPP_AUTO_SEND")
+# TYPESAFE_ENABLED is inverted (opt-OUT, default ON): the TypeSafe call sites are
+# unconditional in code, so "no key" is a real gap unless the owner opts out.
+_ARMED_FLAGS = (
+    "GSC_ENABLED",
+    "CRM_SYNC",
+    "CRM_SYNC_PULL",
+    "SOCIAL_ENGINE",
+    "WHATSAPP_AUTO_SEND",
+    "TYPESAFE_ENABLED",
+)
 
 
 def _all_off(monkeypatch) -> None:

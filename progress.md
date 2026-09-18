@@ -53,3 +53,87 @@
 
 ### Next Highest Priority
 Owner action: create 3 missing chats + add bot as admin. Then run `--apply` to wire descriptions/topics/pins.
+
+---
+
+# Progress Log — 2026-09-18
+## Loop Run: TypeSafe local key INERT — root cause + safe activation path
+
+**Date:** 2026-09-18 (IST)  
+**Goal:** Owner report: "local computer pe TypeSafe API key use hona chahiye — kal ho rahi thi, aaj nahi" → root cause prove karo, local activation ko safe + verifiable banao, aur banaya hua sab live prove karo.
+
+### Inspected
+- `app/platform/typesafe_integration.py` (read order: `TYPESAFE_API_KEY` → legacy `TYPEsafe_API_KEY` → `""` INERT)
+- `git log -6 -- app/platform/typesafe_integration.py` → `7317f990` (feat) · `979c2229` (security: remove hardcoded live creds) · `8f0ae53e` (HEAD)
+- Local env surface: **koi `.env` nahi** — sirf `.env.example`, `.env.partial`, `.env.production.local` (1 `TYPESAFE_API_KEY` line, ignored by git)
+- `app/config.py` (`env_file = ".env"`) + `app/main.py` (**no `load_dotenv`**) + `scripts/fire_calls.py`, `scripts/voice_learn_from_calls.py` (neighbour convention: script khud `load_dotenv`)
+- Canonical skill `.claude/skills/typesafe-ai/SKILL.md` + official docs `docs.typesafe.ai/api` (contract confirm)
+- `scripts/check_secrets.py` env-fallback pattern (`7317f990` leak hole, closed 2026-09-17)
+
+### Problems Found
+1. **Root cause (proven, not guessed):** `7317f990` ne live key ko `os.getenv(..., "<literal>")` FALLBACK me hardcode kiya tha — isliye "bina config kaam kar rahi thi". `979c2229` ne literal hataya (correct security fix) → key sirf process env se aati hai. Local machine pe na `.env` hai na `.env.production.local` ka koi loader, isliye client **INERT** (`enabled=False`).  
+2. **Deeper truth:** dono candidate local keys **dead** hain — live probe dono par `HTTP 401 authentication_error`: committed literal (fp `fe66d7de1807`) aur `.env.production.local` wali key (fp `45d2320759d8`). Yani purana fallback literal wapas lagane se bhi aaj kaam nahi karta.
+3. **Contract galat nahi hai:** docs `POST https://api.typesafe.ai/v1/systemone` + `Authorization: Bearer` + model `jev-latest` confirm karte hain — same jo module use karta hai. Masla sirf credential ka hai.
+4. **Local run command adhura tha:** `app/main.py` `load_dotenv` nahi karta, isliye `.env`-based keys app process ko dikhte hi nahi (silent INERT).
+
+### Changed
+- **Naya:** `scripts/typesafe_status.py` — status/fingerprint/`--probe`/`--json`/`--set-key-stdin`; value kabhi print/log/argv me nahi (sirf `sha256[:12]`), compromised fingerprint trip-wire, exit codes 0/2/3/4; `--set-key-stdin` outside-repo + prod-looking target REFUSE karta hai, backup + `0o600`.
+- **Naya:** `tests/test_typesafe_status_script.py` (18 tests) — state mapping, secret-hygiene (rendered + JSON output me key nahi), source self-scan, activation guards, idempotent write.
+- `.env.example`: TypeSafe section document hua (contract + read order + `--env-file .env` note).
+- `CLAUDE.md` + `AGENTS.md` §3 Run dev: `--env-file .env` add (aur kyun zaroori hai).
+- `memory/playbooks.md`: activation runbook add.
+
+### Tests / Verification Evidence
+- `pytest tests/test_typesafe_status_script.py tests/test_typesafe_jev_latest_model.py tests/test_check_secrets_env_fallback.py -q` → **47 passed**.
+- Live tool output: state `ABSENT` (offline) · `INVALID` + `http_status 401` (parked key) · exit 0/2/3 verified.
+- Live contract probe (mock-free, real network): `requested_model=jev-latest`, latency ~1.2–2.6s, `401 authentication_error` on both keys → endpoint reachable, credential invalid.
+
+### Risks
+- Owner ke chat me paste hui key = exposed → `ROTATION_REQUIRED` (chat/prompt history me value reh gayi; read-only recompute karne se bacha gaya).
+- Chat me aayi key ko is session ne repo/code/log me kahin persist nahi kiya.
+
+### Remaining
+- [ ] Owner: TypeSafe dashboard se naya key mint karo (purani dono revoked hain).
+- [ ] Owner: `python scripts/typesafe_status.py --set-key-stdin` (hidden input) → phir `--probe` green.
+- [ ] VPS par same tool se state confirm karo (koi code change nahi chahiye).
+
+### Next Highest Priority
+Owner ke paas valid key aane par: local `--probe` green + VPS `/v1/systemone` PRODUCTION-PROVEN, phir TypeSafe ko real revenue decisions (lead scoring / reply triage) me wire karna — judgment ke saath traceability (`requested_model`/`resolved_model`/latency/outcome).
+
+---
+
+## Loop Run: TypeSafe local ACTIVATION + silent-INERT observability (2026-09-18, same session)
+
+**Date:** 2026-09-18 (IST)
+**Goal:** "tum hi karo sab" — activation khud karo (owner sirf key deta hai), aur is class ki khamoshi (INERT integration green dikhna) dobara na ho.
+
+### Changed
+- **Local activation PROVEN:** owner ki di hui key live `PRESENT` nahi tha — pehle probe kiya: `success=True`, `resolved_model=jev-1.13.0`, fp `2e13ca55f7f8` (yani purani dono revoked keys se alag, VALID key).
+- `scripts/typesafe_status.py --set-key-stdin` se repo `.env` me activate hua (gitignored — `git check-ignore` = `.gitignore:102:.env*`; backup support; `0o600`).
+- `app/platform/typesafe_integration.py`: `fingerprint()` + `COMPROMISED_FINGERPRINTS` + `credential_state()` (config-only, network-free, value kabhi log nahi). Docstring me poora state vocabulary.
+- `app/platform/automation_health.py`: `wiring_gaps()` me **TypeSafe credential gap** (silent-INERT class). Call sites code me unconditional hain, isliye default ON; opt-out `TYPESAFE_ENABLED=0`. Config-only — koi network call nahi. Compromised fingerprint par "EXPOSED → rotate" gap.
+- `scripts/typesafe_status.py` ab trip-wire/`fingerprint()` app module se leta hai (drift test se pinned).
+- `.env.example`: `TYPESAFE_ENABLED` documented. `tests/test_automation_health_wiring_gaps.py`: `_ARMED_FLAGS` me `TYPESAFE_ENABLED` add (test ka intent wahi — "unarmed → no gap").
+- **Naya** `tests/test_typesafe_credential_gap.py` (15 tests): ABSENT→gap, PRESENT→no gap, legacy env → present, EXPOSED→rotation gap, opt-out, **payload me key material nahi**, provider crash se wiring_gaps() safe, trip-wire shape, script↔module drift, aur gap `health().status/ok` ko degrade nahi karta (blast-radius guard).
+
+### Tests / Verification Evidence
+- `pytest` (10 suites: naya gap + script + wiring_gaps + module contract + beat-registration + secrets + dlq-dead + infra-observability + gated-inert-heartbeat + job-run-history) → **121 passed**.
+- **A/B falsification (2026-09-18):** `test_infra_observability::test_automation_health_heartbeat_and_overdue` red tha — pehla shak mera naya gap tha, par `TYPESAFE_ENABLED=0` (gap suppressed) par bhi wahi failure, aur real-data inputs neutralise karne par status `warming_up` (mera gap ACTIVE hote hue bhi) → root cause **machine ka real `stale_outputs.jsonl` entry**, mera change nahi. Fix = test ki premise control (test absence assert karta hai to absence khud set kare).
+- ruff clean · `prod_check.py` → **[OK] ALL CHECKS PASSED** (automation 0 gaps) · `check_secrets.py` → 14 changed files, **no secrets detected**.
+- **Cold-process proof:** env vars hata kar chalaya → `.env` se `PRESENT` + probe success (yani machine restart ke baad bhi chalta rahega).
+- **Dev-run path proof:** `uvicorn.config.Config(env_file='.env')` → `TYPESAFE_API_KEY: PRESENT` + `integration enabled: True` (kyunki `app/main.py` me `load_dotenv` nahi hai).
+- **Observability live proof:** key ke bina `wiring_gaps()` = **1 gap** (`TYPESAFE_API_KEY … INERT`), key ke saath = **0 gaps**.
+
+### Risks
+- Key chat me aayi thi → exposed. Local activation ke liye use hui; **rotate karna owner ka call hai** (rotate karne par `--set-key-stdin` dobara chalana hoga).
+- VPS/Prod ka TypeSafe state ab bhi **UNKNOWN** (is machine se VPS access nahi) — agar prod me wahi revoked literal hai to wahan TypeSafe INVALID hai aur ab naya wiring gap usse daily brief me dikhayega.
+- Changes **uncommitted** hain (dusre thread ka `app/platform/auto_outreach.py` wala in-flight diff same tree me hai — broad staging avoided).
+
+### Remaining
+- [ ] VPS par read-only check: `python scripts/typesafe_status.py --probe` (agar ABSENT/INVALID → `scripts/env_set.py TYPESAFE_API_KEY=… --file /opt/leadgen/.env` + app recreate).
+- [ ] Naya (rotated) key mint karke `--set-key-stdin` se re-arm.
+- [ ] `app/platform/typesafe_niche.py` branch (`origin/fix/typesafe-jev-latest`) se recover karna.
+- [!] **PRE-EXISTING red (mera blast radius ke bahar):** `tests/test_infra_batch2.py::test_telephony_readiness_checks` — `caller_id` key `app/telephony/telephony_readiness.py` me exist hi nahi karta (file HEAD par untouched, maine chhui nahi) + `tts_edge` skip ho raha hai. SmartFlo migration wale in-flight diff ka area hai, isliye chheda nahi — jis thread ke paas `tata_smartflo_handler`/`auto_outreach` diff hai wo isse dekh le.
+
+### Next Highest Priority
+VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod dono green hone par hi TypeSafe ko revenue decisions ki *canonical* judgment layer banaya ja sakta hai.
