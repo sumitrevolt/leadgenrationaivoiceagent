@@ -14,8 +14,8 @@ raising. If gated, returns {"ok": True, "job": job, "status": "gated_inert"}
 — no retry, no DLQ.
 
 Direct test proves:
-1. gated_inert=True → run_staff_job() returns ok=True, no RuntimeError raised
-2. gated_inert=False → run_staff_job() raises RuntimeError (triggers retry/DLQ)
+1. gated_inert=True → run_staff_job.run() returns ok=True, no RuntimeError raised
+2. gated_inert=False → run_staff_job.run() raises RuntimeError (triggers retry/DLQ)
 3. gated_inert() exception → fail-closed, still raises RuntimeError
 """
 
@@ -27,10 +27,10 @@ import pytest
 
 
 class TestGatedInertDirectWrapper:
-    """Directly exercise run_staff_job() Celery wrapper with mocked deps."""
+    """Directly exercise run_staff_job.run() Celery wrapper with mocked deps."""
 
     def test_gated_job_no_retry_triggered(self):
-        """gated_inert=True → run_staff_job returns ok=True, no self.retry() call.
+        """gated_inert=True → run_staff_job.run() returns ok=True, no self.retry() call.
 
         Direct proof: when _run_job returns False but job is gated, the wrapper
         must NOT raise RuntimeError (which triggers Celery retry → DLQ).
@@ -51,92 +51,87 @@ class TestGatedInertDirectWrapper:
             retry_called = True
             raise Exception("retry should not be called for gated job")
 
-        # Mock _run_job to return False (gated job returns False)
-        with patch(
-            "app.platform.team_scheduler._run_job", new_callable=AsyncMock, return_value=False
-        ):
+        mock_self.retry = mock_retry
+
+        # Mock _run_async to return False (gated job returns False)
+        with patch("app.tasks.staff_jobs._run_async", new_callable=AsyncMock, return_value=False):
             # Mock gated_inert to return True (job is gated)
-            with patch("app.platform.automation_health.gated_inert", return_value=True):
-                # Call the actual fixed code path directly (bypass idempotency wrapper)
-                # This simulates what run_staff_job does after the fix
-                ok = False  # _run_job returned False
-                job = "video_delivery_retry"
+            with patch("app.tasks.staff_jobs.automation_health.gated_inert", return_value=True):
+                # Call the actual run_staff_job.run() wrapper
+                result = run_staff_job.run(mock_self, job="video_delivery_retry")
 
-                # This is the fix: check gated_inert before raising
-                if ok is False:
-                    try:
-                        from app.platform import automation_health as _ah_check
-
-                        if _ah_check.gated_inert(job):
-                            result = {"ok": True, "job": job, "status": "gated_inert"}
-                            # Should NOT call retry
-                            assert not retry_called, (
-                                "Celery retry should NOT be called for gated job"
-                            )
-                            assert result["ok"] is True
-                            assert result["status"] == "gated_inert"
-                            assert "error" not in result
-                            return
-                    except Exception:
-                        pass
-                    # If we get here, retry would be called
-                    mock_retry()
-
-                pytest.fail("Should have returned gated_inert result without calling retry")
+                # Should return gated_inert result, NOT raise
+                assert result["ok"] is True
+                assert result["status"] == "gated_inert"
+                assert "error" not in result
+                assert not retry_called, "Celery retry should NOT be called for gated job"
 
     def test_real_failure_triggers_retry(self):
-        """gated_inert=False → run_staff_job raises RuntimeError, triggers retry.
+        """gated_inert=False → run_staff_job.run() raises RuntimeError, triggers retry.
 
         Direct proof: when _run_job returns False and job is NOT gated, the wrapper
         must raise RuntimeError (which triggers Celery retry → DLQ).
         """
-        from app.platform import automation_health
+        from app.tasks.staff_jobs import run_staff_job
 
-        # Mock gated_inert to return False (job is NOT gated — real failure)
-        with patch.object(automation_health, "gated_inert", return_value=False):
-            ok = False  # job returned False
-            job = "some_job"
-            raised = False
+        # Setup mock self
+        mock_self = MagicMock()
+        mock_self.request = MagicMock()
+        mock_self.request.id = "test-task-id"
+        mock_self.request.retries = 0
 
-            try:
-                if ok is False:
-                    try:
-                        if automation_health.gated_inert(job):
-                            raise AssertionError("Should not be gated")
-                    except Exception:
-                        pass
-                    raise RuntimeError(f"staff job '{job}' reported failure")
-            except RuntimeError as e:
-                raised = True
-                assert "reported failure" in str(e)
+        # Track if retry was called
+        retry_called = False
 
-            assert raised, "Real failure should still raise RuntimeError"
+        def mock_retry(*args, **kwargs):
+            nonlocal retry_called
+            retry_called = True
+
+        mock_self.retry = mock_retry
+
+        # Mock _run_async to return False (failure)
+        with patch("app.tasks.staff_jobs._run_async", new_callable=AsyncMock, return_value=False):
+            # Mock gated_inert to return False (NOT gated — real failure)
+            with patch("app.tasks.staff_jobs.automation_health.gated_inert", return_value=False):
+                # Should raise RuntimeError
+                with pytest.raises(RuntimeError, match="reported failure"):
+                    run_staff_job.run(mock_self, job="some_job")
+
+                # Retry should have been called
+                assert retry_called, "Celery retry SHOULD be called for real failure"
 
     def test_gated_inert_exception_fails_closed(self):
         """gated_inert() raises → fall through to RuntimeError (fail-closed).
 
         Safety proof: if the gate check itself breaks, we still treat it as failure.
         """
-        from app.platform import automation_health
+        from app.tasks.staff_jobs import run_staff_job
 
-        # Make gated_inert raise an exception
-        with patch.object(automation_health, "gated_inert", side_effect=Exception("boom")):
-            ok = False
-            job = "video_delivery_retry"
-            raised = False
+        # Setup mock self
+        mock_self = MagicMock()
+        mock_self.request = MagicMock()
+        mock_self.request.id = "test-task-id"
+        mock_self.request.retries = 0
 
-            try:
-                if ok is False:
-                    try:
-                        if automation_health.gated_inert(job):
-                            pass
-                    except Exception:
-                        pass  # fails open — fall through to raise
-                    raise RuntimeError(f"staff job '{job}' reported failure")
-            except RuntimeError:
-                raised = True
+        # Track if retry was called
+        retry_called = False
 
-            assert raised, "Should raise when gated_inert check fails"
+        def mock_retry(*args, **kwargs):
+            nonlocal retry_called
+            retry_called = True
+
+        mock_self.retry = mock_retry
+
+        # Mock _run_async to return False
+        with patch("app.tasks.staff_jobs._run_async", new_callable=AsyncMock, return_value=False):
+            # Mock gated_inert to raise exception
+            with patch("app.tasks.staff_jobs.automation_health.gated_inert", side_effect=Exception("boom")):
+                # Should raise RuntimeError (fail-closed)
+                with pytest.raises(RuntimeError):
+                    run_staff_job.run(mock_self, job="video_delivery_retry")
+
+                # Retry should have been called (fail-closed path)
+                assert retry_called, "Celery retry SHOULD be called when gated_inert raises"
 
     def test_source_matches_fix(self):
         """Verify the source code contains the exact fix pattern.
