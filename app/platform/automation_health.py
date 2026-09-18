@@ -1110,6 +1110,52 @@ def wiring_gaps() -> list[dict[str, Any]]:
         except Exception:
             pass
 
+    # TypeSafe (System One judgments): unlike the flag-gated checks above, the
+    # call sites here are UNCONDITIONAL in code (lead scoring, outreach
+    # variants, reply classification, talent pool) and the client silently
+    # degrades to its fallback whenever the credential is missing — i.e. a
+    # green, running automation whose judgment never happens. Opt-out only:
+    # TYPESAFE_ENABLED=0. Config-only (never probes the network). 2026-09-18:
+    # this exact silence is what hid a rotated key on the dev machine.
+    _ts_opted_out = (os.getenv("TYPESAFE_ENABLED", "1") or "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+    )
+    if not _ts_opted_out:
+        try:
+            from app.platform.typesafe_integration import credential_state
+
+            ts_state = credential_state()
+            if ts_state.get("state") == "ABSENT":
+                gaps.append(
+                    {
+                        "key": "TYPESAFE_API_KEY",
+                        "flag_on": True,
+                        "missing": "TYPESAFE_API_KEY",
+                        "note": (
+                            "TypeSafe judgments INERT (no API key) — lead scoring / outreach "
+                            "variants / reply triage silently fall back. Fix: "
+                            "scripts/typesafe_status.py --set-key-stdin (state check: --probe)"
+                        ),
+                    }
+                )
+            elif ts_state.get("state") == "ROTATION_REQUIRED":
+                gaps.append(
+                    {
+                        "key": "TYPESAFE_API_KEY",
+                        "flag_on": True,
+                        "missing": "rotated TypeSafe key",
+                        "note": (
+                            "TypeSafe key is an EXPOSED fingerprint "
+                            f"({ts_state.get('fingerprint')}) — rotate it and re-arm via "
+                            "scripts/typesafe_status.py --set-key-stdin"
+                        ),
+                    }
+                )
+        except Exception:
+            pass
+
     return gaps
 
 

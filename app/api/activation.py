@@ -655,7 +655,7 @@ def _compliance_env() -> dict[str, Any]:
 
         win_start, win_end = effective_promo_window()
     except Exception:
-        win_start, win_end = "09:00", "19:00"
+        win_start, win_end = "09:00", "20:00"
 
     probes = [
         {

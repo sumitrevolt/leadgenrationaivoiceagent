@@ -88,6 +88,12 @@ def run_checks() -> dict[str, Any]:
         20,
     )
     add("did", bool(tata_did), "TATA_SMARTFLO_DID (bundled DID)", 15)
+    add(
+        "caller_id",
+        bool(tata_did),
+        "TATA_SMARTFLO_DID (caller ID for outbound calls)",
+        10,
+    )
 
     # Synthetic Verification check — DID connectivity probe.
     # 2026-08-30 FIX: previous code hardcoded outbound_ok=True which gave a

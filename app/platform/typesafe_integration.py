@@ -18,8 +18,19 @@ REMOVED. Read order:
   2. env var TYPEsafe_API_KEY (legacy backward-compat)
   3. "" (empty) -> the integration is INERT, not silently authenticated.
 The exposed key is in git history (7317f990) and MUST be revoked/rotated.
+
+Credential state vocabulary (2026-09-18) — used by `credential_state()` below,
+`automation_health.wiring_gaps()` and `scripts/typesafe_status.py`:
+  PRESENT            key configured in the PROCESS env (this module never reads
+                     a .env file — app code has no load_dotenv; dev runs must
+                     pass `uvicorn --env-file .env`)
+  ABSENT             no key -> every call site silently degrades to its fallback
+  INVALID            key present but the API rejected it (HTTP 401/403) — needs
+                     a live probe, so only the status script reports it
+  ROTATION_REQUIRED  key is one of the already-EXPOSED fingerprints — never arm
 """
 
+import hashlib
 import logging
 import os
 from dataclasses import dataclass, field
@@ -37,6 +48,49 @@ _DEFAULT_MODEL = "jev-latest"
 def _get_api_key() -> str:
     """Read API key from canonical env, with legacy fallback."""
     return (os.getenv("TYPESAFE_API_KEY") or os.getenv("TYPEsafe_API_KEY") or "").strip() or ""
+
+
+def fingerprint(value: str) -> str:
+    """sha256[:12] of a credential — safe to print/log. NEVER the credential itself."""
+    if not value:
+        return ""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
+# Credentials that are already EXPOSED and must never be re-armed. Hashes only
+# (a hash is not a secret — and the plaintext sits in public git history anyway).
+COMPROMISED_FINGERPRINTS: dict[str, str] = {
+    # getenv fallback default in this file, commit 7317f990 (removed in 979c2229).
+    "fe66d7de1807": "committed in 7317f990 (removed 979c2229)",
+}
+
+
+def credential_state() -> dict[str, Any]:
+    """Config-only credential state. NO network call, NEVER logs the value.
+
+    `INVALID` is deliberately not detectable here — proving a key was rejected
+    needs a live request, which belongs to `scripts/typesafe_status.py --probe`
+    (bounded, on demand) and not to a health/brief path that runs per page load.
+    """
+    key = _get_api_key()
+    model = os.getenv("TYPESAFE_MODEL") or _DEFAULT_MODEL
+    if not key:
+        return {
+            "state": "ABSENT",
+            "enabled": False,
+            "source": "none",
+            "fingerprint": "",
+            "model": model,
+        }
+    source = "env:TYPESAFE_API_KEY" if (os.getenv("TYPESAFE_API_KEY") or "").strip() else "env:TYPEsafe_API_KEY"
+    fp = fingerprint(key)
+    return {
+        "state": "ROTATION_REQUIRED" if fp in COMPROMISED_FINGERPRINTS else "PRESENT",
+        "enabled": True,
+        "source": source,
+        "fingerprint": fp,
+        "model": model,
+    }
 
 
 @dataclass

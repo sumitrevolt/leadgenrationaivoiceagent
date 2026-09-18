@@ -89,8 +89,8 @@ def test_warmup_flag_off_zero_change(tmp_path, monkeypatch):
 def test_warmup_ramp_and_pause(tmp_path, monkeypatch):
     wu = _patch_wu(tmp_path, monkeypatch)
     monkeypatch.setenv("EMAIL_WARMUP", "1")
-    # day-1 (start marker auto-set) -> week1 ramp = 5
-    assert wu.effective_cap(25) == 5
+    # day-1 (start marker auto-set) -> week1 ramp = 10 (faster ramp: 10/25/40)
+    assert wu.effective_cap(25) == 10
     # week-3 via env start date (15 din pehle)
     from datetime import datetime, timedelta, timezone
 
@@ -98,7 +98,7 @@ def test_warmup_ramp_and_pause(tmp_path, monkeypatch):
         "WARMUP_START_DATE",
         (datetime.now(timezone.utc) - timedelta(days=15)).date().isoformat(),
     )
-    assert wu.effective_cap(25) == 25  # wk3 ramp=25, min(base,25)
+    assert wu.effective_cap(25) == 25  # wk3 ramp=40, min(base=25,40)=25
     # week-5 -> base cap
     monkeypatch.setenv(
         "WARMUP_START_DATE",
@@ -178,7 +178,7 @@ def test_outreach_cap_respects_warmup(tmp_path, monkeypatch):
 
     monkeypatch.setattr(wu, "_STATE", str(tmp_path / "warmup.json"))
     monkeypatch.setenv("EMAIL_WARMUP", "1")
-    # week1 -> effective 5 (base 25)
-    assert wu.effective_cap(25) == 5
+    # week1 -> effective 10 (base 25, ramp=10)
+    assert wu.effective_cap(25) == 10
     monkeypatch.delenv("EMAIL_WARMUP", raising=False)
     assert wu.effective_cap(25) == 25
