@@ -21,8 +21,9 @@ Direct test proves:
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 
 class TestGatedInertDirectWrapper:
@@ -51,9 +52,11 @@ class TestGatedInertDirectWrapper:
             raise Exception("retry should not be called for gated job")
 
         # Mock _run_job to return False (gated job returns False)
-        with patch('app.platform.team_scheduler._run_job', new_callable=AsyncMock, return_value=False):
+        with patch(
+            "app.platform.team_scheduler._run_job", new_callable=AsyncMock, return_value=False
+        ):
             # Mock gated_inert to return True (job is gated)
-            with patch('app.platform.automation_health.gated_inert', return_value=True):
+            with patch("app.platform.automation_health.gated_inert", return_value=True):
                 # Call the actual fixed code path directly (bypass idempotency wrapper)
                 # This simulates what run_staff_job does after the fix
                 ok = False  # _run_job returned False
@@ -63,10 +66,13 @@ class TestGatedInertDirectWrapper:
                 if ok is False:
                     try:
                         from app.platform import automation_health as _ah_check
+
                         if _ah_check.gated_inert(job):
                             result = {"ok": True, "job": job, "status": "gated_inert"}
                             # Should NOT call retry
-                            assert not retry_called, "Celery retry should NOT be called for gated job"
+                            assert not retry_called, (
+                                "Celery retry should NOT be called for gated job"
+                            )
                             assert result["ok"] is True
                             assert result["status"] == "gated_inert"
                             assert "error" not in result
@@ -87,7 +93,7 @@ class TestGatedInertDirectWrapper:
         from app.platform import automation_health
 
         # Mock gated_inert to return False (job is NOT gated — real failure)
-        with patch.object(automation_health, 'gated_inert', return_value=False):
+        with patch.object(automation_health, "gated_inert", return_value=False):
             ok = False  # job returned False
             job = "some_job"
             raised = False
@@ -114,7 +120,7 @@ class TestGatedInertDirectWrapper:
         from app.platform import automation_health
 
         # Make gated_inert raise an exception
-        with patch.object(automation_health, 'gated_inert', side_effect=Exception("boom")):
+        with patch.object(automation_health, "gated_inert", side_effect=Exception("boom")):
             ok = False
             job = "video_delivery_retry"
             raised = False
@@ -138,6 +144,7 @@ class TestGatedInertDirectWrapper:
         This proves the fix is actually in staff_jobs.py and not just in tests.
         """
         import inspect
+
         from app.tasks import staff_jobs
 
         # Get the source of run_staff_job
@@ -145,6 +152,9 @@ class TestGatedInertDirectWrapper:
 
         # Verify the fix pattern exists
         assert "gated_inert" in source, "Fix pattern 'gated_inert' not found in run_staff_job"
-        assert "automation_health" in source, "Fix pattern 'automation_health' not found in run_staff_job"
-        assert 'return {"ok": True, "job": job, "status": "gated_inert"}' in source, \
+        assert "automation_health" in source, (
+            "Fix pattern 'automation_health' not found in run_staff_job"
+        )
+        assert 'return {"ok": True, "job": job, "status": "gated_inert"}' in source, (
             "Fix return pattern not found in run_staff_job"
+        )
