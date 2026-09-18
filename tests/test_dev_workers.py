@@ -1,4 +1,4 @@
-"""Tests for dev_workers.py — execution proof module (M1, P0).
+"""Tests for dev_workers.py â€” execution proof module (M1, P0).
 
 Run: pytest tests/test_dev_workers.py -v
 """
@@ -19,26 +19,6 @@ from app.platform.dev_workers import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _isolated_dev_worker_ledger(tmp_path, monkeypatch):
-    """Point the module-level prover at a throwaway ledger for every test.
-
-    ``get_prover()`` resolves its ledger path at call time, so setting
-    ``DEV_WORKERS_LEDGER_PATH`` makes this suite hermetic: no test reads or
-    writes the shared runtime ledger, and rows leaked by an earlier test can no
-    longer break ``test_dev_workers_becomes_nonzero`` — which asserts
-    ``len(prover.workers) == 1`` against the *global* singleton while a sibling
-    test had already written ``dw_task_full`` into the same file.
-    """
-    monkeypatch.setenv(
-        "DEV_WORKERS_LEDGER_PATH", str(tmp_path / "dev_workers_ledger.json")
-    )
-    import app.platform.dev_workers as dw_module
-
-    monkeypatch.setattr(dw_module, "_prover", None, raising=False)
-    yield
-
-
 class TestDevWorkerRecord:
     """Test DevWorkerRecord dataclass."""
 
@@ -49,7 +29,7 @@ class TestDevWorkerRecord:
             task_id="task_abc456",
             lease_token="token_xyz",
             state="claimed",
-            evidence="data/output.json"
+            evidence="data/output.json",
         )
         assert record.worker_id == "dw_test123"
         assert record.task_id == "task_abc456"
@@ -65,7 +45,7 @@ class TestDevWorkerRecord:
             task_id="task_123",
             lease_token="token_abc",
             state="done",
-            evidence="evidence.txt"
+            evidence="evidence.txt",
         )
         data = record.to_dict()
         assert data["worker_id"] == "dw_test"
@@ -84,7 +64,7 @@ class TestDevWorkerRecord:
             "evidence": "evidence.txt",
             "claimed_at": 1000.0,
             "heartbeat_at": 1001.0,
-            "done_at": None
+            "done_at": None,
         }
         record = DevWorkerRecord.from_dict(data)
         assert record.worker_id == "dw_test"
@@ -168,6 +148,7 @@ class TestModuleLevelFunctions:
         """Test that get_prover returns singleton."""
         # Clear singleton for test
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -181,6 +162,7 @@ class TestModuleLevelFunctions:
     def test_prove_execution_convenience(self, tmp_path):
         """Test prove_execution convenience function."""
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -203,6 +185,7 @@ class TestExecutionProof:
     def test_dev_workers_becomes_nonzero(self, tmp_path):
         """Verify dev_workers goes from 0 to >0 rows."""
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -221,5 +204,3 @@ class TestExecutionProof:
             assert worker_id in prover.workers
         finally:
             dw_module._prover = original_prover
-
-

@@ -29,17 +29,8 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Ledger path for the JSON execution-proof ledger.
-#
-# P0 (2026-09-18): this previously aliased `data/orchestrator_ledger.db` — the
-# SQLite file owned by `automation_orchestrator.DurableTaskStore` and by
-# `DevWorkerStore` below. `DevWorkerProver._save()` writes *JSON* via
-# `open(path, "w")` + `json.dump`, so every execution-proof write OVERWROTE the
-# canonical SQLite task ledger with a JSON blob. Live evidence on 2026-09-18:
-# the local `data/orchestrator_ledger.db` started with `{ "dev_workers"` rather
-# than `SQLite format 3`. Two writers, two formats, one path = data loss.
-# The prover now owns a distinct JSON file; the SQLite ledger stays canonical.
-LEDGER_PATH = os.path.join("data", "dev_workers_ledger.json")
+# Ledger path (same as DurableTaskStore)
+LEDGER_PATH = os.path.join("data", "orchestrator_ledger.db")
 
 
 class DevWorkerRecord:
@@ -74,7 +65,7 @@ class DevWorkerRecord:
             "done_at": self.done_at,
         }
 
-    def __repr__(self) -> str:  # pragma: no cover - debug aid
+    def __repr__(self):  # pragma: no cover - debug aid
         return (
             f"DevWorkerRecord(task_id={self.task_id!r}, worker_id={self.worker_id!r}, "
             f"state={self.state!r}, evidence={self.evidence!r})"
@@ -191,10 +182,7 @@ class DevWorkerProver:
 
     def get_active_count(self) -> int:
         """Count of claimed/running workers (execution proof)."""
-        return sum(
-            1 for w in self.workers.values()
-            if w.state in ("claimed", "running")
-        )
+        return sum(1 for w in self.workers.values() if w.state in ("claimed", "running"))
 
     def get_records(self) -> list[dict[str, Any]]:
         """Get all records (for dashboard/API)."""
@@ -233,21 +221,6 @@ def worker_id_for(task_id: str) -> str:
         return f"dw_{task_id}"
     except Exception:
         return ""
-
-
-_WORKER_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS dev_workers (
-    task_id        TEXT PRIMARY KEY,
-    worker_id      TEXT NOT NULL,
-    state          TEXT NOT NULL DEFAULT 'claimed',
-    lease_token    TEXT,
-    evidence       TEXT NOT NULL DEFAULT '',
-    attempts       INTEGER NOT NULL DEFAULT 0,
-    created_at     REAL,
-    updated_at     REAL,
-    done_at        REAL
-)
-"""
 
 
 class DevWorkerStore:
@@ -355,8 +328,13 @@ class DevWorkerStore:
                          attempts, created_at, updated_at)
                     VALUES (?, ?, 'claimed', ?, '', 1, ?, ?)
                     """,
-                    (task_id, worker_id_for(task_id), lease_token or None,
-                     self._now(), self._now()),
+                    (
+                        task_id,
+                        worker_id_for(task_id),
+                        lease_token or None,
+                        self._now(),
+                        self._now(),
+                    ),
                 )
                 conn.commit()
                 result = True
@@ -434,9 +412,7 @@ class DevWorkerStore:
         conn = None
         try:
             conn = self._conn()
-            row = conn.execute(
-                "SELECT * FROM dev_workers WHERE task_id = ?", (task_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM dev_workers WHERE task_id = ?", (task_id,)).fetchone()
             return self._row_to_record(row) if row is not None else None
         except Exception:
             return None
@@ -453,9 +429,7 @@ class DevWorkerStore:
         if not self._ready:
             return 0
         if state:
-            return self._scalar(
-                "SELECT COUNT(*) FROM dev_workers WHERE state = ?", (state,)
-            )
+            return self._scalar("SELECT COUNT(*) FROM dev_workers WHERE state = ?", (state,))
         return self._scalar("SELECT COUNT(*) FROM dev_workers")
 
     def verified_count(self) -> int:
@@ -490,18 +464,10 @@ class DevWorkerStore:
 
 
 def get_prover() -> DevWorkerProver:
-    """Get or create singleton DevWorkerProver.
-
-    The ledger path is resolved at call time so that tests and operators can
-    redirect the execution prover to an isolated ledger via
-    ``DEV_WORKERS_LEDGER_PATH`` — never touching the canonical SQLite task
-    ledger, and never inheriting rows leaked by an earlier run.
-    """
+    """Get or create singleton DevWorkerProver."""
     global _prover
     if _prover is None:
-        _prover = DevWorkerProver(
-            ledger_path=os.environ.get("DEV_WORKERS_LEDGER_PATH") or LEDGER_PATH
-        )
+        _prover = DevWorkerProver()
     return _prover
 
 

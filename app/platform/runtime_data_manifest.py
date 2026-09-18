@@ -1236,9 +1236,7 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="automation",
         durability_class="rebuildable",
-        concurrency_model=(
-            "single-process JSONL append + best-effort cap-trim per tenant"
-        ),
+        concurrency_model=("single-process JSONL append + best-effort cap-trim per tenant"),
         tenant_scope="per-tenant_id files (one JSONL per tenant)",
         target_runtime_subpath="automation/console_events/",
         migration_tier=TIER_3,
