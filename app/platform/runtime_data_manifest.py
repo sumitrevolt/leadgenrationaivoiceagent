@@ -1422,7 +1422,10 @@ STORES: list[dict[str, Any]] = [
         store_id="ops.telegram_group_ids",
         display_name="Provisioned Telegram group chat_ids result (offline)",
         legacy_paths=["data/new_group_chat_ids.json"],
-        writer_modules=["scripts/telegram_web_create_groups.py", "scripts/telethon_create_groups.py"],
+        writer_modules=[
+            "scripts/telegram_web_create_groups.py",
+            "scripts/telethon_create_groups.py",
+        ],
         production_activity="OFFLINE_TOOLING",
         current_authority="FILE",
         business_category="ops",
@@ -1443,7 +1446,10 @@ STORES: list[dict[str, Any]] = [
     _e(
         store_id="ops.waha_watchdog",
         display_name="WAHA watchdog health + log (self-hosted WhatsApp)",
-        legacy_paths=["/opt/leadgen/data/wa_health_check.json", "/opt/leadgen/data/waha_watchdog.log"],
+        legacy_paths=[
+            "/opt/leadgen/data/wa_health_check.json",
+            "/opt/leadgen/data/waha_watchdog.log",
+        ],
         writer_modules=["scripts/waha_watchdog.py"],
         production_activity="OFFLINE_TOOLING",
         current_authority="FILE",

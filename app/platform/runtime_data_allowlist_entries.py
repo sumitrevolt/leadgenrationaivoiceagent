@@ -1906,7 +1906,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.telegram_setup_state.lock",
         "file": "scripts/telegram_setup.py",
         "line_or_symbol": "lock",
-        "path_pattern": "STATE_PATH.with_suffix(\".lock\")",
+        "path_pattern": 'STATE_PATH.with_suffix(".lock")',
         "store_id": "ops.telegram_setup_state",
         "access_modes": ["LOCK", "CREATE"],
         "reason": (
