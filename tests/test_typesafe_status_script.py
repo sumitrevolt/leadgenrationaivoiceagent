@@ -58,9 +58,7 @@ def test_absent_when_no_env_and_no_files(monkeypatch, tmp_path):
 
 def test_env_canonical_wins_and_is_reported(monkeypatch, tmp_path):
     _isolated(monkeypatch, tmp_path)
-    res = ts.resolve_key(
-        env={ts._CANONICAL_ENV: DUMMY_KEY}, env_files=[], diagnostic_files=[]
-    )
+    res = ts.resolve_key(env={ts._CANONICAL_ENV: DUMMY_KEY}, env_files=[], diagnostic_files=[])
     assert res.state == ts.STATE_PRESENT
     assert res.source == f"env:{ts._CANONICAL_ENV}"
     assert res.fingerprint == ts.fingerprint(DUMMY_KEY)
@@ -118,8 +116,17 @@ def test_probe_state_mapping():
 def test_rendered_output_never_contains_the_key(monkeypatch, tmp_path):
     _isolated(monkeypatch, tmp_path)
     res = ts.resolve_key(env={ts._CANONICAL_ENV: DUMMY_KEY}, env_files=[], diagnostic_files=[])
-    out = ts.render(res, {"success": True, "http_status": 200, "resolved_model": "jev-1.13.0",
-                          "latency_sec": 0.1, "answer_keys": ["a"], "error": ""})
+    out = ts.render(
+        res,
+        {
+            "success": True,
+            "http_status": 200,
+            "resolved_model": "jev-1.13.0",
+            "latency_sec": 0.1,
+            "answer_keys": ["a"],
+            "error": "",
+        },
+    )
     assert DUMMY_KEY not in out
     assert ts.fingerprint(DUMMY_KEY) in out
 

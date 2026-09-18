@@ -197,7 +197,9 @@ def resolve_key(
             "app processes read os.getenv only (main.py has no load_dotenv) — "
             "run uvicorn with --env-file .env, or export the variable"
         )
-    return KeyResolution(state=state, source=source, fingerprint=fp, model=model, notes=notes, key=key)
+    return KeyResolution(
+        state=state, source=source, fingerprint=fp, model=model, notes=notes, key=key
+    )
 
 
 def probe(key: str, model: str = _DEFAULT_MODEL, timeout: float = 30.0) -> dict[str, Any]:
@@ -213,9 +215,14 @@ def probe(key: str, model: str = _DEFAULT_MODEL, timeout: float = 30.0) -> dict[
             "reachable": Noul("Did this request reach the TypeSafe evaluation endpoint?"),
             "path": Choice(
                 "What did this request prove?",
-                {"live_key": "Authentication accepted and a judgment was returned", "other": "Something else"},
+                {
+                    "live_key": "Authentication accepted and a judgment was returned",
+                    "other": "Something else",
+                },
             ),
-            "health": Score("How healthy is this credential path?", ["broken", "degraded", "healthy"]),
+            "health": Score(
+                "How healthy is this credential path?", ["broken", "degraded", "healthy"]
+            ),
         },
     )
     status = None
@@ -304,7 +311,9 @@ def set_key(path: Path, key: str) -> str:
 def read_key_stdin() -> str:
     """Hidden prompt when interactive, plain stdin when piped. Never echoes."""
     if sys.stdin is not None and sys.stdin.isatty():
-        return (getpass.getpass("Paste TypeSafe API key (hidden, not echoed/history): ") or "").strip()
+        return (
+            getpass.getpass("Paste TypeSafe API key (hidden, not echoed/history): ") or ""
+        ).strip()
     return (sys.stdin.read() or "").strip()
 
 
@@ -331,8 +340,12 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="TypeSafe credential status / local activation")
     ap.add_argument("--probe", action="store_true", help="live System One request (network)")
     ap.add_argument("--json", action="store_true", dest="as_json", help="machine-readable output")
-    ap.add_argument("--set-key-stdin", action="store_true", help="read a key (hidden) and write local .env")
-    ap.add_argument("--file", default=str(ROOT / ".env"), help="target env file for --set-key-stdin")
+    ap.add_argument(
+        "--set-key-stdin", action="store_true", help="read a key (hidden) and write local .env"
+    )
+    ap.add_argument(
+        "--file", default=str(ROOT / ".env"), help="target env file for --set-key-stdin"
+    )
     ap.add_argument("--no-probe", action="store_true", help="skip the post-write probe")
     args = ap.parse_args(argv)
 
