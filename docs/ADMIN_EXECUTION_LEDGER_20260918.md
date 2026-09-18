@@ -262,6 +262,71 @@ represents the code commit that carries the fixes.
 * B-1 TypeSafe rotation, B-3 `leadgen-call-loop` inactive, B-4 `HQ_AUTO_CHASE`, B-5
   `VOBIZ_CALLER_ID`: all still open.
 
+---
+
+## 9. WAVE 2 — TypeSafe as the decision engine + 2 defects fixed (2026-09-19 04:35 IST)
+
+**Owner instruction:** "sab fix karo using typesafe skills and api for decision-making, work like admin for owner."
+
+### 9.1 The canonical decision path now exists and is reproducible
+
+`scripts/typesafe_admin_triage.py` — state from `docs/coordination/ADMIN_FINDINGS.json`
+(now tracked; `.gitignore` blanket `*.json` had silently ignored it), ONE System One
+request carrying independent judgments (per-finding `Noul` real-risk, `Score` revenue
+impact, `Choice` next action, `Noul` owner-gate), ranking = `real_risk × severity`,
+trace appended to `data/typesafe_decisions.jsonl`. Fail-closed: INERT/failed request
+exits 3 and writes **no** decision.
+
+**Live result (task_id `tsadm-20260919T043330-f9dbf7`):** requested `jev-latest` →
+resolved **`jev-1.13.0`**; revenue impact **level 3** — "blocks revenue, breaks a
+compliance gate, or stops a live customer path"; **NEXT ACTION `B-2`** (conf 0.88,
+distribution B-2=0.90 / B-3=0.08 / B-4=0.02); owner-gated **True**. Ranking:
+B-2 0.94 › B-4 0.86 › B-5 0.81 › B-3 0.65 › typesafe_adoption 0.23 › B-9 0.10 › B-1 0.08 › B-10 0.04.
+
+An `outcome` record was appended for that task_id, recording exactly what the admin
+did and did not do (B-2 itself remains owner-gated).
+
+### 9.2 FIXED — admin-created users now actually get their verification email (B-8)
+
+`app/api/admin.py` imported `EmailSender` from `app.platform.auto_outreach`, which
+never exported it, and called `send(to=...)` — the real API is
+`await send_email(to_emails=[...])` in `app.integrations.email_sender`. The
+`ImportError` was swallowed by a best-effort `except` logging at **DEBUG**. Fixed to the
+canonical import + async API + `WARNING`-level failure logging.
+**Guard:** `tests/test_admin_verification_email.py` (21 tests) — every best-effort
+`from app.X import Y` inside a `try` block in `admin.py` must resolve to a real
+attribute, so this whole class of silent failure cannot come back.
+
+### 9.3 FIXED — the 992-call decorative TypeSafe consumer is gone
+
+`app/platform/agent_talent_pool.py` was the app's **only** TypeSafe consumer: 31 agents
+× 32 synthetic specializations = **992 sequential paid HTTP calls** at build time, the
+answer then looked up in a hardcoded snake_case map (so `"Cold call expert"` fell
+through to `"general"`), and **zero** modules consumed the pool. Removed
+(rollback `git checkout d4243e7a -- app/platform/agent_talent_pool.py`) and locked by
+`tests/test_typesafe_consumer_inventory.py` (consumer allowlist + stale-entry check +
+orphan must not return). See ADR-195.
+
+### 9.4 NOT touched (deliberate)
+
+* **B-2** (TypeSafe's own #1) — owner-gated: merge + `scripts/deploy_vps.sh`. Prod still
+  runs the 0-byte engine until then.
+* **B-5 / B-3** — `app/telephony/*` carries another thread's in-flight SmartFlo diff;
+  one owner per overlapping area, so no second writer.
+* **B-4** — compliance containment needs the owner's decision.
+
+### 9.5 Verification (all offline-safe)
+
+| Check | Result |
+| --- | --- |
+| `pytest` (7 suites: 3 new + jev-latest + status-script + credential-gap + wiring-gaps) | **95 passed** |
+| `pytest tests/test_revenue_infra_2026.py tests/test_auto_outreach.py` | **36 passed** |
+| `ruff check` (5 changed files) | **All checks passed** |
+| `scripts/check_secrets.py --all` | **4278 files, no secrets detected** |
+| `scripts/prod_check.py` | **[OK] ALL CHECKS PASSED** — 1436 routes, wiring 0 gaps, automation 0 gaps |
+| `scripts/sync_api_docs.py` | docs/API.md synced to 1449 endpoints |
+| `data/typesafe_decisions.jsonl` | decision record + outcome record present, append-only |
+
 
 
 

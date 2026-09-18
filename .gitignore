@@ -173,6 +173,10 @@ credentials/
 !docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json
 !tests/fixtures/dsh_migration_contract.json
 !tests/fixtures/dsh_shadow_golden_set.json
+# Admin findings registry is a SOURCE INPUT for scripts/typesafe_admin_triage.py.
+# The blanket `*.json` above silently excluded it, so a fresh clone would have the
+# triage tool run against a non-existent registry (and `--findings` would refuse).
+!docs/coordination/ADMIN_FINDINGS.json
 # The renderer lockfile MUST be tracked: `npm ci` in Dockerfile.video refuses to
 # run without it, and an untracked lockfile means the image is not reproducible.
 # The blanket `*.json` above silently excluded it.
