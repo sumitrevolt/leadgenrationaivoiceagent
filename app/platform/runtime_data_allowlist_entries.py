@@ -1837,6 +1837,69 @@ ENTRIES: list[dict[str, Any]] = [
     # so the declaration was permanently unbound ("file no longer exists"). The
     # one-shot script still lives on the dev disk; if it ever becomes tracked
     # tooling, re-declare it against its tracked path.
+    # 2026-09-18 — CI baseline repair: three stores introduced on main by the
+    # "1 Cr/Month Emergency Execution" commit (48f35e40) were never declared.
+    {
+        "allowlist_id": "platform.agent_memory.snapshot",
+        "file": "app/agents/agents.py",
+        "line_or_symbol": "memory_path",
+        "path_pattern": "data/agent_memory.json",
+        "store_id": "platform.agent_memory",
+        "access_modes": ["READ", "CREATE", "REWRITE"],
+        "reason": (
+            "AgentManager._load_memory()/_save_memory() keep a JSON snapshot of "
+            "per-agent task counters + last_active. Full-file rewrite, no lock; "
+            "loss resets counters only (rebuildable, not authority)."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "agents",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "If this becomes authoritative for agent billing/routing, move behind "
+            "app/platform/runtime_data.py with single-writer locking."
+        ),
+    },
+    {
+        "allowlist_id": "communications.telegram_inbox.append",
+        "file": "app/api/webhooks.py",
+        "line_or_symbol": "_telegram_inbox_path",
+        "path_pattern": "data/telegram_inbox.jsonl",
+        "store_id": "communications.telegram_inbox",
+        "access_modes": ["CREATE", "APPEND"],
+        "reason": (
+            "Every inbound Telegram update is durably appended for audit/dedup "
+            "before handling. Append-only receipt log, not CRM authority."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "communications",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must stay append-only; never delete or rewrite rows in-place. If "
+            "dedup becomes business-critical, back it with Redis/DB."
+        ),
+    },
+    {
+        "allowlist_id": "marketing.outreach_draft_logs.jiya",
+        "file": "scripts/send_jiya_renewal.py",
+        "line_or_symbol": "LOG_DIR",
+        "path_pattern": 'Path("data/outreach_drafts")',
+        "store_id": "marketing.outreach_draft_logs",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "One-shot VPS script; LOG_DIR.mkdir for the renewal send log. Dry-run "
+            "by default, idempotent per-day; receipt log, not billing authority."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Script must stay dry-run default and single-customer scoped; the "
+            "log must never be treated as billing proof."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
