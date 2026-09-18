@@ -29,7 +29,7 @@ class TestDevWorkerRecord:
             task_id="task_abc456",
             lease_token="token_xyz",
             state="claimed",
-            evidence="data/output.json"
+            evidence="data/output.json",
         )
         assert record.worker_id == "dw_test123"
         assert record.task_id == "task_abc456"
@@ -45,7 +45,7 @@ class TestDevWorkerRecord:
             task_id="task_123",
             lease_token="token_abc",
             state="done",
-            evidence="evidence.txt"
+            evidence="evidence.txt",
         )
         data = record.to_dict()
         assert data["worker_id"] == "dw_test"
@@ -64,7 +64,7 @@ class TestDevWorkerRecord:
             "evidence": "evidence.txt",
             "claimed_at": 1000.0,
             "heartbeat_at": 1001.0,
-            "done_at": None
+            "done_at": None,
         }
         record = DevWorkerRecord.from_dict(data)
         assert record.worker_id == "dw_test"
@@ -91,7 +91,7 @@ class TestDevWorkerProver:
 
         # Verify saved to disk
         assert os.path.exists(temp_ledger)
-        with open(temp_ledger, "r") as f:
+        with open(temp_ledger) as f:
             data = json.load(f)
         assert len(data["dev_workers"]) == 1
         assert data["dev_workers"][0]["task_id"] == "task_123"
@@ -148,6 +148,7 @@ class TestModuleLevelFunctions:
         """Test that get_prover returns singleton."""
         # Clear singleton for test
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -161,6 +162,7 @@ class TestModuleLevelFunctions:
     def test_prove_execution_convenience(self, tmp_path):
         """Test prove_execution convenience function."""
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -183,6 +185,7 @@ class TestExecutionProof:
     def test_dev_workers_becomes_nonzero(self, tmp_path):
         """Verify dev_workers goes from 0 to >0 rows."""
         import app.platform.dev_workers as dw_module
+
         original_prover = dw_module._prover
         dw_module._prover = None
 
@@ -201,5 +204,3 @@ class TestExecutionProof:
             assert worker_id in prover.workers
         finally:
             dw_module._prover = original_prover
-
-

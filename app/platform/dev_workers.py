@@ -51,7 +51,7 @@ class DevWorkerRecord:
         self.evidence = evidence
         self.claimed_at = time.time()
         self.heartbeat_at = time.time()
-        self.done_at: Optional[float] = None
+        self.done_at: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,7 +65,7 @@ class DevWorkerRecord:
             "done_at": self.done_at,
         }
 
-    def __repr__(self) -> str:  # pragma: no cover - debug aid
+    def __repr__(self):  # pragma: no cover - debug aid
         return (
             f"DevWorkerRecord(task_id={self.task_id!r}, worker_id={self.worker_id!r}, "
             f"state={self.state!r}, evidence={self.evidence!r})"
@@ -82,7 +82,7 @@ class DevWorkerRecord:
             raise KeyError(key) from None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DevWorkerRecord":
+    def from_dict(cls, data: dict[str, Any]) -> DevWorkerRecord:
         record = cls(
             worker_id=data["worker_id"],
             task_id=data["task_id"],
@@ -116,7 +116,7 @@ class DevWorkerProver:
         if not os.path.exists(self.ledger_path):
             return
         try:
-            with open(self.ledger_path, "r") as f:
+            with open(self.ledger_path) as f:
                 data = json.load(f)
                 for record_data in data.get("dev_workers", []):
                     worker = DevWorkerRecord.from_dict(record_data)
@@ -137,7 +137,7 @@ class DevWorkerProver:
         except Exception as e:
             logger.warning(f"[dev_workers] Failed to save ledger: {e}")
 
-    def claim(self, task_id: str, lease_token: str, worker_id: Optional[str] = None) -> str:
+    def claim(self, task_id: str, lease_token: str, worker_id: str | None = None) -> str:
         """Claim a task — writes first execution proof row.
 
         Returns worker_id (generated if not provided).
@@ -182,10 +182,7 @@ class DevWorkerProver:
 
     def get_active_count(self) -> int:
         """Count of claimed/running workers (execution proof)."""
-        return sum(
-            1 for w in self.workers.values()
-            if w.state in ("claimed", "running")
-        )
+        return sum(1 for w in self.workers.values() if w.state in ("claimed", "running"))
 
     def get_records(self) -> list[dict[str, Any]]:
         """Get all records (for dashboard/API)."""
@@ -193,37 +190,7 @@ class DevWorkerProver:
 
 
 # Module-level singleton (initialized on first use)
-_prover: Optional[DevWorkerProver] = None
-
-
-_WORKER_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS dev_workers (
-    task_id        TEXT PRIMARY KEY,
-    worker_id      TEXT NOT NULL,
-    state          TEXT NOT NULL DEFAULT 'claimed',
-    lease_token    TEXT,
-    evidence       TEXT NOT NULL DEFAULT '',
-    attempts       INTEGER NOT NULL DEFAULT 0,
-    created_at     REAL,
-    updated_at     REAL,
-    done_at        REAL
-)
-"""
-
-
-def worker_id_for(task_id: str) -> str:
-    """Deterministic worker id for a task: `dw_<task_id>`.
-
-    Deterministic so a retried task is attributed to the same worker — that is
-    what makes the `dev_workers > 0` execution proof idempotent. Empty task_id
-    yields `""` (callers treat falsy as "no worker"). Never raises.
-    """
-    try:
-        if not task_id:
-            return ""
-        return f"dw_{task_id}"
-    except Exception:
-        return ""
+_prover: DevWorkerProver | None = None
 
 
 _WORKER_TABLE_SQL = """
@@ -361,8 +328,13 @@ class DevWorkerStore:
                          attempts, created_at, updated_at)
                     VALUES (?, ?, 'claimed', ?, '', 1, ?, ?)
                     """,
-                    (task_id, worker_id_for(task_id), lease_token or None,
-                     self._now(), self._now()),
+                    (
+                        task_id,
+                        worker_id_for(task_id),
+                        lease_token or None,
+                        self._now(),
+                        self._now(),
+                    ),
                 )
                 conn.commit()
                 result = True
@@ -440,9 +412,7 @@ class DevWorkerStore:
         conn = None
         try:
             conn = self._conn()
-            row = conn.execute(
-                "SELECT * FROM dev_workers WHERE task_id = ?", (task_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM dev_workers WHERE task_id = ?", (task_id,)).fetchone()
             return self._row_to_record(row) if row is not None else None
         except Exception:
             return None
@@ -459,9 +429,7 @@ class DevWorkerStore:
         if not self._ready:
             return 0
         if state:
-            return self._scalar(
-                "SELECT COUNT(*) FROM dev_workers WHERE state = ?", (state,)
-            )
+            return self._scalar("SELECT COUNT(*) FROM dev_workers WHERE state = ?", (state,))
         return self._scalar("SELECT COUNT(*) FROM dev_workers")
 
     def verified_count(self) -> int:
