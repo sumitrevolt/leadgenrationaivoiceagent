@@ -179,5 +179,89 @@ an unmerged branch and must not be mistaken for live features.
 ---
 **Last updated:** 2026-09-18 ~13:35 IST · **Commits:** `344cb5e5`, `7bb050d4` on `fix/runtime-data-baseline-cline-0918` · **PR:** #522
 
+---
+
+## 8. POST-FIX RE-VERIFICATION & CORRECTIONS (added 2026-09-18 ~13:50 IST)
+
+### 8.1 CORRECTION — B-11 is WITHDRAWN: required checks ARE enforced ⚠️→✅
+
+`docs/ADMIN_EXECUTION_WAVE1_20260918.md` §3 states ruleset `23507307` has only
+`deletion` + `non_fast_forward` and that required status checks are "Missing". **That is wrong.**
+Live API read:
+
+```
+gh api repos/sumitrevolt/leadgenrationaivoiceagent/rulesets/23507307
+  name=protect-main  target=branch  enforcement=active
+  conditions = ref_name.include=[refs/heads/main]
+  rules:
+    deletion
+    non_fast_forward
+    required_status_checks  strict_required_status_checks_policy=true
+      contexts: "Lint + syntax + secrets"
+                "prod_check + pytest"
+                "harness real-redis integration"
+```
+
+Classic branch protection is absent (`HTTP 404 Branch not protected`) — but the ruleset is
+`active` and does enforce those three contexts with `strict` mode. **B-11 is withdrawn.**
+This also explains PR #522's `mergeStateStatus: BLOCKED`: it was the ruleset correctly blocking
+on a FAILING required context, not a missing configuration. The failure *was* real — which is
+why P0-3 mattered.
+
+### 8.2 VERIFIED — the CI aggregator is fail-closed ✅
+
+The owner's requirement was: *"No merge should be labelled safe merely because a job name
+contains 'pytest'. The aggregator must programmatically assert the result of every required
+lane."* Current `ci.yml` satisfies this:
+
+* job id `tests`, **name exactly** `prod_check + pytest` (matches the required context);
+* `needs: [prod-check, pytest-job, pip-audit, quality, harness-redis-integration]` — all 5 lanes;
+* asserts each one: `test "${{ needs['<lane>'].result }}" = "success"` for every lane;
+* `if: always()` so a failed lane reports FAILURE rather than SKIPPED (the ruleset treats a
+  skipped required context as blocking, with worse UI);
+* inline comments record the 2026-09-14 audit fix — `quality` and `harness-redis-integration`
+  were previously **not** in the aggregator at all, so a red secrets scan or a skipped
+  real-Redis suite could still produce a green aggregate. That hole is closed.
+
+No change needed. This is `TEST-PROVEN` by the live run below.
+
+### 8.3 RESOLVED — B-6 Graphify staleness ✅
+
+`graphify update app` was run (`graphify.exe` on PATH; curated graph auto-backed up to
+`app/graphify-out/2026-09-18/` before the rebuild):
+
+| | Before | After |
+| --- | --- | --- |
+| Built from commit | `20e4180b` (2026-09-14) | **`7bb050d4`** |
+| Nodes | 22,524 | **23,541** |
+| Edges | 42,694 | **44,443** |
+| Communities | 1,069 | **1,080** |
+
+`app/graphify-out/` is gitignored, so the rebuild produced no repo diff. The graph now
+represents the code commit that carries the fixes.
+
+### 8.4 CI EVIDENCE on `3ec34a7c` (the final SHA)
+
+| Lane | Result |
+| --- | --- |
+| `Lint + syntax + secrets` | **SUCCESS** |
+| `prod_check runtime gates` | **SUCCESS** (was `FAILURE` with 3 problems) |
+| `harness real-redis integration` | **SUCCESS** |
+| `pip-audit installed env` | **SUCCESS** |
+| `CodeQL` / `Analyze (python|js/ts|csharp|actions)` | **SUCCESS** |
+| `Trivy repo scan + SBOM` / `Trivy image scan` | **SUCCESS** |
+| `GitGuardian Security Checks` | **SUCCESS** |
+| `Pytest Tests` | in progress at time of writing |
+| `Gate A (non-required sketch)` | `FAILURE` — **not a required context** (name says so; it is absent from the ruleset's required list) |
+
+### 8.5 STILL NOT DONE (honest status)
+
+* **No production deploy.** Prod remains `:680722c8` with the 0-byte engine. Merging #522 and
+  running `bash scripts/deploy_vps.sh` is the next action — deliberately left to an explicit
+  merge because the canonical rule is to deploy off `origin/main`, not an unmerged branch.
+* B-1 TypeSafe rotation, B-3 `leadgen-call-loop` inactive, B-4 `HQ_AUTO_CHASE`, B-5
+  `VOBIZ_CALLER_ID`: all still open.
+
+
 
 
