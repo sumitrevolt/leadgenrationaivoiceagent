@@ -66,7 +66,16 @@ class TypeSafeClient:
         self.enabled = bool(self.api_key)
     
     def initialize(self) -> TypeSafeResponse:
-        """Initialize and test connection"""
+        """Initialize and test connection.
+        
+        FAIL-CLOSED: if no API key is configured, return immediately without
+        making any network request. This prevents accidental unauthenticated
+        requests with a blank Authorization header.
+        """
+        if not self.enabled:
+            logger.debug("TypeSafe INERT: no API key configured (TYPEsafe_API_KEY unset)")
+            return TypeSafeResponse(success=False, error="INERT: no API key configured")
+        
         try:
             # Test connection with simple judgment
             result = self._make_request("POST", "/health")
@@ -89,6 +98,9 @@ class TypeSafeClient:
         Returns:
             TypeSafeResponse with selected choice
         """
+        if not self.enabled:
+            return TypeSafeResponse(success=False, error="INERT: no API key configured")
+        
         try:
             payload = {
                 "model": self.model,
@@ -115,6 +127,9 @@ class TypeSafeClient:
         Returns:
             TypeSafeResponse with probability
         """
+        if not self.enabled:
+            return TypeSafeResponse(success=False, error="INERT: no API key configured")
+        
         try:
             payload = {
                 "model": self.model,
@@ -141,6 +156,9 @@ class TypeSafeClient:
         Returns:
             TypeSafeResponse with score value
         """
+        if not self.enabled:
+            return TypeSafeResponse(success=False, error="INERT: no API key configured")
+        
         try:
             payload = {
                 "model": self.model,
