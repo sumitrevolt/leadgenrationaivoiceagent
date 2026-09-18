@@ -24,7 +24,9 @@ def test_read_is_always_allowed(monkeypatch):
     n_product = sum(len(p.get("groups", [])) for p in data["products"])
     n_cross = len(data.get("cross_product", []))
     # Canonical spec has 13 entities: 8 product groups + 5 cross-product groups
-    assert n_product + n_cross == 13, f"Expected 13 entities (8 product + 5 cross), got {n_product} + {n_cross}"
+    assert n_product + n_cross == 13, (
+        f"Expected 13 entities (8 product + 5 cross), got {n_product} + {n_cross}"
+    )
 
 
 def test_patch_refused_when_disabled(monkeypatch):
@@ -70,9 +72,11 @@ def test_apply_reports_subprocess_outcome(monkeypatch, exit_code):
 
     monkeypatch.setenv("TELEGRAM_SETUP_ENABLED", "1")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
-    monkeypatch.setattr(ts.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
-        returncode=exit_code, stdout="summary", stderr=""
-    ))
+    monkeypatch.setattr(
+        ts.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=exit_code, stdout="summary", stderr=""),
+    )
     result = ts.apply_setup()
     assert result["applied"] is (exit_code == 0)
     assert result["exit_code"] == exit_code
