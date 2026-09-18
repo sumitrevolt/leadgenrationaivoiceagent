@@ -1327,6 +1327,147 @@ STORES: list[dict[str, Any]] = [
             "lost log loses history but not business state."
         ),
     ),
+    _e(
+        store_id="platform.agent_memory",
+        display_name="AgentManager in-memory counters snapshot (data/agent_memory.json)",
+        legacy_paths=["data/agent_memory.json"],
+        writer_modules=["app/agents/agents.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="agents",
+        durability_class="rebuildable",
+        concurrency_model="single-process full rewrite on save; no lock",
+        tenant_scope="per-agent keys inside one shared file (not customer tenant)",
+        target_runtime_subpath="platform/agent_memory.json",
+        migration_tier=TIER_2,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). Snapshot of "
+            "tasks_completed_today/total + last_active per agent, written by "
+            "AgentManager._save_memory() and read back by _load_memory(). Losing "
+            "the file resets in-memory counters only; no billing/consent/audit "
+            "authority. Distinct from platform.workforce_memory (per-agent JSONL "
+            "hub, ADR-154) and from the legacy app/agents/coordinator.py "
+            "agent_memory.jsonl reader already in the frozen baseline."
+        ),
+    ),
+    _e(
+        store_id="communications.telegram_inbox",
+        display_name="Inbound Telegram webhook update log (append-only JSONL)",
+        legacy_paths=["data/telegram_inbox.jsonl"],
+        writer_modules=["app/api/webhooks.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="communications",
+        durability_class="rebuildable",
+        concurrency_model="single append per webhook request; makedirs before append",
+        tenant_scope="per-owner chat rows inside one shared file",
+        target_runtime_subpath="communications/telegram_inbox.jsonl",
+        migration_tier=TIER_1,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). Every inbound Telegram "
+            "update is durably appended by _telegram_inbox_path() writer in "
+            "app/api/webhooks.py for audit/dedup. Events are a receipt log, not "
+            "authority; a lost log loses dedup history but not CRM state."
+        ),
+    ),
+    _e(
+        store_id="marketing.outreach_draft_logs",
+        display_name="One-shot outreach send logs (data/outreach_drafts/*.jsonl)",
+        legacy_paths=["data/outreach_drafts/"],
+        writer_modules=["scripts/send_jiya_renewal.py"],
+        production_activity="OFFLINE_TOOLING",
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="append-only JSONL per one-shot script run; makedirs first",
+        tenant_scope="single-customer rows (send log), no cross-tenant aggregation",
+        target_runtime_subpath="marketing/outreach_drafts/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). scripts/send_jiya_renewal.py "
+            "writes data/outreach_drafts/jiya_renewal_sent.jsonl (idempotency "
+            "check + send receipt) and is dry-run by default; the log is a "
+            "delivery receipt, not billing authority. Runs on the VPS, never in "
+            "the web request path."
+        ),
+    ),
+    _e(
+        store_id="ops.telegram_setup_state",
+        display_name="Telegram enterprise setup state + lock (offline provisioning)",
+        legacy_paths=["data/telegram_setup_state.json", "data/telegram_setup_state.lock"],
+        writer_modules=["scripts/telegram_setup.py"],
+        production_activity="OFFLINE_TOOLING",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="rebuildable",
+        concurrency_model="O_CREAT|O_EXCL lock; single-writer idempotent setup",
+        tenant_scope="owner/admin provisioning state (not customer tenant)",
+        target_runtime_subpath="ops/telegram_setup_state.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). telegram_setup.py keeps "
+            "idempotent bootstrap state + a fail-closed lock for the enterprise "
+            "chat wiring runbook. Re-runnable; loss only forces a clean re-run."
+        ),
+    ),
+    _e(
+        store_id="ops.telegram_group_ids",
+        display_name="Provisioned Telegram group chat_ids result (offline)",
+        legacy_paths=["data/new_group_chat_ids.json"],
+        writer_modules=[
+            "scripts/telegram_web_create_groups.py",
+            "scripts/telethon_create_groups.py",
+        ],
+        production_activity="OFFLINE_TOOLING",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="rebuildable",
+        concurrency_model="single one-shot rewrite per provisioning run",
+        tenant_scope="owner/admin provisioning output (not customer tenant)",
+        target_runtime_subpath="ops/new_group_chat_ids.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). Group-creation scripts "
+            "(web + telethon variants) write the resulting chat_ids to "
+            "data/new_group_chat_ids.json for manual wiring into setup_spec.yaml. "
+            "Rebuildable by re-running the provisioner."
+        ),
+    ),
+    _e(
+        store_id="ops.waha_watchdog",
+        display_name="WAHA watchdog health + log (self-hosted WhatsApp)",
+        legacy_paths=[
+            "/opt/leadgen/data/wa_health_check.json",
+            "/opt/leadgen/data/waha_watchdog.log",
+        ],
+        writer_modules=["scripts/waha_watchdog.py"],
+        production_activity="OFFLINE_TOOLING",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="rebuildable",
+        concurrency_model="append-only log + health JSON rewritten each poll",
+        tenant_scope="single WAHA instance (infra, not customer tenant)",
+        target_runtime_subpath="ops/waha_watchdog/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-18 (CI baseline repair). waha_watchdog polls the "
+            "self-hosted WAHA stack and writes /opt/leadgen/data/wa_health_check.json "
+            "(health) + waha_watchdog.log (append-only). Absolute VPS paths, "
+            "never inside the checkout; fully rebuildable by the next poll."
+        ),
+    ),
 ]
 
 

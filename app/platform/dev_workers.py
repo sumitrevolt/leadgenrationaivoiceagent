@@ -29,8 +29,10 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Ledger path (same as DurableTaskStore)
-LEDGER_PATH = os.path.join("data", "orchestrator_ledger.db")
+# Ledger paths — MUST remain separate from orchestrator SQLite.
+# DevWorkerProver (JSON) uses its own file; DevWorkerStore (SQLite) uses the canonical ledger.
+JSON_LEDGER_PATH = os.path.join("data", "dev_workers_ledger.json")
+SQLITE_DB_PATH = os.path.join("data", "orchestrator_ledger.db")
 
 
 class DevWorkerRecord:
@@ -97,7 +99,7 @@ class DevWorkerRecord:
 
 
 class DevWorkerProver:
-    """Writes execution proof to dev_workers ledger.
+    """Writes execution proof to dev_workers ledger (JSON file).
 
     Usage:
         prover = DevWorkerProver()
@@ -106,8 +108,9 @@ class DevWorkerProver:
         prover.done(evidence="data/output.json")
     """
 
-    def __init__(self, ledger_path: str = LEDGER_PATH):
-        self.ledger_path = ledger_path
+    def __init__(self, ledger_path: str | None = None):
+        # Use explicit path, env override, or default JSON path
+        self.ledger_path = ledger_path or os.getenv("DEV_WORKERS_LEDGER_PATH", JSON_LEDGER_PATH)
         self.workers: dict[str, DevWorkerRecord] = {}
         self._load()
 
@@ -243,8 +246,8 @@ class DevWorkerStore:
     every early return — i.e. the evidence row silently vanished.
     """
 
-    def __init__(self, db_path: str = "data/orchestrator_ledger.db", **_ignored: Any):
-        self.db_path = db_path or "data/orchestrator_ledger.db"
+    def __init__(self, db_path: str = SQLITE_DB_PATH, **_ignored: Any):
+        self.db_path = db_path or SQLITE_DB_PATH
         self._ready = False
         conn = None
         try:
@@ -490,5 +493,6 @@ __all__ = [
     "get_prover",
     "prove_execution",
     "worker_id_for",
-    "LEDGER_PATH",
+    "JSON_LEDGER_PATH",
+    "SQLITE_DB_PATH",
 ]
