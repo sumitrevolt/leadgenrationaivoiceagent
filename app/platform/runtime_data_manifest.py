@@ -1447,8 +1447,8 @@ STORES: list[dict[str, Any]] = [
         store_id="ops.waha_watchdog",
         display_name="WAHA watchdog health + log (self-hosted WhatsApp)",
         legacy_paths=[
-            "/opt/leadgen/data/wa_health_check.json",
-            "/opt/leadgen/data/waha_watchdog.log",
+            "data/wa_health_check.json",
+            "data/waha_watchdog.log",
         ],
         writer_modules=["scripts/waha_watchdog.py"],
         production_activity="OFFLINE_TOOLING",
