@@ -73,7 +73,6 @@ AUTOMATION_FLAGS = [
     "VOICE_TRAIN_BATCH",  # calls-per-batch before a training pause (default 30 → pause@30/60/90)
     "VOICE_CIRCUIT_FAIL_THRESHOLD",  # consecutive provider failures before circuit breaker trips (default 5)
     "VOICE_RECORDING_REQUIRED",  # 1 = recording MANDATORY; unhealthy recordings dir blocks new dials (fail-closed). Default OFF (graceful)
-    "OUTREACH_CAMPAIGN_VARIANTS",  # cold email uses Kiran champion/challenger copy (impression/reply tracked)
     "VOICE_CAMPAIGN_VARIANTS",  # Swara phone/web greeting uses voice_opening champion/challenger
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)
     "AUTO_INVOICE",

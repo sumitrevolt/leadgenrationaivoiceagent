@@ -1,4 +1,4 @@
-﻿"""Tests for dev_workers.py â€” execution proof module (M1, P0).
+"""Tests for dev_workers.py — execution proof module (M1, P0).
 
 Run: pytest tests/test_dev_workers.py -v
 """
@@ -91,7 +91,7 @@ class TestDevWorkerProver:
 
         # Verify saved to disk
         assert os.path.exists(temp_ledger)
-        with open(temp_ledger, "r") as f:
+        with open(temp_ledger) as f:
             data = json.load(f)
         assert len(data["dev_workers"]) == 1
         assert data["dev_workers"][0]["task_id"] == "task_123"
