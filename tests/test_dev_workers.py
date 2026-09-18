@@ -1,4 +1,4 @@
-﻿"""Tests for dev_workers.py â€” execution proof module (M1, P0).
+"""Tests for dev_workers.py â€” execution proof module (M1, P0).
 
 Run: pytest tests/test_dev_workers.py -v
 """
