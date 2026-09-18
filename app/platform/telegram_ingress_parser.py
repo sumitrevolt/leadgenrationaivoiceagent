@@ -32,6 +32,15 @@ SECURITY CONSTRAINTS:
 - No file mutation (except governed DevTask)
 - No arbitrary deployments
 - No customer data exposure
+
+CANONICAL CLI WORKERS (mutable targets):
+  operations, engineering, platform, guardian, sales, success
+  (Pilot, board, hunter are authority/advisory bots, NOT pause/resume targets)
+
+DEV_TASK_ID FORMAT (from actual model):
+  - Alphanumeric, hyphens, underscores, dots
+  - Minimum 3 chars, maximum 128 chars
+  - Examples: "task_123", "DEC-2024-001", "sprint-42.refinement"
 """
 
 from __future__ import annotations
@@ -47,6 +56,7 @@ logger = logging.getLogger(__name__)
 
 class CommandType(Enum):
     """Command types for routing to appropriate handlers."""
+
     READ = "read"
     MUTATION = "mutation"
     UNKNOWN = "unknown"
@@ -54,41 +64,35 @@ class CommandType(Enum):
 
 class CommandStatus(Enum):
     """Parser result status."""
+
     SUCCESS = "success"
     UNAUTHORIZED = "unauthorized"
     INVALID_FORMAT = "invalid_format"
     UNKNOWN_COMMAND = "unknown_command"
     MALFORMED_ARGUMENTS = "malformed_arguments"
     RATE_LIMITED = "rate_limited"
-    DUPLICATE_UPDATE = "duplicate_update"
+    DUPLICATE_UPDATE = "duplicate_update"  # Reserved for future ingress adapter
 
 
-@dataclass(frozen=True)
-class CommandResult:
-    """Parsed command result with metadata."""
-    status: CommandStatus
-    command: str
-    args: tuple[str, ...]
-    error: Optional[str] = None
-    requires_approval: bool = False
-    update_id: Optional[int] = None
+# Canonical CLI worker supervisors (mutable targets)
+CANONICAL_CLI_WORKERS = frozenset(
+    {
+        "operations",
+        "engineering",
+        "platform",
+        "guardian",
+        "sales",
+        "success",
+    }
+)
 
+# DevTask/decision ID pattern (derived from actual model)
+_DEV_TASK_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-\.]{3,128}$")
 
-@dataclass(frozen=True)
-class ParsedCommand:
-    """Typed action object for Owner OS dispatch."""
-    command: str
-    args: tuple[str, ...]
-    command_type: CommandType
-    sender_id: Optional[int] = None
-    chat_id: Optional[str] = None
-    update_id: Optional[int] = None
-
-
-# Authorized sender IDs (owner/admin only)
+# Authorized sender IDs (owner/admin only) - DEFAULT DENY
 AUTHORIZED_SENDERS: set[int] = set()
 
-# Authorized chat IDs (internal groups only)
+# Authorized chat IDs (internal groups only) - DEFAULT DENY
 AUTHORIZED_CHATS: set[str] = set()
 
 # Command definitions with their patterns and types
@@ -145,21 +149,21 @@ _COMMAND_DEFS: dict[str, dict[str, Any]] = {
     },
     "assign": {
         "type": CommandType.MUTATION,
-        "pattern": r"^/assign\s+(\w+)\s+(\w+)$",
+        "pattern": r"^/assign\s+(\w+)\s+([\w\-\.]{3,128})$",
         "args_count": 2,
         "description": "Assign task to worker",
         "requires_approval": True,
     },
     "approve": {
         "type": CommandType.MUTATION,
-        "pattern": r"^/approve\s+(\w+)$",
+        "pattern": r"^/approve\s+([\w\-\.]{3,128})$",
         "args_count": 1,
         "description": "Approve a decision",
         "requires_approval": True,
     },
     "reject": {
         "type": CommandType.MUTATION,
-        "pattern": r"^/reject\s+(\w+)$",
+        "pattern": r"^/reject\s+([\w\-\.]{3,128})$",
         "args_count": 1,
         "description": "Reject a decision",
         "requires_approval": True,
@@ -168,22 +172,28 @@ _COMMAND_DEFS: dict[str, dict[str, Any]] = {
 
 
 def set_authorized_senders(sender_ids: set[int]) -> None:
-    """Set authorized sender IDs (owner/admin)."""
+    """Set authorized sender IDs (owner/admin).
+
+    Production default: empty set = DENY ALL.
+    """
     global AUTHORIZED_SENDERS
     AUTHORIZED_SENDERS = sender_ids or set()
 
 
 def set_authorized_chats(chat_ids: set[str]) -> None:
-    """Set authorized chat IDs (internal groups)."""
+    """Set authorized chat IDs (internal groups).
+
+    Production default: empty set = DENY ALL.
+    """
     global AUTHORIZED_CHATS
     AUTHORIZED_CHATS = chat_ids or set()
 
 
 def parse_command(
     text: str,
-    sender_id: Optional[int] = None,
-    chat_id: Optional[str] = None,
-    update_id: Optional[int] = None,
+    sender_id: int | None = None,
+    chat_id: str | None = None,
+    update_id: int | None = None,
 ) -> CommandResult:
     """Parse a Telegram command message.
 
@@ -191,7 +201,7 @@ def parse_command(
         text: Raw message text from Telegram
         sender_id: Telegram user ID (for authorization check)
         chat_id: Telegram chat ID (for authorization check)
-        update_id: Telegram update ID (for deduplication)
+        update_id: Telegram update ID (for deduplication tracking)
 
     Returns:
         CommandResult with status and parsed data
@@ -206,8 +216,29 @@ def parse_command(
             error="Empty command",
         )
 
-    # Check authorization
-    if sender_id is not None and not _is_authorized_sender(sender_id):
+    # FAIL-CLOSED: Missing sender/chat ID → DENY
+    if sender_id is None:
+        logger.warning("[telegram_parser] Missing sender_id, rejecting")
+        return CommandResult(
+            status=CommandStatus.UNAUTHORIZED,
+            command="",
+            args=(),
+            error="Missing sender_id",
+            update_id=update_id,
+        )
+
+    if chat_id is None:
+        logger.warning("[telegram_parser] Missing chat_id, rejecting")
+        return CommandResult(
+            status=CommandStatus.UNAUTHORIZED,
+            command="",
+            args=(),
+            error="Missing chat_id",
+            update_id=update_id,
+        )
+
+    # Check authorization (FAIL-CLOSED: empty allowlists = DENY ALL)
+    if not _is_authorized_sender(sender_id):
         logger.warning("[telegram_parser] Unauthorized sender: %s", sender_id)
         return CommandResult(
             status=CommandStatus.UNAUTHORIZED,
@@ -217,7 +248,7 @@ def parse_command(
             update_id=update_id,
         )
 
-    if chat_id is not None and not _is_authorized_chat(chat_id):
+    if not _is_authorized_chat(chat_id):
         logger.warning("[telegram_parser] Unauthorized chat: %s", chat_id)
         return CommandResult(
             status=CommandStatus.UNAUTHORIZED,
@@ -253,18 +284,18 @@ def parse_command(
 
 
 def _is_authorized_sender(sender_id: int) -> bool:
-    """Check if sender is authorized."""
-    if not AUTHORIZED_SENDERS:
-        # If no authorized senders configured, allow all (for testing)
-        return True
+    """Check if sender is authorized.
+
+    FAIL-CLOSED: Empty allowlist = DENY.
+    """
     return sender_id in AUTHORIZED_SENDERS
 
 
 def _is_authorized_chat(chat_id: str) -> bool:
-    """Check if chat is authorized."""
-    if not AUTHORIZED_CHATS:
-        # If no authorized chats configured, allow all (for testing)
-        return True
+    """Check if chat is authorized.
+
+    FAIL-CLOSED: Empty allowlist = DENY.
+    """
     return chat_id in AUTHORIZED_CHATS
 
 
@@ -278,15 +309,15 @@ def validate_command(parsed: ParsedCommand) -> bool:
         r"\$\{",  # Shell variable expansion ${...}
         r"\$\(",  # Command substitution $(...)
         r"`.*`",  # Backtick command substitution
-        r";.*",   # Command chaining
+        r";.*",  # Command chaining
         r"\|.*",  # Pipe
-        r"&&",    # Logical AND
+        r"&&",  # Logical AND
         r"wget",  # Download
         r"curl",  # Download
         r"rm\s",  # Delete
-        r"chmod", # Permissions
-        r"chown", # Ownership
-        r"/etc/", # System files
+        r"chmod",  # Permissions
+        r"chown",  # Ownership
+        r"/etc/",  # System files
         r"\.\.",  # Path traversal
         r"\$[A-Z_]+",  # Environment variable reference $HOME, $PATH
     ]
@@ -295,6 +326,24 @@ def validate_command(parsed: ParsedCommand) -> bool:
         for pattern in suspicious_patterns:
             if re.search(pattern, arg):
                 logger.warning("[telegram_parser] Suspicious pattern in arg: %s", arg)
+                return False
+
+    # Validate worker names for mutation commands
+    if parsed.command in ("pause", "resume"):
+        worker_name = parsed.args[0] if parsed.args else ""
+        if worker_name.lower() not in CANONICAL_CLI_WORKERS:
+            logger.warning(
+                "[telegram_parser] Invalid worker: %s (must be one of %s)",
+                worker_name,
+                CANONICAL_CLI_WORKERS,
+            )
+            return False
+
+    # Validate DevTask/decision ID format
+    if parsed.command in ("assign", "approve", "reject"):
+        for arg in parsed.args:
+            if not _DEV_TASK_ID_PATTERN.match(arg):
+                logger.warning("[telegram_parser] Invalid ID format: %s", arg)
                 return False
 
     return True
@@ -308,7 +357,33 @@ def get_command_help() -> str:
     lines.append("")
     lines.append("READ commands show system state.")
     lines.append("MUTATION commands require approval.")
+    lines.append("")
+    lines.append("Canonical CLI workers: " + ", ".join(sorted(CANONICAL_CLI_WORKERS)))
     return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class CommandResult:
+    """Parsed command result with metadata."""
+
+    status: CommandStatus
+    command: str
+    args: tuple[str, ...]
+    error: str | None = None
+    requires_approval: bool = False
+    update_id: int | None = None
+
+
+@dataclass(frozen=True)
+class ParsedCommand:
+    """Typed action object for Owner OS dispatch."""
+
+    command: str
+    args: tuple[str, ...]
+    command_type: CommandType
+    sender_id: int | None = None
+    chat_id: str | None = None
+    update_id: int | None = None
 
 
 __all__ = [
@@ -316,6 +391,7 @@ __all__ = [
     "ParsedCommand",
     "CommandStatus",
     "CommandType",
+    "CANONICAL_CLI_WORKERS",
     "parse_command",
     "set_authorized_senders",
     "set_authorized_chats",
