@@ -1987,6 +1987,24 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Health file must never be a green-tile substitute for a live check.",
     },
+    {
+        "allowlist_id": "communications.telegram_inbox.probe_read",
+        "file": "scripts/telegram_readonly_probe.py",
+        "line_or_symbol": "inbox",
+        "path_pattern": "root / 'data/telegram_inbox.jsonl'",
+        "store_id": "communications.telegram_inbox",
+        "access_modes": ["READ"],
+        "reason": (
+            "Read-only diagnostic probe: tails the inbound telegram inbox under "
+            "/opt/leadgen for verification. Never writes; the store authority "
+            "stays with app/api/webhooks.py."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "communications",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
