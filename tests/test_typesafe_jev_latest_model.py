@@ -16,19 +16,27 @@ Verifies:
 12. No old endpoint calls remain
 13. Secret scan clean
 """
+
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestTypeSafeFailClosed:
-    """Test fail-closed behavior when TYPEsafe_API_KEY is absent."""
+    """Test fail-closed behavior when TYPESAFE_API_KEY is absent."""
 
     def test_no_key_no_http_call(self):
         """When no API key is set, initialize() must NOT make any HTTP request."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
@@ -44,12 +52,18 @@ class TestTypeSafeFailClosed:
 
     def test_system_one_no_key_no_http_call(self):
         """system_one() must NOT hit network when key is absent."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient, Choice
+            from app.platform.typesafe_integration import Choice, TypeSafeClient
 
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
                 client = TypeSafeClient()
@@ -63,9 +77,15 @@ class TestTypeSafeFailClosed:
 
     def test_choice_no_key_no_http_call(self):
         """choice() must NOT hit network when key is absent."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
@@ -78,9 +98,15 @@ class TestTypeSafeFailClosed:
 
     def test_noul_no_key_no_http_call(self):
         """noul() must NOT hit network when key is absent."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
@@ -93,9 +119,15 @@ class TestTypeSafeFailClosed:
 
     def test_score_no_key_no_http_call(self):
         """score() must NOT hit network when key is absent."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
@@ -111,165 +143,160 @@ class TestTypeSafeJevLatestDefault:
     """Test that jev-latest is the default model."""
 
     def test_default_model_is_jevlatest(self):
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
+
             client = TypeSafeClient()
             assert client.model == "jev-latest"
 
     def test_model_override(self):
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": "jev-v2-test"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": "jev-v2-test"},
+            clear=True,
+        ):
             import importlib
+
             import app.platform.typesafe_integration as ts_module
+
             importlib.reload(ts_module)
 
             from app.platform.typesafe_integration import TypeSafeClient
+
             client = TypeSafeClient()
             assert client.model == "jev-v2-test"
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_systemone_url_and_payload(self, mock_post):
         """Verify exact URL and payload shape."""
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "test-key", "TYPESAFE_MODEL": ""}, clear=True):
-            import importlib
-            import app.platform.typesafe_integration as ts_module
-            importlib.reload(ts_module)
+        from app.platform.typesafe_integration import Choice, Noul, Score, TypeSafeClient
 
-            from app.platform.typesafe_integration import TypeSafeClient, Choice, Noul, Score
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "model": "jev-1.13.0",
+            "answers": {
+                "q1": {"type": "choice", "choice": "opt1", "confidence": 0.8},
+                "q2": {"type": "noul", "probability": 0.85},
+            },
+            "usage": {"tokens": 100},
+        }
+        mock_resp.headers = {}
+        mock_post.return_value = mock_resp
 
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "model": "jev-1.13.0",
-                "answers": {
-                    "q1": {"type": "choice", "choice": "opt1", "confidence": 0.8},
-                    "q2": {"type": "noul", "probability": 0.85},
-                },
-                "usage": {"tokens": 100},
-            }
-            mock_resp.headers = {}
-            mock_post.return_value = mock_resp
+        client = TypeSafeClient(api_key="test-key")
+        result = client.system_one(
+            state={"task": "test"},
+            questions={
+                "q1": Choice("Which?", {"opt1": "A", "opt2": "B"}),
+                "q2": Noul("Yes/no?"),
+            },
+        )
 
-            client = TypeSafeClient()
-            result = client.system_one(
-                state={"task": "test"},
-                questions={
-                    "q1": Choice("Which?", {"opt1": "A", "opt2": "B"}),
-                    "q2": Noul("Yes/no?"),
-                },
-            )
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        url = call_args[0][0]
+        payload = call_args[1]["json"]
 
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            url = call_args[0][0]
-            payload = call_args[1]["json"]
-
-            assert url == "https://api.typesafe.ai/v1/systemone"
-            assert payload["model"] == "jev-latest"
-            assert "state" in payload
-            assert "questions" in payload
-            assert payload["questions"]["q1"]["type"] == "choice"
-            assert payload["questions"]["q2"]["type"] == "noul"
-            assert result.success is True
-            assert result.model == "jev-1.13.0"
-            assert "q1" in result.answers
-            assert "q2" in result.answers
+        assert url == "https://api.typesafe.ai/v1/systemone"
+        assert payload["model"] == "jev-latest"
+        assert "state" in payload
+        assert "questions" in payload
+        assert payload["questions"]["q1"]["type"] == "choice"
+        assert payload["questions"]["q2"]["type"] == "noul"
+        assert result.success is True
+        assert result.model == "jev-1.13.0"
+        assert "q1" in result.answers
+        assert "q2" in result.answers
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_choice_compatibility_wrapper(self, mock_post):
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "test-key", "TYPESAFE_MODEL": ""}, clear=True):
-            import importlib
-            import app.platform.typesafe_integration as ts_module
-            importlib.reload(ts_module)
+        from app.platform.typesafe_integration import TypeSafeClient
 
-            from app.platform.typesafe_integration import TypeSafeClient
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "model": "jev-1.13.0",
+            "answers": {"q": {"type": "choice", "choice": "opt1", "confidence": 0.78}},
+            "usage": {"tokens": 50},
+        }
+        mock_resp.headers = {}
+        mock_post.return_value = mock_resp
 
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "model": "jev-1.13.0",
-                "answers": {"q": {"type": "choice", "choice": "opt1", "confidence": 0.78}},
-                "usage": {"tokens": 50},
-            }
-            mock_resp.headers = {}
-            mock_post.return_value = mock_resp
+        client = TypeSafeClient(api_key="test-key")
+        result = client.choice("Which?", {}, {"opt1": "A"})
 
-            client = TypeSafeClient()
-            result = client.choice("Which?", {}, {"opt1": "A"})
-
-            assert result.success is True
-            assert result.value == "opt1"
-            assert result.confidence == 0.78
+        assert result.success is True
+        assert result.value == "opt1"
+        assert result.confidence == 0.78
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_noul_compatibility_wrapper(self, mock_post):
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "test-key", "TYPESAFE_MODEL": ""}, clear=True):
-            import importlib
-            import app.platform.typesafe_integration as ts_module
-            importlib.reload(ts_module)
+        from app.platform.typesafe_integration import TypeSafeClient
 
-            from app.platform.typesafe_integration import TypeSafeClient
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "model": "jev-1.13.0",
+            "answers": {"q": {"type": "noul", "probability": 0.85}},
+            "usage": {"tokens": 50},
+        }
+        mock_resp.headers = {}
+        mock_post.return_value = mock_resp
 
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "model": "jev-1.13.0",
-                "answers": {"q": {"type": "noul", "probability": 0.85}},
-                "usage": {"tokens": 50},
-            }
-            mock_resp.headers = {}
-            mock_post.return_value = mock_resp
+        client = TypeSafeClient(api_key="test-key")
+        result = client.noul("Is evidence sufficient?", {})
 
-            client = TypeSafeClient()
-            result = client.noul("Is evidence sufficient?", {})
-
-            assert result.success is True
-            assert result.value == 0.85
-            assert result.confidence == 0.85
+        assert result.success is True
+        assert result.value == 0.85
+        assert result.confidence == 0.85
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_score_compatibility_wrapper(self, mock_post):
-        with patch.dict(os.environ, {"TYPEsafe_API_KEY": "test-key", "TYPESAFE_MODEL": ""}, clear=True):
-            import importlib
-            import app.platform.typesafe_integration as ts_module
-            importlib.reload(ts_module)
+        from app.platform.typesafe_integration import TypeSafeClient
 
-            from app.platform.typesafe_integration import TypeSafeClient
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "model": "jev-1.13.0",
+            "answers": {"q": {"type": "score", "score": "high"}},
+            "usage": {"tokens": 50},
+        }
+        mock_resp.headers = {}
+        mock_post.return_value = mock_resp
 
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "model": "jev-1.13.0",
-                "answers": {"q": {"type": "score", "score": "high"}},
-                "usage": {"tokens": 50},
-            }
-            mock_resp.headers = {}
-            mock_post.return_value = mock_resp
+        client = TypeSafeClient(api_key="test-key")
+        result = client.score("Rate this?", {}, ["low", "medium", "high"])
 
-            client = TypeSafeClient()
-            result = client.score("Rate this?", {}, ["low", "medium", "high"])
-
-            assert result.success is True
-            assert result.value == "high"
+        assert result.success is True
+        assert result.value == "high"
 
 
 class TestTypeSafeSecretScan:
     """Verify no secrets leak into source/tests."""
 
     def test_no_hardcoded_key_in_source(self):
-        with open("app/platform/typesafe_integration.py", "r") as f:
+        with open("app/platform/typesafe_integration.py") as f:
             content = f.read()
         assert "sk-" not in content
         assert "ts-" not in content
         assert "eyJ" not in content
-        assert 'os.getenv("TYPEsafe_API_KEY"' in content
-        assert 'os.getenv("TYPESAFE_MODEL"' in content
+        assert "TYPESAFE_API_KEY" in content
+        assert "TYPEsafe_API_KEY" in content  # legacy fallback
+        assert "jev-latest" in content
         # Old endpoints must NOT be called
         assert '"/choice"' not in content
         assert '"/noul"' not in content
         assert '"/score"' not in content
         assert '"/health"' not in content
-        assert '"/v1/systemone"' in content
+        assert "systemone" in content
