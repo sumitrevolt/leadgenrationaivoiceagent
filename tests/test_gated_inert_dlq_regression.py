@@ -19,17 +19,23 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from celery.exceptions import CeleryError
 
 from app.tasks import staff_jobs
 
 
+class _RetrySentinel(CeleryError):
+    """Deterministic sentinel to prove retry() was invoked."""
+
+
 def test_gated_inert_returns_ok_not_raises():
     """Gated task returns status=gated_inert, NO retry, NO DLQ."""
-    with patch.object(staff_jobs, "_run_async", return_value=False), \
-         patch("app.platform.automation_health.gated_inert", return_value=True), \
-         patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False), \
-         patch.object(staff_jobs.run_staff_job, "retry") as mock_retry:
-
+    with (
+        patch.object(staff_jobs, "_run_async", return_value=False),
+        patch("app.platform.automation_health.gated_inert", return_value=True),
+        patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False),
+        patch.object(staff_jobs.run_staff_job, "retry") as mock_retry,
+    ):
         # Call the wrapper directly (gold pattern from test_job_time_budget_dlq.py)
         out = staff_jobs.run_staff_job.run("gsc_rank")
 
@@ -43,13 +49,15 @@ def test_gated_inert_returns_ok_not_raises():
 
 
 def test_real_failure_still_raises():
-    """Real failure still raises RuntimeError → retry path."""
-    with patch.object(staff_jobs, "_run_async", return_value=False), \
-         patch("app.platform.automation_health.gated_inert", return_value=False), \
-         patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False):
-
-        # Real failure should raise (which triggers retry in wrapper)
-        with pytest.raises(RuntimeError):
+    """Real failure → retry called with failure exception."""
+    with (
+        patch.object(staff_jobs, "_run_async", return_value=False),
+        patch("app.platform.automation_health.gated_inert", return_value=False),
+        patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False),
+        patch.object(staff_jobs.run_staff_job, "retry", side_effect=_RetrySentinel("retry-called")),
+    ):
+        # Production code: RuntimeError → except Exception → self.retry(exc=e)
+        with pytest.raises(_RetrySentinel, match="retry-called"):
             staff_jobs.run_staff_job.run("prospect")
 
 
@@ -59,23 +67,27 @@ def test_gate_check_exception_falls_to_retry():
     When the gate check itself breaks, we treat it as a real failure and
     let the normal retry path handle it.
     """
-    with patch.object(staff_jobs, "_run_async", return_value=False), \
-         patch("app.platform.automation_health.gated_inert", side_effect=RuntimeError("gate broken")), \
-         patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False):
-
-        # Exception in gate check should fall through to RuntimeError
-        # (which then triggers the outer except → retry)
-        with pytest.raises(RuntimeError, match="staff job 'content' reported failure"):
+    with (
+        patch.object(staff_jobs, "_run_async", return_value=False),
+        patch(
+            "app.platform.automation_health.gated_inert", side_effect=RuntimeError("gate broken")
+        ),
+        patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False),
+        patch.object(staff_jobs.run_staff_job, "retry", side_effect=_RetrySentinel("retry-called")),
+    ):
+        # Exception in gate check → pass → RuntimeError → except Exception → self.retry(exc=e)
+        with pytest.raises(_RetrySentinel, match="retry-called"):
             staff_jobs.run_staff_job.run("content")
 
 
 def test_gated_inert_video_delivery_retry():
     """Specific regression: video_delivery_retry gated → no retry, no DLQ."""
-    with patch.object(staff_jobs, "_run_async", return_value=False), \
-         patch("app.platform.automation_health.gated_inert", return_value=True), \
-         patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False), \
-         patch.object(staff_jobs.run_staff_job, "retry") as mock_retry:
-
+    with (
+        patch.object(staff_jobs, "_run_async", return_value=False),
+        patch("app.platform.automation_health.gated_inert", return_value=True),
+        patch("app.platform.boot_grace.should_skip_boot_grace", return_value=False),
+        patch.object(staff_jobs.run_staff_job, "retry") as mock_retry,
+    ):
         out = staff_jobs.run_staff_job.run("video_delivery_retry")
 
         assert out["ok"] is True
