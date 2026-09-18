@@ -23,8 +23,12 @@ logger = logging.getLogger(__name__)
 #   2. "" (empty) -> the integration is INERT, not silently authenticated.
 # The exposed key is in git history (7317f990) and MUST be revoked/rotated by
 # the owner — deleting the line here does NOT un-expose it.
+#
+# MODEL (2026-09-18): Canonical model is `jev-latest` (owner-verified via Playground).
+# Configurable via TYPESAFE_MODEL env var; defaults to jev-latest.
 TYPEsafe_API_KEY = os.getenv("TYPEsafe_API_KEY", "").strip() or ""
 TYPEsafe_BASE_URL = "https://api.typesafe.ai/v1"
+TYPEsafe_MODEL = os.getenv("TYPESAFE_MODEL", "jev-latest")
 
 @dataclass
 class TypeSafeResponse:
@@ -53,6 +57,7 @@ class TypeSafeClient:
     def __init__(self, api_key: str = TYPEsafe_API_KEY):
         self.api_key = (api_key or "").strip()
         self.base_url = TYPEsafe_BASE_URL
+        self.model = TYPEsafe_MODEL
         self._initialized = False
         # Fail-closed: with no key configured the client stays INERT and never
         # sends an unauthenticated/blank-Authorization request. Callers already
@@ -86,7 +91,7 @@ class TypeSafeClient:
         """
         try:
             payload = {
-                "model": "jei-1",
+                "model": self.model,
                 "question": question,
                 "state": state,
                 "criteria": criteria
@@ -112,7 +117,7 @@ class TypeSafeClient:
         """
         try:
             payload = {
-                "model": "jei-1",
+                "model": self.model,
                 "question": question,
                 "state": state
             }
@@ -138,7 +143,7 @@ class TypeSafeClient:
         """
         try:
             payload = {
-                "model": "jei-1",
+                "model": self.model,
                 "question": question,
                 "state": state,
                 "criteria": criteria
