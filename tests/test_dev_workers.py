@@ -1,4 +1,4 @@
-﻿"""Tests for dev_workers.py â€” execution proof module (M1, P0).
+"""Tests for dev_workers.py — execution proof module (M1, P0).
 
 Run: pytest tests/test_dev_workers.py -v
 """
@@ -17,6 +17,26 @@ from app.platform.dev_workers import (
     get_prover,
     prove_execution,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_dev_worker_ledger(tmp_path, monkeypatch):
+    """Point the module-level prover at a throwaway ledger for every test.
+
+    ``get_prover()`` resolves its ledger path at call time, so setting
+    ``DEV_WORKERS_LEDGER_PATH`` makes this suite hermetic: no test reads or
+    writes the shared runtime ledger, and rows leaked by an earlier test can no
+    longer break ``test_dev_workers_becomes_nonzero`` — which asserts
+    ``len(prover.workers) == 1`` against the *global* singleton while a sibling
+    test had already written ``dw_task_full`` into the same file.
+    """
+    monkeypatch.setenv(
+        "DEV_WORKERS_LEDGER_PATH", str(tmp_path / "dev_workers_ledger.json")
+    )
+    import app.platform.dev_workers as dw_module
+
+    monkeypatch.setattr(dw_module, "_prover", None, raising=False)
+    yield
 
 
 class TestDevWorkerRecord:
@@ -91,7 +111,7 @@ class TestDevWorkerProver:
 
         # Verify saved to disk
         assert os.path.exists(temp_ledger)
-        with open(temp_ledger, "r") as f:
+        with open(temp_ledger) as f:
             data = json.load(f)
         assert len(data["dev_workers"]) == 1
         assert data["dev_workers"][0]["task_id"] == "task_123"

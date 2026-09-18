@@ -29,8 +29,17 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Ledger path (same as DurableTaskStore)
-LEDGER_PATH = os.path.join("data", "orchestrator_ledger.db")
+# Ledger path for the JSON execution-proof ledger.
+#
+# P0 (2026-09-18): this previously aliased `data/orchestrator_ledger.db` — the
+# SQLite file owned by `automation_orchestrator.DurableTaskStore` and by
+# `DevWorkerStore` below. `DevWorkerProver._save()` writes *JSON* via
+# `open(path, "w")` + `json.dump`, so every execution-proof write OVERWROTE the
+# canonical SQLite task ledger with a JSON blob. Live evidence on 2026-09-18:
+# the local `data/orchestrator_ledger.db` started with `{ "dev_workers"` rather
+# than `SQLite format 3`. Two writers, two formats, one path = data loss.
+# The prover now owns a distinct JSON file; the SQLite ledger stays canonical.
+LEDGER_PATH = os.path.join("data", "dev_workers_ledger.json")
 
 
 class DevWorkerRecord:
@@ -51,7 +60,7 @@ class DevWorkerRecord:
         self.evidence = evidence
         self.claimed_at = time.time()
         self.heartbeat_at = time.time()
-        self.done_at: Optional[float] = None
+        self.done_at: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -82,7 +91,7 @@ class DevWorkerRecord:
             raise KeyError(key) from None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DevWorkerRecord":
+    def from_dict(cls, data: dict[str, Any]) -> DevWorkerRecord:
         record = cls(
             worker_id=data["worker_id"],
             task_id=data["task_id"],
@@ -116,7 +125,7 @@ class DevWorkerProver:
         if not os.path.exists(self.ledger_path):
             return
         try:
-            with open(self.ledger_path, "r") as f:
+            with open(self.ledger_path) as f:
                 data = json.load(f)
                 for record_data in data.get("dev_workers", []):
                     worker = DevWorkerRecord.from_dict(record_data)
@@ -137,7 +146,7 @@ class DevWorkerProver:
         except Exception as e:
             logger.warning(f"[dev_workers] Failed to save ledger: {e}")
 
-    def claim(self, task_id: str, lease_token: str, worker_id: Optional[str] = None) -> str:
+    def claim(self, task_id: str, lease_token: str, worker_id: str | None = None) -> str:
         """Claim a task — writes first execution proof row.
 
         Returns worker_id (generated if not provided).
@@ -193,7 +202,7 @@ class DevWorkerProver:
 
 
 # Module-level singleton (initialized on first use)
-_prover: Optional[DevWorkerProver] = None
+_prover: DevWorkerProver | None = None
 
 
 _WORKER_TABLE_SQL = """
@@ -239,21 +248,6 @@ CREATE TABLE IF NOT EXISTS dev_workers (
     done_at        REAL
 )
 """
-
-
-def worker_id_for(task_id: str) -> str:
-    """Deterministic worker id for a task: `dw_<task_id>`.
-
-    Deterministic so a retried task is attributed to the same worker — that is
-    what makes the `dev_workers > 0` execution proof idempotent. Empty task_id
-    yields `""` (callers treat falsy as "no worker"). Never raises.
-    """
-    try:
-        if not task_id:
-            return ""
-        return f"dw_{task_id}"
-    except Exception:
-        return ""
 
 
 class DevWorkerStore:
@@ -496,10 +490,18 @@ class DevWorkerStore:
 
 
 def get_prover() -> DevWorkerProver:
-    """Get or create singleton DevWorkerProver."""
+    """Get or create singleton DevWorkerProver.
+
+    The ledger path is resolved at call time so that tests and operators can
+    redirect the execution prover to an isolated ledger via
+    ``DEV_WORKERS_LEDGER_PATH`` — never touching the canonical SQLite task
+    ledger, and never inheriting rows leaked by an earlier run.
+    """
     global _prover
     if _prover is None:
-        _prover = DevWorkerProver()
+        _prover = DevWorkerProver(
+            ledger_path=os.environ.get("DEV_WORKERS_LEDGER_PATH") or LEDGER_PATH
+        )
     return _prover
 
 
