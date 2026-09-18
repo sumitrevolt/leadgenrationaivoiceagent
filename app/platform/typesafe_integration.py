@@ -51,20 +51,35 @@ class TypeSafeResponse:
 
     @property
     def value(self) -> Any | None:
-        """Get the primary value from first answer"""
+        """Get the primary value from first answer.
+
+        Noul answers carry the field `noul` (NOT `probability`/`confidence` —
+        see TypeSafe quickstart response contract), so it must be checked
+        explicitly with None-guards (a 0.0 noul is falsy but meaningful).
+        """
         if self.result and "answers" in self.result:
             answers = self.result["answers"]
             for v in answers.values():
-                return v.get("choice") or v.get("probability") or v.get("score")
+                for key in ("choice", "noul", "probability", "score"):
+                    if v.get(key) is not None:
+                        return v.get(key)
         return None
 
     @property
     def confidence(self) -> float:
-        """Get confidence/probability from first answer"""
+        """Get confidence/probability from first answer.
+
+        Noul answers report no `confidence` field; the `noul` probability is
+        the honest proxy (a 0.99 noul means high certainty in the outcome).
+        """
         if self.result and "answers" in self.result:
             answers = self.result["answers"]
             for v in answers.values():
-                return v.get("confidence", v.get("probability", 0.5))
+                if v.get("confidence") is not None:
+                    return v.get("confidence")
+                for key in ("probability", "noul"):
+                    if v.get(key) is not None:
+                        return v.get(key)
         return 0.5
 
     @property
@@ -160,6 +175,11 @@ class TypeSafeClient:
         """
         Call the canonical System One endpoint.
 
+        Every invocation carries a traceable record: model, input (state +
+        questions), returned answers, HTTP status, latency, and
+        success/failure are all present on the returned TypeSafeResponse
+        (or in the error).
+
         Args:
             state: Current context/state dict
             questions: Dict of typed question builders (Choice/Noul/Score)
@@ -168,7 +188,12 @@ class TypeSafeClient:
             TypeSafeResponse with answers
         """
         if not self.enabled:
-            return TypeSafeResponse(success=False, error="INERT: no API key configured")
+            return TypeSafeResponse(
+                success=False,
+                error="INERT: no API key configured",
+                model=self.model,
+                latency_sec=0.0,
+            )
 
         from time import time
 
@@ -234,8 +259,19 @@ class TypeSafeClient:
         """Compatibility wrapper around system_one for a single Noul question."""
         return self.system_one(state, {"q": Noul(question)})
 
-    def score(self, question: str, state: dict[str, Any], criteria: list[str]) -> TypeSafeResponse:
-        """Compatibility wrapper around system_one for a single Score question."""
+    def score(
+        self,
+        question: str,
+        state: dict[str, Any],
+        criteria: list[str] | dict[str, str],
+    ) -> TypeSafeResponse:
+        """Compatibility wrapper around system_one for a single Score question.
+
+        Official Score criteria is a LIST of level descriptions. A dict is
+        accepted for backward compat (values used, in insertion order).
+        """
+        if isinstance(criteria, dict):
+            criteria = list(criteria.values())
         return self.system_one(state, {"q": Score(question, criteria)})
 
     def is_initialized(self) -> bool:
@@ -264,7 +300,9 @@ def typesafe_noul(question: str, state: dict[str, Any]) -> TypeSafeResponse:
     return get_typesafe_client().noul(question, state)
 
 
-def typesafe_score(question: str, state: dict[str, Any], criteria: list[str]) -> TypeSafeResponse:
+def typesafe_score(
+    question: str, state: dict[str, Any], criteria: list[str] | dict[str, str]
+) -> TypeSafeResponse:
     return get_typesafe_client().score(question, state, criteria)
 
 

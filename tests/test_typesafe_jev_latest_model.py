@@ -242,13 +242,14 @@ class TestTypeSafeJevLatestDefault:
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_noul_compatibility_wrapper(self, mock_post):
+        # SDK-shaped noul answers carry `noul`, not `probability`.
         from app.platform.typesafe_integration import TypeSafeClient
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
             "model": "jev-1.13.0",
-            "answers": {"q": {"type": "noul", "probability": 0.85}},
+            "answers": {"q": {"type": "noul", "noul": 0.85}},
             "usage": {"tokens": 50},
         }
         mock_resp.headers = {}
@@ -260,6 +261,41 @@ class TestTypeSafeJevLatestDefault:
         assert result.success is True
         assert result.value == 0.85
         assert result.confidence == 0.85
+
+    def test_noul_zero_value_is_meaningful(self):
+        # A 0.0 noul is falsy but meaningful — must not collapse to None/0.5.
+        from app.platform.typesafe_integration import TypeSafeResponse
+
+        resp = TypeSafeResponse(
+            success=True,
+            result={"answers": {"q": {"type": "noul", "noul": 0.0}}},
+        )
+        assert resp.value == 0.0
+        assert resp.confidence == 0.0
+
+    def test_inert_response_carries_model_trace(self):
+        # Every invocation is traceable: model + latency present even on INERT.
+        import os
+        from unittest.mock import patch as _patch
+
+        with _patch.dict(
+            os.environ,
+            {"TYPESAFE_API_KEY": "", "TYPEsafe_API_KEY": "", "TYPESAFE_MODEL": ""},
+            clear=True,
+        ):
+            import importlib
+
+            import app.platform.typesafe_integration as ts_module
+
+            importlib.reload(ts_module)
+
+            from app.platform.typesafe_integration import TypeSafeClient
+
+            client = TypeSafeClient()
+            result = client.system_one(state={"task": "t"}, questions={})
+            assert result.success is False
+            assert result.model == "jev-latest"
+            assert result.latency_sec == 0.0
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_score_compatibility_wrapper(self, mock_post):
