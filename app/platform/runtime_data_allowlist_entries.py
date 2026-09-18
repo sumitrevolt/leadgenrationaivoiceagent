@@ -1900,6 +1900,93 @@ ENTRIES: list[dict[str, Any]] = [
             "log must never be treated as billing proof."
         ),
     },
+    # 2026-09-18 — CI baseline repair: remaining tracked offline-tooling
+    # findings (telegram provisioning + waha watchdog) that the ratchet flags.
+    {
+        "allowlist_id": "ops.telegram_setup_state.lock",
+        "file": "scripts/telegram_setup.py",
+        "line_or_symbol": "lock",
+        "path_pattern": "STATE_PATH.with_suffix(\".lock\")",
+        "store_id": "ops.telegram_setup_state",
+        "access_modes": ["LOCK", "CREATE"],
+        "reason": (
+            "Fail-closed setup lock (O_CREAT|O_EXCL) guarding the idempotent "
+            "enterprise-chat bootstrap; refuses to run while a stale lock exists."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Lock must stay fail-closed; never auto-clear a live lock.",
+    },
+    {
+        "allowlist_id": "ops.telegram_group_ids.write",
+        "file": "scripts/telegram_web_create_groups.py",
+        "line_or_symbol": "results_path",
+        "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
+        "store_id": "ops.telegram_group_ids",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "One-shot provisioning result: chat_ids of created groups written for "
+            "manual wiring into setup_spec.yaml. Rebuildable by re-running."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Result file is hand-consumed; never auto-applied to config.",
+    },
+    {
+        "allowlist_id": "ops.telegram_group_ids.write_telethon",
+        "file": "scripts/telethon_create_groups.py",
+        "line_or_symbol": "results_path",
+        "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
+        "store_id": "ops.telegram_group_ids",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "Telethon variant of the same provisioning result write "
+            "(data/new_group_chat_ids.json). Same store, same one-shot semantics."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Result file is hand-consumed; never auto-applied to config.",
+    },
+    {
+        "allowlist_id": "ops.waha_watchdog.log",
+        "file": "scripts/waha_watchdog.py",
+        "line_or_symbol": "log_file",
+        "path_pattern": '_env("WAHA_WATCHDOG_LOG_FILE", DEFAULT_LOG_FILE)',
+        "store_id": "ops.waha_watchdog",
+        "access_modes": ["APPEND"],
+        "reason": (
+            "Append-only watchdog log under /opt/leadgen/data (absolute VPS path, "
+            "outside the checkout). Rebuildable; operational telemetry only."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Append-only; health alerting must tolerate a missing log.",
+    },
+    {
+        "allowlist_id": "ops.waha_watchdog.health",
+        "file": "scripts/waha_watchdog.py",
+        "line_or_symbol": "health_file",
+        "path_pattern": '_env("WAHA_WATCHDOG_HEALTH_FILE", DEFAULT_HEALTH_FILE)',
+        "store_id": "ops.waha_watchdog",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "Health JSON rewritten each poll under /opt/leadgen/data (absolute VPS "
+            "path). Regenerated every poll cycle; loss self-heals on next poll."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Health file must never be a green-tile substitute for a live check.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
