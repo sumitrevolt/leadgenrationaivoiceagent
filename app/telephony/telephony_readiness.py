@@ -106,7 +106,7 @@ def run_checks() -> dict[str, Any]:
         "1",
         "true",
         "yes",
-    )
+    ) or _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND").lower() in ("1", "true", "yes")
     probe_w = 20 if smartflo_verify_outbound else 0
     if smartflo_verify_outbound:
         try:
