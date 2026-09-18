@@ -483,6 +483,17 @@ def run_staff_job(self, job: str):
             )
         )
         if ok is False:
+            # Distinguish gated-inert (flag OFF, job intentionally no-oped) from
+            # real failure. Gated-inert is NOT a failure — it must not trigger
+            # Celery retry or fill dlq:failed_tasks. Real failures still retry/DLQ.
+            try:
+                from app.platform import automation_health as _ah_check
+
+                if _ah_check.gated_inert(job):
+                    logger.info(f"[staff_jobs] job '{job}' gated-inert (flag OFF) — no retry")
+                    return {"ok": True, "job": job, "status": "gated_inert"}
+            except Exception:
+                pass
             raise RuntimeError(f"staff job '{job}' reported failure")
         return {"ok": True, "job": job}
     except SoftTimeLimitExceeded:
