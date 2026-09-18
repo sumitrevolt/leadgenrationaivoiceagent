@@ -76,51 +76,64 @@ class TypeSafeResponse:
 
 
 class Choice:
-    """Choice question primitive for TypeSafe System One"""
+    """Choice question primitive for TypeSafe System One
+
+    Official SDK contract:
+    {type: "choice", instructions: str, criteria: {...}}
+    The `question` argument is mapped to `instructions` in the payload.
+    """
 
     def __init__(self, question: str, criteria: dict[str, str], instructions: str = ""):
+        # `question` is the user-facing label; official wire field is `instructions`
         self.question = question
         self.criteria = criteria
-        self.instructions = instructions
+        self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
         return {
             "type": "choice",
-            "question": self.question,
-            "criteria": self.criteria,
             "instructions": self.instructions,
+            "criteria": self.criteria,
         }
 
 
 class Noul:
-    """Noul (yes/no) question primitive for TypeSafe System One"""
+    """Noul (yes/no) question primitive for TypeSafe System One
+
+    Official SDK contract:
+    {type: "noul", instructions: str, optional criteria}
+    """
 
     def __init__(self, question: str, instructions: str = ""):
         self.question = question
-        self.instructions = instructions
+        self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
         return {
             "type": "noul",
-            "question": self.question,
             "instructions": self.instructions,
         }
 
 
 class Score:
-    """Score question primitive for TypeSafe System One"""
+    """Score question primitive for TypeSafe System One
 
-    def __init__(self, question: str, criteria: dict[str, str], instructions: str = ""):
+    Official SDK contract:
+    {type: "score", instructions: str, criteria: [...]}
+    Criteria is a LIST (not dict) — e.g., ["low", "medium", "high"]
+    """
+
+    def __init__(self, question: str, criteria: list[str] | dict[str, str], instructions: str = ""):
         self.question = question
-        self.criteria = criteria
-        self.instructions = instructions
+        # Accept both list and dict for backward compat, but prefer list
+        self.criteria: list[str] | dict[str, str] = criteria
+        self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
         return {
             "type": "score",
-            "question": self.question,
-            "criteria": self.criteria,
             "instructions": self.instructions,
+            "criteria": self.criteria,
         }
 
 
