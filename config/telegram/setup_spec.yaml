@@ -42,7 +42,7 @@ products:
         kind: channel
         name: LeadGen AI Marketing - Announcements
         handle: LeadGenAIMarketingNews
-        purpose: One-way product updates: feature releases, pricing changes, scheduled maintenance, compliance/DPDP notices, outage status.
+        purpose: 'One-way product updates: feature releases, pricing changes, scheduled maintenance, compliance/DPDP notices, outage status.'
         target_audience: All subscribers - customers + prospects + public
         access: public
         admins: [founder, pm, bot_broadcast]
@@ -69,7 +69,7 @@ products:
       - key: support
         kind: supergroup
         name: LeadGen AI Marketing - Support
-        purpose: Ticketed support: bugs, billing, incident updates. Customers only.
+        purpose: 'Ticketed support: bugs, billing, incident updates. Customers only.'
         target_audience: Paying customers (verified post UPI)
         access: private
         admins: [founder, support_lead, support_agent, bot_broadcast]
@@ -130,7 +130,7 @@ products:
       - key: support
         kind: supergroup
         name: LeadGen AI Voice Agent - Support
-        purpose: Voice-agent support: call routing, DLT templates, billing, incidents.
+        purpose: 'Voice-agent support: call routing, DLT templates, billing, incidents.'
         target_audience: Paying customers (verified post UPI)
         access: private
         admins: [founder, support_lead, support_agent, bot_broadcast]
@@ -176,7 +176,7 @@ cross_product:
   - key: owner_alerts
     kind: supergroup
     name: LeadGen AI - Owner Alerts
-    purpose: Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state.
+    purpose: 'Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state.'
     target_audience: Founder only (+ LeadGenBot)
     access: private
     admins: [founder, devops, bot_broadcast]
