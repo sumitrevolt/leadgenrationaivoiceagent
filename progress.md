@@ -154,7 +154,7 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 **TypeSafe/Skills Used:** `typesafe-ai` skill (live docs contract: `POST /v1/systemone`, `choice`/`noul`/`score` primitives, "ek narrow judgment per question, independent questions ek saath bhejo") · live System One calls, requested `jev-latest` → resolved **`jev-1.13.0`** (1.2–1.3s).
 
 **Changed:**
-- **Naya `scripts/typesafe_admin_triage.py`** — findings registry se state banata hai, EK request me parallel judgments leta hai (per-finding Noul *genuine risk?* + Score *revenue impact* + Choice *next action* + Noul *owner-gate?*), ranking `real_risk × severity` compute karta hai, aur poora trace `data/typesafe_decisions.jsonl` me likhta hai (task_id · state_hash · evidence_refs · requested/resolved model · latency · raw answers · decision · downstream_action · outcome). `--record-outcome` loop band karta hai. **Fail-CLOSED**: key INERT/HTTP error → exit 3, koi decision LIKHI nahi (fake priority nahi).
+- **Naya `scripts/typesafe_admin_triage.py`** — findings registry se state banata hai, EK request me parallel judgments leta hai (per-finding Noul *genuine risk?* + Score *revenue impact* + Choice *next action* + Noul *owner-gate?*), ranking `real_risk × severity` compute karta hai, aur poora trace `logs/typesafe_decisions.jsonl` me likhta hai (task_id · state_hash · evidence_refs · requested/resolved model · latency · raw answers · decision · downstream_action · outcome). `data/` **jaan-boojh kar nahi** — wo tree runtime-data manifest + ratchets ka hai jo har `data/`-rooted path ko reviewed surface ginta hai aur count pin karta hai. `--record-outcome` loop band karta hai. **Fail-CLOSED**: key INERT/HTTP error → exit 3, koi decision LIKHI nahi (fake priority nahi).
 - **Naya `docs/coordination/ADMIN_FINDINGS.json`** + `.gitignore` negation (`!docs/coordination/ADMIN_FINDINGS.json`).
 - `app/api/admin.py`: canonical import (`app.integrations.email_sender`) + `await _es.send_email(to_emails=[user.email])` + failure **WARNING** pe (DEBUG nahi) + `_sent` False hone par warning.
 - `app/platform/agent_talent_pool.py` **removed** (rollback `git checkout d4243e7a -- app/platform/agent_talent_pool.py`) — 992-call orphan, canonical 31-agent registry ke khilaf, zero consumers.
@@ -169,7 +169,7 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 - `check_secrets.py --all` → **4278 files, no secrets detected**.
 - `prod_check.py` → **[OK] ALL CHECKS PASSED** — 1436 routes · wiring 0 gaps · automation 0 gaps.
 - `scripts/sync_api_docs.py` → docs/API.md 1449 endpoints pe sync.
-- **Trace proof:** `data/typesafe_decisions.jsonl` me decision record (`tsadm-20260919T043330-f9dbf7`) + uska outcome record — dono append-only, `outcome` decision record me null hi rehta hai.
+- **Trace proof:** `logs/typesafe_decisions.jsonl` me decision record (`tsadm-20260919T043330-f9dbf7`) + uska outcome record — dono append-only, `outcome` decision record me null hi rehta hai.
 
 **Risks:**
 - **B-2 (TypeSafe ka #1) OWNER-gated hai** — prod ab bhi 0-byte cold-email engine chalata hai; merge + `scripts/deploy_vps.sh` chahiye. Isi liye outcome record me "non-owner-gated part executed" likha, "sab ho gaya" nahi.
@@ -180,3 +180,7 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 **Remaining:** B-2 merge+deploy (owner) · B-4 containment decision (owner) · B-5 caller-id consolidation (SmartFlo thread ke saath) · B-3 call-loop trigger proof · `typesafe_adoption` ko second real consumer dena (lead scoring / reply intent) · orphan `.pyc` cleanup.
 
 **Next Highest Priority:** B-2 — restore ko `origin/main` pe merge karke deploy, phir `typesafe_admin_triage.py --record-outcome` se loop band karna.
+
+### CORRECTION + INCIDENT (2026-09-19 ~05:00 IST)
+- ⚠️ **Shared checkout wipe:** is loop ka *pehla pass* (code files) kisi doosre thread ke branch switch se **discard ho gaya** — HEAD `c1cbfdef` (main) se `feat/calling-window-and-typesafe` (`797b9478` → commits `4aeed57e`, `52ebcc4a`) pe move, aur tree clean. Untracked naye files (`scripts/typesafe_admin_triage.py`, 3 test files, findings registry) + uncommitted edits (`app/api/admin.py`, `.gitignore`, orphan delete) sab gaye; **docs records bache** kyunki un commits me chale gaye. Evidence `logs/typesafe_decisions.jsonl` bacha (gitignored — `git clean` ignored files ko nahi chhoota). **Lesson:** is repo me naya kaam turant commit karna chahiye warna ek branch switch sab kha jata hai.
+- ✅ Sara kaam **dobara apply + dobara verify** hua (branch `feat/calling-window-and-typesafe`, abhi bhi **uncommitted**): 90 tests green (6 suites), ruff clean, `check_secrets --all` clean, `prod_check` ALL CHECKS PASSED, ratchet ka apna `_uncontrolled_path_findings('scripts/typesafe_admin_triage.py')` → **`[]`** (koi naya `data/` surface nahi), aur naya live decision trace `tsadm-20260919T045736-582dfe` (NEXT ACTION B-2, conf 0.87).

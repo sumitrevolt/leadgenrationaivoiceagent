@@ -671,11 +671,16 @@ async def create_user(
 
     # Send verification email (best-effort, never block create)
     try:
-        from app.platform.auto_outreach import EmailSender as _ES
+        # NOTE: `app.platform.auto_outreach` does NOT export EmailSender — it
+        # imports the class lazily inside its own functions. Importing it from
+        # there raised ImportError, which the `except` below swallowed at DEBUG
+        # level, so this verification email silently never sent. Canonical
+        # sender lives in app.integrations.email_sender.
+        from app.integrations.email_sender import EmailSender as _ES
 
         _es = _ES()
-        _es.send(
-            to=user.email,
+        _sent = await _es.send_email(
+            to_emails=[user.email],
             subject="Aapka LeadsGenAI account ban gaya ✅",
             body=(
                 f"Namaste {user.first_name},\n\n"
@@ -686,8 +691,16 @@ async def create_user(
                 f"Team LeadsGenAI"
             ),
         )
+        if not _sent:
+            logger.warning(
+                f"[user.create] verification email NOT sent to {user.email} "
+                "(sender returned False; email API + SMTP both failed)"
+            )
     except Exception as _ve:
-        logger.debug(f"[user.create] verification email skip: {_ve}")
+        # Best-effort by design — never block user creation. Logged at WARNING
+        # (was DEBUG): DEBUG is how the wrong-module ImportError above stayed
+        # invisible in production.
+        logger.warning(f"[user.create] verification email failed: {_ve}")
 
     return UserResponse(
         id=user.id,

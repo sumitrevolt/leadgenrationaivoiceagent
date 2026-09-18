@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-09-19",
+  "note": "Canonical, evidence-backed registry of open admin findings. Consumed by scripts/typesafe_admin_triage.py. Keep evidence strings concrete (a command + observed output), never a guess. Update 'status' as items close; triage only judges items whose status is 'open'.",
+  "findings": [
+    {
+      "id": "B-2",
+      "title": "Production still runs the image with the 0-byte cold-email engine",
+      "class": "revenue",
+      "status": "open",
+      "evidence": "ssh root@leadsgenai.in 'ls -l /opt/leadgen/app/platform/auto_outreach.py' -> 0 bytes; docker ps -> all containers :680722c8; the restore (commit 344cb5e5) exists only on a branch.",
+      "blast_radius": "Every cold-email call site (19 in app/api/team.py + app/agents/staff.py staff job) raises AttributeError in production until deploy.",
+      "owner_only": false,
+      "next_step": "Merge the restore branch, then bash scripts/deploy_vps.sh and re-probe /health."
+    },
+    {
+      "id": "B-3",
+      "title": "leadgen-call-loop.service is inactive during the TRAI calling window",
+      "class": "revenue",
+      "status": "open",
+      "evidence": "systemctl list-units | grep leadgen -> leadgen-call-loop.service inactive dead, leadgen-calls.service inactive dead, while the live probe ran inside the 09:00-20:00 IST window.",
+      "blast_radius": "Cold outbound calling (the paid voice product's core promise) may place zero calls; platform dial is scheduler-driven, so confirm which trigger is authoritative before starting the unit.",
+      "owner_only": false,
+      "next_step": "Read the scheduler/beat wiring, prove which path actually dials, then start + verify one real call."
+    },
+    {
+      "id": "B-4",
+      "title": "HQ_AUTO_CHASE enabled with no runtime approval-ID/status enforcement",
+      "class": "compliance",
+      "status": "open",
+      "evidence": "Flag present and ON in prod .env; app/platform/hq_auto_chase.py gates only on the flag plus HQ_CHASE_HOURS; no approval-id or status check in the send path.",
+      "blast_radius": "Automated EMAIL follow-up to unactioned inquiry cards can fire without an owner approval record. Compliance/consent surface, not cosmetic.",
+      "owner_only": true,
+      "next_step": "Owner decides containment: set HQ_AUTO_CHASE=0 (fail-closed) until an approval gate exists, or accept documented risk."
+    },
+    {
+      "id": "B-5",
+      "title": "VOBIZ_CALLER_ID still present in the production env after the Vobiz removal",
+      "class": "reliability",
+      "status": "open",
+      "evidence": "ssh ... grep -oE '^[A-Z_]+=' /opt/leadgen/.env shows VOBIZ_CALLER_ID; grep shows live readers in app/telephony/compliance.py:238, app/telephony/telephony_service.py:374, app/telephony/telephony_readiness_probe.py:63.",
+      "blast_radius": "A removed provider's caller-id variable is still read by the compliance surface, so 'Vobiz-only removal' and 'SmartFlo-only' cannot both be claimed. Misconfigured caller-id also trips a compliance reason.",
+      "owner_only": false,
+      "next_step": "Decide the canonical caller-id variable, repoint readers, then remove VOBIZ_* from the env and code."
+    },
+    {
+      "id": "admin_verification_email",
+      "title": "Admin-created users never received their verification email",
+      "class": "customer",
+      "status": "fixed",
+      "evidence": "app/api/admin.py imported EmailSender from app.platform.auto_outreach (name does not exist there) inside a try/except that logged at DEBUG; the API was also wrong (send() vs await send_email(to_emails=...)).",
+      "blast_radius": "Every admin-created account silently skipped onboarding email; failure was invisible in logs.",
+      "owner_only": false,
+      "next_step": "Fixed: canonical import + async API + WARNING-level failure logging + regression guard tests/test_admin_verification_email.py."
+    },
+    {
+      "id": "talent_pool_typesafe_cost",
+      "title": "agent_talent_pool makes 992 TypeSafe API calls and discards the judgment",
+      "class": "architecture",
+      "status": "fixed",
+      "evidence": "app/platform/agent_talent_pool.py: 31 agents x 32 specializations = 992 sequential typesafe_choice() HTTP calls at build time; the returned specialization is looked up in a hardcoded snake_case capability map, so a human-readable answer ('Cold call expert') falls through to 'general'. Repo-wide grep: zero code consumers.",
+      "blast_radius": "No runtime caller today, so no live outage — but any future call to get_talent_pool() blocks for ~30 minutes of paid API calls, and the file was the app's ONLY TypeSafe consumer, so the decision layer looked integrated while being decorative. Conflicts with the canonical 31-agent registry (ADR-164/165).",
+      "owner_only": false,
+      "next_step": "Fixed: orphan removed (rollback: git checkout d4243e7a -- app/platform/agent_talent_pool.py); tests/test_typesafe_consumer_inventory.py now allowlists TypeSafe consumers so a decorative one cannot return silently."
+    },
+    {
+      "id": "typesafe_adoption",
+      "title": "TypeSafe is effectively unused across the product",
+      "class": "product",
+      "status": "open",
+      "evidence": "grep app/ for typesafe_integration|get_typesafe_client|typesafe_choice|typesafe_noul|typesafe_score -> no product module consumes a TypeSafe judgment; app/platform/automation_health.py reads credential_state() only (config check, no judgment).",
+      "blast_radius": "Every semantic decision the owner wants TypeSafe to own (lead qualification, next-action, risk triage) is still made by ad-hoc heuristics or not at all. The integration is INERT even with a valid key.",
+      "owner_only": false,
+      "next_step": "Wire one real consumer end-to-end with a trace record and a consumed downstream action (admin triage script is the first; a revenue-path consumer is still missing)."
+    },
+    {
+      "id": "B-1",
+      "title": "TypeSafe key exposed in git history must be rotated",
+      "class": "security",
+      "status": "open",
+      "evidence": "Commit 7317f990 hardcoded a live ~100-char key as the os.getenv fallback default; 979c2229 removed the literal but the value remains in history. Live probe of the historical fingerprint fe66d7de1807 -> HTTP 401 (no longer valid).",
+      "blast_radius": "History exposure only. Residual risk is low because the exposed key is already rejected, but rotation is still the correct close-out.",
+      "owner_only": true,
+      "next_step": "Owner rotates at platform.typesafe.ai (or explicitly accepts the already-401 stale exposure)."
+    },
+    {
+      "id": "B-9",
+      "title": "Local orchestrator ledger was JSON-clobbered into a SQLite path",
+      "class": "reliability",
+      "status": "open",
+      "evidence": "data/orchestrator_ledger.db first bytes were 7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72 (JSON) though the durable task store opens it as SQLite. DevWorkerProver now writes data/dev_workers_ledger.json.",
+      "blast_radius": "Dev/CI machines that ran the old code carry a corrupted local ledger; SQLite will not open it.",
+      "owner_only": false,
+      "next_step": "Delete the corrupted local file so SQLite recreates it; confirm prod uses its own path."
+    },
+    {
+      "id": "B-10",
+      "title": "Stale 0-byte tracked files and committed test artifacts",
+      "class": "hygiene",
+      "status": "open",
+      "evidence": "git ls-files sweep: $null, ._t_resume.txt, memory/2026-09-04.md, .pytest_tmp_telegram_bootstrap_verified_0916*/test_concurrent_or_interrupted0/state.lock.",
+      "blast_radius": "Noise in every repo-wide scan and audit; cosmetic-to-hygiene, no customer impact.",
+      "owner_only": false,
+      "next_step": "Untrack the artifacts, keep intentional .gitkeep/__init__.py placeholders."
+    }
+  ]
+}

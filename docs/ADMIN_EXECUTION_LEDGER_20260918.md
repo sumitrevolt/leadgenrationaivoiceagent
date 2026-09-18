@@ -274,7 +274,8 @@ represents the code commit that carries the fixes.
 (now tracked; `.gitignore` blanket `*.json` had silently ignored it), ONE System One
 request carrying independent judgments (per-finding `Noul` real-risk, `Score` revenue
 impact, `Choice` next action, `Noul` owner-gate), ranking = `real_risk × severity`,
-trace appended to `data/typesafe_decisions.jsonl`. Fail-closed: INERT/failed request
+trace appended to `logs/typesafe_decisions.jsonl` (deliberately NOT under `data/`, which
+belongs to the runtime-data manifest + its count-pinned ratchets). Fail-closed: INERT/failed request
 exits 3 and writes **no** decision.
 
 **Live result (task_id `tsadm-20260919T043330-f9dbf7`):** requested `jev-latest` →
@@ -325,7 +326,23 @@ orphan must not return). See ADR-195.
 | `scripts/check_secrets.py --all` | **4278 files, no secrets detected** |
 | `scripts/prod_check.py` | **[OK] ALL CHECKS PASSED** — 1436 routes, wiring 0 gaps, automation 0 gaps |
 | `scripts/sync_api_docs.py` | docs/API.md synced to 1449 endpoints |
-| `data/typesafe_decisions.jsonl` | decision record + outcome record present, append-only |
+| `logs/typesafe_decisions.jsonl` | decision record + outcome record present, append-only |
+
+### 9.6 CORRECTION + INCIDENT (2026-09-19 ~05:00 IST)
+
+* The first pass of this wave's **code** changes (new script, 3 test files, findings
+  registry, `admin.py` fix, `.gitignore` negation, orphan delete) was **discarded by an
+  external branch switch** in this shared checkout (`main` `c1cbfdef` →
+  `feat/calling-window-and-typesafe`, commits `4aeed57e` + `52ebcc4a`). The docs records
+  survived because they rode along in those commits; `logs/` survived because it is
+  gitignored and `git clean` does not remove ignored files. **All of it was re-applied and
+  re-verified.** Nothing here should be assumed committed — the tree is uncommitted work
+  on `feat/calling-window-and-typesafe`.
+* Trace path corrected from `data/` to `logs/` after checking the ratchet's own detector:
+  `_uncontrolled_path_findings('scripts/typesafe_admin_triage.py')` → `[]`.
+* Re-verified on re-application: **90 tests** (6 suites) green · ruff clean ·
+  `check_secrets --all` clean · `prod_check` **ALL CHECKS PASSED** · new live decision
+  trace `tsadm-20260919T045736-582dfe` (NEXT ACTION `B-2`, conf 0.87, owner-gated True).
 
 
 
