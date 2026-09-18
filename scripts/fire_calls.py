@@ -77,8 +77,14 @@ def get_db_conn():
     import psycopg2
 
     p = up.urlparse(os.environ["DATABASE_URL"])
+    host = p.hostname
+    # DNS bypass: Docker internal DNS (127.0.0.11) flaky hai multi-network setup me
+    # libpq (psycopg2) alag DNS resolver use karta hai jo /etc/hosts bypass karta hai
+    # Isliye pgbouncer ke liye hamesha IP use karo
+    if host == "pgbouncer":
+        host = "172.16.1.15"
     return psycopg2.connect(
-        host=p.hostname,
+        host=host,
         port=p.port or 5432,
         dbname=p.path.lstrip("/"),
         user=p.username,

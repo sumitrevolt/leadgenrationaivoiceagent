@@ -109,7 +109,7 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    networks: [leadgen_net, dsh_net]
+    networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
   # Dedicated SINGLE-WORKER MCP backend (MCP 404 fix, docs/MCP_MULTIWORKER_FIX.md).
@@ -174,7 +174,7 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    networks: [leadgen_net, dsh_net]
+    networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
   # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
@@ -283,7 +283,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [leadgen_net, dsh_net]
+    networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
   # redis-cache — EVICTABLE cache only (app.cache.Cache). Alag instance taaki
