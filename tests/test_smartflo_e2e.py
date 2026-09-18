@@ -91,6 +91,7 @@ def _kill_switch_off(monkeypatch):
     Test-only seam; window/dial-gate logic untouched (cf. same fixture in
     tests/test_smartflo_call_type_gating.py)."""
     monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
+    monkeypatch.setenv("COMPLIANCE_ALLOWLIST", "9876543210")
 
 
 def _override_admin():

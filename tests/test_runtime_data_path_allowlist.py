@@ -150,19 +150,25 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
-    assert len(entries) == 94
-    assert len(families) == 33, sorted(families)
+    assert len(entries) == 106
+    assert len(families) == 42, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
     assert families == {
+        "admin.task_ledger",
         "automation.console_events",
+        "automation.omniroute_combo_state",
         "billing.invoices",
         "billing.promo_codes",
         "billing.upi_payments",
+        "command_center.pilot_tasks",
+        "communications.telegram_inbox",
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
+        "devcontrol.external_missions",
+        "governance.mission_control",
         "marketing.affiliates",
         "marketing.appointment_reminders",
         "marketing.brand_kits",
@@ -173,27 +179,28 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "marketing.email_drips",
         "marketing.form_builder",
         "marketing.gsc_rankings",
+        "marketing.outreach_draft_logs",
         "marketing.proposal_builder",
         "marketing.review_sequences",
+        "ops.hot_queue_owner_pack_csv",
+        "ops.hot_queue_owner_pack_md",
+        "ops.office_briefing",
+        "ops.owner_email_canary",
+        "ops.owner_feed",
+        "ops.telegram_group_ids",
+        "ops.telegram_setup_state",
+        "ops.waha_watchdog",
+        "owner_os.coordination_hub",
+        "platform.agent_memory",
         "platform.memory_governance",
         "platform.staff_bus",
         "platform.workforce_memory",
-        "command_center.pilot_tasks",
-        "devcontrol.external_missions",
-        "governance.mission_control",
-        "owner_os.coordination_hub",
-        "ops.office_briefing",
-        "ops.hot_queue_owner_pack_csv",
-        "ops.hot_queue_owner_pack_md",
-        "ops.owner_email_canary",
         "sales.prospects",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    # 13 since 2026-09-04: automation joined for the M2 console dispatcher
-    # (per-tenant JSONL envelopes under CONSOLE_EVENT_STORE_ROOT).
-    assert len({f.split(".")[0] for f in families}) == 13
+    assert len({f.split(".")[0] for f in families}) == 15
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -466,7 +473,7 @@ def test_store_manifest_still_validates() -> None:
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
     # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
-    assert counts["unique_families"] == 51
+    assert counts["unique_families"] == 60
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
