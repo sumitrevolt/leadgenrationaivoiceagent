@@ -1,7 +1,7 @@
-"""Regression test: gated-inert jobs must never enter dlq:failed_tasks.
+"""Direct test of run_staff_job wrapper behavior for gated-inert fix.
 
-This test directly exercises the run_staff_job() Celery wrapper with mocked
-dependencies, proving the fix prevents false DLQ entries.
+This test invokes the actual run_staff_job Celery task wrapper with mocked
+dependencies to prove the fix prevents false DLQ entries for gated-off jobs.
 
 Fix for semantic bug (2026-09-18): when VIDEO_TELEGRAM_DELIVERY_ENABLED=0
 (or any gated job OFF), team_scheduler._run_job returns ok=False and records
@@ -14,8 +14,8 @@ raising. If gated, returns {"ok": True, "job": job, "status": "gated_inert"}
 — no retry, no DLQ.
 
 Direct test proves:
-1. gated_inert=True → returns status="gated_inert", no Celery retry triggered
-2. gated_inert=False → RuntimeError raised (triggers Celery retry/DLQ)
+1. gated_inert=True → run_staff_job() returns ok=True, no RuntimeError raised
+2. gated_inert=False → run_staff_job() raises RuntimeError (triggers retry/DLQ)
 3. gated_inert() exception → fail-closed, still raises RuntimeError
 """
 
