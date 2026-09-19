@@ -87,7 +87,7 @@ EXPECTED_BLOCKERS = 0
 # 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
 # (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
 EXPECTED_ALLOWLIST_ENTRIES = 106
-EXPECTED_BASELINE_FINGERPRINTS = 793
+EXPECTED_BASELINE_FINGERPRINTS = 788
 
 
 def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
