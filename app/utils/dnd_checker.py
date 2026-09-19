@@ -335,7 +335,11 @@ class DNDChecker:
         vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
         smartflo_ok = bool(
             (os.environ.get("SMARTFLO_API_KEY") or os.environ.get("TATA_SMARTFLO_API_KEY"))
-            and (os.environ.get("TATA_SMARTFLO_DID") or os.environ.get("SMARTFLO_DID") or os.environ.get("VOBIZ_CALLER_ID"))
+            and (
+                os.environ.get("TATA_SMARTFLO_DID")
+                or os.environ.get("SMARTFLO_DID")
+                or os.environ.get("VOBIZ_CALLER_ID")
+            )
         )
         is_carrier_voice = False
         carrier_source = "carrier_scrub"
