@@ -13,7 +13,6 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -28,10 +27,10 @@ class AgentProfile(BaseModel):
     schedule: str
     skills: list[str] = Field(default_factory=list)
     status: str = "idle"  # idle, working, offline
-    last_active: Optional[str] = None
+    last_active: str | None = None
     tasks_completed_today: int = 0
     tasks_completed_total: int = 0
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
@@ -342,12 +341,12 @@ AGENT_PROFILES: dict[str, dict[str, Any]] = {
 
 class AgentManager:
     """Manage 31 agent bots with enterprise profiles."""
-    
+
     def __init__(self):
         self.agents: dict[str, AgentProfile] = {}
         self._initialize_agents()
         self._load_memory()
-    
+
     def _initialize_agents(self):
         """Initialize all 31 agent profiles."""
         for agent_id, profile_data in AGENT_PROFILES.items():
@@ -362,13 +361,13 @@ class AgentManager:
                 skills=profile_data.get("skills", []),
             )
             self.agents[agent_id] = agent
-    
+
     def _load_memory(self):
         """Load agent memory from disk."""
         memory_path = "data/agent_memory.json"
         if os.path.exists(memory_path):
             try:
-                with open(memory_path, "r") as f:
+                with open(memory_path) as f:
                     memory = json.load(f)
                 for agent_id, data in memory.items():
                     if agent_id in self.agents:
@@ -378,7 +377,7 @@ class AgentManager:
                         agent.last_active = data.get("last_active")
             except Exception as e:
                 print(f"[agent_manager] Failed to load memory: {e}")
-    
+
     def _save_memory(self):
         """Save agent memory to disk."""
         memory_path = "data/agent_memory.json"
@@ -395,12 +394,12 @@ class AgentManager:
                 json.dump(memory, f, indent=2)
         except Exception as e:
             print(f"[agent_manager] Failed to save memory: {e}")
-    
-    def get_agent(self, agent_id: str) -> Optional[AgentProfile]:
+
+    def get_agent(self, agent_id: str) -> AgentProfile | None:
         """Get agent by ID."""
         return self.agents.get(agent_id)
-    
-    def list_agents(self, product: Optional[str] = None) -> list[dict[str, Any]]:
+
+    def list_agents(self, product: str | None = None) -> list[dict[str, Any]]:
         """List all agents, optionally filtered by product."""
         result = []
         for agent in self.agents.values():
@@ -408,13 +407,13 @@ class AgentManager:
                 continue
             result.append(agent.to_dict())
         return result
-    
+
     def get_agent_stats(self, agent_id: str) -> dict[str, Any]:
         """Get detailed stats for an agent."""
         agent = self.get_agent(agent_id)
         if not agent:
             return {"error": f"Agent {agent_id} not found"}
-        
+
         return {
             "agent_id": agent.agent_id,
             "name": agent.name,
@@ -426,62 +425,62 @@ class AgentManager:
             "tasks_completed_total": agent.tasks_completed_total,
             "last_active": agent.last_active,
         }
-    
+
     def activate_agent(self, agent_id: str) -> dict[str, Any]:
         """Activate an agent (set status to 'working')."""
         agent = self.get_agent(agent_id)
         if not agent:
             return {"error": f"Agent {agent_id} not found"}
-        
+
         agent.status = "working"
         agent.last_active = datetime.now(_IST).isoformat()
         self._save_memory()
-        
+
         return {"success": True, "agent_id": agent_id, "status": agent.status}
-    
+
     def pause_agent(self, agent_id: str) -> dict[str, Any]:
         """Pause an agent (set status to 'idle')."""
         agent = self.get_agent(agent_id)
         if not agent:
             return {"error": f"Agent {agent_id} not found"}
-        
+
         agent.status = "idle"
         self._save_memory()
-        
+
         return {"success": True, "agent_id": agent_id, "status": agent.status}
-    
+
     def increment_task_count(self, agent_id: str) -> dict[str, Any]:
         """Increment task completed count for an agent."""
         agent = self.get_agent(agent_id)
         if not agent:
             return {"error": f"Agent {agent_id} not found"}
-        
+
         agent.tasks_completed_today += 1
         agent.tasks_completed_total += 1
         agent.last_active = datetime.now(_IST).isoformat()
         self._save_memory()
-        
+
         return {
             "success": True,
             "agent_id": agent_id,
             "tasks_today": agent.tasks_completed_today,
             "tasks_total": agent.tasks_completed_total,
         }
-    
+
     def get_daily_summary(self) -> dict[str, Any]:
         """Get daily summary of all agent activity."""
         today = datetime.now(_IST).date()
-        
+
         total_agents = len(self.agents)
         active_agents = len([a for a in self.agents.values() if a.status == "working"])
         total_tasks_today = sum(a.tasks_completed_today for a in self.agents.values())
         total_tasks_all = sum(a.tasks_completed_total for a in self.agents.values())
-        
+
         # Per-product breakdown
         marketing_agents = len([a for a in self.agents.values() if a.product == "marketing"])
         voice_agents = len([a for a in self.agents.values() if a.product == "voice"])
         platform_agents = len([a for a in self.agents.values() if a.product == "platform"])
-        
+
         return {
             "date": today.isoformat(),
             "total_agents": total_agents,
@@ -506,7 +505,7 @@ class AgentManager:
 
 
 # Module-level singleton
-_agent_manager: Optional[AgentManager] = None
+_agent_manager: AgentManager | None = None
 
 
 def get_agent_manager() -> AgentManager:
@@ -517,7 +516,7 @@ def get_agent_manager() -> AgentManager:
     return _agent_manager
 
 
-def list_agents(product: Optional[str] = None) -> list[dict[str, Any]]:
+def list_agents(product: str | None = None) -> list[dict[str, Any]]:
     """Convenience function to list agents."""
     return get_agent_manager().list_agents(product)
 

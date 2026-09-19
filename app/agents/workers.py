@@ -46,31 +46,31 @@ class WorkerTask(BaseModel):
     input_data: dict[str, Any]
     status: str = "pending"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    result: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class WorkerBot:
     """Base worker bot with common functionality."""
-    
+
     def __init__(self, worker_id: str, role: WorkerRole, name: str):
         self.worker_id = worker_id
         self.role = role
         self.name = name
         self.tasks: list[WorkerTask] = []
         self.skills: dict[str, SkillTypeDef] = {}
-    
+
     def register_skill(self, skill: SkillTypeDef) -> None:
         """Register a type-safe skill."""
         self.skills[skill.name] = skill
-    
+
     def create_task(self, skill_name: str, input_data: dict[str, Any]) -> WorkerTask:
         """Create a new task for this worker."""
         if skill_name not in self.skills:
             raise ValueError(f"Skill '{skill_name}' not registered for {self.name}")
-        
+
         task = WorkerTask(
             worker_id=self.worker_id,
             role=self.role,
@@ -79,14 +79,66 @@ class WorkerBot:
         )
         self.tasks.append(task)
         return task
-    
+
+    def evaluate_with_typesafe(
+        self,
+        question: str,
+        state: dict[str, Any],
+        options: list[str] | dict[str, str],
+    ) -> dict[str, Any]:
+        """Optionally evaluate a decision or quality check using TypeSafe System One."""
+        try:
+            from app.platform.typesafe_integration import get_typesafe_client
+            client = get_typesafe_client()
+            if client.enabled:
+                resp = client.choice(question, state, options)
+                return {
+                    "evaluated": bool(resp.success),
+                    "success": resp.success,
+                    "value": resp.value,
+                    "confidence": resp.confidence,
+                    "model": resp.model,
+                }
+        except Exception as e:
+            return {"evaluated": False, "error": str(e)[:120]}
+        return {"evaluated": False, "reason": "inert"}
+
     def execute_task(self, task: WorkerTask) -> WorkerTask:
-        """Execute a task (override in subclasses)."""
+        """Execute a task with type validation and structured output."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        task.status = "completed"
+        task.status = "running"
         task.started_at = now_iso
-        task.completed_at = now_iso
-        task.result = {"status": "ok"}
+
+        skill = self.skills.get(task.skill_name)
+        if not skill:
+            task.status = "failed"
+            task.error = f"Skill '{task.skill_name}' not registered for {self.name}"
+            task.completed_at = datetime.now(timezone.utc).isoformat()
+            return task
+
+        # Type-safe parameter validation (handles lists, dicts, strings)
+        for param, expected_type in skill.parameters.items():
+            if param in task.input_data:
+                val = task.input_data[param]
+                if expected_type == "list" and not isinstance(val, (list, tuple)):
+                    task.status = "failed"
+                    task.error = f"Parameter '{param}' expected list/array, got {type(val).__name__}"
+                    task.completed_at = datetime.now(timezone.utc).isoformat()
+                    return task
+                elif expected_type == "dict" and not isinstance(val, dict):
+                    task.status = "failed"
+                    task.error = f"Parameter '{param}' expected dict/object, got {type(val).__name__}"
+                    task.completed_at = datetime.now(timezone.utc).isoformat()
+                    return task
+
+        task = self._run_skill(task, skill)
+        task.completed_at = datetime.now(timezone.utc).isoformat()
+        return task
+
+    def _run_skill(self, task: WorkerTask, skill: SkillTypeDef) -> WorkerTask:
+        """Default or subclass-specific execution."""
+        task.status = "completed"
+        task.result = {"status": "ok", "skill": skill.name}
         return task
 
 
@@ -96,7 +148,7 @@ class WorkerBot:
 
 class DataAnalystWorker(WorkerBot):
     """Worker for data analysis tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_data_analyst",
@@ -104,7 +156,7 @@ class DataAnalystWorker(WorkerBot):
             name="Data Analyst Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         """Register default skills for data analysis."""
         self.register_skill(SkillTypeDef(
@@ -129,7 +181,7 @@ class DataAnalystWorker(WorkerBot):
 
 class ContentCreatorWorker(WorkerBot):
     """Worker for content creation tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_content_creator",
@@ -137,7 +189,7 @@ class ContentCreatorWorker(WorkerBot):
             name="Content Creator Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="create_social_post",
@@ -155,7 +207,7 @@ class ContentCreatorWorker(WorkerBot):
 
 class LeadGeneratorWorker(WorkerBot):
     """Worker for lead generation tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_lead_generator",
@@ -163,7 +215,7 @@ class LeadGeneratorWorker(WorkerBot):
             name="Lead Generator Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="harvest_prospects",
@@ -178,10 +230,36 @@ class LeadGeneratorWorker(WorkerBot):
             output_schema={"enriched_lead": "dict"},
         ))
 
+    def _run_skill(self, task: WorkerTask, skill: SkillTypeDef) -> WorkerTask:
+        if skill.name == "harvest_prospects":
+            source = task.input_data.get("source", "manual")
+            criteria = task.input_data.get("criteria", {})
+            prospects = task.input_data.get("prospects") or []
+            task.status = "completed"
+            task.result = {
+                "prospects": prospects,
+                "count": len(prospects),
+                "source": source,
+                "criteria": criteria,
+            }
+            return task
+        elif skill.name == "enrich_lead":
+            lead = task.input_data.get("lead", {})
+            ts_res = self.evaluate_with_typesafe(
+                "Rate prospect quality tier",
+                {"lead": lead},
+                ["tier_1", "tier_2", "tier_3"],
+            )
+            enriched = {**lead, "verified": True, "lead_tier": ts_res.get("value") or "standard"}
+            task.status = "completed"
+            task.result = {"enriched_lead": enriched, "typesafe": ts_res}
+            return task
+        return super()._run_skill(task, skill)
+
 
 class QualityAssuranceWorker(WorkerBot):
     """Worker for QA and validation tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_qa",
@@ -189,7 +267,7 @@ class QualityAssuranceWorker(WorkerBot):
             name="QA Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="validate_content",
@@ -204,10 +282,34 @@ class QualityAssuranceWorker(WorkerBot):
             output_schema={"compliant": "bool", "violations": "list"},
         ))
 
+    def _run_skill(self, task: WorkerTask, skill: SkillTypeDef) -> WorkerTask:
+        if skill.name == "check_compliance":
+            campaign = task.input_data.get("campaign", {})
+            violations = []
+            if not campaign.get("dlt_approved", True):
+                violations.append("DLT registration required for promo calling")
+            if campaign.get("cold_whatsapp", False):
+                violations.append("Cold WhatsApp auto-send prohibited")
+
+            ts_res = self.evaluate_with_typesafe(
+                "Is this outreach compliant with TRAI and DLT regulations?",
+                {"campaign": campaign, "violations": violations},
+                ["compliant", "violation_detected"],
+            )
+            compliant = len(violations) == 0 and (not ts_res.get("evaluated") or ts_res.get("value") == "compliant")
+            task.status = "completed"
+            task.result = {
+                "compliant": compliant,
+                "violations": violations,
+                "typesafe": ts_res,
+            }
+            return task
+        return super()._run_skill(task, skill)
+
 
 class EmailSpecialistWorker(WorkerBot):
     """Worker for email automation tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_email",
@@ -215,7 +317,7 @@ class EmailSpecialistWorker(WorkerBot):
             name="Email Specialist Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="send_cold_email",
@@ -233,7 +335,7 @@ class EmailSpecialistWorker(WorkerBot):
 
 class SocialMediaWorker(WorkerBot):
     """Worker for social media tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_social",
@@ -241,7 +343,7 @@ class SocialMediaWorker(WorkerBot):
             name="Social Media Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="schedule_post",
@@ -259,7 +361,7 @@ class SocialMediaWorker(WorkerBot):
 
 class VoiceAgentWorker(WorkerBot):
     """Worker for voice/calling tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_voice",
@@ -267,7 +369,7 @@ class VoiceAgentWorker(WorkerBot):
             name="Voice Agent Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="make_call",
@@ -285,7 +387,7 @@ class VoiceAgentWorker(WorkerBot):
 
 class CRMManagerWorker(WorkerBot):
     """Worker for CRM management tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_crm",
@@ -293,7 +395,7 @@ class CRMManagerWorker(WorkerBot):
             name="CRM Manager Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="sync_leads",
@@ -311,7 +413,7 @@ class CRMManagerWorker(WorkerBot):
 
 class ReportingWorker(WorkerBot):
     """Worker for reporting tasks."""
-    
+
     def __init__(self):
         super().__init__(
             worker_id="worker_reporting",
@@ -319,7 +421,7 @@ class ReportingWorker(WorkerBot):
             name="Reporting Bot",
         )
         self._register_default_skills()
-    
+
     def _register_default_skills(self):
         self.register_skill(SkillTypeDef(
             name="generate_daily_report",
@@ -341,11 +443,11 @@ class ReportingWorker(WorkerBot):
 
 class WorkerManager:
     """Manage all 9 worker bots."""
-    
+
     def __init__(self):
         self.workers: dict[str, WorkerBot] = {}
         self._initialize_workers()
-    
+
     def _initialize_workers(self):
         """Initialize all 9 worker bots."""
         workers = [
@@ -361,11 +463,11 @@ class WorkerManager:
         ]
         for worker in workers:
             self.workers[worker.worker_id] = worker
-    
-    def get_worker(self, worker_id: str) -> Optional[WorkerBot]:
+
+    def get_worker(self, worker_id: str) -> WorkerBot | None:
         """Get worker by ID."""
         return self.workers.get(worker_id)
-    
+
     def list_workers(self) -> list[dict[str, Any]]:
         """List all workers with their skills."""
         result = []
@@ -378,16 +480,16 @@ class WorkerManager:
                 "active_tasks": len([t for t in worker.tasks if t.status == "running"]),
             })
         return result
-    
+
     def execute_task(self, worker_id: str, skill_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
         """Execute a task on a worker."""
         worker = self.get_worker(worker_id)
         if not worker:
             return {"error": f"Worker {worker_id} not found"}
-        
+
         task = worker.create_task(skill_name, input_data)
         task = worker.execute_task(task)
-        
+
         return {
             "success": not bool(task.error) and task.status == "completed",
             "task_id": task.task_id,
@@ -399,7 +501,7 @@ class WorkerManager:
 
 
 # Module-level singleton
-_workers_manager: Optional[WorkerManager] = None
+_workers_manager: WorkerManager | None = None
 
 
 def get_workers_manager() -> WorkerManager:

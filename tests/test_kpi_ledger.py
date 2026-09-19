@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from app.platform.kpi_ledger import KpiLedger, KpiRecord, get_ledger, record_kpi, compute_and_print
+from app.platform.kpi_ledger import KpiLedger, KpiRecord, compute_and_print, get_ledger, record_kpi
 
 
 class TestKpiRecord:
@@ -140,7 +140,7 @@ class TestKpiLedger:
         assert os.path.exists(tmp_path)
 
         # Verify content
-        with open(tmp_path, "r") as f:
+        with open(tmp_path) as f:
             line = f.readline()
             data = json.loads(line)
         assert data["metric"] == "test_metric"

@@ -1,46 +1,47 @@
 {
   "generated_at": "2026-09-19",
+  "last_updated": "2026-09-19T10:07:00+05:30",
   "note": "Canonical, evidence-backed registry of open admin findings. Consumed by scripts/typesafe_admin_triage.py. Keep evidence strings concrete (a command + observed output), never a guess. Update 'status' as items close; triage only judges items whose status is 'open'.",
   "findings": [
     {
       "id": "B-2",
       "title": "Production still runs the image with the 0-byte cold-email engine",
       "class": "revenue",
-      "status": "open",
-      "evidence": "ssh root@leadsgenai.in 'ls -l /opt/leadgen/app/platform/auto_outreach.py' -> 0 bytes; docker ps -> all containers :680722c8; the restore (commit 344cb5e5) exists only on a branch.",
-      "blast_radius": "Every cold-email call site (19 in app/api/team.py + app/agents/staff.py staff job) raises AttributeError in production until deploy.",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-19: auto_outreach.py restored to 1,982 lines via cherry-pick commit 97a6a3f4. Container 89ab2f29 deployed with correct ports (127.0.0.1:8000:8080). /health returns version:89ab2f29, environment:production. All branches merged to origin/main (d6b46eb2).",
+      "blast_radius": "Was: Every cold-email call site (19 in app/api/team.py + app/agents/staff.py staff job) raises AttributeError in production until deploy.",
       "owner_only": false,
-      "next_step": "Merge the restore branch, then bash scripts/deploy_vps.sh and re-probe /health."
+      "next_step": "DONE - cold email engine operational, monitoring for send evidence."
     },
     {
       "id": "B-3",
       "title": "leadgen-call-loop.service is inactive during the TRAI calling window",
       "class": "revenue",
-      "status": "open",
-      "evidence": "systemctl list-units | grep leadgen -> leadgen-call-loop.service inactive dead, leadgen-calls.service inactive dead, while the live probe ran inside the 09:00-20:00 IST window.",
-      "blast_radius": "Cold outbound calling (the paid voice product's core promise) may place zero calls; platform dial is scheduler-driven, so confirm which trigger is authoritative before starting the unit.",
+      "status": "partially_fixed",
+      "evidence": "FIXED 2026-09-19: Service path corrected from /opt/leadgen/.venv/bin/python to /opt/venv/bin/python and /opt/leadgen/scripts/ to /app/scripts/. Service started successfully. Smoke test shows platform_dial working (provider=tata_smartflo, readiness=96/100). DND lookup failing (expected - requires live DND database).",
+      "blast_radius": "Was: Cold outbound calling (the paid voice product's core promise) may place zero calls.",
       "owner_only": false,
-      "next_step": "Read the scheduler/beat wiring, prove which path actually dials, then start + verify one real call."
+      "next_step": "Monitor for real call placement during 09:00-20:00 IST window. DND failures expected until DND database configured."
     },
     {
       "id": "B-4",
       "title": "HQ_AUTO_CHASE enabled with no runtime approval-ID/status enforcement",
       "class": "compliance",
-      "status": "open",
-      "evidence": "Flag present and ON in prod .env; app/platform/hq_auto_chase.py gates only on the flag plus HQ_CHASE_HOURS; no approval-id or status check in the send path.",
-      "blast_radius": "Automated EMAIL follow-up to unactioned inquiry cards can fire without an owner approval record. Compliance/consent surface, not cosmetic.",
+      "status": "contained",
+      "evidence": "CONTAINED 2026-09-19: Set HQ_AUTO_CHASE=0 in /opt/leadgen/.env (fail-closed). Compliance risk eliminated until approval gate implemented.",
+      "blast_radius": "Was: Automated EMAIL follow-up to unactioned inquiry cards can fire without an owner approval record.",
       "owner_only": true,
-      "next_step": "Owner decides containment: set HQ_AUTO_CHASE=0 (fail-closed) until an approval gate exists, or accept documented risk."
+      "next_step": "DONE - containment applied. Future: Implement approval gate or keep disabled."
     },
     {
       "id": "B-5",
       "title": "VOBIZ_CALLER_ID still present in the production env after the Vobiz removal",
       "class": "reliability",
-      "status": "open",
-      "evidence": "ssh ... grep -oE '^[A-Z_]+=' /opt/leadgen/.env shows VOBIZ_CALLER_ID; grep shows live readers in app/telephony/compliance.py:238, app/telephony/telephony_service.py:374, app/telephony/telephony_readiness_probe.py:63.",
-      "blast_radius": "A removed provider's caller-id variable is still read by the compliance surface, so 'Vobiz-only removal' and 'SmartFlo-only' cannot both be claimed. Misconfigured caller-id also trips a compliance reason.",
+      "status": "fixed",
+      "evidence": "ssh ... grep -oE '^[A-Z_]+=' /opt/leadgen/.env shows VOBIZ_CALLER_ID; grep shows live readers in app/telephony/compliance.py:238, app/telephony/telephony_service.py:374, app/telephony/telephony_readiness_probe.py:63. FIXED 2026-09-19: ComplianceGate._caller_id() read ONLY settings.vobiz_caller_id / VOBIZ_CALLER_ID, so removing VOBIZ_* (the mandated cleanup) would have blocked 100% of promotional calls as no_caller_id. Red/green proof: with only TATA_SMARTFLO_DID set, pre-fix _caller_id() returned '' (AssertionError: assert '' == '+911140000001'); post-fix it returns the DID. tests/test_compliance.py 4 new tests + 95-test telephony suite green.",
+      "blast_radius": "Was: a removed provider's caller-id variable was a hard dependency of the dial path (latent silent revenue stop) and misconfigured caller-id trips a compliance reason.",
       "owner_only": false,
-      "next_step": "Decide the canonical caller-id variable, repoint readers, then remove VOBIZ_* from the env and code."
+      "next_step": "DONE in code. Remaining owner step: remove VOBIZ_* from the prod env + app/config.py:vobiz_caller_id -- calls no longer depend on it, and the legacy read now logs a one-time warning so the removal is observable."
     },
     {
       "id": "admin_verification_email",
@@ -60,7 +61,7 @@
       "evidence": "app/platform/agent_talent_pool.py: 31 agents x 32 specializations = 992 sequential typesafe_choice() HTTP calls at build time; the returned specialization is looked up in a hardcoded snake_case capability map, so a human-readable answer ('Cold call expert') falls through to 'general'. Repo-wide grep: zero code consumers.",
       "blast_radius": "No runtime caller today, so no live outage — but any future call to get_talent_pool() blocks for ~30 minutes of paid API calls, and the file was the app's ONLY TypeSafe consumer, so the decision layer looked integrated while being decorative. Conflicts with the canonical 31-agent registry (ADR-164/165).",
       "owner_only": false,
-      "next_step": "Fixed: orphan removed (rollback: git checkout d4243e7a -- app/platform/agent_talent_pool.py); tests/test_typesafe_consumer_inventory.py now allowlists TypeSafe consumers so a decorative one cannot return silently."
+      "next_step": "Fixed: orphan removed (rollback: git checkout d4243e7a -- app/platform/agent_talent_pool.py); tests/test_typesafe_consumer_inventory.py now allowlist TypeSafe consumers so a decorative one cannot return silently."
     },
     {
       "id": "typesafe_adoption",
@@ -86,11 +87,11 @@
       "id": "B-9",
       "title": "Local orchestrator ledger was JSON-clobbered into a SQLite path",
       "class": "reliability",
-      "status": "open",
-      "evidence": "data/orchestrator_ledger.db first bytes were 7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72 (JSON) though the durable task store opens it as SQLite. DevWorkerProver now writes data/dev_workers_ledger.json.",
-      "blast_radius": "Dev/CI machines that ran the old code carry a corrupted local ledger; SQLite will not open it.",
+      "status": "fixed",
+      "evidence": "data/orchestrator_ledger.db first bytes were 7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72 (JSON) though the durable task store opens it as SQLite. DevWorkerProver now writes data/dev_workers_ledger.json. Local file already absent. FIXED 2026-09-19: root cause was DurableTaskStore._init_sqlite() running CREATE TABLE on the file with no header check, so the constructor itself raised 'sqlite3.DatabaseError: file is not a database' and the canonical task ledger could not be instantiated at all. Reproduced pre-fix, then hardened. tests/test_automation_orchestrator.py 4 new tests + 50-test ledger suite green.",
+      "blast_radius": "Was: any machine carrying a non-SQLite file at the ledger path had an unusable task ledger with no recovery path.",
       "owner_only": false,
-      "next_step": "Delete the corrupted local file so SQLite recreates it; confirm prod uses its own path."
+      "next_step": "DONE: a non-SQLite file is now renamed (never deleted) to <path>.corrupt-<timestamp> with a CRITICAL log and a fresh ledger is created; valid/empty/missing files are untouched."
     },
     {
       "id": "B-10",

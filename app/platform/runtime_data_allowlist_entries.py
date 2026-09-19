@@ -1838,131 +1838,173 @@ ENTRIES: list[dict[str, Any]] = [
     # one-shot script still lives on the dev disk; if it ever becomes tracked
     # tooling, re-declare it against its tracked path.
 
+    # 2026-09-18 — CI baseline repair: three stores introduced on main by the
+    # "1 Cr/Month Emergency Execution" commit (48f35e40) were never declared.
     {
-        "allowlist_id": "agents.memory.store",
+        "allowlist_id": "platform.agent_memory.snapshot",
         "file": "app/agents/agents.py",
         "line_or_symbol": "memory_path",
         "path_pattern": "data/agent_memory.json",
-        "store_id": "agents.memory",
+        "store_id": "platform.agent_memory",
         "access_modes": ["READ", "CREATE", "REWRITE"],
-        "reason": "Agent persistent memory store (JSON).",
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
+        "reason": (
+            "AgentManager._load_memory()/_save_memory() keep a JSON snapshot of "
+            "per-agent task counters + last_active. Full-file rewrite, no lock; "
+            "loss resets counters only (rebuildable, not authority)."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
         "owner": "agents",
         "production_relevance": "LIVE",
-        "review_condition": "Schema change re-verifies agent_events.",
+        "review_condition": (
+            "If this becomes authoritative for agent billing/routing, move behind "
+            "app/platform/runtime_data.py with single-writer locking."
+        ),
     },
     {
-        "allowlist_id": "telegram.inbox.jsonl",
+        "allowlist_id": "communications.telegram_inbox.append",
         "file": "app/api/webhooks.py",
         "line_or_symbol": "_telegram_inbox_path",
         "path_pattern": "data/telegram_inbox.jsonl",
-        "store_id": "telegram.inbox",
+        "store_id": "communications.telegram_inbox",
         "access_modes": ["CREATE", "APPEND"],
-        "reason": "Telegram inbound message buffer.",
-        "migration_tier": 2,
-        "target_change_set": "runtime-data-cutover-wave-2",
-        "owner": "telegram",
+        "reason": (
+            "Every inbound Telegram update is durably appended for audit/dedup "
+            "before handling. Append-only receipt log, not CRM authority."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "communications",
         "production_relevance": "LIVE",
-        "review_condition": "Path change re-verifies webhook ingestion.",
+        "review_condition": (
+            "Must stay append-only; never delete or rewrite rows in-place. If "
+            "dedup becomes business-critical, back it with Redis/DB."
+        ),
     },
     {
-        "allowlist_id": "outreach_drafts.send_jiya",
+        "allowlist_id": "marketing.outreach_draft_logs.jiya",
         "file": "scripts/send_jiya_renewal.py",
         "line_or_symbol": "LOG_DIR",
-        "path_pattern": "data/outreach_drafts",
-        "store_id": "outreach_drafts",
+        "path_pattern": 'Path("data/outreach_drafts")',
+        "store_id": "marketing.outreach_draft_logs",
         "access_modes": ["CREATE"],
-        "reason": "Outbound renewal-draft log directory.",
+        "reason": (
+            "One-shot VPS script; LOG_DIR.mkdir for the renewal send log. Dry-run "
+            "by default, idempotent per-day; receipt log, not billing authority."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "outreach",
+        "owner": "marketing",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Path change reflected in dunning readers.",
+        "review_condition": (
+            "Script must stay dry-run default and single-customer scoped; the "
+            "log must never be treated as billing proof."
+        ),
     },
+    # 2026-09-18 — CI baseline repair: remaining tracked offline-tooling
+    # findings (telegram provisioning + waha watchdog) that the ratchet flags.
     {
-        "allowlist_id": "telegram.inbox.readonly_probe",
-        "file": "scripts/telegram_readonly_probe.py",
-        "line_or_symbol": "inbox",
-        "path_pattern": "data/telegram_inbox.jsonl",
-        "store_id": "telegram.inbox",
-        "access_modes": ["READ"],
-        "reason": "Read-only diagnostic probe for telegram inbox.",
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "telegram",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Probe must remain read-only.",
-    },
-    {
-        "allowlist_id": "telegram.setup.lock",
+        "allowlist_id": "ops.telegram_setup_state.lock",
         "file": "scripts/telegram_setup.py",
         "line_or_symbol": "lock",
-        "path_pattern": "STATE_PATH",
-        "store_id": "telegram.setup",
-        "access_modes": ["LOCK"],
-        "reason": "Setup lock file preventing concurrent bootstrap.",
+        "path_pattern": 'STATE_PATH.with_suffix(".lock")',
+        "store_id": "ops.telegram_setup_state",
+        "access_modes": ["LOCK", "CREATE"],
+        "reason": (
+            "Fail-closed setup lock (O_CREAT|O_EXCL) guarding the idempotent "
+            "enterprise-chat bootstrap; refuses to run while a stale lock exists."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "telegram",
+        "owner": "ops",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Lock path change must not break setup idempotency.",
+        "review_condition": "Lock must stay fail-closed; never auto-clear a live lock.",
     },
     {
-        "allowlist_id": "telegram.web_create_groups.results",
+        "allowlist_id": "ops.telegram_group_ids.write",
         "file": "scripts/telegram_web_create_groups.py",
         "line_or_symbol": "results_path",
-        "path_pattern": "REPO_ROOT / 'data' / 'new_group_chat_ids.json'",
-        "store_id": "telegram.web_create_groups",
-        "access_modes": ["REWRITE", "READ"],
-        "reason": "Telegram group creation results file.",
+        "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
+        "store_id": "ops.telegram_group_ids",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "One-shot provisioning result: chat_ids of created groups written for "
+            "manual wiring into setup_spec.yaml. Rebuildable by re-running."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "telegram",
+        "owner": "ops",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Path change must not break group creation.",
+        "review_condition": "Result file is hand-consumed; never auto-applied to config.",
     },
     {
-        "allowlist_id": "telethon_create_groups.results",
+        "allowlist_id": "ops.telegram_group_ids.write_telethon",
         "file": "scripts/telethon_create_groups.py",
         "line_or_symbol": "results_path",
-        "path_pattern": "REPO_ROOT / 'data' / 'new_group_chat_ids.json'",
-        "store_id": "telethon_create_groups",
-        "access_modes": ["REWRITE", "READ"],
-        "reason": "Telethon-based group creation results file.",
+        "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
+        "store_id": "ops.telegram_group_ids",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "Telethon variant of the same provisioning result write "
+            "(data/new_group_chat_ids.json). Same store, same one-shot semantics."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "telegram",
+        "owner": "ops",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Path change must not break group creation.",
+        "review_condition": "Result file is hand-consumed; never auto-applied to config.",
     },
     {
-        "allowlist_id": "waha_watchdog.log",
+        "allowlist_id": "ops.waha_watchdog.log",
         "file": "scripts/waha_watchdog.py",
         "line_or_symbol": "log_file",
-        "path_pattern": "WAHA_WATCHDOG_LOG_FILE",
-        "store_id": "waha_watchdog",
+        "path_pattern": '_env("WAHA_WATCHDOG_LOG_FILE", DEFAULT_LOG_FILE)',
+        "store_id": "ops.waha_watchdog",
         "access_modes": ["APPEND"],
-        "reason": "WAHA watchdog log file.",
+        "reason": (
+            "Append-only watchdog log under /opt/leadgen/data (absolute VPS path, "
+            "outside the checkout). Rebuildable; operational telemetry only."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "waha",
+        "owner": "ops",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Path change must not break watchdog logging.",
+        "review_condition": "Append-only; health alerting must tolerate a missing log.",
     },
     {
-        "allowlist_id": "waha_watchdog.health",
+        "allowlist_id": "ops.waha_watchdog.health",
         "file": "scripts/waha_watchdog.py",
         "line_or_symbol": "health_file",
-        "path_pattern": "WAHA_WATCHDOG_HEALTH_FILE",
-        "store_id": "waha_watchdog",
+        "path_pattern": '_env("WAHA_WATCHDOG_HEALTH_FILE", DEFAULT_HEALTH_FILE)',
+        "store_id": "ops.waha_watchdog",
         "access_modes": ["REWRITE"],
-        "reason": "WAHA watchdog health status file.",
+        "reason": (
+            "Health JSON rewritten each poll under /opt/leadgen/data (absolute VPS "
+            "path). Regenerated every poll cycle; loss self-heals on next poll."
+        ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "waha",
+        "owner": "ops",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Path change must not break health monitoring.",
+        "review_condition": "Health file must never be a green-tile substitute for a live check.",
+    },
+    {
+        "allowlist_id": "communications.telegram_inbox.probe_read",
+        "file": "scripts/telegram_readonly_probe.py",
+        "line_or_symbol": "inbox",
+        "path_pattern": "root / 'data/telegram_inbox.jsonl'",
+        "store_id": "communications.telegram_inbox",
+        "access_modes": ["READ"],
+        "reason": (
+            "Read-only diagnostic probe: tails the inbound telegram inbox under "
+            "/opt/leadgen for verification. Never writes; the store authority "
+            "stays with app/api/webhooks.py."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "communications",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
     },
 
 ]

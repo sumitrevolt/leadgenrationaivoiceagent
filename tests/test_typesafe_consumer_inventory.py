@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # `automation_health` only reads credential_state() (config-only, no network).
 ALLOWED_CONSUMERS = {
     "app/platform/automation_health.py",
+    "app/agents/workers.py",
 }
 
 # The definition module itself never counts as a consumer.

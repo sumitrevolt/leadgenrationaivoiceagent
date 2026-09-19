@@ -1,13 +1,14 @@
 """Tests for Self-Improving Agent Loops."""
 
 import pytest
+
+import app.feedback.loop
 from app.feedback.loop import (
-    SelfImprovingLoop,
+    AgentPerformance,
     FeedbackRecord,
     ImprovementProposal,
-    AgentPerformance,
+    SelfImprovingLoop,
 )
-import app.feedback.loop
 
 
 @pytest.fixture(autouse=True)

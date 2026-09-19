@@ -229,10 +229,20 @@ class DurableTaskStore:
         self.quarantined_path = _quarantine_non_sqlite_file(self.db_path)
         self._init_sqlite()
 
-    def _init_sqlite(self) -> None:
+    def _get_conn(self):
         import sqlite3
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA busy_timeout=10000;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+        except Exception:
+            pass
+        return conn
+
+    def _init_sqlite(self) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS task_records (
@@ -261,9 +271,8 @@ class DurableTaskStore:
             conn.close()
 
     def get(self, task_id: str) -> TaskRecord | None:
-        import sqlite3
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM task_records WHERE task_id = ?", (task_id,))
             row = cursor.fetchone()
@@ -273,9 +282,8 @@ class DurableTaskStore:
             return None
 
     def get_by_idempotency_key(self, key: str) -> TaskRecord | None:
-        import sqlite3
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM task_records WHERE idempotency_key = ?", (key,))
             row = cursor.fetchone()
@@ -285,9 +293,8 @@ class DurableTaskStore:
             return None
 
     def save(self, record: TaskRecord) -> None:
-        import sqlite3
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO task_records (
@@ -320,9 +327,8 @@ class DurableTaskStore:
 
     def update_cas(self, task_id: str, expected_version: int, new_status: TaskStatus, new_fencing_token: str) -> bool:
         """Atomic Compare-And-Swap Update: READY -> RUNNING with version increment."""
-        import sqlite3
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             now = time.time()
             cursor.execute("""
@@ -339,9 +345,8 @@ class DurableTaskStore:
             return success
 
     def all_tasks(self) -> list[TaskRecord]:
-        import sqlite3
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_conn()
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM task_records")  # nosecurity
             rows = cursor.fetchall()
@@ -484,7 +489,7 @@ class AutomationOrchestrator:
         max_concurrency: int = 4,
         store: DurableTaskStore | None = None,
         lease_file: str | None = None,
-        dev_worker_store: "object | None" = None,
+        dev_worker_store: object | None = None,
     ):
         self.registry = build_registry()
         self.store = store or DurableTaskStore()

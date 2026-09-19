@@ -114,13 +114,18 @@ class TypeSafeResponse:
         Noul answers carry the field `noul` (NOT `probability`/`confidence` —
         see TypeSafe quickstart response contract), so it must be checked
         explicitly with None-guards (a 0.0 noul is falsy but meaningful).
+        Defensively handles answers as dict, list (array), or scalar.
         """
         if self.result and "answers" in self.result:
             answers = self.result["answers"]
-            for v in answers.values():
-                for key in ("choice", "noul", "probability", "score"):
-                    if v.get(key) is not None:
-                        return v.get(key)
+            items = answers.values() if isinstance(answers, dict) else (answers if isinstance(answers, list) else [])
+            for v in items:
+                if isinstance(v, dict):
+                    for key in ("choice", "noul", "probability", "score"):
+                        if v.get(key) is not None:
+                            return v.get(key)
+                elif isinstance(v, (str, int, float, bool)):
+                    return v
         return None
 
     @property
@@ -129,22 +134,37 @@ class TypeSafeResponse:
 
         Noul answers report no `confidence` field; the `noul` probability is
         the honest proxy (a 0.99 noul means high certainty in the outcome).
+        Defensively handles answers as dict, list (array), or scalar.
         """
         if self.result and "answers" in self.result:
             answers = self.result["answers"]
-            for v in answers.values():
-                if v.get("confidence") is not None:
-                    return v.get("confidence")
-                for key in ("probability", "noul"):
-                    if v.get(key) is not None:
-                        return v.get(key)
+            items = answers.values() if isinstance(answers, dict) else (answers if isinstance(answers, list) else [])
+            for v in items:
+                if isinstance(v, dict):
+                    if v.get("confidence") is not None:
+                        try:
+                            return float(v.get("confidence"))
+                        except (ValueError, TypeError):
+                            pass
+                    for key in ("probability", "noul"):
+                        if v.get(key) is not None:
+                            try:
+                                return float(v.get(key))
+                            except (ValueError, TypeError):
+                                pass
+                elif isinstance(v, (int, float)):
+                    return float(v)
         return 0.5
 
     @property
     def answers(self) -> dict[str, Any]:
-        """Get all answers dict"""
+        """Get all answers dict. Defensively normalizes lists/arrays to dict."""
         if self.result:
-            return self.result.get("answers", {})
+            raw = self.result.get("answers", {})
+            if isinstance(raw, dict):
+                return raw
+            if isinstance(raw, list):
+                return {f"ans_{i}": v for i, v in enumerate(raw)}
         return {}
 
 
@@ -154,12 +174,23 @@ class Choice:
     Official SDK contract:
     {type: "choice", instructions: str, criteria: {...}}
     The `question` argument is mapped to `instructions` in the payload.
+    Supports both dict and list (auto-normalized to object mapping).
     """
 
-    def __init__(self, question: str, criteria: dict[str, str], instructions: str = ""):
-        # `question` is the user-facing label; official wire field is `instructions`
+    def __init__(
+        self,
+        question: str,
+        criteria: dict[str, str] | list[str] | tuple[str, ...],
+        instructions: str = "",
+    ):
         self.question = question
-        self.criteria = criteria
+        if isinstance(criteria, (list, tuple)):
+            # Convert Array ["opt1", "opt2"] -> {"opt1": "opt1", "opt2": "opt2"}
+            self.criteria = {str(item): str(item) for item in criteria}
+        elif isinstance(criteria, dict):
+            self.criteria = {str(k): str(v) for k, v in criteria.items()}
+        else:
+            self.criteria = {"default": str(criteria)}
         self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
@@ -193,13 +224,23 @@ class Score:
 
     Official SDK contract:
     {type: "score", instructions: str, criteria: [...]}
-    Criteria is a LIST (not dict) — e.g., ["low", "medium", "high"]
+    Criteria is a LIST (not dict) — e.g., ["low", "medium", "high"].
+    Supports both list and dict (auto-normalized to list).
     """
 
-    def __init__(self, question: str, criteria: list[str], instructions: str = ""):
+    def __init__(
+        self,
+        question: str,
+        criteria: list[str] | dict[str, str] | tuple[str, ...],
+        instructions: str = "",
+    ):
         self.question = question
-        # Accept both list and dict for backward compat, but prefer list
-        self.criteria: list[str] = criteria
+        if isinstance(criteria, dict):
+            self.criteria = [str(v) for v in criteria.values()]
+        elif isinstance(criteria, (list, tuple)):
+            self.criteria = [str(item) for item in criteria]
+        else:
+            self.criteria = [str(criteria)]
         self.instructions = instructions or question
 
     def to_dict(self, name: str) -> dict[str, Any]:
@@ -308,9 +349,14 @@ class TypeSafeClient:
             return TypeSafeResponse(success=False, error=str(e), latency_sec=latency)
 
     def choice(
-        self, question: str, state: dict[str, Any], criteria: dict[str, str]
+        self,
+        question: str,
+        state: dict[str, Any],
+        criteria: dict[str, str] | list[str] | tuple[str, ...],
     ) -> TypeSafeResponse:
-        """Compatibility wrapper around system_one for a single Choice question."""
+        """Compatibility wrapper around system_one for a single Choice question.
+        Supports both dict and list/tuple criteria (auto-coerced).
+        """
         return self.system_one(state, {"q": Choice(question, criteria)})
 
     def noul(self, question: str, state: dict[str, Any]) -> TypeSafeResponse:
@@ -321,7 +367,7 @@ class TypeSafeClient:
         self,
         question: str,
         state: dict[str, Any],
-        criteria: list[str] | dict[str, str],
+        criteria: list[str] | dict[str, str] | tuple[str, ...],
     ) -> TypeSafeResponse:
         """Compatibility wrapper around system_one for a single Score question.
 
@@ -349,7 +395,9 @@ def get_typesafe_client() -> TypeSafeClient:
 
 
 def typesafe_choice(
-    question: str, state: dict[str, Any], criteria: dict[str, str]
+    question: str,
+    state: dict[str, Any],
+    criteria: dict[str, str] | list[str] | tuple[str, ...],
 ) -> TypeSafeResponse:
     return get_typesafe_client().choice(question, state, criteria)
 

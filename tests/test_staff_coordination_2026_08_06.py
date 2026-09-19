@@ -34,10 +34,23 @@ def test_all_profiles_have_boss_route_but_rollout_truth_stays_staged():
     by_id = {row["agent_id"]: row for row in portfolio["agents"]}
     assert by_id["manager"]["coordination"]["role"] == "boss"
     assert by_id["swara"]["coordination"]["execution_note"] == "advisory_or_status_only"
+    # Rollout truth stays STAGED. A prior session mass-activated all 31 agents
+    # (AMBER/VOICE/GREEN_MUTATE hold lists emptied, PILOT_AGENTS widened to 29);
+    # that was reverted so only the Wave-A + Wave-B read-only pilots dispatch.
+    # The numbers below are derived from agent_runtime_workforce and pinned by
+    # tests/test_agent_runtime_workforce.py::test_rollout_state_matrix_honest
+    # (kavya canary_ready, rohan/neha rollout_hold, neha not in PILOT_AGENTS).
+    # Asserting the exact mapping keeps this honest: a silent re-widening of the
+    # allowlist fails here rather than reading as a green "coordination" check.
     assert portfolio["rollout_counts"] == {
-        "canary_ready": 29,
+        "canary_ready": 12,
         "intentionally_disabled": 2,
+        "rollout_hold": 17,
     }
+    # Every STAFF member is accounted for exactly once, whatever the split is.
+    assert sum(portfolio["rollout_counts"].values()) == len(STAFF) == 31
+    # The property that actually matters: NOT everything is rollout-live.
+    assert portfolio["rollout_counts"]["canary_ready"] < 31
 
 
 def test_hierarchical_run_records_assignments_handoffs_and_boss_verdict(monkeypatch):

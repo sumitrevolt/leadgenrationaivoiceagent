@@ -10,7 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from app.billing.owner_upi_confirm import OwnerUpiConfirm, PendingPayment, get_confirm, record_payment, confirm_payment
+from app.billing.owner_upi_confirm import (
+    OwnerUpiConfirm,
+    PendingPayment,
+    confirm_payment,
+    get_confirm,
+    record_payment,
+)
 
 
 class TestPendingPayment:
