@@ -213,8 +213,8 @@ CHANGES: list[dict[str, Any]] = [
         "old_scanner_version": SCANNER_ENGINE_VERSION,
         "new_scanner_version": "app.platform.runtime_data_scan@local-baseline-regen-2026-09-03",
         "old_baseline_count": 839,
-        "new_baseline_count": 793,
-        "added_fingerprints": 12,
+        "new_baseline_count": 788,
+        "added_fingerprints": 7,
         "removed_fingerprints": 58,
         "reason": (
             "Worktree consolidation (PR #456) added offline tooling scripts "
