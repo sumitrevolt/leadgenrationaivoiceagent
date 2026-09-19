@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from app.platform.capacity_ledger import CapacityLedger, CapacitySnapshot, get_ledger, compute_and_print
+from app.platform.capacity_ledger import (
+    CapacityLedger,
+    CapacitySnapshot,
+    compute_and_print,
+    get_ledger,
+)
 
 
 class TestCapacitySnapshot:
@@ -25,7 +30,7 @@ class TestCapacitySnapshot:
             total_capacity=875,
             gap_to_target=84125,
             utilization=0.0103,
-            blocked_by_compliance=350
+            blocked_by_compliance=350,
         )
         assert snapshot.email_capacity == 175
         assert snapshot.gap_to_target == 84125
@@ -40,7 +45,7 @@ class TestCapacitySnapshot:
             total_capacity=300,
             gap_to_target=84700,
             utilization=0.0035,
-            blocked_by_compliance=100
+            blocked_by_compliance=100,
         )
         data = snapshot.to_dict()
         assert data["email_capacity"] == 100
@@ -58,7 +63,7 @@ class TestCapacitySnapshot:
             "target_capacity": 85000,
             "gap_to_target": 84700,
             "utilization": 0.0035,
-            "blocked_by_compliance": 100
+            "blocked_by_compliance": 100,
         }
         snapshot = CapacitySnapshot.from_dict(data)
         assert snapshot.email_capacity == 100
@@ -112,7 +117,7 @@ class TestCapacityLedger:
         assert os.path.exists(snapshot_path)
 
         # Verify content
-        with open(snapshot_path, "r") as f:
+        with open(snapshot_path) as f:
             data = json.load(f)
         assert data["total_capacity"] == 875
         assert data["gap_to_target"] == 84125
@@ -195,7 +200,9 @@ class TestIntegration:
     def test_module_level_function(self, tmp_path, monkeypatch):
         """Test compute_and_print module-level function."""
         snap_file = str(tmp_path / "cap.json")
-        monkeypatch.setattr("app.platform.capacity_ledger.get_ledger", lambda: CapacityLedger(snap_file))
+        monkeypatch.setattr(
+            "app.platform.capacity_ledger.get_ledger", lambda: CapacityLedger(snap_file)
+        )
         result = compute_and_print()
         assert result is not None
         assert isinstance(result, CapacitySnapshot)

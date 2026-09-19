@@ -65,6 +65,7 @@ def test_terminal_states_allow_nothing():
 
 def test_create_task_record_is_idempotent():
     from app.models.base import Base, _get_sync_engine
+
     engine = _get_sync_engine()
     if engine is not None:
         Base.metadata.create_all(bind=engine)

@@ -2,6 +2,7 @@
 Performance fixes for 10,000× scale target.
 Fixes all 10 bottlenecks identified in performance assessment.
 """
+
 import asyncio
 import json
 import logging
@@ -27,9 +28,10 @@ logger = logging.getLogger(__name__)
 # FIX 1: TypeSafe client – connection pooling, circuit breaker, retries
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class CircuitBreakerState(Enum):
-    CLOSED = "closed"      # normal operation
-    OPEN = "open"          # reject calls
+    CLOSED = "closed"  # normal operation
+    OPEN = "open"  # reject calls
     HALF_OPEN = "half_open"  # test with single call
 
 
@@ -71,10 +73,16 @@ class CircuitBreaker:
 class PooledTypeSafeClient:
     """TypeSafe client with connection pooling, retries, and circuit breaker."""
 
-    def __init__(self, api_key: str, model: str = "jev-latest",
-                 base_url: str = "https://api.typesafe.ai",
-                 max_retries: int = 3, backoff_factor: float = 0.5,
-                 connect_timeout: float = 5.0, read_timeout: float = 15.0):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "jev-latest",
+        base_url: str = "https://api.typesafe.ai",
+        max_retries: int = 3,
+        backoff_factor: float = 0.5,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 15.0,
+    ):
         self.api_key = (api_key or "").strip()
         self.model = model
         self.base_url = base_url
@@ -135,7 +143,7 @@ class PooledTypeSafeClient:
         if not self.circuit_breaker.allow_request():
             return TypeSafeResponse(success=False, error="Circuit breaker OPEN", model=self.model)
 
-        from app.platform.typesafe_integration import TypeSafeResponse, Choice, Noul, Score
+        from app.platform.typesafe_integration import Choice, Noul, Score, TypeSafeResponse
 
         questions_payload = {}
         for name, q in questions.items():
@@ -149,8 +157,10 @@ class PooledTypeSafeClient:
         start = time.monotonic()
         try:
             response = self.session.post(
-                url, json=payload, headers=headers,
-                timeout=(self.connect_timeout, self.read_timeout)
+                url,
+                json=payload,
+                headers=headers,
+                timeout=(self.connect_timeout, self.read_timeout),
             )
             latency = time.monotonic() - start
 
@@ -158,7 +168,9 @@ class PooledTypeSafeClient:
                 data = response.json()
                 self.circuit_breaker.record_success()
                 self._record_metrics(latency, True)
-                return TypeSafeResponse(success=True, result=data, model=data.get("model"), latency_sec=latency)
+                return TypeSafeResponse(
+                    success=True, result=data, model=data.get("model"), latency_sec=latency
+                )
             else:
                 self.circuit_breaker.record_failure()
                 self._record_metrics(latency, False)
@@ -188,7 +200,6 @@ class PooledTypeSafeClient:
 # ─────────────────────────────────────────────────────────────────────────────
 
 import sqlite3
-from contextlib import contextmanager
 
 
 class PooledDurableTaskStore:
@@ -220,39 +231,45 @@ class PooledDurableTaskStore:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_status ON task_records(status)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_task_idempotency ON task_records(idempotency_key)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_task_heartbeat ON task_records(heartbeat_at)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_task_idempotency ON task_records(idempotency_key)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_task_heartbeat ON task_records(heartbeat_at)"
+            )
 
-    def get(self, task_id: str) -> Optional[dict]:
+    def get(self, task_id: str) -> dict | None:
         conn = self._get_conn()
         row = conn.execute("SELECT * FROM task_records WHERE task_id = ?", (task_id,)).fetchone()
         return dict(row) if row else None
 
     def save(self, record: dict):
         conn = self._get_conn()
-        conn.execute("""
+        conn.execute(
+            """
             INSERT OR REPLACE INTO task_records (task_id, idempotency_key, status, payload, created_at, updated_at, heartbeat_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            record.get("task_id"),
-            record.get("idempotency_key"),
-            record.get("status"),
-            json.dumps(record.get("payload", {})),
-            record.get("created_at", time.time()),
-            record.get("updated_at", time.time()),
-            record.get("heartbeat_at"),
-        ))
+        """,
+            (
+                record.get("task_id"),
+                record.get("idempotency_key"),
+                record.get("status"),
+                json.dumps(record.get("payload", {})),
+                record.get("created_at", time.time()),
+                record.get("updated_at", time.time()),
+                record.get("heartbeat_at"),
+            ),
+        )
         conn.commit()
 
-    def all_tasks(self, limit: int = 100, offset: int = 0) -> List[dict]:
+    def all_tasks(self, limit: int = 100, offset: int = 0) -> list[dict]:
         conn = self._get_conn()
         rows = conn.execute(
-            "SELECT * FROM task_records ORDER BY updated_at DESC LIMIT ? OFFSET ?",
-            (limit, offset)
+            "SELECT * FROM task_records ORDER BY updated_at DESC LIMIT ? OFFSET ?", (limit, offset)
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def count_by_status(self) -> Dict[str, int]:
+    def count_by_status(self) -> dict[str, int]:
         conn = self._get_conn()
         rows = conn.execute("SELECT status, COUNT(*) FROM task_records GROUP BY status").fetchall()  # nosecurity: read-only, no user input
         return dict(rows)
@@ -314,15 +331,16 @@ class RedisGovernorAuthority:
 # FIX 4: Feedback loop – O(1) counters instead of O(n²) scans
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class FeedbackAggregator:
     """Incremental feedback aggregation to avoid O(n²) scans."""
 
     def __init__(self):
-        self._daily_counts: Dict[str, int] = defaultdict(int)
-        self._quality_sum: Dict[str, float] = defaultdict(float)
-        self._quality_count: Dict[str, int] = defaultdict(int)
-        self._duration_sum: Dict[str, float] = defaultdict(float)
-        self._duration_count: Dict[str, int] = defaultdict(int)
+        self._daily_counts: dict[str, int] = defaultdict(int)
+        self._quality_sum: dict[str, float] = defaultdict(float)
+        self._quality_count: dict[str, int] = defaultdict(int)
+        self._duration_sum: dict[str, float] = defaultdict(float)
+        self._duration_count: dict[str, int] = defaultdict(int)
         self._lock = threading.Lock()
 
     def record(self, agent_id: str, skill: str, quality: float, duration: float):
@@ -351,12 +369,13 @@ class FeedbackAggregator:
 # FIX 5 & 6: Revenue dashboard – incremental aggregation, no duplication
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class IncrementalRevenueDashboard:
     """Revenue dashboard with incremental aggregation."""
 
     def __init__(self, db_path: str = "data/revenue.db"):
         self.db_path = db_path
-        self._daily_cache: Dict[str, float] = {}
+        self._daily_cache: dict[str, float] = {}
         self._cache_ttl = 60.0
         self._cache_updated = 0
 
@@ -366,12 +385,12 @@ class IncrementalRevenueDashboard:
         with open(f"{self.db_path}.jsonl", "a") as f:
             f.write(json.dumps({"amount": amount, "date": date, "ts": time.time()}) + "\n")
 
-    def get_daily_revenue(self, days: int = 30) -> Dict[str, float]:
+    def get_daily_revenue(self, days: int = 30) -> dict[str, float]:
         """O(days) with cache, not O(days × invoices)."""
         if time.monotonic() - self._cache_updated < self._cache_ttl:
             return self._daily_cache
 
-        result: Dict[str, float] = defaultdict(float)
+        result: dict[str, float] = defaultdict(float)
         path = f"{self.db_path}.jsonl"
         if os.path.exists(path):
             with open(path) as f:
@@ -391,13 +410,14 @@ class IncrementalRevenueDashboard:
 # FIX 7 & 8: Telegram – reverse indexes, Celery dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class ScalableTenantRegistry:
     """Tenant registry with reverse indexes and async dispatch."""
 
     def __init__(self):
         self.tenants: dict = {}
-        self.chat_to_tenant: Dict[str, str] = {}
-        self.group_to_tenant: Dict[str, str] = {}
+        self.chat_to_tenant: dict[str, str] = {}
+        self.group_to_tenant: dict[str, str] = {}
         self._lock = threading.Lock()
 
     def register(self, tenant_id: str, chat_id: str, group_id: str = ""):
@@ -408,17 +428,20 @@ class ScalableTenantRegistry:
             if group_id:
                 self.group_to_tenant[group_id] = tenant_id
 
-    def resolve_by_chat(self, chat_id: str) -> Optional[str]:
+    def resolve_by_chat(self, chat_id: str) -> str | None:
         return self.chat_to_tenant.get(chat_id)
 
-    def resolve_by_group(self, group_id: str) -> Optional[str]:
+    def resolve_by_group(self, group_id: str) -> str | None:
         return self.group_to_tenant.get(group_id)
 
     def send_message_async(self, tenant_id: str, message: str):
         """Dispatch via Celery instead of sync file I/O."""
         try:
             from app.tasks.celery_app import celery_app
-            celery_app.send_task("app.tasks.telegram_tasks.send_telegram_message", args=[tenant_id, message])
+
+            celery_app.send_task(
+                "app.tasks.telegram_tasks.send_telegram_message", args=[tenant_id, message]
+            )
         except Exception:
             logger.warning("Celery unavailable, message queued in-memory")
 
@@ -426,6 +449,7 @@ class ScalableTenantRegistry:
 # ─────────────────────────────────────────────────────────────────────────────
 # FIX 9 & 10: Orchestrator metrics – SQL aggregation, no full scans
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_orchestrator_metrics(store: PooledDurableTaskStore) -> dict:
     """Get metrics via SQL aggregation, not Python-side full scan."""

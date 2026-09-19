@@ -8,8 +8,10 @@ Verifies:
 - Error handling and HTTP fallback behavior
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from app.platform.typesafe_integration import (
     Choice,
     Noul,
