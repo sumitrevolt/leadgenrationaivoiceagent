@@ -154,8 +154,8 @@ SKIP_EXT = {
     ".pack",
     # 2026-09-19 P0 CORRECTION — `.pem` used to be skipped here on the reasoning
     # that such files are "ephemeral dev certs, not secrets". That reasoning was
-    # WRONG and it was a live blind spot: a `.pem` is a CONTAINER and can hold a
-    # `-----BEGIN PRIVATE KEY-----` block, which IS a secret. Two RSA private keys
+    # WRONG and it was a live blind spot: a `.pem` is a CONTAINER and can hold an
+    # RSA private-key block, which IS a secret. Two RSA private keys
     # (app/telephony/freeswitch/conf/tls/*.pem) sat in this PUBLIC repo undetected
     # by this scanner for exactly this reason — GitGuardian caught them instead.
     # `.pem` is SCANNED again; the "private key block" pattern above is what

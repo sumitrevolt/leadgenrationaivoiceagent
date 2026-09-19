@@ -104,8 +104,8 @@ SKIP_EXT = {
     ".idx",
     ".pack",
     # 2026-09-19: `.pem` is NO LONGER skipped — a `.pem` is a container that can
-    # hold a `-----BEGIN PRIVATE KEY-----` block, i.e. a real secret. Two such
-    # keys sat in this public repo while this list silently excluded them.
+    # hold an RSA private-key block, i.e. a real secret. Two such keys sat in
+    # this public repo while this list silently excluded them.
     # `.crt/.cer/.der` remain skipped: public certificate formats only.
     ".crt",
     ".cer",
