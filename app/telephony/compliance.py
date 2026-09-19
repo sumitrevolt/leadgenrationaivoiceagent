@@ -37,7 +37,11 @@ Config (env, all optional with safe defaults):
                          also emits a BLOCKER if it is set in production.
   COMPLIANCE_PROMO_START/END overrides are CLAMPED into TRAI's legal 09:00–21:00
                          IST ceiling (a bad value can never breach 21:00).
-  (caller-id is read from settings.vobiz_caller_id, else VOBIZ_CALLER_ID env)
+  (caller-id resolution order: settings.tata_smartflo_did -> TATA_SMARTFLO_DID
+                         -> SMARTFLO_DID -> legacy settings.vobiz_caller_id
+                         -> legacy VOBIZ_CALLER_ID; the gate only asserts a
+                         registered CLI EXISTS — the DID actually presented is
+                         chosen in app/telephony/trunks.py)
 
 Usage:
     from app.telephony.compliance import get_compliance_gate, CallType
@@ -96,6 +100,30 @@ def _digits(phone: str) -> str:
 
 def _env(name: str, default: str = "") -> str:
     return (os.environ.get(name, "") or "").strip() or default
+
+
+# One-time flag so a removed provider's variable cannot be read silently forever
+# (finding B-5). Deliberately NOT reset — once per process is enough to make the
+# dependency visible in logs/alerts without spamming every dial.
+_LEGACY_CALLER_ID_WARNED = False
+
+
+def _warn_legacy_caller_id_once(caller_id: str) -> None:
+    """Announce that the dial path is still satisfied by the retired VOBIZ_* var.
+
+    Never logs the value itself (it is a phone number that may be DND-registered);
+    only its last 4 digits, matching the gate's own masking convention.
+    """
+    global _LEGACY_CALLER_ID_WARNED
+    if _LEGACY_CALLER_ID_WARNED:
+        return
+    _LEGACY_CALLER_ID_WARNED = True
+    tail = _digits(caller_id)[-4:] or "----"
+    logger.warning(
+        "compliance: caller-id resolved from the retired VOBIZ_CALLER_ID (***%s). "
+        "Set TATA_SMARTFLO_DID and remove the VOBIZ_* variable (finding B-5).",
+        tail,
+    )
 
 
 def _parse_hhmm(value: str, default: time) -> time:
@@ -225,17 +253,44 @@ class ComplianceGate:
 
     @staticmethod
     def _caller_id() -> str:
-        # Provider is Vobiz (Exotel removed 2026-06-18). Twilio carries its own
-        # caller-id separately, so the registered 140-DID here is the Vobiz one.
+        """Registered outbound CLI, or '' (which fail-CLOSED blocks promo calls).
+
+        Provider is Tata SmartFlo — Vobiz was removed 2026-09-18, but this
+        resolver still read ONLY `VOBIZ_CALLER_ID`. That made the legacy name a
+        hard dependency of the dial path: removing `VOBIZ_*` from the prod env
+        (the mandated cleanup) would have blocked 100% of promotional calls as
+        `no_caller_id` — a silent revenue stop, not a visible config error.
+
+        So SmartFlo is now the canonical source and the legacy name is kept
+        ONLY as a fallback, which keeps a prod env that still carries it
+        dialing while the removal happens. The read is announced once so the
+        legacy dependency stays observable instead of silent.
+        """
+        canonical = ""
         try:
             from app.config import settings
 
-            cid = (getattr(settings, "vobiz_caller_id", "") or "").strip()
-            if cid:
-                return cid
+            canonical = (getattr(settings, "tata_smartflo_did", "") or "").strip()
         except Exception:
             pass
-        return _env("VOBIZ_CALLER_ID", "")
+        if not canonical:
+            # SMARTFLO_DID kept for envs that used the older, unprefixed name.
+            canonical = _env("TATA_SMARTFLO_DID", "") or _env("SMARTFLO_DID", "")
+        if canonical:
+            return canonical
+
+        legacy = ""
+        try:
+            from app.config import settings
+
+            legacy = (getattr(settings, "vobiz_caller_id", "") or "").strip()
+        except Exception:
+            pass
+        if not legacy:
+            legacy = _env("VOBIZ_CALLER_ID", "")
+        if legacy:
+            _warn_legacy_caller_id_once(legacy)
+        return legacy
 
     def _window(self, call_type: CallType) -> tuple:
         if call_type == CallType.PROMOTIONAL:
@@ -421,7 +476,7 @@ class ComplianceGate:
                 if not self._dlt_approved():
                     reasons.append("dlt_not_approved[set DLT_APPROVED=1 after approval]")
                 if not self._caller_id():
-                    reasons.append("no_caller_id[set VOBIZ_CALLER_ID]")
+                    reasons.append("no_caller_id[set TATA_SMARTFLO_DID]")
 
             allowed = not reasons
             if not allowed:

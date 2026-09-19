@@ -184,3 +184,36 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 ### CORRECTION + INCIDENT (2026-09-19 ~05:00 IST)
 - ⚠️ **Shared checkout wipe:** is loop ka *pehla pass* (code files) kisi doosre thread ke branch switch se **discard ho gaya** — HEAD `c1cbfdef` (main) se `feat/calling-window-and-typesafe` (`797b9478` → commits `4aeed57e`, `52ebcc4a`) pe move, aur tree clean. Untracked naye files (`scripts/typesafe_admin_triage.py`, 3 test files, findings registry) + uncommitted edits (`app/api/admin.py`, `.gitignore`, orphan delete) sab gaye; **docs records bache** kyunki un commits me chale gaye. Evidence `logs/typesafe_decisions.jsonl` bacha (gitignored — `git clean` ignored files ko nahi chhoota). **Lesson:** is repo me naya kaam turant commit karna chahiye warna ek branch switch sab kha jata hai.
 - ✅ Sara kaam **dobara apply + dobara verify** hua (branch `feat/calling-window-and-typesafe`, abhi bhi **uncommitted**): 90 tests green (6 suites), ruff clean, `check_secrets --all` clean, `prod_check` ALL CHECKS PASSED, ratchet ka apna `_uncontrolled_path_findings('scripts/typesafe_admin_triage.py')` → **`[]`** (koi naya `data/` surface nahi), aur naya live decision trace `tsadm-20260919T045736-582dfe` (NEXT ACTION B-2, conf 0.87).
+
+## Loop Run — B-5 caller-id + B-9 ledger self-heal (2026-09-19 ~06:00 IST)
+
+**Date:** 2026-09-19 · **Goal:** TypeSafe-ranked top **non-owner-gated** defect fix karna, red/green proof ke saath.
+
+**Inspected:** `.claude/skills` canonical (215 skills, ADR-131; `skills/` = 4-file stray) · `scripts/typesafe_status.py --json` (credential **PRESENT** fp `2e13ca55f7f8`) · `docs/coordination/ADMIN_FINDINGS.json` (8 open, 2 fixed) · `app/telephony/compliance.py` `_caller_id()` · `app/platform/automation_orchestrator.py` `_init_sqlite()` · live TypeSafe ranking.
+
+**Problems Found (2 real, both reproduced before fixing):**
+1. **B-5** — `ComplianceGate._caller_id()` sirf retired provider (`settings.vobiz_caller_id` / `VOBIZ_CALLER_ID`) padhta tha, SmartFlo DID **kabhi nahi**. Provider SmartFlo-only hai, to mandated `VOBIZ_*` cleanup = **100% promotional calls blocked** (`no_caller_id`) — silent revenue stop.
+2. **B-9** — `_init_sqlite()` header check ke bina `CREATE TABLE` chalata tha, to JSON-content `.db` pe **constructor hi** `sqlite3.DatabaseError: file is not a database` deta tha → canonical task ledger us machine pe instantiate hi nahi hota, koi recovery path nahi.
+
+**TypeSafe/Skills Used:** live `POST /v1/systemone`, requested `jev-latest` → resolved **`jev-1.13.0`**, 1.03s, task `tsadm-20260919T060257-a2df00`, state_hash `06fcbef66e7a5244`, 8 evidence refs, severity_weight **3**, needs_owner_action **True**, NEXT ACTION **B-2** (model_choice). Ranking: B-2 0.94 > B-4 0.87 > **B-5 0.81** > B-3 0.66 > typesafe_adoption 0.24 > B-9 0.10 > B-1 0.08 > B-10 0.04. **B-5 hi top non-owner-gated item nikla** (B-2 deploy-gated, B-4 owner-only) — TypeSafe ne meri choice independently validate ki.
+
+**Changed (4 files, sirf mere hunks verify kiye — koi doosra writer clobber nahi hua):**
+- `app/telephony/compliance.py` — canonical-first caller-id order + legacy fallback + one-time WARNING (last-4 masking) + reason string `no_caller_id[set TATA_SMARTFLO_DID]`.
+- `app/platform/automation_orchestrator.py` — `_quarantine_non_sqlite_file()` (rename, never delete) + `store.quarantined_path`.
+- `tests/test_compliance.py` (+4 tests) · `tests/test_automation_orchestrator.py` (+4 tests).
+- `docs/coordination/ADMIN_FINDINGS.json` — B-5 + B-9 → `fixed` (evidence strings ke saath) · ADR-196/197 `memory/decisions.md` me.
+
+**Tests Run:** `test_compliance.py` + 6 telephony suites = **95 passed**; `test_automation_orchestrator.py` + 5 ledger suites = **50 passed**; `test_typesafe_admin_triage.py` 17 passed. **Red/green falsification:** B-5 pre-fix → `assert '' == '+911140000001'`; B-9 pre-fix → `sqlite3.DatabaseError: file is not a database` @ line 185. Dono post-fix green.
+
+**Verification Evidence:** `prod_check.py` → **[OK] ALL CHECKS PASSED** (1436 routes, 66 pages 0 gaps, automation 0 gaps, API.md 1449 ops in sync) · `check_secrets.py` → 800 files, no secrets · ruff pe sirf 1 **pre-existing** hit (`dev_worker_store`, mere diff me nahi) · registry valid JSON, 10 findings.
+
+**Incident handled this loop:** turn ke beech HEAD **unborn** ho gaya (`.git/refs/heads/feat/` dir hi gayab, `git status` ne sab `A` dikhaya, `git checkout HEAD --` → `fatal: invalid reference`). Objects + reflog intact the; `git update-ref` se ref **`da494844`** pe restore kiya. Isse T-2 findings ke 6 tests red the — root cause 813-file partial-materialization artifact tha (docs A→L + 1 script gayab, koi commit nahi hatata). Sirf **2 tracked inputs** restore kiye (`scripts/typesafe_admin_triage.py`, `docs/coordination/ADMIN_FINDINGS.json`) → 46/46 green. Baaki 811 docs **jaan-boojh kar nahi chhue** (intent confirm nahi).
+
+**Risks:**
+- ⚠️ **Mera saara kaam abhi bhi UNCOMMITTED hai** aur ~90 min pehle isi checkout me ek branch-switch ne pehla pass kha liya tha. **Commit owner-gated hai** (rules) — isliye flag kar raha hoon, khud commit nahi kiya.
+- B-2 (TypeSafe #1) aur B-4 (compliance) owner-gated hi hain.
+- Same machine pe kai agent threads live hain (Hermes/Codex/WorkBuddy) — `app/agents/*` + `tests/test_kpi_ledger.py` abhi kisi aur ke uncommitted edits hain, unhe touch nahi kiya.
+
+**Remaining:** B-2 merge+deploy (owner) · B-4 containment (owner) · B-3 call-loop trigger proof (VPS) · `typesafe_adoption` second real consumer · B-10 hygiene (dhyan: uska fix commit `378bbab1` **reset se discard** ho chuka) · 811 docs + `VOBIZ_*` env cleanup (owner).
+
+**Next Highest Priority:** B-2 — restore ko `origin/main` pe merge + `scripts/deploy_vps.sh`, phir `typesafe_admin_triage.py --record-outcome` se B-5/B-9 ka loop band karna.

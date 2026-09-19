@@ -2959,3 +2959,27 @@ equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both
 - `docs/coordination/ADMIN_FINDINGS.json` is a tracked source input (`.gitignore` had a blanket `*.json` that silently ignored it).
 
 **Verification:** live `POST /v1/systemone`, requested `jev-latest` → resolved `jev-1.13.0`, 1.2–1.3s; revenue-impact Score = level 3 (highest) with `legend`+`probabilities`; NEXT ACTION B-2 (conf 0.88). 95 tests + 36 revenue-infra tests pass, ruff clean, `check_secrets --all` clean, `prod_check` ALL CHECKS PASSED (1436 routes, 0 gaps).
+
+## ADR-196 — Canonical caller-id is the live provider's DID, with the retired name kept as an announced fallback (2026-09-19, LOCAL)
+
+**Decision:** `ComplianceGate._caller_id()` resolves in this order: `settings.tata_smartflo_did` → `TATA_SMARTFLO_DID` → `SMARTFLO_DID` → legacy `settings.vobiz_caller_id` → legacy `VOBIZ_CALLER_ID`. Reading the legacy value logs a **one-time WARNING** (last 4 digits only, never the full number). The gate's blocked-reason now names `TATA_SMARTFLO_DID`.
+
+**Why:** Tata SmartFlo is the sole production provider (Vobiz + Jio removed 2026-09-15/18), but the compliance gate still resolved the CLI from **only** the retired provider's variable. That made the mandated `VOBIZ_*` cleanup a **hard dependency of the dial path**: removing the env var (while `TATA_SMARTFLO_DID` was set) would have blocked **100% of promotional calls** as `no_caller_id` — a silent revenue stop on the paid voice product, not a visible config error. Fail-closed is correct here; fail-closed on a *stale variable name* is a bug.
+
+**Consequences:**
+- The legacy name is a **fallback, not a dependency** — a prod env still carrying it keeps dialing through the removal window, so the cleanup can be sequenced without an outage.
+- **This gate decides nothing about which CLI is presented.** It only asserts "a registered CLI exists"; the DID actually dialed comes from `app/telephony/trunks.py` (`TATA_SMARTFLO_DID`). So preferring the canonical variable here cannot silently switch a promotional call off a 140-series CLI (TRAI lane safety preserved).
+- Canonical precedence is now consistent with `trunks.py:78` and `telephony_readiness.py:96` ("TATA_SMARTFLO_DID (caller ID for outbound calls)").
+- Owner step that remains: delete `VOBIZ_*` from the prod env + `app/config.py:vobiz_caller_id`. That is now safe, and the one-time warning makes the dependency observable until it is done (finding B-5).
+
+**Verification (red/green, not just green):** pre-fix, with ONLY `TATA_SMARTFLO_DID` set, `_caller_id()` returned `''` → `AssertionError: assert '' == '+911140000001'`, i.e. the promo call was blocked. Post-fix the same test passes. 4 new tests + `tests/test_compliance.py` + 6 neighbouring telephony suites = **95 passed**; `prod_check` ALL CHECKS PASSED; `check_secrets` clean.
+
+## ADR-197 — The durable task ledger self-heals from a non-SQLite file instead of failing to construct (2026-09-19, LOCAL)
+
+**Decision:** `DurableTaskStore.__init__` validates the ledger file's header before use. A non-empty file that does not start with `SQLite format 3\x00` is **renamed** to `<path>.corrupt-<timestamp>` (never deleted, collisions disambiguated) with a CRITICAL log, and a fresh ledger is created. Missing/empty files and valid databases are untouched; the backup path is exposed as `store.quarantined_path`.
+
+**Why:** `sqlite3.connect()` is lazy and `_init_sqlite()` ran `CREATE TABLE` with no header check, so `data/orchestrator_ledger.db` holding JSON (B-9: first bytes `7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72`) raised `sqlite3.DatabaseError: file is not a database` **inside the constructor**. The canonical task ledger (§17 single source of truth) could not be instantiated at all, on any machine carrying that file, with no documented recovery.
+
+**Consequences:** Quarantine keeps the corrupt bytes as evidence for the postmortem while the ledger keeps working. Rename-not-delete is deliberate: silently recreating would destroy the only artefact explaining how a JSON writer reached a SQLite path.
+
+**Verification (red/green):** pre-fix the new tests reproduced `sqlite3.DatabaseError: file is not a database` at `automation_orchestrator.py:185`; post-fix 4 new tests + `test_automation_orchestrator.py` + 5 ledger-consuming suites = **50 passed**.
