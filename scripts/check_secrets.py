@@ -152,11 +152,15 @@ SKIP_EXT = {
     ".lock",
     ".idx",
     ".pack",
-    # TLS cert bundles — FreeSWITCH and similar services commit self-signed
-    # dev certs (BEGIN PRIVATE KEY / BEGIN CERTIFICATE) alongside their conf.
-    # These are not secrets; they are ephemeral identities tied to the service.
-    # Real prod TLS certs are provisioned by Caddy (auto-ACME) and never committed.
-    ".pem",
+    # 2026-09-19 P0 CORRECTION — `.pem` used to be skipped here on the reasoning
+    # that such files are "ephemeral dev certs, not secrets". That reasoning was
+    # WRONG and it was a live blind spot: a `.pem` is a CONTAINER and can hold a
+    # `-----BEGIN PRIVATE KEY-----` block, which IS a secret. Two RSA private keys
+    # (app/telephony/freeswitch/conf/tls/*.pem) sat in this PUBLIC repo undetected
+    # by this scanner for exactly this reason — GitGuardian caught them instead.
+    # `.pem` is SCANNED again; the "private key block" pattern above is what
+    # catches it. `.crt/.cer/.der` stay skipped: those are public certificate
+    # formats that cannot carry a private key.
     ".crt",
     ".cer",
     ".der",

@@ -416,3 +416,18 @@ $(docker
 # shell/PowerShell redirect artifacts (never commit)
 $/null
 /safe
+
+# ---------------------------------------------------------------------------
+# Private key / certificate material — NEVER commit.
+# 2026-09-19 P0: `app/telephony/freeswitch/conf/tls/{wss,dtls-srtp}.pem` were
+# RSA "-----BEGIN PRIVATE KEY-----" blocks tracked in this repo.  # nosecret
+# FreeSWITCH's own config never referenced them (conf/sip_profiles/external.xml
+# is UDP-only on sip-port 5060, and no conf/*.xml mentions cert/tls/wss/dtls),
+# so they were inert — removing them has zero runtime impact. Because they were
+# publicly exposed, any copy that ever shipped must be treated as
+# ROTATION_REQUIRED. Generate service certs at deploy time, never commit them.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks

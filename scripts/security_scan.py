@@ -103,8 +103,10 @@ SKIP_EXT = {
     ".lock",
     ".idx",
     ".pack",
-    # FreeSWITCH/TLS self-signed dev certs — not misconfigs
-    ".pem",
+    # 2026-09-19: `.pem` is NO LONGER skipped — a `.pem` is a container that can
+    # hold a `-----BEGIN PRIVATE KEY-----` block, i.e. a real secret. Two such
+    # keys sat in this public repo while this list silently excluded them.
+    # `.crt/.cer/.der` remain skipped: public certificate formats only.
     ".crt",
     ".cer",
     ".der",
