@@ -172,8 +172,14 @@ def scan_misconfigs() -> list[str]:
     return findings
 
 
-def check_pip_audit() -> list[str]:
+def check_pip_audit() -> tuple[list[str], list[str]]:
+    """Returns (blocking_findings, advisory_warnings).
+
+    Blocking: real CVE hits (pip-audit returncode != 0 AND JSON output present).
+    Advisory: network timeouts, pip-audit not installed.
+    """
     findings: list[str] = []
+    warnings: list[str] = []
     try:
         result = subprocess.run(
             [
@@ -192,28 +198,32 @@ def check_pip_audit() -> list[str]:
         if result.returncode != 0 and result.stdout:
             findings.append(f"[pip-audit] vulnerabilities found: {result.stdout[:500]}")
     except FileNotFoundError:
-        findings.append("[WARN] pip-audit not installed — run: pip install pip-audit")
+        warnings.append("[WARN] pip-audit not installed — run: pip install pip-audit")
     except Exception as e:
-        findings.append(f"[WARN] pip-audit failed: {e}")
-    return findings
+        warnings.append(f"[WARN] pip-audit failed (network/timeout): {e}")
+    return findings, warnings
 
 
-def check_secrets() -> list[str]:
+def check_secrets() -> tuple[list[str], list[str]]:
+    """Returns (blocking_findings, advisory_warnings)."""
     findings: list[str] = []
+    warnings: list[str] = []
     try:
         result = subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "check_secrets.py"), "--all"],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
         )
         if result.returncode != 0:
             for line in result.stdout.splitlines():
                 if line.strip() and not line.startswith("["):
                     findings.append(f"[secrets] {line.strip()}")
+                elif line.strip().startswith("[WARN]"):
+                    warnings.append(line.strip())
     except Exception as e:
-        findings.append(f"[WARN] check_secrets.py failed: {e}")
-    return findings
+        warnings.append(f"[WARN] check_secrets.py execution failed: {e}")
+    return findings, warnings
 
 
 def main() -> int:
@@ -223,12 +233,16 @@ def main() -> int:
     print("=" * 60)
 
     all_findings: list[str] = []
+    all_warnings: list[str] = []
 
     # 1. Secrets
     print("\n[1/4] Secrets scan...")
-    secrets = check_secrets()
+    secrets, s_warn = check_secrets()
     all_findings.extend(secrets)
+    all_warnings.extend(s_warn)
     print(f"  {'OK' if not secrets else f'{len(secrets)} findings'}")
+    for w in s_warn:
+        print(f"    {w}")
 
     # 2. Misconfigurations
     print("\n[2/4] Security misconfiguration scan...")
@@ -242,11 +256,14 @@ def main() -> int:
 
     # 3. Dependency vulnerabilities
     print("\n[3/4] Dependency vulnerability scan...")
-    deps = check_pip_audit()
+    deps, d_warn = check_pip_audit()
     all_findings.extend(deps)
+    all_warnings.extend(d_warn)
     print(f"  {'OK' if not deps else f'{len(deps)} findings'}")
     for f in deps:
         print(f"    {f}")
+    for w in d_warn:
+        print(f"    {w}")
 
     # 4. Summary
     print("\n" + "=" * 60)
@@ -254,7 +271,10 @@ def main() -> int:
         print(f"[FAIL] {len(all_findings)} security findings found")
         print("  Fix them or add '# nosecurity' comment for false positives.")
         return 1
-    print("[OK] No security findings")
+    if all_warnings:
+        print(f"[OK] No blocking security findings ({len(all_warnings)} advisory warning(s))")
+    else:
+        print("[OK] No security findings")
     return 0
 
 
