@@ -227,15 +227,22 @@ class ComplianceGate:
     def _caller_id() -> str:
         # Provider is Vobiz (Exotel removed 2026-06-18). Twilio carries its own
         # caller-id separately, so the registered 140-DID here is the Vobiz one.
+        # Canonical: SmartFlo DID (TATA_SMARTFLO_DID > SMARTFLO_DID > legacy VOBIZ)
         try:
             from app.config import settings
 
+            cid = (getattr(settings, "tata_smartflo_did", "") or "").strip()
+            if not cid:
+                cid = (getattr(settings, "smartflo_did", "") or "").strip()
+            if cid:
+                return cid
             cid = (getattr(settings, "vobiz_caller_id", "") or "").strip()
             if cid:
+                logger.warning("ComplianceGate: using legacy VOBIZ caller-id; migrate to TATA_SMARTFLO_DID")
                 return cid
         except Exception:
             pass
-        return _env("VOBIZ_CALLER_ID", "")
+        return _env("TATA_SMARTFLO_DID", _env("SMARTFLO_DID", _env("VOBIZ_CALLER_ID", "")))
 
     def _window(self, call_type: CallType) -> tuple:
         if call_type == CallType.PROMOTIONAL:
