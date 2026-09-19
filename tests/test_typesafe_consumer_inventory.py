@@ -31,6 +31,7 @@ ALLOWED_CONSUMERS = {
     "app/agents/workers.py",
     "app/platform/key_manager.py",
     "app/platform/typesafe_executor.py",
+    "app/platform/typesafe_services.py",
 }
 
 # The definition module itself never counts as a consumer.

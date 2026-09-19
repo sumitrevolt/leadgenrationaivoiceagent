@@ -265,12 +265,67 @@ async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
     return {"ok": False, "reason": "no session", "leads": []}
 
 
+def score_lead_typesafe(lead: dict[str, Any]) -> dict[str, Any]:
+    """Composite lead scoring combining local rule weights with TypeSafe System One.
+
+    Returns rich evaluation dict:
+    - base_score: heuristic 0-100 score
+    - typesafe_score: calibrated 0-100 qualification score (or None if inert)
+    - composite_score: blended final score (or base_score if inert)
+    - fit_level: low | medium | high | exceptional
+    - buying_intent: bool
+    - budget_likelihood: shoestring | modest | standard | enterprise
+    - recommended_product: marketing_suite | voice_agent | combo | unqualified
+    - pitch_angle: customized pitch angle
+    - is_hot_lead: bool
+    """
+    base = score_lead(lead)
+    try:
+        from app.platform.typesafe_services import get_typesafe_lead_scorer
+
+        scorer = get_typesafe_lead_scorer()
+        if scorer.client.enabled:
+            qual = scorer.qualify_lead(lead)
+            blended = int((base * 0.40) + (qual.score * 0.60))
+            return {
+                "base_score": base,
+                "typesafe_score": qual.score,
+                "composite_score": max(0, min(100, blended)),
+                "fit_level": qual.fit_level,
+                "buying_intent": qual.buying_intent,
+                "intent_confidence": qual.intent_confidence,
+                "budget_likelihood": qual.budget_likelihood,
+                "recommended_product": qual.recommended_product,
+                "pitch_angle": qual.pitch_angle,
+                "is_hot_lead": qual.is_hot_lead or is_hot(blended),
+                "typesafe_active": True,
+            }
+    except Exception as e:
+        logger.debug(f"[lead_scoring] TypeSafe scoring fallback to base: {e}")
+
+    return {
+        "base_score": base,
+        "typesafe_score": None,
+        "composite_score": base,
+        "fit_level": "medium",
+        "buying_intent": False,
+        "intent_confidence": 0.5,
+        "budget_likelihood": "standard",
+        "recommended_product": "marketing_suite",
+        "pitch_angle": "Automated local customer acquisition",
+        "is_hot_lead": is_hot(base),
+        "typesafe_active": False,
+    }
+
+
 __all__ = [
     "HOT_THRESHOLD",
     "score_lead",
+    "score_lead_typesafe",
     "score_components",
     "is_hot",
     "rank",
     "rescore_db",
     "top_hot_leads",
 ]
+

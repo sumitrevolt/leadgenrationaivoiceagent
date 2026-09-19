@@ -83,8 +83,27 @@ Best,
         max_revisions=2,
     )
 
-    # If delivered, actually send the email
+    # If delivered, run Content QA pre-flight gate, then send
     if result.is_delivered and result.output:
+        try:
+            from app.platform.typesafe_services import get_typesafe_content_qa
+
+            qa = get_typesafe_content_qa()
+            if qa.client.enabled:
+                audit = qa.audit_outbound_message(
+                    subject=result.output.get("subject", ""),
+                    body=result.output.get("body", ""),
+                    channel="email",
+                    recipient_context={"recipient": recipient, "template": template},
+                )
+                if not audit.approved:
+                    result.status = "qa_rejected"
+                    result.error = f"Content QA rejected: {', '.join(audit.reasons)}"
+                    logger.warning(f"Email to {recipient} blocked by TypeSafe QA: {audit.reasons}")
+                    return result
+        except Exception as e:
+            logger.debug(f"TypeSafe QA pre-flight fallback: {e}")
+
         outcome = _send_via_brevo(result.output)
         result.outcome = outcome
         result.downstream_effect = {"message_id": outcome.get("message_id")}

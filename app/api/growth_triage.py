@@ -26,6 +26,38 @@ async def classify_inbound(req: TriageRequest, _user=Depends(require_admin)):
     prompt += "Classify this inbound lead reply into exactly one of these CATEGORY strings: 'INTERESTED', 'DND_UNSUBSCRIBE', 'NOT_INTERESTED', 'QUESTION_NEEDS_HUMAN'.\n"
     prompt += "Also extract 'reason' (string) and 'suggested_action' (string). Output purely as JSON with keys 'category', 'reason', and 'suggested_action'. No markdown blocks."
 
+    # 1. Primary: TypeSafe structured System One triage (typed, deterministic, zero JSON parse errors)
+    try:
+        from app.platform.typesafe_services import get_typesafe_reply_triage
+
+        triage_svc = get_typesafe_reply_triage()
+        if triage_svc.client.enabled:
+            result = triage_svc.triage_reply(req.message_body, {"channel": req.channel})
+            cat_map = {
+                "demo_request": "INTERESTED",
+                "pricing_query": "INTERESTED",
+                "callback_requested": "INTERESTED",
+                "not_interested": "NOT_INTERESTED",
+                "unsubscribe": "DND_UNSUBSCRIBE",
+                "question": "QUESTION_NEEDS_HUMAN",
+                "other": "QUESTION_NEEDS_HUMAN",
+            }
+            mapped_cat = cat_map.get(result.intent, "QUESTION_NEEDS_HUMAN")
+            return {
+                "success": True,
+                "provider": f"typesafe:{result.metadata.get('model', 'jev-latest')}",
+                "data": {
+                    "category": mapped_cat,
+                    "reason": f"TypeSafe intent: {result.intent}, sentiment: {result.sentiment}, urgency: {result.urgency}",
+                    "suggested_action": result.suggested_action,
+                    "is_hot": result.is_hot,
+                    "sentiment": result.sentiment,
+                    "urgency": result.urgency,
+                },
+            }
+    except Exception as e:
+        logger.debug(f"TypeSafe triage fallback to free LLM: {e}")
+
     try:
         reply_text, provider = await chat(
             system=system, messages=[{"role": "user", "content": prompt}], temperature=0.1
