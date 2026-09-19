@@ -2,18 +2,27 @@
 ============================================================
 Exposes validated REST API routes powered by TypeSafe System One.
 Every endpoint enforces strict Pydantic v2 schemas:
-- Clean type-safe request parsing and validation
-- Clean type-safe response contracts
-- Fail-safe error handling (HTTP 200 with structured status or HTTP 422 on invalid schema)
+- Clean type-safe request parsing and validation (HTTP 422 on a bad schema,
+  raised by FastAPI before the handler body runs)
+- Clean type-safe response contracts (`response_model` on every route)
+- Fail-soft error handling: a downstream TypeSafe or bridge failure is logged
+  server-side with a full traceback and reported to the caller as a plain
+  HTTP 500 whose `detail` carries NO internal exception text.
+
+Why no `str(e)` in the response: the detail string used to echo the raw
+exception, which leaks provider error bodies, URLs, and stack context to the
+client. The diagnostic value belongs in the log, not the HTTP response.
 """
 
 from __future__ import annotations
+
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.auth_deps import require_admin
 from app.platform.typesafe_bridge import get_typesafe_bridge
-from app.platform.typesafe_integration import credential_state, fingerprint
+from app.platform.typesafe_integration import credential_state
 from app.platform.typesafe_schemas import (
     CallEvaluationRequest,
     CallEvaluationResponse,
@@ -28,12 +37,20 @@ from app.platform.typesafe_schemas import (
     ValueExtractionResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/typesafe", tags=["TypeSafe Intelligence"])
 
 
 @router.get("/status", response_model=TypeSafeSystemStatusResponse)
 async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusResponse:
-    """Returns the operational status, credential state, and model alignment of TypeSafe."""
+    """Returns the operational status, credential state, and model alignment of TypeSafe.
+
+    Reads `credential_state()`, which returns a `CredentialState` mapping — never a
+    bare label. Compare against `state`, not against the mapping itself: comparing
+    the whole dict to the string "PRESENT" is always False and silently reports an
+    armed integration as absent.
+    """
     bridge = get_typesafe_bridge()
     cred = credential_state()
     fp = cred.get("fingerprint") or "none"
@@ -62,8 +79,9 @@ async def qualify_lead_endpoint(
     try:
         bridge = get_typesafe_bridge()
         return bridge.qualify_lead(req)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lead qualification failed: {str(e)}")
+    except Exception:
+        logger.exception("TypeSafe lead qualification failed")
+        raise HTTPException(status_code=500, detail="Lead qualification failed")
 
 
 @router.post("/audit-message", response_model=ContentAuditResponse)
@@ -75,8 +93,9 @@ async def audit_content_endpoint(
     try:
         bridge = get_typesafe_bridge()
         return bridge.audit_outbound_content(req)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Content audit failed: {str(e)}")
+    except Exception:
+        logger.exception("TypeSafe content audit failed")
+        raise HTTPException(status_code=500, detail="Content audit failed")
 
 
 @router.post("/triage-reply", response_model=ReplyTriageResponse)
@@ -88,8 +107,9 @@ async def triage_reply_endpoint(
     try:
         bridge = get_typesafe_bridge()
         return bridge.triage_reply(req)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Reply triage failed: {str(e)}")
+    except Exception:
+        logger.exception("TypeSafe reply triage failed")
+        raise HTTPException(status_code=500, detail="Reply triage failed")
 
 
 @router.post("/evaluate-call", response_model=CallEvaluationResponse)
@@ -101,8 +121,9 @@ async def evaluate_call_endpoint(
     try:
         bridge = get_typesafe_bridge()
         return bridge.evaluate_call(req)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Call evaluation failed: {str(e)}")
+    except Exception:
+        logger.exception("TypeSafe call evaluation failed")
+        raise HTTPException(status_code=500, detail="Call evaluation failed")
 
 
 @router.post("/extract-value", response_model=ValueExtractionResponse)
@@ -114,5 +135,6 @@ async def extract_value_endpoint(
     try:
         bridge = get_typesafe_bridge()
         return bridge.extract_value(req)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Value extraction failed: {str(e)}")
+    except Exception:
+        logger.exception("TypeSafe value extraction failed")
+        raise HTTPException(status_code=500, detail="Value extraction failed")

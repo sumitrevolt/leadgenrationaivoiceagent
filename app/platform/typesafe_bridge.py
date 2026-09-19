@@ -17,6 +17,7 @@ import logging
 from typing import Any
 
 from app.platform.typesafe_schemas import (
+    BudgetLikelihoodEnum,
     CallDispositionEnum,
     CallEvaluationRequest,
     CallEvaluationResponse,
@@ -84,17 +85,30 @@ class TypeSafeBridge:
             "combo": ProductOfferingEnum.COMBO,
             "unqualified": ProductOfferingEnum.UNQUALIFIED,
         }
+        # `budget_likelihood` used to be passed through raw with a `# type: ignore`,
+        # which hid a real str -> Enum mismatch: `LeadQualificationResult` carries a
+        # bare `str`, so an unexpected value would reach pydantic and raise
+        # ValidationError, turning a soft scoring miss into an HTTP 500. Map it with
+        # the same fallback contract as fit/product so all three enum-ish fields are
+        # guarded identically.
+        budget_map = {
+            "shoestring": BudgetLikelihoodEnum.SHOESTRING,
+            "modest": BudgetLikelihoodEnum.MODEST,
+            "standard": BudgetLikelihoodEnum.STANDARD,
+            "enterprise": BudgetLikelihoodEnum.ENTERPRISE,
+        }
 
         # Safe enum casting with fallback
         fit_enum = fit_map.get(result.fit_level, FitLevelEnum.MEDIUM)
         product_enum = product_map.get(result.recommended_product, ProductOfferingEnum.MARKETING_SUITE)
+        budget_enum = budget_map.get(result.budget_likelihood, BudgetLikelihoodEnum.STANDARD)
 
         return LeadQualifyResponse(
             score=result.score,
             fit_level=fit_enum,
             buying_intent=result.buying_intent,
             intent_confidence=result.intent_confidence,
-            budget_likelihood=result.budget_likelihood,  # type: ignore
+            budget_likelihood=budget_enum,
             recommended_product=product_enum,
             pitch_angle=result.pitch_angle,
             is_hot_lead=result.is_hot_lead,

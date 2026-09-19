@@ -354,9 +354,10 @@ class TypeSafeContentQA:
 
             # Persuasion score
             p_ans = answers.get("persuasion") or {}
-            p_val = p_ans.get("score") if isinstance(p_ans, dict) else p_ans
+            p_raw = p_ans.get("score") if isinstance(p_ans, dict) else p_ans
             persuasion_map = {0: "weak", 1: "acceptable", 2: "strong", 3: "compelling"}
-            persuasion = persuasion_map.get(p_val, "acceptable")
+            p_idx = _score_index(p_raw)
+            persuasion = "acceptable" if p_idx is None else persuasion_map.get(p_idx, "acceptable")
 
             # Tone
             t_ans = answers.get("tone") or {}
@@ -475,9 +476,10 @@ class TypeSafeReplyTriage:
 
             # Urgency
             urg_ans = answers.get("urgency") or {}
-            urg_val = urg_ans.get("score") if isinstance(urg_ans, dict) else urg_ans
+            urg_raw = urg_ans.get("score") if isinstance(urg_ans, dict) else urg_ans
             urg_map = {0: "low", 1: "routine", 2: "same_day", 3: "immediate"}
-            urgency = urg_map.get(urg_val, "routine")
+            urg_idx = _score_index(urg_raw)
+            urgency = "routine" if urg_idx is None else urg_map.get(urg_idx, "routine")
 
         # Action mapping based on typed intent
         if intent == "unsubscribe":
@@ -629,9 +631,10 @@ class TypeSafeCallEvaluator:
 
             # Warmth
             warm_ans = answers.get("warmth") or {}
-            w_val = warm_ans.get("score") if isinstance(warm_ans, dict) else warm_ans
+            w_raw = warm_ans.get("score") if isinstance(warm_ans, dict) else warm_ans
             w_map = {0: "cold", 1: "lukewarm", 2: "warm", 3: "hot"}
-            warmth = w_map.get(w_val, "lukewarm")
+            w_idx = _score_index(w_raw)
+            warmth = "lukewarm" if w_idx is None else w_map.get(w_idx, "lukewarm")
 
         # Derive action
         if disposition == "dnd_requested":
