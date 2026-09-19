@@ -380,9 +380,10 @@ class TestLeadStatusChain:
             },
         }
 
-        with patch("app.telephony.smartflo_webhooks.niche_database", type(
-            "MockDB", (), {"update_after_call": staticmethod(fake_update)}
-        )()):
+        with patch(
+            "app.telephony.smartflo_webhooks.niche_database",
+            type("MockDB", (), {"update_after_call": staticmethod(fake_update)})(),
+        ):
             with TestClient(app, raise_server_exceptions=False) as tc:
                 r = tc.post("/api/webhooks/tata-smartflo", json=webhook_payload)
 
@@ -414,9 +415,10 @@ class TestLeadStatusChain:
             },
         }
 
-        with patch("app.telephony.smartflo_webhooks.niche_database", type(
-            "MockDB", (), {"update_after_call": staticmethod(fake_update)}
-        )()):
+        with patch(
+            "app.telephony.smartflo_webhooks.niche_database",
+            type("MockDB", (), {"update_after_call": staticmethod(fake_update)})(),
+        ):
             with TestClient(app, raise_server_exceptions=False) as tc:
                 r = tc.post("/api/webhooks/tata-smartflo", json=webhook_payload)
 
@@ -499,17 +501,27 @@ class TestMultipleCalls:
 
         # Webhook for call 1
         with TestClient(app, raise_server_exceptions=False) as tc:
-            tc.post("/api/webhooks/tata-smartflo", json={
-                "call_id": "CA-multi-001", "ref_id": ref1,
-                "status": "completed", "duration": 120,
-                "custom_identifier": {},
-            })
+            tc.post(
+                "/api/webhooks/tata-smartflo",
+                json={
+                    "call_id": "CA-multi-001",
+                    "ref_id": ref1,
+                    "status": "completed",
+                    "duration": 120,
+                    "custom_identifier": {},
+                },
+            )
             # Webhook for call 2
-            tc.post("/api/webhooks/tata-smartflo", json={
-                "call_id": "CA-multi-002", "ref_id": ref2,
-                "status": "no-answer", "duration": 0,
-                "custom_identifier": {},
-            })
+            tc.post(
+                "/api/webhooks/tata-smartflo",
+                json={
+                    "call_id": "CA-multi-002",
+                    "ref_id": ref2,
+                    "status": "no-answer",
+                    "duration": 0,
+                    "custom_identifier": {},
+                },
+            )
 
         recent = get_recent_webhooks(limit=10)
         assert len(recent) >= 2

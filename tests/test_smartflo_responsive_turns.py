@@ -36,9 +36,9 @@ async def test_first_sentence_plays_before_remainder_tts_finishes():
 
     s._tts = tts
     s._send_mulaw_audio = send
-    task = asyncio.create_task(s._speak_task(
-        "Pehla jawab abhi. Doosra jawab baad mein.", s._playback_generation
-    ))
+    task = asyncio.create_task(
+        s._speak_task("Pehla jawab abhi. Doosra jawab baad mein.", s._playback_generation)
+    )
     try:
         await asyncio.wait_for(first_sent.wait(), 0.3)
         assert not release_rest.is_set()
@@ -71,9 +71,9 @@ async def test_barge_cancels_prefetched_synthesis():
 
     s._tts = tts
     s._send_mulaw_audio = send
-    task = asyncio.create_task(s._speak_task(
-        "Pehla jawab abhi. Doosra jawab baad mein.", s._playback_generation
-    ))
+    task = asyncio.create_task(
+        s._speak_task("Pehla jawab abhi. Doosra jawab baad mein.", s._playback_generation)
+    )
     try:
         await asyncio.wait_for(rest_started.wait(), 0.3)
     finally:
