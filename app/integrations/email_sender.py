@@ -76,6 +76,36 @@ class EmailSender:
         else:
             logger.warning("Email credentials not configured")
 
+    async def validate_content(
+        self,
+        subject: str,
+        body: str,
+        channel: str = "email",
+    ) -> dict[str, Any]:
+        """Validate outbound content via TypeSafe BEFORE sending.
+
+        Returns {"approved": bool, "score": int, "issues": list, "grade": str}.
+        If TypeSafe is INERT, deterministic pass (approved=True).
+        """
+        try:
+            from app.platform.typesafe_services import get_typesafe_content_qa
+
+            qa = get_typesafe_content_qa()
+            if qa.client.enabled:
+                verdict = qa.audit_outbound_message(subject, body, channel)
+                return {
+                    "approved": verdict.approved,
+                    "score": {"weak": 25, "acceptable": 50, "strong": 75, "compelling": 95}.get(
+                        verdict.persuasion_score, 50
+                    ),
+                    "issues": verdict.reasons,
+                    "grade": verdict.persuasion_score,
+                    "tone": verdict.tone,
+                }
+        except Exception as e:
+            logger.debug(f"TypeSafe content validation fallback: {e}")
+        return {"approved": True, "score": 50, "issues": [], "grade": "unknown", "tone": "unknown"}
+
     async def send_email(
         self,
         to_emails: list[str],
@@ -85,6 +115,7 @@ class EmailSender:
         cc: list[str] | None = None,
         reply_to: str | None = None,
         extra_headers: dict[str, str] | None = None,
+        skip_validation: bool = False,
     ) -> bool:
         """
         Send an email
@@ -99,7 +130,18 @@ class EmailSender:
             extra_headers: Optional extra MIME headers (e.g. List-Unsubscribe /
                 List-Unsubscribe-Post for promotional mail per RFC 2369/8058).
                 Applied on the SMTP path; transactional callers pass nothing.
+            skip_validation: If True, bypass TypeSafe content validation (for
+                transactional/system emails).
         """
+        # TypeSafe content validation (pre-send QA) — promotional outbound only
+        if not skip_validation:
+            verdict = await self.validate_content(subject, body)
+            if not verdict["approved"]:
+                logger.warning(
+                    f"Email send BLOCKED by TypeSafe: {verdict['issues']}"
+                )
+                return False
+
         # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox
         # password jhanjhat nahi. Agar key set hai to API se bhejo; warna SMTP.
         try:
