@@ -97,8 +97,8 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
 # an opaque high-entropy blob is not.
 FALLBACK_ALLOW = re.compile(
     r"(?i)^(?:"
-    r"https?://(?!\S*@)\S+"        # base URLs are config — but NOT user:pass@ URLs
-    r"|/[\w./-]+"                  # absolute paths
+    r"https?://(?!\S*@)\S+"  # base URLs are config — but NOT user:pass@ URLs
+    r"|/[\w./-]+"  # absolute paths
     r"|[\w.-]+\.(?:com|org|net|in|io|local|internal)(?::\d+)?"  # hostnames
     r"|(?:localhost|127\.0\.0\.1)(?::\d+)?"
     r"|(?:none|null|true|false|debug|info|warning|error|production|development|staging|test)"
