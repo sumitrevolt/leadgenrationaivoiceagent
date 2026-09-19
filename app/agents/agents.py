@@ -301,15 +301,6 @@ AGENT_PROFILES: dict[str, dict[str, Any]] = {
         "schedule": "Daily scheduled",
         "skills": ["campaigns", "planning", "tracking"],
     },
-    "harsh": {
-        "product": "voice",
-        "name": "Harsh",
-        "emoji": "🎙️",
-        "title": "Voice QA",
-        "duties": "Voice quality checks, transcription accuracy",
-        "schedule": "Daily scheduled",
-        "skills": ["voice", "qa", "transcription"],
-    },
     "deepika": {
         "product": "marketing",
         "name": "Deepika",

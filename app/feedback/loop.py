@@ -92,6 +92,10 @@ class AgentPerformance(BaseModel):
     tasks_today: int = 0
     last_task_at: Optional[str] = None
     improvement_count: int = 0
+
+    @property
+    def success_rate(self) -> float:
+        return self.successful_tasks / self.total_tasks if self.total_tasks > 0 else 0.0
     
     def to_dict(self) -> dict[str, Any]:
         return {

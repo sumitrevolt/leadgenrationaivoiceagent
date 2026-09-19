@@ -262,7 +262,8 @@ def _get_local_system_health() -> dict:
     try:
         import shutil
 
-        total, used, free = shutil.disk_usage("C:\\")
+        disk_path = "C:\\" if os.name == "nt" and os.path.exists("C:\\") else "/"
+        total, used, free = shutil.disk_usage(disk_path)
         result["disk_total_gb"] = round(total / (1024**3), 1)
         result["disk_used_gb"] = round(used / (1024**3), 1)
         result["disk_free_gb"] = round(free / (1024**3), 1)

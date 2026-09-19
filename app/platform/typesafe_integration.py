@@ -82,7 +82,11 @@ def credential_state() -> dict[str, Any]:
             "fingerprint": "",
             "model": model,
         }
-    source = "env:TYPESAFE_API_KEY" if (os.getenv("TYPESAFE_API_KEY") or "").strip() else "env:TYPEsafe_API_KEY"
+    source = (
+        "env:TYPESAFE_API_KEY"
+        if (os.getenv("TYPESAFE_API_KEY") or "").strip()
+        else "env:TYPEsafe_API_KEY"
+    )
     fp = fingerprint(key)
     return {
         "state": "ROTATION_REQUIRED" if fp in COMPROMISED_FINGERPRINTS else "PRESENT",

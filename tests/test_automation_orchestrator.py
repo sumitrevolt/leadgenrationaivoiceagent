@@ -12,6 +12,8 @@ Tests:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.platform.automation_orchestrator import (
@@ -21,11 +23,69 @@ from app.platform.automation_orchestrator import (
     TaskStatus,
 )
 
+SQLITE_MAGIC = b"SQLite format 3\x00"
+
 
 @pytest.fixture
 def temp_store(tmp_path):
     db_path = str(tmp_path / "orchestrator_orch.db")
     return DurableTaskStore(db_path=db_path)
+
+
+# ---------------------------------------------------------------------------
+# Finding B-9: a non-SQLite file at the ledger path must self-heal, not be fatal
+# ---------------------------------------------------------------------------
+def test_corrupt_non_sqlite_ledger_is_quarantined_not_fatal(tmp_path):
+    """`data/orchestrator_ledger.db` once held JSON. `sqlite3.connect` is lazy, so
+    this used to blow up at CREATE TABLE inside __init__ -- the canonical task
+    ledger could not be instantiated at all. It must now recover, and keep the
+    corrupt bytes as evidence (rename, never delete).
+    """
+    db = tmp_path / "orchestrator_ledger.db"
+    db.write_bytes(b'{\r\n  "dev_workers": []}')  # B-9's observed first bytes
+
+    store = DurableTaskStore(db_path=str(db))
+
+    assert store.quarantined_path, "corrupt ledger must be reported as quarantined"
+    kept = Path(store.quarantined_path)
+    assert kept.exists() and kept.read_bytes().startswith(b"{")
+    assert db.read_bytes().startswith(SQLITE_MAGIC), "fresh ledger must be real SQLite"
+    # The recreated ledger is actually usable (table exists, queries run).
+    assert store.get("does-not-exist") is None
+
+
+def test_valid_sqlite_ledger_is_never_quarantined(tmp_path):
+    """No data loss path: an existing healthy ledger is untouched on reopen."""
+    db = tmp_path / "orchestrator_ledger.db"
+    first = DurableTaskStore(db_path=str(db))
+    assert first.quarantined_path is None
+
+    second = DurableTaskStore(db_path=str(db))
+    assert second.quarantined_path is None
+    assert list(tmp_path.glob("*.corrupt-*")) == []
+
+
+def test_missing_or_empty_ledger_is_not_quarantined(tmp_path):
+    """An absent or 0-byte file is a valid SQLite start state, not corruption."""
+    db = tmp_path / "absent.db"
+    assert DurableTaskStore(db_path=str(db)).quarantined_path is None
+
+    empty = tmp_path / "empty.db"
+    empty.write_bytes(b"")
+    assert DurableTaskStore(db_path=str(empty)).quarantined_path is None
+    assert list(tmp_path.glob("*.corrupt-*")) == []
+
+
+def test_repeated_corruption_keeps_every_quarantined_copy(tmp_path):
+    """Two corrupt writes must both survive -- the second must not clobber the first."""
+    db = tmp_path / "orchestrator_ledger.db"
+    db.write_bytes(b'{"gen": 1}')
+    DurableTaskStore(db_path=str(db))
+    db.write_bytes(b'{"gen": 2}')
+    DurableTaskStore(db_path=str(db))
+
+    kept = sorted(p.read_bytes() for p in tmp_path.glob("*.corrupt-*"))
+    assert kept == [b'{"gen": 1}', b'{"gen": 2}']
 
 
 def test_hermes_9bot_supervisory_mapping(temp_store):

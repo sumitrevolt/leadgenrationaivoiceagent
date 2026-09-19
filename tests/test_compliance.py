@@ -283,3 +283,97 @@ def test_dnd_fail_open_honoured_outside_production(monkeypatch):
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
     assert d.allowed, d.reasons
     assert d.checks.get("dnd") is False
+
+
+# ---------------------------------------------------------------------------
+# caller-id source (finding B-5: SmartFlo-only must not depend on VOBIZ_*)
+# ---------------------------------------------------------------------------
+_TATA_DID = "+911140000001"
+_LEGACY_DID = "+911140000000"
+
+
+def _pin_settings(monkeypatch, **attrs):
+    """Force the settings path to be deterministic (pydantic Settings reads .env)."""
+    try:
+        from app.config import settings
+    except Exception:  # pragma: no cover - settings import is required in practice
+        return
+    for name, value in attrs.items():
+        if hasattr(settings, name):
+            monkeypatch.setattr(settings, name, value, raising=False)
+
+
+def _clear_caller_id_sources(monkeypatch):
+    for k in ("TATA_SMARTFLO_DID", "SMARTFLO_DID", "VOBIZ_CALLER_ID"):
+        monkeypatch.delenv(k, raising=False)
+    _pin_settings(monkeypatch, tata_smartflo_did="", vobiz_caller_id="")
+
+
+def test_promotional_allowed_with_smartflo_did_only(monkeypatch):
+    """THE B-5 acceptance test: with the retired VOBIZ_* variable GONE, a
+    promotional call must still dial. Before the fix the resolver returned ''
+    and the gate blocked 100% of promo calls as `no_caller_id`."""
+    _clear_caller_id_sources(monkeypatch)
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("TATA_SMARTFLO_DID", _TATA_DID)
+
+    assert ComplianceGate._caller_id() == _TATA_DID
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.allowed, d.reasons
+    assert not any("no_caller_id" in r for r in d.reasons)
+
+
+def test_caller_id_prefers_canonical_smartflo_over_legacy_vobiz(monkeypatch):
+    """Both variables present -> the live provider's DID wins. The gate asserts
+    that a registered CLI exists for the provider that actually places the call."""
+    _clear_caller_id_sources(monkeypatch)
+    monkeypatch.setenv("TATA_SMARTFLO_DID", _TATA_DID)
+    monkeypatch.setenv("VOBIZ_CALLER_ID", _LEGACY_DID)
+    assert ComplianceGate._caller_id() == _TATA_DID
+
+
+def test_caller_id_legacy_fallback_still_dials_and_is_announced(monkeypatch):
+    """A prod env that still carries only VOBIZ_* keeps dialing (no silent
+    outage during the removal window), but the fallback is LOGGED once so the
+    legacy dependency is visible instead of silent."""
+    from app.telephony import compliance as comp
+
+    _clear_caller_id_sources(monkeypatch)
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", _LEGACY_DID)
+
+    warnings: list[tuple] = []
+
+    class _Recorder:
+        def warning(self, *a, **kw):
+            warnings.append(a)
+
+        def __getattr__(self, _name):  # debug/info/error -> no-op
+            return lambda *a, **kw: None
+
+    monkeypatch.setattr(comp, "logger", _Recorder())
+    monkeypatch.setattr(comp, "_LEGACY_CALLER_ID_WARNED", False, raising=False)
+
+    assert ComplianceGate._caller_id() == _LEGACY_DID
+    assert warnings, "the legacy caller-id fallback must be announced once"
+    # Never log the credential-like value in full — only the last 4 digits.
+    assert _LEGACY_DID not in str(warnings[0])
+    assert warnings[0][-1] == _LEGACY_DID[-4:]
+
+    # ...and only once per process (no per-dial log spam).
+    assert ComplianceGate._caller_id() == _LEGACY_DID
+    assert len(warnings) == 1
+
+
+def test_caller_id_empty_when_nothing_configured(monkeypatch):
+    """Absent config stays fail-CLOSED: '' -> promo blocked with the canonical
+    variable named in the reason, so the operator fixes the right variable."""
+    _clear_caller_id_sources(monkeypatch)
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("COMPLIANCE_DND_WAIVED", "1")
+    assert ComplianceGate._caller_id() == ""
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert not d.allowed
+    assert any("TATA_SMARTFLO_DID" in r for r in d.reasons)

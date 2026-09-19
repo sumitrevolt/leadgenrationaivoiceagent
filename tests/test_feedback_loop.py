@@ -7,6 +7,18 @@ from app.feedback.loop import (
     ImprovementProposal,
     AgentPerformance,
 )
+import app.feedback.loop
+
+
+@pytest.fixture(autouse=True)
+def isolate_loop_state(tmp_path, monkeypatch):
+    test_state_file = str(tmp_path / "self_improve_state.json")
+    orig_init = app.feedback.loop.SelfImprovingLoop.__init__
+    monkeypatch.setattr(
+        app.feedback.loop.SelfImprovingLoop,
+        "__init__",
+        lambda self, state_path=test_state_file: orig_init(self, state_path=state_path),
+    )
 
 
 class TestSelfImprovingLoop:

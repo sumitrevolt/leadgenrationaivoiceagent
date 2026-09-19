@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1447 operations)
+## Endpoint Index — auto-generated from OpenAPI (1449 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -2007,8 +2007,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/web-calls/proposals/{proposal_id}/reject` — Reject a proposal
 - `GET   ` `/api/admin/web-calls/{session_id}` — One web test-call + full transcript
 
-### Webhooks  (2)
+### Webhooks  (4)
 
+- `GET   ` `/api/webhooks/telegram` — Telegram Webhook Verify
+- `POST  ` `/api/webhooks/telegram` — Telegram Webhook Inbound
 - `GET   ` `/api/webhooks/whatsapp` — Whatsapp Webhook Verify
 - `POST  ` `/api/webhooks/whatsapp` — Whatsapp Webhook Inbound
 

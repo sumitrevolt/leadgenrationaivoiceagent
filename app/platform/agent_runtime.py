@@ -91,18 +91,20 @@ class TaskStatus(str, Enum):
 # QA stay OUT.
 PILOT_AGENTS: frozenset[str] = frozenset(
     {
-        # === FULL 31-AGENT ACTIVATION (owner-mandated, maximum automation) ===
-        # Wave-A (original pilots)
-        "kavya", "isha", "zara",
+        # Wave-A
+        "kavya",
+        "isha",
+        "zara",
         # Wave-B read-only / diagnostic
-        "hermes", "pranav", "vidya", "arnav", "kabir", "diya", "aryan", "arya", "nikhil",
-        # AMBER HOLD → ACTIVATED (customer-touch agents)
-        "rohan", "kiran", "priya", "anika", "ira", "riya", "raksha",
-        # VOICE HOLD → ACTIVATED (voice-adjacent, read+report)
-        "arjun", "meera", "tara",
-        # GREEN MUTATE → ACTIVATED (write agents: email, KB, prospector, etc.)
-        "manager", "lekha", "neha", "ravi", "dev", "guru", "vikram",
-        # FROZEN VOICE — swara/ananya stay OUT (RED lane, always blocked)
+        "hermes",
+        "pranav",
+        "vidya",
+        "arnav",
+        "kabir",
+        "diya",
+        "aryan",
+        "arya",
+        "nikhil",  # delivery_assurance scan ONLY (read-only capability)
     }
 )
 

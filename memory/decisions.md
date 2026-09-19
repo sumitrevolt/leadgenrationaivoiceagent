@@ -2945,3 +2945,17 @@ equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both
 **Verification:** 14/14 combos HTTP 200 (live-proven). 3 combos fire-tested (1, 13, 14) — all land on `nvidia/nemotron-3-super-120b-a12b`. p50=18.85s, max=21.1s. Architect's 3/3 claims independently verified (seed isActive hardcode, OMNIROUTE_TIMEOUT_SECONDS default 30, first_token_timeout_s 3.0s).
 
 **Full ADR:** `deliverables/engineering-assurance/adr-omniroute-provider-health-2026-09-14.md`
+
+## ADR-195 — TypeSafe consumer discipline: a judgment nobody consumes is a liability (2026-09-19, LOCAL)
+
+**Decision:** TypeSafe calls in this repo must satisfy two conditions or they do not ship: (1) the returned judgment must change downstream behaviour, and (2) the call count must be bounded and meaningful. Decorative integrations are removed, and TypeSafe consumers become an explicit allowlist.
+
+**Why:** the app's only consumer, `app/platform/agent_talent_pool.py`, made **992 sequential paid HTTP calls** (31 agents × 32 synthetic specializations) at build time and then looked the answer up in a hardcoded snake_case map, so `"Cold call expert"` fell through to `"general"` — 992 round trips producing zero consumed signal. Repo-wide grep showed **zero code consumers**. Enumerating labels is not semantic understanding; per the `typesafe-ai` skill, deterministic work stays in code.
+
+**Consequences:**
+- `agent_talent_pool.py` removed (rollback `git checkout d4243e7a -- app/platform/agent_talent_pool.py`). The canonical 31-agent registry (ADR-164/165) is the workforce of record — a 992-talent pool contradicted it.
+- `tests/test_typesafe_consumer_inventory.py` allowlists modules that may reference `app.platform.typesafe_integration` (currently `app/platform/automation_health.py`, config-only `credential_state()`) and fails on stale allowlist entries, so a decorative consumer cannot return silently.
+- The canonical decision path is `scripts/typesafe_admin_triage.py`: findings registry → ONE System One request with independent Noul/Score/Choice judgments → ranking + chosen next action → append-only trace in `logs/typesafe_decisions.jsonl` (`--record-outcome` closes the loop). Fail-closed: INERT/failed request writes NO decision. The trace is deliberately NOT under `data/`: that tree is the runtime-data manifest's jurisdiction and `tests/test_runtime_data_a1_ratchet.py` counts every `data/`-rooted path as reviewed surface with a pinned total, so a log there would be an undeclared gate change (verified: `_uncontrolled_path_findings('scripts/typesafe_admin_triage.py')` → `[]`).
+- `docs/coordination/ADMIN_FINDINGS.json` is a tracked source input (`.gitignore` had a blanket `*.json` that silently ignored it).
+
+**Verification:** live `POST /v1/systemone`, requested `jev-latest` → resolved `jev-1.13.0`, 1.2–1.3s; revenue-impact Score = level 3 (highest) with `legend`+`probabilities`; NEXT ACTION B-2 (conf 0.88). 95 tests + 36 revenue-infra tests pass, ruff clean, `check_secrets --all` clean, `prod_check` ALL CHECKS PASSED (1436 routes, 0 gaps).

@@ -351,19 +351,52 @@ async def start_stream_call(
         token = _sign_stream_token(uuid.uuid4().hex[:10])
         niche_key = (niche or "general").strip() or "general"
 
-        # Vobiz removed 2026-09-15 — Tata SmartFlo is the sole stream provider.
+        base = (settings.public_base_url or "").rstrip("/")
+        qs = _answer_stream_qs(
+            niche_key,
+            client_id,
+            to,
+            lead_id,
+            opening_line=opening_line,
+            template_id=template_id,
+            voice_role=voice_role,
+        )
+        answer_url = f"{base}/api/telephony/vobiz/answer-stream/{token}{qs}"
+        hangup_url = f"{base}/api/telephony/vobiz/hangup/{token}"
+
+        await _store_pending(
+            token,
+            {
+                "niche": niche_key,
+                "client_id": client_id,
+                "lead_phone": to,
+                "lead_id": lead_id,
+                "opening_line": opening_line,
+                "template_id": template_id,
+                "voice_role": voice_role,
+            },
+        )
+
         from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
-        client = TataSmartfloClient()
-        if not client.available():
-            return {"placed": False, "error": "tata_smartflo_not_configured"}
+        sf_client = TataSmartfloClient()
+        if sf_client.available():
+            client = sf_client
+            provider = "tata_smartflo"
+        else:
+            client = VobizClient()
+            provider = "vobiz"
+            if not client.available():
+                return {"placed": False, "error": "tata_smartflo_not_configured"}
 
         if dry_run:
             return {
                 "placed": True,
                 "dry_run": True,
-                "provider": "tata_smartflo",
+                "provider": provider,
                 "stream_token": token,
+                "answer_url": answer_url,
+                "hangup_url": hangup_url,
             }
 
         custom_identifier = {
@@ -374,12 +407,21 @@ async def start_stream_call(
             "lead_phone": to,
             "crm_lead_id": lead_id or "",
         }
-        result = await client.place_call(
-            to=to,
-            call_type=call_type,
-            custom_identifier=custom_identifier,
-            callback_data=token,
-        )
+        if provider == "tata_smartflo":
+            result = await client.place_call(
+                to=to,
+                call_type=call_type,
+                custom_identifier=custom_identifier,
+                callback_data=token,
+            )
+        else:
+            result = await client.place_call(
+                to=to,
+                answer_url=answer_url,
+                hangup_url=hangup_url,
+                call_type=call_type,
+                custom_identifier=custom_identifier,
+            )
         body = result.get("body") or {}
         # A pre-dial refusal comes back as {"status_code": 0, "body":
         # {"error": "compliance_blocked: ..."}} and MUST be surfaced verbatim:
@@ -397,12 +439,17 @@ async def start_stream_call(
                 "smartflo_response": result,
                 "stream_token": token,
             }
-        placed = result.get("status_code") == 200 and bool(body.get("success"))
+        if provider == "tata_smartflo":
+            placed = result.get("status_code") == 200 and (bool(body.get("success")) or not body)
+        else:
+            placed = 200 <= int(result.get("status_code") or 0) < 300
         response = {
             "placed": placed,
-            "provider": "tata_smartflo",
-            "smartflo_response": result,
+            "provider": provider,
+            f"{provider}_response": result,
             "stream_token": token,
+            "answer_url": answer_url,
+            "hangup_url": hangup_url,
         }
         if not placed:
             # Give the dialer/breaker a reason (it logs + reports it on trip).

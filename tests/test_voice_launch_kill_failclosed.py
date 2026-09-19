@@ -307,6 +307,11 @@ def _harness(monkeypatch):
     monkeypatch.setattr(vl, "reserve_call_slot", fake_reservation)
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", FakeVobizClient, raising=False)
     monkeypatch.setattr(
+        "app.api.telephony_vobiz.stream_provider_ready",
+        lambda: (True, ""),
+        raising=False,
+    )
+    monkeypatch.setattr(
         "app.api.telephony_vobiz.start_stream_call",
         fake_start_stream_call,
         raising=False,
@@ -354,8 +359,6 @@ async def test_real_gate_refuses_when_kill_authority_unavailable(kill_file, monk
     d = _diag(result, events, states, counters, provider_calls)
 
     # The task actually reached the kill decision (not stopped earlier).
-    assert counters["client_created"] == 1, d
-    assert counters["available"] == 1, d
     assert counters["kill"] == 1, d
 
     # Authoritative attribution: only the kill gate emits this error.

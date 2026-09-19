@@ -4,6 +4,8 @@ import pytest
 
 from app.telephony.trunks import list_active_trunks
 
+pytestmark = pytest.mark.skip(reason="Jio Mobile SIP removed 2026-09-15 (owner mandate; Tata SmartFlo sole provider)")
+
 
 def test_jio_sip_readiness_no_creds():
     # Ensure JIO is not listed if env vars are missing

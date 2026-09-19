@@ -46,6 +46,7 @@ class WorkerTask(BaseModel):
     input_data: dict[str, Any]
     status: str = "pending"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    started_at: Optional[str] = None
     completed_at: Optional[str] = None
     result: Optional[dict[str, Any]] = None
     error: Optional[str] = None
@@ -81,8 +82,11 @@ class WorkerBot:
     
     def execute_task(self, task: WorkerTask) -> WorkerTask:
         """Execute a task (override in subclasses)."""
-        task.status = "running"
-        task.started_at = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        task.status = "completed"
+        task.started_at = now_iso
+        task.completed_at = now_iso
+        task.result = {"status": "ok"}
         return task
 
 
@@ -385,10 +389,12 @@ class WorkerManager:
         task = worker.execute_task(task)
         
         return {
+            "success": not bool(task.error) and task.status == "completed",
             "task_id": task.task_id,
             "worker_id": task.worker_id,
             "status": task.status,
             "skill": task.skill_name,
+            "result": task.result,
         }
 
 

@@ -69,7 +69,9 @@ async def test_c2c_support_sends_only_explicit_caller_id_override(
     monkeypatch.setattr(httpx, "AsyncClient", _AsyncClient)
     _AsyncClient.payload = None  # reset before test
 
-    await TataSmartfloClient().place_call("8459012607", caller_id="+91 80694 12345", skip_compliance=True)
+    await TataSmartfloClient().place_call(
+        "8459012607", caller_id="+91 80694 12345", skip_compliance=True
+    )
 
     assert _AsyncClient.payload is not None
     # _clean_caller_id preserves country code (91 prefix) for Smartflo C2C API

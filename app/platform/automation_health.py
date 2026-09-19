@@ -454,9 +454,7 @@ def record_engine_skip(
     ``record_engine_outcome`` with the normalised skip status. The original
     ``reason`` string is preserved verbatim on the record.
     """
-    record_engine_outcome(
-        job, engine, _skip_status_for_reason(reason), reason=reason, **extra
-    )
+    record_engine_outcome(job, engine, _skip_status_for_reason(reason), reason=reason, **extra)
 
 
 def recent_engine_skips(hours: int = 48, limit: int = 200) -> list[dict[str, Any]]:

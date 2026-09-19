@@ -11,34 +11,35 @@ Enterprise-grade Telegram bot integration with:
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
-import hmac
-import hashlib
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Optional
-from collections import defaultdict
 
 from pydantic import BaseModel, Field
 
 
 class TenantConfig(BaseModel):
     """Configuration for a tenant's Telegram bot."""
+
     tenant_id: str
     bot_token: str
-    chat_id: Optional[str] = None
-    group_id: Optional[str] = None
-    ops_group_id: Optional[str] = None
+    chat_id: str | None = None
+    group_id: str | None = None
+    ops_group_id: str | None = None
     is_active: bool = True
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    last_message_at: Optional[str] = None
+    last_message_at: str | None = None
     message_count: int = 0
     rate_limit_per_minute: int = 30
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "tenant_id": self.tenant_id,
-            "bot_token": self.bot_token[:20] + "..." if len(self.bot_token) > 20 else self.bot_token,
+            "bot_token": (self.bot_token[:3] + "...") if self.bot_token else "",
             "chat_id": self.chat_id,
             "group_id": self.group_id,
             "ops_group_id": self.ops_group_id,
@@ -52,15 +53,16 @@ class TenantConfig(BaseModel):
 
 class TelegramMessage(BaseModel):
     """Represents a Telegram message for processing."""
+
     message_id: int
     chat_id: int
-    from_user_id: Optional[int] = None
-    text: Optional[str] = None
-    command: Optional[str] = None
-    reply_to_message_id: Optional[int] = None
+    from_user_id: int | None = None
+    text: str | None = None
+    command: str | None = None
+    reply_to_message_id: int | None = None
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    tenant_id: Optional[str] = None
-    
+    tenant_id: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "message_id": self.message_id,
@@ -76,13 +78,14 @@ class TelegramMessage(BaseModel):
 
 class TenantAuditLog(BaseModel):
     """Audit log entry for tenant activity."""
+
     tenant_id: str
     action: str
     resource: str
     details: dict[str, Any] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    user_id: Optional[int] = None
-    
+    user_id: int | None = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "tenant_id": self.tenant_id,
@@ -96,37 +99,35 @@ class TenantAuditLog(BaseModel):
 
 class TenantRateLimiter:
     """Per-tenant rate limiter."""
-    
+
     def __init__(self):
         self.limits: dict[str, list[float]] = defaultdict(list)
         self.max_per_minute: dict[str, int] = {}
-    
+
     def set_limit(self, tenant_id: str, max_per_minute: int):
         """Set rate limit for a tenant."""
         self.max_per_minute[tenant_id] = max_per_minute
-    
+
     def is_allowed(self, tenant_id: str) -> bool:
         """Check if tenant has remaining rate limit."""
         max_limit = self.max_per_minute.get(tenant_id, 30)
         now = datetime.now(timezone.utc)
-        one_min_ago = (now.timestamp() - 60)
-        
+        one_min_ago = now.timestamp() - 60
+
         # Clean old entries
-        self.limits[tenant_id] = [
-            t for t in self.limits[tenant_id] if t > one_min_ago
-        ]
-        
+        self.limits[tenant_id] = [t for t in self.limits[tenant_id] if t > one_min_ago]
+
         # Check limit
         if len(self.limits[tenant_id]) >= max_limit:
             return False
-        
+
         self.limits[tenant_id].append(now.timestamp())
         return True
 
 
 class MultiTenantTelegramBot:
     """Enterprise-grade multi-tenant Telegram bot."""
-    
+
     def __init__(self, config_path: str = "data/telegram_tenants.json"):
         self.config_path = config_path
         self.tenants: dict[str, TenantConfig] = {}
@@ -135,26 +136,23 @@ class MultiTenantTelegramBot:
         self._message_queue: list[TelegramMessage] = []
         self._load_config()
         self._register_default_tenants()
-    
+
     def _load_config(self):
         """Load tenant configuration from disk."""
         if os.path.exists(self.config_path):
             try:
-                with open(self.config_path, "r") as f:
+                with open(self.config_path) as f:
                     data = json.load(f)
                 for tenant_id, config_data in data.items():
                     try:
                         tenant = TenantConfig(**config_data)
                         self.tenants[tenant_id] = tenant
-                        self.rate_limiter.set_limit(
-                            tenant_id,
-                            tenant.rate_limit_per_minute
-                        )
+                        self.rate_limiter.set_limit(tenant_id, tenant.rate_limit_per_minute)
                     except Exception as e:
                         print(f"[telegram_bot] Failed to load tenant {tenant_id}: {e}")
             except Exception as e:
                 print(f"[telegram_bot] Failed to load config: {e}")
-    
+
     def _save_config(self):
         """Save tenant configuration to disk."""
         try:
@@ -164,12 +162,12 @@ class MultiTenantTelegramBot:
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"[telegram_bot] Failed to save config: {e}")
-    
+
     def _register_default_tenants(self):
         """Register default tenants if none exist."""
         if self.tenants:
             return
-        
+
         # Register leadgenai.in tenant (own brand)
         self.tenants["leadgenai"] = TenantConfig(
             tenant_id="leadgenai",
@@ -178,9 +176,9 @@ class MultiTenantTelegramBot:
             group_id=os.environ.get("TELEGRAM_OPS_GROUP_ID", ""),
             is_active=bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
         )
-        
+
         self._save_config()
-    
+
     def _audit(self, tenant_id: str, action: str, resource: str, details: dict = None):
         """Create audit log entry."""
         log = TenantAuditLog(
@@ -193,20 +191,20 @@ class MultiTenantTelegramBot:
         # Keep only last 1000 logs
         if len(self.audit_logs) > 1000:
             self.audit_logs = self.audit_logs[-1000:]
-    
+
     def register_tenant(
         self,
         tenant_id: str,
         bot_token: str,
-        chat_id: Optional[str] = None,
-        group_id: Optional[str] = None,
-        ops_group_id: Optional[str] = None,
+        chat_id: str | None = None,
+        group_id: str | None = None,
+        ops_group_id: str | None = None,
         rate_limit: int = 30,
     ) -> dict[str, Any]:
         """Register a new tenant."""
         if tenant_id in self.tenants:
-            return {"error": f"Tenant {tenant_id} already exists"}
-        
+            return {"success": False, "error": f"Tenant {tenant_id} already exists"}
+
         tenant = TenantConfig(
             tenant_id=tenant_id,
             bot_token=bot_token,
@@ -219,147 +217,151 @@ class MultiTenantTelegramBot:
         self.rate_limiter.set_limit(tenant_id, rate_limit)
         self._save_config()
         self._audit(tenant_id, "register", "tenant")
-        
+
         return {"success": True, "tenant": tenant.to_dict()}
-    
+
     def unregister_tenant(self, tenant_id: str) -> dict[str, Any]:
         """Unregister a tenant."""
         if tenant_id not in self.tenants:
-            return {"error": f"Tenant {tenant_id} not found"}
-        
+            return {"success": False, "error": f"Tenant {tenant_id} not found"}
+
         del self.tenants[tenant_id]
         if tenant_id in self.rate_limiter.max_per_minute:
             del self.rate_limiter.max_per_minute[tenant_id]
         self._save_config()
         self._audit(tenant_id, "unregister", "tenant")
-        
+
         return {"success": True}
-    
-    def get_tenant(self, tenant_id: str) -> Optional[dict[str, Any]]:
+
+    def get_tenant(self, tenant_id: str) -> dict[str, Any] | None:
         """Get tenant configuration."""
         tenant = self.tenants.get(tenant_id)
         if not tenant:
             return None
         return tenant.to_dict()
-    
+
     def list_tenants(self) -> list[dict[str, Any]]:
         """List all tenants."""
         return [t.to_dict() for t in self.tenants.values()]
-    
+
     def activate_tenant(self, tenant_id: str) -> dict[str, Any]:
         """Activate a tenant."""
         tenant = self.tenants.get(tenant_id)
         if not tenant:
             return {"error": f"Tenant {tenant_id} not found"}
-        
+
         tenant.is_active = True
         self._save_config()
         self._audit(tenant_id, "activate", "tenant")
-        
+
         return {"success": True, "tenant": tenant.to_dict()}
-    
+
     def deactivate_tenant(self, tenant_id: str) -> dict[str, Any]:
         """Deactivate a tenant."""
         tenant = self.tenants.get(tenant_id)
         if not tenant:
             return {"error": f"Tenant {tenant_id} not found"}
-        
+
         tenant.is_active = False
         self._save_config()
         self._audit(tenant_id, "deactivate", "tenant")
-        
+
         return {"success": True, "tenant": tenant.to_dict()}
-    
+
     def send_message(
         self,
         tenant_id: str,
         chat_id: str,
         message: str,
-        parse_mode: Optional[str] = "HTML",
+        parse_mode: str | None = "HTML",
     ) -> dict[str, Any]:
         """Send message to tenant (async via Celery)."""
         tenant = self.tenants.get(tenant_id)
         if not tenant:
             return {"error": f"Tenant {tenant_id} not found"}
-        
+
         if not tenant.is_active:
             return {"error": f"Tenant {tenant_id} is not active"}
-        
+
         # Rate limit check
         if not self.rate_limiter.is_allowed(tenant_id):
             return {"error": f"Rate limit exceeded for tenant {tenant_id}"}
-        
+
         # Add to message queue for async processing
-        self._message_queue.append({
-            "tenant_id": tenant_id,
-            "chat_id": chat_id,
-            "message": message,
-            "parse_mode": parse_mode,
-            "queued_at": datetime.now(timezone.utc).isoformat(),
-        })
-        
+        self._message_queue.append(
+            {
+                "tenant_id": tenant_id,
+                "chat_id": chat_id,
+                "message": message,
+                "parse_mode": parse_mode,
+                "queued_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
         tenant.message_count += 1
         tenant.last_message_at = datetime.now(timezone.utc).isoformat()
         self._save_config()
         self._audit(tenant_id, "send_message", f"chat:{chat_id}")
-        
+
         return {
             "success": True,
             "message_id": f"q-{len(self._message_queue)}",
             "queued": True,
         }
-    
+
     def process_webhook(self, update: dict[str, Any]) -> dict[str, Any]:
         """Process incoming Telegram webhook update."""
         # Extract tenant_id from chat_id or from update
         message = update.get("message", {})
         chat = message.get("chat", {})
         chat_id = str(chat.get("id", ""))
-        
+
         # Find tenant by chat_id
         tenant_id = None
         for tid, tenant in self.tenants.items():
             if tenant.chat_id == chat_id or tenant.group_id == chat_id:
                 tenant_id = tid
                 break
-        
+
         if not tenant_id:
             return {"status": "ignored", "reason": "unknown_tenant"}
-        
+
         tenant = self.tenants[tenant_id]
         if not tenant.is_active:
             return {"status": "ignored", "reason": "tenant_inactive"}
-        
+
         # Parse message
         telegram_msg = TelegramMessage(
             message_id=message.get("message_id"),
             chat_id=int(chat_id),
             from_user_id=message.get("from", {}).get("id"),
             text=message.get("text"),
-            command=message.get("text", "").split()[0].replace("@", "") if message.get("text") else None,
+            command=message.get("text", "").split()[0].replace("@", "")
+            if message.get("text")
+            else None,
             reply_to_message_id=message.get("reply_to_message", {}).get("message_id"),
             tenant_id=tenant_id,
         )
-        
+
         # Process based on command
         result = self._handle_command(tenant_id, telegram_msg)
-        
+
         # Update tenant stats
         tenant.message_count += 1
         tenant.last_message_at = datetime.now(timezone.utc).isoformat()
         self._save_config()
-        
+
         return {
             "status": "processed",
             "tenant_id": tenant_id,
             "command": telegram_msg.command,
             "result": result,
         }
-    
+
     def _handle_command(self, tenant_id: str, message: TelegramMessage) -> dict[str, Any]:
         """Handle Telegram command based on tenant context."""
         command = message.command or ""
-        
+
         # Command routing by tenant
         if command == "/start":
             return {"response": f"Welcome to LeadGen AI Bot! Tenant: {tenant_id}"}
@@ -375,7 +377,7 @@ class MultiTenantTelegramBot:
             }
         else:
             return {"response": "Unknown command. Use /help for options."}
-    
+
     def get_queue_status(self) -> dict[str, Any]:
         """Get message queue status."""
         return {
@@ -383,10 +385,10 @@ class MultiTenantTelegramBot:
             "total_tenants": len(self.tenants),
             "active_tenants": len([t for t in self.tenants.values() if t.is_active]),
         }
-    
+
     def get_audit_logs(
         self,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Get audit logs."""
@@ -398,7 +400,7 @@ class MultiTenantTelegramBot:
 
 
 # Module-level singleton
-_telegram_bot: Optional[MultiTenantTelegramBot] = None
+_telegram_bot: MultiTenantTelegramBot | None = None
 
 
 def get_telegram_bot() -> MultiTenantTelegramBot:
@@ -412,9 +414,9 @@ def get_telegram_bot() -> MultiTenantTelegramBot:
 def register_tenant(
     tenant_id: str,
     bot_token: str,
-    chat_id: Optional[str] = None,
-    group_id: Optional[str] = None,
-    ops_group_id: Optional[str] = None,
+    chat_id: str | None = None,
+    group_id: str | None = None,
+    ops_group_id: str | None = None,
     rate_limit: int = 30,
 ) -> dict[str, Any]:
     """Convenience function to register a tenant."""
@@ -443,7 +445,7 @@ def list_tenants() -> list[dict[str, Any]]:
 
 
 def get_audit_logs(
-    tenant_id: Optional[str] = None,
+    tenant_id: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Convenience function to get audit logs."""

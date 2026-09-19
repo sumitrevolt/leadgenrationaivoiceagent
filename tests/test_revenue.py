@@ -1,24 +1,31 @@
 """Tests for Revenue Tracking Dashboard."""
 
 import pytest
+
 from app.revenue.dashboard import (
+    InvoiceRecord,
     RevenueDashboard,
     RevenueMetric,
-    InvoiceRecord,
 )
+
+
+@pytest.fixture
+def dashboard(tmp_path):
+    return RevenueDashboard(
+        metrics_path=str(tmp_path / "revenue_metrics.jsonl"),
+        invoices_path=str(tmp_path / "invoices.jsonl"),
+    )
 
 
 class TestRevenueDashboard:
     """Test revenue tracking dashboard."""
-    
-    def test_initialization(self):
+
+    def test_initialization(self, dashboard):
         """Test dashboard initialization."""
-        dashboard = RevenueDashboard()
         assert dashboard is not None
-    
-    def test_record_metric(self):
+
+    def test_record_metric(self, dashboard):
         """Test recording a metric."""
-        dashboard = RevenueDashboard()
         metric = dashboard.record_metric(
             metric_name="test_metric",
             value=1000.0,
@@ -28,10 +35,9 @@ class TestRevenueDashboard:
         assert metric.metric_name == "test_metric"
         assert metric.value == 1000.0
         assert metric.verified is True
-    
-    def test_record_invoice(self):
+
+    def test_record_invoice(self, dashboard):
         """Test creating an invoice."""
-        dashboard = RevenueDashboard()
         invoice = dashboard.record_invoice(
             invoice_number="INV/2026-27/0001",
             client_id="client1",
@@ -43,10 +49,9 @@ class TestRevenueDashboard:
         )
         assert invoice.invoice_number == "INV/2026-27/0001"
         assert invoice.total_inr == 2359.0  # 1999 + 360
-    
-    def test_update_invoice_payment(self):
+
+    def test_update_invoice_payment(self, dashboard):
         """Test marking invoice as paid."""
-        dashboard = RevenueDashboard()
         dashboard.record_invoice(
             invoice_number="INV/2026-27/0002",
             client_id="client2",
@@ -55,36 +60,30 @@ class TestRevenueDashboard:
             amount_inr=5999.0,
             status="pending",
         )
-        
-        result = dashboard.update_invoice_payment(
-            "INV/2026-27/0002",
-            "UPI123456"
-        )
+
+        result = dashboard.update_invoice_payment("INV/2026-27/0002", "UPI123456")
         assert result["success"] is True
         assert result["invoice"]["status"] == "paid"
         assert result["invoice"]["payment_ref"] == "UPI123456"
-    
-    def test_get_revenue_summary(self):
+
+    def test_get_revenue_summary(self, dashboard):
         """Test revenue summary."""
-        dashboard = RevenueDashboard()
         summary = dashboard.get_revenue_summary()
-        
+
         assert "today_revenue_inr" in summary
         assert "month_revenue_inr" in summary
         assert "fy_revenue_inr" in summary
         assert "active_clients" in summary
-    
-    def test_get_revenue_trend(self):
+
+    def test_get_revenue_trend(self, dashboard):
         """Test revenue trend."""
-        dashboard = RevenueDashboard()
         trend = dashboard.get_revenue_trend(days=7)
         assert len(trend) == 7
         assert "date" in trend[0]
         assert "revenue_inr" in trend[0]
-    
-    def test_get_invoice_list(self):
+
+    def test_get_invoice_list(self, dashboard):
         """Test invoice list with filters."""
-        dashboard = RevenueDashboard()
         dashboard.record_invoice(
             invoice_number="INV/001",
             client_id="client1",
@@ -101,23 +100,22 @@ class TestRevenueDashboard:
             amount_inr=5999.0,
             status="pending",
         )
-        
+
         # Get all invoices
         invoices = dashboard.get_invoice_list()
         assert len(invoices) == 2
-        
+
         # Filter by status
         paid = dashboard.get_invoice_list(status="paid")
         assert len(paid) == 1
         assert paid[0]["status"] == "paid"
-        
+
         # Filter by client
         client_invoices = dashboard.get_invoice_list(client_id="client1")
         assert len(client_invoices) == 2
-    
-    def test_get_client_revenue(self):
+
+    def test_get_client_revenue(self, dashboard):
         """Test client revenue summary."""
-        dashboard = RevenueDashboard()
         dashboard.record_invoice(
             invoice_number="INV/C1",
             client_id="client1",
@@ -126,16 +124,15 @@ class TestRevenueDashboard:
             amount_inr=1999.0,
             status="paid",
         )
-        
+
         result = dashboard.get_client_revenue("client1")
         assert result["client_id"] == "client1"
         assert result["total_paid_inr"] == 1999.0
-    
-    def test_get_dashboard_metrics(self):
+
+    def test_get_dashboard_metrics(self, dashboard):
         """Test comprehensive dashboard metrics."""
-        dashboard = RevenueDashboard()
         metrics = dashboard.get_dashboard_metrics()
-        
+
         assert "summary" in metrics
         assert "trend_7d" in metrics
         assert "mrr_inr" in metrics
@@ -144,7 +141,7 @@ class TestRevenueDashboard:
 
 class TestRevenueMetric:
     """Test RevenueMetric model."""
-    
+
     def test_metric_creation(self):
         """Test creating a revenue metric."""
         metric = RevenueMetric(
@@ -156,7 +153,7 @@ class TestRevenueMetric:
         )
         assert metric.metric_name == "daily_revenue"
         assert metric.value == 5000.0
-    
+
     def test_metric_to_dict(self):
         """Test converting metric to dict."""
         metric = RevenueMetric(
@@ -170,7 +167,7 @@ class TestRevenueMetric:
 
 class TestInvoiceRecord:
     """Test InvoiceRecord model."""
-    
+
     def test_invoice_creation(self):
         """Test creating an invoice."""
         invoice = InvoiceRecord(
@@ -184,7 +181,7 @@ class TestInvoiceRecord:
         )
         assert invoice.total_inr == 2359.0
         assert invoice.status == "pending"
-    
+
     def test_invoice_to_dict(self):
         """Test converting invoice to dict."""
         invoice = InvoiceRecord(

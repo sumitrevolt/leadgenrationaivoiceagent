@@ -33,10 +33,21 @@ os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
 os.environ.setdefault("QDRANT_URL", "")
 # App singleton DB must match the harness file DB. Set BEFORE any app.* import
 # (pydantic Settings freezes database_url on first load).
+#
+# XDIST ISOLATION (2026-09-18): CI runs `pytest -n auto`. Every xdist WORKER is a
+# separate process that re-imports this conftest and would otherwise all point at
+# the SAME /tmp/leadgen_test.db. Under xdist the sync `db` and async `async_db`
+# fixtures race on create_all/drop_all on that one shared file -> "table already
+# exists" / "no such table" (the pre-existing red `pytest` lane, unrelated to any
+# product code). Each worker is given its OWN file via PYTEST_XDIST_WORKER (set by
+# pytest-xdist as gw0, gw1, ...). Serial runs (no xdist) leave the suffix empty and
+# keep the stable shared file, so existing non-parallel behavior is unchanged.
+_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER", "").strip()
+_XDIST_DB_SUFFIX = f"_{_XDIST_WORKER.replace('/', '_')}" if _XDIST_WORKER else ""
 os.environ["DATABASE_URL"] = (
     "sqlite+aiosqlite:///"
     + __import__("tempfile").gettempdir().replace("\\", "/")
-    + "/leadgen_test.db"
+    + f"/leadgen_test{_XDIST_DB_SUFFIX}.db"
 )
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
@@ -148,6 +159,7 @@ _sa_asyncio_early.create_async_engine = _cae_nullpool_file_sqlite
 from app.api.auth_deps import (
     get_current_user,
     require_admin,
+    require_admin_or_ops_readonly,
     require_agent,
     require_manager,
     require_super_admin,
@@ -183,7 +195,10 @@ from app.models.user import User, UserRole, UserStatus
 # =============================================================================
 
 
-_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "leadgen_test.db")
+_TEST_DB_PATH = os.path.join(
+    tempfile.gettempdir(),
+    f"leadgen_test{_XDIST_DB_SUFFIX}.db" if _XDIST_DB_SUFFIX else "leadgen_test.db",
+)
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", f"sqlite:///{_TEST_DB_PATH}")
 TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
@@ -282,6 +297,7 @@ app.dependency_overrides[get_current_user] = get_mock_user
 app.dependency_overrides[require_agent] = get_mock_user
 app.dependency_overrides[require_manager] = get_mock_user
 app.dependency_overrides[require_admin] = get_mock_user
+app.dependency_overrides[require_admin_or_ops_readonly] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
 # NOTE: require_customer deliberately has NO global override here — customer

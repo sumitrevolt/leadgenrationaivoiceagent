@@ -166,6 +166,55 @@ class TaskRecord:
 # --------------------------------------------------------------------------- #
 # Durable Task Store Adapter (Postgres / SQL + File Fallback)
 # --------------------------------------------------------------------------- #
+_SQLITE_MAGIC = b"SQLite format 3\x00"
+
+
+def _quarantine_non_sqlite_file(path: str) -> str | None:
+    """Move a non-SQLite file aside so the ledger can be recreated. Never deletes.
+
+    Finding B-9: `data/orchestrator_ledger.db` was once written as JSON (first
+    bytes `{\\r\\n  "dev_worker`). Because `sqlite3.connect()` is lazy and the
+    failure only surfaced at `CREATE TABLE`, the whole DurableTaskStore (the
+    canonical task ledger) failed to CONSTRUCT with "file is not a database"
+    and there was no recovery path. Renaming keeps the corrupt bytes as evidence
+    for whoever has to explain how the file got that way.
+
+    Returns the backup path when it quarantined something, else None.
+    """
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(16)
+    except OSError:
+        return None  # unreadable/absent -> let sqlite3 raise its own error
+    # Empty file = valid (SQLite initialises it); correct magic = real database.
+    if not head or head.startswith(_SQLITE_MAGIC):
+        return None
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    backup = f"{path}.corrupt-{stamp}"
+    n = 1
+    while os.path.exists(backup):  # same-second collisions must not clobber
+        backup = f"{path}.corrupt-{stamp}_{n}"
+        n += 1
+    try:
+        os.replace(path, backup)
+    except OSError as e:
+        logger.critical(
+            "DurableTaskStore: %s is not a SQLite database and could not be moved "
+            "aside (%s) -- fix or remove it manually",
+            path,
+            e,
+        )
+        return None
+    logger.critical(
+        "DurableTaskStore: %s was NOT a SQLite database (got %.12r) -- moved to %s "
+        "and a fresh ledger was created",
+        path,
+        head[:12],
+        os.path.basename(backup),
+    )
+    return backup
+
+
 class DurableTaskStore:
     """Durable Task Ledger Adapter using SQLite/Postgres with CAS support."""
 
@@ -175,6 +224,9 @@ class DurableTaskStore:
         self.idempotency_file = IDEMPOTENCY_JSON
         self._lock = threading.Lock()
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        # Self-heal BEFORE connecting: a stale non-SQLite file at this path used
+        # to make the constructor itself fail (finding B-9).
+        self.quarantined_path = _quarantine_non_sqlite_file(self.db_path)
         self._init_sqlite()
 
     def _init_sqlite(self) -> None:
