@@ -104,7 +104,7 @@ class EmailSender:
                 }
         except Exception as e:
             logger.debug(f"TypeSafe content validation fallback: {e}")
-        return {"approved": True, "score": 50, "issues": [], "grade": "unknown", "tone": "unknown"}
+        return {"approved": False, "decision_valid": False, "status": "unavailable", "score": 0, "issues": ["TypeSafe validation unavailable"], "grade": "unknown", "tone": "unknown"}
 
     async def send_email(
         self,

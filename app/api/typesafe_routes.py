@@ -65,8 +65,8 @@ async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusRespon
         credential_source=source,
         fingerprint=fp,
         model=model,
-        services_ready=True,
-        active_consumers_count=5,
+        services_ready=enabled,
+        active_consumers_count=5 if enabled else 0,
     )
 
 
