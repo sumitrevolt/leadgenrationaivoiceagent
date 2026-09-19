@@ -195,3 +195,48 @@ def test_warning_fires_on_messaging(authority, armed_vobiz):
 def test_warning_never_raises(authority, armed_vobiz):
     for channel in (None, "", "voice", "messaging", "sms"):
         dc.carrier_scrub_warning(channel)
+
+
+# ------------------------------------------------------------------ SmartFlo
+
+
+def test_carrier_scrub_verifies_smartflo_voice(authority, monkeypatch):
+    """Tata SmartFlo provider with carrier scrub active verifies voice."""
+    monkeypatch.setenv("DND_CARRIER_SCRUB", "1")
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("SMARTFLO_API_KEY", "smartflo-secret-key")
+    monkeypatch.setenv("TATA_SMARTFLO_DID", "+911****0001")
+    monkeypatch.delenv("DND_API_URL", raising=False)
+    monkeypatch.delenv("DND_API_KEY", raising=False)
+
+    res = asyncio.run(DNDChecker().check_single("+919****3210", channel=VOICE))
+    assert res.verified is True
+    assert res.is_dnd is False
+    assert res.source == "smartflo_carrier_scrub"
+    assert "+919****3210" not in DNDChecker._cache
+
+
+def test_carrier_scrub_does_not_verify_smartflo_messaging(authority, monkeypatch):
+    """SmartFlo carrier scrub on messaging channel must fail CLOSED."""
+    monkeypatch.setenv("DND_CARRIER_SCRUB", "1")
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("SMARTFLO_API_KEY", "smartflo-secret-key")
+    monkeypatch.setenv("TATA_SMARTFLO_DID", "+911****0001")
+
+    res = asyncio.run(DNDChecker().check_single("+919****3210", channel=MESSAGING))
+    assert res.verified is False
+
+
+def test_placeholder_dnd_key_bypasses_external_http(authority, monkeypatch):
+    """Placeholder DND API key is skipped without attempting external HTTP."""
+    monkeypatch.setenv("DND_CARRIER_SCRUB", "1")
+    monkeypatch.setenv("TELEPHONY_PROVIDER", "tata_smartflo")
+    monkeypatch.setenv("SMARTFLO_API_KEY", "smartflo-secret-key")
+    monkeypatch.setenv("TATA_SMARTFLO_DID", "+911****0001")
+    monkeypatch.setenv("DND_API_URL", "https://api.dnd-check.in")
+    monkeypatch.setenv("DND_API_KEY", "your-dnd-api-key")
+
+    res = asyncio.run(DNDChecker().check_single("+919****3210", channel=VOICE))
+    assert res.verified is True
+    assert res.is_dnd is False
+    assert res.source == "smartflo_carrier_scrub"
