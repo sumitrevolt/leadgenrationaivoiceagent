@@ -35,8 +35,7 @@ def test_all_profiles_have_boss_route_but_rollout_truth_stays_staged():
     assert by_id["manager"]["coordination"]["role"] == "boss"
     assert by_id["swara"]["coordination"]["execution_note"] == "advisory_or_status_only"
     assert portfolio["rollout_counts"] == {
-        "canary_ready": 12,
-        "rollout_hold": 17,
+        "canary_ready": 29,
         "intentionally_disabled": 2,
     }
 

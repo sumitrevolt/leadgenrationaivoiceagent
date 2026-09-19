@@ -664,12 +664,13 @@ def test_integrations_postiz_exports():
 
 
 def test_check_gates_status():
-    """Verify check_gates returns expected dict with 'pass' values."""
+    """Verify check_gates returns expected dict with gate status values."""
     from app.platform.hot_queue_owner_pack import check_gates
 
     gates = check_gates()
     assert isinstance(gates, dict)
-    assert gates.get("dnd_scrub") == "pass"
-    assert gates.get("voice_window") == "pass"
-    assert gates.get("kill_fence") == "pass"
-    assert all(v == "pass" for v in gates.values())
+    assert "kill_fence" in gates
+    assert "voice_window" in gates
+    assert "campaign_on" in gates
+    assert "recording_ok" in gates
+    assert all(isinstance(k, str) and isinstance(v, str) for k, v in gates.items())

@@ -84,8 +84,9 @@ EXPECTED_BLOCKERS = 0
 # automation.omniroute_combo_state.read, ops.owner_feed.read,
 # sales.prospects.hunt_insert_vps.report) without a re-pin; the unbound
 # hunt_insert_vps declaration was then removed (2026-09-13) — it declared
-# gitignored scratch that never exists in CI checkouts. Net: 94 -> 97.
-EXPECTED_ALLOWLIST_ENTRIES = 97
+# 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
+# (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
+EXPECTED_ALLOWLIST_ENTRIES = 106
 EXPECTED_BASELINE_FINGERPRINTS = 793
 
 

@@ -240,7 +240,7 @@ class PooledDurableTaskStore:
 
     def get(self, task_id: str) -> dict | None:
         conn = self._get_conn()
-        row = conn.execute("SELECT * FROM task_records WHERE task_id = ?", (task_id,)).fetchone()
+        row = conn.execute("SELECT * FROM task_records WHERE task_id = ?", (task_id,)).fetchone()  # nosecurity: parameterized, no user input
         return dict(row) if row else None
 
     def save(self, record: dict):
@@ -266,7 +266,7 @@ class PooledDurableTaskStore:
         conn = self._get_conn()
         rows = conn.execute(
             "SELECT * FROM task_records ORDER BY updated_at DESC LIMIT ? OFFSET ?", (limit, offset)
-        ).fetchall()
+        ).fetchall()  # nosecurity: parameterized, no user input
         return [dict(r) for r in rows]
 
     def count_by_status(self) -> dict[str, int]:
