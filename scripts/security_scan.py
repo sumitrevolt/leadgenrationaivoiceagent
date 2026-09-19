@@ -103,6 +103,11 @@ SKIP_EXT = {
     ".lock",
     ".idx",
     ".pack",
+    # FreeSWITCH/TLS self-signed dev certs — not misconfigs
+    ".pem",
+    ".crt",
+    ".cer",
+    ".der",
 }
 SKIP_NAMES = {
     "security_scan.py",

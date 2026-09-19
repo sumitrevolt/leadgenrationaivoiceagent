@@ -254,7 +254,7 @@ class PooledDurableTaskStore:
 
     def count_by_status(self) -> Dict[str, int]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT status, COUNT(*) FROM task_records GROUP BY status").fetchall()
+        rows = conn.execute("SELECT status, COUNT(*) FROM task_records GROUP BY status").fetchall()  # nosecurity: read-only, no user input
         return dict(rows)
 
 

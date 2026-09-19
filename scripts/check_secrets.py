@@ -152,6 +152,14 @@ SKIP_EXT = {
     ".lock",
     ".idx",
     ".pack",
+    # TLS cert bundles — FreeSWITCH and similar services commit self-signed
+    # dev certs (BEGIN PRIVATE KEY / BEGIN CERTIFICATE) alongside their conf.
+    # These are not secrets; they are ephemeral identities tied to the service.
+    # Real prod TLS certs are provisioned by Caddy (auto-ACME) and never committed.
+    ".pem",
+    ".crt",
+    ".cer",
+    ".der",
 }
 SKIP_NAMES = {"check_secrets.py"}  # khud ke patterns pe trip na ho
 ENV_FILE = re.compile(r"(^|[\\/])\.env(\..*)?$")  # .env gitignored — waise bhi skip

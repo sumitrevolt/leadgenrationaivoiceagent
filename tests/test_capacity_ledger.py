@@ -69,15 +69,14 @@ class TestCapacityLedger:
     """Test CapacityLedger class."""
 
     @pytest.fixture
-    def tmp_path(self, tmp_path):
-        """Create temp snapshot file."""
+    def snapshot_path(self, tmp_path):
+        """Create temp snapshot file path (str) using pytest's built-in tmp_path."""
         snapshot_file = tmp_path / "capacity_snapshot.json"
         return str(snapshot_file)
 
-    def test_compute_baseline(self, tmp_path):
+    def test_compute_baseline(self, snapshot_path):
         """Test baseline capacity computation (default caps)."""
-        snapshot_file = tmp_path / "capacity_snapshot.json"
-        ledger = CapacityLedger(snapshot_path=str(snapshot_file))
+        ledger = CapacityLedger(snapshot_path=snapshot_path)
         snapshot = ledger.compute()
 
         # Default caps: email=25/day, voice=100/day, WhatsApp=OFF
@@ -89,15 +88,14 @@ class TestCapacityLedger:
         # Use looser tolerance for floating point
         assert snapshot.utilization == pytest.approx(0.0103, rel=0.01)
 
-    def test_compute_with_env_overrides(self, tmp_path, monkeypatch):
+    def test_compute_with_env_overrides(self, snapshot_path, monkeypatch):
         """Test capacity computation with env var overrides."""
         # Override caps via env vars
         monkeypatch.setenv("EMAIL_OUTREACH_CAP", "50")
         monkeypatch.setenv("PLATFORM_DIAL_LIMIT", "500")
         monkeypatch.setenv("SALES_AUTOPILOT_WHATSAPP_ENABLED", "1")
 
-        snapshot_file = tmp_path / "capacity_snapshot.json"
-        ledger = CapacityLedger(snapshot_path=str(snapshot_file))
+        ledger = CapacityLedger(snapshot_path=snapshot_path)
         snapshot = ledger.compute()
 
         assert snapshot.email_capacity == 350  # 50 * 7
@@ -105,34 +103,34 @@ class TestCapacityLedger:
         assert snapshot.whatsapp_capacity == 1000  # placeholder
         assert snapshot.total_capacity == 4850  # 350 + 3500 + 1000
 
-    def test_persistence(self, tmp_path):
+    def test_persistence(self, snapshot_path):
         """Test snapshot persists to disk."""
-        ledger = CapacityLedger(snapshot_path=tmp_path)
+        ledger = CapacityLedger(snapshot_path=snapshot_path)
         ledger.compute()
 
         # Verify file exists
-        assert os.path.exists(tmp_path)
+        assert os.path.exists(snapshot_path)
 
         # Verify content
-        with open(tmp_path, "r") as f:
+        with open(snapshot_path, "r") as f:
             data = json.load(f)
         assert data["total_capacity"] == 875
         assert data["gap_to_target"] == 84125
 
-    def test_load_existing(self, tmp_path):
+    def test_load_existing(self, snapshot_path):
         """Test loading existing snapshot."""
         # Create initial snapshot
-        ledger1 = CapacityLedger(snapshot_path=tmp_path)
+        ledger1 = CapacityLedger(snapshot_path=snapshot_path)
         ledger1.compute()
 
         # Create new instance (simulates restart)
-        ledger2 = CapacityLedger(snapshot_path=tmp_path)
+        ledger2 = CapacityLedger(snapshot_path=snapshot_path)
         assert ledger2.get_snapshot() is not None
         assert ledger2.get_snapshot().total_capacity == 875
 
-    def test_print_status(self, tmp_path, capsys):
+    def test_print_status(self, snapshot_path, capsys):
         """Test status printing."""
-        ledger = CapacityLedger(snapshot_path=tmp_path)
+        ledger = CapacityLedger(snapshot_path=snapshot_path)
         ledger.print_status()
 
         captured = capsys.readouterr()
@@ -180,13 +178,14 @@ class TestIntegration:
     """Integration tests with real ledger."""
 
     def test_end_to_end_compute_and_save(self, tmp_path):
-        """Test full compute â†’ save â†’ load cycle."""
+        """Test full compute -> save -> load cycle."""
+        snap_file = str(tmp_path / "capacity_snapshot.json")
         # Compute
-        ledger = CapacityLedger(snapshot_path=tmp_path)
+        ledger = CapacityLedger(snapshot_path=snap_file)
         snapshot1 = ledger.compute()
 
         # Load
-        ledger2 = CapacityLedger(snapshot_path=tmp_path)
+        ledger2 = CapacityLedger(snapshot_path=snap_file)
         snapshot2 = ledger2.get_snapshot()
 
         # Verify consistency
@@ -195,9 +194,8 @@ class TestIntegration:
 
     def test_module_level_function(self, tmp_path, monkeypatch):
         """Test compute_and_print module-level function."""
-        monkeypatch.setattr("app.platform.capacity_ledger.get_ledger", lambda: CapacityLedger(tmp_path))
+        snap_file = str(tmp_path / "cap.json")
+        monkeypatch.setattr("app.platform.capacity_ledger.get_ledger", lambda: CapacityLedger(snap_file))
         result = compute_and_print()
         assert result is not None
         assert isinstance(result, CapacitySnapshot)
-
-
