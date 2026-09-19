@@ -42,7 +42,7 @@ products:
         kind: channel
         name: LeadGen AI Marketing - Announcements
         handle: LeadGenAIMarketingNews
-        purpose: One-way product updates: feature releases, pricing changes, scheduled maintenance, compliance/DPDP notices, outage status.
+        purpose: "One-way product updates: feature releases, pricing changes, scheduled maintenance, compliance/DPDP notices, outage status."
         target_audience: All subscribers - customers + prospects + public
         access: public
         admins: [founder, pm, bot_broadcast]
@@ -69,7 +69,7 @@ products:
       - key: support
         kind: supergroup
         name: LeadGen AI Marketing - Support
-        purpose: Ticketed support: bugs, billing, incident updates. Customers only.
+        purpose: "Ticketed support: bugs, billing, incident updates. Customers only."
         target_audience: Paying customers (verified post UPI)
         access: private
         admins: [founder, support_lead, support_agent, bot_broadcast]
@@ -80,7 +80,7 @@ products:
           'billing-UPI': 7
           bugs: 8
           incidents: 9
-        invite_link: https://t.me/+RFUpYWGZvT5lODQ1
+        invite_link: "https://t.me/+RFUpYWGZvT5lODQ1"
       - key: feedback
         kind: supergroup
         name: LeadGen AI Marketing - Feedback
@@ -94,7 +94,7 @@ products:
           'requests-P0-P1-P2': 5
           beta: 6
           polls: 7
-        invite_link: https://t.me/+Qes7Yj-g3G43Njll
+        invite_link: "https://t.me/+Qes7Yj-g3G43Njll"
   - id: voice
     name: AI Voice Calling Agent
     pricing: Rs 4,999 / 9,999 / 19,999 per niche-band/mo
@@ -103,7 +103,7 @@ products:
         kind: channel
         name: LeadGen AI Voice Agent - Announcements
         handle: LeadGenAIVoiceNews
-        purpose: Voice-product releases, voice-quality/provider notices, compliance & DLT updates, outage status.
+        purpose: "Voice-product releases, voice-quality/provider notices, compliance & DLT updates, outage status."
         target_audience: All subscribers - customers + prospects + public
         access: public
         admins: [founder, pm, bot_broadcast]
@@ -130,7 +130,7 @@ products:
       - key: support
         kind: supergroup
         name: LeadGen AI Voice Agent - Support
-        purpose: Voice-agent support: call routing, DLT templates, billing, incidents.
+        purpose: "Voice-agent support: call routing, DLT templates, billing, incidents."
         target_audience: Paying customers (verified post UPI)
         access: private
         admins: [founder, support_lead, support_agent, bot_broadcast]
@@ -142,7 +142,7 @@ products:
           'DLT-templates': 9
           bugs: 10
           incidents: 11
-        invite_link: https://t.me/+ZQVr02PewhcyNGM1
+        invite_link: "https://t.me/+ZQVr02PewhcyNGM1"
       - key: feedback
         kind: supergroup
         name: LeadGen AI Voice Agent - Feedback
@@ -156,7 +156,7 @@ products:
           'requests-P0-P1-P2': 5
           'beta-voices': 6
           polls: 7
-        invite_link: https://t.me/+0TR9sLVyt_IxNjY1
+        invite_link: "https://t.me/+0TR9sLVyt_IxNjY1"
 cross_product:
   - key: internal_admin
     kind: supergroup
@@ -172,11 +172,11 @@ cross_product:
       deploys: 7
       'bot-status': 8
       decisions: 9
-    invite_link: https://t.me/+FTKorPoHfDswOTE1
+    invite_link: "https://t.me/+FTKorPoHfDswOTE1"
   - key: owner_alerts
     kind: supergroup
     name: LeadGen AI - Owner Alerts
-    purpose: Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state.
+    purpose: "Critical alerts mirror to founder: health, payment-received (UPI), incident, kill-switch state."
     target_audience: Founder only (+ LeadGenBot)
     access: private
     admins: [founder, devops, bot_broadcast]
@@ -186,7 +186,7 @@ cross_product:
       payments: 5
       health: 6
       incidents: 7
-    invite_link: https://t.me/+FbbUvbVEQ_8zZWI1
+    invite_link: "https://t.me/+FbbUvbVEQ_8zZWI1"
   - key: workers_coordination
     kind: supergroup
     name: LeadGen AI - Worker Coordination
@@ -227,7 +227,7 @@ moderation:
   opt_out: Respect leave/unsubscribe; never message a departed member.
 compliance:
   dpdp_2023: Lawful purpose, consent, data minimization, erasure on leave.
-  trai_tccctr: No UCC; opt-in; honor DND + 09:00-21:00 for any outbound.
+  trai_tccctr: "No UCC; opt-in; honor DND + 09:00-21:00 for any outbound."
   ai_disclosure: Every automated reply labels itself as a bot.
   payment_truth: Manual UPI only; never claim auto-paid.
   no_cold_outreach: No cold Telegram/WhatsApp adds.
