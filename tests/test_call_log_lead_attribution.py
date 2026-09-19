@@ -119,13 +119,19 @@ def test_start_stream_call_threads_lead_id(monkeypatch):
             return True
 
         async def place_call(self, **kwargs):
-            captured.update(answer_url=kwargs.get("answer_url", ""))
-            return {"status_code": 200}
+            # SmartFlo rail: per-call context rides custom_identifier (there is
+            # no answer_url second leg), which is where the CRM id must appear.
+            captured.update(custom_identifier=kwargs.get("custom_identifier", {}))
+            return {"status_code": 200, "body": {"success": True}}
 
     async def _fake_store(token, data):
         stored[token] = data
 
-    monkeypatch.setattr(tv, "VobizClient", _FakeClient)
+    # The dial path imports TataSmartfloClient inside the function (Vobiz was
+    # removed 2026-09-15), so the provider must be patched at its source module.
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeClient
+    )
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
 
     res = asyncio.run(
@@ -134,10 +140,10 @@ def test_start_stream_call_threads_lead_id(monkeypatch):
         )
     )
     assert res["placed"] is True
-    # survives BOTH rails: the cross-process pending blob and the answer-url
-    # query string (either one alone is lost on a worker/reconnect race).
+    # The id must survive on BOTH rails: the cross-process pending blob and the
+    # provider payload (either one alone is lost on a worker/reconnect race).
     assert list(stored.values())[0]["crm_lead_id"] == "lead-777"
-    assert "crm_lead_id=lead-777" in captured["answer_url"]
+    assert captured["custom_identifier"]["crm_lead_id"] == "lead-777"
 
 
 def test_start_stream_call_without_lead_id_still_works(monkeypatch):
@@ -151,12 +157,16 @@ def test_start_stream_call_without_lead_id_still_works(monkeypatch):
             return True
 
         async def place_call(self, **kwargs):
-            return {"status_code": 200}
+            # SmartFlo counts a call as placed on 200 + body.success.
+            return {"status_code": 200, "body": {"success": True}}
 
     async def _fake_store(token, data):
         stored[token] = data
 
-    monkeypatch.setattr(tv, "VobizClient", _FakeClient)
+    # Provider patched at its source module (Vobiz removed 2026-09-15).
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeClient
+    )
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
 
     res = asyncio.run(tv.start_stream_call(to="+919812345678", niche="salon"))

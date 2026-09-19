@@ -74,11 +74,11 @@ def env_file() -> str:
 
 
 def health_file() -> str:
-    return _env("WAHA_WATCHDOG_HEALTH_FILE", DEFAULT_HEALTH_FILE)
+    return os.getenv("WAHA_WATCHDOG_HEALTH_FILE") or DEFAULT_HEALTH_FILE
 
 
 def log_file() -> str:
-    return _env("WAHA_WATCHDOG_LOG_FILE", DEFAULT_LOG_FILE)
+    return os.getenv("WAHA_WATCHDOG_LOG_FILE") or DEFAULT_LOG_FILE
 
 
 def interval_s() -> int:

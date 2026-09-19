@@ -62,21 +62,34 @@ def test_answer_stream_qs_includes_opening_line():
 
 
 def test_start_stream_call_stores_opening_line_in_pending(monkeypatch):
+    """opening_line pending blob me store hota hai (rail that survives a
+    cross-process / mid-call-reconnect pending loss).
+
+    Updated 2026-09-19 for the SmartFlo-only rail: the provider is now
+    `TataSmartfloClient` (Vobiz removed 2026-09-15) and it returns no
+    `answer_url` — per-call context rides `custom_identifier` + the pending
+    blob instead. The assertion therefore checks the BLOB, not a URL the rail
+    no longer mints.
+    """
     import app.api.telephony_vobiz as tv
 
     pending: dict = {}
+    seen: list = []
 
-    class _FakeVobiz:
+    class _FakeSmartflo:
         def available(self):
             return True
 
         async def place_call(self, **kw):
-            return {"status_code": 200}
+            seen.append(kw)
+            return {"status_code": 200, "body": {"success": True}}
 
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(tv, "VobizClient", _FakeVobiz)
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
+    )
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tok123")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -93,7 +106,9 @@ def test_start_stream_call_stores_opening_line_in_pending(monkeypatch):
     assert res.get("placed") is True
     rec = next(iter(pending.values()))
     assert "Sharma Salon" in rec["opening_line"]
-    assert "opening_line=" in res["answer_url"]
+    # Context rides custom_identifier on the SmartFlo rail (no answer_url).
+    assert seen and seen[0]["custom_identifier"]["niche"] == "salon_spa"
+    assert seen[0]["custom_identifier"]["lead_phone"] == "9876543210"
 
 
 def test_auto_callback_passes_opening_line(monkeypatch):
@@ -207,24 +222,26 @@ async def test_missed_call_falls_back_empty_opening(monkeypatch):
 
 
 def test_start_stream_call_dry_run_skips_dial(monkeypatch):
-    """dry_run=True → pending + answer_url poora banta hai, par place_call kabhi nahi."""
+    """dry_run=True → pending blob poora banta hai, par place_call kabhi nahi."""
     import app.api.telephony_vobiz as tv
 
     pending: dict = {}
     dialed: list = []
 
-    class _FakeVobiz:
+    class _FakeSmartflo:
         def available(self):
             return True
 
         async def place_call(self, **kw):
             dialed.append(kw)
-            return {"status_code": 200}
+            return {"status_code": 200, "body": {"success": True}}
 
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(tv, "VobizClient", _FakeVobiz)
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
+    )
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tokdry")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -241,7 +258,7 @@ def test_start_stream_call_dry_run_skips_dial(monkeypatch):
     assert not dialed  # NO real dial
     rec = next(iter(pending.values()))
     assert rec["opening_line"] == "Wizard wali opening"
-    assert "opening_line=" in res["answer_url"]
+    assert res.get("stream_token") == "tokdry"
 
 
 def test_auto_callback_dry_run_skips_business_ledgers(monkeypatch):
@@ -324,3 +341,51 @@ def test_run_after_inquiry_threads_dry_run(monkeypatch):
         )
     )
     assert seen.get("dry_run") is False
+
+
+def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
+    """Signed token ≠ pending key. Regression pin (2026-09-19).
+
+    The WS pops the pending blob with the RAW uuid from the URL path, but
+    `_store_pending` used to be called with the SIGNED token
+    (`<raw>.<exp>.<sig>`). While `VOBIZ_STREAM_SECRET` is unset `sign()` is a
+    no-op so the two are identical and nothing breaks — which is exactly why it
+    survived review. The moment the secret IS set (the anti-abuse gate's own
+    precondition) they diverge and every `_peek_pending(raw)` misses, killing
+    the blob rail AGAIN: no niche, no crm_lead_id, no opening_line after a
+    mid-call reconnect → CallLog.lead_id=NULL → lead status never advances.
+    """
+    import asyncio
+
+    import app.api.telephony_vobiz as tv
+
+    monkeypatch.setenv("VOBIZ_STREAM_SECRET", "s3cr3t")
+    monkeypatch.delenv("VOBIZ_STREAM_REQUIRE_TOKEN", raising=False)
+
+    stored: dict = {}
+
+    class _FakeSmartflo:
+        def available(self):
+            return True
+
+        async def place_call(self, **kw):
+            return {"status_code": 200, "body": {"success": True}}
+
+    async def _fake_store(token, data):
+        stored[token] = data
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
+    )
+    monkeypatch.setattr(tv, "_store_pending", _fake_store)
+
+    res = asyncio.run(tv.start_stream_call("9876543210", niche="salon_spa", lead_id="lead-42"))
+
+    signed = res["stream_token"]
+    raw = signed.rsplit(".", 2)[0]
+    # The signing secret is active, so the handed-out token must be signed…
+    assert signed != raw and signed.count(".") == 2
+    # …but the pending KEY must be the RAW token the WS will pop with.
+    assert raw in stored
+    assert signed not in stored
+    assert stored[raw]["crm_lead_id"] == "lead-42"

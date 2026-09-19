@@ -1412,7 +1412,12 @@ def _iter_files(root: Path):
         # Use os.scandir for speed and robustness on Windows (long paths, junctions).
         for entry in os.scandir(root):
             if entry.is_dir():
-                if entry.name in _SKIP_DIRS:
+                if (
+                    entry.name in _SKIP_DIRS
+                    or entry.name.startswith(".pytest_tmp")
+                    or entry.name.startswith(".tmp")
+                    or (entry.name.startswith(".") and entry.name not in {".github"})
+                ):
                     continue
                 yield from _iter_files(Path(entry.path))
             elif entry.is_file():

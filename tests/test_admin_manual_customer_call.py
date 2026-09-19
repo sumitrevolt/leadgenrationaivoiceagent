@@ -46,17 +46,24 @@ def test_admin_manual_call_ui_keeps_required_safety_controls() -> None:
 def test_manual_stream_call_passes_explicit_type_and_marketing_niche(
     client: TestClient, monkeypatch
 ) -> None:
+    """The route delegates to ``start_stream_call`` (SmartFlo is sole provider
+    since 2026-09-15), so that is the seam to stub. This test used to stub a
+    ``VobizClient.place_call`` the route no longer calls at all, which made the
+    assertions unfalsifiable — it passed on an inert monkeypatch and only broke
+    once the SmartFlo readiness fail-fast started returning 503 first."""
+    import app.api.telephony_vobiz as tv
+
     captured: dict[str, object] = {}
 
-    async def fake_place_call(self, to, answer_url, from_=None, **extra):
-        captured.update(to=to, answer_url=answer_url, extra=extra)
-        return {
-            "status_code": 201,
-            "body": {"message": "call queued", "request_uuid": "manual-call-1"},
-        }
+    async def fake_start_stream_call(
+        to, niche="general", client_id=None, call_type="transactional", *, lead_id=None, **kw
+    ):
+        captured.update(to=to, niche=niche, call_type=call_type, client_id=client_id)
+        return {"placed": True, "provider": "tata_smartflo", "stream_token": "manual-call-1"}
 
-    monkeypatch.setattr(VobizClient, "available", lambda self: True)
-    monkeypatch.setattr(VobizClient, "place_call", fake_place_call)
+    # Clear the readiness fail-fast (503) so the request reaches the seam.
+    monkeypatch.setattr(tv, "stream_provider_ready", lambda: (True, ""))
+    monkeypatch.setattr(tv, "start_stream_call", fake_start_stream_call)
 
     response = client.post(
         "/api/telephony/vobiz/stream-call",
@@ -70,22 +77,36 @@ def test_manual_stream_call_passes_explicit_type_and_marketing_niche(
     assert response.status_code == 200
     assert response.json()["placed"] is True
     assert captured["to"] == "+918459433410"
-    assert captured["extra"]["call_type"] == "transactional"
-    assert captured["extra"]["hangup_method"] == "POST"
-    assert "/api/webhooks/vobiz/status" in captured["extra"]["hangup_url"]
-    assert "niche=ai_marketing" in str(captured["answer_url"])
+    assert captured["call_type"] == "transactional"
+    assert captured["niche"] == "ai_marketing"
 
 
 def test_manual_stream_call_surfaces_compliance_block(client: TestClient, monkeypatch) -> None:
-    async def blocked_place_call(self, to, answer_url, from_=None, **extra):
+    """A SmartFlo pre-dial refusal (``error == "compliance_blocked"``) must map to
+    HTTP 422 with the TCCCPR/TRAI message — the contract the campaign dialer and
+    the owner's manual-call card both depend on."""
+    import app.api.telephony_vobiz as tv
+
+    async def blocked_start_stream_call(
+        to, niche="general", client_id=None, call_type="transactional", *, lead_id=None, **kw
+    ):
         return {
-            "status_code": 422,
-            "blocked": True,
-            "compliance": {"allowed": False, "reason": "dnd_blocked"},
+            "placed": False,
+            "error": "compliance_blocked",
+            "provider": "tata_smartflo",
+            "smartflo_response": {
+                "status_code": 0,
+                # The route surfaces `smartflo_response["body"]` verbatim as the
+                # 422 `compliance` payload, so the reason must live at that level.
+                "body": {
+                    "error": "compliance_blocked: dnd_scrub",
+                    "reason": "dnd_blocked",
+                },
+            },
         }
 
-    monkeypatch.setattr(VobizClient, "available", lambda self: True)
-    monkeypatch.setattr(VobizClient, "place_call", blocked_place_call)
+    monkeypatch.setattr(tv, "stream_provider_ready", lambda: (True, ""))
+    monkeypatch.setattr(tv, "start_stream_call", blocked_start_stream_call)
 
     response = client.post(
         "/api/telephony/vobiz/stream-call",
