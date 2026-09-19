@@ -204,7 +204,7 @@ class DNDChecker:
         # That verdict is a channel-scoped assertion about the carrier, not a
         # fact about the number; caching it would launder a voice-only allowance
         # into the messaging path on the next lookup.
-        if result.source != "vobiz_carrier_scrub":
+        if not result.source.endswith("_carrier_scrub"):
             self._cache[phone] = result
 
         return result
@@ -302,7 +302,7 @@ class DNDChecker:
         """
         url = (os.environ.get("DND_API_URL") or "").strip()
         key = (os.environ.get("DND_API_KEY") or "").strip()
-        if url and key:
+        if url and key and key not in ("your-dnd-api-key", "test-key", "placeholder"):
             try:
                 import httpx
 
@@ -331,9 +331,26 @@ class DNDChecker:
                 logger.debug(f"DND API lookup failed for {phone[-4:]}: {e}")
 
         carrier_scrub = carrier_scrub_armed()
-        provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+        provider = (os.environ.get("TELEPHONY_PROVIDER") or "tata_smartflo").strip().lower()
         vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
-        if carrier_scrub and provider == "vobiz" and vobiz_ok:
+        smartflo_ok = bool(
+            (os.environ.get("SMARTFLO_API_KEY") or os.environ.get("TATA_SMARTFLO_API_KEY"))
+            and (
+                os.environ.get("TATA_SMARTFLO_DID")
+                or os.environ.get("SMARTFLO_DID")
+                or os.environ.get("VOBIZ_CALLER_ID")
+            )
+        )
+        is_carrier_voice = False
+        carrier_source = "carrier_scrub"
+        if provider == "vobiz" and vobiz_ok:
+            is_carrier_voice = True
+            carrier_source = "vobiz_carrier_scrub"
+        elif provider in ("tata_smartflo", "smartflo") and smartflo_ok:
+            is_carrier_voice = True
+            carrier_source = "smartflo_carrier_scrub"
+
+        if carrier_scrub and is_carrier_voice:
             # OPS-017: "our carrier scrubs NDNC" is a VOICE allowance. It asserts
             # nothing about an individual number, so on a messaging channel it
             # must never clear the §5 promotional gate.
@@ -343,7 +360,7 @@ class DNDChecker:
                     phone=phone,
                     is_dnd=False,
                     checked_at=datetime.now(),
-                    source="vobiz_carrier_scrub",
+                    source=carrier_source,
                     verified=True,
                 )
 

@@ -334,6 +334,11 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
 
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", _FakeVobizClient)
 
+    # SmartFlo is the sole production provider; the dialer fail-fasts on
+    # stream_provider_ready() BEFORE the loop. Stub start_stream_call itself
+    # to exercise the loop, so the probe must be cleared too.
+    monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
+
     async def _fake_start(
         to, niche="general", call_type="promotional", client_id=None, lead_id=None
     ):
@@ -419,6 +424,9 @@ def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
 
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", _FakeVobizClient)
 
+    # Clear the pre-loop SmartFlo readiness fail-fast (see the sibling test above).
+    monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
+
     call_n = {"n": 0}
 
     async def _fake_start(
@@ -496,6 +504,10 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
                 return True
 
         monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", _FakeVobizClient)
+
+        # Clear the pre-loop SmartFlo readiness fail-fast (see above), otherwise
+        # the dialer returns before touching the real SQL UPDATE under test.
+        monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
 
         async def _fake_start(
             to, niche="general", call_type="promotional", client_id=None, lead_id=None
