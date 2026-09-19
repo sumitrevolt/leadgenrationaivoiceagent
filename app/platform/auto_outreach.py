@@ -819,6 +819,18 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     rotate_sender(sender)
                 except Exception:
                     pass
+                # TypeSafe content QA — validate before sending
+                try:
+                    from app.integrations.email_sender import EmailSender
+                    _sender_val = EmailSender()
+                    _val = await _sender_val.validate_content(subject, text)
+                    if not _val["approved"]:
+                        logger.warning(f"[auto_outreach] TypeSafe REJECTED for {to_addr}: {_val['issues']}")
+                        result["typesafe_rejected"] = result.get("typesafe_rejected", 0) + 1
+                        continue
+                except Exception:
+                    pass  # TypeSafe unavailable — send anyway (fail-open)
+
                 ok = False
                 try:
                     ok = bool(
@@ -1069,6 +1081,18 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     rotate_sender(sender)
                 except Exception:
                     pass
+                # TypeSafe content QA — validate before sending
+                try:
+                    from app.integrations.email_sender import EmailSender
+                    _sender_val = EmailSender()
+                    _val = await _sender_val.validate_content(subject, text)
+                    if not _val["approved"]:
+                        logger.warning(f"[auto_outreach] TypeSafe REJECTED for {to_addr}: {_val['issues']}")
+                        result["typesafe_rejected"] = result.get("typesafe_rejected", 0) + 1
+                        continue
+                except Exception:
+                    pass  # TypeSafe unavailable — send anyway (fail-open)
+
                 ok = False
                 try:
                     ok = bool(

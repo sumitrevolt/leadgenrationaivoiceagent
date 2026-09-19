@@ -667,6 +667,18 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         if not ok:
             return auto_send_blocked(to_number, message, reason)
 
+        # TypeSafe content QA — validate tone/compliance before sending
+        try:
+            from app.platform.typesafe_services import get_typesafe_content_qa
+            _qa = get_typesafe_content_qa()
+            if _qa.client.enabled:
+                _verdict = _qa.audit_outbound_message("", message, channel="whatsapp")
+                if not _verdict.approved:
+                    logger.warning(f"WhatsApp TypeSafe REJECTED: {_verdict.reasons}")
+                    return {"error": f"typesafe_rejected: {_verdict.reasons}"}
+        except Exception:
+            pass  # TypeSafe unavailable — send anyway (fail-open)
+
         to_number = self._normalize_number(to_number)
 
         payload = {

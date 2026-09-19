@@ -43,6 +43,12 @@ services:
       # increase heavy concurrency or remove the heap valve.
       OMNIROUTE_CHAT_ADMISSION_QUEUE_MS: "${OMNIROUTE_CHAT_ADMISSION_QUEUE_MS:-120000}"
       OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES: "${OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES:-4194304}"
+      # opencode/opencode-zen free tiers 403 server-side requests that lack the
+      # OpenCode CLI identity headers ("free tier can only be used from within
+      # OpenCode"). OmniRoute's OpencodeExecutor can synthesize them; it is
+      # deliberately opt-in (#5997). All 14 combos lead with opencode models,
+      # so without this every combo exhausts all 42 targets with 401/403.
+      OPENCODE_SYNTHESIZE_CLI_HEADERS: "${OPENCODE_SYNTHESIZE_CLI_HEADERS:-true}"
     volumes:
       # Persist config / provider connections / logs across restarts.
       # Reuse the existing local data volume so combo/provider state survives
