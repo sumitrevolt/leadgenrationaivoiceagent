@@ -428,7 +428,7 @@ class ComplianceGate:
                 if not self._dlt_approved():
                     reasons.append("dlt_not_approved[set DLT_APPROVED=1 after approval]")
                 if not self._caller_id():
-                    reasons.append("no_caller_id[set VOBIZ_CALLER_ID]")
+                    reasons.append("no_caller_id[set TATA_SMARTFLO_DID]")
 
             allowed = not reasons
             if not allowed:
