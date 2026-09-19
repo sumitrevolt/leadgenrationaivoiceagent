@@ -974,6 +974,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Product consoles router not mounted: {_e}")
 try:
+    from app.api.typesafe_routes import router as _typesafe_routes_router
+
+    # /api/v1/typesafe/* — Strongly typed TypeSafe System One endpoints
+    # (qualify-lead, audit-message, triage-reply, evaluate-call, extract-value, status)
+    app.include_router(_typesafe_routes_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"TypeSafe routes router not mounted: {_e}")
+try:
     from app.api.customer_webhooks import router as _customer_webhooks_router
 
     # /api/customer/webhooks/* — H.1 customer-facing webhooks (sellable SaaS

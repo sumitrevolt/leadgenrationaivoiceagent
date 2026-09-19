@@ -23,10 +23,45 @@ from app.platform.typesafe_integration import (
     Noul,
     Score,
     TypeSafeClient,
+    _as_float,
     get_typesafe_client,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _noul_prob(answer: Any, default: float) -> float:
+    """Extract a Noul probability from an untyped TypeSafe answer leaf.
+
+    The wire format for a `Noul` question is ``{"type": "noul", "noul": <p>}``
+    where ``p`` is the probability that the answer is YES.
+
+    Do NOT write ``answer.get("noul") or answer.get("probability") or default``:
+    that is a falsy-coercion bug, because a legitimate ``noul == 0.0`` — the
+    model confidently answering NO — is falsy and silently falls through to
+    ``default``, turning a hard NO into a maybe. ``_as_float`` narrows the leaf
+    by ``isinstance`` instead of calling ``float()`` on ``Any``, so a malformed
+    or missing leaf degrades to ``default`` rather than raising.
+    """
+    if isinstance(answer, dict):
+        for key in ("noul", "probability"):
+            value = _as_float(answer.get(key))
+            if value is not None:
+                return value
+        return default
+    value = _as_float(answer)
+    return default if value is None else value
+
+
+def _score_index(answer: Any) -> int | None:
+    """Narrow a `Score` answer leaf to its integer bucket, else None.
+
+    `dict[int, str].get(Any | None)` is a mypy arg-type error and, worse, a
+    silent wrong-bucket risk: these maps are keyed by int, so an un-narrowed
+    value like 1.9 would miss the key and fall through to the default bucket.
+    """
+    value = _as_float(answer)
+    return None if value is None else int(value)
 
 
 # --------------------------------------------------------------------------- #
@@ -87,7 +122,7 @@ class TypeSafeLeadScorer:
             ],
         }
 
-        questions = {
+        questions: dict[str, Choice | Noul | Score] = {
             "fit": Score(
                 question="Evaluate fit for AI marketing automation or telecalling",
                 criteria=[
@@ -151,13 +186,7 @@ class TypeSafeLeadScorer:
 
             # 2. Intent Noul
             intent_ans = answers.get("intent") or {}
-            if isinstance(intent_ans, dict):
-                intent_prob = float(intent_ans.get("noul") or intent_ans.get("probability") or 0.5)
-            else:
-                try:
-                    intent_prob = float(intent_ans)
-                except (ValueError, TypeError):
-                    intent_prob = 0.5
+            intent_prob = _noul_prob(intent_ans, 0.5)
             buying_intent = intent_prob >= 0.65
 
             # 3. Budget likelihood
@@ -255,12 +284,28 @@ class TypeSafeContentQA:
             ],
         }
 
-        questions = {
+        questions: dict[str, Choice | Noul | Score] = {
             "spam": Noul(
-                question="Does this message look like spam, use deceptive clickbait, or violate commercial guidelines?"
+                question=(
+                    "Does this message contain a TRUE spam signal? Answer YES only if at "
+                    "least one of these is literally present: (a) a guaranteed income or "
+                    "guaranteed-result claim, (b) a deceptive or clickbait subject line, "
+                    "(c) fabricated urgency, fake scarcity, or invented testimonials, "
+                    "(d) a request for bank details, OTP, passwords, or upfront payment, "
+                    "(e) adult, gambling, or otherwise prohibited content. Answer NO for "
+                    "ordinary business outreach that identifies the sender, makes a truthful "
+                    "offer, and provides an opt-out."
+                )
             ),
             "compliance": Noul(
-                question="Does this message contain forbidden income guarantees, misleading metrics, or illegal claims?"
+                question=(
+                    "Does this message break a commercial messaging rule? Answer YES only if "
+                    "at least one of these is literally present: (a) an explicit earnings or "
+                    "revenue guarantee, (b) an invented or unverifiable statistic, (c) a "
+                    "factually false claim, (d) no sender identification, (e) no way for the "
+                    "recipient to opt out. Answer NO if the message is truthful, identifies "
+                    "the sender, and offers an opt-out."
+                )
             ),
             "persuasion": Score(
                 question="Rate the commercial clarity and value proposition persuasiveness",
@@ -295,22 +340,14 @@ class TypeSafeContentQA:
 
             # Spam check
             spam_ans = answers.get("spam") or {}
-            spam_prob = (
-                float(spam_ans.get("noul") or spam_ans.get("probability") or 0.0)
-                if isinstance(spam_ans, dict)
-                else 0.0
-            )
+            spam_prob = _noul_prob(spam_ans, 0.0)
             if spam_prob >= 0.60:
                 is_spammy = True
                 reasons.append(f"High spam score probability ({spam_prob:.2f})")
 
             # Compliance check
             comp_ans = answers.get("compliance") or {}
-            comp_prob = (
-                float(comp_ans.get("noul") or comp_ans.get("probability") or 0.0)
-                if isinstance(comp_ans, dict)
-                else 0.0
-            )
+            comp_prob = _noul_prob(comp_ans, 0.0)
             if comp_prob >= 0.40:  # strict gate for compliance
                 compliance_violation = True
                 reasons.append(f"Potential compliance risk detected ({comp_prob:.2f})")
@@ -376,7 +413,7 @@ class TypeSafeReplyTriage:
             "lead": lead_context or {},
         }
 
-        questions = {
+        questions: dict[str, Choice | Noul | Score] = {
             "intent": Choice(
                 question="Classify the prospect's reply intent",
                 criteria={
@@ -429,11 +466,7 @@ class TypeSafeReplyTriage:
 
             # Hot inquiry
             hot_ans = answers.get("is_hot") or {}
-            hot_prob = (
-                float(hot_ans.get("noul") or hot_ans.get("probability") or 0.0)
-                if isinstance(hot_ans, dict)
-                else 0.0
-            )
+            hot_prob = _noul_prob(hot_ans, 0.0)
             is_hot = hot_prob >= 0.65
 
             # Sentiment
@@ -551,7 +584,7 @@ class TypeSafeCallEvaluator:
             "call": call_metadata or {},
         }
 
-        questions = {
+        questions: dict[str, Choice | Noul | Score] = {
             "disposition": Choice(
                 question="Classify the final outcome of the phone call",
                 criteria={
@@ -591,11 +624,7 @@ class TypeSafeCallEvaluator:
 
             # Consent Noul
             con_ans = answers.get("consent") or {}
-            con_prob = (
-                float(con_ans.get("noul") or con_ans.get("probability") or 0.0)
-                if isinstance(con_ans, dict)
-                else 0.0
-            )
+            con_prob = _noul_prob(con_ans, 0.0)
             explicit_consent = con_prob >= 0.50
 
             # Warmth

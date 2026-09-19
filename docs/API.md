@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1449 operations)
+## Endpoint Index — auto-generated from OpenAPI (1455 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1959,6 +1959,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/webhooks/vobiz/answer` — Vobiz Answer Webhook
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
+
+### TypeSafe Intelligence  (6)
+
+- `POST  ` `/api/v1/typesafe/audit-message` — Audit Content Endpoint
+- `POST  ` `/api/v1/typesafe/evaluate-call` — Evaluate Call Endpoint
+- `POST  ` `/api/v1/typesafe/extract-value` — Extract Value Endpoint
+- `POST  ` `/api/v1/typesafe/qualify-lead` — Qualify Lead Endpoint
+- `GET   ` `/api/v1/typesafe/status` — Get Status
+- `POST  ` `/api/v1/typesafe/triage-reply` — Triage Reply Endpoint
 
 ### UPI Payments  (5)
 
