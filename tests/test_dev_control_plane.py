@@ -64,6 +64,10 @@ def test_terminal_states_allow_nothing():
 
 
 def test_create_task_record_is_idempotent():
+    from app.models.base import Base, _get_sync_engine
+    engine = _get_sync_engine()
+    if engine is not None:
+        Base.metadata.create_all(bind=engine)
     a = create_task_record("objective x", "idem-plane-1")
     b = create_task_record("objective x", "idem-plane-1")
     assert a["task_id"] == b["task_id"]

@@ -47,6 +47,29 @@ def _enabled() -> bool:
     return os.getenv("DEV_ORCHESTRATOR", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
+async def _record_audit(
+    db: AsyncSession,
+    task_id: str,
+    actor: str,
+    from_state: str | None,
+    to_state: str | None,
+    payload: dict[str, Any] | None = None,
+    now: datetime | None = None,
+) -> Any:
+    """Record an audit trail event for a dev task state change."""
+    from app.models.dev_task_event import append_event
+
+    return await append_event(
+        db,
+        task_id=task_id,
+        actor=actor,
+        from_state=from_state,
+        to_state=to_state,
+        payload=payload or {},
+        now=now,
+    )
+
+
 def _require_enabled() -> None:
     if not _enabled():
         raise HTTPException(status_code=503, detail="DEV_ORCHESTRATOR is disabled")
