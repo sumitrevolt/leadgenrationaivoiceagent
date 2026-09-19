@@ -16,6 +16,8 @@ uat_evidence/
 
 # Local tool directories
 .commandcode/
+.agnes/
+_scratch/
 
 # PII exports (DPDP Act 2023 — phone/email/wa_link columns; test_no_tracked_pii_exports enforces)
 data/prospect_export*.csv

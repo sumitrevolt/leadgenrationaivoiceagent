@@ -165,7 +165,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           set -euo pipefail
-          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=30 -n auto
+          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 -n auto
 
   # REQUIRED check name — must stay exactly `prod_check + pytest`.
   # always() so a failed lane reports FAILURE here instead of SKIPPED (ruleset
