@@ -45,7 +45,7 @@
     "deploy/dsh/verify_runtime.mjs": "3a8ac329227052d6b6cc111d8fad1b7d215ab7206aa527efc8a240487834e68e",
     "deploy/dsh/worker.Dockerfile": "e06f38abb2405d68305516c41d0260a89596c0a7adb10e8cb71745cd442e4567",
     "docker-compose.vps.yml": "c21e46095cfc6fbee28ea8d61ebbcf1b684d9cea3a6cca7bb229eb6860bd9089",
-    "requirements-dsh.lock.txt": "24159eda3179af7c37ff235f4f10d63f83741bacc24b8817d5776b4ba823a2e7",
+    "requirements-dsh.lock.txt": "a65faa914d57a0655ab4b43af5d691bf84f962e0d720d5f121d2f6688307652f",
     "scripts/assemble_dsh_ci_evidence.py": "f644797a4220d8b555e959bfe626a648eb50e955e33ee5d163c0c0084e474093",
     "scripts/dsh_runtime_smoke.py": "6e21a10b6b3c9c5958e4b37f5f8f74cbbd592c8d3d7ca1cca56710991d16835b",
     "tests/fixtures/dsh_fake_gateway.py": "1d3e3f6808c58e56044ffde4a3e11a0928c8c556e60c467d4927b6ef45a45e06"

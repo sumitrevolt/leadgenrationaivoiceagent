@@ -11,14 +11,14 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, model_validator
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class RevenueMetric(BaseModel):
     """Revenue metric for tracking."""
+
     metric_name: str
     value: float
     currency: str = "INR"
@@ -28,7 +28,7 @@ class RevenueMetric(BaseModel):
     source: str = ""
     tags: dict[str, str] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.now(_IST).isoformat())
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "metric_name": self.metric_name,
@@ -45,18 +45,31 @@ class RevenueMetric(BaseModel):
 
 class InvoiceRecord(BaseModel):
     """Invoice record for revenue tracking."""
+
     invoice_number: str
     client_id: str
     client_name: str
     plan: str
     amount_inr: float
-    gst_amount: float
-    total_inr: float
+    gst_amount: float = 0.0
+    total_inr: float = 0.0
     status: str  # paid, pending, voided
-    payment_ref: Optional[str] = None
-    payment_date: Optional[str] = None
+    payment_ref: str | None = None
+    payment_date: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(_IST).isoformat())
-    
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compute_totals(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            amount = float(data.get("amount_inr") or 0.0)
+            gst = float(data.get("gst_amount") or 0.0)
+            if "total_inr" not in data or data.get("total_inr") is None:
+                data["total_inr"] = round(amount + gst, 2)
+            if "gst_amount" not in data:
+                data["gst_amount"] = gst
+        return data
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "invoice_number": self.invoice_number,
@@ -75,7 +88,7 @@ class InvoiceRecord(BaseModel):
 
 class RevenueDashboard:
     """Revenue tracking dashboard with real-time metrics."""
-    
+
     def __init__(
         self,
         metrics_path: str = "data/revenue_metrics.jsonl",
@@ -86,13 +99,13 @@ class RevenueDashboard:
         self.metrics: list[RevenueMetric] = []
         self.invoices: list[InvoiceRecord] = []
         self._load_data()
-    
+
     def _load_data(self):
         """Load metrics and invoices from disk."""
         # Load metrics
         if os.path.exists(self.metrics_path):
             try:
-                with open(self.metrics_path, "r") as f:
+                with open(self.metrics_path) as f:
                     for line in f:
                         line = line.strip()
                         if line:
@@ -103,11 +116,11 @@ class RevenueDashboard:
                                 pass
             except Exception as e:
                 print(f"[revenue_dashboard] Failed to load metrics: {e}")
-        
+
         # Load invoices
         if os.path.exists(self.invoices_path):
             try:
-                with open(self.invoices_path, "r") as f:
+                with open(self.invoices_path) as f:
                     for line in f:
                         line = line.strip()
                         if line:
@@ -118,7 +131,7 @@ class RevenueDashboard:
                                 pass
             except Exception as e:
                 print(f"[revenue_dashboard] Failed to load invoices: {e}")
-    
+
     def _save_metrics(self):
         """Save metrics to disk (append-only)."""
         try:
@@ -128,7 +141,7 @@ class RevenueDashboard:
                     f.write(json.dumps(metric.to_dict()) + "\n")
         except Exception as e:
             print(f"[revenue_dashboard] Failed to save metrics: {e}")
-    
+
     def _save_invoices(self):
         """Save invoices to disk."""
         try:
@@ -138,7 +151,7 @@ class RevenueDashboard:
                     f.write(json.dumps(invoice.to_dict()) + "\n")
         except Exception as e:
             print(f"[revenue_dashboard] Failed to save invoices: {e}")
-    
+
     def record_metric(
         self,
         metric_name: str,
@@ -148,7 +161,7 @@ class RevenueDashboard:
         verified: bool = False,
         evidence: str = "",
         source: str = "",
-        tags: Optional[dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
     ) -> RevenueMetric:
         """Record a revenue metric."""
         metric = RevenueMetric(
@@ -164,7 +177,7 @@ class RevenueDashboard:
         self.metrics.append(metric)
         self._save_metrics()
         return metric
-    
+
     def record_invoice(
         self,
         invoice_number: str,
@@ -174,11 +187,11 @@ class RevenueDashboard:
         amount_inr: float,
         gst_amount: float = 0.0,
         status: str = "pending",
-        payment_ref: Optional[str] = None,
+        payment_ref: str | None = None,
     ) -> InvoiceRecord:
         """Record an invoice."""
         total_inr = amount_inr + gst_amount
-        
+
         invoice = InvoiceRecord(
             invoice_number=invoice_number,
             client_id=client_id,
@@ -192,7 +205,7 @@ class RevenueDashboard:
         )
         self.invoices.append(invoice)
         self._save_invoices()
-        
+
         # Also record revenue metric
         self.record_metric(
             metric_name=f"invoice_{invoice_number}",
@@ -204,9 +217,9 @@ class RevenueDashboard:
             source="billing",
             tags={"client_id": client_id, "plan": plan},
         )
-        
+
         return invoice
-    
+
     def update_invoice_payment(
         self,
         invoice_number: str,
@@ -219,7 +232,7 @@ class RevenueDashboard:
                 invoice.payment_ref = payment_ref
                 invoice.payment_date = datetime.now(_IST).isoformat()
                 self._save_invoices()
-                
+
                 # Update metric
                 self.record_metric(
                     metric_name=f"payment_{invoice_number}",
@@ -231,52 +244,45 @@ class RevenueDashboard:
                     source="billing",
                     tags={"client_id": invoice.client_id},
                 )
-                
+
                 return {"success": True, "invoice": invoice.to_dict()}
-        
+
         return {"error": f"Invoice {invoice_number} not found"}
-    
+
     def get_revenue_summary(self) -> dict[str, Any]:
         """Get revenue summary metrics."""
         today = datetime.now(_IST).date()
         this_month = today.replace(day=1)
         this_fy = f"{today.year}-{str(today.year + 1)[2:]}"
-        
+
         # Calculate metrics
         today_revenue = sum(
-            i.total_inr for i in self.invoices
+            i.total_inr
+            for i in self.invoices
             if i.status == "paid"
             and datetime.fromisoformat(i.payment_date or i.created_at).date() == today
         )
-        
+
         month_revenue = sum(
-            i.total_inr for i in self.invoices
+            i.total_inr
+            for i in self.invoices
             if i.status == "paid"
             and datetime.fromisoformat(i.payment_date or i.created_at).date() >= this_month
         )
-        
+
         fy_revenue = sum(
-            i.total_inr for i in self.invoices
-            if i.status == "paid"
-            and i.created_at.startswith(this_fy)
+            i.total_inr
+            for i in self.invoices
+            if i.status == "paid" and i.created_at.startswith(this_fy)
         )
-        
-        pending_revenue = sum(
-            i.total_inr for i in self.invoices
-            if i.status == "pending"
-        )
-        
-        total_revenue = sum(
-            i.total_inr for i in self.invoices
-            if i.status == "paid"
-        )
-        
+
+        pending_revenue = sum(i.total_inr for i in self.invoices if i.status == "pending")
+
+        total_revenue = sum(i.total_inr for i in self.invoices if i.status == "paid")
+
         # Count active clients
-        paid_clients = set(
-            i.client_id for i in self.invoices
-            if i.status == "paid"
-        )
-        
+        paid_clients = {i.client_id for i in self.invoices if i.status == "paid"}
+
         return {
             "today_revenue_inr": today_revenue,
             "month_revenue_inr": month_revenue,
@@ -289,33 +295,36 @@ class RevenueDashboard:
             "pending_invoices": len([i for i in self.invoices if i.status == "pending"]),
             "fy": this_fy,
         }
-    
+
     def get_revenue_trend(self, days: int = 30) -> list[dict[str, Any]]:
         """Get revenue trend over past N days."""
         today = datetime.now(_IST).date()
         trend = []
-        
+
         for i in range(days):
             date = today - timedelta(days=i)
             day_revenue = sum(
-                i.total_inr for i in self.invoices
+                i.total_inr
+                for i in self.invoices
                 if i.status == "paid"
                 and datetime.fromisoformat(i.payment_date or i.created_at).date() == date
             )
-            trend.append({
-                "date": date.isoformat(),
-                "revenue_inr": day_revenue,
-            })
-        
+            trend.append(
+                {
+                    "date": date.isoformat(),
+                    "revenue_inr": day_revenue,
+                }
+            )
+
         # Reverse to show oldest first
         trend.reverse()
         return trend
-    
+
     def get_invoice_list(
         self,
         limit: int = 50,
-        status: Optional[str] = None,
-        client_id: Optional[str] = None,
+        status: str | None = None,
+        client_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get invoice list with optional filters."""
         result = []
@@ -328,23 +337,14 @@ class RevenueDashboard:
             if len(result) >= limit:
                 break
         return result
-    
+
     def get_client_revenue(self, client_id: str) -> dict[str, Any]:
         """Get revenue summary for a specific client."""
-        client_invoices = [
-            i for i in self.invoices
-            if i.client_id == client_id
-        ]
-        
-        total_paid = sum(
-            i.total_inr for i in client_invoices
-            if i.status == "paid"
-        )
-        total_pending = sum(
-            i.total_inr for i in client_invoices
-            if i.status == "pending"
-        )
-        
+        client_invoices = [i for i in self.invoices if i.client_id == client_id]
+
+        total_paid = sum(i.total_inr for i in client_invoices if i.status == "paid")
+        total_pending = sum(i.total_inr for i in client_invoices if i.status == "pending")
+
         return {
             "client_id": client_id,
             "total_invoices": len(client_invoices),
@@ -354,22 +354,22 @@ class RevenueDashboard:
             "total_pending_inr": total_pending,
             "invoices": [i.to_dict() for i in client_invoices[-10:]],
         }
-    
+
     def get_dashboard_metrics(self) -> dict[str, Any]:
         """Get comprehensive dashboard metrics."""
         summary = self.get_revenue_summary()
         trend = self.get_revenue_trend(7)
-        
+
         # Get recent metrics
         recent_metrics = self.metrics[-20:] if self.metrics else []
-        
+
         # Calculate MRR (Monthly Recurring Revenue)
         mrr = sum(
-            i.total_inr for i in self.invoices
-            if i.status == "paid"
-            and i.plan in ["starter", "marketing", "combo", "advanced"]
+            i.total_inr
+            for i in self.invoices
+            if i.status == "paid" and i.plan in ["starter", "marketing", "combo", "advanced"]
         )
-        
+
         return {
             "summary": summary,
             "trend_7d": trend,
@@ -380,7 +380,7 @@ class RevenueDashboard:
 
 
 # Module-level singleton
-_dashboard: Optional[RevenueDashboard] = None
+_dashboard: RevenueDashboard | None = None
 
 
 def get_dashboard() -> RevenueDashboard:
@@ -399,7 +399,7 @@ def record_metric(
     verified: bool = False,
     evidence: str = "",
     source: str = "",
-    tags: Optional[dict[str, str]] = None,
+    tags: dict[str, str] | None = None,
 ) -> RevenueMetric:
     """Convenience function to record a metric."""
     return get_dashboard().record_metric(
@@ -415,7 +415,7 @@ def record_invoice(
     amount_inr: float,
     gst_amount: float = 0.0,
     status: str = "pending",
-    payment_ref: Optional[str] = None,
+    payment_ref: str | None = None,
 ) -> InvoiceRecord:
     """Convenience function to record an invoice."""
     return get_dashboard().record_invoice(
@@ -435,8 +435,8 @@ def get_dashboard_metrics() -> dict[str, Any]:
 
 def get_invoice_list(
     limit: int = 50,
-    status: Optional[str] = None,
-    client_id: Optional[str] = None,
+    status: str | None = None,
+    client_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Convenience function to get invoice list."""
     return get_dashboard().get_invoice_list(limit, status, client_id)

@@ -37,7 +37,7 @@ External deps (purpose · detail in `memory/integrations.md`): **Mistral** mistr
 ## 3. COMMANDS
 
 - **Install (dev, py3.12):** `python -m venv .venv` then `.venv\Scripts\pip install --no-deps -r requirements.lock.txt` (lock = single source; requirements.txt/pyproject = reference only)
-- **Run dev:** `.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000` [UNVERIFIED locally — import verified via prod_check]
+- **Run dev:** `.venv\Scripts\python.exe -m uvicorn app.main:app --reload --env-file .env --port 8000` [UNVERIFIED locally — import verified via prod_check]. **`--env-file .env` skip MAT karo** — `app/main.py` `load_dotenv` NAHI karta, isliye `.env`-mein-only keys (jaise `TYPESAFE_API_KEY`) `os.getenv` ko nahi dikhte aur integration chup-chaap INERT rehta hai. Key state (value kabhi print nahi hoti): `python scripts/typesafe_status.py --probe`.
 - **⚠️ PRODUCTION RUNTIME (2026-09-19 verified):** App serves via **Docker** (`leadgen_app` container), NOT systemd. systemd `leadgen.service` is **inactive (dead)**. Port 8000 bound by docker-proxy. Canonical deploy = `scripts/deploy_vps.sh` (builds image, runs compose). Systemd only used for `leadgen-call-loop` (now also Dockerized).
 - **Tests (full):** `scripts\run_tests.bat` → **phir `pytest_run.log` Read karo** (~80+ green; full suite team_pulse area pe HANG ho sakta — targeted suites prefer)
 - **Test (targeted/contract):** `.venv\Scripts\python.exe -m pytest tests/test_billing_truth_2026.py -q`

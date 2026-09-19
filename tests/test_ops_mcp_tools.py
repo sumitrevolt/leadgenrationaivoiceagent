@@ -7,7 +7,7 @@ proof ke liye hum override POP karte hain (test_blueprint_api_auth pattern).
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.auth_deps import get_current_user, require_admin
+from app.api.auth_deps import get_current_user, require_admin, require_admin_or_ops_readonly
 from app.main import app
 
 
@@ -17,9 +17,10 @@ def client():
 
 
 def _pop_auth():
-    # conftest dono ko override karta hai (get_current_user = mock-admin);
-    # dono pop karne se REAL auth chain chalti hai -> bina token = 401.
+    # conftest override karta hai (get_current_user = mock-admin);
+    # pop karne se REAL auth chain chalti hai -> bina token = 401.
     app.dependency_overrides.pop(require_admin, None)
+    app.dependency_overrides.pop(require_admin_or_ops_readonly, None)
     app.dependency_overrides.pop(get_current_user, None)
 
 

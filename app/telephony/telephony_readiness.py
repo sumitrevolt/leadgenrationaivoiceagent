@@ -78,7 +78,9 @@ def run_checks() -> dict[str, Any]:
     tata_did = _env("TATA_SMARTFLO_DID")
     tata_creds = bool(tata_token and tata_key)
     tata_enabled = os.environ.get("TATA_SMARTFLO_ENABLED", "0").strip().lower() in (
-        "1", "true", "yes",
+        "1",
+        "true",
+        "yes",
     )
 
     add(
@@ -88,6 +90,12 @@ def run_checks() -> dict[str, Any]:
         20,
     )
     add("did", bool(tata_did), "TATA_SMARTFLO_DID (bundled DID)", 15)
+    add(
+        "caller_id",
+        bool(tata_did),
+        "TATA_SMARTFLO_DID (caller ID for outbound calls)",
+        10,
+    )
 
     # Synthetic Verification check — DID connectivity probe.
     # 2026-08-30 FIX: previous code hardcoded outbound_ok=True which gave a
@@ -95,8 +103,10 @@ def run_checks() -> dict[str, Any]:
     # Now defaults to False; only passes when the probe explicitly
     # succeeds or is not configured (weight=0).
     smartflo_verify_outbound = _env("SMARTFLO_VERIFY_CALLER_ID_OUTBOUND").lower() in (
-        "1", "true", "yes",
-    )
+        "1",
+        "true",
+        "yes",
+    ) or _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND").lower() in ("1", "true", "yes")
     probe_w = 20 if smartflo_verify_outbound else 0
     if smartflo_verify_outbound:
         try:

@@ -21,9 +21,9 @@ from __future__ import annotations
 
 from typing import Any
 
-SCANNER_VERSION = 'app.platform.runtime_data_scan@eddfd576'
-FIRST_RECORDED_HEAD = 'eddfd576'
-FIRST_RECORDED_BRANCH = 'main'
+SCANNER_VERSION = 'app.platform.runtime_data_scan@55b148e3'
+FIRST_RECORDED_HEAD = '55b148e3'
+FIRST_RECORDED_BRANCH = 'feat/consolidated-admin-fix'
 
 ENTRIES: list[dict[str, Any]] = [
     {
@@ -4871,7 +4871,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_state.json')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 638,
+        'line_hint': 640,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4884,7 +4884,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_usage.json')",
         'classification': 'AMBIGUOUS_REQUIRES_REVIEW',
         'store_id': None,
-        'line_hint': 643,
+        'line_hint': 645,
         'review_state': 'AMBIGUOUS_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4897,7 +4897,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_usage.json')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 670,
+        'line_hint': 672,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4910,7 +4910,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_dlq.jsonl')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 676,
+        'line_hint': 678,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4923,7 +4923,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_dlq.jsonl')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 688,
+        'line_hint': 690,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4936,7 +4936,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_dlq.jsonl')",
         'classification': 'AMBIGUOUS_REQUIRES_REVIEW',
         'store_id': None,
-        'line_hint': 697,
+        'line_hint': 699,
         'review_state': 'AMBIGUOUS_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4949,7 +4949,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_dlq.jsonl')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 700,
+        'line_hint': 702,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -4962,7 +4962,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'agent_runtime_state.json')",
         'classification': 'AMBIGUOUS_REQUIRES_REVIEW',
         'store_id': None,
-        'line_hint': 1422,
+        'line_hint': 1424,
         'review_state': 'AMBIGUOUS_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -9213,7 +9213,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'telephony_readiness.jsonl')",
         'classification': 'AMBIGUOUS_REQUIRES_REVIEW',
         'store_id': None,
-        'line_hint': 242,
+        'line_hint': 252,
         'review_state': 'AMBIGUOUS_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -9226,7 +9226,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'telephony_readiness.jsonl')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 249,
+        'line_hint': 259,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },
@@ -9239,7 +9239,7 @@ ENTRIES: list[dict[str, Any]] = [
         'normalized_path': "os.path.join('data', 'telephony_readiness.jsonl')",
         'classification': 'UNDECLARED_MUTABLE_PATH',
         'store_id': None,
-        'line_hint': 250,
+        'line_hint': 260,
         'review_state': 'UNDECLARED_PENDING_CLASSIFICATION',
         'evidence': 'frozen at baseline; authority NOT established',
     },

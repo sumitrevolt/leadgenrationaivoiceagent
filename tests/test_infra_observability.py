@@ -46,6 +46,19 @@ def test_automation_health_heartbeat_and_overdue(tmp_path, monkeypatch):
     monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
     monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
     monkeypatch.delenv("AUTOMATION_HEALTH_ALERTS", raising=False)
+    # Premise control (2026-09-18): the assertions below test the ABSENCE of
+    # problems, so every problem source has to be neutralised first. Without
+    # this, whatever real state the machine happens to hold leaks in: a genuine
+    # `stale` entry in data/stale_outputs.jsonl (producer stopped producing)
+    # flips status from "warming_up" to "degraded" and the test fails for a
+    # reason that has nothing to do with automation_health's own logic.
+    # Proven by A/B: same code + real-data inputs neutralised -> "warming_up".
+    monkeypatch.setattr(ah, "stale_outputs", lambda: [])
+    monkeypatch.setattr(
+        ah,
+        "engine_skip_summary",
+        lambda hours=48: {"total": 0, "by_engine": {}, "by_job": {}, "latest": []},
+    )
 
     # fresh = sab never_ran
     h0 = ah.health()

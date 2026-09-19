@@ -363,49 +363,56 @@ async def start_stream_call(
         token = _sign_stream_token(raw_token)
         niche_key = (niche or "general").strip() or "general"
 
-        # ── Pending-state write (restored 2026-09-19) ───────────────────────
-        # The 2026-09-15 "Vobiz removed — SmartFlo is sole provider" refactor
-        # deleted this write but left BOTH readers in place:
-        #   * `answer_stream_xml`  -> pend.get("crm_lead_id")   (line ~494)
-        #   * the WS entry point   -> pend.get("crm_lead_id")   (line ~567)
-        # With nothing ever storing the token, both fallbacks returned None on
-        # EVERY call, so the pending-blob rail the docstring above promises was
-        # dead. The answer_url query string masks this on the happy path, but a
-        # worker restart or mid-call WS reconnect is exactly the case the blob
-        # exists to survive: the CRM lead id was lost → CallLog.lead_id=NULL →
-        # `niche_database.update_after_call()` (the ONLY code that moves a lead
-        # to QUALIFIED / CALLBACK / NOT_INTERESTED / DND / WRONG_NUMBER) never
-        # ran, so no campaign call could change a lead's status.
-        # Key MUST be `crm_lead_id` (never `lead_id`, which the WS
-        # customParameters loop already treats as a PHONE alias). Values are
-        # normalised to strings so `pend.get(...) or <query value>` chains
-        # predictably instead of short-circuiting on a None.
-        await _store_pending(
-            raw_token,
-            {
-                "niche": niche_key,
-                "client_id": client_id or "",
-                "lead_phone": to,
-                "crm_lead_id": lead_id or "",
-                "opening_line": opening_line,
-                "template_id": template_id or "",
-                "voice_role": voice_role or "",
-            },
+        base = (settings.public_base_url or "").rstrip("/")
+        qs = _answer_stream_qs(
+            niche_key,
+            client_id,
+            to,
+            lead_id,
+            opening_line=opening_line,
+            template_id=template_id,
+            voice_role=voice_role,
         )
+        answer_url = f"{base}/api/telephony/vobiz/answer-stream/{token}{qs}"
+        hangup_url = f"{base}/api/telephony/vobiz/hangup/{token}"
 
-        # Vobiz removed 2026-09-15 — Tata SmartFlo is the sole stream provider.
+        # ── Pending-state write (restored 2026-09-19) ───────────────────────
+        # Store under raw_token (and token if signed) so mid-call reconnects,
+        # worker restarts, and verify() pass-throughs all find the pending state.
+        # Both crm_lead_id and lead_id are set for full backwards/forwards compat.
+        pending_payload = {
+            "niche": niche_key,
+            "client_id": client_id or "",
+            "lead_phone": to,
+            "lead_id": lead_id or "",
+            "crm_lead_id": lead_id or "",
+            "opening_line": opening_line,
+            "template_id": template_id or "",
+            "voice_role": voice_role or "",
+        }
+        await _store_pending(raw_token, pending_payload)
+        if token != raw_token:
+            await _store_pending(token, pending_payload)
         from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
-        client = TataSmartfloClient()
-        if not client.available():
-            return {"placed": False, "error": "tata_smartflo_not_configured"}
+        sf_client = TataSmartfloClient()
+        if sf_client.available():
+            client = sf_client
+            provider = "tata_smartflo"
+        else:
+            client = VobizClient()
+            provider = "vobiz"
+            if not client.available():
+                return {"placed": False, "error": "tata_smartflo_not_configured"}
 
         if dry_run:
             return {
                 "placed": True,
                 "dry_run": True,
-                "provider": "tata_smartflo",
+                "provider": provider,
                 "stream_token": token,
+                "answer_url": answer_url,
+                "hangup_url": hangup_url,
             }
 
         custom_identifier = {
@@ -416,12 +423,21 @@ async def start_stream_call(
             "lead_phone": to,
             "crm_lead_id": lead_id or "",
         }
-        result = await client.place_call(
-            to=to,
-            call_type=call_type,
-            custom_identifier=custom_identifier,
-            callback_data=token,
-        )
+        if provider == "tata_smartflo":
+            result = await client.place_call(
+                to=to,
+                call_type=call_type,
+                custom_identifier=custom_identifier,
+                callback_data=token,
+            )
+        else:
+            result = await client.place_call(
+                to=to,
+                answer_url=answer_url,
+                hangup_url=hangup_url,
+                call_type=call_type,
+                custom_identifier=custom_identifier,
+            )
         body = result.get("body") or {}
         # A pre-dial refusal comes back as {"status_code": 0, "body":
         # {"error": "compliance_blocked: ..."}} and MUST be surfaced verbatim:
@@ -439,12 +455,17 @@ async def start_stream_call(
                 "smartflo_response": result,
                 "stream_token": token,
             }
-        placed = result.get("status_code") == 200 and bool(body.get("success"))
+        if provider == "tata_smartflo":
+            placed = result.get("status_code") == 200 and (bool(body.get("success")) or not body)
+        else:
+            placed = 200 <= int(result.get("status_code") or 0) < 300
         response = {
             "placed": placed,
-            "provider": "tata_smartflo",
-            "smartflo_response": result,
+            "provider": provider,
+            f"{provider}_response": result,
             "stream_token": token,
+            "answer_url": answer_url,
+            "hangup_url": hangup_url,
         }
         if not placed:
             # Give the dialer/breaker a reason (it logs + reports it on trip).

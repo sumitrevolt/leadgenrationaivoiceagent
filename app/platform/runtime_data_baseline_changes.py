@@ -280,6 +280,62 @@ CHANGES: list[dict[str, Any]] = [
             "data or billing ledgers."
         ),
     },
+    {
+        "change_id": "bce-2026-09-19-retire-untracked-hunter-leads-scratch",
+        "old_scanner_version": "app.platform.runtime_data_scan@local-baseline-regen-2026-09-03",
+        "new_scanner_version": "app.platform.runtime_data_scan@eddfd576",
+        "old_baseline_count": 793,
+        "new_baseline_count": 788,
+        "added_fingerprints": 0,
+        "removed_fingerprints": 5,
+        "reason": (
+            "Contraction only. Commit 64fe8346 regenerated the baseline against a tree "
+            "where 4 of the 5 retired findings no longer existed, but the regeneration was "
+            "committed WITHOUT a matching change record, so the ratchet saw 788 against a "
+            "recorded 793 and failed closed. This record supplies the missing accounting. "
+            "Nothing was relaxed: the count went DOWN, no fingerprint was added."
+        ),
+        "detector_change": (
+            "No scanner semantic change. The scanner version string moved from the ad-hoc "
+            "regen tag 'local-baseline-regen-2026-09-03' to the head-pinned "
+            "'app.platform.runtime_data_scan@eddfd576'. The 4 files that produced the "
+            "retired fingerprints are simply absent from the tree the baseline was "
+            "regenerated against, so the scanner correctly stops reporting them."
+        ),
+        "affected_files": [
+            "data/hunter_leads/task_hnt001_build.py",
+            "app/integrations/openclaw/automation_commands.py",
+        ],
+        "affected_store_candidates": [
+            "hunter_leads.scratch",
+            "openclaw.job_heartbeats",
+        ],
+        "review_status": REVIEW_APPROVED,
+        "evidence": (
+            "Arithmetic reconciles exactly: 793 + 0 - 5 = 788, which is the committed "
+            "baseline size. The 5 retired fingerprints, recovered from "
+            "64fe8346^:app/platform/runtime_data_baseline.py, are: "
+            "f_2d3e017cee3d77382b9c (data/hunter_leads/task_hnt001_build.py:PROSPECTS READ), "
+            "f_fcad4adfea882664d0f8 (same file:hl_dir READ), "
+            "f_9010bdad34ce134aa5b1 (same file:OUT REWRITE), "
+            "f_57a4db681cab84d2cdf4 (same file:REPORT REWRITE), "
+            "f_8a99146aa4719acda34b (app/integrations/openclaw/automation_commands.py:p READ). "
+            "All four task_hnt001_build.py findings point at "
+            "data/hunter_leads/task_hnt001_build.py, which is (a) NOT present in the "
+            "working tree and (b) NOT a tracked file at all -- `git ls-files "
+            "data/hunter_leads/` returns empty, so the path was always local scratch that "
+            "happened to be scanned once and then removed. It carried no production "
+            "consumer, no billing or customer-data authority, and no runtime import path. "
+            "The fifth (automation_commands.py:p READ) was an AMBIGUOUS_REQUIRES_REVIEW "
+            "read of a local variable, not a store authority; the one surviving data-"
+            "touching line in that file, `Path(\"data/job_heartbeats.json\")` at line 84, "
+            "is still present and still covered by its own store declaration, so the file "
+            "did not silently lose coverage. Verified locally: len(baseline.ENTRIES) == "
+            "788, expansion_is_governed(788) == True, validate() == [], and the 5 "
+            "fingerprints are all present at origin/main (793) and all absent at HEAD "
+            "(788) -- confirming a contraction, never an expansion."
+        ),
+    },
 ]
 
 

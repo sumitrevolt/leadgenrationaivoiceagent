@@ -340,7 +340,9 @@
         "daily_video",
         "afternoon_content",
         "weekly_marketing",
-        "social_drain"
+        "social_drain",
+        "video_delivery",
+        "video_delivery_retry"
       ],
       "dsh_candidate": true,
       "idempotency": "per-client per-day content",
@@ -429,7 +431,8 @@
       "current_jobs": [
         "ops",
         "watchdog",
-        "saturday_hygiene"
+        "saturday_hygiene",
+        "video_health"
       ],
       "dsh_candidate": true,
       "idempotency": "run-due window marker",
@@ -1253,7 +1256,7 @@
       {
         "call": "app.platform.agent_runtime.request_cancel_run",
         "file": "app/platform/owner_agent_execution.py",
-        "line": 656,
+        "line": 660,
         "scope": "request_cancel_running"
       },
       {
@@ -2834,7 +2837,7 @@
       },
       {
         "file": "app/platform/owner_agent_execution.py",
-        "line": 653,
+        "line": 657,
         "local_name": "art",
         "module": "app.platform.agent_runtime",
         "scope": "request_cancel_running",

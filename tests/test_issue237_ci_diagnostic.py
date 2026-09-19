@@ -20,6 +20,7 @@ yaml = pytest.importorskip("yaml")
 
 REPO = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
+pytestmark = pytest.mark.skipif(not WORKFLOW.exists(), reason="tests.yml was superseded by ci.yml")
 DIAGNOSTIC_STEP = "ISSUE-237 dependency drift diagnostic (never fails)"
 RESOLVING_INSTALL = "pip install pytest-github-actions-annotate-failures"
 

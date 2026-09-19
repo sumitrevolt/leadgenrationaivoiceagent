@@ -375,6 +375,7 @@ def _wire_dialer(monkeypatch, fake, *, placed=True, error=""):
         return {"placed": placed, "error": error}
 
     monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _ssc)
+    monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient.available", lambda self: True)
 
     async def _nosleep(*a, **k):

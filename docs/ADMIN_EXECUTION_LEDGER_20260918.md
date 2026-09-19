@@ -1,0 +1,349 @@
+# Autonomous Admin — Execution Ledger (2026-09-18)
+
+> Owner-mandated, evidence-based execution record. Every claim below is backed by a
+> command whose output was observed live. Unverified items are labelled `CODE-PRESENT`,
+> `PARTIAL`, `BLOCKED` or `NOT CHECKED` — never "working".
+
+**Truth priority applied:** LIVE RUNTIME EVIDENCE → CURRENT CODE → CURRENT TESTS →
+CURRENT CONFIGURATION → CURRENT DOCS → OLD REPORTS.
+
+---
+
+## 1. PRODUCTION BASELINE (live, 2026-09-18 ~13:15–13:25 IST)
+
+| Item | Live value | Evidence |
+| --- | --- | --- |
+| Repo | `C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent` | local |
+| `origin/main` | `c4547ab1` (2026-09-17T17:58:13+05:30) | `git rev-parse origin/main` |
+| Working branch | `fix/runtime-data-baseline-cline-0918` | `git status -sb` |
+| **Live prod `/health`** | `version=680722c8`, `environment=production` | `GET https://leadsgenai.in/health` |
+| Prod git HEAD | `680722c8` (ancestor of `origin/main`) | `ssh root@leadsgenai.in 'git rev-parse HEAD'` |
+| Prod image | `ghcr.io/sumitrevolt/leadgenrationaivoiceagent:680722c8` | `docker ps` |
+| Prod containers | `leadgen_app` (127.0.0.1:8000), `leadgen_mcp` (127.0.0.1:8090), `leadgen_worker`, `leadgen_scheduler`, `leadgen_worker_video`, `leadgen_worker_heavy`, `leadgen_redis` — all `healthy` | `docker ps` |
+| Prod disk | `/dev/sda1 193G, 99G used, 94G free (52%)` | `df -h /` |
+| Prod RAM | `15992 MB total, 6940 used, 9051 available` | `free -m` |
+| `leadgen-omni-bridge.service` | **active running** | `systemctl` |
+| `leadgen-call-loop.service` | **inactive dead** ⚠️ | `systemctl` |
+| `leadgen-calls.service` | **inactive dead** ⚠️ | `systemctl` |
+| GitHub auth | `sumitrevolt` (gist, read:org, repo, workflow) | `gh auth status` |
+| TypeSafe live probe (prior) | `POST /v1/systemone` → 200, model `jev-1.13.0`, 1.04s | `docs/ADMIN_EXECUTION_WAVE1_20260918.md` |
+
+**Doc drift corrected:** `CLAUDE.md` §Ops-facts still records prod `/health` as `cdc28e0d`
+(and `95245ce8`, `0b848b34` before that). Live truth is **`680722c8`**. Any SHA claim must be
+re-probed, not read from docs.
+
+---
+
+## 2. P0 FINDINGS — FOUND AND FIXED THIS SESSION
+
+### P0-1 — Cold-email acquisition engine was 0 bytes in production 🔴
+
+**The highest-impact defect found.** Commit `cf48e33f`
+("feat: crore-strategy foundation — M1-M5 stubs + wiring + tests (5,218 lines)",
+2026-09-17T06:14:05+05:30) deleted **1,982 lines** from
+`app/platform/auto_outreach.py`, leaving a **0-byte file**.
+
+* Git blob in `origin/main` and `HEAD`: `e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`
+  (the well-known *empty blob* SHA).
+* **Live production proof:**
+  `ssh root@leadsgenai.in 'ls -l /opt/leadgen/app/platform/auto_outreach.py'` →
+  `-rw-r--r-- 1 root root 0 Sep 17 01:33 /opt/leadgen/app/platform/auto_outreach.py`
+* `emptying_commit_in_prod = True` (`git merge-base --is-ancestor cf48e33f 680722c8`).
+
+**Blast radius (every call raised `AttributeError`):** 19 call sites in
+`app/api/team.py`, plus `app/agents/staff.py:1127` (the cold-email staff job),
+`app/api/admin_dashboard_builders.py:695`, `app/api/admin.py:674`.
+Functions lost: `run_email_outreach`, `run_email_followups`, `outreach_stats`,
+`outreach_activity`, `last_run_summaries`, `pending_review_candidates`,
+`record_review_decision`, `list_review_decisions`, `review_decision_counts`.
+
+Cold email is the documented top of the revenue funnel (`/audit` → email-outreach →
+inquiry → `/pricing` → `/start`), so this was a **revenue-channel outage**, not dead code.
+
+**Fix:** restored the last-good blob verbatim — `3f697883effdf03aa7d8d5674c79a6ee24f9eb27`
+(identical at `cf48e33f^` and `f5ef19bf`). Commit `344cb5e5`, +1,982 lines.
+**Rollback:** `git checkout e69de29b -- app/platform/auto_outreach.py`.
+
+### P0-2 — Two writers, two formats, one path: task-ledger data loss 🔴
+
+`app/platform/dev_workers.py` declared
+`LEDGER_PATH = data/orchestrator_ledger.db` — the *same* path
+`automation_orchestrator.SQLITE_DB_PATH` (`DurableTaskStore`) and `DevWorkerStore`
+open as **SQLite**. But `DevWorkerProver._save()` writes **JSON** via
+`open(path, "w")` + `json.dump`.
+
+Live evidence — the file's first bytes were
+`7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72` → `{ "dev_worker`, i.e. JSON,
+not `SQLite format 3`.
+
+**Fix:** the prover now owns `data/dev_workers_ledger.json`; `get_prover()` resolves
+the path at call time so `DEV_WORKERS_LEDGER_PATH` can redirect it. Commit `7bb050d4`.
+
+### P0-3 — CI `prod_check runtime gates` blocked on 3 real problems 🟠
+
+PR #522's CI failed with exactly:
+
+```
+[FAIL] 3 problem(s):
+  - SYNTAX tests/test_dev_workers.py line 1: invalid non-printable character U+FEFF
+  - AUTOMATION DEAD FLAG: OUTREACH_CAMPAIGN_VARIANTS declared in AUTOMATION_FLAGS but never read in app/
+  - AUTOMATION DEAD FLAG: OUTREACH_AUDIT_LED declared in AUTOMATION_FLAGS but never read in app/
+```
+
+1. **UTF-8 BOM** (`EF BB BF`) on line 1 of `tests/test_dev_workers.py` — the only BOM in the
+   entire tracked `*.py` set. It was a hard syntax error, and it meant pytest never collected
+   the file at all. BOM stripped; double-encoded em-dash on line 1 repaired.
+2. **Both "dead" flags were not dead** — they were *orphaned* by P0-1. `OUTREACH_AUDIT_LED`
+   is read by `auto_outreach._audit_led_on()`; `OUTREACH_CAMPAIGN_VARIANTS` by the
+   champion/challenger copy selector. Restoring `auto_outreach.py` re-reads both, so the
+   gate now passes **legitimately** — no gate was weakened and no flag was deleted.
+
+Also repaired: a byte-identical **duplicate `worker_id_for()`** definition (ruff F811),
+5 typing/modernisation ruff errors, and a non-hermetic test
+(`test_dev_workers_becomes_nonzero` asserted `len(prover.workers) == 1` against the shared
+global ledger after a sibling test had already written `dw_task_full` into it).
+
+### P0-4 — Secret hygiene verified 🟢
+
+* `app/platform/typesafe_integration.py` — the hardcoded live key was **already removed** and
+  the removal is in `origin/main` (commit `979c2229`, "remove 2 hardcoded live credentials +
+  close the scanner hole that hid them").
+* The removed value is still in **git history** (`7317f990`); its shape began `241d1117d…`
+  (value intentionally NOT reproduced here). **Owner must rotate it.**
+* Current tree: `scripts/check_secrets.py --all` →
+  `[check_secrets] scanning 4273 files (ALL tracked files)` → **`[OK] no secrets detected`**.
+* `GitGuardian Security Checks` = pass on PR #522.
+
+---
+
+## 3. VERIFICATION PERFORMED
+
+| Check | Before | After |
+| --- | --- | --- |
+| `ruff check app/platform/dev_workers.py tests/test_dev_workers.py` | 7 errors (incl. F811) | **All checks passed** |
+| `ruff check app/platform/auto_outreach.py` | n/a (file empty) | **All checks passed** |
+| `pytest tests/test_auto_outreach.py tests/test_outreach_audit_led.py` | 13 failed + 13 collection errors | **39 passed** |
+| `pytest tests/test_dev_workers.py` | 1 failed (never collected: BOM) | **11 passed** |
+| `python scripts/prod_check.py` | `[FAIL] 3 problem(s)` | **`[OK] ALL CHECKS PASSED - ready to deploy`** |
+| `scripts/check_secrets.py --all` | — | **[OK] no secrets detected** (4,273 files) |
+
+Residual `prod_check` WARN (non-blocking): two orphan module trees — stale `.pyc` files with
+no `.py` source (`app\voice_agent\swara_pitch_v2*.pyc`, 11 in `tests\`). These are ghosts from
+an unmerged branch and must not be mistaken for live features.
+
+---
+
+## 4. OPEN FINDINGS — PRIORITIZED BACKLOG (NOT fixed this session)
+
+| ID | Pri | Finding | Evidence | Next action |
+| --- | --- | --- | --- | --- |
+| B-1 | **P0** | **TypeSafe key must be rotated.** Removal is committed, but the value survives in git history (`7317f990`). | `git show 979c2229` (value withheld) | Owner rotates at `platform.typesafe.ai`; never persist to prod `.env`. |
+| B-2 | **P0** | **Live prod still runs the broken image.** The restore is only on the branch, not deployed. | `docker ps` → all containers `:680722c8`; prod file is 0 bytes | Merge PR #522 → `bash scripts/deploy_vps.sh` → re-probe `/health`. |
+| B-3 | **P0** | **`leadgen-call-loop.service` is `inactive dead`** while inside the TRAI 09:00–20:00 IST window → cold outbound calling is not running. | `systemctl list-units ... \| grep leadgen` | Confirm intended trigger (scheduler vs unit), then start + verify a real dial. |
+| B-4 | **P0** | **`HQ_AUTO_CHASE` governance gap**: flag enabled with no runtime approval-ID/status enforcement (flagged in Wave-1, not yet contained). | Wave-1 doc §6; flag present in prod `.env` | Fail-closed: set `HQ_AUTO_CHASE=0`, restart, verify OFF, then design the approval gate. |
+| B-5 | **P1** | **`VOBIZ_CALLER_ID` still present in prod `.env`** — Vobiz is supposed to be a removed provider path. | `ssh ... grep -oE '^[A-Z_]+=' /opt/leadgen/.env` | Prove no runtime consumer of `VOBIZ_CALLER_ID`, then remove the var + dead code. |
+| B-6 | **P1** | **Graphify graph is STALE.** `app/graphify-out/GRAPH_REPORT.md` says `Built from commit: 20e4180b` (mtime 2026-09-14) vs HEAD `7bb050d4`. | `Select-String GRAPH_REPORT.md` | `scripts/graphify_refresh.sh --force` (`graphify.exe` is on PATH). |
+| B-7 | **P1** | **Duplicate skill registries still exist.** ADR-131 declares `.claude/skills` (212 dirs) canonical and removed `.agents/skills`; but **`skills/` (4 skills, 10 tracked files — incl. `skills/typesafe-ai/SKILL.md`) and `.cursor/skills/leadgen-composer`** are still tracked, and `tests/test_skill_tree_canonical_guard.py` only guards `.agents/skills`. | `git ls-files skills` | Reconcile into the canonical root, then extend the canonical guard to cover `skills/` + `.cursor/skills`. |
+| B-8 | **P1** | **`app/api/admin.py:674` imports a symbol that does not exist**: `from app.platform.auto_outreach import EmailSender as _ES`. `auto_outreach` only imports `EmailSender` *inside* functions from `app.integrations.email_sender`. The import sits in a best-effort `try`, so the admin-created-user verification email silently never sends. | `Get-Content app/api/admin.py \| Select -Skip 666 -First 16` | Point the import at `app.integrations.email_sender`. |
+| B-9 | **P2** | **`data/orchestrator_ledger.db` is gitignored but was locally JSON-clobbered** by P0-2 before the fix. Any dev/CI machine that ran the old code has a corrupted local task ledger. | first bytes `7B 0D 0A ...` | Delete the corrupted local file so SQLite recreates it; confirm prod's real ledger path (not `/opt/leadgen/data/`). |
+| B-10 | **P2** | **Stale 0-byte tracked files**: `memory/2026-09-04.md` and a tracked `$null`; plus test artifacts committed under `.pytest_tmp_*` and `._t_resume.txt`. | zero-byte sweep of tracked files | Triage and remove from tracking. |
+| B-11 | **P2** | **GitHub ruleset 23507307 still lacks required status checks.** Live rules are only `deletion` + `non_fast_forward`. | Wave-1 doc §3 | `gh api -X PUT /repos/.../rulesets/23507307` with full JSON incl. required checks. |
+
+## 5. OWNER-ONLY ACTIONS REQUIRED
+
+1. **Rotate the TypeSafe API key** (B-1) — it is in git history; deleting the line did not un-expose it.
+2. Approve the merge of PR #522 and the production deploy of the restored engine (B-2).
+3. Decide the intended trigger for `leadgen-call-loop.service` (B-3).
+4. Confirm the `HQ_AUTO_CHASE` containment decision (B-4).
+
+## 6. ROLLBACK
+
+* **P0-1:** `git checkout e69de29b -- app/platform/auto_outreach.py` (returns to the 0-byte state — only use if the restore itself regresses).
+* **P0-2/P0-3:** `git revert 7bb050d4` — no data movement; the new JSON ledger path is additive.
+* **Deploy:** canonical rollback lineage is `680722c8` (current prod image tag remains pullable).
+
+## 7. ACCEPTANCE STATUS (honest labelling)
+
+| Item | Status |
+| --- | --- |
+| `auto_outreach` restored in Git + CI | **TEST-PROVEN** (39 tests green, prod_check green) |
+| `auto_outreach` restored in **production** | **NOT DONE — BLOCKED on merge + deploy** |
+| dev_workers ledger collision | **CODE-PRESENT + TEST-PROVEN** |
+| BOM / prod_check blockers | **TEST-PROVEN** |
+| Secret hygiene (current tree) | **VERIFIED** (4,273 files, 0 findings) |
+| Secret hygiene (history) | **BLOCKED on owner rotation** |
+| SmartFlo-only calling | **NOT VERIFIED** (call loop inactive; `VOBIZ_CALLER_ID` still present) |
+| 9 workers / 31 agents execution proof | **NOT CHECKED this session** |
+| Graphify freshness | **STALE — not rebuilt** |
+
+---
+**Last updated:** 2026-09-18 ~13:35 IST · **Commits:** `344cb5e5`, `7bb050d4` on `fix/runtime-data-baseline-cline-0918` · **PR:** #522
+
+---
+
+## 8. POST-FIX RE-VERIFICATION & CORRECTIONS (added 2026-09-18 ~13:50 IST)
+
+### 8.1 CORRECTION — B-11 is WITHDRAWN: required checks ARE enforced ⚠️→✅
+
+`docs/ADMIN_EXECUTION_WAVE1_20260918.md` §3 states ruleset `23507307` has only
+`deletion` + `non_fast_forward` and that required status checks are "Missing". **That is wrong.**
+Live API read:
+
+```
+gh api repos/sumitrevolt/leadgenrationaivoiceagent/rulesets/23507307
+  name=protect-main  target=branch  enforcement=active
+  conditions = ref_name.include=[refs/heads/main]
+  rules:
+    deletion
+    non_fast_forward
+    required_status_checks  strict_required_status_checks_policy=true
+      contexts: "Lint + syntax + secrets"
+                "prod_check + pytest"
+                "harness real-redis integration"
+```
+
+Classic branch protection is absent (`HTTP 404 Branch not protected`) — but the ruleset is
+`active` and does enforce those three contexts with `strict` mode. **B-11 is withdrawn.**
+This also explains PR #522's `mergeStateStatus: BLOCKED`: it was the ruleset correctly blocking
+on a FAILING required context, not a missing configuration. The failure *was* real — which is
+why P0-3 mattered.
+
+### 8.2 VERIFIED — the CI aggregator is fail-closed ✅
+
+The owner's requirement was: *"No merge should be labelled safe merely because a job name
+contains 'pytest'. The aggregator must programmatically assert the result of every required
+lane."* Current `ci.yml` satisfies this:
+
+* job id `tests`, **name exactly** `prod_check + pytest` (matches the required context);
+* `needs: [prod-check, pytest-job, pip-audit, quality, harness-redis-integration]` — all 5 lanes;
+* asserts each one: `test "${{ needs['<lane>'].result }}" = "success"` for every lane;
+* `if: always()` so a failed lane reports FAILURE rather than SKIPPED (the ruleset treats a
+  skipped required context as blocking, with worse UI);
+* inline comments record the 2026-09-14 audit fix — `quality` and `harness-redis-integration`
+  were previously **not** in the aggregator at all, so a red secrets scan or a skipped
+  real-Redis suite could still produce a green aggregate. That hole is closed.
+
+No change needed. This is `TEST-PROVEN` by the live run below.
+
+### 8.3 RESOLVED — B-6 Graphify staleness ✅
+
+`graphify update app` was run (`graphify.exe` on PATH; curated graph auto-backed up to
+`app/graphify-out/2026-09-18/` before the rebuild):
+
+| | Before | After |
+| --- | --- | --- |
+| Built from commit | `20e4180b` (2026-09-14) | **`7bb050d4`** |
+| Nodes | 22,524 | **23,541** |
+| Edges | 42,694 | **44,443** |
+| Communities | 1,069 | **1,080** |
+
+`app/graphify-out/` is gitignored, so the rebuild produced no repo diff. The graph now
+represents the code commit that carries the fixes.
+
+### 8.4 CI EVIDENCE on `3ec34a7c` (the final SHA)
+
+| Lane | Result |
+| --- | --- |
+| `Lint + syntax + secrets` | **SUCCESS** |
+| `prod_check runtime gates` | **SUCCESS** (was `FAILURE` with 3 problems) |
+| `harness real-redis integration` | **SUCCESS** |
+| `pip-audit installed env` | **SUCCESS** |
+| `CodeQL` / `Analyze (python|js/ts|csharp|actions)` | **SUCCESS** |
+| `Trivy repo scan + SBOM` / `Trivy image scan` | **SUCCESS** |
+| `GitGuardian Security Checks` | **SUCCESS** |
+| `Pytest Tests` | in progress at time of writing |
+| `Gate A (non-required sketch)` | `FAILURE` — **not a required context** (name says so; it is absent from the ruleset's required list) |
+
+### 8.5 STILL NOT DONE (honest status)
+
+* **No production deploy.** Prod remains `:680722c8` with the 0-byte engine. Merging #522 and
+  running `bash scripts/deploy_vps.sh` is the next action — deliberately left to an explicit
+  merge because the canonical rule is to deploy off `origin/main`, not an unmerged branch.
+* B-1 TypeSafe rotation, B-3 `leadgen-call-loop` inactive, B-4 `HQ_AUTO_CHASE`, B-5
+  `VOBIZ_CALLER_ID`: all still open.
+
+---
+
+## 9. WAVE 2 — TypeSafe as the decision engine + 2 defects fixed (2026-09-19 04:35 IST)
+
+**Owner instruction:** "sab fix karo using typesafe skills and api for decision-making, work like admin for owner."
+
+### 9.1 The canonical decision path now exists and is reproducible
+
+`scripts/typesafe_admin_triage.py` — state from `docs/coordination/ADMIN_FINDINGS.json`
+(now tracked; `.gitignore` blanket `*.json` had silently ignored it), ONE System One
+request carrying independent judgments (per-finding `Noul` real-risk, `Score` revenue
+impact, `Choice` next action, `Noul` owner-gate), ranking = `real_risk × severity`,
+trace appended to `logs/typesafe_decisions.jsonl` (deliberately NOT under `data/`, which
+belongs to the runtime-data manifest + its count-pinned ratchets). Fail-closed: INERT/failed request
+exits 3 and writes **no** decision.
+
+**Live result (task_id `tsadm-20260919T043330-f9dbf7`):** requested `jev-latest` →
+resolved **`jev-1.13.0`**; revenue impact **level 3** — "blocks revenue, breaks a
+compliance gate, or stops a live customer path"; **NEXT ACTION `B-2`** (conf 0.88,
+distribution B-2=0.90 / B-3=0.08 / B-4=0.02); owner-gated **True**. Ranking:
+B-2 0.94 › B-4 0.86 › B-5 0.81 › B-3 0.65 › typesafe_adoption 0.23 › B-9 0.10 › B-1 0.08 › B-10 0.04.
+
+An `outcome` record was appended for that task_id, recording exactly what the admin
+did and did not do (B-2 itself remains owner-gated).
+
+### 9.2 FIXED — admin-created users now actually get their verification email (B-8)
+
+`app/api/admin.py` imported `EmailSender` from `app.platform.auto_outreach`, which
+never exported it, and called `send(to=...)` — the real API is
+`await send_email(to_emails=[...])` in `app.integrations.email_sender`. The
+`ImportError` was swallowed by a best-effort `except` logging at **DEBUG**. Fixed to the
+canonical import + async API + `WARNING`-level failure logging.
+**Guard:** `tests/test_admin_verification_email.py` (21 tests) — every best-effort
+`from app.X import Y` inside a `try` block in `admin.py` must resolve to a real
+attribute, so this whole class of silent failure cannot come back.
+
+### 9.3 FIXED — the 992-call decorative TypeSafe consumer is gone
+
+`app/platform/agent_talent_pool.py` was the app's **only** TypeSafe consumer: 31 agents
+× 32 synthetic specializations = **992 sequential paid HTTP calls** at build time, the
+answer then looked up in a hardcoded snake_case map (so `"Cold call expert"` fell
+through to `"general"`), and **zero** modules consumed the pool. Removed
+(rollback `git checkout d4243e7a -- app/platform/agent_talent_pool.py`) and locked by
+`tests/test_typesafe_consumer_inventory.py` (consumer allowlist + stale-entry check +
+orphan must not return). See ADR-195.
+
+### 9.4 NOT touched (deliberate)
+
+* **B-2** (TypeSafe's own #1) — owner-gated: merge + `scripts/deploy_vps.sh`. Prod still
+  runs the 0-byte engine until then.
+* **B-5 / B-3** — `app/telephony/*` carries another thread's in-flight SmartFlo diff;
+  one owner per overlapping area, so no second writer.
+* **B-4** — compliance containment needs the owner's decision.
+
+### 9.5 Verification (all offline-safe)
+
+| Check | Result |
+| --- | --- |
+| `pytest` (7 suites: 3 new + jev-latest + status-script + credential-gap + wiring-gaps) | **95 passed** |
+| `pytest tests/test_revenue_infra_2026.py tests/test_auto_outreach.py` | **36 passed** |
+| `ruff check` (5 changed files) | **All checks passed** |
+| `scripts/check_secrets.py --all` | **4278 files, no secrets detected** |
+| `scripts/prod_check.py` | **[OK] ALL CHECKS PASSED** — 1436 routes, wiring 0 gaps, automation 0 gaps |
+| `scripts/sync_api_docs.py` | docs/API.md synced to 1449 endpoints |
+| `logs/typesafe_decisions.jsonl` | decision record + outcome record present, append-only |
+
+### 9.6 CORRECTION + INCIDENT (2026-09-19 ~05:00 IST)
+
+* The first pass of this wave's **code** changes (new script, 3 test files, findings
+  registry, `admin.py` fix, `.gitignore` negation, orphan delete) was **discarded by an
+  external branch switch** in this shared checkout (`main` `c1cbfdef` →
+  `feat/calling-window-and-typesafe`, commits `4aeed57e` + `52ebcc4a`). The docs records
+  survived because they rode along in those commits; `logs/` survived because it is
+  gitignored and `git clean` does not remove ignored files. **All of it was re-applied and
+  re-verified.** Nothing here should be assumed committed — the tree is uncommitted work
+  on `feat/calling-window-and-typesafe`.
+* Trace path corrected from `data/` to `logs/` after checking the ratchet's own detector:
+  `_uncontrolled_path_findings('scripts/typesafe_admin_triage.py')` → `[]`.
+* Re-verified on re-application: **90 tests** (6 suites) green · ruff clean ·
+  `check_secrets --all` clean · `prod_check` **ALL CHECKS PASSED** · new live decision
+  trace `tsadm-20260919T045736-582dfe` (NEXT ACTION `B-2`, conf 0.87, owner-gated True).
+
+
+
+

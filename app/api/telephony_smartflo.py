@@ -160,9 +160,7 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
     # owner can pin Tata's egress without a code deploy.
     _allow_ips = os.environ.get("SMARTFLO_WS_ALLOW_IPS", "").strip()
     if _allow_ips and not _client_ip_allowed(websocket, _allow_ips):
-        logger.warning(
-            "[smartflo-stream] rejected: client IP not in SMARTFLO_WS_ALLOW_IPS"
-        )
+        logger.warning("[smartflo-stream] rejected: client IP not in SMARTFLO_WS_ALLOW_IPS")
         try:
             await websocket.close(code=1008)
         except Exception:
@@ -282,9 +280,7 @@ async def smartflo_test_call(
     # Limit this route to a number the owner has explicitly marked as an
     # consented test destination.  The regular compliance gate remains the
     # authority for phone normalisation and the audit decision.
-    decision = await get_compliance_gate().check(
-        to_number, CallType.TRANSACTIONAL
-    )
+    decision = await get_compliance_gate().check(to_number, CallType.TRANSACTIONAL)
     if not decision.allowed or "allowlisted" not in decision.reasons:
         raise HTTPException(
             status_code=409,
@@ -308,9 +304,7 @@ async def smartflo_test_call(
     # used to dial with no gate at all. Fail closed: block => no dial.
     block_reason = await _smartflo_dial_block_reason(to_number)
     if block_reason:
-        logger.warning(
-            f"Smartflo test-call blocked by compliance gate: {block_reason}"
-        )
+        logger.warning(f"Smartflo test-call blocked by compliance gate: {block_reason}")
         return {
             "placed": False,
             "ref_id": None,
@@ -322,7 +316,7 @@ async def smartflo_test_call(
             "next_steps": [
                 "Call blocked by compliance gate (TCCCPR/TRAI) — not dialled.",
                 f"Reason: {block_reason}",
-                "Transactional calls are only allowed 09:00-21:00 IST.",
+                "Outbound campaign calls are only allowed 09:00-20:00 IST (transactional 09:00-21:00).",
                 "Check VOICE_LAUNCH_KILL / DIAL_TEST_MODE / COMPLIANCE_ALLOWLIST.",
             ],
         }
@@ -439,11 +433,7 @@ def _client_ip_allowed(websocket: WebSocket, spec: str) -> bool:
         candidate = hops[-1] if hops else peer
         if not candidate:
             return False
-        nets = [
-            ipaddress.ip_network(p.strip(), strict=False)
-            for p in spec.split(",")
-            if p.strip()
-        ]
+        nets = [ipaddress.ip_network(p.strip(), strict=False) for p in spec.split(",") if p.strip()]
         if not nets:
             return False
         try:

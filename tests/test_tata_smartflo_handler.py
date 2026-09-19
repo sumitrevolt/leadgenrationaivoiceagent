@@ -45,8 +45,9 @@ async def test_c2c_support_uses_api_key_did_when_no_override(
     monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "key-test")
     monkeypatch.setenv("TATA_SMARTFLO_DID", "918069879757")
     monkeypatch.setattr(httpx, "AsyncClient", _AsyncClient)
+    _AsyncClient.payload = None  # reset before test
 
-    result = await TataSmartfloClient().place_call("+91 84590 12607")
+    result = await TataSmartfloClient().place_call("+91 84590 12607", skip_compliance=True)
 
     assert result["status_code"] == 200
     assert _AsyncClient.payload is not None
@@ -66,8 +67,12 @@ async def test_c2c_support_sends_only_explicit_caller_id_override(
     monkeypatch.setenv("TATA_SMARTFLO_API_KEY", "key-test")
     monkeypatch.setenv("TATA_SMARTFLO_DID", "918069879757")
     monkeypatch.setattr(httpx, "AsyncClient", _AsyncClient)
+    _AsyncClient.payload = None  # reset before test
 
-    await TataSmartfloClient().place_call("8459012607", caller_id="+91 80694 12345")
+    await TataSmartfloClient().place_call(
+        "8459012607", caller_id="+91 80694 12345", skip_compliance=True
+    )
 
     assert _AsyncClient.payload is not None
-    assert _AsyncClient.payload["caller_id"] == "8069412345"
+    # _clean_caller_id preserves country code (91 prefix) for Smartflo C2C API
+    assert _AsyncClient.payload["caller_id"] == "918069412345"

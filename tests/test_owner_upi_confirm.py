@@ -10,7 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from app.billing.owner_upi_confirm import OwnerUpiConfirm, PendingPayment, get_confirm, record_payment, confirm_payment
+from app.billing.owner_upi_confirm import (
+    OwnerUpiConfirm,
+    PendingPayment,
+    confirm_payment,
+    get_confirm,
+    record_payment,
+)
 
 
 class TestPendingPayment:
@@ -82,14 +88,15 @@ class TestPendingPayment:
         assert restored.evidence == "evidence.txt"
 
 
+@pytest.fixture
+def tmp_path(tmp_path):
+    """Create temp ledger file."""
+    ledger_file = tmp_path / "pending_upi_payments.jsonl"
+    return str(ledger_file)
+
+
 class TestOwnerUpiConfirm:
     """Test OwnerUpiConfirm class."""
-
-    @pytest.fixture
-    def tmp_path(self, tmp_path):
-        """Create temp ledger file."""
-        ledger_file = tmp_path / "pending_upi_payments.jsonl"
-        return str(ledger_file)
 
     def test_record_payment(self, tmp_path):
         """Test recording a new payment."""
@@ -283,7 +290,8 @@ class TestIntegration:
 
     def test_module_level_functions(self, tmp_path, monkeypatch):
         """Test module-level convenience functions."""
-        monkeypatch.setattr("app.billing.owner_upi_confirm.get_confirm", lambda: OwnerUpiConfirm(tmp_path))
+        instance = OwnerUpiConfirm(tmp_path)
+        monkeypatch.setattr("app.billing.owner_upi_confirm.get_confirm", lambda: instance)
 
         # Record
         payment_id = record_payment("c1", 1999.0, "T1", "v1")

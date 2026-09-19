@@ -184,7 +184,7 @@ class TestExecuteAndValidate:
         )
 
         assert result.status == ExecutionStatus.FAILED
-        assert "SMTP.timeout" in result.attempts[0]["error"]
+        assert "SMTP timeout" in result.attempts[0]["error"]
 
     def test_validation_api_failure(self, mock_client):
         """TypeSafe call returns HTTP 500 → INERT (don't block on infra)."""

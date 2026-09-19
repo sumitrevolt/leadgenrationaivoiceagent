@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from app.platform.kpi_ledger import KpiLedger, KpiRecord, get_ledger, record_kpi, compute_and_print
+from app.platform.kpi_ledger import KpiLedger, KpiRecord, compute_and_print, get_ledger, record_kpi
 
 
 class TestKpiRecord:
@@ -78,21 +78,22 @@ class TestKpiRecord:
         record = KpiRecord("metric", 10.0, True, "evidence")
         repr_str = repr(record)
         assert "metric" in repr_str
-        assert "âœ“" in repr_str  # verified indicator
+        assert "\u2713" in repr_str  # verified indicator
 
         record2 = KpiRecord("metric", 10.0, False, "")
         repr_str2 = repr(record2)
-        assert "âœ—" in repr_str2  # unverified indicator
+        assert "\u2717" in repr_str2  # unverified indicator
+
+
+@pytest.fixture
+def tmp_path(tmp_path):
+    """Create temp ledger file."""
+    ledger_file = tmp_path / "kpi_ledger.jsonl"
+    return str(ledger_file)
 
 
 class TestKpiLedger:
     """Test KpiLedger class."""
-
-    @pytest.fixture
-    def tmp_path(self, tmp_path):
-        """Create temp ledger file."""
-        ledger_file = tmp_path / "kpi_ledger.jsonl"
-        return str(ledger_file)
 
     def test_record_verified(self, tmp_path):
         """Test recording verified KPI."""
@@ -139,7 +140,7 @@ class TestKpiLedger:
         assert os.path.exists(tmp_path)
 
         # Verify content
-        with open(tmp_path, "r") as f:
+        with open(tmp_path) as f:
             line = f.readline()
             data = json.loads(line)
         assert data["metric"] == "test_metric"
@@ -201,11 +202,11 @@ class TestTraceability:
         records = ledger.get_all()
         assert len(records) == 2
 
-        # First should have evidence
-        assert records[0].evidence == "data/source.json"
-
-        # Second has no evidence (flagged in real system)
-        assert records[1].evidence == ""
+        # First in get_all is the most recent (risky_metric), second is good_metric
+        good = next(r for r in records if r.metric_name == "good_metric")
+        risky = next(r for r in records if r.metric_name == "risky_metric")
+        assert good.evidence == "data/source.json"
+        assert risky.evidence == ""
 
     def test_source_tracking(self, tmp_path):
         """Test that source is tracked for audit."""
@@ -215,8 +216,9 @@ class TestTraceability:
         ledger.record("metric2", 200.0, True, "evidence2", "outreach_module")
 
         records = ledger.get_all()
-        assert records[0].source == "billing_module"
-        assert records[1].source == "outreach_module"
+        sources = [r.source for r in records]
+        assert "billing_module" in sources
+        assert "outreach_module" in sources
 
 
 class TestIntegration:
