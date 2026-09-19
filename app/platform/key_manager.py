@@ -34,12 +34,12 @@ AUDIT_LOG = KEYS_DIR / "audit.log"
 
 class KeyManagerAgent:
     """Manages API keys securely without exposing to chat/logs."""
-    
+
     def __init__(self):
         self.keys_file = KEYS_FILE
         self.audit_log = AUDIT_LOG
         self._ensure_dirs()
-    
+
     def _ensure_dirs(self) -> None:
         """Create secrets directory if missing."""
         try:
@@ -49,8 +49,10 @@ class KeyManagerAgent:
             self.keys_file = Path("data/secrets/keys.json")
             self.audit_log = Path("data/secrets/audit.log")
             self.keys_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    def _log_audit(self, action: str, service: str, actor: str, success: bool, note: str = "") -> None:
+
+    def _log_audit(
+        self, action: str, service: str, actor: str, success: bool, note: str = ""
+    ) -> None:
         """Log audit event (never logs key values)."""
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -65,18 +67,18 @@ class KeyManagerAgent:
                 f.write(json.dumps(entry) + "\n")
         except Exception as e:
             logger.warning(f"Failed to write audit log: {e}")
-    
+
     def _load_keys(self) -> dict[str, Any]:
         """Load keys from JSON file."""
         if not self.keys_file.exists():
             return {}
         try:
-            with open(self.keys_file, "r") as f:
+            with open(self.keys_file) as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load keys: {e}")
             return {}
-    
+
     def _save_keys(self, keys: dict[str, Any]) -> None:
         """Save keys to JSON file."""
         try:
@@ -90,18 +92,18 @@ class KeyManagerAgent:
         except Exception as e:
             logger.error(f"Failed to save keys: {e}")
             raise
-    
-    def get_key_prefix(self, service: str) -> Optional[str]:
+
+    def get_key_prefix(self, service: str) -> str | None:
         """Get key prefix for display (e.g., 'apikey_...x72c5')."""
         keys = self._load_keys()
         key = keys.get(service, {}).get("value", "")
         if not key or len(key) < 8:
             return None
         return f"{key[:8]}...{key[-4:]}"
-    
+
     def verify_key(self, service: str) -> dict[str, Any]:
         """Verify key status without exposing value.
-        
+
         Returns:
             {
                 "enabled": bool,
@@ -112,41 +114,42 @@ class KeyManagerAgent:
         """
         keys = self._load_keys()
         key_data = keys.get(service, {})
-        
+
         result = {
             "enabled": bool(key_data.get("value")),
             "prefix": self.get_key_prefix(service),
             "last_verified": key_data.get("last_verified"),
             "smoke_test": None,
         }
-        
+
         # Run smoke test if key exists
         if result["enabled"]:
             try:
                 from app.platform.typesafe_integration import get_typesafe_client
+
                 client = get_typesafe_client()
                 resp = client.initialize()
                 result["smoke_test"] = resp.success
                 result["last_verified"] = datetime.now(timezone.utc).isoformat()
-                
+
                 # Update storage
                 key_data["last_verified"] = result["last_verified"]
                 keys[service] = key_data
                 self._save_keys(keys)
-                
+
                 self._log_audit("verify", service, "system", resp.success)
             except Exception as e:
                 result["smoke_test"] = False
                 logger.error(f"Smoke test failed for {service}: {e}")
                 self._log_audit("verify", service, "system", False, str(e))
-        
+
         return result
-    
+
     def set_key(self, service: str, key: str, actor: str = "owner") -> dict[str, Any]:
         """Set API key (called from VPS/admin UI, NOT from chat)."""
         if not key or len(key) < 8:
             raise ValueError("Key too short")
-        
+
         keys = self._load_keys()
         keys[service] = {
             "value": key,
@@ -155,32 +158,36 @@ class KeyManagerAgent:
             "last_verified": None,
         }
         self._save_keys(keys)
-        
-        self._log_audit("set", service, actor, True, f"Key set (prefix: {self.get_key_prefix(service)})")
-        
+
+        self._log_audit(
+            "set", service, actor, True, f"Key set (prefix: {self.get_key_prefix(service)})"
+        )
+
         return {
             "success": True,
             "service": service,
             "prefix": self.get_key_prefix(service),
             "message": "Key stored securely (never exposed)",
         }
-    
+
     def rotate_key(self, service: str, new_key: str, actor: str = "owner") -> dict[str, Any]:
         """Rotate API key."""
         # Verify old key exists
         keys = self._load_keys()
         if service not in keys:
             raise ValueError(f"Service {service} not found")
-        
+
         old_prefix = self.get_key_prefix(service)
-        
+
         # Set new key
         result = self.set_key(service, new_key, actor)
-        
-        self._log_audit("rotate", service, actor, True, f"Rotated from {old_prefix} to {result['prefix']}")
-        
+
+        self._log_audit(
+            "rotate", service, actor, True, f"Rotated from {old_prefix} to {result['prefix']}"
+        )
+
         return result
-    
+
     def delete_key(self, service: str, actor: str = "owner") -> dict[str, Any]:
         """Delete API key (mark as INERT)."""
         keys = self._load_keys()
@@ -190,58 +197,58 @@ class KeyManagerAgent:
             self._log_audit("delete", service, actor, True)
             return {"success": True, "service": service}
         return {"success": False, "service": service, "reason": "not_found"}
-    
-    def get_audit_log(self, service: Optional[str] = None, limit: int = 50) -> list[dict]:
+
+    def get_audit_log(self, service: str | None = None, limit: int = 50) -> list[dict]:
         """Get audit log (last N entries)."""
         if not self.audit_log.exists():
             return []
-        
+
         try:
-            with open(self.audit_log, "r") as f:
+            with open(self.audit_log) as f:
                 entries = [json.loads(line) for line in f if line.strip()]
         except Exception:
             return []
-        
+
         # Filter by service if specified
         if service:
             entries = [e for e in entries if e.get("service") == service]
-        
+
         # Return last N entries
         return entries[-limit:]
-    
+
     def deploy_to_env(self, service: str) -> dict[str, Any]:
         """Deploy key to /opt/leadgen/.env (called after set/rotate)."""
         keys = self._load_keys()
         key_data = keys.get(service)
-        
+
         if not key_data or not key_data.get("value"):
             return {"success": False, "reason": "no_key"}
-        
+
         env_file = Path("/opt/leadgen/.env")
         if not env_file.exists():
             return {"success": False, "reason": "env_file_missing"}
-        
+
         # Read existing .env
         content = env_file.read_text()
-        
+
         # Replace or append key
         env_var = f"{service.upper()}_API_KEY"
         pattern = rf"^{env_var}=.*$"
-        
+
         if re.search(pattern, content, re.MULTILINE):
             content = re.sub(pattern, f"{env_var}={key_data['value']}", content, flags=re.MULTILINE)
         else:
             content += f"\n{env_var}={key_data['value']}\n"
-        
+
         # Backup before write
         backup = env_file.with_suffix(".env.bak")
         shutil.copy2(env_file, backup)
-        
+
         # Write updated .env
         env_file.write_text(content)
-        
+
         self._log_audit("deploy", service, "system", True, f"Deployed to {env_file}")
-        
+
         return {
             "success": True,
             "service": service,
@@ -252,7 +259,7 @@ class KeyManagerAgent:
 
 
 # Singleton instance
-_key_manager: Optional[KeyManagerAgent] = None
+_key_manager: KeyManagerAgent | None = None
 
 
 def get_key_manager() -> KeyManagerAgent:

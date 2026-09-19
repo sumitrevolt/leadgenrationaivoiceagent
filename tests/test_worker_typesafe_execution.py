@@ -13,11 +13,10 @@ from app.agents.workers import (
 def test_worker_parameter_type_validation():
     """Worker task must fail with a clear type error if input does not match expected schema."""
     qa_bot = QualityAssuranceWorker()
-    
+
     # rules expects 'list', pass a string instead -> must fail cleanly
     task = qa_bot.create_task(
-        "validate_content",
-        {"content": "Sample outreach", "rules": "not_a_list"}
+        "validate_content", {"content": "Sample outreach", "rules": "not_a_list"}
     )
     result = qa_bot.execute_task(task)
     assert result.status == "failed"
@@ -27,10 +26,9 @@ def test_worker_parameter_type_validation():
 def test_qa_worker_compliance_check():
     """QA worker evaluates compliance and executes skill logic."""
     qa_bot = QualityAssuranceWorker()
-    
+
     task = qa_bot.create_task(
-        "check_compliance",
-        {"campaign": {"dlt_approved": True, "cold_whatsapp": False}}
+        "check_compliance", {"campaign": {"dlt_approved": True, "cold_whatsapp": False}}
     )
     result = qa_bot.execute_task(task)
     assert result.status == "completed"
@@ -41,10 +39,9 @@ def test_qa_worker_compliance_check():
 def test_qa_worker_compliance_catches_violations():
     """QA worker catches DLT and cold WhatsApp violations."""
     qa_bot = QualityAssuranceWorker()
-    
+
     task = qa_bot.create_task(
-        "check_compliance",
-        {"campaign": {"dlt_approved": False, "cold_whatsapp": True}}
+        "check_compliance", {"campaign": {"dlt_approved": False, "cold_whatsapp": True}}
     )
     result = qa_bot.execute_task(task)
     assert result.status == "completed"
@@ -55,11 +52,15 @@ def test_qa_worker_compliance_catches_violations():
 def test_lead_generator_harvest_and_enrich():
     """Lead generator worker harvests and enriches leads."""
     lead_bot = LeadGeneratorWorker()
-    
+
     # 1. Harvest prospects
     task1 = lead_bot.create_task(
         "harvest_prospects",
-        {"source": "google_maps", "criteria": {"niche": "salon"}, "prospects": [{"name": "Salon A"}]}
+        {
+            "source": "google_maps",
+            "criteria": {"niche": "salon"},
+            "prospects": [{"name": "Salon A"}],
+        },
     )
     res1 = lead_bot.execute_task(task1)
     assert res1.status == "completed"
@@ -67,8 +68,7 @@ def test_lead_generator_harvest_and_enrich():
 
     # 2. Enrich lead
     task2 = lead_bot.create_task(
-        "enrich_lead",
-        {"lead": {"name": "Salon A", "phone": "+919876543210"}}
+        "enrich_lead", {"lead": {"name": "Salon A", "phone": "+919876543210"}}
     )
     res2 = lead_bot.execute_task(task2)
     assert res2.status == "completed"

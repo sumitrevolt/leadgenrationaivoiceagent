@@ -18,8 +18,8 @@ from app.platform.typesafe_executor import (
 )
 from app.platform.typesafe_integration import TypeSafeClient, TypeSafeResponse
 
-
 # ------------------------------------------------------------------ fixtures
+
 
 @pytest.fixture
 def mock_client():
@@ -83,6 +83,7 @@ def mock_client_inert():
 
 
 # ------------------------------------------------------------------ tests
+
 
 class TestExecuteAndValidate:
     def test_delivers_on_first_try(self, mock_client):
@@ -209,6 +210,7 @@ class TestExecuteAndValidate:
 
     def test_revision_hint_piped_to_input(self, mock_client_reject_then_accept):
         """On reject, TypeSafe revision hint is added to input_data for next loop."""
+
         # Make the revision call return a specific hint
         def side_effect(state, questions):
             # First call = validate (reject), second call = revise, third = validate (accept)

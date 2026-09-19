@@ -1,4 +1,5 @@
 import asyncio
+
 from app.utils.telegram_egress import send_to_group
 
 msg = """LeadGen Admin — Final Status Sep 19
@@ -25,8 +26,10 @@ OWNER ACTIONS:
 1. Paste TypeSafe API key in .env
 2. Configure Razorpay/Stripe live keys"""
 
+
 async def main():
     result = await send_to_group("owner_alerts", msg)
     print(result)
+
 
 asyncio.run(main())
