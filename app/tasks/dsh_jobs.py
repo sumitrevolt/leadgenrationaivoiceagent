@@ -20,13 +20,16 @@ try:
 except Exception:  # pragma: no cover
     dsh_integration = None  # type: ignore
 
+# Canonical pinned harness SHA -- single source of truth in app/integrations/dsh.
+from app.integrations.dsh import DSH_RUNTIME_VERSION as RUNTIME_VERSION
+
 logger = logging.getLogger(__name__)
 
 DSH_QUEUE = "dsh"
 DOMAIN_QUEUE = "celery"
 RUNTIME_BINARY = "/usr/local/bin/dsh-jsonrpc-agent"
 RUNTIME_CONFIG = "/usr/local/bin/cordis.yml"
-RUNTIME_VERSION = "47f943859bef"  # pragma: allowlist secret -- pinned upstream SHA prefix
+# RUNTIME_VERSION imported above (canonical: app.integrations.dsh.DSH_RUNTIME_VERSION).
 # DSH_CORDIS_CONFIG + HOME: pkg SEA uses argv[2] for user args and rejects /etc
 # existsSync; HOME pins scratch under the read-only worker root.
 CHILD_ENV_NAMES = frozenset(

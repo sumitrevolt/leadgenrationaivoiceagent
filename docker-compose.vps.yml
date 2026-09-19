@@ -880,6 +880,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
       DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      # Allowlist for the fail-closed identity gate in app/integrations/dsh.py.
+      # REQUIRED: without it the worker's allowlist is empty and, because that
+      # gate is fail-closed, EVERY run is denied (dsh_allowlist_denied) --
+      # including legitimate ones. This service deliberately has no env_file,
+      # so the value is interpolated by compose from the project .env.
+      DSH_AGENT_ALLOWLIST: ${DSH_AGENT_ALLOWLIST:-}
       DSH_MCP_URL: http://app:8080/internal/dsh/mcp
       DSH_LLM_BASE_URL: http://app:8080/internal/dsh/v1
       DSH_TOKEN_BACKEND: redis

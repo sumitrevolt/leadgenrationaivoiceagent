@@ -9,6 +9,7 @@ import os
 import time
 from typing import Any
 
+from app.integrations.dsh import DSH_RUNTIME_VERSION  # canonical pinned harness SHA prefix
 from app.platform.workforce_runtime import run_store
 from app.platform.workforce_runtime.types import WorkforceRequest, WorkforceResult
 
@@ -214,7 +215,7 @@ def _enqueue_dsh(request: WorkforceRequest, *, shadow: bool) -> WorkforceResult:
                 reason="duplicate_submission",
                 queue=DSH_QUEUE,
                 heartbeat_at=str(row.get("heartbeat_at") or ""),
-                runtime_version=str(row.get("runtime_version") or "47f943859bef"),
+                runtime_version=str(row.get("runtime_version") or DSH_RUNTIME_VERSION),
                 rollout_wave=rollout_wave(request.agent_id),
             )
         run_store.append_event(
@@ -235,7 +236,7 @@ def _enqueue_dsh(request: WorkforceRequest, *, shadow: bool) -> WorkforceResult:
             reason="shadow_queued" if shadow else "",
             queue=DSH_QUEUE,
             heartbeat_at=str(row.get("heartbeat_at") or ""),
-            runtime_version="47f943859bef",
+            runtime_version=DSH_RUNTIME_VERSION,
             rollout_wave=rollout_wave(request.agent_id),
         )
     except ValueError as exc:
@@ -355,7 +356,7 @@ def runtime_status() -> dict[str, Any]:
             "dsh_shadow_enabled": _flag_on(DSH_SHADOW_FLAG),
             "dsh_agent_allowlist": allowlist,
             "dsh_queue": DSH_QUEUE,
-            "dsh_runtime_version": "47f943859bef",
+            "dsh_runtime_version": DSH_RUNTIME_VERSION,
             "rollout_wave": rollout_wave(),
             "rollback": f"{DSH_RUNTIME_FLAG}=0",
             "frozen_agents": sorted(FROZEN_AGENTS),
