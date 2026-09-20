@@ -1921,7 +1921,7 @@ ENTRIES: list[dict[str, Any]] = [
     },
     {
         "allowlist_id": "ops.telegram_group_ids.write",
-        "file": "scripts/telegram_web_create_groups.py",
+        "file": "scripts/telegram_create_chats.py",
         "line_or_symbol": "results_path",
         "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
         "store_id": "ops.telegram_group_ids",

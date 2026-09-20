@@ -38,6 +38,7 @@ from app.integrations.telegram_typesafe import (
 )
 from app.platform.automation_orchestrator import AutomationOrchestrator, TaskPriority, TaskStatus
 from app.platform.typesafe_integration import get_typesafe_client
+from app.agents.skills import execute_skill
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,10 @@ class TelegramBot:
             routing = self.coordinator.route_to_hermes_bot(text, str(user_id), is_owner=True)
             routed_bot = routing.get("handler", "pilot")
 
+            # Execute skill based on TypeSafe-classified intent
+            skill_response = self._execute_skill_for_intent(intent, text, str(user_id))
+            if skill_response:
+                response_text = skill_response
             # Handle intent
             if intent == "status_check":
                 response_text, _, _ = self._cmd_status()
@@ -520,6 +525,33 @@ class TelegramBot:
                 "command",
                 "guardian",
             )
+
+
+    def _execute_skill_for_intent(self, intent: str, message: str, user_id: str) -> str | None:
+        """Execute a skill based on TypeSafe-classified intent.
+        
+        Returns skill response text if skill executed successfully, None otherwise.
+        """
+        skill_map = {
+            "status_check": "ops-status",
+            "task_query": "task-triage",
+            "agent_query": "agent-registry",
+            "command": "orchestrator-control",
+            "general_question": "general-knowledge",
+        }
+        
+        skill_name = skill_map.get(intent)
+        if not skill_name:
+            return None
+            
+        try:
+            result = execute_skill(skill_name, user_id, {"message": message})
+            if result and result.get("success"):
+                return result.get("output", str(result))
+        except Exception as e:
+            logger.warning("[telegram_bot] Skill execution failed for %s: %s", skill_name, e)
+        
+        return None
 
     def _log_audit(self, **kwargs: Any) -> None:
         """Log event via structured logger with redaction."""

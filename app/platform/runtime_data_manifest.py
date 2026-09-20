@@ -1423,8 +1423,7 @@ STORES: list[dict[str, Any]] = [
         display_name="Provisioned Telegram group chat_ids result (offline)",
         legacy_paths=["data/new_group_chat_ids.json"],
         writer_modules=[
-            "scripts/telegram_web_create_groups.py",
-            "scripts/telethon_create_groups.py",
+            "scripts/telegram_create_chats.py",
         ],
         production_activity="OFFLINE_TOOLING",
         current_authority="FILE",
