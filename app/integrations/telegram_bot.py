@@ -414,7 +414,7 @@ class TelegramBot:
                 f"• `{t.task_id}` | **{st}** | Bot: `{t.owner_bot}` → `{t.assigned_agent}` (prio: {prio})"
             )
 
-        lines.append(f"\nUse `/tasks RUNNING` or `/tasks READY` to filter.")
+        lines.append("\nUse `/tasks RUNNING` or `/tasks READY` to filter.")
         return "\n".join(lines), "task_query", "pilot"
 
     def _cmd_agents(self) -> tuple[str, str, str | None]:
