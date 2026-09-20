@@ -406,7 +406,11 @@ async def lifespan(app: FastAPI):
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
         try:
             provider = (
-                (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "tata_smartflo")
+                (
+                    os.environ.get("TELEPHONY_PROVIDER")
+                    or settings.default_telephony
+                    or "tata_smartflo"
+                )
                 .strip()
                 .lower()
             )
@@ -1205,11 +1209,13 @@ app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 try:
     from app.admin.main import admin_router as _admin_cc_router
+
     app.include_router(_admin_cc_router)
 except Exception as _e:
     logger.warning(f"Admin Command Center router not mounted: {_e}")
 try:
     from app.api.owner_command_center import router as _occ_router
+
     app.include_router(_occ_router, prefix="/api/occ")
 except Exception as _e:
     logger.warning(f"Owner Command Center router not mounted: {_e}")
@@ -1217,6 +1223,7 @@ try:
     # T04 — Creative Video Command Center (read-only L1→L4 admin API).
     # Self-contained router; prefix "/api/admin/video" is baked into the module.
     from app.api.creative_video import router as _creative_video_router
+
     app.include_router(_creative_video_router)
 except Exception as _e:
     logger.warning(f"Creative Video router not mounted: {_e}")
@@ -2075,6 +2082,7 @@ async def growth_tools_page():
 async def command_center_page():
     """Redirect to unified Owner Command Center."""
     from fastapi.responses import RedirectResponse
+
     return RedirectResponse(url="/app/owner-command-center", status_code=307)
 
 

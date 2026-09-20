@@ -106,7 +106,15 @@ class EmailSender:
                 }
         except Exception as e:
             logger.debug(f"TypeSafe content validation fallback: {e}")
-        return {"approved": False, "decision_valid": False, "status": "unavailable", "score": 0, "issues": ["TypeSafe validation unavailable"], "grade": "unknown", "tone": "unknown"}
+        return {
+            "approved": False,
+            "decision_valid": False,
+            "status": "unavailable",
+            "score": 0,
+            "issues": ["TypeSafe validation unavailable"],
+            "grade": "unknown",
+            "tone": "unknown",
+        }
 
     async def send_email(
         self,
@@ -139,9 +147,7 @@ class EmailSender:
         if not skip_validation:
             verdict = await self.validate_content(subject, body)
             if not verdict["approved"]:
-                logger.warning(
-                    f"Email send BLOCKED by TypeSafe: {verdict['issues']}"
-                )
+                logger.warning(f"Email send BLOCKED by TypeSafe: {verdict['issues']}")
                 return False
 
         # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox

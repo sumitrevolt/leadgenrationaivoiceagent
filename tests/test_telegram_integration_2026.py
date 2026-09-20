@@ -245,7 +245,9 @@ def test_typesafe_bot_routing():
         model="jev-latest",
     )
     with patch.object(coordinator.client, "system_one", return_value=fake_resp):
-        res = coordinator.route_to_hermes_bot("Follow up on warm enterprise leads", "123", is_owner=True)
+        res = coordinator.route_to_hermes_bot(
+            "Follow up on warm enterprise leads", "123", is_owner=True
+        )
         assert res["success"] is True
         assert res["handler"] == "sales"
         assert res["confidence"] >= 0.75
@@ -350,7 +352,15 @@ def test_api_endpoints():
     )
     assert resp.status_code == 200
     assert resp.json()["handler"] in (
-        "board", "pilot", "guardian", "engineering", "platform", "sales", "hunter", "operations", "success"
+        "board",
+        "pilot",
+        "guardian",
+        "engineering",
+        "platform",
+        "sales",
+        "hunter",
+        "operations",
+        "success",
     )
 
     # Webhook

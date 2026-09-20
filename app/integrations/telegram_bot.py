@@ -121,7 +121,11 @@ class TelegramBot:
                         self._bot_info.get("id"),
                     )
                     return True
-            logger.warning("[telegram_bot] Telegram getMe returned HTTP %s: %s", resp.status_code, resp.text[:200])
+            logger.warning(
+                "[telegram_bot] Telegram getMe returned HTTP %s: %s",
+                resp.status_code,
+                resp.text[:200],
+            )
             self._initialized = False
             return False
         except Exception as e:
@@ -129,7 +133,9 @@ class TelegramBot:
             self._initialized = False
             return False
 
-    def is_owner(self, user_id: int | str, username: str | None = None, chat_id: int | str | None = None) -> bool:
+    def is_owner(
+        self, user_id: int | str, username: str | None = None, chat_id: int | str | None = None
+    ) -> bool:
         """Check if user or chat is an authorized owner."""
         owners = _get_owner_usernames()
         if username and username.strip().lower().lstrip("@") in owners:
@@ -145,7 +151,9 @@ class TelegramBot:
 
         return False
 
-    def _is_duplicate_update(self, update_id: int | str | None, message_id: int | str | None) -> bool:
+    def _is_duplicate_update(
+        self, update_id: int | str | None, message_id: int | str | None
+    ) -> bool:
         """Check and record update/message to prevent duplicate execution."""
         key = f"u:{update_id}" if update_id is not None else f"m:{message_id}"
         now = time.time()
@@ -203,7 +211,11 @@ class TelegramBot:
 
         # Deduplication check
         if self._is_duplicate_update(update_id, message_id):
-            logger.info("[telegram_bot] Duplicate update suppressed (update_id=%s, msg_id=%s)", update_id, message_id)
+            logger.info(
+                "[telegram_bot] Duplicate update suppressed (update_id=%s, msg_id=%s)",
+                update_id,
+                message_id,
+            )
             return BotProcessResult(
                 success=True,
                 response_text="Duplicate update ignored",
@@ -394,8 +406,10 @@ class TelegramBot:
 
         target_status = filter_arg.strip().upper() if filter_arg else None
         filtered = [
-            t for t in all_tasks
-            if not target_status or (t.status.value if hasattr(t.status, "value") else str(t.status)) == target_status
+            t
+            for t in all_tasks
+            if not target_status
+            or (t.status.value if hasattr(t.status, "value") else str(t.status)) == target_status
         ]
 
         if not filtered:
