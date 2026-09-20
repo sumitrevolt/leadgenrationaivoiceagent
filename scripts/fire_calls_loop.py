@@ -46,8 +46,8 @@ def _ist_now() -> datetime.datetime:
 
 def _in_trai_window(call_type: str) -> tuple[bool, str]:
     ist = _ist_now()
-    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
+    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "9").split(":")[0])
+    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "20").split(":")[0])
     txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
     start_hour = (
         int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])

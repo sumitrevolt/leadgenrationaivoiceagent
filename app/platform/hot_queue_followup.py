@@ -1,82 +1,64 @@
-# Hot Queue Follow-Up Automation
-# Auto-ntfy owner if hot queue pack not actioned within 24h
-# Runs as a Celery beat entry (new: staff-hot-queue-followup-daily)
+"""Remind the owner when Hot Queue cards remain unactioned for 24 hours."""
+
+from __future__ import annotations
 
 import datetime
 
-import pytz
-
-from app.platform.hot_queue_owner_pack import build_owner_pack, check_gates
-from app.platform.team_scheduler import staff_jobs_valid
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 status = "GREEN"
 capacity = 1  # Single daily follow-up check
 
-def check_followup():
-    """Check if hot queue pack from yesterday was actioned; if not, send ntfy reminder."""
-    from app.utils import ntfy_utils  # hypothetical ntfy utility
 
-    gates = check_gates()
-    open_gates = [k for k, v in gates.items() if v != "pass"]
-    if open_gates:
-        logger.info(f"Follow-up skipped — open gates: {open_gates}")
-        return {"status": "skipped", "reason": "open_compliance_gates"}
-
-    # Check today's pack
-    ist = pytz.timezone("Asia/Calcutta")
-    today_ist = datetime.datetime.now(ist)
-    today_str = today_ist.strftime("%Y-%m-%d")
-    csv_path = f"/opt/leadgen/data/hot_queue_for_owner_{today_str}.csv"
-    md_path = f"/opt/leadgen/data/hot_queue_for_owner_{today_str}.md"
-
-    csv_exists = __import__("os").path.exists(csv_path)
-    md_exists = __import__("os").path.exists(md_path)
-
-    if not csv_exists:
-        # No pack generated today — could be first run or error
-        logger.info(f"No hot queue pack found for {today_str}")
-        return {"status": "no_pack", "date": today_str}
-
-    # Pack exists — check if ntfy was already sent today
-    # In production: check ntfy topic for today's message ID
-    # For now: if pack exists, assume system is working
-    # Auto-followup logic: if pack exists but old (yesterday), send reminder
-
-    yesterday_ist = today_ist - datetime.timedelta(days=1)
-    yesterday_str = yesterday_ist.strftime("%Y-%m-%d")
-    yesterday_csv = f"/opt/leadgen/data/hot_queue_for_owner_{yesterday_str}.csv"
-
-    import os
-    yesterday_exists = os.path.exists(yesterday_csv)
-
-    if yesterday_exists:
-        # Yesterday's pack exists but may not have been actioned
-        # Send ntfy reminder to owner if not already sent
-        try:
-            # In production: use ntfy push to owner topic
-            reminder_msg = f"🔔 REMINDER: Hot queue pack from {yesterday_str} still has un-actioned leads ({get_lead_count(yesterday_csv)}). Click to view /admin/hotqueue"
-            # ntfy_utils.push(topic="leadgen-owner", message=reminder_msg)
-            logger.info(f"Would send ntfy follow-up reminder for {yesterday_str}")
-            return {"status": "followup_queued", "date": yesterday_str, "message": reminder_msg}
-        except Exception as e:
-            logger.error(f"Failed to send ntfy follow-up: {e}")
-            return {"status": "followup_failed", "error": str(e)}
-    else:
-        # Yesterday's pack doesn't exist — today's is current, no followup needed
-        return {"status": "current_pack_active", "date": today_str}
-
-def get_lead_count(csv_path):
-    """Count leads in CSV file."""
-    import csv
+def _age_hours(card: dict) -> float | None:
+    raw = str(card.get("at") or "").strip()
+    if not raw:
+        return None
     try:
-        with open(csv_path) as f:
-            reader = csv.reader(f)
-            header = next(reader, None)
-            return sum(1 for _ in reader)
-    except:
-        return 0
+        created = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=datetime.timezone.utc)
+        return max(
+            0.0,
+            (datetime.datetime.now(datetime.timezone.utc) - created).total_seconds() / 3600,
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+async def check_followup() -> dict:
+    """Send one owner reminder only when currently pending cards are stale."""
+    from app.integrations.ntfy import push as ntfy_push, enabled as ntfy_enabled
+    from app.platform import reply_agent
+
+    try:
+        pending = reply_agent.hot_queue(limit=200, scope="boss") or []
+    except Exception as exc:
+        logger.warning("Hot Queue follow-up read failed: %s", type(exc).__name__)
+        return {"status": "queue_unavailable", "pending": 0, "stale": 0}
+    stale = [card for card in pending if (_age_hours(card) or 0) >= 24]
+    if not pending:
+        return {"status": "no_pending", "pending": 0, "stale": 0}
+    if not stale:
+        return {"status": "no_stale", "pending": len(pending), "stale": 0}
+    if not ntfy_enabled():
+        return {"status": "notification_disabled", "pending": len(pending), "stale": len(stale)}
+
+    message = (
+        f"REMINDER: Hot Queue has {len(stale)} lead(s) pending for 24h+. "
+        "Open https://leadsgenai.in/app/inbox to review them."
+    )
+    sent = await ntfy_push(
+        "Hot Queue Reminder",
+        message,
+        priority="high",
+        tags=["hotqueue", "reminder"],
+    )
+    if not sent:
+        logger.warning("Hot Queue follow-up notification delivery failed")
+        return {"status": "followup_failed", "pending": len(pending), "stale": len(stale)}
+    return {"status": "followup_sent", "pending": len(pending), "stale": len(stale)}
 
 # Export for beat registration
 __all__ = ["status", "capacity", "check_followup"]

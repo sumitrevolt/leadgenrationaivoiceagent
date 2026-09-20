@@ -46,6 +46,7 @@ def test_side_effect_jobs_marked_and_excluded():
         "email_followup",
         "sales_autopilot",
         "hq_auto_chase",
+        "hot_queue_followup",
         "reply_auto_send",
     ):
         assert job in RUN_DUE_EXCLUDE
@@ -75,6 +76,7 @@ def test_summarize_clean():
     # agreement for the WHOLE job set: the count is the tripwire that makes "a new job
     # landed in only some registries" visible, and `unexplained`/`beat_problems` below
     # are what actually prove parity. Bump the count ONLY with a job and say which one.
+    # 60 since 2026-09-20: +hot_queue_followup owner reminder (daily 10:00).
     # 59 since 2026-09-11: 68abd40a added FIVE jobs — the T03 quad (+video_delivery,
     # +video_delivery_retry, +video_health, +video_lifecycle_reconcile) AND T02's
     # +render_plane_lease, which this comment previously missed (54 + 4 = 58 was one
@@ -84,7 +86,7 @@ def test_summarize_clean():
     # 51 since 2026-08-27: +hot_queue_owner_pack (ADR-OWNER-1; daily 09:00).
     # (previous 50 since 2026-08-23 added trial_nudge (BLK-02; INERT default);
     # 49 since 2026-08-19 added daily_owner_brief; 45 included gsc_rank.)
-    assert s["staff_job_count"] == 59
+    assert s["staff_job_count"] == 60
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 

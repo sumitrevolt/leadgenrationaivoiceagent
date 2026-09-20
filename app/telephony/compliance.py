@@ -26,7 +26,7 @@ Config (env, all optional with safe defaults):
   COMPLIANCE_ALLOWLIST    comma list of own/consented/test numbers -> always allowed
   DLT_APPROVED            "1" once your DLT principal-entity approval is live
   COMPLIANCE_PROMO_START  promotional window start, "HH:MM" IST (default 09:00)
-  COMPLIANCE_PROMO_END    promotional window end,   "HH:MM" IST (default 19:00)
+  COMPLIANCE_PROMO_END    promotional window end,   "HH:MM" IST (default 20:00)
   COMPLIANCE_TXN_START    transactional window start (default 09:00)
   COMPLIANCE_TXN_END      transactional window end   (default 21:00)
   DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND".
@@ -145,10 +145,10 @@ def _parse_hhmm(value: str, default: time) -> time:
 # TRAI telemarketing legal ceiling for the promotional window: 09:00–21:00 IST.
 # Any COMPLIANCE_PROMO_START/END override is CLAMPED into this range so a bad env
 # value (e.g. END=23:00) can never breach the 21:00 legal ceiling. The default
-# promo window (09:00–19:00) is a conservative subset already inside the ceiling.
+# promo window (09:00–20:00) is a conservative subset already inside the ceiling.
 _PROMO_LEGAL_START = time(9, 0)
 _PROMO_LEGAL_END = time(21, 0)
-_PROMO_DEFAULT = (time(9, 0), time(19, 0))
+_PROMO_DEFAULT = (time(9, 0), time(20, 0))
 
 
 def _clamp_promo_window(start: time, end: time) -> tuple[time, time]:
@@ -156,7 +156,7 @@ def _clamp_promo_window(start: time, end: time) -> tuple[time, time]:
 
     start is floored to 09:00, end is capped at 21:00. A degenerate result
     (start >= end, e.g. both overrides sit above the ceiling) falls back to the
-    safe default (09:00–19:00). Never raises."""
+    safe default (09:00–20:00). Never raises."""
     try:
         s = max(start, _PROMO_LEGAL_START)
         e = min(end, _PROMO_LEGAL_END)
@@ -175,11 +175,11 @@ def effective_promo_window() -> tuple[str, str]:
     applies the identical clamp. Never raises."""
     try:
         start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(9, 0))
-        end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(19, 0))
+        end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(20, 0))
         s, e = _clamp_promo_window(start, end)
         return s.strftime("%H:%M"), e.strftime("%H:%M")
     except Exception:
-        return "09:00", "19:00"
+        return "09:00", "20:00"
 
 
 # One-time CRITICAL log guard for a production DND_FAIL_OPEN refusal (below).
@@ -295,10 +295,10 @@ class ComplianceGate:
     def _window(self, call_type: CallType) -> tuple:
         if call_type == CallType.PROMOTIONAL:
             # TRAI telemarketing window is 09:00–21:00 IST; we default promotional
-            # to a conservative 09:00–19:00 subset (env-overridable). 09:00 start
+            # to a conservative 09:00–20:00 subset (env-overridable). 09:00 start
             # (not 10:00) restores the legal 9–10am hour while staying safe.
             start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(9, 0))
-            end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(19, 0))
+            end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(20, 0))
             # TRAI legal ceiling: clamp any override into 09:00–21:00 IST so a bad
             # env value can never push the promotional window past 21:00.
             start, end = _clamp_promo_window(start, end)

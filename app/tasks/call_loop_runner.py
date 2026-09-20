@@ -83,6 +83,7 @@ async def run_call_loop():
 
             logger.info(f"[call_loop] Batch {batch_count + 1}: {len(leads)} leads")
 
+            batch_success = False
             for lead in leads:
                 phone = lead.get("phone", "")
                 lead_id = lead.get("id", "unknown")
@@ -97,11 +98,20 @@ async def run_call_loop():
                     call_id = result.call_id
                     status = result.status
                     logger.info(f"[call_loop] Called {phone}: {status} ({call_id})")
+                    if status in ("success", "queued", "initiated", "in-progress"):
+                        batch_success = True
                 except Exception as e:
                     logger.error(f"[call_loop] Call failed {phone}: {e}")
 
             batch_count += 1
-            await asyncio.sleep(30)
+            if not batch_success and leads:
+                logger.warning(
+                    "[call_loop] Batch unsuccessful (rejected or failed). "
+                    "Backing off for 120s to protect carrier rate limits."
+                )
+                await asyncio.sleep(120)
+            else:
+                await asyncio.sleep(30)
 
         except KeyboardInterrupt:
             logger.info("[call_loop] Stopping on KeyboardInterrupt")

@@ -184,6 +184,7 @@ _last_ran: dict[str, str | None] = {
     "standup": None,
     "hot_queue_brief": None,  # daily 08:15: health-gated Office HQ revenue brief
     "hot_queue_owner_pack": None,  # daily 09:00: CSV+MD+nfty — owner 1-click close (ADR-OWNER-1)
+    "hot_queue_followup": None,  # daily 10:00: remind owner only when current cards remain stale
     # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
     "engineer_sre": None,  # hourly: Pranav reliability score
     "engineer_finops": None,  # daily: Vidya margin score
@@ -1999,6 +2000,12 @@ async def _run_job_inner(job: str) -> bool:
                 status="ok" if r.get("ok") else "warn",
                 meta={"rows": r.get("rows"), "csv": r.get("csv"), "md": r.get("md")},
             )
+        elif job == "hot_queue_followup":
+            from app.platform import hot_queue_followup as _hq_followup
+
+            result = await _hq_followup.check_followup()
+            if result.get("status") in {"queue_unavailable", "followup_failed"}:
+                return False
         elif job == "revenue_snapshot":
             # B1: daily MRR/churn/LTV snapshot for the admin revenue trend chart.
             if os.environ.get("REVENUE_TRENDS", "0").strip().lower() in ("1", "true", "yes"):
