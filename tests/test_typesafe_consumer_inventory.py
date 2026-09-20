@@ -33,6 +33,8 @@ ALLOWED_CONSUMERS = {
     "app/platform/typesafe_executor.py",
     "app/platform/typesafe_services.py",
     "app/api/typesafe_routes.py",
+    "app/integrations/telegram_bot.py",
+    "app/integrations/telegram_typesafe.py",
 }
 
 # The definition module itself never counts as a consumer.

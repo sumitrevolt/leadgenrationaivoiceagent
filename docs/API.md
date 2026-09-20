@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1455 operations)
+## Endpoint Index — auto-generated from OpenAPI (1470 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1942,6 +1942,27 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `PATCH ` `/api/team-access/members/{user_id}/modules` — Set Modules
 - `POST  ` `/api/team-access/members/{user_id}/reset-password` — Reset Password
 - `GET   ` `/api/team-access/modules` — List Modules
+
+### Telegram Bot  (9)
+
+- `GET   ` `/api/telegram/bot/audit/logs` — Get Audit Logs
+- `POST  ` `/api/telegram/bot/classify` — Classify Message
+- `POST  ` `/api/telegram/bot/handoff` — Coordinate Handoff
+- `GET   ` `/api/telegram/bot/health` — Get Health
+- `POST  ` `/api/telegram/bot/route` — Route Message
+- `POST  ` `/api/telegram/bot/set-webhook` — Set Webhook
+- `GET   ` `/api/telegram/bot/status` — Get Status
+- `POST  ` `/api/telegram/bot/validate` — Validate Response
+- `POST  ` `/api/telegram/bot/webhook` — Handle Webhook
+
+### Telegram TypeSafe  (6)
+
+- `POST  ` `/api/telegram/typesafe/classify` — Classify Message
+- `POST  ` `/api/telegram/typesafe/handoff` — Coordinate Handoff
+- `GET   ` `/api/telegram/typesafe/health` — Get Health
+- `POST  ` `/api/telegram/typesafe/route` — Route Message
+- `GET   ` `/api/telegram/typesafe/status` — Get Status
+- `POST  ` `/api/telegram/typesafe/validate` — Validate Response
 
 ### Telephony  (6)
 

@@ -217,3 +217,92 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 **Remaining:** B-2 merge+deploy (owner) · B-4 containment (owner) · B-3 call-loop trigger proof (VPS) · `typesafe_adoption` second real consumer · B-10 hygiene (dhyan: uska fix commit `378bbab1` **reset se discard** ho chuka) · 811 docs + `VOBIZ_*` env cleanup (owner).
 
 **Next Highest Priority:** B-2 — restore ko `origin/main` pe merge + `scripts/deploy_vps.sh`, phir `typesafe_admin_triage.py --record-outcome` se B-5/B-9 ka loop band karna.
+
+---
+
+## Loop Run — Telegram Integration with TypeSafe & AutomationOrchestrator (2026-09-20 ~05:45 IST)
+
+**Date:** 2026-09-20 · **Goal:** Complete operational, production-grade Telegram bot integration (`@Sumits_jarvis_bot`) wired to TypeSafe System One (`jev-latest`) and `AutomationOrchestrator`.
+
+**Inspected:**
+- Real Telegram Bot Token in `.env` (`TELEGRAM_BOT_TOKEN`, len 46) — probed Telegram API `getMe`: ID `8363810880`, `@Sumits_jarvis_bot`, Name `Jarvis` (HTTP 200 OK).
+- Legacy scratch scripts with hardcoded fake metrics (`Workers: 31 active`, `Total leads: 48,638`, `Today: ₹1,999`) and leaked credentials — deleted.
+- TypeSafe System One (`POST /v1/systemone` on `https://api.typesafe.ai`): contract verified with live `Score` (list of strings), `Choice` (dict), and `Noul` (probability float).
+- `AutomationOrchestrator` contract and `DurableTaskStore` SQLite DB: task lifecycle (`create_task` -> `claim_task` -> `verify_and_complete` with `StructuredEvidence`).
+
+**Problems Found:**
+1. Uncommitted scratch files had fake mock stats and references to non-existent methods (`complete_task`).
+2. Network guard (`tests/_netguard.py`) intercepts external calls to `api.typesafe.ai` in unit tests, requiring unit test mocks.
+3. Route collision risk with existing `/api/telegram/bot.py` tenant bot endpoints — cleanly segregated under `/api/telegram/bot/*` and `/api/telegram/typesafe/*`.
+
+**Changed (7 files staged on branch `feat/telegram-typesafe-orchestrator`):**
+- `app/integrations/telegram_bot.py`: Real bot engine for `@Sumits_jarvis_bot`, owner allowlist (`sumitrevolt`), deduplication (3600s TTL), live orchestrator status reporting, `/status`, `/tasks`, `/agents`, `/pause`, `/resume`, `/test_handoff`, audit logging to `data/telegram/audit.jsonl`.
+- `app/integrations/telegram_typesafe.py`: TypeSafe System One (`jev-latest` -> `jev-1.13.0`) intent classifier (`Choice`, `Score`, `Noul`), 9-Hermes-bot router, response validator, and fail-closed offline fallback.
+- `app/api/telegram_bot_api.py`: REST API router mounted under `/api/telegram/bot/*` (`/health`, `/status`, `/classify`, `/route`, `/validate`, `/handoff`, `/webhook`, `/audit/logs`, `/set-webhook`).
+- `app/api/telegram_typesafe.py`: Compatibility alias router for `/api/telegram/typesafe/*`.
+- `app/main.py`: Routers mounted cleanly with fail-safe guards.
+- `tests/test_telegram_integration_2026.py`: 13 contract unit/integration tests covering auth, dedupe, status, tasks, agents, kill switch, TypeSafe, task handoff, and API endpoints.
+- `docs/API.md`: Updated to 1470 synced endpoints via `scripts/sync_api_docs.py`.
+
+**Tests Run:**
+- `pytest tests/test_telegram_integration_2026.py` -> **13 passed in 0.48s** (100% green).
+- `scripts/prod_check.py` -> **[OK] ALL CHECKS PASSED - ready to deploy** (1457 routes checked, 0 gaps, 0 syntax errors).
+- `scripts/check_secrets.py` -> **[OK] no secrets detected** (7 files scanned).
+
+**Verification Evidence:**
+- Live `getMe` probe confirmed `@Sumits_jarvis_bot` (ID: 8363810880).
+- Live TypeSafe System One classification confirmed (`intent: status`, confidence: 0.95).
+- Live task handoff to `AutomationOrchestrator` verified (`task_cd9aedca` -> status `DONE` in `data/orchestrator_ledger.db`).
+
+**Risks:**
+- Telegram outgoing rate limit if burst notifications happen (handled via defensive try/except).
+- Webhook endpoint on VPS requires HTTPS registration after deploy (`/api/telegram/bot/set-webhook`).
+
+**Remaining:**
+- Git commit on branch `feat/telegram-typesafe-orchestrator`.
+- Push to `origin` & deploy on VPS Mumbai (`scripts/deploy_vps.sh`) upon owner confirmation.
+
+**Next Highest Priority:**
+- Commit & push `feat/telegram-typesafe-orchestrator`, then deploy to VPS host `72.61.245.204`.
+
+---
+
+## Loop Run — TypeSafe P0 Reliability & Security Hardening (2026-09-20 ~05:50 IST)
+
+**Date:** 2026-09-20 · **Goal:** Execute U06 P0 candidates: stop key prefix exposure in `check_typesafe.sh`, dynamic active consumers count in `/api/v1/typesafe/status`, wire-format float Noul and Score handling in `typesafe_executor.py`, fail-closed docstring alignment in `email_sender.py`, and consumer inventory update in `test_typesafe_consumer_inventory.py`.
+
+**Inspected:**
+- `scripts/check_typesafe.sh`: was printing `k[:12]...` prefix. Fixed to compute nonreversible sha256 fingerprint.
+- `app/api/typesafe_routes.py`: was returning static `5 if enabled else 0`. Fixed to compute real dynamic active consumer count.
+- `app/platform/typesafe_executor.py`: was doing `compliant.get("noul") is True`, failing on real wire format float probability (0.88). Fixed to evaluate float thresholds (>=0.7) and Score ratings.
+- `app/integrations/email_sender.py`: stale docstring claimed fail-open; code is strictly fail-closed. Fixed docstring.
+- `tests/test_typesafe_consumer_inventory.py`: failed due to untracked consumers. Added verified Telegram bot & TypeSafe modules to allowlist.
+
+**Changed (6 files):**
+- `scripts/check_typesafe.sh`: sha256 fingerprint prefix (never key or prefix).
+- `app/api/typesafe_routes.py`: dynamic active consumer counting.
+- `app/platform/typesafe_executor.py`: wire-format Noul float and Score parsing.
+- `app/integrations/email_sender.py`: fail-closed docstring.
+- `tests/test_typesafe_consumer_inventory.py`: updated allowlist.
+- `tests/test_typesafe_executor.py`: added wire-format regression test.
+
+**Tests Run:**
+- `pytest tests/test_typesafe_consumer_inventory.py` -> 5 passed (100%).
+- `pytest tests/test_typesafe_executor.py` -> 15 passed (100%).
+- `pytest tests/test_typesafe_bridge_and_routes.py` -> 11 passed (100%).
+- `scripts/check_secrets.py` -> no secrets detected.
+- `scripts/prod_check.py` -> [OK] ALL CHECKS PASSED - ready to deploy (1457 routes).
+
+**Verification Evidence:**
+- Verified consumer inventory test passes without false positives or orphan references.
+- Verified executor accepts real wire-format float probabilities and Score ratings.
+- Verified container check script outputs sha256 fingerprint instead of key prefix.
+
+**Risks:**
+- None. All changes are backward-compatible, fail-closed, and covered by automated regression tests.
+
+**Remaining:**
+- Deploy to VPS host `72.61.245.204` via `scripts/deploy_vps.sh` upon owner request.
+
+**Next Highest Priority:**
+- Push branch and deploy to VPS Mumbai.

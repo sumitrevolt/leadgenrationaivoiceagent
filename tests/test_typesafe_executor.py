@@ -299,3 +299,29 @@ class TestExecutionResult:
             max_revisions=3,
         )
         assert r.needs_revision is False
+
+    def test_delivers_with_wire_format_float_noul_and_score(self):
+        """TypeSafe wire format returns noul as float probability (0.0-1.0) and score float."""
+        client = MagicMock(spec=TypeSafeClient)
+        client.enabled = True
+        client.system_one.return_value = TypeSafeResponse(
+            success=True,
+            result={
+                "model": "jev-latest",
+                "answers": {
+                    "quality": {"score": 2.8, "confidence": 0.9},
+                    "compliant": {"noul": 0.88},
+                },
+            },
+            model="jev-latest",
+        )
+        executor = TypeSafeExecutor(client=client)
+        result = executor.execute_and_validate(
+            worker_id="worker_email",
+            skill_name="send_outreach",
+            input_data={"to": "client@example.com"},
+            deliver_fn=lambda d: {"body": "Approved email text"},
+            validate_criteria={"tone": "professional"},
+        )
+        assert result.status == ExecutionStatus.DELIVERED
+        assert result.is_delivered is True
