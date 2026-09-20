@@ -127,7 +127,18 @@ def audit_jobs(blob: str) -> None:
 
     # team_scheduler dispatch source
     sched = (ROOT / "app/platform/team_scheduler.py").read_text(encoding="utf-8", errors="ignore")
-    missing = [j for j in STAFF_JOBS if f'"{j}"' not in sched and f"'{j}'" not in sched]
+    # Celery beat dispatch source (staff-<job-with-hyphens>-<freq>)
+    worker = (ROOT / "app/worker.py").read_text(encoding="utf-8", errors="ignore")
+    beat_names = set(re.findall(r'"(staff-[a-z0-9-]+)"', worker))
+
+    missing = []
+    for j in STAFF_JOBS:
+        in_scheduler = f'"{j}"' in sched or f"'{j}'" in sched
+        # beat name = staff-<job_underscores_as_hyphens>-<freq>
+        beat_forms = {f"staff-{j}-{f}" for f in ("daily", "hourly", "weekly", "5m", "10m", "30m", "minutely")}
+        in_beat = any(b in beat_names for b in beat_forms) or any(j.replace("_", "-") in bn for bn in beat_names)
+        if not in_scheduler and not in_beat:
+            missing.append(j)
     print(f"[jobs] {len(STAFF_JOBS)} staff jobs, {len(missing)} not dispatchable")
     for j in missing:
         PROBLEMS.append(f"ORPHAN JOB: '{j}' in STAFF_JOBS but not dispatched by team_scheduler")
