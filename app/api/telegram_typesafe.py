@@ -6,13 +6,14 @@ Mounts the TypeSafe-specific Telegram endpoints under prefix:
 """
 
 from fastapi import APIRouter
+
 from app.api.telegram_bot_api import (
     classify_message,
+    coordinate_handoff,
     get_health,
     get_status,
     route_message,
     validate_response,
-    coordinate_handoff,
 )
 
 router = APIRouter(prefix="/api/telegram/typesafe", tags=["Telegram TypeSafe"])

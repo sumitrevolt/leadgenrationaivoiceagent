@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, validator
 
 class SkillCategory(str, Enum):
     """Categories for skills."""
+
     DATA = "data"
     CONTENT = "content"
     COMMUNICATION = "communication"
@@ -29,6 +30,7 @@ class SkillCategory(str, Enum):
 
 class SkillDependency(BaseModel):
     """Skill dependency definition."""
+
     skill_name: str
     required: bool = True
     reason: str = ""
@@ -36,6 +38,7 @@ class SkillDependency(BaseModel):
 
 class SkillTypeDef(BaseModel):
     """Type-safe skill definition with validation."""
+
     name: str
     description: str
     category: SkillCategory
@@ -47,19 +50,19 @@ class SkillTypeDef(BaseModel):
     is_active: bool = True
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     version: str = "1.0.0"
-    
-    @validator('timeout_seconds')
+
+    @validator("timeout_seconds")
     def timeout_must_be_positive(cls, v):
         if v <= 0:
-            raise ValueError('timeout_seconds must be positive')
+            raise ValueError("timeout_seconds must be positive")
         return v
-    
-    @validator('retry_count')
+
+    @validator("retry_count")
     def retry_must_be_non_negative(cls, v):
         if v < 0:
-            raise ValueError('retry_count must be non-negative')
+            raise ValueError("retry_count must be non-negative")
         return v
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -78,17 +81,18 @@ class SkillTypeDef(BaseModel):
 
 class SkillExecution(BaseModel):
     """Record of a skill execution."""
+
     skill_name: str
     executor_id: str
     input_data: dict[str, Any]
-    output_data: Optional[dict[str, Any]] = None
+    output_data: dict[str, Any] | None = None
     status: str = "pending"  # pending, running, completed, failed
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    duration_seconds: Optional[float] = None
-    error: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    duration_seconds: float | None = None
+    error: str | None = None
     retry_count: int = 0
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "skill_name": self.skill_name,
@@ -106,29 +110,31 @@ class SkillExecution(BaseModel):
 
 class SkillRegistry:
     """Centralized TypeSafe skill registry."""
-    
+
     def __init__(self, registry_path: str = "data/skill_registry.json"):
         self.registry_path = registry_path
         self.skills: dict[str, SkillTypeDef] = {}
         self.executions: list[SkillExecution] = []
         self._load_registry()
         self._register_default_skills()
-    
+
     def _load_registry(self):
         """Load skill registry from disk."""
         if os.path.exists(self.registry_path):
             try:
-                with open(self.registry_path, "r") as f:
+                with open(self.registry_path) as f:
                     data = json.load(f)
                 for skill_data in data.get("skills", []):
                     try:
                         skill = SkillTypeDef(**skill_data)
                         self.skills[skill.name] = skill
                     except Exception as e:
-                        print(f"[skill_registry] Failed to load skill {skill_data.get('name')}: {e}")
+                        print(
+                            f"[skill_registry] Failed to load skill {skill_data.get('name')}: {e}"
+                        )
             except Exception as e:
                 print(f"[skill_registry] Failed to load registry: {e}")
-    
+
     def _save_registry(self):
         """Save skill registry to disk."""
         try:
@@ -141,12 +147,12 @@ class SkillRegistry:
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"[skill_registry] Failed to save registry: {e}")
-    
+
     def _register_default_skills(self):
         """Register default skills if registry is empty."""
         if self.skills:
             return
-        
+
         default_skills = [
             # Data skills
             SkillTypeDef(
@@ -254,12 +260,12 @@ class SkillRegistry:
                 output_schema={"sent": "bool", "message_id": "str"},
             ),
         ]
-        
+
         for skill in default_skills:
             self.skills[skill.name] = skill
-        
+
         self._save_registry()
-    
+
     def register_skill(self, skill: SkillTypeDef) -> bool:
         """Register a new skill."""
         if skill.name in self.skills:
@@ -270,7 +276,7 @@ class SkillRegistry:
         self.skills[skill.name] = skill
         self._save_registry()
         return True
-    
+
     def unregister_skill(self, skill_name: str) -> bool:
         """Unregister a skill."""
         if skill_name in self.skills:
@@ -278,12 +284,12 @@ class SkillRegistry:
             self._save_registry()
             return True
         return False
-    
-    def get_skill(self, skill_name: str) -> Optional[SkillTypeDef]:
+
+    def get_skill(self, skill_name: str) -> SkillTypeDef | None:
         """Get skill by name."""
         return self.skills.get(skill_name)
-    
-    def list_skills(self, category: Optional[SkillCategory] = None) -> list[dict[str, Any]]:
+
+    def list_skills(self, category: SkillCategory | None = None) -> list[dict[str, Any]]:
         """List all skills, optionally filtered by category."""
         result = []
         for skill in self.skills.values():
@@ -291,7 +297,7 @@ class SkillRegistry:
                 continue
             result.append(skill.to_dict())
         return result
-    
+
     def execute_skill(
         self,
         skill_name: str,
@@ -302,15 +308,15 @@ class SkillRegistry:
         skill = self.get_skill(skill_name)
         if not skill:
             return {"error": f"Skill '{skill_name}' not found"}
-        
+
         if not skill.is_active:
             return {"error": f"Skill '{skill_name}' is not active"}
-        
+
         # Check dependencies
         for dep in skill.dependencies:
             if dep.required and dep.skill_name not in self.skills:
                 return {"error": f"Required dependency '{dep.skill_name}' not available"}
-        
+
         # Create execution record
         execution = SkillExecution(
             skill_name=skill_name,
@@ -320,7 +326,7 @@ class SkillRegistry:
             started_at=datetime.now(timezone.utc).isoformat(),
         )
         self.executions.append(execution)
-        
+
         # Simulate execution (in real implementation, this would call the actual skill)
         try:
             # TODO: Replace with actual skill execution logic
@@ -330,17 +336,17 @@ class SkillRegistry:
                 "executor": executor_id,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-            
+
             execution.status = "completed"
             execution.output_data = output_data
             execution.completed_at = datetime.now(timezone.utc).isoformat()
-            
+
             # Calculate duration
             if execution.started_at:
                 start = datetime.fromisoformat(execution.started_at)
                 end = datetime.fromisoformat(execution.completed_at)
                 execution.duration_seconds = (end - start).total_seconds()
-            
+
             return {
                 "success": True,
                 "execution": execution.to_dict(),
@@ -350,17 +356,17 @@ class SkillRegistry:
             execution.status = "failed"
             execution.error = str(e)
             execution.completed_at = datetime.now(timezone.utc).isoformat()
-            
+
             return {
                 "success": False,
                 "error": str(e),
                 "execution": execution.to_dict(),
             }
-    
+
     def get_execution_history(
         self,
-        skill_name: Optional[str] = None,
-        executor_id: Optional[str] = None,
+        skill_name: str | None = None,
+        executor_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Get execution history."""
@@ -374,13 +380,11 @@ class SkillRegistry:
             if len(result) >= limit:
                 break
         return result
-    
+
     def get_skill_stats(self, skill_name: str) -> dict[str, Any]:
         """Get statistics for a skill."""
-        skill_executions = [
-            e for e in self.executions if e.skill_name == skill_name
-        ]
-        
+        skill_executions = [e for e in self.executions if e.skill_name == skill_name]
+
         if not skill_executions:
             return {
                 "skill_name": skill_name,
@@ -389,15 +393,15 @@ class SkillRegistry:
                 "failure_count": 0,
                 "avg_duration": 0,
             }
-        
+
         completed = [e for e in skill_executions if e.status == "completed"]
         failed = [e for e in skill_executions if e.status == "failed"]
-        
+
         avg_duration = 0
         if completed:
             durations = [e.duration_seconds for e in completed if e.duration_seconds]
             avg_duration = sum(durations) / len(durations) if durations else 0
-        
+
         return {
             "skill_name": skill_name,
             "total_executions": len(skill_executions),
@@ -406,19 +410,19 @@ class SkillRegistry:
             "success_rate": len(completed) / len(skill_executions) if skill_executions else 0,
             "avg_duration": avg_duration,
         }
-    
+
     def get_registry_summary(self) -> dict[str, Any]:
         """Get overall registry summary."""
         return {
             "total_skills": len(self.skills),
             "active_skills": len([s for s in self.skills.values() if s.is_active]),
             "total_executions": len(self.executions),
-            "categories": list(set(s.category.value for s in self.skills.values())),
+            "categories": list({s.category.value for s in self.skills.values()}),
         }
 
 
 # Module-level singleton
-_skill_registry: Optional[SkillRegistry] = None
+_skill_registry: SkillRegistry | None = None
 
 
 def get_skill_registry() -> SkillRegistry:
@@ -429,7 +433,7 @@ def get_skill_registry() -> SkillRegistry:
     return _skill_registry
 
 
-def list_skills(category: Optional[SkillCategory] = None) -> list[dict[str, Any]]:
+def list_skills(category: SkillCategory | None = None) -> list[dict[str, Any]]:
     """Convenience function to list skills."""
     return get_skill_registry().list_skills(category)
 

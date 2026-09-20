@@ -42,14 +42,15 @@ logger = logging.getLogger(__name__)
 # Execution result taxonomy
 # --------------------------------------------------------------------------- #
 
+
 class ExecutionStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     VALIDATING = "validating"
-    REVISING = "revising"          # TypeSafe rejected, bounded retry
-    DELIVERED = "delivered"        # Verified output passed to customer/system
-    FAILED = "failed"              # Exhausted revision budget or hard fail
-    INERT = "inert"                # TypeSafe unavailable, deterministic fallback
+    REVISING = "revising"  # TypeSafe rejected, bounded retry
+    DELIVERED = "delivered"  # Verified output passed to customer/system
+    FAILED = "failed"  # Exhausted revision budget or hard fail
+    INERT = "inert"  # TypeSafe unavailable, deterministic fallback
 
 
 @dataclass
@@ -67,7 +68,7 @@ class ExecutionResult:
 
     # Output
     output: dict[str, Any] | None = None
-    deliverable: Any = None         # Actual artifact (email body, code diff, etc.)
+    deliverable: Any = None  # Actual artifact (email body, code diff, etc.)
 
     # Validation
     typesafe_verdict: TypeSafeResponse | None = None
@@ -91,15 +92,13 @@ class ExecutionResult:
 
     @property
     def needs_revision(self) -> bool:
-        return (
-            self.status == ExecutionStatus.REVISING
-            and self.revision_count < self.max_revisions
-        )
+        return self.status == ExecutionStatus.REVISING and self.revision_count < self.max_revisions
 
 
 # --------------------------------------------------------------------------- #
 # TypeSafe Executor — common judgment + validation interface
 # --------------------------------------------------------------------------- #
+
 
 class TypeSafeExecutor:
     """Common execution + validation interface for workers and agents.
@@ -141,9 +140,7 @@ class TypeSafeExecutor:
                 "Rate the quality of this deliverable against the criteria",
                 criteria=["poor", "adequate", "good", "excellent"],
             ),
-            "compliant": Noul(
-                "Does this deliverable meet ALL specified criteria?"
-            ),
+            "compliant": Noul("Does this deliverable meet ALL specified criteria?"),
         }
         return self.client.system_one(state, questions)
 
@@ -206,7 +203,7 @@ class TypeSafeExecutor:
         worker_id: str,
         skill_name: str,
         input_data: dict[str, Any],
-        deliver_fn,                     # callable(input_data) -> artifact
+        deliver_fn,  # callable(input_data) -> artifact
         validate_criteria: dict[str, Any],
         context: dict[str, Any] | None = None,
         max_revisions: int = 3,
@@ -244,11 +241,13 @@ class TypeSafeExecutor:
 
             except Exception as e:
                 result.status = ExecutionStatus.FAILED
-                result.attempts.append({
-                    "attempt": attempt,
-                    "phase": "deliver",
-                    "error": str(e),
-                })
+                result.attempts.append(
+                    {
+                        "attempt": attempt,
+                        "phase": "deliver",
+                        "error": str(e),
+                    }
+                )
                 logger.error(f"[{worker_id}] deliver_fn failed: {e}")
                 return result
 
@@ -265,18 +264,18 @@ class TypeSafeExecutor:
             result.status = ExecutionStatus.VALIDATING
             verdict = self.validate_output(artifact, validate_criteria, context)
             result.typesafe_verdict = verdict
-            result.attempts.append({
-                "attempt": attempt,
-                "phase": "validate",
-                "success": verdict.success,
-                "value": verdict.value if verdict.success else verdict.error,
-            })
+            result.attempts.append(
+                {
+                    "attempt": attempt,
+                    "phase": "validate",
+                    "success": verdict.success,
+                    "value": verdict.value if verdict.success else verdict.error,
+                }
+            )
 
             if not verdict.success:
                 # TypeSafe call itself failed → don't block on infra gap
-                logger.warning(
-                    f"[{worker_id}] TypeSafe validation failed: {verdict.error}"
-                )
+                logger.warning(f"[{worker_id}] TypeSafe validation failed: {verdict.error}")
                 result.status = ExecutionStatus.INERT
                 return result
 
@@ -313,17 +312,13 @@ class TypeSafeExecutor:
             if attempt >= max_revisions:
                 result.status = ExecutionStatus.FAILED
                 logger.warning(
-                    f"[{worker_id}] Exhausted {max_revisions} revisions for "
-                    f"{skill_name}"
+                    f"[{worker_id}] Exhausted {max_revisions} revisions for {skill_name}"
                 )
                 return result
 
             # Step 6: Ask TypeSafe what to fix, then loop
             result.status = ExecutionStatus.REVISING
-            rejection = (
-                f"quality={quality_choice or score_num}, "
-                f"compliant_prob={noul_prob}"
-            )
+            rejection = f"quality={quality_choice or score_num}, compliant_prob={noul_prob}"
             revision = self.revise_artifact(artifact, rejection, validate_criteria)
             if revision.success:
                 # Apply revision hint to input_data for next iteration
@@ -353,6 +348,7 @@ def get_executor() -> TypeSafeExecutor:
 # --------------------------------------------------------------------------- #
 # Convenience: validate an artifact (module-level shortcut)
 # --------------------------------------------------------------------------- #
+
 
 def validate_artifact(
     artifact: dict[str, Any],

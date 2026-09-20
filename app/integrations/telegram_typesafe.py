@@ -55,7 +55,9 @@ class TelegramIntentClassifier:
     def __init__(self, client: TypeSafeClient | None = None):
         self.client = client or get_typesafe_client()
 
-    def classify_intent(self, message_text: str, user_id: str, is_owner: bool = False) -> dict[str, Any]:
+    def classify_intent(
+        self, message_text: str, user_id: str, is_owner: bool = False
+    ) -> dict[str, Any]:
         """Classify message intent, actionability, and priority."""
         text = (message_text or "").strip()
         lower = text.lower()
@@ -147,10 +149,18 @@ class TelegramIntentClassifier:
             prio_leaf = answers.get("priority", {})
             action_leaf = answers.get("is_actionable", {})
 
-            intent = intent_leaf.get("choice", "other") if isinstance(intent_leaf, dict) else "other"
-            confidence = intent_leaf.get("confidence", 0.75) if isinstance(intent_leaf, dict) else 0.75
-            priority = prio_leaf.get("choice", "medium") if isinstance(prio_leaf, dict) else "medium"
-            is_actionable = action_leaf.get("noul", 0.0) >= 0.5 if isinstance(action_leaf, dict) else False
+            intent = (
+                intent_leaf.get("choice", "other") if isinstance(intent_leaf, dict) else "other"
+            )
+            confidence = (
+                intent_leaf.get("confidence", 0.75) if isinstance(intent_leaf, dict) else 0.75
+            )
+            priority = (
+                prio_leaf.get("choice", "medium") if isinstance(prio_leaf, dict) else "medium"
+            )
+            is_actionable = (
+                action_leaf.get("noul", 0.0) >= 0.5 if isinstance(action_leaf, dict) else False
+            )
 
             return {
                 "success": True,
@@ -193,16 +203,41 @@ class TelegramBotCoordinator:
 
         # Deterministic keyword routing shortcuts
         if any(w in lower for w in ("revenue", "money", "sale", "lead", "deal")):
-            return {"success": True, "handler": "sales", "confidence": 0.9, "source": "keyword_match"}
+            return {
+                "success": True,
+                "handler": "sales",
+                "confidence": 0.9,
+                "source": "keyword_match",
+            }
         if any(w in lower for w in ("db", "infra", "sre", "server", "vps", "uptime")):
-            return {"success": True, "handler": "platform", "confidence": 0.9, "source": "keyword_match"}
+            return {
+                "success": True,
+                "handler": "platform",
+                "confidence": 0.9,
+                "source": "keyword_match",
+            }
         if any(w in lower for w in ("code", "bug", "deploy", "git", "pr")):
-            return {"success": True, "handler": "engineering", "confidence": 0.9, "source": "keyword_match"}
+            return {
+                "success": True,
+                "handler": "engineering",
+                "confidence": 0.9,
+                "source": "keyword_match",
+            }
         if any(w in lower for w in ("security", "dnd", "trai", "compliance", "policy")):
-            return {"success": True, "handler": "guardian", "confidence": 0.9, "source": "keyword_match"}
+            return {
+                "success": True,
+                "handler": "guardian",
+                "confidence": 0.9,
+                "source": "keyword_match",
+            }
 
         if not self.client.enabled:
-            return {"success": True, "handler": "pilot", "confidence": 0.6, "source": "fallback_default"}
+            return {
+                "success": True,
+                "handler": "pilot",
+                "confidence": 0.6,
+                "source": "fallback_default",
+            }
 
         state = {
             "message": text,
@@ -224,14 +259,21 @@ class TelegramBotCoordinator:
         try:
             resp: TypeSafeResponse = self.client.system_one(state, questions)
             if not resp.success or not resp.has_answer:
-                return {"success": False, "handler": "pilot", "confidence": 0.5, "error": resp.error}
+                return {
+                    "success": False,
+                    "handler": "pilot",
+                    "confidence": 0.5,
+                    "error": resp.error,
+                }
 
             answers = resp.answers
             bot_leaf = answers.get("target_bot", {})
             conf_leaf = answers.get("confidence", {})
 
             handler = bot_leaf.get("choice", "pilot") if isinstance(bot_leaf, dict) else "pilot"
-            conf_val = conf_leaf.get("choice", "medium") if isinstance(conf_leaf, dict) else "medium"
+            conf_val = (
+                conf_leaf.get("choice", "medium") if isinstance(conf_leaf, dict) else "medium"
+            )
             conf_num = 0.9 if conf_val == "very_high" else 0.75 if conf_val == "high" else 0.5
 
             return {
@@ -262,7 +304,13 @@ class TelegramResponseValidator:
         """Validate response quality and appropriateness."""
         text = (response_text or "").strip()
         if not text:
-            return {"success": False, "quality": "poor", "appropriate": False, "complete": False, "error": "empty_text"}
+            return {
+                "success": False,
+                "quality": "poor",
+                "appropriate": False,
+                "complete": False,
+                "error": "empty_text",
+            }
 
         if not self.client.enabled:
             # Deterministic offline quality check

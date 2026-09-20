@@ -18,6 +18,7 @@ Verifies:
 import os
 import time
 from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -37,8 +38,9 @@ from app.platform.typesafe_integration import TypeSafeResponse
 
 
 @pytest.fixture
-def bot_instance():
+def bot_instance(monkeypatch):
     """Create a fresh TelegramBot instance for testing."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456789012345678901234567890")
     bot = TelegramBot()
     # Mock bot info for test isolation
     bot._bot_info = {"id": 8363810880, "username": "Sumits_jarvis_bot", "first_name": "Jarvis"}
@@ -244,7 +246,9 @@ def test_typesafe_bot_routing():
         model="jev-latest",
     )
     with patch.object(coordinator.client, "system_one", return_value=fake_resp):
-        res = coordinator.route_to_hermes_bot("Follow up on warm enterprise leads", "123", is_owner=True)
+        res = coordinator.route_to_hermes_bot(
+            "Follow up on warm enterprise leads", "123", is_owner=True
+        )
         assert res["success"] is True
         assert res["handler"] == "sales"
         assert res["confidence"] >= 0.75
@@ -314,8 +318,9 @@ def test_end_to_end_agent_task_handoff():
     assert orch.store.get(record.task_id).status == TaskStatus.DONE
 
 
-def test_api_endpoints():
+def test_api_endpoints(monkeypatch):
     """FastAPI REST endpoints under /api/telegram/bot must return correct schemas."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456789012345678901234567890")
     from app.main import app
 
     client = TestClient(app)
@@ -349,7 +354,15 @@ def test_api_endpoints():
     )
     assert resp.status_code == 200
     assert resp.json()["handler"] in (
-        "board", "pilot", "guardian", "engineering", "platform", "sales", "hunter", "operations", "success"
+        "board",
+        "pilot",
+        "guardian",
+        "engineering",
+        "platform",
+        "sales",
+        "hunter",
+        "operations",
+        "success",
     )
 
     # Webhook

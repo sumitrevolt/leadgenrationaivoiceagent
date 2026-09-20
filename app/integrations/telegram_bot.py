@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 
 # Config & Environment
 TELEGRAM_API_URL = "https://api.telegram.org"
-TELEGRAM_DATA_DIR = Path(os.getenv("TELEGRAM_DATA_DIR", "data/telegram"))
 _DEDUPE_TTL_SECONDS = 3600.0
 
 
@@ -121,7 +120,11 @@ class TelegramBot:
                         self._bot_info.get("id"),
                     )
                     return True
-            logger.warning("[telegram_bot] Telegram getMe returned HTTP %s: %s", resp.status_code, resp.text[:200])
+            logger.warning(
+                "[telegram_bot] Telegram getMe returned HTTP %s: %s",
+                resp.status_code,
+                resp.text[:200],
+            )
             self._initialized = False
             return False
         except Exception as e:
@@ -129,7 +132,9 @@ class TelegramBot:
             self._initialized = False
             return False
 
-    def is_owner(self, user_id: int | str, username: str | None = None, chat_id: int | str | None = None) -> bool:
+    def is_owner(
+        self, user_id: int | str, username: str | None = None, chat_id: int | str | None = None
+    ) -> bool:
         """Check if user or chat is an authorized owner."""
         owners = _get_owner_usernames()
         if username and username.strip().lower().lstrip("@") in owners:
@@ -145,7 +150,9 @@ class TelegramBot:
 
         return False
 
-    def _is_duplicate_update(self, update_id: int | str | None, message_id: int | str | None) -> bool:
+    def _is_duplicate_update(
+        self, update_id: int | str | None, message_id: int | str | None
+    ) -> bool:
         """Check and record update/message to prevent duplicate execution."""
         key = f"u:{update_id}" if update_id is not None else f"m:{message_id}"
         now = time.time()
@@ -203,7 +210,11 @@ class TelegramBot:
 
         # Deduplication check
         if self._is_duplicate_update(update_id, message_id):
-            logger.info("[telegram_bot] Duplicate update suppressed (update_id=%s, msg_id=%s)", update_id, message_id)
+            logger.info(
+                "[telegram_bot] Duplicate update suppressed (update_id=%s, msg_id=%s)",
+                update_id,
+                message_id,
+            )
             return BotProcessResult(
                 success=True,
                 response_text="Duplicate update ignored",
@@ -394,8 +405,10 @@ class TelegramBot:
 
         target_status = filter_arg.strip().upper() if filter_arg else None
         filtered = [
-            t for t in all_tasks
-            if not target_status or (t.status.value if hasattr(t.status, "value") else str(t.status)) == target_status
+            t
+            for t in all_tasks
+            if not target_status
+            or (t.status.value if hasattr(t.status, "value") else str(t.status)) == target_status
         ]
 
         if not filtered:
@@ -414,7 +427,7 @@ class TelegramBot:
                 f"• `{t.task_id}` | **{st}** | Bot: `{t.owner_bot}` → `{t.assigned_agent}` (prio: {prio})"
             )
 
-        lines.append(f"\nUse `/tasks RUNNING` or `/tasks READY` to filter.")
+        lines.append("\nUse `/tasks RUNNING` or `/tasks READY` to filter.")
         return "\n".join(lines), "task_query", "pilot"
 
     def _cmd_agents(self) -> tuple[str, str, str | None]:
@@ -506,10 +519,8 @@ class TelegramBot:
             )
 
     def _log_audit(self, **kwargs: Any) -> None:
-        """Log event to data/telegram/audit.jsonl with redaction."""
+        """Log event via structured logger with redaction."""
         try:
-            TELEGRAM_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            log_file = TELEGRAM_DATA_DIR / "audit.jsonl"
             entry = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 **kwargs,
@@ -520,10 +531,9 @@ class TelegramBot:
             if token and token in dumped:
                 dumped = dumped.replace(token, "[REDACTED_TELEGRAM_TOKEN]")
 
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(dumped + "\n")
+            logger.info("[telegram_audit] %s", dumped)
         except Exception as e:
-            logger.warning("[telegram_bot] Failed to append audit log: %s", e)
+            logger.warning("[telegram_bot] Failed to record audit log: %s", e)
 
     def get_info(self) -> dict[str, Any]:
         """Get bot configuration and health info."""

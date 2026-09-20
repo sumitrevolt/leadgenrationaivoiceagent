@@ -9,8 +9,9 @@ export APP_VERSION=404e5309   # matches running image tag — bina-rebuild recre
 echo "=== BEFORE: leadgen_app TYPESAFE key length ==="
 docker exec leadgen_app python -c 'import os; k=os.getenv("TYPESAFE_API_KEY",""); print(f"len={len(k)} prefix={k[:14]}...")' 2>&1 || echo "(pre-check failed)"
 
-# `up -d` re-reads .env, no image rebuild. Service names are app/worker (not container names).
-docker compose -f docker-compose.vps.yml up -d app worker 2>&1 | tail -6
+# `up -d` re-reads .env, no image rebuild. Worker rolled via compose; app via systemctl.
+docker compose -f docker-compose.vps.yml up -d worker 2>&1 | tail -6
+systemctl restart leadgen 2>/dev/null || true
 
 echo "=== waiting 14s for startup ==="
 sleep 14

@@ -52,7 +52,10 @@ async def test_api_success_log_contains_count_not_recipient_addresses(monkeypatc
 
     with _capture(module.logger, logging.INFO) as records:
         assert await _sender().send_email(
-            ["private.owner@example.com", "finance@customer.in"], "Subject", "Body"
+            ["private.owner@example.com", "finance@customer.in"],
+            "Subject",
+            "Body",
+            skip_validation=True,
         )
         text = "\n".join(records)
         assert "private.owner@example.com" not in text
@@ -72,7 +75,9 @@ async def test_smtp_failure_log_and_health_note_redact_exception_recipient(monke
 
     with _capture(module.logger, logging.ERROR) as records:
         with pytest.raises(RuntimeError):
-            await _sender().send_email(["private.owner@example.com"], "Subject", "Body")
+            await _sender().send_email(
+                ["private.owner@example.com"], "Subject", "Body", skip_validation=True
+            )
         text = "\n".join(records)
         assert "private.owner@example.com" not in text
         assert all("private.owner@example.com" not in note for _, note in notes)

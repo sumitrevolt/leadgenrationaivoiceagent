@@ -71,12 +71,14 @@ async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusRespon
         active_count += sum(1 for s in services if getattr(s, "client", None) and s.client.enabled)
         try:
             from app.platform.typesafe_executor import get_executor
+
             if get_executor().client.enabled:
                 active_count += 1
         except Exception:
             pass
         try:
             from app.integrations.telegram_typesafe import get_telegram_typesafe_router
+
             active_count += 1
         except Exception:
             pass

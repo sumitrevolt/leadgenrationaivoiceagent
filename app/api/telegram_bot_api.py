@@ -37,6 +37,7 @@ router = APIRouter(prefix="/api/telegram/bot", tags=["Telegram Bot"])
 # Request / Response Schemas
 # --------------------------------------------------------------------------- #
 
+
 class HealthResponse(BaseModel):
     configured: bool
     initialized: bool
@@ -119,6 +120,7 @@ class SetWebhookRequest(BaseModel):
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
+
 
 @router.get("/health", response_model=HealthResponse)
 async def get_health() -> HealthResponse:
@@ -285,6 +287,7 @@ async def set_webhook(payload: SetWebhookRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Telegram bot token unconfigured")
 
     import requests
+
     url = f"https://api.telegram.org/bot{bot.token}/setWebhook"
     try:
         resp = requests.post(url, json={"url": payload.url}, timeout=10)

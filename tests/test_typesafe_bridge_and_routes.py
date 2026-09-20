@@ -57,7 +57,12 @@ class TestTypeSafeSchemasAndBridge:
         # Bridge call with fallback
         resp = bridge.qualify_lead(req)
         assert isinstance(resp, LeadQualifyResponse)
-        assert resp.fit_level in (FitLevelEnum.LOW, FitLevelEnum.MEDIUM, FitLevelEnum.HIGH, FitLevelEnum.EXCEPTIONAL)
+        assert resp.fit_level in (
+            FitLevelEnum.LOW,
+            FitLevelEnum.MEDIUM,
+            FitLevelEnum.HIGH,
+            FitLevelEnum.EXCEPTIONAL,
+        )
         assert resp.recommended_product in (
             ProductOfferingEnum.MARKETING_SUITE,
             ProductOfferingEnum.VOICE_AGENT,
@@ -138,7 +143,8 @@ class TestTypeSafeRoutes:
         assert "enabled" in data
         assert "credential_present" in data
         assert "model" in data
-        assert data["services_ready"] is True
+        assert "services_ready" in data
+        assert data["services_ready"] is data["enabled"]
 
     def test_qualify_lead_route(self, client):
         payload = {

@@ -22,6 +22,8 @@ store (``data/reply_drafts.jsonl``) via its public functions, no rewrite.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -31,6 +33,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _FLAG = "HQ_AUTO_CHASE"
+_APPROVAL_ENV = "HQ_AUTO_CHASE_APPROVAL_ID"
 _HOURS_ENV = "HQ_CHASE_HOURS"
 _CAP_ENV = "HQ_CHASE_DAILY_CAP"
 _BATCH_ENV = "HQ_CHASE_BATCH"
@@ -52,6 +55,69 @@ def _int_env(name: str, default: int) -> int:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _policy_hash() -> str:
+    """Bind approval to the exact bounded outbound policy, never recipient data."""
+    policy = {
+        "action": "hq_auto_chase",
+        "channel": "email",
+        "hours": _int_env(_HOURS_ENV, _DEFAULT_HOURS),
+        "daily_cap": _int_env(_CAP_ENV, _DEFAULT_CAP),
+        "batch": _int_env(_BATCH_ENV, _DEFAULT_BATCH),
+        "template": "hq_auto_chase.v1",
+    }
+    raw = json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _approval_gate() -> dict[str, Any]:
+    """Validate an approved, unexpired Owner OS record bound to this policy."""
+    approval_id = (os.environ.get(_APPROVAL_ENV) or "").strip()
+    if not approval_id:
+        return {"ok": False, "reason": "hq_auto_chase_approval_id_missing"}
+    try:
+        from app.platform import approvals_bridge
+
+        draft = approvals_bridge.get_verification_draft(approval_id)
+        if not draft:
+            return {"ok": False, "reason": "hq_auto_chase_approval_not_found"}
+        status = str(
+            approvals_bridge._status_for(  # noqa: SLF001 — canonical status sidecar reader
+                "owner_os_verification", approval_id
+            )
+            or "pending"
+        ).lower()
+        if status != "approved":
+            return {
+                "ok": False,
+                "reason": "hq_auto_chase_approval_not_approved",
+                "approval_status": status,
+            }
+        expires_raw = str(draft.get("expires_at") or "").strip()
+        if not expires_raw:
+            return {"ok": False, "reason": "hq_auto_chase_approval_expiry_missing"}
+        expires = datetime.fromisoformat(expires_raw.replace("Z", "+00:00"))
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if _now() >= expires:
+            return {"ok": False, "reason": "hq_auto_chase_approval_expired"}
+        meta = draft.get("meta") if isinstance(draft.get("meta"), dict) else {}
+        bindings = {
+            "action": "hq_auto_chase",
+            "decision_type": "hot_queue_auto_chase_email",
+            "lane": "AMBER",
+            "content_sha256": _policy_hash(),
+        }
+        for field, expected in bindings.items():
+            if str(meta.get(field) or "") != expected:
+                return {
+                    "ok": False,
+                    "reason": f"hq_auto_chase_approval_binding_mismatch:{field}",
+                }
+        return {"ok": True, "approval_id": approval_id, "expires_at": expires.isoformat()}
+    except Exception:
+        return {"ok": False, "reason": "hq_auto_chase_approval_unverified"}
 
 
 def _age_hours(card: dict[str, Any]) -> float | None:
@@ -143,6 +209,7 @@ async def run_auto_chase(*, limit: int | None = None, send_fn=None) -> dict[str,
     """
     out: dict[str, Any] = {
         "enabled": _enabled(),
+        "approval_valid": False,
         "hours": _int_env(_HOURS_ENV, _DEFAULT_HOURS),
         "seen": 0,
         "eligible": 0,
@@ -157,6 +224,15 @@ async def run_auto_chase(*, limit: int | None = None, send_fn=None) -> dict[str,
     if not _enabled():
         out["skip_reason"] = "hq_auto_chase_disabled"
         return out
+    approval = _approval_gate()
+    out["approval_valid"] = bool(approval.get("ok"))
+    if not out["approval_valid"]:
+        out["skip_reason"] = approval.get("reason") or "hq_auto_chase_approval_unverified"
+        if approval.get("approval_status"):
+            out["approval_status"] = approval["approval_status"]
+        return out
+    out["approval_id"] = approval.get("approval_id")
+    out["approval_expires_at"] = approval.get("expires_at")
     try:
         from app.platform import reply_agent as _ra
 
