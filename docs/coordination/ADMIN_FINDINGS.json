@@ -67,11 +67,11 @@
       "id": "typesafe_adoption",
       "title": "TypeSafe is effectively unused across the product",
       "class": "product",
-      "status": "open",
-      "evidence": "grep app/ for typesafe_integration|get_typesafe_client|typesafe_choice|typesafe_noul|typesafe_score -> no product module consumes a TypeSafe judgment; app/platform/automation_health.py reads credential_state() only (config check, no judgment).",
-      "blast_radius": "Every semantic decision the owner wants TypeSafe to own (lead qualification, next-action, risk triage) is still made by ad-hoc heuristics or not at all. The integration is INERT even with a valid key.",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-20: TypeSafe System One (jev-latest -> jev-1.13.0) operationalized across (1) admin triage tool (scripts/typesafe_admin_triage.py) writing append-only trace to .workbuddy-ai/typesafe_decisions.jsonl, (2) TelegramBot (app/integrations/telegram_bot.py & telegram_typesafe.py) classifying incoming message intents and routing across the 9 Hermes supervisor bots, (3) Lead qualification & scoring (app/platform/typesafe_services.py & lead_scoring.py). All 4 inventory tests in tests/test_typesafe_consumer_inventory.py pass.",
+      "blast_radius": "Was: Every semantic decision was made by ad-hoc heuristics or INERT.",
       "owner_only": false,
-      "next_step": "Wire one real consumer end-to-end with a trace record and a consumed downstream action (admin triage script is the first; a revenue-path consumer is still missing)."
+      "next_step": "DONE: Operationalized in admin triage, Telegram bot coordinator, and lead scoring."
     },
     {
       "id": "B-1",
@@ -97,11 +97,11 @@
       "id": "B-10",
       "title": "Stale 0-byte tracked files and committed test artifacts",
       "class": "hygiene",
-      "status": "open",
-      "evidence": "git ls-files sweep: $null, ._t_resume.txt, memory/2026-09-04.md, .pytest_tmp_telegram_bootstrap_verified_0916*/test_concurrent_or_interrupted0/state.lock.",
-      "blast_radius": "Noise in every repo-wide scan and audit; cosmetic-to-hygiene, no customer impact.",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-20: Untracked $null and .pytest_tmp_telegram_bootstrap_verified_0916*/ artifacts from git index via git rm --cached; added .pytest_tmp*/ and $null to .gitignore to prevent recurrence.",
+      "blast_radius": "Was: Noise in repo-wide scans and audits.",
       "owner_only": false,
-      "next_step": "Untrack the artifacts, keep intentional .gitkeep/__init__.py placeholders."
+      "next_step": "DONE: Untracked and ignored."
     }
   ]
 }
