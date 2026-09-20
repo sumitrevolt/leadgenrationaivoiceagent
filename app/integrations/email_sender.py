@@ -85,7 +85,9 @@ class EmailSender:
         """Validate outbound content via TypeSafe BEFORE sending.
 
         Returns {"approved": bool, "score": int, "issues": list, "grade": str}.
-        If TypeSafe is INERT, deterministic pass (approved=True).
+        Fail-closed: if TypeSafe is INERT, offline, or returns unapproved,
+        returns approved=False to prevent unvalidated promotional sends.
+        Transactional/system callers must pass skip_validation=True.
         """
         try:
             from app.platform.typesafe_services import get_typesafe_content_qa

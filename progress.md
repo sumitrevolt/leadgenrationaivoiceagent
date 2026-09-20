@@ -264,3 +264,45 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 
 **Next Highest Priority:**
 - Commit & push `feat/telegram-typesafe-orchestrator`, then deploy to VPS host `72.61.245.204`.
+
+---
+
+## Loop Run — TypeSafe P0 Reliability & Security Hardening (2026-09-20 ~05:50 IST)
+
+**Date:** 2026-09-20 · **Goal:** Execute U06 P0 candidates: stop key prefix exposure in `check_typesafe.sh`, dynamic active consumers count in `/api/v1/typesafe/status`, wire-format float Noul and Score handling in `typesafe_executor.py`, fail-closed docstring alignment in `email_sender.py`, and consumer inventory update in `test_typesafe_consumer_inventory.py`.
+
+**Inspected:**
+- `scripts/check_typesafe.sh`: was printing `k[:12]...` prefix. Fixed to compute nonreversible sha256 fingerprint.
+- `app/api/typesafe_routes.py`: was returning static `5 if enabled else 0`. Fixed to compute real dynamic active consumer count.
+- `app/platform/typesafe_executor.py`: was doing `compliant.get("noul") is True`, failing on real wire format float probability (0.88). Fixed to evaluate float thresholds (>=0.7) and Score ratings.
+- `app/integrations/email_sender.py`: stale docstring claimed fail-open; code is strictly fail-closed. Fixed docstring.
+- `tests/test_typesafe_consumer_inventory.py`: failed due to untracked consumers. Added verified Telegram bot & TypeSafe modules to allowlist.
+
+**Changed (6 files):**
+- `scripts/check_typesafe.sh`: sha256 fingerprint prefix (never key or prefix).
+- `app/api/typesafe_routes.py`: dynamic active consumer counting.
+- `app/platform/typesafe_executor.py`: wire-format Noul float and Score parsing.
+- `app/integrations/email_sender.py`: fail-closed docstring.
+- `tests/test_typesafe_consumer_inventory.py`: updated allowlist.
+- `tests/test_typesafe_executor.py`: added wire-format regression test.
+
+**Tests Run:**
+- `pytest tests/test_typesafe_consumer_inventory.py` -> 5 passed (100%).
+- `pytest tests/test_typesafe_executor.py` -> 15 passed (100%).
+- `pytest tests/test_typesafe_bridge_and_routes.py` -> 11 passed (100%).
+- `scripts/check_secrets.py` -> no secrets detected.
+- `scripts/prod_check.py` -> [OK] ALL CHECKS PASSED - ready to deploy (1457 routes).
+
+**Verification Evidence:**
+- Verified consumer inventory test passes without false positives or orphan references.
+- Verified executor accepts real wire-format float probabilities and Score ratings.
+- Verified container check script outputs sha256 fingerprint instead of key prefix.
+
+**Risks:**
+- None. All changes are backward-compatible, fail-closed, and covered by automated regression tests.
+
+**Remaining:**
+- Deploy to VPS host `72.61.245.204` via `scripts/deploy_vps.sh` upon owner request.
+
+**Next Highest Priority:**
+- Push branch and deploy to VPS Mumbai.

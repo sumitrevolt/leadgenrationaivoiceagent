@@ -285,9 +285,24 @@ class TypeSafeExecutor:
             quality = answers.get("quality", {})
             compliant = answers.get("compliant", {})
 
+            # Wire format for Noul is {"type": "noul", "noul": float} (probability of YES)
+            noul_val = compliant.get("noul")
+            if isinstance(noul_val, bool):
+                noul_prob = 1.0 if noul_val else 0.0
+            elif isinstance(noul_val, (int, float)):
+                noul_prob = float(noul_val)
+            else:
+                noul_prob = 0.0
+
+            # Wire format for Score may be {"type": "score", "score": float} or choice string
+            quality_choice = quality.get("choice") or quality.get("value")
+            score_val = quality.get("score")
+            score_num = float(score_val) if isinstance(score_val, (int, float)) else None
+
             is_compliant = (
-                compliant.get("noul", False) is True  # noul=True means "yes"
-                or quality.get("choice") in ("good", "excellent")
+                noul_prob >= 0.7
+                or quality_choice in ("good", "excellent")
+                or (score_num is not None and score_num >= 2.0)
             )
 
             if is_compliant:
@@ -306,8 +321,8 @@ class TypeSafeExecutor:
             # Step 6: Ask TypeSafe what to fix, then loop
             result.status = ExecutionStatus.REVISING
             rejection = (
-                f"quality={quality.get('choice')}, "
-                f"compliant={compliant.get('noul')}"
+                f"quality={quality_choice or score_num}, "
+                f"compliant_prob={noul_prob}"
             )
             revision = self.revise_artifact(artifact, rejection, validate_criteria)
             if revision.success:

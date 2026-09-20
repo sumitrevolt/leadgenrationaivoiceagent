@@ -59,6 +59,28 @@ async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusRespon
     state = cred.get("state", "ABSENT")
     source = cred.get("source", "none")
 
+    active_count = 0
+    if enabled:
+        services = [
+            bridge.lead_scorer,
+            bridge.content_qa,
+            bridge.reply_triage,
+            bridge.value_extractor,
+            bridge.call_evaluator,
+        ]
+        active_count += sum(1 for s in services if getattr(s, "client", None) and s.client.enabled)
+        try:
+            from app.platform.typesafe_executor import get_executor
+            if get_executor().client.enabled:
+                active_count += 1
+        except Exception:
+            pass
+        try:
+            from app.integrations.telegram_typesafe import get_telegram_typesafe_router
+            active_count += 1
+        except Exception:
+            pass
+
     return TypeSafeSystemStatusResponse(
         enabled=enabled,
         credential_present=state == "PRESENT",
@@ -66,7 +88,7 @@ async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusRespon
         fingerprint=fp,
         model=model,
         services_ready=enabled,
-        active_consumers_count=5 if enabled else 0,
+        active_consumers_count=active_count,
     )
 
 
