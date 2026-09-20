@@ -20,6 +20,7 @@
 | `integrations.md` | Per external service: purpose, env-var NAME, rate limits, observed failure modes, retry policy | koi provider wire/debug karna ho, 429/quota issue |
 | `incidents.md` | Postmortems: what broke, root cause, fix, prevention rule | similar symptom dikhe, ya risky area touch karne se pehle |
 | `playbooks.md` | Repeatable procedures: deploy, rollback, new feature, client onboarding, flag enable, key rotation | koi operational kaam repeat karna ho |
+| `observations.md` | Consolidated engineering journals & runtime observations | audit lessons, observer logs, evidence sweep patterns |
 | `backlog.md` | Parked ideas WITH the why, so context survive kare | "ab kya banaye" / kisi purane idea pe wapas aana ho |
 
 ## OKF curated bundle (Tier-2 companion)
