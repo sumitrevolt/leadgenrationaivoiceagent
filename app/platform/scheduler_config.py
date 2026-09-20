@@ -201,6 +201,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 09:00",
         "owner": "platform",
     },
+    "hot_queue_followup": {
+        "label": "Hot queue stale card ntfy reminder",
+        "cadence": "daily 10:00",
+        "owner": "platform",
+    },
     "product_one_health": {
         "label": "Product 1 Customer Health + SLA Recovery",
         "cadence": "hourly :20",
