@@ -119,6 +119,7 @@ REQUIRED_RUN_DUE_EXCLUDE: frozenset[str] = frozenset(
         "digest",
         "sales_autopilot",
         "hq_auto_chase",
+        "hot_queue_followup",
         "reply_auto_send",
     }
 )
@@ -144,6 +145,7 @@ CUSTOMER_CONTACT_JOBS: frozenset[str] = frozenset(
         "readiness_digest",
         "call_kpi_digest",
         "hq_auto_chase",
+        "hot_queue_followup",
         "reply_auto_send",
         "trial_nudge",
     }

@@ -27,8 +27,8 @@ def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tupl
     scripts/fire_calls.py, unchanged). Never raises."""
     try:
         ist = (now_utc or datetime.utcnow()) + timedelta(hours=5, minutes=30)
-        trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-        trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
+        trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "9").split(":")[0])
+        trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "20").split(":")[0])
         txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
         txn_start = int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])
         end_hour = txn_end if transactional else trai_end

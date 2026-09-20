@@ -251,6 +251,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Content approval notify (hourly :40)",
         "kya": "Bounded pending-approval notify sweep (gated CONTENT_APPROVAL_NOTIFY; INERT off)",
     },
+    "hot_queue_followup": {
+        "label": "Hot Queue stale-card reminder (10:00)",
+        "kya": "24h+ se pending Hot Queue cards hon to owner ko ek awaited ntfy reminder bhejta hai",
+    },
     "meter_watch": {
         "label": "Billing meter-watch (har ghante :55)",
         "kya": "Minute-billing meter fail ho to alert",

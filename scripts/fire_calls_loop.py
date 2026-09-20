@@ -46,8 +46,8 @@ def _ist_now() -> datetime.datetime:
 
 def _in_trai_window(call_type: str) -> tuple[bool, str]:
     ist = _ist_now()
-    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
+    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "9").split(":")[0])
+    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "20").split(":")[0])
     txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
     start_hour = (
         int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])
@@ -132,9 +132,7 @@ async def run_loop(
             except Exception as e:
                 print(f"[loop] readiness warn: {e}")
 
-        ok, skip, fail = await fc.fire_queue(
-            prospects, dry_run=False, call_type=call_type
-        )
+        ok, skip, fail = await fc.fire_queue(prospects, dry_run=False, call_type=call_type)
         total_ok += ok
         total_skip += skip
         total_fail += fail
@@ -157,9 +155,10 @@ async def run_loop(
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Continuous outbound call loop")
-    p.add_argument("--batch-size", type=int, default=3, help="Leads per batch")
-    p.add_argument("--pause-batch", type=int, default=90, help="Seconds between batches")
-    p.add_argument("--pause-empty", type=int, default=300, help="Seconds when no leads")
+    concurrency_default = int(os.getenv("CALL_LOOP_CONCURRENCY", "5"))
+    p.add_argument("--batch-size", type=int, default=concurrency_default, help="Leads per batch (default 5 channels)")
+    p.add_argument("--pause-batch", type=int, default=10, help="Seconds between batches")
+    p.add_argument("--pause-empty", type=int, default=60, help="Seconds when no leads")
     p.add_argument("--max-batches", type=int, default=0, help="0 = until TRAI window closes")
     p.add_argument("--platform", action="store_true", help="LeadGen AI platform pitch")
     p.add_argument("--transactional", action="store_true")

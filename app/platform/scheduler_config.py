@@ -201,6 +201,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 09:00",
         "owner": "platform",
     },
+    "hot_queue_followup": {
+        "label": "Owner Hot Queue stale-card reminder",
+        "cadence": "daily 10:00",
+        "owner": "platform",
+    },
     "product_one_health": {
         "label": "Product 1 Customer Health + SLA Recovery",
         "cadence": "hourly :20",
@@ -299,6 +304,7 @@ RUN_DUE_EXCLUDE = {
     "digest",
     "sales_autopilot",
     "hq_auto_chase",
+    "hot_queue_followup",  # owner ntfy reminder — normal daily tick only, never catch-up flood
     "reply_auto_send",
     "trial_nudge",  # outbound customer email — no catch-up flood (BLK-02 2026-08-23)
     # T03: both send real Telegram messages to the customer / ops group. A
