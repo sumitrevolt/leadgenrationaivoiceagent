@@ -14,12 +14,16 @@ cd "$REPO"
 
 if [ -x .venv/bin/alembic ]; then
   ALEMBIC=".venv/bin/alembic"
+elif [ -x venv/bin/alembic ]; then
+  ALEMBIC="venv/bin/alembic"
 elif command -v alembic >/dev/null 2>&1; then
   ALEMBIC="alembic"
+elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^leadgen_worker$'; then
+  ALEMBIC="docker exec leadgen_worker alembic"
 elif python3 -c "import alembic" >/dev/null 2>&1; then
-  ALEMBIC="python3 -m alembic"
+  ALEMBIC="python3 -m alembic.config"
 else
-  echo "FATAL: no alembic available (no .venv/bin/alembic, no CLI, no python module)"
+  echo "FATAL: no alembic available (no .venv/bin/alembic, venv/bin/alembic, container, or CLI)"
   exit 1
 fi
 
