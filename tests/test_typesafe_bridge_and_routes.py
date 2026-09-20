@@ -57,7 +57,12 @@ class TestTypeSafeSchemasAndBridge:
         # Bridge call with fallback
         resp = bridge.qualify_lead(req)
         assert isinstance(resp, LeadQualifyResponse)
-        assert resp.fit_level in (FitLevelEnum.LOW, FitLevelEnum.MEDIUM, FitLevelEnum.HIGH, FitLevelEnum.EXCEPTIONAL)
+        assert resp.fit_level in (
+            FitLevelEnum.LOW,
+            FitLevelEnum.MEDIUM,
+            FitLevelEnum.HIGH,
+            FitLevelEnum.EXCEPTIONAL,
+        )
         assert resp.recommended_product in (
             ProductOfferingEnum.MARKETING_SUITE,
             ProductOfferingEnum.VOICE_AGENT,
