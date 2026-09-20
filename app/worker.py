@@ -618,6 +618,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=9, minute=0),
         "args": ("hot_queue_owner_pack",),
     },
+    "staff-hot-queue-followup-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=10, minute=0),
+        "args": ("hot_queue_followup",),
+    },
     "staff-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=8, minute=30),

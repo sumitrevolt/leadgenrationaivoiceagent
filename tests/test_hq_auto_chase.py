@@ -42,12 +42,104 @@ class _FakeSend:
         return True
 
 
+@pytest.fixture(autouse=True)
+def _approved_policy(monkeypatch):
+    """Existing positive-path tests use an explicit synthetic Owner OS approval."""
+    monkeypatch.setenv("HQ_AUTO_CHASE_APPROVAL_ID", "oosv_hq_test")
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge.get_verification_draft",
+        lambda approval_id: {
+            "id": approval_id,
+            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            "meta": {
+                "action": "hq_auto_chase",
+                "decision_type": "hot_queue_auto_chase_email",
+                "lane": "AMBER",
+                "content_sha256": hqc._policy_hash(),
+            },
+        },
+    )
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge._status_for",
+        lambda source, item_id: "approved",
+    )
+
+
 def test_inert_when_flag_off(monkeypatch):
     """HQ_AUTO_CHASE unset => run_auto_chase returns disabled, no sends, no exceptions."""
     monkeypatch.delenv("HQ_AUTO_CHASE", raising=False)
     out = _run(hqc.run_auto_chase())
     assert out["enabled"] is False
     assert out.get("skip_reason") == "hq_auto_chase_disabled"
+
+
+def test_flag_on_without_owner_approval_fails_closed(monkeypatch):
+    """The feature flag alone must never authorize an external email send."""
+    monkeypatch.setenv("HQ_AUTO_CHASE", "1")
+    monkeypatch.delenv("HQ_AUTO_CHASE_APPROVAL_ID", raising=False)
+    card = _card()
+    monkeypatch.setattr("app.platform.reply_agent.list_drafts", lambda limit=50: [card])
+
+    sent = []
+
+    async def _send(to, body):
+        sent.append((to, body))
+        return True
+
+    out = _run(hqc.run_auto_chase(send_fn=_send))
+
+    assert out["sent"] == 0
+    assert out["approval_valid"] is False
+    assert out["skip_reason"] == "hq_auto_chase_approval_id_missing"
+    assert sent == []
+
+
+@pytest.mark.parametrize(
+    ("expires_at", "content_sha256", "reason"),
+    [
+        (
+            (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+            "valid",
+            "hq_auto_chase_approval_expired",
+        ),
+        (
+            (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            "wrong-hash",
+            "hq_auto_chase_approval_binding_mismatch:content_sha256",
+        ),
+    ],
+)
+def test_expired_or_mismatched_owner_approval_fails_closed(
+    monkeypatch, expires_at, content_sha256, reason
+):
+    monkeypatch.setenv("HQ_AUTO_CHASE", "1")
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge.get_verification_draft",
+        lambda approval_id: {
+            "id": approval_id,
+            "expires_at": expires_at,
+            "meta": {
+                "action": "hq_auto_chase",
+                "decision_type": "hot_queue_auto_chase_email",
+                "lane": "AMBER",
+                "content_sha256": (
+                    hqc._policy_hash() if content_sha256 == "valid" else content_sha256
+                ),
+            },
+        },
+    )
+    sent = []
+
+    async def _send(to, body):
+        sent.append((to, body))
+        return True
+
+    out = _run(hqc.run_auto_chase(send_fn=_send))
+
+    assert out["sent"] == 0
+    assert out["approval_valid"] is False
+    assert out["skip_reason"] == reason
+    assert sent == []
 
 
 def test_skips_young_cards_and_phone_only(monkeypatch, tmp_path):

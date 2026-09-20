@@ -261,6 +261,7 @@ AUTOMATION_FLAGS = [
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "HOT_QUEUE_BRIEF_DAILY",  # 08:15 admin revenue brief; health-gated, read-only, default OFF
     "HQ_AUTO_CHASE",  # unactioned inquiry cards -> automated EMAIL follow-up; WhatsApp stays 1-click human (OFF default)
+    "HQ_AUTO_CHASE_APPROVAL_ID",  # approved Owner OS verification bound to current chase policy
     "CONTENT_APPROVAL_SWEEP",  # orphaned-pending approval retirement daily sweep (dry_run default; LIVE variant actuates writes)
     "DAILY_OWNER_BRIEF_NTFY",  # daily 08:10 owner brief + ntfy push (P0/P1 exceptions); INERT off default
     "SKILL_PACK",

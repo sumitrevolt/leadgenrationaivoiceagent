@@ -1954,6 +1954,22 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": "Result file is hand-consumed; never auto-applied to config.",
     },
     {
+        "allowlist_id": "telegram.audit.log",
+        "file": "app/api/telegram_bot_api.py",
+        "line_or_symbol": "log_path",
+        "path_pattern": "Path('data/telegram/audit.jsonl')",
+        "store_id": "telegram.audit",
+        "access_modes": ["READ"],
+        "reason": (
+            "Read-only audit log for /api/telegram/bot/audit/logs. Audit trail only, no mutations."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "telegram",
+        "production_relevance": "AUDIT_TRAIL",
+        "review_condition": "Read-only; audit trail for Telegram command history.",
+    },
+    {
         "allowlist_id": "ops.waha_watchdog.log",
         "file": "scripts/waha_watchdog.py",
         "line_or_symbol": "log_file",

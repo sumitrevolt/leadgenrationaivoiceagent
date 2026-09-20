@@ -16,7 +16,8 @@ capacity = 1  # Single daily follow-up check
 
 def check_followup():
     """Check if hot queue pack from yesterday was actioned; if not, send ntfy reminder."""
-    from app.utils import ntfy_utils  # hypothetical ntfy utility
+    from app.integrations.ntfy import push as ntfy_push, enabled as ntfy_enabled
+    from app.platform.hot_queue_owner_pack import check_gates
 
     gates = check_gates()
     open_gates = [k for k, v in gates.items() if v != "pass"]
@@ -55,10 +56,16 @@ def check_followup():
         # Yesterday's pack exists but may not have been actioned
         # Send ntfy reminder to owner if not already sent
         try:
-            # In production: use ntfy push to owner topic
-            reminder_msg = f"🔔 REMINDER: Hot queue pack from {yesterday_str} still has un-actioned leads ({get_lead_count(yesterday_csv)}). Click to view /admin/hotqueue"
-            # ntfy_utils.push(topic="leadgen-owner", message=reminder_msg)
-            logger.info(f"Would send ntfy follow-up reminder for {yesterday_str}")
+            reminder_msg = f"REMINDER: Hot queue pack from {yesterday_str} still has un-actioned leads ({get_lead_count(yesterday_csv)}). Click to view /admin/hotqueue"
+            if ntfy_enabled():
+                import asyncio
+                asyncio.create_task(ntfy_push(
+                    "Hot Queue Reminder",
+                    reminder_msg,
+                    priority="high",
+                    tags=["hotqueue", "reminder"],
+                ))
+            logger.info(f"ntfy follow-up reminder for {yesterday_str}")
             return {"status": "followup_queued", "date": yesterday_str, "message": reminder_msg}
         except Exception as e:
             logger.error(f"Failed to send ntfy follow-up: {e}")

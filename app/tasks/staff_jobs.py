@@ -116,6 +116,7 @@ STAFF_JOBS = (
     "watchdog",
     "onboard",
     "standup",
+    "hot_queue_followup",  # daily : follow-up reminder if pack not actioned
     "hot_queue_brief",
     "hot_queue_owner_pack",  # ADR-OWNER-1: daily 09:00 IST — CSV+MD+nfty for owner 1-click close
     "engineer_sre",
