@@ -1,7 +1,7 @@
-# Telegram Enterprise Grid — Phase 1: Send SMS Code
+﻿# Telegram Enterprise Grid â€” Phase 1: Send SMS Code
 
 **Status:** Ready to execute  
-**Script:** `scripts/telethon_create_groups.py`  
+**Script:** `scripts/telegram_create_chats.py`  
 **Credentials:** Provided by owner (api_id=30160587, api_hash=5a6af325bc59e9da130999f2ccda1674)
 
 ---
@@ -9,7 +9,7 @@
 ## Phase 1: Send SMS Code (ONE TIME)
 
 ```bash
-python scripts/telethon_create_groups.py \
+python scripts/telegram_create_chats.py \
   --api-id 30160587 \
   --api-hash "5a6af325bc59e9da130999f2ccda1674" \
   --phone +91XXXXXXXXXX
@@ -29,7 +29,7 @@ python scripts/telethon_create_groups.py \
 ## Phase 2: Verify Code + Create Groups
 
 ```bash
-python scripts/telethon_create_groups.py \
+python scripts/telegram_create_chats.py \
   --api-id 30160587 \
   --api-hash "5a6af325bc59e9da130999f2ccda1674" \
   --phone +91XXXXXXXXXX \
@@ -114,3 +114,4 @@ TELEGRAM_SETUP_ENABLED=1 \
 ---
 
 **Ready to execute?** Provide your phone number (+91XXXXXXXXXX) and I'll run Phase 1.
+

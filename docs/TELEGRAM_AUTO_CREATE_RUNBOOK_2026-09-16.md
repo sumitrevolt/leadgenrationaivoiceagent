@@ -1,4 +1,4 @@
-# Telegram Enterprise Grid — Auto-Create 3 Missing Coordination Groups
+﻿# Telegram Enterprise Grid â€” Auto-Create 3 Missing Coordination Groups
 **Date:** 2026-09-16  
 **Owner:** sumit daryanani  
 **Bot:** @Leadsgenai1_bot (id 8889560331)
@@ -42,7 +42,7 @@ echo "TELEGRAM_API_HASH=<your_hash>" >> .env.telegram
 
 ```bash
 # Phase 1: Send SMS code to your phone
-python scripts/telethon_create_groups.py \
+python scripts/telegram_create_chats.py \
   --api-id <your_id> \
   --api-hash <your_hash> \
   --phone +91XXXXXXXXXX
@@ -51,14 +51,14 @@ python scripts/telethon_create_groups.py \
 # Check your phone for the code
 
 # Phase 2: Verify code and create groups
-python scripts/telethon_create_groups.py \
+python scripts/telegram_create_chats.py \
   --api-id <your_id> \
   --api-hash <your_hash> \
   --phone +91XXXXXXXXXX \
   --code 12345
 
 # Or if session already authed:
-python scripts/telethon_create_groups.py \
+python scripts/telegram_create_chats.py \
   --api-id <your_id> \
   --api-hash <your_hash> \
   --phone +91XXXXXXXXXX \
@@ -115,11 +115,11 @@ TELEGRAM_SETUP_ENABLED=1 \
 
 ## Compliance
 
-- ✅ Coordination-only (no marketing, no personal use)
-- ✅ Opt-in only (private groups, invite links)
-- ✅ Bot labels itself as automated
-- ✅ No PII/tokens in chat
-- ✅ Tenant isolation (private groups)
+- âœ… Coordination-only (no marketing, no personal use)
+- âœ… Opt-in only (private groups, invite links)
+- âœ… Bot labels itself as automated
+- âœ… No PII/tokens in chat
+- âœ… Tenant isolation (private groups)
 
 ---
 
@@ -141,10 +141,10 @@ TELEGRAM_SETUP_ENABLED=1 \
 
 ## Files Modified
 
-- `data/telethon_setup.session` — created (user auth session)
-- `data/telethon_code_hash.json` — created (SMS code hash)
-- `data/new_group_chat_ids.json` — created (output)
-- `config/telegram/setup_spec.yaml` — updated (chat_ids)
+- `data/telethon_setup.session` â€” created (user auth session)
+- `data/telethon_code_hash.json` â€” created (SMS code hash)
+- `data/new_group_chat_ids.json` â€” created (output)
+- `config/telegram/setup_spec.yaml` â€” updated (chat_ids)
 
 ---
 
@@ -161,3 +161,4 @@ TELEGRAM_SETUP_ENABLED=1 \
 ---
 
 **Ready to run?** Provide your TELEGRAM_API_ID and TELEGRAM_API_HASH, and I'll execute the script for you.
+
