@@ -132,9 +132,7 @@ async def run_loop(
             except Exception as e:
                 print(f"[loop] readiness warn: {e}")
 
-        ok, skip, fail = await fc.fire_queue(
-            prospects, dry_run=False, call_type=call_type
-        )
+        ok, skip, fail = await fc.fire_queue(prospects, dry_run=False, call_type=call_type)
         total_ok += ok
         total_skip += skip
         total_fail += fail

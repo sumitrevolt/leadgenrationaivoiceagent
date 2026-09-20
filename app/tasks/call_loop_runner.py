@@ -52,7 +52,9 @@ async def run_call_loop():
         try:
             # Check calling window (canonical compliance source of truth)
             from datetime import time as dt_time
+
             from app.telephony.compliance import effective_promo_window
+
             now_utc = datetime.now(timezone.utc)
             now_ist = now_utc + timedelta(hours=5, minutes=30)
             start_str, end_str = effective_promo_window()
@@ -126,6 +128,7 @@ async def _get_pending_leads(limit: int = 3) -> list:
     try:
         from app.models.base import get_db_session
         from app.tasks.calling import _get_campaign_prospects
+
         with get_db_session() as db:
             prospects = _get_campaign_prospects(db, limit, "all")
             return [
@@ -144,4 +147,3 @@ async def _get_pending_leads(limit: int = 3) -> list:
 
 if __name__ == "__main__":
     asyncio.run(run_call_loop())
-

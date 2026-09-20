@@ -29,7 +29,8 @@ def _age_hours(card: dict) -> float | None:
 
 async def check_followup() -> dict:
     """Send one owner reminder only when currently pending cards are stale."""
-    from app.integrations.ntfy import push as ntfy_push, enabled as ntfy_enabled
+    from app.integrations.ntfy import enabled as ntfy_enabled
+    from app.integrations.ntfy import push as ntfy_push
     from app.platform import reply_agent
 
     try:
@@ -59,6 +60,7 @@ async def check_followup() -> dict:
         logger.warning("Hot Queue follow-up notification delivery failed")
         return {"status": "followup_failed", "pending": len(pending), "stale": len(stale)}
     return {"status": "followup_sent", "pending": len(pending), "stale": len(stale)}
+
 
 # Export for beat registration
 __all__ = ["status", "capacity", "check_followup"]
