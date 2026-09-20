@@ -665,6 +665,15 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Telegram setup router not mounted: {_e}")
 
+try:
+    from app.api.telegram_bot_api import router as telegram_bot_router
+    from app.api.telegram_typesafe import router as telegram_typesafe_router
+
+    app.include_router(telegram_bot_router)  # /api/telegram/bot/*
+    app.include_router(telegram_typesafe_router)  # /api/telegram/typesafe/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Telegram bot API router not mounted: {_e}")
+
 # Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
 try:
     from app.api.buzz_mcp_tools import router as buzz_mcp_router
