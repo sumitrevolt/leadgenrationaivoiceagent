@@ -155,9 +155,10 @@ async def run_loop(
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Continuous outbound call loop")
-    p.add_argument("--batch-size", type=int, default=3, help="Leads per batch")
-    p.add_argument("--pause-batch", type=int, default=90, help="Seconds between batches")
-    p.add_argument("--pause-empty", type=int, default=300, help="Seconds when no leads")
+    concurrency_default = int(os.getenv("CALL_LOOP_CONCURRENCY", "5"))
+    p.add_argument("--batch-size", type=int, default=concurrency_default, help="Leads per batch (default 5 channels)")
+    p.add_argument("--pause-batch", type=int, default=10, help="Seconds between batches")
+    p.add_argument("--pause-empty", type=int, default=60, help="Seconds when no leads")
     p.add_argument("--max-batches", type=int, default=0, help="0 = until TRAI window closes")
     p.add_argument("--platform", action="store_true", help="LeadGen AI platform pitch")
     p.add_argument("--transactional", action="store_true")

@@ -1957,7 +1957,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.waha_watchdog.log",
         "file": "scripts/waha_watchdog.py",
         "line_or_symbol": "log_file",
-        "path_pattern": '_env("WAHA_WATCHDOG_LOG_FILE", DEFAULT_LOG_FILE)',
+        "path_pattern": 'os.getenv("WAHA_WATCHDOG_LOG_FILE") or DEFAULT_LOG_FILE',
         "store_id": "ops.waha_watchdog",
         "access_modes": ["APPEND"],
         "reason": (
@@ -1974,7 +1974,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.waha_watchdog.health",
         "file": "scripts/waha_watchdog.py",
         "line_or_symbol": "health_file",
-        "path_pattern": '_env("WAHA_WATCHDOG_HEALTH_FILE", DEFAULT_HEALTH_FILE)',
+        "path_pattern": 'os.getenv("WAHA_WATCHDOG_HEALTH_FILE") or DEFAULT_HEALTH_FILE',
         "store_id": "ops.waha_watchdog",
         "access_modes": ["REWRITE"],
         "reason": (
