@@ -52,7 +52,10 @@ async def test_api_success_log_contains_count_not_recipient_addresses(monkeypatc
 
     with _capture(module.logger, logging.INFO) as records:
         assert await _sender().send_email(
-            ["private.owner@example.com", "finance@customer.in"], "Subject", "Body", skip_validation=True
+            ["private.owner@example.com", "finance@customer.in"],
+            "Subject",
+            "Body",
+            skip_validation=True,
         )
         text = "\n".join(records)
         assert "private.owner@example.com" not in text

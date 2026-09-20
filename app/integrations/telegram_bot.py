@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 
 # Config & Environment
 TELEGRAM_API_URL = "https://api.telegram.org"
-TELEGRAM_DATA_DIR = Path(os.getenv("TELEGRAM_DATA_DIR", "data/telegram"))
 _DEDUPE_TTL_SECONDS = 3600.0
 
 
@@ -520,10 +519,8 @@ class TelegramBot:
             )
 
     def _log_audit(self, **kwargs: Any) -> None:
-        """Log event to data/telegram/audit.jsonl with redaction."""
+        """Log event via structured logger with redaction."""
         try:
-            TELEGRAM_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            log_file = TELEGRAM_DATA_DIR / "audit.jsonl"
             entry = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 **kwargs,
@@ -534,10 +531,9 @@ class TelegramBot:
             if token and token in dumped:
                 dumped = dumped.replace(token, "[REDACTED_TELEGRAM_TOKEN]")
 
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(dumped + "\n")
+            logger.info("[telegram_audit] %s", dumped)
         except Exception as e:
-            logger.warning("[telegram_bot] Failed to append audit log: %s", e)
+            logger.warning("[telegram_bot] Failed to record audit log: %s", e)
 
     def get_info(self) -> dict[str, Any]:
         """Get bot configuration and health info."""

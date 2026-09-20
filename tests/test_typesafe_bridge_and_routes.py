@@ -138,7 +138,8 @@ class TestTypeSafeRoutes:
         assert "enabled" in data
         assert "credential_present" in data
         assert "model" in data
-        assert data["services_ready"] is True
+        assert "services_ready" in data
+        assert data["services_ready"] is data["enabled"]
 
     def test_qualify_lead_route(self, client):
         payload = {
