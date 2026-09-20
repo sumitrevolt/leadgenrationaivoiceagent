@@ -47,7 +47,10 @@ _DEDUPE_TTL_SECONDS = 3600.0
 
 
 def _get_bot_token() -> str:
-    return os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    return (
+        os.getenv("TELEGRAM_JARVIS_BOT_TOKEN", "").strip()
+        or os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    )
 
 
 def _get_owner_usernames() -> set[str]:

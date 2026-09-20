@@ -268,7 +268,7 @@ async def mirror_p0_to_telegram(event: dict[str, Any]) -> bool:
         sev = str(event.get("severity") or "")
         if sev not in ("P0", "P1"):
             return False
-        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+        if not (os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")):
             return False
         from app.utils.telegram_egress import send_to_group
 

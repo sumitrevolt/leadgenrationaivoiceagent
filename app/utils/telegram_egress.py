@@ -59,7 +59,11 @@ _GROUP_CATALOG: dict[str, str] | None = None
 
 def _bot_token() -> str | None:
     """Bot token from env. Fail-closed: None if missing."""
-    return os.environ.get("TELEGRAM_BOT_TOKEN") or None
+    return (
+        os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN")
+        or os.environ.get("TELEGRAM_BOT_TOKEN")
+        or None
+    )
 
 
 def _load_group_catalog() -> dict[str, str]:
