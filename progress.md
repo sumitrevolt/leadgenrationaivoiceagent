@@ -407,4 +407,71 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 **Next Highest Priority:**
 - Account re-activation on Tata SmartFlo portal to enable outbound call execution.
 
+---
+
+## Loop Run: 5-Channel Continuous Calling Architecture & Unlimited FUP Setup (09:00–20:00 IST)
+
+**Date:** 2026-09-20 11:00 IST  
+**Goal:** Setup telephony infrastructure for 5 concurrent channels on Tata Smartflo with unlimited FUP continuous calling between 09:00 and 20:00 IST across all 5 channels simultaneously.
+
+**Inspected:**
+- `app/tasks/call_loop_runner.py`: Discovered sequential single-lead loop and hardcoded limit of 3 leads.
+- `app/telephony/trunks.py`: Inspected Tata Smartflo trunk config (`max_concurrent=5`, `cps_limit=2`).
+- `app/config.py`: Verified `tata_smartflo_max_concurrent: int = 5`, `tata_smartflo_cps_limit: int = 2`, `max_concurrent_calls: int = 10`.
+- `scripts/fire_calls_loop.py`: Inspected batch sizing and loop intervals.
+- VPS `/opt/leadgen/.env`: Checked `MAX_CONCURRENT_CALLS`, `VOICE_DAILY_CALL_CAP=100`, `PLATFORM_DIAL_LIMIT=100`.
+
+**Problems Found:**
+1. `call_loop_runner.py` was fetching only 3 leads at a time and calling them sequentially instead of dispatching all 5 channels concurrently.
+2. Dialed leads were not having `call_attempts` incremented / `mark_called()` executed in DB upon call placement, which could cause queue stalls.
+3. VPS `.env` had restrictive daily caps (`VOICE_DAILY_CALL_CAP=100`, `PLATFORM_DIAL_LIMIT=100`), which prematurely choked unlimited FUP calling.
+4. Fast 0.5s dispatch triggered occasional 429 Too Many Requests from Tata's API gateway; tuning to 1.0s cadence (`TATA_SMARTFLO_CPS_LIMIT=1`) eliminated bursts completely.
+
+**Changed:**
+- `app/tasks/call_loop_runner.py`:
+  - Upgraded to concurrent 5-channel execution using `asyncio.gather(*tasks)`.
+  - Added CPS stagger delay (`stagger_delay = max(0.2, 1.0 / cps_limit)`) to eliminate 429 rate limit errors from Tata's API gateway.
+  - Implemented async non-blocking DB lead transition (`_mark_lead_called_in_db`), updating `call_attempts` and `LeadStatus.CONTACTED` via `Lead.mark_called()`.
+  - Added continuous looping parameter `CALL_LOOP_INTERVAL_SECONDS` (default 5s) when calls are active.
+  - Retained 120s backoff protection when carrier gateway rejects the entire batch (e.g. pending backend activation).
+- `scripts/fire_calls_loop.py`:
+  - Updated default batch size to read from `CALL_LOOP_CONCURRENCY` with default 5.
+  - Lowered default batch pause to 10s for continuous calling.
+- VPS `/opt/leadgen/.env`:
+  - `CALL_LOOP_CONCURRENCY=5`
+  - `TATA_SMARTFLO_MAX_CONCURRENT=5`
+  - `MAX_CONCURRENT_CALLS=5`
+  - `TATA_SMARTFLO_CPS_LIMIT=1`
+  - `CALL_LOOP_INTERVAL_SECONDS=5`
+  - `VOICE_DAILY_CALL_CAP=5000` (unlimited FUP)
+  - `PLATFORM_DIAL_LIMIT=5000`
+- VPS Docker & Systemd:
+  - Recreated `leadgen_app` container via canonical `APP_VERSION=c691c8d1 docker compose -f docker-compose.vps.yml up -d --no-deps app`.
+  - Synced `call_loop_runner.py` into container and restarted `leadgen-call-loop.service`.
+
+**Tests Run:**
+- `pytest tests/test_compliance.py tests/test_activation_compliance_section.py tests/test_campaign_launch.py -q` -> 54/54 passed (100%).
+- `scripts/prod_check.py` -> [OK] ALL CHECKS PASSED - ready to deploy (1457 routes registered, 66 pages 0 gaps, automation 0 gaps).
+- `scripts/check_secrets.py` -> [OK] no secrets detected.
+
+**Verification Evidence:**
+- Live VPS `journalctl -u leadgen-call-loop -n 30` shows exact 5-channel concurrent dispatch:
+  - `[call_loop][ch1] Placing call to +917030006477 (10:59:14)`
+  - `[call_loop][ch2] Placing call to 912266580500 (10:59:15)`
+  - `[call_loop][ch3] Placing call to 912026952222 (10:59:16)`
+  - `[call_loop][ch4] Placing call to 918044477085 (10:59:17)`
+  - `[call_loop][ch5] Placing call to 918951395397 (10:59:18)`
+  - Zero 429 errors; perfectly spaced 1.0s stagger.
+  - Continuous loop service active (`systemctl is-active leadgen-call-loop` -> `active`).
+
+**Risks:**
+- Outbound audio bridging depends on Tata Smartflo telecom backend being activated by TTBS account manager. The software pipeline is 100% armed and ready.
+
+**Remaining:**
+- TTBS account activation unblock from Tata Teleservices.
+
+**Next Highest Priority:**
+- Telephony live call audio validation upon TTBS activation.
+
+
 
