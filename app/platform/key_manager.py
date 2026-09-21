@@ -1,4 +1,4 @@
-"""Key Manager Agent — Secure API key management for LeadGen AI.
+"""Key Manager Agent â€” Secure API key management for LeadGen AI.
 
 P0-hardened 2026-09-21 (owner contract M3/R3 + M10-B). The security guarantees
 below are ENFORCED IN CODE and pinned by tests/test_key_manager_storage.py and
@@ -9,14 +9,14 @@ tests/security/test_key_manager_auth.py:
     - writes  (/set, /rotate, /delete, /deploy, /verify) -> require_super_admin
   Unauthenticated => 401. Non-super role => 403. Deny-by-default.
 * Encrypted at rest. Key values are Fernet-encrypted (cryptography, in
-  requirements.lock.txt) under KEYS_MASTER_KEY, which lives ONLY in env/.env —
+  requirements.lock.txt) under KEYS_MASTER_KEY, which lives ONLY in env/.env â€”
   external to the store. Missing master key => every mutation FAILS CLOSED
   (HTTP 503 ``master_key_missing``); nothing is ever written in plaintext.
 * No key material in owner-visible surfaces. Status/audit/log/Telegram see
   STATE ONLY: ABSENT | PRESENT | INVALID | ROTATION_REQUIRED. No prefix, no
   suffix, no raw value, no bearer header, no usable fingerprint.
 * Atomic writes (tmp + os.replace), 0600 on Unix. Legacy plaintext keys.json
-  is migrated once — encrypt, roundtrip-verify, then securely delete the
+  is migrated once â€” encrypt, roundtrip-verify, then securely delete the
   plaintext copy. A failed migration leaves the legacy file in place
   (fail-closed, audited, flagged as ``legacy_pending_master`` /
   ``legacy_migrate_failed``).
@@ -135,7 +135,7 @@ class KeyManagerAgent:
     def _log_audit(
         self, action: str, service: str, actor: str, success: bool, note: str = ""
     ) -> None:
-        """Append one audit line. ``note`` carries STATE STRINGS ONLY —
+        """Append one audit line. ``note`` carries STATE STRINGS ONLY â€”
         never a key value, prefix, suffix or bearer material (checked in tests)."""
         entry = {
             "timestamp": _utcnow(),
@@ -162,7 +162,7 @@ class KeyManagerAgent:
                 data = json.load(fh)
             return data if isinstance(data, dict) else {}
         except Exception:
-            logger.error("key_manager: unreadable keys.enc.json — failing closed")
+            logger.error("key_manager: unreadable keys.enc.json â€” failing closed")
             return {}
 
     def _save_meta(self, meta: dict[str, Any]) -> None:
@@ -345,7 +345,7 @@ class KeyManagerAgent:
     # ----------------------------------------------------------------- verify
     def verify_key(self, service: str, actor: str = "system") -> dict[str, Any]:
         """Run the provider smoke test (billable) and record state. POST-only
-        surface — reads stay free of provider calls."""
+        surface â€” reads stay free of provider calls."""
         service = (service or "").strip().lower()
         state = self.get_state(service)
         if state["state"] == STATE_ABSENT:
@@ -448,10 +448,10 @@ def get_key_manager() -> KeyManagerAgent:
     return _key_manager
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Owner-gated router (P0: auth on EVERY route; built at app-composition time
-# so the auth_deps import happens in normal import order — no cycles).
-# ─────────────────────────────────────────────────────────────────────────────
+# so the auth_deps import happens in normal import order â€” no cycles).
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class SetKeyIn(BaseModel):
@@ -473,7 +473,7 @@ def build_keys_router() -> APIRouter:
     """Owner-only key management. Reads = admin; mutations = super_admin.
 
     Returns a router (NOT a module-level singleton) so the auth imports are
-    deferred to app-composition time — same pattern as main.py's resilient
+    deferred to app-composition time â€” same pattern as main.py's resilient
     router mounting. Endpoints resolve the agent through
     ``Depends(get_key_manager)`` so tests can override it per-app while
     production keeps the process singleton.
@@ -481,14 +481,11 @@ def build_keys_router() -> APIRouter:
     from app.api.auth_deps import require_admin, require_super_admin
     from app.models.user import User
 
-    def km() -> KeyManagerAgent:
-        return get_key_manager()
-
     router = APIRouter(prefix="/api/admin/keys", tags=["Admin - Key Manager"])
 
     @router.get("/status", summary="List all key slot states (redacted, owner view)")
     async def list_status(
-        _user: User = Depends(require_admin), agent: KeyManagerAgent = Depends(km)
+        _user: User = Depends(require_admin), agent: KeyManagerAgent = Depends(get_key_manager)
     ) -> list[dict[str, Any]]:
         return [agent.get_state(s) for s in agent.list_services()]
 
@@ -496,7 +493,7 @@ def build_keys_router() -> APIRouter:
     async def get_key_status(
         service: str,
         _user: User = Depends(require_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         """Redacted state only: ABSENT | PRESENT | INVALID | ROTATION_REQUIRED.
         No prefix/suffix/value in this or any other surface."""
@@ -506,7 +503,7 @@ def build_keys_router() -> APIRouter:
     async def verify_key_route(
         service: str,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         """Billable provider smoke (TypeSafe initialize). Super-admin only."""
         return agent.verify_key(service, actor="admin_ui")
@@ -515,7 +512,7 @@ def build_keys_router() -> APIRouter:
     async def set_key(
         payload: SetKeyIn,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         try:
             return agent.set_key(payload.service, payload.key, actor="admin_ui")
@@ -526,7 +523,7 @@ def build_keys_router() -> APIRouter:
     async def rotate_key(
         payload: RotateKeyIn,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         try:
             return agent.rotate_key(payload.service, payload.new_key, actor="admin_ui")
@@ -537,7 +534,7 @@ def build_keys_router() -> APIRouter:
     async def delete_key_route(
         service: str,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         return agent.delete_key(service, actor="admin_ui")
 
@@ -545,7 +542,7 @@ def build_keys_router() -> APIRouter:
     async def request_rotation_route(
         service: str,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         return agent.request_rotation(service, actor="admin_ui")
 
@@ -553,7 +550,7 @@ def build_keys_router() -> APIRouter:
     async def deploy_key(
         service: str,
         _user: User = Depends(require_super_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> dict[str, Any]:
         try:
             return agent.deploy_to_env(service, actor="admin_ui")
@@ -565,7 +562,7 @@ def build_keys_router() -> APIRouter:
         service: str,
         limit: int = 50,
         _user: User = Depends(require_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> list[dict[str, Any]]:
         return agent.get_audit_log(service, limit)
 
@@ -573,14 +570,14 @@ def build_keys_router() -> APIRouter:
     async def get_all_audit(
         limit: int = 100,
         _user: User = Depends(require_admin),
-        agent: KeyManagerAgent = Depends(km),
+        agent: KeyManagerAgent = Depends(get_key_manager),
     ) -> list[dict[str, Any]]:
         return agent.get_audit_log(None, limit)
 
     return router
 
 
-# Back-compat alias (no module-level router anymore — importers must use
+# Back-compat alias (no module-level router anymore â€” importers must use
 # build_keys_router(); grep 2026-09-21 confirmed zero legacy consumers).
 KeyManager = KeyManagerAgent
 

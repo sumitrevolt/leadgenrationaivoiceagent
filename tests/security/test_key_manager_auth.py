@@ -36,7 +36,23 @@ def _route(path: str):
 
 
 def _deps(route) -> list:
-    return [d.dependency for d in route.dependant.dependencies]
+    """Collect every dependency callable reachable from a route's dependant
+    graph (bounded DFS). FastAPI >=0.115 renames the old ``.dependency``
+    attribute to ``.call``; accept either so the test is version-stable."""
+    found: list = []
+
+    def walk(d, depth: int = 0):
+        if depth > 8 or d is None:
+            return
+        for attr in ("call", "dependency"):
+            call = getattr(d, attr, None)
+            if callable(call):
+                found.append(call)
+        for sub in getattr(d, "dependencies", None) or []:
+            walk(sub, depth + 1)
+
+    walk(getattr(route, "dependant", None))
+    return found
 
 
 MUTATION_PATHS = (
