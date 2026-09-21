@@ -98,12 +98,15 @@ def test_flag_on_without_owner_approval_fails_closed(monkeypatch):
     ("expires_at", "content_sha256", "reason"),
     [
         (
-            (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+            # Fixed timestamps: datetime.now() here made parametrize IDs
+            # wall-clock-dependent -> xdist "Different tests were collected"
+            # (collection happens per gw with microsecond drift).
+            "2020-01-01T00:00:00+00:00",
             "valid",
             "hq_auto_chase_approval_expired",
         ),
         (
-            (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            "2099-01-01T00:00:00+00:00",
             "wrong-hash",
             "hq_auto_chase_approval_binding_mismatch:content_sha256",
         ),
