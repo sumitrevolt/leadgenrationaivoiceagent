@@ -17,12 +17,17 @@ API: GET /api/growth/overview/today (growth.py) → /app/automation "🏠 Aaj" t
 from __future__ import annotations
 
 import os
+from calendar import monthrange
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+_IST = ZoneInfo("Asia/Kolkata")
+_CRORE_TARGET_DEFAULT_INR = 10_000_000.0
+_CASH_CONFIRMED_STATUSES = frozenset({"approved"})
 
 # weekday() 0=Mon … 6=Sun — weekly staff jobs (baaki daily = har din due)
 _WEEKLY_ON: dict[str, int] = {
@@ -150,6 +155,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "hot_queue_owner_pack": {
         "label": "Owner 1-click close pack (subah 9:00)",
         "kya": "Hot leads ka CSV+MD banata hai + owner phone pe wa.me links ka ntfy push",
+    },
+    "hot_queue_followup": {
+        "label": "Hot Queue owner follow-up (subah 10:00)",
+        "kya": "24 ghante se pending hot leads par owner ko reminder deta hai",
     },
     "digest": {"label": "Daily digest (subah 8:30)", "kya": "Din ka summary email Sumit ko"},
     "prospect": {
@@ -591,6 +600,54 @@ def _paid_activations_today() -> dict[str, Any]:
         return {}
 
 
+def _crore_controller() -> dict[str, Any]:
+    """Monthly verified-cash pace; never treats invoices/MRR as collected cash."""
+    now = datetime.now(_IST)
+    target = max(0.0, float(os.getenv("REVENUE_MONTHLY_TARGET_INR", _CRORE_TARGET_DEFAULT_INR)))
+    month_prefix = now.strftime("%Y-%m")
+    collected = 0.0
+    customers: set[str] = set()
+    seen: set[str] = set()
+    try:
+        from app.platform import upi_payments
+
+        for row in upi_payments.list_payments() or []:
+            status = str(row.get("status") or "").strip().lower()
+            decided = str(row.get("decided_at") or row.get("confirmed_at") or "")
+            amount = float(row.get("amount") or 0)
+            row_id = str(row.get("id") or row.get("payment_id") or "")
+            if (
+                status not in _CASH_CONFIRMED_STATUSES
+                or bool(row.get("auto_activated"))
+                or not decided.startswith(month_prefix)
+                or amount <= 0
+            ):
+                continue
+            dedupe = row_id or f"{row.get('client_id')}:{decided}:{amount}"
+            if dedupe in seen:
+                continue
+            seen.add(dedupe)
+            collected += amount
+            if row.get("client_id"):
+                customers.add(str(row["client_id"]))
+    except Exception as e:
+        logger.debug("[today] crore controller payment scan skip: %s", e)
+    collected = round(collected, 2)
+    remaining = round(max(0.0, target - collected), 2)
+    remaining_days = max(1, monthrange(now.year, now.month)[1] - now.day + 1)
+    return {
+        "target_net_collected_month": target,
+        "verified_net_collected_month_to_date": collected,
+        "remaining_target": remaining,
+        "remaining_days": remaining_days,
+        "required_net_cash_per_day": round(remaining / remaining_days, 2),
+        "current_paid_conversion": None,
+        "actual_customer_arpc": round(collected / len(customers), 2) if customers else None,
+        "gross_margin": None,
+        "cash_evidence": "owner_confirmed_upi_positive_amount_only",
+    }
+
+
 def _ago_minutes(iso: str | None) -> int | None:
     if not iso:
         return None
@@ -862,6 +919,7 @@ def build() -> dict[str, Any]:
     totals["paid_today"] = int(_paid.get("paid_today") or 0)
     totals["activations_today"] = int(_paid.get("activations_today") or 0)
     totals["paid_gross_today_inr"] = float(_paid.get("gross_inr_today") or 0)
+    totals["crore_controller"] = _crore_controller()
 
     # ---- 6) Hot Queue (GTM bottleneck) — owner 15-min sprint, never auto-send ----
     try:

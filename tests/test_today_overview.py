@@ -260,6 +260,37 @@ def test_totals_include_owner_money_path_fields():
         assert isinstance(t[k], int) and t[k] >= 0
 
 
+def test_crore_controller_counts_only_verified_positive_cash(monkeypatch):
+    from app.platform import upi_payments
+
+    class FakeDateTime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 9, 21, 12, 0, tzinfo=tz)
+
+    monkeypatch.setattr(today_overview, "datetime", FakeDateTime)
+    monkeypatch.setattr(
+        upi_payments,
+        "list_payments",
+        lambda: [
+            {"id": "p1", "client_id": "c1", "status": "approved", "amount": 1999, "decided_at": "2026-09-03T10:00:00+05:30"},
+            {"id": "p2", "client_id": "c2", "status": "auto_activated", "amount": 5999, "decided_at": "2026-09-20T10:00:00+05:30"},
+            {"id": "p3", "client_id": "c3", "status": "pending", "amount": 9999, "decided_at": "2026-09-20T10:00:00+05:30"},
+            {"id": "p4", "client_id": "c4", "status": "approved", "amount": 0, "decided_at": "2026-09-20T10:00:00+05:30"},
+            {"id": "p5", "client_id": "c5", "status": "approved", "amount": 1999, "decided_at": "2026-08-31T10:00:00+05:30"},
+        ],
+    )
+
+    out = today_overview._crore_controller()
+    assert out["verified_net_collected_month_to_date"] == 1999.0
+    assert out["remaining_target"] == 9_998_001.0
+    assert out["remaining_days"] == 10
+    assert out["required_net_cash_per_day"] == 999_800.1
+    assert out["actual_customer_arpc"] == 1999.0
+    assert out["current_paid_conversion"] is None
+    assert out["gross_margin"] is None
+
+
 def test_env_tri_state_never_leaks_raw(monkeypatch):
     monkeypatch.setenv("DSH_RUNTIME_ENABLED", "1")
     assert today_overview._env_tri_state("DSH_RUNTIME_ENABLED") == "on"

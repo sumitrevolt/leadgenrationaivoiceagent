@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1470 operations)
+## Endpoint Index — auto-generated from OpenAPI (1489 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -327,6 +327,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `PATCH ` `/api/admin/users/{user_id}` — Update User
 - `DELETE` `/api/admin/users/{user_id}/picture` — Delete Profile Picture
 - `POST  ` `/api/admin/users/{user_id}/picture` — Upload Profile Picture
+
+### Admin - Key Manager  (8)
+
+- `GET   ` `/api/admin/keys/audit` — Get All Audit
+- `GET   ` `/api/admin/keys/audit/{service}` — Get Audit
+- `POST  ` `/api/admin/keys/deploy/{service}` — Deploy Key
+- `POST  ` `/api/admin/keys/rotate` — Rotate Key
+- `POST  ` `/api/admin/keys/set` — Set Key
+- `GET   ` `/api/admin/keys/slots` — Get Slots
+- `POST  ` `/api/admin/keys/slots/set` — Set Slot
+- `GET   ` `/api/admin/keys/status/{service}` — Get Key Status
 
 ### Admin Command Center  (25)
 
@@ -1020,12 +1031,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (80)
+### Frontend  (81)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
 - `GET   ` `/app/admin/db` — Admin Db Explorer Page
+- `GET   ` `/app/admin/secrets` — Admin Secrets Page
 - `GET   ` `/app/admin/video` — Video Command Center Page
 - `GET   ` `/app/affiliates` — Affiliates Page
 - `GET   ` `/app/agent-tools` — Agent Tools Page
@@ -2084,6 +2096,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 ### content-os  (1)
 
 - `POST  ` `/internal/render/done` — Render Done
+
+### hermes3d  (10)
+
+- `POST  ` `/api/hermes3d/command` — Hermes3D Command
+- `GET   ` `/api/hermes3d/config` — Hermes3D Config
+- `GET   ` `/api/hermes3d/health` — Hermes3D Health
+- `GET   ` `/api/hermes3d/registry` — Hermes3D Registry
+- `GET   ` `/api/hermes3d/state` — Hermes3D State
+- `POST  ` `/api/runtime/custom/command` — Hermes3D Command
+- `GET   ` `/api/runtime/custom/config` — Hermes3D Config
+- `GET   ` `/api/runtime/custom/health` — Hermes3D Health
+- `GET   ` `/api/runtime/custom/registry` — Hermes3D Registry
+- `GET   ` `/api/runtime/custom/state` — Hermes3D State
 
 ### telegram-setup  (4)
 

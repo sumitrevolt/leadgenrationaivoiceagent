@@ -70,7 +70,7 @@ def test_registry_finds_open_findings_only():
     ids = {f["id"] for f in findings}
     assert ids, "registry has no open findings"
     assert "admin_verification_email" not in ids, "fixed items must not be triaged"
-    assert "B-1" in ids
+    assert "telegram_notify_and_groups" in ids
 
 
 def test_every_finding_carries_evidence():
@@ -295,7 +295,7 @@ def test_cli_records_a_trace_on_success(tmp_path, monkeypatch, present_cred):
     assert rc == 0
     rec = json.loads(trace.read_text(encoding="utf-8").splitlines()[0])
     assert rec["success"] is True
-    assert rec["decision"]["next_action"] in {"B-1", "B-2", "B-10"}
+    assert rec["decision"]["next_action"] in {f["id"] for f in tri.load_findings()}
 
 
 def test_never_writes_the_credential_into_the_trace(tmp_path, monkeypatch, present_cred):

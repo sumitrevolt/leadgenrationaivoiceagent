@@ -4,6 +4,16 @@
 
 ---
 
+## ADR-199: Bounded TypeSafe judgment per governed agent task/session (2026-09-21)
+
+**Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; production deploy pending)
+**Context**: TypeSafe had useful point consumers (Telegram routing, lead scoring, reply triage, worker QA) but no shared guarantee across the canonical 31-agent / 9-owner-bot orchestrator. A naive global call would create retry storms, leak task payloads, and add up to ~100 seconds of dispatch latency during provider trouble.
+**Decision**: `AutomationOrchestrator.dispatch_task()` performs exactly one idempotent TypeSafe Choice+Noul judgment after deterministic RED/HARD_OFF gates and before lease/side effects. Only payload key names and scoped metadata leave the process; values/PII do not. The persisted trace records decision/task/tenant/purpose/state hash/evidence/model/route. Retry reuses the first verdict. The policy uses the canonical `TYPESAFE_ENABLED` switch and a single 2s-connect/5s-read attempt; provider failure is traced and degrades to proceed but can never bypass compliance/frozen gates. A `review` verdict moves the task to REVIEW without claiming a lease. AGENTS.md/CLAUDE.md require this TypeSafe-first discipline in every substantial agent/chat/session; greetings, exact arithmetic and rote status reads are exempt.
+**Consequences**: All agents and owner bots using the canonical orchestrator share one bounded semantic gate without multiplying calls on retry. Direct legacy entrypoints remain outside this guarantee and must not be described as governed orchestration. Deployment is required before the runtime guarantee is live.
+**Reference**: `app/platform/typesafe_session_policy.py` · `app/platform/automation_orchestrator.py` · `tests/test_typesafe_session_policy.py` · `tests/test_automation_orchestrator.py`
+
+---
+
 ## ADR-198: One Telegram token, one poller — lease + owner-role coordination, and token VALIDITY instead of token PRESENCE (2026-09-21)
 
 **Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; rollout is an OWNER gate — see "Owner actions")

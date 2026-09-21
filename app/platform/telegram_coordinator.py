@@ -525,6 +525,10 @@ def should_poll(
         }
 
     now = time.time()
+    # _external_conflict_until is reserved for a GENUINE HTTP 409 (another
+    # getUpdates consumer we do not own, e.g. the Hermes gateway). Transport
+    # timeouts reset this window above, so a transient network blip can never
+    # strand the runner in permanent external-conflict standby.
     if now < _external_conflict_until:
         return {
             "poll": False,
@@ -815,6 +819,7 @@ def run_jarvis_polling(
     iteration = 0
     standby_rounds = 0
     conflict_backoff = 10.0
+    _timeout_strikes = 0
     updates_total = 0
     write_polling_heartbeat(me, my_role, state="starting", polls=0, updates_total=0)
 
@@ -867,6 +872,11 @@ def run_jarvis_polling(
             }
             if offset:
                 params["offset"] = offset
+            # Keep the server-side long-poll inside the client's 15s read
+            # timeout: api.telegram.org may block past 15s on idle long-polls,
+            # which would surface as a spurious "read operation timed out".
+            if int(params["timeout"]) > 0:
+                params["timeout"] = min(int(params["timeout"]), 10)
 
             res = _send_tg_api(token, "getUpdates", params)
             if not res.get("ok"):
@@ -897,9 +907,16 @@ def run_jarvis_polling(
                     conflict_backoff = min(60.0, conflict_backoff * 2)
                     continue
                 logger.warning("[telegram_coordinator] getUpdates returned error: %s", err)
-                time.sleep(3.0)
+                # Transient transport errors ("read operation timed out") are NOT
+                # an external 409 consumer: only an actual HTTP 409
+                # 'terminated by other getUpdates' marks external conflict.
+                # Timeouts escalate the wait and reset the 409 backoff ladder.
+                time.sleep(min(30.0, 3.0 * (2 ** min(5, _timeout_strikes))))
+                _timeout_strikes = min(_timeout_strikes + 1, 10)
+                conflict_backoff = 10.0
                 continue
 
+            _timeout_strikes = 0
             conflict_backoff = 10.0
             updates = res.get("result") or []
             updates_total += len(updates)

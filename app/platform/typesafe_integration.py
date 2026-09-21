@@ -529,7 +529,10 @@ class TypeSafeClient:
     """TypeSafe System One API client for AI judgments"""
 
     def __init__(self, api_key: str | None = None, model: str | None = None):
-        self.api_key = (api_key or _get_api_key()).strip() or ""
+        # None means auto-discover; an explicit empty string means deliberately
+        # inert (critical for fail-closed callers and hermetic tests).
+        resolved_key = _get_api_key() if api_key is None else api_key
+        self.api_key = resolved_key.strip() or ""
         self.model = model or os.getenv("TYPESAFE_MODEL") or _DEFAULT_MODEL
         self.base_url = TYPEsafe_BASE_URL
         self._initialized = False
@@ -562,6 +565,10 @@ class TypeSafeClient:
         self,
         state: dict[str, Any],
         questions: Mapping[str, Choice | Noul | Score | QuestionPayload],
+        *,
+        connect_timeout_sec: float | None = None,
+        read_timeout_sec: float | None = None,
+        max_attempts: int | None = None,
     ) -> TypeSafeResponse:
         """
         Call the canonical System One endpoint.
@@ -575,6 +582,9 @@ class TypeSafeClient:
             questions: Mapping of name -> Choice/Noul/Score builder. A
                 wire-shaped dict (`{"type": ...}`) is accepted for backward
                 compatibility.
+            connect_timeout_sec/read_timeout_sec/max_attempts: Optional tighter
+                bounds for latency-sensitive call sites; defaults preserve the
+                canonical retry policy and values are capped at its max attempts.
 
         Returns:
             TypeSafeResponse. `error` carries a stable prefix so callers can
@@ -614,12 +624,23 @@ class TypeSafeClient:
             "questions": questions_payload,
         }
 
+        connect_timeout = (
+            float(connect_timeout_sec)
+            if connect_timeout_sec is not None and float(connect_timeout_sec) > 0
+            else _CONNECT_TIMEOUT_SEC
+        )
+        read_timeout = (
+            float(read_timeout_sec)
+            if read_timeout_sec is not None and float(read_timeout_sec) > 0
+            else _READ_TIMEOUT_SEC
+        )
+        attempt_budget = max(1, min(int(max_attempts or _MAX_ATTEMPTS), _MAX_ATTEMPTS))
         url = f"{self.base_url}/v1/systemone"
         start = time.time()
         attempts = 0
         last_error = "UNEXPECTED: no attempt made"
 
-        while attempts < _MAX_ATTEMPTS:
+        while attempts < attempt_budget:
             attempts += 1
             current_key = self.api_key or get_active_api_key()
             headers = {
@@ -631,7 +652,7 @@ class TypeSafeClient:
                     url,
                     json=payload,
                     headers=headers,
-                    timeout=(_CONNECT_TIMEOUT_SEC, _READ_TIMEOUT_SEC),
+                    timeout=(connect_timeout, read_timeout),
                 )
             except requests.Timeout as exc:
                 # Connect/read timeout is transient — worth the retry budget and advancing key.
@@ -695,10 +716,10 @@ class TypeSafeClient:
                 cooldown = 60.0 if status == 429 else 15.0
                 advance_key(current_key, cooldown_sec=cooldown)
                 logger.warning(
-                    f"TypeSafe system_one transient {last_error} (attempt {attempts}/{_MAX_ATTEMPTS}) -> rotated key"
+                    f"TypeSafe system_one transient {last_error} (attempt {attempts}/{attempt_budget}) -> rotated key"
                 )
 
-            if attempts < _MAX_ATTEMPTS:
+            if attempts < attempt_budget:
                 time.sleep(min(2.0 ** (attempts - 1), _MAX_RETRY_SLEEP_SEC))
 
         logger.error(f"TypeSafe system_one exhausted {attempts} attempt(s): {last_error}")

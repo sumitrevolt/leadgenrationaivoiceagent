@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-09-19",
-  "last_updated": "2026-09-19T10:07:00+05:30",
+  "last_updated": "2026-09-21T14:12:00+05:30",
   "note": "Canonical, evidence-backed registry of open admin findings. Consumed by scripts/typesafe_admin_triage.py. Keep evidence strings concrete (a command + observed output), never a guess. Update 'status' as items close; triage only judges items whose status is 'open'.",
   "findings": [
     {
@@ -77,11 +77,31 @@
       "id": "B-1",
       "title": "TypeSafe key exposed in git history must be rotated",
       "class": "security",
-      "status": "open",
-      "evidence": "Commit 7317f990 hardcoded a live ~100-char key as the os.getenv fallback default; 979c2229 removed the literal but the value remains in history. Live probe of the historical fingerprint fe66d7de1807 -> HTTP 401 (no longer valid).",
+      "status": "fixed",
+      "evidence": "Commit 7317f990 exposed fingerprint fe66d7de1807; live probe records it as HTTP 401. On 2026-09-21 both local and production probes authenticated with a different non-compromised fingerprint and resolved jev-latest to jev-1.13.0. The exposed credential is revoked and cannot be re-armed because COMPROMISED_FINGERPRINTS blocks it.",
       "blast_radius": "History exposure only. Residual risk is low because the exposed key is already rejected, but rotation is still the correct close-out.",
       "owner_only": true,
-      "next_step": "Owner rotates at platform.typesafe.ai (or explicitly accepts the already-401 stale exposure)."
+      "next_step": "DONE: historical key revoked; current production key is different, live-valid, and trip-wire protected."
+    },
+    {
+      "id": "typesafe_session_policy",
+      "title": "Central TypeSafe session policy across canonical orchestrator",
+      "class": "architecture",
+      "status": "fixed",
+      "evidence": "2026-09-21 local code and tests: AutomationOrchestrator.dispatch_task applies app/platform/typesafe_session_policy.py to every eligible AgentContract under all 9 validated owner_bot identities. The verdict is persisted and reused on retry; review blocks before lease; payload values/PII are excluded; trace stores decision/task/tenant/purpose/state hash/evidence/model/route. The call is capped at one attempt with 2s connect + 5s read timeouts. RED/HARD_OFF stays authoritative before TypeSafe. Affected tests are green; production deploy remains pending.",
+      "blast_radius": "Agent behavior differs by entrypoint; some substantial sessions can make no TypeSafe judgment, while naive per-message wiring would create quota and retry storms.",
+      "owner_only": false,
+      "next_step": "DONE in local code. Deploy through the canonical reviewed release path, then verify a real non-voice task trace before claiming LIVE."
+    },
+    {
+      "id": "telegram_notify_and_groups",
+      "title": "Telegram Notify token invalid and three required coordination groups unwired",
+      "class": "operations",
+      "status": "open",
+      "evidence": "2026-09-21 live verifier: Jarvis getMe succeeds; Notify/fallback token returns HTTP 401; workers_coordination, agents_coordination and admin_command_center have no wired chat_id. Telegram Web is logged in, but BotFather token creation/rotation and group creation are owner-impacting actions requiring explicit action-time confirmation.",
+      "blast_radius": "Dedicated Notify egress is unavailable and canonical worker/agent/admin coordination groups cannot receive routed messages. Jarvis fallback remains available; no group is falsely marked ready.",
+      "owner_only": true,
+      "next_step": "Owner confirms BotFather token rotation and creation/wiring of the three Telegram groups; then update production secret through the approved secret path and run the verifier."
     },
     {
       "id": "B-9",

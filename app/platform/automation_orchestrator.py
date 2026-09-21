@@ -308,6 +308,7 @@ class DurableTaskStore:
                     fencing_token = excluded.fencing_token,
                     retry_count = excluded.retry_count,
                     max_retries = excluded.max_retries,
+                    input_payload = excluded.input_payload,
                     evidence = excluded.evidence,
                     error_message = excluded.error_message,
                     last_heartbeat = excluded.last_heartbeat,
@@ -624,6 +625,27 @@ class AutomationOrchestrator:
             self.store.save(record)
             logger.error(f"[Orchestrator] {record.error_message}")
             return False
+
+        # One governed semantic judgment per substantial task/session. This is
+        # after deterministic RED/HARD_OFF gates (TypeSafe can never weaken
+        # them) and before any lease/side effect. Provider failure is recorded
+        # and degrades to proceed; a review verdict prevents execution.
+        try:
+            ts_verdict = record.input_payload.get("_typesafe_session_policy")
+            if not isinstance(ts_verdict, dict):
+                from app.platform import typesafe_session_policy
+
+                ts_verdict = typesafe_session_policy.judge_task(record=record, contract=contract)
+                record.input_payload["_typesafe_session_policy"] = ts_verdict
+                self.store.save(record)
+            if ts_verdict.get("route") == "review":
+                record.status = TaskStatus.REVIEW
+                record.error_message = "TypeSafe session policy requires owner review"
+                record.updated_at = time.time()
+                self.store.save(record)
+                return False
+        except Exception as e:
+            logger.warning("[Orchestrator] TypeSafe session policy degraded for %s: %s", task_id, e)
 
         fencing_token = self.governor.generate_fencing_token(task_id)
 
