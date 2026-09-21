@@ -32,7 +32,7 @@ def test_numeric_list_empty_falls_back_to_legacy_username(bot, monkeypatch):
     monkeypatch.delenv("TELEGRAM_OWNER_USER_IDS", raising=False)
     monkeypatch.setenv("TELEGRAM_OWNER_USERNAMES", "sumitrevolt")
     monkeypatch.setenv("TELEGRAM_OWNER_CHAT_IDS", "")
-    assert bot.is_owner(user_id="1", username="SumitsRevolt") is True
+    assert bot.is_owner(user_id="1", username="Sumitrevolt") is True
     assert bot.is_owner(user_id="1", username="stranger") is False
 
 
