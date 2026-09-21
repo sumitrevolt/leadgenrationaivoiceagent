@@ -188,7 +188,7 @@ def main() -> int:
     def c10():
         r = client.post(
             "/api/admin/keys/rotate",
-            json={"service": "no-such-service", "new_key": "tsk_rotated_12345678"},
+            json={"service": "no_such_service", "new_key": "tsk_rotated_12345678"},
             headers={"X-API-Key": "owner-key-123"},
         )
         assert r.status_code == 404, f"unknown service should be 404, got {r.status_code}"
@@ -234,6 +234,56 @@ def main() -> int:
         )
 
     check("12. Legacy plaintext re-encrypted on rotate", c12)
+
+    # ── 13. CodeQL py/regex-injection: metacharacter service names -> 400
+    def c13():
+        bad = ["FOO.*", "a)$", "svc; rm -rf /", "a b", "../escape", "1digit", "", "x" * 65]
+        for name in bad:
+            r = client.post(
+                "/api/admin/keys/set",
+                json={"service": name, "key": "tsk_abcdefghijklmnop1234"},
+                headers={"X-API-Key": "owner-key-123"},
+            )
+            assert r.status_code == 400, f"service={name!r} -> {r.status_code}, expected 400"
+        # Valid names must still pass through the gate (not over-blocking).
+        from app.platform.key_manager import validate_service_name
+
+        for ok in ("typesafe", "openai", "GOOGLE_MAPS", "a", "svc_1"):
+            assert validate_service_name(ok) == ok
+
+    check("13. Unsafe service names rejected (regex-injection closed)", c13)
+
+    # ── 14. deploy_to_env: backslash-bearing value written literally
+    def c14():
+        from pathlib import Path as RealPath
+
+        from app.platform.key_manager import KeyManagerAgent
+
+        env_file = Path(workdir) / "deploy_target.env"
+        env_file.write_text("EXISTING=1\nMYAPP_API_KEY=old\n")
+
+        weird = r"tok\g<1>en\\with\backslashes"
+        km_mod.KEYS_FILE = Path(workdir) / "deploy_keys.json"
+        km_mod._key_manager = None
+        kmgr = KeyManagerAgent()
+        kmgr.set_key("myapp", weird)
+
+        original_path = km_mod.Path
+        km_mod.Path = lambda p: env_file if str(p) == "/opt/leadgen/.env" else original_path(p)
+        try:
+            res = kmgr.deploy_to_env("myapp")
+        finally:
+            km_mod.Path = original_path
+
+        assert res.get("success") is True, res
+        written = env_file.read_text()
+        assert f"MYAPP_API_KEY={weird}" in written, f"value not written literally: {written!r}"
+        assert "MYAPP_API_KEY=old" not in written, "old value not replaced"
+        assert "EXISTING=1" in written, "unrelated line dropped"
+        km_mod.KEYS_FILE = Path(keys_file)
+        km_mod._key_manager = None
+
+    check("14. deploy_to_env writes backslash values literally", c14)
 
     # ── summary
     print("\n" + "=" * 64)

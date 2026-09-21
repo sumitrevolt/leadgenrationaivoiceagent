@@ -43,6 +43,24 @@ AUDIT_LOG = KEYS_DIR / "audit.log"
 # marker are plaintext and must be flagged ROTATION_REQUIRED.
 _ENCRYPTED_MARKER = "fm1:"  # "format v1"
 
+# Service names become part of an env var name (`<SERVICE>_API_KEY`) written
+# into the deployment .env file, so they must be restricted to the POSIX
+# identifier charset. This is a *constant* pattern — never built from input —
+# which also removes the regex-injection surface (CodeQL py/regex-injection).
+_SERVICE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
+
+
+def validate_service_name(service: str) -> str:
+    """Return ``service`` unchanged if it is a safe env-var-safe name.
+
+    Raises ``ValueError`` otherwise. Callers are expected to be behind the
+    owner-only auth gate; this is defence in depth so a malformed name can
+    never reach the regex/env-write path.
+    """
+    if not isinstance(service, str) or not _SERVICE_NAME_RE.match(service):
+        raise ValueError("Invalid service name: expected 1-64 chars matching [A-Za-z][A-Za-z0-9_]*")
+    return service
+
 
 class PlaintextStorageError(RuntimeError):
     """Raised when a write would persist a key unencrypted (fail-closed)."""
@@ -259,6 +277,8 @@ class KeyManagerAgent:
         plaintext. Legacy plaintext entries left on disk are left untouched
         and surfaced as ROTATION_REQUIRED by verify/status.
         """
+        validate_service_name(service)
+
         if not key or len(key) < 8:
             raise ValueError("Key too short")
 
@@ -285,6 +305,8 @@ class KeyManagerAgent:
 
     def rotate_key(self, service: str, new_key: str, actor: str = "owner") -> dict[str, Any]:
         """Rotate API key (old value is discarded; new value encrypted at rest)."""
+        validate_service_name(service)
+
         # Verify old key exists
         keys = self._load_keys()
         if service not in keys:
@@ -332,6 +354,8 @@ class KeyManagerAgent:
         plaintext on disk here is the expected secret mechanism (0600, outside
         git). The value is decrypted from encrypted storage for the write.
         """
+        validate_service_name(service)
+
         keys = self._load_keys()
         key_data = keys.get(service)
 
@@ -352,14 +376,28 @@ class KeyManagerAgent:
         # Read existing .env
         content = env_file.read_text()
 
-        # Replace or append key
+        # Replace or append key — literal, line-based matching.
+        #
+        # SECURITY (CodeQL py/regex-injection): the previous implementation built
+        # a pattern from the caller-supplied service name (``rf"^{env_var}=.*$"``)
+        # and fed the raw key value to ``re.sub``. Two defects: the pattern was
+        # attacker-influenced, and backslash / ``\g<...>`` sequences inside the
+        # key value would be interpreted as backreference escapes (invalid-group
+        # error, or a silently mangled credential). Both go away with plain
+        # string comparison.
         env_var = f"{service.upper()}_API_KEY"
-        pattern = rf"^{env_var}=.*$"
+        new_line = f"{env_var}={plain}"
 
-        if re.search(pattern, content, re.MULTILINE):
-            content = re.sub(pattern, f"{env_var}={plain}", content, flags=re.MULTILINE)
+        lines = content.splitlines()
+        prefix = f"{env_var}="
+        for idx, line in enumerate(lines):
+            if line.startswith(prefix):
+                lines[idx] = new_line
+                break
         else:
-            content += f"\n{env_var}={plain}\n"
+            lines.append(new_line)
+
+        content = "\n".join(lines) + "\n"
 
         # Backup before write.
         # NOTE: with_suffix() on a dotfile like ".env" yields ".env.env.bak"

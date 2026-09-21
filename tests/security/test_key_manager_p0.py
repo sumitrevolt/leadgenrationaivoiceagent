@@ -283,17 +283,112 @@ def test_short_key_returns_400_not_500(client, keys_dir, monkeypatch):
 
 
 def test_rotate_unknown_service_returns_404(client, keys_dir, monkeypatch):
-    """Rotating a service with no stored key must be a clean 404."""
+    """Rotating a *valid but unstored* service must be a clean 404.
+
+    Note: the name must be env-var-safe (``[A-Za-z][A-Za-z0-9_]*``). A name with
+    hyphens like ``does-not-exist`` is rejected earlier with 400 — it could never
+    produce a valid ``<SERVICE>_API_KEY`` env var.
+    """
     _mount_ok()
     from cryptography.fernet import Fernet
 
     monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
     resp = client.post(
         "/api/admin/keys/rotate",
-        json={"service": "does-not-exist", "new_key": "tsk_rotated_zzzzzzzz9999"},
+        json={"service": "unknown_service", "new_key": "tsk_rotated_zzzzzzzz9999"},
         headers={"X-API-Key": "test-admin-key-xyz"},
     )
     assert resp.status_code == 404, f"expected 404, got {resp.status_code}"
+
+
+@pytest.mark.parametrize(
+    "bad_service",
+    [
+        "FOO.*",  # regex wildcard — the original py/regex-injection vector
+        "a)$",  # regex anchor / group close
+        "svc; rm -rf /",  # shell metacharacters
+        "a b",  # whitespace
+        "../escape",  # path traversal attempt
+        "1starts_with_digit",  # invalid env var name
+        "",  # empty
+        "x" * 65,  # over length cap
+    ],
+    ids=[
+        "regex-wildcard",
+        "regex-anchor",
+        "shell-metachars",
+        "whitespace",
+        "path-traversal",
+        "leading-digit",
+        "empty",
+        "too-long",
+    ],
+)
+def test_invalid_service_name_returns_400(client, keys_dir, monkeypatch, bad_service):
+    """CodeQL py/regex-injection regression: a service name that is not a safe
+    env-var identifier must be rejected with 400 before it reaches any
+    regex/env-write path. Never 500, never a silent write."""
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+    resp = client.post(
+        "/api/admin/keys/set",
+        json={"service": bad_service, "key": "tsk_abcdefghijklmnop1234"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 400, (
+        f"service={bad_service!r} should be 400, got {resp.status_code}: {resp.text[:200]}"
+    )
+
+
+def test_validate_service_name_accepts_real_names():
+    """The canonical service names used by the platform must still pass."""
+    from app.platform.key_manager import validate_service_name
+
+    for ok in ["typesafe", "openai", "GOOGLE_MAPS", "a", "svc_1"]:
+        assert validate_service_name(ok) == ok
+
+
+def test_deploy_env_replacement_is_literal_not_regex(monkeypatch, tmp_path):
+    """Regression for the second half of the CodeQL finding: the old
+    ``re.sub(pattern, f"{env_var}={plain}", ...)`` treated backslashes in the
+    key value as backreference escapes. The replacement must be literal."""
+    from app.platform import key_manager as km
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("EXISTING=1\nMYAPP_API_KEY=old\n")
+
+    monkeypatch.setattr(km, "KEYS_DIR", tmp_path)
+    monkeypatch.setattr(km, "KEYS_FILE", tmp_path / "keys.json")
+    monkeypatch.setattr(km, "AUDIT_LOG", tmp_path / "audit.log")
+
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+
+    kmgr = km.KeyManagerAgent()
+    # A value containing regex-replacement metacharacters. Under the old
+    # re.sub() this raised "invalid group reference" or wrote a mangled value.
+    weird = r"tok\g<1>en\\with\backslashes"
+    kmgr.set_key("myapp", weird)
+
+    # Point the hardcoded deployment target at our temp file.
+    from pathlib import Path as RealPath
+
+    monkeypatch.setattr(
+        km,
+        "Path",
+        lambda p: env_file if str(p) == "/opt/leadgen/.env" else RealPath(p),
+    )
+
+    res = kmgr.deploy_to_env("myapp")
+    assert res.get("success") is True, res
+
+    written = env_file.read_text()
+    assert f"MYAPP_API_KEY={weird}" in written, written
+    assert "EXISTING=1" in written, written
+    assert "MYAPP_API_KEY=old" not in written, written
 
 
 def test_audit_log_contains_no_key_material(client, keys_dir, monkeypatch):
