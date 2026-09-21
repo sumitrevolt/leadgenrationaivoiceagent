@@ -72,8 +72,15 @@ jobs:
 
       - name: Install Trivy (latest)
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin v0.72.0
+          # Download, assert non-empty, then execute -- never `curl ... | sh`.
+          # GitHub runs this as `bash -e {0}` (no pipefail), and `sh` handed an
+          # empty stdin exits 0, so a failed download would silently no-op the
+          # install and the step would still go green.
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 2 -o /tmp/trivy-install.sh \
+            https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh
+          test -s /tmp/trivy-install.sh
+          sh /tmp/trivy-install.sh -b /usr/local/bin v0.72.0
           trivy --version
 
       # Trivy by-default sirf "requirements.txt" naam ko pip-deps maanta. Tera
@@ -206,8 +213,13 @@ jobs:
       - name: Install Trivy (latest)
         if: steps.image_needed.outputs.run == '1'
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin v0.72.0
+          # Download, assert non-empty, then execute -- never `curl ... | sh`.
+          # See the hardened installer in the repo-scan job for the full reason.
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 2 -o /tmp/trivy-install.sh \
+            https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh
+          test -s /tmp/trivy-install.sh
+          sh /tmp/trivy-install.sh -b /usr/local/bin v0.72.0
           trivy --version
 
       - name: Resolve scan target (exact ref, never :latest)
