@@ -63,8 +63,7 @@ def build_state() -> dict:
             "writes": "atomic tmp + fsync + os.replace, 0600 on POSIX",
             "leakage": "prefix/suffix removed from audit and responses; only "
             "storage/rotation_required/last_verified exposed",
-            "deploy_to_env": "decrypts from encrypted storage; refuses when "
-            "value unreadable",
+            "deploy_to_env": "decrypts from encrypted storage; refuses when value unreadable",
             "mounted_in_main": "yes, guarded mount",
         },
         "verification": {
