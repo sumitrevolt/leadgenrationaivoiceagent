@@ -10,8 +10,12 @@ Checks (no writes, no message sends, no getUpdates consumption):
      Only SHA-256 fingerprints are printed -- never a token value.
   2. Webhook state per valid token (a set webhook blocks polling → coordination).
   3. Polling conflict probe: ``getUpdates(allowed_updates=[])`` returns instantly
-     and does NOT consume updates, so HTTP 409 proves another consumer holds the
-     token (e.g. the Hermes gateway).
+     and does NOT consume updates. Repeated a few times because HTTP 409 only
+     appears while the other consumer's call is in flight — one clean probe is a
+     false negative, so ANY 409 is treated as conclusive and zero 409s is
+     reported as ``no_conflict_observed``, never as "nobody is polling".
+     (Probing displaces the holder's in-flight call by design: Telegram allows
+     one ``getUpdates`` at a time. Nothing to do about it — keep attempts small.)
   4. Group wiring from ``config/telegram/setup_spec.yaml``: exists? bot member?
      forum? → unwired coordination groups are called out explicitly.
   5. Ingress coordination snapshot: owner role, lease holder, standby state.
@@ -34,6 +38,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -140,34 +145,85 @@ def check_credentials(file_env: dict[str, str]) -> dict[str, Any]:
     return out
 
 
-def check_polling_conflict(jarvis_token: str | None) -> dict[str, Any]:
-    """Non-consuming 409 probe. ``allowed_updates=[]`` returns instantly."""
+def check_polling_conflict(
+    jarvis_token: str | None,
+    attempts: int = 3,
+    spacing_s: float = 2.0,
+) -> dict[str, Any]:
+    """Non-consuming 409 probe, repeated — one clean probe proves nothing.
+
+    ``allowed_updates=[]`` makes each probe return instantly and it never passes
+    an ``offset``, so no pending update is ever confirmed (read-only).
+
+    Why repeat: Telegram answers 409 only while another ``getUpdates`` call is
+    actually in flight. A long-polling holder (Hermes gateway, a laptop runner)
+    spends most of its cycle inside the call, but a single instantaneous probe
+    can land in its gap and come back clean — a **false negative** that reads as
+    "nobody is polling". Any 409 in ANY attempt is conclusive proof that a second
+    consumer exists; zero 409s across N attempts is reported as
+    ``no_conflict_observed``, never as proof of absence.
+
+    Side effect, documented on purpose: Telegram allows one ``getUpdates`` at a
+    time, so a probe that returns 409 also displaces the holder's in-flight call.
+    Keep ``attempts`` small — this is a diagnostic, not a fence.
+    """
     if not jarvis_token:
         return {"probed": False, "reason": "no_jarvis_token"}
-    res = _api(jarvis_token, "getUpdates", http_timeout=10.0, timeout=0, limit=1, allowed_updates=[])
-    if res.get("ok"):
+
+    attempts = max(1, int(attempts))
+    probe_results: list[str] = []
+    conflicts = 0
+    indeterminate = 0
+    last_error_code: int | None = None
+    last_reason = ""
+
+    for index in range(attempts):
+        res = _api(jarvis_token, "getUpdates", http_timeout=10.0, timeout=0, limit=1, allowed_updates=[])
+        desc = str(res.get("description") or "")
+        last_error_code = res.get("error_code")
+        if res.get("ok"):
+            probe_results.append("clean")
+        elif res.get("error_code") == 409 or "conflict" in desc.lower():
+            conflicts += 1
+            last_reason = desc[:120]
+            probe_results.append("409")
+        else:
+            indeterminate += 1
+            last_reason = desc[:120]
+            probe_results.append("unknown")
+        if index < attempts - 1:
+            time.sleep(max(0.0, float(spacing_s)))
+
+    base: dict[str, Any] = {
+        "probed": True,
+        "attempts": attempts,
+        "conflicts": conflicts,
+        "indeterminate_probes": indeterminate,
+        "probe_results": probe_results,
+        "error_code": last_error_code,
+        "note": "Read-only: no offset is sent, so no pending update is confirmed.",
+    }
+
+    if conflicts:
         return {
-            "probed": True,
-            "conflict": False,
-            "reason": "no_other_consumer",
-            "note": "This probe does not consume updates.",
-        }
-    desc = str(res.get("description") or "")
-    if res.get("error_code") == 409 or "conflict" in desc.lower():
-        return {
-            "probed": True,
+            **base,
             "conflict": True,
             "indeterminate": False,
-            "error_code": res.get("error_code"),
-            "reason": desc[:120],
+            "conclusive": True,
+            "reason": f"other_consumer_confirmed ({conflicts}/{attempts} probes hit 409: {last_reason})",
         }
-    # Network/TLS failure: the token owner is UNKNOWN, not "nobody".
+    # 0 conflicts. Absence is weak evidence, so never call the token "free".
     return {
-        "probed": True,
-        "conflict": None,
-        "indeterminate": True,
-        "error_code": res.get("error_code"),
-        "reason": desc[:120],
+        **base,
+        "conflict": False,
+        "indeterminate": bool(indeterminate),
+        "conclusive": False,
+        "reason": (
+            f"no_conflict_observed ({attempts}/{attempts} probes clean; a clean probe does not "
+            "prove nobody is polling — long-poll holders leave gaps)"
+            if not indeterminate
+            else f"no_conflict_observed but {indeterminate}/{attempts} probes were indeterminate ({last_reason})"
+        ),
     }
 
 
@@ -277,14 +333,17 @@ def _verdict(report: dict[str, Any]) -> tuple[int, list[str], list[str]]:
     conflict = report["polling_conflict"]
     if conflict.get("conflict"):
         warnings.append(
-            "Another getUpdates consumer holds the Jarvis token (HTTP 409) -- "
-            "set TELEGRAM_INGRESS_OWNER so exactly one owner polls"
+            "Another getUpdates consumer holds the Jarvis token (HTTP 409, conclusive) -- "
+            "set TELEGRAM_INGRESS_OWNER / stop the other poller so exactly one owner polls"
         )
     elif conflict.get("indeterminate"):
         warnings.append(
             f"Polling-ownership probe was INDETERMINATE ({conflict.get('reason')}) -- "
             "token holder UNKNOWN, not 'nobody'"
         )
+    # NOTE: a clean probe is deliberately NOT a warning -- it would make the tool
+    # exit non-zero on a healthy system. The 'absence is weak evidence' caveat is
+    # printed with the probe result instead.
 
     if report.get("webhook_polling_conflict"):
         criticals.append("A webhook is set while a poller is expected -- both cannot own the same token")
@@ -347,8 +406,16 @@ def _print_human(report: dict[str, Any], criticals: list[str], warnings: list[st
             print(f"           webhook_set={slot.get('webhook_url_set')} pending={slot.get('webhook_pending')}")
 
     conflict = report["polling_conflict"]
-    ownership = "UNKNOWN" if conflict.get("indeterminate") else ("OTHER_CONSUMER" if conflict.get("conflict") else "FREE")
-    print(f"\nPOLLING CONFLICT PROBE: owner={ownership} ({conflict.get('reason')})")
+    if conflict.get("conflict"):
+        ownership = "OTHER_CONSUMER"
+    elif conflict.get("indeterminate"):
+        ownership = "UNKNOWN"
+    else:
+        ownership = "NO_CONFLICT_OBSERVED"
+    detail = conflict.get("probe_results")
+    detail_txt = f" probes={detail}" if detail else ""
+    print(f"\nPOLLING CONFLICT PROBE: owner={ownership}{detail_txt}")
+    print(f"  {conflict.get('reason')}")
 
     coord = report.get("coordination") or {}
     if coord.get("available"):

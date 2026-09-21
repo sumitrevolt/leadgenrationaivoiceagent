@@ -177,6 +177,95 @@ services:
     networks: [leadgen_net, dsh_net]
 
   # ---------------------------------------------------------------------------
+  # Telegram Jarvis ingress — THE single `getUpdates` consumer for
+  # @Sumits_jarvis_bot (owner commands: /status /tasks /agents /keys /pause /resume).
+  #
+  # WHY A SEPARATE SERVICE: Telegram allows exactly ONE getUpdates consumer per
+  # bot token; a second consumer gets HTTP 409 and the two fight. Putting this in
+  # `app` would put WEB_CONCURRENCY=2 pollers on one token — guaranteed
+  # self-conflict. So: single replica + TELEGRAM_INGRESS_OWNER=vps, and the runner
+  # refuses to poll when another role is named owner.
+  # (app/platform/telegram_coordinator.py — lease + owner gate + 409 standby.)
+  #
+  # HERMES DESKTOP GUI IS THE OWNER'S COCKPIT, NOT THE INGRESS: keep its pilot
+  # profile on `platforms.telegram.enabled: false`. Hermes keeps sending owner
+  # briefs and serving MCP tools; it must not poll. Runbook:
+  # docs/TELEGRAM_DUAL_BOT_SETUP.md § Hermes.
+  #
+  # ROLLOUT ORDERING (do not reorder): this service is deliberately NOT in
+  # deploy_vps.sh's SERVICES list yet. That script fail-closed-captures the
+  # previously running tag of every service it rolls, so a service whose
+  # container does not exist yet would abort the deploy (exit 2). Bootstrap ONCE
+  # with `up -d --no-deps telegram-jarvis` at the deployed APP_VERSION, then add
+  # the name to SERVICES so later deploys roll and skew-check it.
+  # ---------------------------------------------------------------------------
+  telegram-jarvis:
+    build:
+      context: .
+      dockerfile: Dockerfile.lock
+      args:
+        APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_telegram_jarvis
+    mem_limit: 768m
+    mem_reservation: 192m
+    cpus: "0.5"
+    user: "0:0"   # root, matches app — ./data is root-owned on the host
+    env_file: .env
+    environment:
+      APP_ENV: production
+      # This process IS the VPS ingress owner; the runner refuses to poll if the
+      # owner is named something else (or "off").
+      TELEGRAM_INSTANCE_ROLE: vps
+      TELEGRAM_INSTANCE_ID: leadgen-vps
+      TELEGRAM_INGRESS_OWNER: ${TELEGRAM_INGRESS_OWNER:-vps}
+      TELEGRAM_POLL_LEASE_TTL: ${TELEGRAM_POLL_LEASE_TTL:-120}
+      # Auth gate for owner commands. The VPS .env carries an EMPTY
+      # TELEGRAM_OWNER_CHAT_IDS, and `app/integrations/telegram_bot.py`
+      # `_get_owner_chat_ids()` has NO code default (unlike the coordinator), so an
+      # empty value silently authorises NOBODY -- an owner command would come back
+      # "Access Restricted". `:-` covers unset AND empty, so this makes the
+      # container work without touching the production .env; .env still wins when
+      # it actually carries a value.
+      TELEGRAM_OWNER_CHAT_IDS: ${TELEGRAM_OWNER_CHAT_IDS:-1621120182}
+      TELEGRAM_OWNER_USERNAMES: ${TELEGRAM_OWNER_USERNAMES:-sumitrevolt}
+      RUN_IN_PROCESS_SCHEDULER: 0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_REDIS_URL: redis://redis-cache:6379/0
+      QDRANT_URL: http://qdrant:6333
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+    command: ["python", "scripts/run_telegram_jarvis.py", "--role", "vps", "--instance", "leadgen-vps"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+    restart: unless-stopped
+    # Docker sends SIGTERM first; the runner converts it to its Ctrl-C path so the
+    # polling lease is released before exit (see scripts/run_telegram_jarvis.py).
+    stop_grace_period: 45s
+    # Liveness = the loop's OWN heartbeat, not `pgrep`. A poller with no port can
+    # die silently; the file also carries instance_id so a stale local heartbeat
+    # in the shared ./data cannot satisfy the container's check.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json,os,sys,time; p='/app/data/telegram_jarvis_state.json'; d=json.load(open(p)) if os.path.exists(p) else {}; sys.exit(0 if d.get('instance_id')=='leadgen-vps' and (time.time()-float(d.get('at') or 0))<240 else 1)\""]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
   # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
   # in docker-compose.prod.yml). Data persisted in the named volume `pgdata`.
   # ---------------------------------------------------------------------------

@@ -2,6 +2,12 @@
 """
 Dual-Bot Telegram Coordination Test & Verification Utility
 ===========================================================
+DEPRECATED (2026-09-21): this manual checker duplicates the pytest suite in
+``tests/test_telegram_dual_bot.py`` (lease, owner gate, 409 standby, egress
+fallback) and skips the coordination layer entirely. For a live read-only truth
+table use ``scripts/telegram_verify_setup.py``; for the automated contract run
+pytest. Kept only as a historical print-out tool.
+
 Verifies:
 1. Jarvis Interactive Bot (@Sumits_jarvis_bot) via TELEGRAM_JARVIS_BOT_TOKEN
 2. LeadGen AI Egress Bot (@Leadsgenai1_bot) via TELEGRAM_NOTIFY_BOT_TOKEN / TELEGRAM_BOT_TOKEN
@@ -16,6 +22,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
 from dotenv import dotenv_values
 
 OWNER_CHAT_ID = "1621120182"

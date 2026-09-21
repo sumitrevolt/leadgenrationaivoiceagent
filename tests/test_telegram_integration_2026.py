@@ -40,6 +40,7 @@ from app.platform.typesafe_integration import TypeSafeResponse
 @pytest.fixture
 def bot_instance(monkeypatch):
     """Create a fresh TelegramBot instance for testing."""
+    monkeypatch.setenv("TELEGRAM_JARVIS_BOT_TOKEN", "123456789012345678901234567890")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456789012345678901234567890")
     bot = TelegramBot()
     # Mock bot info for test isolation
@@ -216,7 +217,13 @@ def test_typesafe_intent_classification():
         },
         model="jev-latest",
     )
-    with patch.object(classifier.client, "system_one", return_value=fake_resp):
+    # Patch `enabled=True` so the fail-closed guard (client.enabled) is bypassed
+    # and the mocked System One judgment is actually consumed — without this the
+    # offline env short-circuits to the deterministic fallback and never reaches
+    # system_one, so the mock would be ignored and the test would be meaningless.
+    with patch.object(classifier.client, "enabled", True), patch.object(
+        classifier.client, "system_one", return_value=fake_resp
+    ):
         res = classifier.classify_intent("Is the platform healthy right now?", "123", is_owner=True)
         assert res["success"] is True
         assert res["intent"] == "status_check"
@@ -269,7 +276,11 @@ def test_typesafe_response_validation():
         },
         model="jev-latest",
     )
-    with patch.object(validator.client, "system_one", return_value=fake_resp):
+    # Patch `enabled=True` so the fail-closed guard (client.enabled) is bypassed
+    # and the mocked System One judgment is actually consumed.
+    with patch.object(validator.client, "enabled", True), patch.object(
+        validator.client, "system_one", return_value=fake_resp
+    ):
         res = validator.validate_response(
             response_text="Platform is online. All 31 agents are registered and healthy.",
             intent="status_check",
@@ -320,6 +331,7 @@ def test_end_to_end_agent_task_handoff():
 
 def test_api_endpoints(monkeypatch):
     """FastAPI REST endpoints under /api/telegram/bot must return correct schemas."""
+    monkeypatch.setenv("TELEGRAM_JARVIS_BOT_TOKEN", "123456789012345678901234567890")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456789012345678901234567890")
     from app.main import app
 

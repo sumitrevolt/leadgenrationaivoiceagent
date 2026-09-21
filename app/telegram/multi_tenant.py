@@ -1,5 +1,13 @@
 """Multi-Tenant Telegram Enterprise Bot with Isolation.
 
+DEPRECATED / TEST-ONLY (2026-09-21, ADR-198). This module has NO production
+import: the canonical Telegram control plane is ``app/platform/telegram_coordinator.py``
+(dual-bot architecture, polling lease, owner gating) with
+``app/integrations/telegram_bot.py`` as the command handler. Only
+``tests/test_telegram.py`` still imports this file, which is why it was not
+deleted — runtime removal requires proving no consumer first. Do not wire new
+work here; see docs/TELEGRAM_DUAL_BOT_SETUP.md.
+
 Enterprise-grade Telegram bot integration with:
 - Multi-tenant isolation (each client gets their own bot namespace)
 - Per-tenant message routing

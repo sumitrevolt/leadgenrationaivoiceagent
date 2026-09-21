@@ -57,13 +57,39 @@ _SPEC_PATH = Path(__file__).resolve().parents[2] / "config" / "telegram" / "setu
 _GROUP_CATALOG: dict[str, str] | None = None
 
 
+# Tokens confirmed dead (401) at runtime — never retry them this process.
+# Populated by _send_via_bot_api on Unauthorized; cleared only on process restart.
+_dead_tokens: set[str] = set()
+
+
+def _token_candidates() -> list[str]:
+    """All configured egress tokens in priority order, dead ones filtered out."""
+    cands = [
+        os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN", "").strip(),
+        os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
+        os.environ.get("TELEGRAM_JARVIS_BOT_TOKEN", "").strip(),
+    ]
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in cands:
+        if len(t) >= 20 and t not in _dead_tokens and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 def _bot_token() -> str | None:
-    """Bot token from env. Fail-closed: None if missing."""
-    return (
-        os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN")
-        or os.environ.get("TELEGRAM_BOT_TOKEN")
-        or None
-    )
+    """Best live egress token. Fail-closed: None if missing.
+
+    Priority: NOTIFY bot (dedicated egress) -> legacy BOT_TOKEN -> JARVIS bot
+    (last-resort fallback so P0 alerts NEVER silently die when the Notify
+    token is revoked — verified 2026-09-20: TELEGRAM_NOTIFY_BOT_TOKEN was
+    401-dead on BOTH local and VPS while JARVIS was valid).
+    A token that fails with 401 is blacklisted for this process and the next
+    candidate is used, so a revoked Notify token cannot shadow a valid one.
+    """
+    cands = _token_candidates()
+    return cands[0] if cands else None
 
 
 def _load_group_catalog() -> dict[str, str]:
@@ -128,41 +154,60 @@ async def _send_via_bot_api(
     payload: dict[str, Any],
     timeout_s: float = _TIMEOUT_S,
 ) -> dict[str, Any]:
-    """Low-level Telegram Bot API call. Never raises."""
-    token = _bot_token()
-    if not token:
-        return {"sent": False, "error": "no_bot_token"}
-    try:
-        import httpx
+    """Low-level Telegram Bot API call. Never raises.
 
-        url = f"https://api.telegram.org/bot{token}/{method}"
-        async with httpx.AsyncClient(timeout=timeout_s) as client:
-            resp = await client.post(url, json=payload)
-            body = resp.json() if resp.status_code == 200 else {
-                "ok": False,
-                "error_code": resp.status_code,
-                "description": resp.text[:500],
-            }
-            if body.get("ok"):
-                return {
-                    "sent": True,
-                    "message_id": body.get("result", {}).get("message_id"),
-                    "chat_id": chat_id,
+    Tries each configured egress token in priority order; a token that
+    returns 401 Unauthorized is blacklisted for this process and the next
+    candidate is tried, so one revoked token cannot kill all egress.
+    """
+    import httpx
+
+    candidates = _token_candidates()
+    if not candidates:
+        return {"sent": False, "error": "no_bot_token"}
+
+    last_error = "unknown"
+    for token in candidates:
+        try:
+            url = f"https://api.telegram.org/bot{token}/{method}"
+            async with httpx.AsyncClient(timeout=timeout_s) as client:
+                resp = await client.post(url, json=payload)
+                body = resp.json() if resp.status_code == 200 else {
+                    "ok": False,
+                    "error_code": resp.status_code,
+                    "description": resp.text[:500],
                 }
-            else:
-                desc = body.get("description", "unknown")
+                if body.get("ok"):
+                    return {
+                        "sent": True,
+                        "message_id": body.get("result", {}).get("message_id"),
+                        "chat_id": chat_id,
+                    }
+                err_code = body.get("error_code")
+                desc = str(body.get("description", "unknown"))
+                last_error = desc[:200]
+                if err_code == 401:
+                    # Revoked/dead token — blacklist and try the next candidate
+                    logger.warning(
+                        "[telegram_egress] token 401 Unauthorized — blacklisting this token and falling back (chat=%s)",
+                        chat_id,
+                    )
+                    _dead_tokens.add(token)
+                    continue
                 logger.warning(
                     "[telegram_egress] API error %s: %s (chat=%s)",
-                    body.get("error_code"),
+                    err_code,
                     desc,
                     chat_id,
                 )
-                return {"sent": False, "error": str(desc)[:200]}
-    except asyncio.TimeoutError:
-        return {"sent": False, "error": "timeout"}
-    except Exception as e:
-        logger.warning("[telegram_egress] send failed: %s", e)
-        return {"sent": False, "error": str(e)[:200]}
+                # Non-401 errors (bad chat, rate limit) won't be fixed by another token
+                return {"sent": False, "error": last_error}
+        except asyncio.TimeoutError:
+            last_error = "timeout"
+        except Exception as e:
+            logger.warning("[telegram_egress] send failed: %s", e)
+            last_error = str(e)[:200]
+    return {"sent": False, "error": last_error}
 
 
 def _truncate(text: str, limit: int) -> str:

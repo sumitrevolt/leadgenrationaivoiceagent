@@ -328,6 +328,8 @@ class TelegramBot:
             return self._cmd_help()
         elif cmd == "/status":
             return self._cmd_status()
+        elif cmd in ("/keys", "/slots"):
+            return self._cmd_keys()
         elif cmd == "/tasks":
             return self._cmd_tasks(" ".join(args))
         elif cmd == "/agents":
@@ -353,6 +355,7 @@ class TelegramBot:
             f"Connected to the canonical 9-worker / 31-agent architecture.\n\n"
             f"**Operational Commands:**\n"
             f"• `/status` — Live orchestrator state, active leases & task status counts\n"
+            f"• `/keys` or `/slots` — TypeSafe 4 logical slots health & rotation status\n"
             f"• `/tasks [status]` — List tasks from the durable ledger\n"
             f"• `/agents` — View the 31 specialist agents across 7 teams\n"
             f"• `/test_handoff` — Execute a non-destructive verification task\n"
@@ -363,6 +366,28 @@ class TelegramBot:
             f"will classify and route them to the appropriate supervisory bot."
         )
         return text, "help", "pilot"
+
+    def _cmd_keys(self) -> tuple[str, str, str | None]:
+        """View TypeSafe 4 logical slots health without leaking secrets."""
+        try:
+            from app.platform.key_manager import get_key_manager
+
+            km = get_key_manager()
+            slots = km.get_all_slots()
+
+            lines = ["🔐 **TypeSafe Key Manager — Logical Slots**\n"]
+            for slot, info in sorted(slots.items()):
+                status = info.get("status", "ABSENT")
+                last_ver = info.get("last_verified") or "Never"
+                rot = "YES" if info.get("rotation_required") else "NO"
+                lines.append(
+                    f"• `{slot}`: **{status}** | Rot: {rot} | Verified: `{last_ver}`"
+                )
+            lines.append("\n*Zero raw keys or secrets are transmitted or stored in plaintext.*")
+            return "\n".join(lines), "keys_status", "board"
+        except Exception as e:
+            logger.warning("Failed to fetch slots in _cmd_keys: %s", e)
+            return f"❌ Error retrieving slots: {e}", "keys_status", "board"
 
     def _cmd_status(self) -> tuple[str, str, str | None]:
         orch = self._get_orchestrator()

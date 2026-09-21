@@ -1,11 +1,18 @@
-"""Read-only Telegram wiring probe; never prints tokens or consumes updates."""
+"""Read-only Telegram wiring probe; never prints tokens or consumes updates.
+
+DEPRECATED (2026-09-21): superseded by ``scripts/telegram_verify_setup.py``,
+which works on both laptop and VPS (this one hardcodes the /opt/leadgen root)
+and reports every credential slot, the real polling owner (non-consuming 409
+probe), the polling lease and unwired coordination groups. Prefer that tool.
+"""
 import json
-from pathlib import Path
-import urllib.request
-import urllib.error
 import sys
-from dotenv import dotenv_values
+import urllib.error
+import urllib.request
+from pathlib import Path
+
 import yaml
+from dotenv import dotenv_values
 
 
 def main():

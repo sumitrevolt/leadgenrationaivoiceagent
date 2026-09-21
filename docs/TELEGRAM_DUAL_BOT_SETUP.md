@@ -18,7 +18,7 @@ below after a token rotation; re-run the command.
 | Jarvis bot `@Sumits_jarvis_bot` (interactive ingress) | `TELEGRAM_JARVIS_BOT_TOKEN` | **AUTHENTICATED** (getMe ok). No webhook set. |
 | Notify bot `@Leadsgenai1_bot` (egress broadcast) | `TELEGRAM_NOTIFY_BOT_TOKEN` | **INVALID — 401 Unauthorized (ROTATION_REQUIRED)** |
 | Legacy egress slot | `TELEGRAM_BOT_TOKEN` | Mixed: `.env` value is the same **dead** token; the machine env value is the live Jarvis token (drift) |
-| Polling owner of the Jarvis token | — | **OTHER_CONSUMER**: HTTP 409 `Conflict: terminated by other getUpdates request` (the Hermes gateway, `hermes_cli.main --profile pilot gateway run`) |
+| Polling owner of the Jarvis token | — | **OTHER_CONSUMER**: HTTP 409 `Conflict: terminated by other getUpdates request` (the Hermes gateway, `hermes_cli.main --profile pilot gateway run`, PID 16064). Hermes' own log confirms it holds the token — see §3.5. |
 | Groups in `config/telegram/setup_spec.yaml` | — | **0 / 13 reachable by the Jarvis bot** (`Bad Request: chat not found` → the bot was never added) |
 | `workers_coordination` / `agents_coordination` / `admin_command_center` | — | **UNWIRED** (empty `chat_id` in the spec — the groups do not exist yet) |
 
@@ -91,11 +91,72 @@ permits exactly one `getUpdates` consumer per token.
   backoff 10s → 20s → 40s → 60s.
 * The runner never fakes ingestion: an **invalid token refuses to start at all**
   (no 401 loop), and standby is logged, not hidden.
-* Exit is clean: the lease is released in a `finally`, and `SIGINT`/`SIGTERM`
-  (`KillSignal=SIGINT` in systemd) stops the runner instead of SIGKILLing a
-  lease holder.
+* Exit is clean: the lease is released in a `finally`. The runner handles
+  `SIGTERM` (what Docker sends on stop) by converting it to the same path as
+  `SIGINT`, so a restart or redeploy releases the token immediately instead of
+  leaving the lease to expire on its TTL.
 
-### 3.4 Cross-process update dedupe
+### 3.4 Liveness heartbeat (a dead poller must not look healthy)
+
+The runner has no port and no HTTP surface, so a silently dead loop is
+indistinguishable from a healthy one from the outside. Every round therefore
+writes `data/telegram_jarvis_state.json`:
+
+```json
+{ "at": 1789…, "at_iso": "2026-09-21T02:23:22Z", "state": "polling",
+  "instance_id": "leadgen-vps", "role": "vps", "pid": 42,
+  "ingress_owner": "vps", "polls": 137, "updates_total": 4, "conflicts": 0 }
+```
+
+`state` is `starting` · `polling` · `standby` · `external_conflict` · `stopped`.
+The compose healthcheck reads this file and requires `instance_id == leadgen-vps`
+and a heartbeat younger than 240s — `instance_id` matters because `./data` is a
+shared bind mount, so a stale **local** heartbeat must not satisfy the **container's**
+check. Read it from the runner too: `--status-only` prints state/age/polls/updates.
+
+### 3.5 Making Hermes Desktop non-polling (owner cockpit ≠ ingress)
+
+The Hermes pilot-profile gateway is the real holder of the Jarvis token, and Hermes
+enforces its own single-consumer lock — its own log says so verbatim:
+
+```
+[Telegram] Telegram bot token already in use by the 'pilot' profile gateway
+(PID 16064). Stop that gateway first (hermes --profile pilot gateway stop).
+```
+
+Take the Telegram platform away from Hermes **without stopping its gateway** (the
+gateway also runs the owner-brief cron and the other platforms):
+
+```yaml
+# <HERMES_HOME>/profiles/pilot/config.yaml — TOP LEVEL
+platforms:
+  telegram:
+    enabled: false
+```
+
+Use the vendor's own write path rather than hand-editing:
+`write_platform_config_field("telegram", "enabled", False)`
+(`hermes_cli/web_server_messaging.py` → `hermes_cli/config.py`). The gateway's
+`gateway/config_loader.py` consumes it as `_enabled_explicit` — precisely the
+"`enabled: false` for a migrated plugin platform" case — and `enabled` is only
+honoured from a **top-level** `platforms.<name>` block, not from
+`gateway.platforms.<name>`. Then restart so it applies:
+
+```bash
+hermes --profile pilot gateway stop
+hermes --profile pilot gateway start     # or: hermes gateway restart
+```
+
+Verify with the probe, never with the config file alone:
+`python scripts/telegram_verify_setup.py` must stop reporting `OTHER_CONSUMER`.
+Remember the probe displaces the holder's in-flight call, so give it a moment
+between attempts (the script already retries — see §7).
+
+Hermes keeps: Desktop cockpit, MCP tools, egress sends, cron owner briefs.
+Hermes loses: Telegram **ingress** — that is the point. To hand ingress back, set
+`enabled: true` and restart.
+
+### 3.6 Cross-process update dedupe
 
 Local polling, the VPS runner and the webhook can all observe the same update.
 `is_duplicate_update()` keeps an in-process cache **and** a best-effort Redis key
@@ -140,7 +201,11 @@ Safety of the write path: every write keeps a timestamped `setup_spec.yaml.bak-*
 re-parses the rendered YAML and refuses to write unless the document round-trips
 identically, and `--set` refuses to silently replace an existing `chat_id`
 (use `--force`). Ambiguous keys are rejected with the candidate list.
-`--discover` exists but **consumes** pending updates, so it requires a free token.
+`--discover` prints chat ids seen in recent updates and is **read-only**: it omits
+`offset` on purpose (Telegram only confirms — i.e. deletes — an update when
+`getUpdates` is called with `offset`), so it cannot eat an owner command. It still
+needs a token that is not being long-polled, because Telegram answers 409 while the
+real consumer's call is in flight.
 
 ---
 
@@ -167,31 +232,63 @@ updates from the owner-configured consumer.
 
 ---
 
-## 6. VPS setup (Hostinger Mumbai)
+## 6. VPS setup (Hostinger Mumbai) — a Docker service, NOT systemd
+
+The poller is a first-class compose service (`telegram-jarvis`) running the same
+app image as `app`/`worker`. A host systemd unit would need `/opt/leadgen/.venv`,
+which **does not exist** on this VPS (the app tier is Docker, `WEB_CONCURRENCY=2`
+inside the container), so it could only crash-loop on `203/EXEC`. That broken unit
+was deleted — do not reintroduce a host-venv runner.
+
+Why a dedicated single-replica service at all: Telegram allows one `getUpdates`
+consumer per token, and `app` itself runs two uvicorn workers — a poller inside
+`app` would conflict with **itself**.
+
+### 6.1 Bootstrap (first time only)
+
+The service is deliberately **not** in `deploy_vps.sh`'s `SERVICES` list yet: that
+script fail-closed-captures the previously running tag of every service it rolls
+and exits 2 when a container does not exist, so a brand-new service would abort the
+release. Create it once, at the tag the running workers already use (never
+`:latest` — that is the unknown-provenance trap):
 
 ```bash
-bash scripts/setup_telegram_vps.sh --check-only   # preflight only, no changes
-bash scripts/setup_telegram_vps.sh                # install unit + enable
-bash scripts/setup_telegram_vps.sh --start        # install + enable + start
+cd /opt/leadgen
+TAG=$(docker inspect -f '{{.Config.Image}}' leadgen_worker | awk -F: '{print $NF}')
+APP_VERSION="$TAG" docker compose -f docker-compose.vps.yml up -d --no-deps telegram-jarvis
 ```
 
-What the script does beyond `cp`:
+### 6.2 Then, permanently
 
-* detects the interpreter (`/opt/leadgen/.venv/bin/python` → `/usr/bin/python3`) and
-  bakes it into `ExecStart` — no unit that crash-loops on `203/EXEC`;
-* runs the read-only verifier as a **fail-closed preflight** and refuses to install
-  a runner with a dead token;
-* derives `/opt/leadgen/.env.telegram-jarvis` (telegram keys only, mode 0600) so one
-  malformed line in the big `.env` cannot kill the unit;
-* prints the current polling owner and reminds that one token = one poller.
+Add `telegram-jarvis` to `SERVICES=` in `scripts/deploy_vps.sh`. Until that is
+done, every later deploy moves the workers and leaves this container behind —
+silent image drift, which is how untracked `:latest` containers happen.
 
-Unit: `deploy/systemd/leadgen-telegram-jarvis.service` (`Restart=always`,
-`StartLimitBurst=20` to prevent restart storms, `KillSignal=SIGINT`,
-`TELEGRAM_INSTANCE_ROLE=vps`). Logs: `journalctl -u leadgen-telegram-jarvis -f`.
+### 6.3 ⚠️ Never run `docker compose config` without `--quiet`
 
-To make the VPS the ingress owner: `TELEGRAM_INGRESS_OWNER=vps` here, and
-`hermes`/`off` (or `local`) on the other consumers. Do not run two pollers "to be
-safe" — that is exactly the failure mode this doc exists to prevent.
+`docker compose -f docker-compose.vps.yml config` **renders every resolved
+`env_file` value inline**, so it prints live API keys and bot tokens into your
+shell history and the agent transcript. Use `config --quiet` (schema validation
+only) or pipe through a filter. Anything you have already run this way should be
+assumed exposed and rotated through the normal owner secret path.
+
+### 6.4 Operating it
+
+```bash
+cd /opt/leadgen
+docker compose -f docker-compose.vps.yml ps telegram-jarvis
+docker logs -f --tail=100 leadgen_telegram_jarvis
+docker inspect -f '{{.State.Health.Status}}' leadgen_telegram_jarvis
+```
+
+Flags baked into the service: `TELEGRAM_INSTANCE_ROLE=vps`,
+`TELEGRAM_INSTANCE_ID=leadgen-vps`, `TELEGRAM_INGRESS_OWNER=${TELEGRAM_INGRESS_OWNER:-vps}`,
+`restart: unless-stopped`, single replica, no published port.
+
+One token = one poller. Do not run the local runner and the VPS service against the
+same token "to be safe" — that is exactly the failure mode this doc exists to
+prevent. If you must run locally, set `TELEGRAM_INGRESS_OWNER=local` here **and**
+`=vps` back on the VPS, or the two will trade the token.
 
 ---
 
@@ -206,8 +303,18 @@ python scripts/telegram_verify_setup.py --no-groups # credential-only, fast
 Exit codes: `0` green · `1` critical (no usable ingress token / required group
 unwired) · `2` degraded (warnings such as a dead egress slot). Read-only: it never
 sends a message, never sets a webhook, and its 409 probe uses
-`getUpdates(allowed_updates=[])` which returns instantly **without consuming
-updates**. A network failure is reported as `UNKNOWN`, never as "nobody is polling".
+`getUpdates(allowed_updates=[])` with **no `offset`**, so it returns instantly and
+never confirms (deletes) a pending update.
+
+The probe repeats a few times on purpose. HTTP 409 only appears while the other
+consumer's call is in flight, so **one clean probe is a false negative** — observed
+live: `probes=['clean','409','clean']`. Therefore:
+
+* any 409 in any attempt → `OTHER_CONSUMER`, conclusive;
+* zero 409s → `NO_CONFLICT_OBSERVED`, which is explicitly **not** "nobody is
+  polling" (long-poll holders leave gaps, and the probe itself displaces the
+  holder's in-flight call, because Telegram allows one `getUpdates` at a time);
+* network failure → `UNKNOWN`, never "free".
 
 Tests:
 
