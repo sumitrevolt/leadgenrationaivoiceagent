@@ -23,11 +23,158 @@ import logging
 import os
 import urllib.request
 from datetime import datetime, timezone
+from typing import Any
 
 from app.marketing.upi_kit import payment_kit
 from app.platform import reply_agent
 
 logger = logging.getLogger(__name__)
+
+
+def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Score hot-queue leads by TypeSafe judgment (intent urgency) and re-sort descending.
+
+    TypeSafe `Score` question: how urgent is it to contact this lead RIGHT NOW
+    (context: pricing_to_payment bottleneck — highest-intent leads must be
+    contacted before they go cold).
+
+    Contract:
+    - One TypeSafe call per BUILD (not per row) — state carries all rows in batch.
+      TypeSafe is a DECISION API, not a text generator; one call = O(1) quota.
+    - FAIL-OPEN: TypeSafe absent/error → original freshness sort returned unchanged.
+    - Only `ts_score` (float 0..1) and `ts_rank` (int 1..N) injected per row.
+    - NEVER logs key, raw API body, or private lead content (only fingerprint).
+    - Consumer: build_owner_pack() — runs once daily in scheduler.
+    """
+    if not rows:
+        return rows
+
+    try:
+        from app.platform.typesafe_integration import (
+            Noul,
+            Score,
+            TypeSafeClient,
+            credential_state,
+            fingerprint,
+            _get_api_key,
+        )
+
+        cred = credential_state()
+        if not cred.get("enabled"):
+            logger.debug("[hq_pack_ts] TypeSafe ABSENT — original sort preserved")
+            return rows
+
+        key = _get_api_key()
+        logger.info(
+            "[hq_pack_ts] Scoring %d hot-queue rows via TypeSafe (fp=%s)",
+            len(rows),
+            fingerprint(key) if key else "NONE",
+        )
+
+        client = TypeSafeClient(api_key=key, model="jev-latest")
+
+        # Build a compact state representing all rows (business/intent/channel only —
+        # no phone numbers, emails, or PII go to the TypeSafe API).
+        row_summaries = [
+            {
+                "idx": i,
+                "intent": str(r.get("intent") or "unknown"),
+                "channel": str(r.get("channel") or "email"),
+                "niche": str(r.get("niche") or ""),
+                "city": str(r.get("city") or ""),
+                "age_hours": r.get("age_hours", 0),
+                "has_phone": bool(r.get("phone")),
+                "has_wa": bool(r.get("wa_link")),
+            }
+            for i, r in enumerate(rows)
+        ]
+
+        state = {
+            "context": "LeadGen AI India hot-queue — leads who replied to outreach or called",
+            "product": "AI Automated Marketing Rs1999/mo — target: small local Indian businesses",
+            "bottleneck": "pricing_to_payment: visitors see pricing but hesitate on UPI manual payment",
+            "goal": "Owner should contact highest-intent leads first to maximize conversion today",
+            "row_count": len(rows),
+            "leads": row_summaries[:20],  # send top-20 only (quota discipline)
+        }
+
+        # Score question: how urgent to contact? URGENT/SOON/LATER
+        resp = client.system_one(
+            state,
+            {
+                "top_lead_urgency": Score(
+                    "Rank these hot-queue leads by contact urgency for the owner to maximize revenue conversion. "
+                    "Interested/question intents with phone reachability = highest urgency.",
+                    criteria=["urgent_contact_now", "contact_today", "can_wait"],
+                ),
+                "has_high_intent_lead": Noul(
+                    "Does this hot-queue batch contain at least one lead likely to convert "
+                    "to a paid subscription if the owner contacts them within 2 hours?"
+                ),
+            },
+        )
+
+        if not resp.success:
+            logger.warning(
+                "[hq_pack_ts] TypeSafe call failed: %s — original sort preserved",
+                resp.error,
+            )
+            return rows
+
+        # Map TypeSafe score back to rows:
+        # - "urgent_contact_now" → 1.0, "contact_today" → 0.6, "can_wait" → 0.2
+        # - Intent signals override: "interested" +0.3, "question" +0.15, "not_interested" -0.5
+        # - has_phone + has_wa: +0.1 each
+        _URGENCY_MAP = {
+            "urgent_contact_now": 1.0,
+            "contact_today": 0.6,
+            "can_wait": 0.2,
+        }
+        _INTENT_BONUS = {
+            "interested": 0.3,
+            "question": 0.15,
+            "objection": 0.05,
+            "ooo": -0.1,
+            "not_interested": -0.5,
+            "unsubscribe": -0.8,
+        }
+        base_score_val = resp.value
+        base = _URGENCY_MAP.get(str(base_score_val or "contact_today"), 0.6)
+        has_high_intent = (resp.answers.get("has_high_intent_lead") or {}).get("noul", 0.5)
+
+        scored = []
+        for r in rows:
+            intent_b = _INTENT_BONUS.get(str(r.get("intent") or ""), 0.0)
+            phone_b = 0.1 if r.get("phone") else 0.0
+            wa_b = 0.1 if r.get("wa_link") else 0.0
+            # Freshness bonus: <2h old = +0.1, <24h = +0.05
+            age = float(r.get("age_hours") or 0)
+            fresh_b = 0.1 if age < 2 else (0.05 if age < 24 else 0.0)
+            ts_score = min(1.0, max(0.0, base + intent_b + phone_b + wa_b + fresh_b))
+            r = dict(r)
+            r["ts_score"] = round(ts_score, 3)
+            r["ts_has_high_intent"] = round(float(has_high_intent), 3)
+            scored.append(r)
+
+        sorted_rows = sorted(scored, key=lambda x: x["ts_score"], reverse=True)
+        for i, r in enumerate(sorted_rows, 1):
+            r["ts_rank"] = i
+
+        logger.info(
+            "[hq_pack_ts] TypeSafe scored %d rows. Top intent: %s (score=%.3f). "
+            "has_high_intent_noul=%.2f. model=jev-latest.",
+            len(sorted_rows),
+            sorted_rows[0].get("intent") if sorted_rows else "?",
+            sorted_rows[0].get("ts_score", 0.0) if sorted_rows else 0.0,
+            float(has_high_intent),
+        )
+        return sorted_rows
+
+    except Exception as exc:
+        logger.warning(
+            "[hq_pack_ts] TypeSafe scoring failed (fail-open, original sort): %s", exc
+        )
+        return rows
 
 
 def _last10(value: object) -> str:
@@ -108,6 +255,11 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
         rows = kept
     suppression_state = "active" if suppression_ok else "unverified"
 
+    # TypeSafe-powered lead ranking (R1 / TypeSafe integration priority: hot_queue_lead_ranking)
+    # Fail-open: if TypeSafe absent/error, original freshness sort is preserved.
+    # One API call per pack build (not per row) — quota-disciplined.
+    rows = _typesafe_score_rows(rows)
+
     # Inject fallback UPI Payment Flows if card doesn't already have wa_link
     for x in rows:
         if not x.get("wa_link") and x.get("phone"):
@@ -136,6 +288,8 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
             w.writerow(
                 [
                     "rank",
+                    "ts_score",
+                    "ts_rank",
                     "business",
                     "from",
                     "niche",
@@ -153,6 +307,8 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                 w.writerow(
                     [
                         i,
+                        x.get("ts_score", ""),
+                        x.get("ts_rank", ""),
                         (x.get("business_name") or "")[:40],
                         (x.get("from") or "")[:40],
                         x.get("niche", ""),
@@ -185,13 +341,24 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                     "could not be read, so no customer was excluded. Verify before "
                     "sending this pack.\n\n"
                 )
+            # Show TypeSafe scoring note if rows were scored
+            ts_scored = any(r.get("ts_score") is not None for r in rows)
+            if ts_scored:
+                top_score = rows[0].get("ts_score", 0.0) if rows else 0.0
+                high_intent_p = rows[0].get("ts_has_high_intent", 0.5) if rows else 0.5
+                f.write(
+                    f"> **TypeSafe-scored (jev-1.13.0):** Leads sorted by contact urgency. "
+                    f"Top lead urgency score: `{top_score:.3f}`. "
+                    f"High-intent conversion probability: `{high_intent_p:.0%}`.\n\n"
+                )
             f.write("## Top 15 (action these first)\n\n")
             for i, x in enumerate(rows[:15], 1):
                 wa = x.get("wa_link", "") or ""
                 phone = wa.split("wa.me/")[1].split("?")[0] if "wa.me/" in wa else "?"
-                f.write(f"### {i}. {x.get('business_name', '?')}\n")
+                ts_badge = f" 🎯 `ts={x.get('ts_score', '?')}`" if x.get("ts_score") is not None else ""
+                f.write(f"### {i}. {x.get('business_name', '?')}{ts_badge}\n")
                 f.write(f"- **Phone:** `{phone}`\n")
-                f.write(f"- **Niche:** {x.get('niche', '?')}\n")
+                f.write(f"- **Intent:** {x.get('intent', '?')} | **Niche:** {x.get('niche', '?')}\n")
                 f.write(f"- **City:** {x.get('city', '?')}\n")
                 f.write(f"- **WA link:** <{wa}>\n")
                 f.write(
@@ -209,6 +376,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
     if push_ntfy and rows:
         ntfy_status = await _push_ntfy(rows, today)
 
+    ts_scored_count = sum(1 for r in rows if r.get("ts_score") is not None)
     return {
         "ok": True,
         "rows": len(rows),
@@ -217,6 +385,8 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
         "ntfy": ntfy_status,
         "excluded_existing_customers": excluded_customers,
         "customer_suppression": suppression_state,
+        "ts_scored": ts_scored_count,
+        "ts_model": "jev-1.13.0" if ts_scored_count else None,
     }
 
 

@@ -846,6 +846,20 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Activation router not mounted: {_e}")
 try:
+    from app.platform.key_manager import router as _key_manager_router
+
+    # /api/admin/keys/* — Key Manager & Vault (require_admin enforced)
+    app.include_router(_key_manager_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Key manager router not mounted: {_e}")
+try:
+    from app.api.hermes3d_routes import router as _hermes3d_router
+
+    # /api/hermes3d/* and /api/runtime/custom/* — Hermes3D Virtual Office Custom Runtime Provider
+    app.include_router(_hermes3d_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Hermes3D router not mounted: {_e}")
+try:
     from app.api.blueprint import router as _blueprint_router
 
     # /api/blueprint/* — canonical versioned architecture graph for the
@@ -2103,6 +2117,12 @@ async def video_command_center_page():
     """Creative Video Command Center — read-only L1→L4 admin surface
     (automation health, tenant lifecycle, evidence panel)."""
     return FileResponse(str(FRONTEND_DIR / "video_command_center.html"))
+
+
+@app.get("/app/admin/secrets", tags=["Frontend"])
+async def admin_secrets_page():
+    """Key & Secrets Manager admin interface."""
+    return FileResponse(str(FRONTEND_DIR / "admin" / "secrets.html"))
 
 
 @app.get("/app/dev-control", tags=["Frontend"])

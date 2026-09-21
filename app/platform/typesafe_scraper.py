@@ -117,7 +117,6 @@ class TypeSafeScraper:
                 confidence=answers.get("cost_effectiveness", {}).get("confidence", 0.5),
                 latency_ms=latency_ms,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                source="typesafe"
             )
             
             self._log_decision(decision)
@@ -204,7 +203,6 @@ class TypeSafeScraper:
                 confidence=0.6,
                 latency_ms=latency_ms,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                source="typesafe"
             )
             
             self._log_decision(decision)
@@ -286,7 +284,6 @@ class TypeSafeScraper:
                 confidence=0.6,
                 latency_ms=latency_ms,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                source="typesafe"
             )
             
             self._log_decision(decision)
@@ -370,7 +367,6 @@ class TypeSafeScraper:
                 confidence=answers.get("confidence", {}).get("confidence", 0.5),
                 latency_ms=latency_ms,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                source="typesafe"
             )
             
             self._log_decision(decision)
@@ -425,7 +421,6 @@ class TypeSafeScraper:
             confidence=0.5,
             latency_ms=(time.time() - start_time) * 1000,
             timestamp=datetime.now(timezone.utc).isoformat(),
-            source="heuristic"
         )
     
     def _heuristic_strategy(self, niche: str, target_count: int, budget: float, decision_id: str, start_time: float) -> ScraperDecision:
@@ -453,7 +448,6 @@ class TypeSafeScraper:
             confidence=0.5,
             latency_ms=(time.time() - start_time) * 1000,
             timestamp=datetime.now(timezone.utc).isoformat(),
-            source="heuristic"
         )
     
     def _heuristic_validate(self, lead_data: dict, decision_id: str, start_time: float) -> ScraperDecision:
@@ -480,7 +474,6 @@ class TypeSafeScraper:
             confidence=0.5,
             latency_ms=(time.time() - start_time) * 1000,
             timestamp=datetime.now(timezone.utc).isoformat(),
-            source="heuristic"
         )
     
     def _heuristic_dedup(self, lead1: dict, lead2: dict, decision_id: str, start_time: float) -> ScraperDecision:
@@ -509,7 +502,6 @@ class TypeSafeScraper:
             confidence=0.5,
             latency_ms=(time.time() - start_time) * 1000,
             timestamp=datetime.now(timezone.utc).isoformat(),
-            source="heuristic"
         )
 
 

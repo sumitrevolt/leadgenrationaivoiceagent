@@ -1,43 +1,41 @@
 #!/bin/bash
-# Refresh TypeSafe key into running containers WITHOUT rebuilding the image.
-# Targeted recreate of `app` + `worker` services with SAME APP_VERSION (404e5309).
-set -euo pipefail
+# RETIRED 2026-09-20 — this script could not do the one job it existed for, and
+# every way it tried to do it caused a different kind of damage.
+#
+#   1. SECRET EXPOSURE. It printed `prefix=${k[:14]}` of the live
+#      TYPESAFE_API_KEY twice per run (old lines 10 and 20) straight to stdout —
+#      into the terminal scrollback, into any captured log, and into anything
+#      that wrapped the call. A prefix of a live credential is an exposure, not
+#      a diagnostic. Credential state is reported only as
+#      PRESENT / ABSENT / INVALID / ROTATION_REQUIRED; read-only inspection
+#      lives in scripts/check_typesafe.sh, which prints a sha256 fingerprint.
+#
+#   2. IT NEVER TOUCHED THE APP. The whole purpose was to push a refreshed key
+#      into the app process. `app` is served by a container whose env is fixed
+#      at create time, and this script never recreated that container — it
+#      rolled the worker and then `systemctl restart leadgen 2>/dev/null ||
+#      true`, i.e. a unit that is `disabled` and fails every exec with
+#      203/EXEC (measured on prod 2026-09-20: NRestarts=5583). Both the redirect
+#      and the `|| true` swallowed the failure, so the operator saw "DONE" and
+#      believed the key was live. Placebo, not a tool.
+#
+#   3. VERSION SKEW. `export APP_VERSION=404e5309` is a hardcoded tag that was
+#      already stale when this was last edited. Running it today re-creates the
+#      worker on a two-week-old image while the web tier stays wherever it is —
+#      manufacturing exactly the app/worker skew that scripts/deploy_vps.sh
+#      exists to refuse.
+#
+#   4. MASKED FAILURE. `... | tail -6` hides compose's exit status behind
+#      tail's, the documented pipefail landmine in this repo.
+#
+# A correct env refresh is a release: it must pin the CURRENT sha, recreate the
+# services that hold the env, and verify /health. That is deploy_vps.sh, which
+# fails closed on all four points above. Nothing here is worth keeping.
+set -uo pipefail
 
-cd /opt/leadgen
-export APP_VERSION=404e5309   # matches running image tag — bina-rebuild recreate
-
-echo "=== BEFORE: leadgen_app TYPESAFE key length ==="
-docker exec leadgen_app python -c 'import os; k=os.getenv("TYPESAFE_API_KEY",""); print(f"len={len(k)} prefix={k[:14]}...")' 2>&1 || echo "(pre-check failed)"
-
-# `up -d` re-reads .env, no image rebuild. Worker rolled via compose; app via systemctl.
-docker compose -f docker-compose.vps.yml up -d worker 2>&1 | tail -6
-systemctl restart leadgen 2>/dev/null || true
-
-echo "=== waiting 14s for startup ==="
-sleep 14
-
-echo "=== AFTER: leadgen_app TYPESAFE key length ==="
-docker exec leadgen_app python -c 'import os; k=os.getenv("TYPESAFE_API_KEY",""); print(f"len={len(k)} prefix={k[:14]}... enabled={bool(k)}")' 2>&1
-
-echo "=== smoke: TypeSafe integration live check ==="
-docker exec leadgen_app python -c '
-from app.platform.typesafe_integration import get_typesafe_client, typesafe_choice
-c = get_typesafe_client()
-print(f"client.enabled={c.enabled}")
-try:
-    r = typesafe_choice(
-        "Is the TypeSafe integration live?",
-        {"context": "smoke", "step": "cicd_recovery_2026-09-19"},
-        {"yes": "Live", "no": "Broken"}
-    )
-    print(f"smoke_success={r.success} value={r.value} confidence={r.confidence} model={r.model}")
-    if not r.success:
-        print(f"smoke_error={(r.error or "")[:200]}")
-except Exception as e:
-    print(f"smoke_exception={e}")
-' 2>&1
-
-echo "=== health ==="
-curl -s http://127.0.0.1:8000/health 2>&1 | head -c 400
-echo ""
-echo "DONE"
+echo "REFUSED: scripts/refresh_typesafe_env.sh is RETIRED (2026-09-20)." >&2
+echo "  It printed a live credential prefix, never recreated the process it" >&2
+echo "  claimed to refresh, and pinned a stale APP_VERSION." >&2
+echo "  Read-only TypeSafe state:  bash scripts/check_typesafe.sh" >&2
+echo "  Canonical release path:    bash scripts/deploy_vps.sh" >&2
+exit 1

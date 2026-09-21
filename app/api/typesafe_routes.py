@@ -1,164 +1,413 @@
-"""TypeSafe Dedicated Strongly-Typed Endpoints (2026-09-19)
-============================================================
-Exposes validated REST API routes powered by TypeSafe System One.
-Every endpoint enforces strict Pydantic v2 schemas:
-- Clean type-safe request parsing and validation (HTTP 422 on a bad schema,
-  raised by FastAPI before the handler body runs)
-- Clean type-safe response contracts (`response_model` on every route)
-- Fail-soft error handling: a downstream TypeSafe or bridge failure is logged
-  server-side with a full traceback and reported to the caller as a plain
-  HTTP 500 whose `detail` carries NO internal exception text.
-
-Why no `str(e)` in the response: the detail string used to echo the raw
-exception, which leaks provider error bodies, URLs, and stack context to the
-client. The diagnostic value belongs in the log, not the HTTP response.
+"""
+TypeSafe API Routes
+===================
+FastAPI routes for TypeSafe decision endpoints.
+Provides HTTP API for all TypeSafe decisions.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from app.api.auth_deps import require_admin
-from app.platform.typesafe_bridge import get_typesafe_bridge
-from app.platform.typesafe_integration import credential_state
-from app.platform.typesafe_schemas import (
-    CallEvaluationRequest,
-    CallEvaluationResponse,
-    ContentAuditRequest,
-    ContentAuditResponse,
-    LeadQualifyRequest,
-    LeadQualifyResponse,
-    ReplyTriageRequest,
-    ReplyTriageResponse,
-    TypeSafeSystemStatusResponse,
-    ValueExtractionRequest,
-    ValueExtractionResponse,
-)
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/typesafe", tags=["TypeSafe Intelligence"])
+router = APIRouter(prefix="/api/v1/typesafe", tags=["TypeSafe Decisions"])
 
 
-@router.get("/status", response_model=TypeSafeSystemStatusResponse)
-async def get_status(_user=Depends(require_admin)) -> TypeSafeSystemStatusResponse:
-    """Returns the operational status, credential state, and model alignment of TypeSafe.
+# Request/Response Models
+class LeadQualifyRequest(BaseModel):
+    id: str
+    company: str
+    industry: str
+    company_size: int
+    budget_signal: int
+    engagement_score: int
+    fit_score: int
+    urgency: str = "medium"
 
-    Reads `credential_state()`, which returns a `CredentialState` mapping — never a
-    bare label. Compare against `state`, not against the mapping itself: comparing
-    the whole dict to the string "PRESENT" is always False and silently reports an
-    armed integration as absent.
-    """
-    bridge = get_typesafe_bridge()
-    cred = credential_state()
-    fp = cred.get("fingerprint") or "none"
-    model = cred.get("model") or bridge.lead_scorer.client.model
-    enabled = cred.get("enabled", False)
-    state = cred.get("state", "ABSENT")
-    source = cred.get("source", "none")
 
-    active_count = 0
-    if enabled:
-        services = [
-            bridge.lead_scorer,
-            bridge.content_qa,
-            bridge.reply_triage,
-            bridge.value_extractor,
-            bridge.call_evaluator,
+class CampaignOptimizeRequest(BaseModel):
+    id: str
+    name: str
+    status: str
+    impressions: int
+    clicks: int
+    conversions: int
+    spend: float
+    ctr: float
+    conversion_rate: float
+    roi: float
+    days_running: int
+
+
+class TaskRouteRequest(BaseModel):
+    task_id: str
+    type: str
+    priority: str
+    domain: str
+    complexity: str = "medium"
+    urgency: str = "normal"
+
+
+class TelegramClassifyRequest(BaseModel):
+    message_id: str
+    text: str
+    sender: str
+    is_owner: bool = False
+
+
+class CallRouteRequest(BaseModel):
+    call_id: str
+    lead_id: str
+    lead_score: int
+    priority: str
+    campaign_type: str
+    lead_industry: str
+    lead_company_size: int
+
+
+class SourceEvaluateRequest(BaseModel):
+    name: str
+    type: str
+    reliability_score: int
+    cost_per_lead: float
+    average_lead_quality: int
+    success_rate: float
+
+
+class DedupeRequest(BaseModel):
+    lead1_id: str
+    lead1_company: str
+    lead1_phone: str
+    lead1_email: str
+    lead1_city: str
+    lead2_id: str
+    lead2_company: str
+    lead2_phone: str
+    lead2_email: str
+    lead2_city: str
+
+
+class DecisionResponse(BaseModel):
+    success: bool
+    decision_id: str
+    model: str
+    result: dict[str, Any]
+    confidence: float
+    latency_ms: float
+    timestamp: str
+    source: str
+
+
+class TypeSafeStatus(BaseModel):
+    enabled: bool
+    model: str
+    pool_size: int
+    credential_state: dict[str, Any]
+    keys_provisioned: int
+
+
+# In-memory cache for demonstration (use Redis in production)
+_decision_cache: dict[str, dict] = {}
+
+
+@router.get("/status", response_model=TypeSafeStatus)
+async def get_typesafe_status():
+    """Get TypeSafe gateway status."""
+    try:
+        from app.platform.typesafe_integration import get_typesafe_client
+        from app.platform.key_manager import get_key_manager
+
+        client = get_typesafe_client()
+        km = get_key_manager()
+
+        slots = km.get_all_slots()
+        keys_provisioned = sum(1 for s in slots.values() if s.get("state") == "PRESENT")
+
+        return TypeSafeStatus(
+            enabled=client.enabled,
+            model=client.model,
+            pool_size=client.pool_size,
+            credential_state=client.credential_state(),
+            keys_provisioned=keys_provisioned,
+        )
+    except Exception as e:
+        logger.error(f"Failed to get TypeSafe status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/lead", response_model=DecisionResponse)
+async def decide_lead(request: LeadQualifyRequest):
+    """Qualify a lead using TypeSafe."""
+    try:
+        from app.platform.typesafe_middleware import get_middleware
+
+        middleware = get_middleware()
+        decision = middleware.qualify_lead(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Lead qualification failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/campaign", response_model=DecisionResponse)
+async def decide_campaign(request: CampaignOptimizeRequest):
+    """Optimize a campaign using TypeSafe."""
+    try:
+        from app.platform.typesafe_middleware import get_middleware
+
+        middleware = get_middleware()
+        decision = middleware.optimize_campaign(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Campaign optimization failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/task", response_model=DecisionResponse)
+async def decide_task(request: TaskRouteRequest):
+    """Route a task using TypeSafe."""
+    try:
+        from app.platform.typesafe_middleware import get_middleware
+
+        middleware = get_middleware()
+        decision = middleware.route_task(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Task routing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/telegram", response_model=DecisionResponse)
+async def decide_telegram(request: TelegramClassifyRequest):
+    """Classify a Telegram message using TypeSafe."""
+    try:
+        from app.platform.typesafe_middleware import get_middleware
+
+        middleware = get_middleware()
+        decision = middleware.classify_telegram_message(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Telegram classification failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/call", response_model=DecisionResponse)
+async def decide_call(request: CallRouteRequest):
+    """Route a call using TypeSafe."""
+    try:
+        from app.platform.typesafe_telephony import get_telephony
+
+        telephony = get_telephony()
+        decision = telephony.route_call(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Call routing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/source", response_model=DecisionResponse)
+async def decide_source(request: SourceEvaluateRequest):
+    """Evaluate lead source quality using TypeSafe."""
+    try:
+        from app.platform.typesafe_scraper import get_scraper
+
+        scraper = get_scraper()
+        decision = scraper.evaluate_source_quality(request.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Source evaluation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/decide/dedup", response_model=DecisionResponse)
+async def decide_dedup(request: DedupeRequest):
+    """Decide deduplication using TypeSafe."""
+    try:
+        from app.platform.typesafe_scraper import get_scraper
+
+        scraper = get_scraper()
+        decision = scraper.decide_deduplication(request.lead1.dict(), request.lead2.dict())
+
+        return DecisionResponse(
+            success=True,
+            decision_id=decision.decision_id,
+            model=decision.model,
+            result=decision.result,
+            confidence=decision.confidence,
+            latency_ms=decision.latency_ms,
+            timestamp=decision.timestamp,
+            source=decision.source,
+        )
+    except Exception as e:
+        logger.error(f"Deduplication decision failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/decisions/{decision_id}")
+async def get_decision(decision_id: str):
+    """Get a specific decision by ID."""
+    try:
+        from pathlib import Path
+
+        # Search through all decision logs
+        log_dirs = [
+            Path("data"),
+            Path("data/revenue"),
+            Path("data/typesafe"),
         ]
-        active_count += sum(1 for s in services if getattr(s, "client", None) and s.client.enabled)
-        try:
-            from app.platform.typesafe_executor import get_executor
 
-            if get_executor().client.enabled:
-                active_count += 1
-        except Exception:
-            pass
-        try:
-            from app.integrations.telegram_typesafe import get_telegram_typesafe_router
+        for log_dir in log_dirs:
+            if log_dir.exists():
+                for log_file in log_dir.glob("*.jsonl"):
+                    with open(log_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            try:
+                                entry = json.loads(line.strip())
+                                if entry.get("decision_id") == decision_id:
+                                    return {"found": True, "decision": entry}
+                            except json.JSONDecodeError:
+                                continue
 
-            active_count += 1
-        except Exception:
-            pass
-
-    return TypeSafeSystemStatusResponse(
-        enabled=enabled,
-        credential_present=state == "PRESENT",
-        credential_source=source,
-        fingerprint=fp,
-        model=model,
-        services_ready=enabled,
-        active_consumers_count=active_count,
-    )
+        return {"found": False, "decision_id": decision_id}
+    except Exception as e:
+        logger.error(f"Failed to get decision: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/qualify-lead", response_model=LeadQualifyResponse)
-async def qualify_lead_endpoint(
-    req: LeadQualifyRequest,
-    _user=Depends(require_admin),
-) -> LeadQualifyResponse:
-    """Evaluates lead fit, buying intent, budget likelihood, and product offering."""
+@router.get("/decisions/stats")
+async def get_decision_stats(
+    limit: int = Query(100, ge=1, le=1000),
+    hours: int = Query(24, ge=1, le=720),
+):
+    """Get decision statistics."""
     try:
-        bridge = get_typesafe_bridge()
-        return bridge.qualify_lead(req)
-    except Exception:
-        logger.exception("TypeSafe lead qualification failed")
-        raise HTTPException(status_code=500, detail="Lead qualification failed")
+        from datetime import datetime, timedelta
+        from pathlib import Path
+        import json
+
+        cutoff = datetime.now() - timedelta(hours=hours)
+        stats = {
+            "total_decisions": 0,
+            "typesafe_decisions": 0,
+            "heuristic_decisions": 0,
+            "avg_latency_ms": 0,
+            "avg_confidence": 0,
+            "by_type": {},
+            "by_model": {},
+        }
+
+        log_files = list(Path("data").glob("*.jsonl"))
+        total_latency = 0
+        total_confidence = 0
+
+        for log_file in log_files:
+            with open(log_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        entry_time = datetime.fromisoformat(entry.get("timestamp", "").replace("Z", "+00:00"))
+                        if entry_time >= cutoff:
+                            stats["total_decisions"] += 1
+                            if entry.get("source") == "typesafe":
+                                stats["typesafe_decisions"] += 1
+                            else:
+                                stats["heuristic_decisions"] += 1
+
+                            latency = entry.get("latency_ms", 0)
+                            confidence = entry.get("confidence", 0)
+                            total_latency += latency
+                            total_confidence += confidence
+
+                            dec_type = entry.get("decision_type", "unknown")
+                            stats["by_type"][dec_type] = stats["by_type"].get(dec_type, 0) + 1
+
+                            model = entry.get("model", "unknown")
+                            stats["by_model"][model] = stats["by_model"].get(model, 0) + 1
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+
+        if stats["total_decisions"] > 0:
+            stats["avg_latency_ms"] = total_latency / stats["total_decisions"]
+            stats["avg_confidence"] = total_confidence / stats["total_decisions"]
+
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get decision stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/audit-message", response_model=ContentAuditResponse)
-async def audit_content_endpoint(
-    req: ContentAuditRequest,
-    _user=Depends(require_admin),
-) -> ContentAuditResponse:
-    """Audits outbound emails or messages for spam, compliance, persuasion, and tone."""
+@router.post("/cache/clear")
+async def clear_decision_cache():
+    """Clear decision cache."""
     try:
-        bridge = get_typesafe_bridge()
-        return bridge.audit_outbound_content(req)
-    except Exception:
-        logger.exception("TypeSafe content audit failed")
-        raise HTTPException(status_code=500, detail="Content audit failed")
-
-
-@router.post("/triage-reply", response_model=ReplyTriageResponse)
-async def triage_reply_endpoint(
-    req: ReplyTriageRequest,
-    _user=Depends(require_admin),
-) -> ReplyTriageResponse:
-    """Classifies inbound prospect replies into structured intents and CRM actions."""
-    try:
-        bridge = get_typesafe_bridge()
-        return bridge.triage_reply(req)
-    except Exception:
-        logger.exception("TypeSafe reply triage failed")
-        raise HTTPException(status_code=500, detail="Reply triage failed")
-
-
-@router.post("/evaluate-call", response_model=CallEvaluationResponse)
-async def evaluate_call_endpoint(
-    req: CallEvaluationRequest,
-    _user=Depends(require_admin),
-) -> CallEvaluationResponse:
-    """Evaluates telephonic call transcript/summary into CRM disposition and consent verification."""
-    try:
-        bridge = get_typesafe_bridge()
-        return bridge.evaluate_call(req)
-    except Exception:
-        logger.exception("TypeSafe call evaluation failed")
-        raise HTTPException(status_code=500, detail="Call evaluation failed")
-
-
-@router.post("/extract-value", response_model=ValueExtractionResponse)
-async def extract_value_endpoint(
-    req: ValueExtractionRequest,
-    _user=Depends(require_admin),
-) -> ValueExtractionResponse:
-    """Selects best candidate matching field from unstructured text without hallucination."""
-    try:
-        bridge = get_typesafe_bridge()
-        return bridge.extract_value(req)
-    except Exception:
-        logger.exception("TypeSafe value extraction failed")
-        raise HTTPException(status_code=500, detail="Value extraction failed")
+        from app.platform.typesafe_middleware import clear_decision_cache
+        clear_decision_cache()
+        return {"success": True, "message": "Decision cache cleared"}
+    except Exception as e:
+        logger.error(f"Failed to clear cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

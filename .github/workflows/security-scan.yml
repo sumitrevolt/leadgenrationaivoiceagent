@@ -70,10 +70,22 @@ jobs:
       - name: Secret gate — repo-wide (ENFORCING)
         run: python scripts/check_secrets.py --all
 
-      - name: Install Trivy (latest)
+      - name: Install Trivy (pinned v0.72.0)
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin v0.72.0
+          # Never `curl | sh` here. The step shell is `bash -e` WITHOUT pipefail,
+          # so the pipeline's exit status is sh's -- and sh reading an EMPTY
+          # stdin exits 0. A failed download is therefore indistinguishable from
+          # a successful install, and surfaces one line later as a meaningless
+          # `trivy: command not found` (exit 127, observed on run c691c8d1). A
+          # security scan whose installer can silently no-op is a disabled
+          # security scan, so: download to a file, prove it is non-empty, then
+          # run it, and prove the binary exists.
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o /tmp/trivy-install.sh \
+            https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh
+          test -s /tmp/trivy-install.sh
+          sh /tmp/trivy-install.sh -b /usr/local/bin v0.72.0
           trivy --version
 
       # Trivy by-default sirf "requirements.txt" naam ko pip-deps maanta. Tera
@@ -203,11 +215,18 @@ jobs:
       - uses: docker/setup-buildx-action@v3
         if: steps.image_needed.outputs.run == '1'
 
-      - name: Install Trivy (latest)
+      - name: Install Trivy (pinned v0.72.0)
         if: steps.image_needed.outputs.run == '1'
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin v0.72.0
+          # Same hardening as the repo-scan job: `curl | sh` cannot fail this
+          # step (bash -e, no pipefail, sh exits 0 on empty stdin), so a dead
+          # download becomes exit 127 two lines later.
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o /tmp/trivy-install.sh \
+            https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh
+          test -s /tmp/trivy-install.sh
+          sh /tmp/trivy-install.sh -b /usr/local/bin v0.72.0
           trivy --version
 
       - name: Resolve scan target (exact ref, never :latest)

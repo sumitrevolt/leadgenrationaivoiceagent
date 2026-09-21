@@ -4,6 +4,38 @@
 
 ---
 
+## ADR-198: One Telegram token, one poller — lease + owner-role coordination, and token VALIDITY instead of token PRESENCE (2026-09-21)
+
+**Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; rollout is an OWNER gate — see "Owner actions")
+**Context**: A live read-only probe (new `scripts/telegram_verify_setup.py`) contradicted every Telegram claim in the repo. (a) The Jarvis token is AUTHENTICATED, but a non-consuming `getUpdates(allowed_updates=[])` probe returned HTTP 409 — the **Hermes gateway** (`hermes_cli.main --profile pilot gateway run`) is the real polling owner, so this repo's runner could never receive a single owner command. (b) `TELEGRAM_NOTIFY_BOT_TOKEN` (and `.env`'s `TELEGRAM_BOT_TOKEN`) are **401 Unauthorized** — yet `len(token) >= 20` made both look "configured", and `telegram_coordinator.dispatch_egress_alert()` used exactly one token with no fallback, so every P0 owner alert on that path was silently dropped (asymmetry: `app/utils/telegram_egress.py` already had a 401-blacklist fallback chain). (c) 0/13 spec groups are reachable by the Jarvis bot (`chat not found`), and the three coordination groups the owner asked for ship with an empty `chat_id` — the Bot API cannot create a group for the owner, so they had never existed.
+**Decision**:
+1. **Coordination is a first-class primitive, not a comment.** `TELEGRAM_INGRESS_OWNER=auto|local|vps|hermes|off` names the single consumer; otherwise a polling lease decides (Redis `leadgen:telegram:poll_lease:<scope>` cross-host, else `data/telegram_poll_lease.json` cross-process, TTL 120s, stale takeover). `should_poll()` is the one gate; a non-owner role never even claims the lease.
+2. **A 409 is evidence, not noise.** On a real conflict the runner releases its own lease, enters standby with 10→60s backoff and records `conflict_count`/`external_conflict_until`; it never fights for the token and never advertises itself as holder while not polling. Invalid token = refuse to start (no 401 spin). The lease is always released in a `finally`.
+3. **PRESENT != AUTHENTICATED.** `validate_bot_token()` (getMe, cached, SHA-256 fingerprint only) gates polling; egress uses the notify→legacy→jarvis candidate chain with per-process 401 blacklisting and reports the `via` slot. Never log, print, prompt or commit a token value.
+4. **Cross-process dedupe**: in-process cache plus a best-effort Redis `SETNX` key (TTL 1h) so local polling + VPS runner + webhook cannot execute one update twice. Redis down = fail-open to the in-process cache.
+5. **Group wiring is tooling, not hand-editing**: `scripts/telegram_wire_coordination_groups.py` (scope-qualified refs `marketing.announcements`; bare keys that exist in both products are refused as ambiguous), `--set`/`--create-topics`/`--verify`, timestamped `.bak` + YAML round-trip assertion on every write.
+6. **VPS install is fail-closed**: `scripts/setup_telegram_vps.sh` detects the interpreter, refuses to install on a CRITICAL credential preflight, and derives a telegram-only `EnvironmentFile` (0600) instead of pointing systemd at the whole `.env`.
+**Consequences**: Local, VPS and Hermes can now coexist honestly, and "Telegram is wired" is a verifier output rather than a doc claim. Required coordination groups stay RED (exit 1) until the owner creates them — deliberately: a green-looking dashboard over unwired groups is the failure this ADR forbids.
+**Owner actions (only these):** (1) re-issue the Notify bot token in BotFather at `TELEGRAM_NOTIFY_BOT_TOKEN`; (2) create + wire the three coordination groups (runbook in `docs/TELEGRAM_DUAL_BOT_SETUP.md` §4); (3) choose the single ingress owner (`TELEGRAM_INGRESS_OWNER`) — Hermes keeps it today.
+**Reference**: `docs/TELEGRAM_DUAL_BOT_SETUP.md` · `app/platform/telegram_coordinator.py` · `scripts/telegram_verify_setup.py` · tests `tests/test_telegram_dual_bot.py` (21) + `tests/test_telegram_wiring_tool.py` (10)
+
+---
+
+## ADR-197: Probe the thing you report — retired the TypeSafe env-refresh placebo, gated dead observability (2026-09-20)
+
+**Status**: ACCEPTED (code fixed locally; web-tier rollout topology remains an OWNER gate)
+**Context**: Re-verifying the U06 P0 candidates against `main` at `2d1245c6` found that "fixed" and "reported" had diverged in three places. `scripts/refresh_typesafe_env.sh` printed a 14-char prefix of the live `TYPESAFE_API_KEY`, pinned `APP_VERSION=404e5309` (already stale — running it recreates the worker on a two-week-old image), masked compose's exit with `| tail -6`, and — its actual job — could not refresh the app's env at all: `app` is a container whose env is fixed at create time, and it recreated neither that container nor a working systemd unit (the unit is `disabled` and fails every exec with 203/EXEC, `NRestarts=5583`). Separately, `/api/v1/typesafe/status` counted a consumer by importing `get_telegram_typesafe_router`, a symbol that exists nowhere; the `ImportError` was swallowed by `except Exception: pass`, so the branch never ran and never logged.
+**Decision**:
+1. Retire `scripts/refresh_typesafe_env.sh` to a stub that refuses (exit 1, names the four defects, points at `scripts/check_typesafe.sh` for read-only state and `scripts/deploy_vps.sh` for releases). Do not "fix" a placebo by making it work — nothing about env refresh belongs in a script that also re-tags images.
+2. Credential state is reported as `PRESENT / ABSENT / INVALID / ROTATION_REQUIRED` plus a non-reversible sha256 fingerprint. Never a prefix, never in a log. The committed prefix (since `0ce08f2e`) makes the key `ROTATION_REQUIRED` — an owner-authorized secret workflow, not a code change.
+3. Every consumer count must be gated on that consumer's own `client.enabled`, and a `try:` that can swallow a miscount must log. New static guard resolves every `from app...` import in `typesafe_routes.py`, so "reference a symbol that isn't there" fails at test time instead of silently disabling a branch (the AGENTS.md §7 function-level-import landmine class).
+4. Probe an **invocation**, never an import: `python3 -c "import alembic"` is true on the VPS with no working alembic, because `cd /opt/leadgen` puts the repo's own `alembic/` migrations dir on `sys.path` as a PEP-420 namespace package. `python3 -m alembic --help` is the honest probe, and a running container (`/opt/venv/bin/alembic`) is the first candidate.
+5. A workflow installer may not be able to silently no-op. `curl … | sh` under GitHub's `bash -e` (no pipefail) exits 0 on an empty stdin; the failure then surfaces as exit 127 one line later. Download, `test -s`, execute, then prove the binary.
+**Consequences**: `active_consumers_count` now under-reports nothing and over-promises nothing — but it is still only a CONFIGURED-state number, and its docstring says so; invoked/consumed/side-effect-verified states need real counters, which do not exist yet. The retired stub breaks any operator runbook that called it (none tracked remains; `progress.md` history keeps the record). `deploy_vps.sh` is untouched: rolling `app` through compose would pre-empt an owner decision that `test_no_app_container_drift.py` and `deploy_preflight.sh:56-58` both currently encode.
+**Reference**: `memory/incidents.md` "2026-09-20: The web tier flipped back to Docker…", ADR-194 (single source of truth), `tests/test_vps_migrate_probe.py`, `tests/test_workflow_installer_integrity.py`, `tests/test_typesafe_status_consumer_probe.py`, `tests/test_no_app_container_drift.py`, `tests/test_deploy_guard_ordering.py`.
+
+---
+
 ## ADR-192: TypeSafe Gateway Integration for Workers (2026-09-19)
 
 **Status**: ACCEPTED

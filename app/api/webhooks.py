@@ -336,4 +336,16 @@ async def telegram_webhook_inbound(request: Request):
         except Exception:
             pass
         res["opt_out"] = True
+    else:
+        # Process update via TelegramBot
+        try:
+            from app.integrations.telegram_bot import get_telegram_bot
+            bot = get_telegram_bot()
+            if bot.is_ready():
+                bot_res = bot.process_update(payload, send_reply=True)
+                res["bot_processed"] = bot_res.success
+                if bot_res.intent:
+                    res["intent"] = bot_res.intent
+        except Exception as _be:
+            logger.warning("telegram webhook: bot processing failed: %s", _be)
     return res

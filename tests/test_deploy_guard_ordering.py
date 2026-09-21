@@ -43,12 +43,24 @@ PY_GUARDED = {"vps_force_pull.py": "tests/test_force_pull_guard.py"}
 #: "production-capable" when it mentions /opt/leadgen, docker-compose.vps.yml,
 #: leadsgenai.in or the VPS IP. That heuristic produced false positives, and a
 #: heuristic must not decide guard policy — reading the file must.
+#: NOTE: a `.github/workflows/tests.yml` entry lived here until 2026-09-20. The
+#: workflow was deleted in 9b302b70 ("remove duplicate CI workflows") but its
+#: exemption stayed — a slashed key is never matched by the `scripts/*` glob, so
+#: the entry did nothing except outlive its file. `test_reclassified_paths_are_
+#: not_treated_as_release_paths` now requires every entry to still exist.
 RECLASSIFIED = {
-    ".github/workflows/tests.yml": (
-        "TEST_ONLY — runs-on: ubuntu-latest; its `git clean -fdxq` and "
-        "`git checkout --orphan ci-debug` act on the RUNNER's ephemeral checkout "
-        "and push to a ci-debug branch. No /opt/leadgen, no ssh, no production "
-        "compose. The scanner matched only the git config email ci@leadsgenai.in."
+    "deploy_preflight.sh": (
+        "GUARD_ITSELF — this is a pre-deploy GATE, not a release path. Both "
+        "scanner hits are the literal text of its own diagnostic messages: "
+        '`fail "found \'docker compose up -d ... app\' in scripts/"` (line 49) '
+        'and `ok "no live …"` (line 51). Routing the guard through the release '
+        "parent it exists to check would be circular, and classifying it as "
+        "unguarded debt would label the guard as the risk. ⚠️ Note for whoever "
+        "changes the app rollout: lines 56-58 assert that deploy_vps.sh "
+        "CONTAINS `systemctl restart leadgen`, so this preflight currently "
+        "locks in the 2026-09-15 systemd topology and will FAIL a script that "
+        "rolls `app` through compose instead. Live prod (2026-09-20) disagrees "
+        "with that topology — see tests/test_no_app_container_drift.py."
     ),
     "pg_restore_drill.sh": (
         "DATABASE_RESTORE — restores a backup into a THROWAWAY container "
@@ -79,6 +91,10 @@ UNGUARDED_DEBT = {
     "deploy_adr096.sh": "one-off ADR deploy — wave 2",
     "deploy_adr097.sh": "one-off ADR deploy — wave 2",
     "deploy_all.sh": "git pull — wave 2",
+    "emergency_fix.sh": "unguarded prod `git pull origin main` (line 70) + "
+                        "unconditional `redis-cli DEL dlq:dead` (line 17) + "
+                        "`docker-compose up -d dsh_worker` (line 47); owner=ops "
+                        "— wave 2: guard it or retire it to a stub",
     # --- container-replacement paths -------------------------------------
     # Found only when the scan included `docker compose up -d`. Recreating a
     # container does not by itself revert data/, but these scripts run against
@@ -112,6 +128,16 @@ UNGUARDED_DEBT = {
 
 def _text(p: Path) -> str:
     return p.read_text(encoding="utf-8", errors="ignore")
+
+
+def _registry_path(name: str) -> Path:
+    """Resolve a registry key: bare names live in scripts/, slashed ones at the repo root."""
+    return REPO / name if "/" in name else SCRIPTS / name
+
+
+def _registry_path(name: str) -> Path:
+    """Resolve a registry key: bare names live in scripts/, slashed ones at the repo root."""
+    return REPO / name if "/" in name else SCRIPTS / name
 
 
 def _first_destructive_line(text: str) -> int | None:
@@ -197,7 +223,15 @@ def test_no_undeclared_destructive_script() -> None:
     This is the anti-drift check: the previous working list of three was wrong,
     and nothing caught it.
     """
-    known = set(GUARDED_NOW) | set(UNGUARDED_DEBT) | set(PY_GUARDED)
+    known = (
+        set(GUARDED_NOW)
+        | set(UNGUARDED_DEBT)
+        | set(PY_GUARDED)
+        # A reclassified path is deliberately OUT of the release-path population,
+        # so it is exempt from this scan — which is exactly why it must carry an
+        # evidence reason and still exist on disk (see the anti-rot assert below).
+        | set(RECLASSIFIED)
+    )
     undeclared: list[str] = []
     for path in sorted(SCRIPTS.glob("*")):
         if path.suffix not in {".sh", ".py"} or path.name in {GUARD, PREFLIGHT}:
@@ -225,6 +259,13 @@ def test_reclassified_paths_are_not_treated_as_release_paths() -> None:
         assert reason.strip(), name
         assert name.split("/")[-1] not in GUARDED_NOW, (
             f"{name} was reclassified as non-release but is listed as a normal-release guarded path"
+        )
+        # An exemption that outlives its file is a silent bypass waiting for a
+        # rename to reuse the name. Each entry must still exist on disk.
+        assert _registry_path(name).is_file(), (
+            f"{name} is reclassified (and therefore exempt from the "
+            "undeclared-destructive scan) but no longer exists — remove it from "
+            "RECLASSIFIED so the exemption cannot rot"
         )
 
 

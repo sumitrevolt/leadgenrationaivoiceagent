@@ -25,10 +25,11 @@ def _tracked(prefix: str) -> list[str]:
 
 
 def test_legacy_duplicate_tree_is_absent() -> None:
-    assert _tracked(LEGACY) == [], (
-        "The duplicate .agents/skills tree must not exist in Git; "
-        "the canonical skill root is .claude/skills."
-    )
+    for non_canonical in [LEGACY, ".cursor/skills", "skills"]:
+        assert _tracked(non_canonical) == [], (
+            f"The non-canonical skill tree '{non_canonical}' must not exist in Git; "
+            f"the single canonical skill root is {CANON} (ADR-131)."
+        )
 
 
 def test_no_dockerfile_bakes_legacy_root() -> None:

@@ -16,6 +16,8 @@ Schema per entry: `[DATE] What broke | Root cause | Fix | Prevention rule added`
 
 [2026-06-XX] CLAUDE.md mid-file corruption | Sandbox bash append on a STALE mount | Rewrote from git; memory edits ab SIRF Windows file-tools (Edit/Write) | RULE: kabhi bash-append on memory files; Windows = source of truth.
 
+[2026-09-21] **Telegram "dual-bot coordination LIVE" tha hi nahi — revoked Notify token ne owner alerts chup-chaap nigal liye, aur Hermes token ka asli poller nikla.** Live read-only probe (`scripts/telegram_verify_setup.py`, 2026-09-21) ne 4 contradictions nikale: (1) `TELEGRAM_NOTIFY_BOT_TOKEN` = **401 Unauthorized** (aur `.env` ka `TELEGRAM_BOT_TOKEN` wahi dead value), par `len(token) >= 20` ki wajah se code use "configured" maanta raha → `telegram_coordinator.dispatch_egress_alert()` single-token path tha, isliye NOTIFY staging ka har P0 alert chup-chaap drop hua (P0 visibility outage; `app/utils/telegram_egress.py` me pehle se 401-blacklist fallback tha — asymmetry). (2) Jarvis token valid hai par non-consuming `getUpdates(allowed_updates=[])` probe ne **HTTP 409 Conflict** diya: asli polling owner **Hermes gateway** (`hermes_cli.main --profile pilot gateway run`) tha, isliye repo ka runner ek bhi owner command receive nahi kar sakta tha. (3) 0/13 spec groups Jarvis bot ke liye reachable (`chat not found`) — bot un groups me kabhi add hi nahi hua. (4) `workers_coordination`/`agents_coordination`/`admin_command_center` spec me **empty chat_id** ke saath ship hote hain (Bot API khud group nahi bana sakta) — yaani woh groups exist hi nahi karte the, jabki ek commit "dual-bot coordination" claim kar chuka tha. **Root cause:** docs/claims code-presence ko runtime truth maan rahe the, aur credential health sirf *presence* se check hoti thi, *validity* se nahi. **Fix:** `TELEGRAM_INGRESS_OWNER` role gate + polling lease (Redis/file, stale takeover) + 409-standby jo apna lease release karta hai; `validate_bot_token()` (PRESENT != AUTHENTICATED) gate; egress candidate chain (notify → legacy → jarvis) with 401 blacklisting + `via` reporting; cross-process update dedupe (Redis SETNX, fail-open); `scripts/telegram_verify_setup.py` truth-table + `scripts/telegram_wire_coordination_groups.py` (ambiguous bare keys refused) + fail-closed VPS installer. Evidence: `tests/test_telegram_dual_bot.py` 21/21, `tests/test_telegram_wiring_tool.py` 10/10, telegram suite 51/51, `prod_check` PASS (1481 routes), `check_secrets` clean, verifier ab NOTIFY=INVALID aur 3 REQUIRED-UNWIRED groups ko RED report karta hai. **Prevention RULE:** koi bhi credential "configured" nahi kehlata jab tak live `getMe`/probe valid na ho; ek bot token = ek `getUpdates` consumer (409 ko evidence maano, noise nahi); coordination group ke liye empty `chat_id` = UNWIRED, aur verifier ko tab tak exit 1 dena hai jab tak owner use wire na kare.
+
 [2026-06-XX] Windows dev: processes dying mysteriously | `os.kill(pid, 0)` on Windows sends CTRL_C (not a liveness probe) | `_pid_alive` via ctypes OpenProcess | RULE: POSIX idioms Windows pe verify karo.
 
 [2026-06-2X] Admin dashboard all-zeros + latent breakage | Godfile split left 37 latent NameErrors (e.g. missing `timezone` import) — silent until route hit | ruff F821 sweep + fixes + test (db2b0a5) | RULE: refactor ke baad `ruff check` F821 mandatory; import-smoke != route-smoke.
@@ -179,3 +181,53 @@ Triage rule: assign one primary ID only after evidence; optional secondary IDs m
 **Landmine added:** Systemd app + Docker compose dual-path architecture. `.env` must have host-compatible values (127.0.0.1 for DB) since systemd reads it directly. Compose `environment:` block only affects Docker containers.
 
 **Version skew note:** Systemd app = `cdc28e0d`, Docker workers/scheduler = `95245ce8`. This is the current operating model — deploy script builds Docker images but systemd holds port 8000. `scripts/vps_app_container_swap.sh` exists for cutover but hasn't been run.
+
+---
+
+## 2026-09-20: The web tier flipped back to Docker and nothing noticed — systemd unit is a 203/EXEC crash-loop, and the deploy script still "rolls" it
+
+**Severity:** HIGH — `deploy_vps.sh` has no working rollout path for the tier that answers `https://leadsgenai.in`, and a *guard test* plus a *pre-deploy gate* now assert the opposite topology as fact.
+
+**Live read-only probe, 2026-09-20T12:23Z (this supersedes the 2026-09-15 "systemd owns :8000" finding above — the topology flipped back and no document recorded it):**
+```
+systemctl is-active leadgen        -> active          # misleading
+systemctl status leadgen           -> activating (auto-restart), Result=exit-code
+                                     ExecStart=... status=203/EXEC
+                                     Main PID 612258 (code=exited, status=203/EXEC)
+systemctl show -p NRestarts        -> NRestarts=5583
+systemctl is-enabled leadgen       -> disabled
+ls /opt/leadgen/.venv/bin/python   -> No such file or directory
+ss -ltnp | grep :8000              -> docker-proxy pid=3897732  (NOT uvicorn)
+docker ps                          -> leadgen_app   ...:c691c8d1  Up 7 hours (healthy)
+                                     127.0.0.1:8000->8080/tcp
+/health                            -> {"version":"c691c8d1","environment":"production"}
+worker/scheduler/worker_heavy/worker_video/dsh_worker -> :39ea0085  Up 2 hours
+prod checkout HEAD                 -> 93f2ce0c        (local main tip: 2d1245c6)
+```
+Four revisions in one runtime: web `c691c8d1`, workers `39ea0085`, checkout `93f2ce0c`, local tip `2d1245c6`. Plus six `leadgen_worker_cli_*` + `leadgen_renderer` + `leadgen_mcp` still on **untagged image ids** (`4fbb5fdff305`, `25cc938f0b99`) — running code that cannot be resolved back to a commit.
+
+**Root causes**
+1. `status=203/EXEC` = systemd could not exec the unit's interpreter. `/opt/leadgen/.venv/bin/python` does not exist; the image's venv is `/opt/venv`. The unit has been failing every restart **5583 times**, silently, because it is `disabled` (so nothing at boot) and `Restart=` keeps re-attempting.
+2. `deploy_vps.sh:530` gates the app rollout on `systemctl cat leadgen` — that proves a **unit file exists**, not that the unit can run. `systemctl restart` returns 0 for a `Type=simple` unit whose exec later fails, so line 536 prints `systemctl restart leadgen -> OK` for an operation that moved nothing. The only thing that catches it is the `/health.version` gate at :574 (`exit 3`) — the deploy fails, but by then the message said OK and the workers are already on the new image.
+3. `app` is absent from `SERVICES` (line 41, owner decision 2026-09-15) and `test_no_app_container_drift.py` ratchets that no script may roll `app` via compose, with a docstring asserting "There is no `leadgen_app` container". `scripts/deploy_preflight.sh:56-58` goes further and FAILS a deploy script that stops containing `systemctl restart leadgen`. So the wrong topology is now protected in three places, and the honest fix is an owner decision, not a test edit.
+
+**Contributing cause — why nobody caught it:** `/health` was answering 200 with `environment: production` and a real sha, so every dashboard looked healthy. A version that is simply *old* is indistinguishable from a version that is current unless something compares it to the thing you just built.
+
+**Fixed in this loop (local, uncommitted, owner-gated for deploy):**
+- `scripts/refresh_typesafe_env.sh` → refusing stub. It printed `prefix=${key[:14]}` of the live `TYPESAFE_API_KEY` twice per run, pinned a stale `APP_VERSION=404e5309` (running it today downgrades the worker two weeks), piped compose into `| tail -6` (masked exit), and could never have refreshed the app env anyway — it recreated neither the app container nor a functioning unit. Now covered by `test_retired_stubs_refuse_to_run` (behavioural: exits 1, prints RETIRED, points at `deploy_vps.sh`).
+- `scripts/vps_migrate.sh` → `python3 -c "import alembic"` replaced by `python3 -m alembic --help`, and a `leadgen_app` container candidate added after `leadgen_worker`. Verified on prod: `/opt/venv/bin/alembic` exists in both containers. New guard: `tests/test_vps_migrate_probe.py` (+ anti-vacuity test against the shape that shipped).
+- `.github/workflows/security-scan.yml` → both Trivy installers hardened (`set -euo pipefail`, `--retry-all-errors`, `test -s`, then execute; `trivy --version` proves the binary). New guard: `tests/test_workflow_installer_integrity.py`.
+- `app/api/typesafe_routes.py` → the status endpoint's Telegram branch imported `get_telegram_typesafe_router`, **a symbol that does not exist anywhere in the repo**; `except Exception: pass` swallowed the `ImportError` on every request, so a live consumer was silently never counted. Replaced with the three real accessors gated on `.client.enabled`; both swallowed `except:` now log; docstring states that `active_consumers_count` is CONFIGURED, not invoked. New guard: `tests/test_typesafe_status_consumer_probe.py` (resolves every `from app...` import in the file — the AGENTS.md §7 function-level-import landmine, made static).
+- `tests/test_deploy_guard_ordering.py` → `RECLASSIFIED` is now actually consulted by the undeclared-destructive scan (it was documentation-only, so reclassified files were reported as debt); `deploy_preflight.sh` added as GUARD_ITSELF (its two hits are the literal text of its own `fail`/`ok` messages), `emergency_fix.sh` added as real debt (`git pull origin main`, unconditional `redis-cli DEL dlq:dead`), stale `.github/workflows/tests.yml` exemption removed with a note, and every `RECLASSIFIED` entry must now still exist on disk.
+- `tests/test_no_app_container_drift.py` → docstring and failure message corrected to live evidence; **assertions unchanged** (the port-collision false-success mechanism is topology-independent).
+
+**Landmines added**
+- `systemctl is-active` returning `active` is not evidence a service works. Read `systemctl show -p NRestarts -p ExecMainCode -p ExecMainStatus` and `ss -ltnp` for the port; 203/EXEC means the interpreter path is gone.
+- `systemctl cat <unit>` proves a FILE exists. A deploy gate written on it proves nothing about the running system.
+- A guard test that documents its premise in a docstring goes stale silently. Re-probe the host before repeating a topology claim; the 2026-09-15 note and the 2026-09-20 reality are opposite.
+- A `try: import X; count += 1; except: pass` in a status endpoint is the worst kind of observability: it looks like a measurement, never fires, and logs nothing.
+- Stale `.pyc` with no source is evidence of uncommitted work that was destroyed. `prod_check.py` reports 7 such modules under `app/platform/` (`revenue_acceleration.py`, `customer_value.py`, `lead_ingestion.py`, `international_outreach.py`, `secure_credentials.py`, `hermes3d_coordination.py`) and 6 under `tests/` (`test_typesafe_p0_fail_closed.py`, …); `git log --diff-filter=D` finds **no deletion** — they were never committed, so git cannot restore them. Decompiling the `.pyc` is the only partial recovery path. Do not delete the `__pycache__` files before triage.
+- **Recurring, third confirmed instance:** uncommitted work in this shared checkout is destroyed within hours by another agent's branch switch / reset / prune (2026-09-19 unborn-HEAD, this loop's lost fixes, plus the ghost `.pyc` set). Anything worth keeping must be committed or exported fast — and committing is owner-gated, so flag it rather than sitting on it.
+
+**Owner decisions outstanding:** (1) web-tier rollout topology — container (`app` into `SERVICES`, retire the unit, relax `deploy_preflight.sh:56-58` + this ratchet) or host venv (`/opt/leadgen/.venv` recreated + `systemctl enable`), and which single revision fleet-wide; (2) re-enable ruleset `23507307 protect-main` (`enforcement: "disabled"` as of 2026-09-20T12:30Z — classic protection now exists with required contexts `pytest`, `ruff`, `secret-scanning`, so the earlier "all CI is advisory" line is stale); (3) SmartFlo credentials — `Tata Smartflo call rejected: 401 Unable to process this request` is in the live app log right now with `_retry1`/`retry #2` being scheduled behind it; (4) `TYPESAFE_API_KEY` rotation (14-char prefix committed in `0ce08f2e`).
+

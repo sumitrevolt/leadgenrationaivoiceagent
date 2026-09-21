@@ -31,10 +31,14 @@ Credential state vocabulary (2026-09-18) — used by `credential_state()` below,
 """
 
 import hashlib
+import json
 import logging
 import os
+import re
+import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal, Mapping, TypedDict, cast
 
 import requests
@@ -58,7 +62,7 @@ _DEFAULT_MODEL = "jev-latest"
 CredentialStateName = Literal["PRESENT", "ABSENT", "INVALID", "ROTATION_REQUIRED"]
 
 
-class CredentialState(TypedDict):
+class CredentialState(TypedDict, total=False):
     """Return shape of `credential_state()`. Never contains the key itself."""
 
     state: CredentialStateName
@@ -66,6 +70,8 @@ class CredentialState(TypedDict):
     source: str
     fingerprint: str
     model: str
+    pool_size: int
+    pool_fingerprints: list[str]
 
 
 class QuestionPayload(TypedDict, total=False):
@@ -115,10 +121,11 @@ _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 _MAX_ATTEMPTS = 3
 _MAX_RETRY_SLEEP_SEC = 4.0
 
-
-def _get_api_key() -> str:
-    """Read API key from canonical env, with legacy fallback."""
-    return (os.getenv("TYPESAFE_API_KEY") or os.getenv("TYPEsafe_API_KEY") or "").strip() or ""
+# Pool state for multi-key rotation and rate-limit cooldown
+_POOL_LOCK = threading.Lock()
+_KEY_IDX = 0
+_KEY_COOLDOWNS: dict[str, float] = {}  # sha256_fp -> epoch_sec
+_RUNTIME_KEYS_FILE = os.path.join("data", "typesafe_keys.json")
 
 
 def fingerprint(value: str) -> str:
@@ -134,6 +141,158 @@ COMPROMISED_FINGERPRINTS: dict[str, str] = {
     # getenv fallback default in this file, commit 7317f990 (removed in 979c2229).
     "fe66d7de1807": "committed in 7317f990 (removed 979c2229)",
 }
+
+
+def _split_keys(raw: str) -> list[str]:
+    return [k.strip().lstrip("\ufeff") for k in re.split(r"[,\s\n]+", raw or "") if k.strip().lstrip("\ufeff")]
+
+
+def _load_runtime_keys() -> list[str]:
+    """Admin-set runtime store (data/typesafe_keys.json). [] if absent/unreadable."""
+    try:
+        if os.path.exists(_RUNTIME_KEYS_FILE):
+            with open(_RUNTIME_KEYS_FILE, encoding="utf-8") as f:
+                d = json.load(f)
+                if isinstance(d, dict) and isinstance(d.get("keys"), list):
+                    return [str(k).strip() for k in d["keys"] if str(k).strip()]
+                elif isinstance(d, list):
+                    return [str(k).strip() for k in d if str(k).strip()]
+    except Exception as e:
+        logger.debug("[typesafe] Failed to read runtime keys: %s", e)
+    return []
+
+
+def _load_all_keys() -> list[str]:
+    """Collect TypeSafe keys from multiple canonical sources, deduped + ordered.
+    Sources checked:
+      1. TYPESAFE_API_KEYS (comma/space/newline separated)
+      2. Individual numbered keys: TYPESAFE_API_KEY_1 .. TYPESAFE_API_KEY_4
+      3. TYPESAFE_API_KEY (canonical single/comma-separated)
+      4. TYPEsafe_API_KEY (legacy)
+      5. data/typesafe_keys.json (admin runtime store)
+      6. .env.production.local (local developer fallback)
+    """
+    raw_keys: list[str] = []
+
+    # 1. Multi-key env var
+    multi = os.getenv("TYPESAFE_API_KEYS", "")
+    if multi:
+        raw_keys.extend(_split_keys(multi))
+
+    # 2. Numbered keys (e.g. TYPESAFE_API_KEY_1 through TYPESAFE_API_KEY_4)
+    for i in range(1, 5):
+        numbered = os.getenv(f"TYPESAFE_API_KEY_{i}", "")
+        if numbered:
+            raw_keys.extend(_split_keys(numbered))
+
+    # 3. Canonical single/comma-separated key
+    single = os.getenv("TYPESAFE_API_KEY", "")
+    if single:
+        raw_keys.extend(_split_keys(single))
+
+    # 4. Legacy env key
+    legacy = os.getenv("TYPEsafe_API_KEY", "")
+    if legacy:
+        raw_keys.extend(_split_keys(legacy))
+
+    # 5. Runtime keys file
+    raw_keys.extend(_load_runtime_keys())
+
+    # 6. Encrypted KeyManager vault slots (TS_A..TS_D)
+    try:
+        from app.platform.key_manager import get_key_manager
+
+        km = get_key_manager()
+        raw_keys.extend(km.get_all_typesafe_slot_keys())
+    except Exception as _e:
+        logger.debug("[typesafe] Failed to load keys from key_manager vault: %s", _e)
+
+    # Deduplicate while preserving order & filter compromised fingerprints
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for k in raw_keys:
+        clean = k.strip().lstrip("\ufeff")
+        if clean and clean not in seen:
+            seen.add(clean)
+            fp = fingerprint(clean)
+            if fp not in COMPROMISED_FINGERPRINTS:
+                cleaned.append(clean)
+
+    return cleaned
+
+
+def _get_api_key() -> str:
+    """Read API key from pool, with canonical env fallback for exposed tripwires."""
+    keys = _load_all_keys()
+    if not keys:
+        return (os.getenv("TYPESAFE_API_KEY") or os.getenv("TYPEsafe_API_KEY") or "").strip().lstrip("\ufeff")
+    return get_active_api_key()
+
+
+def get_active_api_key() -> str:
+    """Get the currently active API key from the rotation pool.
+    Skips keys currently in cooldown (e.g. following a 429) if healthy keys exist.
+    """
+    global _KEY_IDX
+    keys = _load_all_keys()
+    if not keys:
+        return (os.getenv("TYPESAFE_API_KEY") or os.getenv("TYPEsafe_API_KEY") or "").strip().lstrip("\ufeff")
+
+    with _POOL_LOCK:
+        now = time.time()
+        for offset in range(len(keys)):
+            candidate_idx = (_KEY_IDX + offset) % len(keys)
+            k = keys[candidate_idx]
+            fp = fingerprint(k)
+            cooldown_until = _KEY_COOLDOWNS.get(fp, 0.0)
+            if now >= cooldown_until:
+                _KEY_IDX = candidate_idx
+                return k
+
+        # If all keys are in cooldown, return the one that expires earliest
+        best_k = min(keys, key=lambda k: _KEY_COOLDOWNS.get(fingerprint(k), 0.0))
+        return best_k
+
+
+def advance_key(failed_key: str | None = None, cooldown_sec: float = 60.0) -> str:
+    """Rotate pool index to next key, placing failed_key in cooldown."""
+    global _KEY_IDX
+    keys = _load_all_keys()
+    if not keys:
+        return ""
+
+    with _POOL_LOCK:
+        if failed_key:
+            fp = fingerprint(failed_key)
+            _KEY_COOLDOWNS[fp] = time.time() + cooldown_sec
+            logger.info("[typesafe_pool] Key %s entered cooldown for %.1fs", fp, cooldown_sec)
+        _KEY_IDX = (_KEY_IDX + 1) % len(keys)
+        return keys[_KEY_IDX]
+
+
+def record_key_success(key: str) -> None:
+    """Clear cooldown on successful API response."""
+    fp = fingerprint(key)
+    if fp in _KEY_COOLDOWNS:
+        _KEY_COOLDOWNS.pop(fp, None)
+
+
+def get_typesafe_pool_status() -> dict[str, Any]:
+    """Safe pool status for diagnostics and monitoring (fingerprints only)."""
+    keys = _load_all_keys()
+    now = time.time()
+    active_healthy = [k for k in keys if now >= _KEY_COOLDOWNS.get(fingerprint(k), 0.0)]
+    return {
+        "total_keys": len(keys),
+        "healthy_keys": len(active_healthy),
+        "current_index": _KEY_IDX if keys else 0,
+        "fingerprints": [fingerprint(k) for k in keys],
+        "cooldowns": {
+            fp: round(exp - now, 1)
+            for fp, exp in _KEY_COOLDOWNS.items()
+            if exp > now
+        },
+    }
 
 
 def credential_state() -> CredentialState:
@@ -156,18 +315,21 @@ def credential_state() -> CredentialState:
     source = (
         "env:TYPESAFE_API_KEY"
         if (os.getenv("TYPESAFE_API_KEY") or "").strip()
-        else "env:TYPEsafe_API_KEY"
+        else ("env:TYPESAFE_API_KEYS" if (os.getenv("TYPESAFE_API_KEYS") or "").strip() else "env:TYPEsafe_API_KEY")
     )
     fp = fingerprint(key)
     state: CredentialStateName = (
         "ROTATION_REQUIRED" if fp in COMPROMISED_FINGERPRINTS else "PRESENT"
     )
+    all_keys = _load_all_keys()
     return {
         "state": state,
         "enabled": True,
         "source": source,
         "fingerprint": fp,
         "model": model,
+        "pool_size": len(all_keys),
+        "pool_fingerprints": [fingerprint(k) for k in all_keys],
     }
 
 
@@ -453,17 +615,17 @@ class TypeSafeClient:
         }
 
         url = f"{self.base_url}/v1/systemone"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-
         start = time.time()
         attempts = 0
         last_error = "UNEXPECTED: no attempt made"
 
         while attempts < _MAX_ATTEMPTS:
             attempts += 1
+            current_key = self.api_key or get_active_api_key()
+            headers = {
+                "Authorization": f"Bearer {current_key}",
+                "Content-Type": "application/json",
+            }
             try:
                 response = requests.post(
                     url,
@@ -472,10 +634,12 @@ class TypeSafeClient:
                     timeout=(_CONNECT_TIMEOUT_SEC, _READ_TIMEOUT_SEC),
                 )
             except requests.Timeout as exc:
-                # Connect/read timeout is transient — worth the retry budget.
+                # Connect/read timeout is transient — worth the retry budget and advancing key.
                 last_error = f"TIMEOUT: {exc}"
+                advance_key(current_key, cooldown_sec=10.0)
             except requests.RequestException as exc:
                 last_error = f"NETWORK: {exc}"
+                advance_key(current_key, cooldown_sec=10.0)
             except Exception as exc:  # noqa: BLE001 - contract: never raise to caller
                 # Anything else is a BUG, not a provider condition. Log with a
                 # traceback (logger.exception) so it is visible, and still return
@@ -491,6 +655,7 @@ class TypeSafeClient:
             else:
                 status = response.status_code
                 if status == 200:
+                    record_key_success(current_key)
                     latency = time.time() - start
                     try:
                         data = response.json()
@@ -526,8 +691,11 @@ class TypeSafeClient:
                         latency_sec=time.time() - start,
                         attempts=attempts,
                     )
+                # Rotate key on 429 / 5xx error
+                cooldown = 60.0 if status == 429 else 15.0
+                advance_key(current_key, cooldown_sec=cooldown)
                 logger.warning(
-                    f"TypeSafe system_one transient {last_error} (attempt {attempts}/{_MAX_ATTEMPTS})"
+                    f"TypeSafe system_one transient {last_error} (attempt {attempts}/{_MAX_ATTEMPTS}) -> rotated key"
                 )
 
             if attempts < _MAX_ATTEMPTS:

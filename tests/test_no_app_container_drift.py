@@ -1,24 +1,37 @@
 """Ratchet: no script may roll `app` as a compose service again.
 
-TOPOLOGY (owner decision 2026-09-15): the systemd unit `leadgen` is the
-authoritative server for 127.0.0.1:8000 (EnvironmentFile=/opt/leadgen/.env, host
-uvicorn). There is no `leadgen_app` container.
+TOPOLOGY — ⚠️ CORRECTED 2026-09-20 against the live host, which outranks the
+2026-09-15 owner note this file was written with. That note said the systemd unit
+`leadgen` is the authoritative server for 127.0.0.1:8000 and that no
+`leadgen_app` container exists. Neither is true now (read-only probe,
+2026-09-20T12:23Z):
 
-docker-compose.vps.yml still DECLARES an `app` service publishing
-`127.0.0.1:8000:8080`. That port is already owned by the unit, so every
-`up -d ... app`:
+    systemctl is-active leadgen   -> active, but `activating (auto-restart)`
+    systemctl show leadgen -p NRestarts -> NRestarts=5583, ExecMainStatus=203
+    ls /opt/leadgen/.venv/bin/python    -> No such file or directory
+    ss -ltnp | grep :8000               -> docker-proxy (NOT uvicorn on the host)
+    docker ps               -> leadgen_app  ...:c691c8d1  Up (healthy)
+                               127.0.0.1:8000->8080/tcp
 
-  * cannot bind :8000 -- the recreate fails, while the already-running process
-    keeps serving the OLD code, and
-  * leaves a later `curl 127.0.0.1:8000/health` returning 200,
+So the unit cannot exec at all (203/EXEC = its interpreter is missing) and the
+CONTAINER holds the port. `app` remains absent from deploy_vps.sh's SERVICES list,
+which is an OWNER decision still on hold (see memory/incidents.md
+"Partial deploy — alembic gate false-failed", ADR-194). This ratchet is
+therefore still enforcing a decision whose premise has changed: it stops ad-hoc
+scripts from rolling `app` while the canonical rollout path for the web tier is
+unresolved. Do not "fix" this by deleting the ratchet — fix the topology.
 
-which is a FALSE SUCCESS: the script reports a successful deploy/reload when
-nothing moved. Thirty-four files did exactly this. Four of them (`chaos_test.sh`,
-`vps_flywheel_deploy.sh`, `vps_deploy_fable.sh`, `vps_deploy_selfimprove.sh`) ran
-without `set -e`, so the failure was completely silent; two more (`set_kv.sh`,
-`infra_activate.sh`) failed loudly but the operator still believed the flag they
-had just written into `.env` was live. That false-live pattern is what produced
-the DND fail-open false alarm, so this class is worth pinning.
+WHY THE RULE STILL HOLDS: two processes cannot bind 127.0.0.1:8000. Whatever
+holds it is what `/health` answers from. A script that recreates the `app`
+service while something else owns the port produces a recreate failure next to a
+200 response — a FALSE SUCCESS: the script reports a successful deploy/reload
+when nothing moved. Thirty-four files did exactly this. Four of them
+(`chaos_test.sh`, `vps_flywheel_deploy.sh`, `vps_deploy_fable.sh`,
+`vps_deploy_selfimprove.sh`) ran without `set -e`, so the failure was completely
+silent; two more (`set_kv.sh`, `infra_activate.sh`) failed loudly but the
+operator still believed the flag they had just written into `.env` was live.
+That false-live pattern is what produced the DND fail-open false alarm, so this
+class is worth pinning.
 
 This test needs no docker and no systemd: it parses the scripts and asserts the
 `app` token never appears in an `up -d` service list. It is a ratchet -- it will
@@ -27,7 +40,7 @@ fail the moment someone reintroduces the pattern.
 Deliberately NOT flagged:
   * `scripts/legacy/**` -- archived history; those files exist to record the old
     world, and rewriting them would destroy the record.
-  * the two RETIRED stubs and `vps_build_deploy.py` -- their comments/docstring
+  * the RETIRED stubs and `vps_build_deploy.py` -- their comments/docstring
     quote the old command on purpose. Their behaviour is asserted separately.
   * `docker compose ... build app` -- wasteful under this topology (it builds an
     image nothing serves) but not a correctness bug, so it is out of scope here.
@@ -112,10 +125,13 @@ def test_no_script_rolls_app_as_a_compose_service():
                 offenders.append(f"{p.relative_to(REPO).as_posix()}:{n}: {line.strip()}")
 
     assert not offenders, (
-        "`app` is NOT a deployable container -- the systemd unit `leadgen` owns "
-        "127.0.0.1:8000, so `up -d ... app` can never bind the port and the "
-        "following health check still returns 200 (false success). Restart the "
-        "unit instead: `systemctl restart leadgen`.\n\nOffending lines:\n"
+        "`app` must not be rolled by an ad-hoc script: only one process can hold "
+        "127.0.0.1:8000, so a script that recreates it beside the current holder "
+        "gets a recreate failure AND a 200 from /health (false success). The "
+        "canonical release path is `bash scripts/deploy_vps.sh`; whether the web "
+        "tier should roll as a container or as the systemd unit is an OPEN OWNER "
+        "DECISION (the unit currently crash-loops at 203/EXEC — see this file's "
+        "docstring), and no script may pre-empt it.\n\nOffending lines:\n"
         + "\n".join(offenders)
     )
 
@@ -179,7 +195,7 @@ def test_detector_does_not_flag_lookalikes(line):
 
 @pytest.mark.parametrize(
     "rel",
-    ["vps_app_container_swap.sh", "deploy_now.sh"],
+    ["vps_app_container_swap.sh", "deploy_now.sh", "refresh_typesafe_env.sh"],
 )
 def test_retired_stubs_refuse_to_run(rel):
     p = SCRIPTS / rel
@@ -228,8 +244,13 @@ def test_retired_stubs_refuse_to_run(rel):
 def test_compose_app_service_still_publishes_the_port_systemd_owns():
     """If this ever fails, revisit the ratchet -- its premise changed.
 
-    The whole reason `up -d app` is a guaranteed failure is that compose maps
-    `app` onto 127.0.0.1:8000, the port the systemd unit already holds.
+    The whole reason `up -d app` is a guaranteed false success is that compose
+    maps `app` onto 127.0.0.1:8000 — the port something else already holds. On
+    2026-09-15 that was the systemd unit; the 2026-09-20 probe says it is the
+    running `leadgen_app` container itself. Either way the collision, and so
+    this ratchet, stands. Only the fix changes with it, which is why the
+    topology is an explicit owner decision rather than an assumption baked into
+    a comment.
     """
     text = COMPOSE.read_text(encoding="utf-8")
     assert re.search(r"^  app:\s*$", text, re.M), "compose no longer declares `app`"
