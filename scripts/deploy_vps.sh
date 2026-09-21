@@ -38,7 +38,7 @@ COMPOSE=docker-compose.vps.yml
 # never bind while that unit holds the port. Keeping `app` here made the skew
 # check fail closed on a service that cannot run. The app is rolled by
 # `systemctl restart leadgen` after the live checkout moves; see below.
-SERVICES="worker scheduler worker-heavy worker-video"
+SERVICES="worker scheduler worker-heavy worker-video tg-ingress"
 DSH_SERVICES="dsh-worker"
 ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"
 DRY_RUN="${DRY_RUN:-0}"
@@ -341,6 +341,7 @@ _legacy_name_for_service() {
     scheduler) echo leadgen_scheduler ;;
     worker-heavy) echo leadgen_worker_heavy ;;
     worker-video) echo leadgen_worker_video ;;
+    tg-ingress) echo leadgen_tg_ingress ;;
     dsh-worker) echo leadgen_dsh_worker ;;
     *) echo "" ;;
   esac

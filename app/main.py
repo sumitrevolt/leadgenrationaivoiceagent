@@ -677,6 +677,15 @@ try:
     app.include_router(telegram_typesafe_router)  # /api/telegram/typesafe/*
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Telegram bot API router not mounted: {_e}")
+try:
+    # P0-hardened key manager (2026-09-21): encrypted-at-rest storage +
+    # owner-gated auth (reads=require_admin, mutations=require_super_admin).
+    # /api/admin/keys/* — never exposes key values/prefixes to any surface.
+    from app.platform.key_manager import build_keys_router
+
+    app.include_router(build_keys_router())  # /api/admin/keys/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Key manager router not mounted: {_e}")
 
 # Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
 try:

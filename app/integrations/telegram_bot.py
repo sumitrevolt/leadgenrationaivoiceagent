@@ -58,6 +58,20 @@ def _get_owner_usernames() -> set[str]:
     return {u.strip().lower().lstrip("@") for u in raw.split(",") if u.strip()}
 
 
+def _get_owner_user_ids() -> set[int]:
+    """CANONICAL numeric owner allowlist (M7: immutable numeric ids, not
+    spoofable usernames). When non-empty it is the ONLY owner proof —
+    username matching is ignored. Empty => legacy username/chat fallback
+    (backward compatible, logged once)."""
+    raw = os.getenv("TELEGRAM_OWNER_USER_IDS", "").strip()
+    ids: set[int] = set()
+    for item in raw.split(","):
+        clean = item.strip().lstrip("@")
+        if clean.isdigit() or (clean.startswith("-") and clean[1:].isdigit()):
+            ids.add(int(clean))
+    return ids
+
+
 def _get_owner_chat_ids() -> set[int]:
     raw = os.getenv("TELEGRAM_OWNER_CHAT_IDS", "").strip()
     ids = set()
@@ -66,6 +80,9 @@ def _get_owner_chat_ids() -> set[int]:
         if clean.isdigit() or (clean.startswith("-") and clean[1:].isdigit()):
             ids.add(int(clean))
     return ids
+
+
+_LOGGED_NUMERIC_AUTH_WARN = False
 
 
 @dataclass
@@ -138,7 +155,36 @@ class TelegramBot:
     def is_owner(
         self, user_id: int | str, username: str | None = None, chat_id: int | str | None = None
     ) -> bool:
-        """Check if user or chat is an authorized owner."""
+        """Check if user or chat is an authorized owner.
+
+        Numeric-first policy: TELEGRAM_OWNER_USER_IDS (immutable numeric ids)
+        is the canonical allowlist. When set, username matches are IGNORED
+        (usernames are changeable => spoofable). When unset, legacy
+        username + chat-id fallback applies (backward compatible)."""
+        global _LOGGED_NUMERIC_AUTH_WARN
+        owner_ids = _get_owner_user_ids()
+        if owner_ids:
+            try:
+                uid = int(user_id) if user_id is not None else None
+            except (TypeError, ValueError):
+                uid = None
+            try:
+                cid = int(chat_id) if chat_id is not None else None
+            except (TypeError, ValueError):
+                cid = None
+            if uid in owner_ids or cid in owner_ids:
+                return True
+            # Numeric allowlist active: username match is NOT owner proof.
+            if username and username.strip().lower().lstrip("@") in _get_owner_usernames():
+                if not _LOGGED_NUMERIC_AUTH_WARN:
+                    logger.warning(
+                        "[telegram_bot] numeric owner allowlist active (TELEGRAM_OWNER_USER_IDS); "
+                        "username '%s' denied by design (spoofable) — add the numeric id instead",
+                        username,
+                    )
+                    _LOGGED_NUMERIC_AUTH_WARN = True
+            return False
+
         owners = _get_owner_usernames()
         if username and username.strip().lower().lstrip("@") in owners:
             return True
