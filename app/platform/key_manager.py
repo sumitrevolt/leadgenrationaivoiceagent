@@ -474,83 +474,108 @@ def build_keys_router() -> APIRouter:
 
     Returns a router (NOT a module-level singleton) so the auth imports are
     deferred to app-composition time — same pattern as main.py's resilient
-    router mounting.
+    router mounting. Endpoints resolve the agent through
+    ``Depends(get_key_manager)`` so tests can override it per-app while
+    production keeps the process singleton.
     """
     from app.api.auth_deps import require_admin, require_super_admin
     from app.models.user import User
 
+    def km() -> KeyManagerAgent:
+        return get_key_manager()
+
     router = APIRouter(prefix="/api/admin/keys", tags=["Admin - Key Manager"])
 
     @router.get("/status", summary="List all key slot states (redacted, owner view)")
-    async def list_status(_user: User = Depends(require_admin)) -> list[dict[str, Any]]:
-        km = get_key_manager()
-        return [km.get_state(s) for s in km.list_services()]
+    async def list_status(
+        _user: User = Depends(require_admin), agent: KeyManagerAgent = Depends(km)
+    ) -> list[dict[str, Any]]:
+        return [agent.get_state(s) for s in agent.list_services()]
 
     @router.get("/status/{service}")
     async def get_key_status(
-        service: str, _user: User = Depends(require_admin)
+        service: str,
+        _user: User = Depends(require_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
         """Redacted state only: ABSENT | PRESENT | INVALID | ROTATION_REQUIRED.
         No prefix/suffix/value in this or any other surface."""
-        return get_key_manager().get_state(service)
+        return agent.get_state(service)
 
     @router.post("/verify/{service}")
     async def verify_key_route(
-        service: str, _user: User = Depends(require_super_admin)
+        service: str,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
         """Billable provider smoke (TypeSafe initialize). Super-admin only."""
-        return get_key_manager().verify_key(service, actor="admin_ui")
+        return agent.verify_key(service, actor="admin_ui")
 
     @router.post("/set")
     async def set_key(
-        payload: SetKeyIn, _user: User = Depends(require_super_admin)
+        payload: SetKeyIn,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
         try:
-            return get_key_manager().set_key(payload.service, payload.key, actor="admin_ui")
+            return agent.set_key(payload.service, payload.key, actor="admin_ui")
         except KeyManagerError as exc:
             raise _map_key_manager_error(exc)
 
     @router.post("/rotate")
     async def rotate_key(
-        payload: RotateKeyIn, _user: User = Depends(require_super_admin)
+        payload: RotateKeyIn,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
         try:
-            return get_key_manager().rotate_key(payload.service, payload.new_key, actor="admin_ui")
+            return agent.rotate_key(payload.service, payload.new_key, actor="admin_ui")
         except KeyManagerError as exc:
             raise _map_key_manager_error(exc)
 
     @router.post("/delete/{service}")
     async def delete_key_route(
-        service: str, _user: User = Depends(require_super_admin)
+        service: str,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
-        return get_key_manager().delete_key(service, actor="admin_ui")
+        return agent.delete_key(service, actor="admin_ui")
 
     @router.post("/request-rotation/{service}")
     async def request_rotation_route(
-        service: str, _user: User = Depends(require_super_admin)
+        service: str,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
-        return get_key_manager().request_rotation(service, actor="admin_ui")
+        return agent.request_rotation(service, actor="admin_ui")
 
     @router.post("/deploy/{service}")
     async def deploy_key(
-        service: str, _user: User = Depends(require_super_admin)
+        service: str,
+        _user: User = Depends(require_super_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> dict[str, Any]:
         try:
-            return get_key_manager().deploy_to_env(service, actor="admin_ui")
+            return agent.deploy_to_env(service, actor="admin_ui")
         except KeyManagerError as exc:
             raise _map_key_manager_error(exc)
 
     @router.get("/audit/{service}")
     async def get_audit(
-        service: str, limit: int = 50, _user: User = Depends(require_admin)
+        service: str,
+        limit: int = 50,
+        _user: User = Depends(require_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> list[dict[str, Any]]:
-        return get_key_manager().get_audit_log(service, limit)
+        return agent.get_audit_log(service, limit)
 
     @router.get("/audit")
     async def get_all_audit(
-        limit: int = 100, _user: User = Depends(require_admin)
+        limit: int = 100,
+        _user: User = Depends(require_admin),
+        agent: KeyManagerAgent = Depends(km),
     ) -> list[dict[str, Any]]:
-        return get_key_manager().get_audit_log(None, limit)
+        return agent.get_audit_log(None, limit)
 
     return router
 

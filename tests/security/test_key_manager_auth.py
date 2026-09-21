@@ -14,8 +14,22 @@ from app.api.auth_deps import require_admin, require_super_admin
 from app.main import app
 
 
+def _leaf_routes(app_obj, _depth: int = 0):
+    """Yield concrete APIRoute objects, descending into FastAPI >=0.115's lazy
+    ``_IncludedRouter`` wrappers (``original_router``) with bounded depth.
+    Same descent pattern as ``app/main.py``'s Sentry route-name guard."""
+    if _depth > 6:
+        return
+    for route in getattr(app_obj, "routes", []):
+        wrapped = getattr(route, "original_router", None)
+        if wrapped is not None:
+            yield from _leaf_routes(wrapped, _depth + 1)
+        elif getattr(route, "path", None):
+            yield route
+
+
 def _route(path: str):
-    for r in app.routes:
+    for r in _leaf_routes(app):
         if getattr(r, "path", "") == path:
             return r
     raise AssertionError(f"route not found on app: {path}")
