@@ -177,6 +177,50 @@ services:
     networks: [leadgen_net, dsh_net]
 
   # ---------------------------------------------------------------------------
+  # Headless Jarvis ingress (2026-09-21) — single getUpdates consumer for the
+  # owner's interactive command bot so 24x7 owner commands/approvals keep
+  # flowing when the desktop is closed. GATED: TELEGRAM_INGRESS_ENABLED=0
+  # (default, inert — loop logs its posture and idles) / =1 => live poll.
+  # One bot token => ONE consumer: never run this with a desktop poller or a
+  # webhook active on the same Jarvis token (409 => honest backoff + alert).
+  # ---------------------------------------------------------------------------
+  tg-ingress:
+    build:
+      context: .
+      dockerfile: Dockerfile.lock
+      args:
+        APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_tg_ingress
+    # Tiny footprint: stdlib poll loop, no model loads.
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+    user: "0:0"
+    env_file: .env
+    command: ["python", "-m", "app.platform.telegram_ingress", "--loop"]
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_P…gen}
+      REDIS_URL: redis://redis:6379/0   # persistent dedupe + offset watermark
+      # Defaults: INERT until the owner flips TELEGRAM_INGRESS_ENABLED=1 in .env
+      TELEGRAM_INGRESS_ENABLED: ${TELEGRAM_INGRESS_ENABLED:-0}
+      COORDINATION_HUB_ENABLED: ${COORDINATION_HUB_ENABLED:-0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data        # audit trail + telemetry (shared host path)
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
   # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
   # in docker-compose.prod.yml). Data persisted in the named volume `pgdata`.
   # ---------------------------------------------------------------------------

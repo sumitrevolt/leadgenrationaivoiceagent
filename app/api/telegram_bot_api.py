@@ -17,9 +17,12 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+import os
+
+from app.api.auth_deps import require_admin
 from app.integrations.telegram_bot import get_telegram_bot, is_telegram_ready
 from app.integrations.telegram_typesafe import (
     get_bot_coordinator,
@@ -236,7 +239,19 @@ async def coordinate_handoff(request: HandoffRequest) -> HandoffResponse:
 
 @router.post("/webhook")
 async def handle_webhook(request: Request) -> dict[str, Any]:
-    """Process incoming Telegram update with authentication and deduplication."""
+    """Process incoming Telegram update with authentication and deduplication.
+
+    When TELEGRAM_WEBHOOK_SECRET is configured, Telegram must be pointed at
+    the webhook with a matching secret_token (query param) — mismatch => 401.
+    Unconfigured => legacy behaviour (TLS-terminated behind Caddy)."""
+    import hmac as _hmac
+
+    secret = (os.environ.get("TELEGRAM_WEBHOOK_SECRET") or "").strip()
+    if secret:
+        provided = (request.query_params.get("secret_token") or "").strip()
+        if not _hmac.compare_digest(provided, secret):
+            raise HTTPException(status_code=401, detail="webhook_secret_mismatch")
+
     try:
         body = await request.json()
     except Exception:
@@ -280,17 +295,26 @@ async def get_audit_logs(limit: int = Query(50, ge=1, le=200)) -> dict[str, Any]
 
 
 @router.post("/set-webhook")
-async def set_webhook(payload: SetWebhookRequest) -> dict[str, Any]:
-    """Set Telegram webhook URL."""
+async def set_webhook(payload: SetWebhookRequest, _user: Any = Depends(require_admin)) -> dict[str, Any]:
+    """Set Telegram webhook URL. Admin-gated (P0 2026-09-21: was unauthenticated —
+    an anonymous caller could have pointed the owner bot's update stream at an
+    attacker server). HTTPS-only; secret_token wired when configured."""
+    url = payload.url
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="webhook url must be https")
     bot = get_telegram_bot()
     if not bot.token:
         raise HTTPException(status_code=503, detail="Telegram bot token unconfigured")
 
     import requests
 
-    url = f"https://api.telegram.org/bot{bot.token}/setWebhook"
+    api_url = f"https://api.telegram.org/bot{bot.token}/setWebhook"
+    body: dict[str, Any] = {"url": url}
+    secret = (os.environ.get("TELEGRAM_WEBHOOK_SECRET") or "").strip()
+    if secret:
+        body["secret_token"] = secret
     try:
-        resp = requests.post(url, json={"url": payload.url}, timeout=10)
+        resp = requests.post(api_url, json=body, timeout=10)
         data = resp.json() if resp.status_code == 200 else {"ok": False, "error": resp.text}
         return {"ok": data.get("ok", False), "result": data}
     except Exception as e:

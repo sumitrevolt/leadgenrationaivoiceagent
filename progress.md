@@ -403,3 +403,22 @@ VPS par TypeSafe credential state PROVE karo (read-only probe). Local + prod don
 **Next Highest Priority:**
 - Commit and push the SSOT consolidation to `origin/main` and deploy to production VPS.
 
+## Loop Run — 2026-09-21 (Telegram local/VPS coordination + key-manager convergence)
+
+**Goal:** Owner-mandated same-day setup: local PC + VPS + Telegram with BOTH bots coordinated; P0 Key Manager hardening (converged onto PR #536); TypeSafe-backed deploy judgments.
+
+**Inspected:** VPS (srv1736379, 48 containers healthy; /health prod c691c8d1, workers 39ea0085 skew; GitHub main 00ab253d), dual-bot SSOT doc, coord hub HMAC primitive, auth_deps stack, FastAPI 0.141 lazy _IncludedRouter.
+
+**Problems Found:** (1) key_manager P0 unauthenticated router + plaintext JSON storage (dormant, unmounted); (2) NO headless Jarvis getUpdates consumer on VPS (desktop-only; /webhook scaffold not poll-looped); (3) /api/telegram/bot/set-webhook UNAUTHENTICATED = webhook-hijack vector; (4) username-based owner allowlist spoofable; (5) LIVE FINDING: egress bot token (@Leadsgenai1_bot / TELEGRAM_NOTIFY_BOT_TOKEN) returns 401 Unauthorized on getMe — all broadcast/alert egress currently fail-closed to logs (owner must reissue in BotFather); (6) parallel PR #536 already implemented key-manager P0 (ADMIN_API_KEY design) — my duplicate dropped to keep ONE P0 workstream.
+
+**Changed (branch feature/telegram-local-vps-coord, ON TOP OF #536 head 9afef009):** headless Jarvis ingress loop (Redis persistent dedupe + offset watermark, 409 conflict => honest backoff + one-shot owner-alert egress, inert default TELEGRAM_INGRESS_ENABLED=0); new tg-ingress compose service + deploy_vps.sh rollout entry; numeric owner allowlist TELEGRAM_OWNER_USER_IDS (username ignored when set; legacy fallback when unset); set-webhook admin-gated + https-only + optional TELEGRAM_WEBHOOK_SECRET (secret_token); local PC stdlib runner (coord-hub HMAC heartbeats tool_id=localpc + optional local bot /local /approve with persistent offset); setup_local_pc.ps1 + setup_vps_ingress.sh runbooks; docs/TELEGRAM_LOCAL_VPS_SETUP_2026-09-21.md (machine-topology SSOT); tests: test_telegram_ingress.py (6) + test_telegram_numeric_owner.py (4).
+
+**Tests Run (VPS, canonical app image, branch 3e477534 pre-restructure):** key-manager storage/security suite 15/15 PASSED; py_compile + compose yaml + bash -n all OK. New telegram test files added post-restructure — to verify on the restructured branch.
+
+**Verification Evidence:** Jarvis getMe LIVE (@Sumits_jarvis_bot id 8363810880, NO webhook set, pending=0); Notify getMe = Unauthorized (P1); TypeSafe System One live judgment (jev-latest->jev-1.13.0, 0.92s, input 1010/output 144 tokens): skew_risk noul=0.2, deploy_now noul=0.57, ingress_flip choice=after_flap_test_next_session p=0.79.
+
+**Risks:** #536 CI lanes red (shared CI infra — see open #537/#538); numeric allowlist changes owner-auth semantics only when TELEGRAM_OWNER_USER_IDS set (unset = zero behaviour change); tg-ingress inert by default; 409 conflict path alerted, never force-takes.
+
+**Remaining:** verify new telegram tests on restructured branch; open PR for feature/telegram-local-vps-coord (supersedes feature/keymanager-telegram-coord, to be deleted); owner actions: BotFather reissue egress bot token, create 3 coordination groups, TELEGRAM_OWNER_USER_IDS, KEYS_MASTER_KEY + ADMIN_API_KEY (per #536), merge order #537/#538 -> #536 -> this PR, canonical deploy_vps.sh, then flap test + flip TELEGRAM_INGRESS_ENABLED=1.
+
+**Next Highest Priority:** push restructured branch, run VPS test verification, open PR with evidence + merge-order note.
