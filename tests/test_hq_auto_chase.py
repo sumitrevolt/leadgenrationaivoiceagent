@@ -95,23 +95,31 @@ def test_flag_on_without_owner_approval_fails_closed(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("expires_at", "content_sha256", "reason"),
+    ("expiry_kind", "content_sha256", "reason"),
     [
-        (
-            (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
-            "valid",
-            "hq_auto_chase_approval_expired",
-        ),
-        (
-            (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+        pytest.param("expired", "valid", "hq_auto_chase_approval_expired", id="expired"),
+        pytest.param(
+            "future",
             "wrong-hash",
             "hq_auto_chase_approval_binding_mismatch:content_sha256",
+            id="wrong-hash",
         ),
     ],
 )
 def test_expired_or_mismatched_owner_approval_fails_closed(
-    monkeypatch, expires_at, content_sha256, reason
+    monkeypatch, expiry_kind, content_sha256, reason
 ):
+    # Resolve the timestamp at RUN time, never at COLLECTION time.
+    # A datetime.now() evaluated inside the parametrize list gives every
+    # pytest-xdist worker a different microsecond string, so gw0 and gw1
+    # collect different test IDs and xdist aborts the whole run with
+    # "Different tests were collected between gw0 and gw1" — which made the
+    # required `pytest` CI lane permanently red for every PR.
+    _now = datetime.now(timezone.utc)
+    expires_at = (
+        _now - timedelta(minutes=1) if expiry_kind == "expired" else _now + timedelta(hours=1)
+    ).isoformat()
+
     monkeypatch.setenv("HQ_AUTO_CHASE", "1")
     monkeypatch.setattr(
         "app.platform.approvals_bridge.get_verification_draft",
