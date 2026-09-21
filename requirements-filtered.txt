@@ -5,7 +5,7 @@
 # Core Framework
 # =============================================================================
 fastapi==0.141.1
-uvicorn[standard]==0.52.4
+uvicorn[standard]==0.53.0
 pydantic>=2.7.4,<3
 pydantic-settings==2.15.0
 email-validator==2.3.0
@@ -14,7 +14,7 @@ python-multipart==0.0.32
 # =============================================================================
 # Database
 # =============================================================================
-sqlalchemy==2.0.52
+sqlalchemy==2.0.54
 asyncpg==0.31.0
 psycopg2-binary==2.9.13
 aiosqlite==0.22.1
@@ -30,20 +30,20 @@ anthropic==0.122.0
 # langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.6.3 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.23.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-genai>=2.24.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
 google-cloud-aiplatform==1.164.0
 
 # =============================================================================
 # Vector RAG (Qdrant + fastembed e5 embeddings — KB backend)
 # =============================================================================
-qdrant-client>=1.19.0
+qdrant-client>=1.19.1
 fastembed>=0.4.0
 
 # =============================================================================
 # Speech Processing
 # =============================================================================
 # STT
-deepgram-sdk==7.8.1
+deepgram-sdk==7.9.0
 google-cloud-speech==2.40.0
 # Local STT for the conversational phone pipeline (app/voice_agent/phone_stream.py
 # + app/telephony/vobiz_stream.py) — faster-whisper 'tiny' runs CPU/int8, no API key.
