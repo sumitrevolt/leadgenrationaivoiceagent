@@ -180,7 +180,7 @@ psycopg2-binary==2.9.13
 ptyprocess==0.7.0
 pure_eval==0.2.4
 py_rust_stemmers==0.1.8
-pyarrow==24.0.0
+pyarrow==25.0.1
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==3.0
