@@ -29,6 +29,13 @@ DESTRUCTIVE = re.compile(
     r"|docker\s+compose[^\n]*\bup\s+-d|docker\s+compose[^\n]*\brecreate\b)"
 )
 
+#: Prefixes that mean the line only REPORTS the pattern instead of running it.
+#: `_first_destructive_line` already skips `#` and `echo `; these are the other
+#: ways a script can print a destructive-looking string as a diagnostic. Used by
+#: test_reclassified_exemption_requires_a_non_executable_match to prove a
+#: RECLASSIFIED entry's regex hit is a false positive and not a live command.
+MESSAGE_EMITTERS = ("fail ", "ok ", "printf ", "log ", "warn ", "info ", "error ", "die ")
+
 #: Scripts that ALREADY guard, or are being brought under the guard now.
 #: `deploy_vps.sh` is the CANONICAL NORMAL-RELEASE parent.
 GUARDED_NOW = ("_mcp_deploy_remote.sh", "vps_pitch_deploy.sh", "deploy_vps.sh")
@@ -52,7 +59,7 @@ RECLASSIFIED = {
     "deploy_preflight.sh": (
         "GUARD_ITSELF — this is a pre-deploy GATE, not a release path. Both "
         "scanner hits are the literal text of its own diagnostic messages: "
-        '`fail "found \'docker compose up -d ... app\' in scripts/"` (line 49) '
+        "`fail \"found 'docker compose up -d ... app' in scripts/\"` (line 49) "
         'and `ok "no live …"` (line 51). Routing the guard through the release '
         "parent it exists to check would be circular, and classifying it as "
         "unguarded debt would label the guard as the risk. ⚠️ Note for whoever "
@@ -92,9 +99,9 @@ UNGUARDED_DEBT = {
     "deploy_adr097.sh": "one-off ADR deploy — wave 2",
     "deploy_all.sh": "git pull — wave 2",
     "emergency_fix.sh": "unguarded prod `git pull origin main` (line 70) + "
-                        "unconditional `redis-cli DEL dlq:dead` (line 17) + "
-                        "`docker-compose up -d dsh_worker` (line 47); owner=ops "
-                        "— wave 2: guard it or retire it to a stub",
+    "unconditional `redis-cli DEL dlq:dead` (line 17) + "
+    "`docker-compose up -d dsh_worker` (line 47); owner=ops "
+    "— wave 2: guard it or retire it to a stub",
     # --- container-replacement paths -------------------------------------
     # Found only when the scan included `docker compose up -d`. Recreating a
     # container does not by itself revert data/, but these scripts run against
@@ -128,11 +135,6 @@ UNGUARDED_DEBT = {
 
 def _text(p: Path) -> str:
     return p.read_text(encoding="utf-8", errors="ignore")
-
-
-def _registry_path(name: str) -> Path:
-    """Resolve a registry key: bare names live in scripts/, slashed ones at the repo root."""
-    return REPO / name if "/" in name else SCRIPTS / name
 
 
 def _registry_path(name: str) -> Path:
@@ -227,10 +229,19 @@ def test_no_undeclared_destructive_script() -> None:
         set(GUARDED_NOW)
         | set(UNGUARDED_DEBT)
         | set(PY_GUARDED)
-        # A reclassified path is deliberately OUT of the release-path population,
-        # so it is exempt from this scan — which is exactly why it must carry an
-        # evidence reason and still exist on disk (see the anti-rot assert below).
-        | set(RECLASSIFIED)
+        # RECLASSIFIED belongs in `known`. Its members ARE matched by the
+        # destructive scanner, but they were reclassified by READING the file —
+        # that is the whole point of the bucket. Omitting it here meant
+        # reclassification had no effect on this check, so the bucket was
+        # decorative and a correctly reclassified path kept failing as
+        # "undeclared".
+        #
+        # Normalised to basenames because the loop below compares `path.name`:
+        # a slashed key would silently do nothing — the exact rot called out in
+        # the RECLASSIFIED note above. Being in `known` also means the loop
+        # never re-reads the file, so this exemption stays paired with the
+        # anti-rot asserts in test_reclassified_paths_are_not_treated_as_release_paths.
+        | {n.split("/")[-1] for n in RECLASSIFIED}
     )
     undeclared: list[str] = []
     for path in sorted(SCRIPTS.glob("*")):
@@ -266,6 +277,29 @@ def test_reclassified_paths_are_not_treated_as_release_paths() -> None:
             f"{name} is reclassified (and therefore exempt from the "
             "undeclared-destructive scan) but no longer exists — remove it from "
             "RECLASSIFIED so the exemption cannot rot"
+        )
+
+
+def test_reclassified_exemption_requires_a_non_executable_match() -> None:
+    """`known` makes the undeclared scan `continue` before re-reading the file.
+
+    So a RECLASSIFIED path is exempt only for as long as its DESTRUCTIVE hit is a
+    false positive. Without this check the exemption is open-ended: a real
+    `git pull` added to `deploy_preflight.sh` tomorrow would land in a file the
+    loop never re-reads, and nothing would catch it. Re-validate with the SAME
+    detector the scan uses, so the exemption is justified by the DESTRUCTIVE
+    regex rather than by the scanner heuristic that put the path here.
+    """
+    for name in RECLASSIFIED:
+        text = _text(_registry_path(name))
+        line_no = _first_destructive_line(text)
+        if line_no is None:
+            continue  # the scan does not match this file at all — nothing to exempt
+        matched = text.splitlines()[line_no - 1].strip()
+        assert matched.startswith(MESSAGE_EMITTERS), (
+            f"{name}: RECLASSIFIED (exempt from the undeclared scan) but its "
+            f"DESTRUCTIVE match on line {line_no} is an EXECUTED command: "
+            f"{matched!r}. Guard it or declare it in UNGUARDED_DEBT."
         )
 
 

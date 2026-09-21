@@ -86,7 +86,14 @@ EXPECTED_BLOCKERS = 0
 # hunt_insert_vps declaration was then removed (2026-09-13) — it declared
 # 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
 # (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
-EXPECTED_ALLOWLIST_ENTRIES = 106
+# 2026-09-21: 106 -> 107 re-pin. Commit dd1a0c38 ("wire hot_queue followup +
+# ntfy push") declared telegram.audit.log (app/api/telegram_bot_api.py,
+# store_id telegram.audit, access_modes ["READ"], owner "telegram",
+# migration_tier 3, review_condition present) WITHOUT re-pinning, so all nine
+# aN ratchet files have been red since. The entry is a read-only audit trail —
+# the reviewed surface GREW by a classified row; nothing was loosened and
+# EXPECTED_BASELINE_FINGERPRINTS below is deliberately unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 107
 EXPECTED_BASELINE_FINGERPRINTS = 788
 
 

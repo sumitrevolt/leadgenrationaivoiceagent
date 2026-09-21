@@ -87,9 +87,7 @@ def test_start_stream_call_stores_opening_line_in_pending(monkeypatch):
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tok123")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -239,9 +237,7 @@ def test_start_stream_call_dry_run_skips_dial(monkeypatch):
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tokdry")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -343,17 +339,21 @@ def test_run_after_inquiry_threads_dry_run(monkeypatch):
     assert seen.get("dry_run") is False
 
 
-def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
-    """Signed token ≠ pending key. Regression pin (2026-09-19).
+def test_pending_store_keyed_by_the_signed_url_token(monkeypatch):
+    """The pending KEY is the SIGNED token — the one the URL actually carries.
 
-    The WS pops the pending blob with the RAW uuid from the URL path, but
-    `_store_pending` used to be called with the SIGNED token
-    (`<raw>.<exp>.<sig>`). While `VOBIZ_STREAM_SECRET` is unset `sign()` is a
-    no-op so the two are identical and nothing breaks — which is exactly why it
-    survived review. The moment the secret IS set (the anti-abuse gate's own
-    precondition) they diverge and every `_peek_pending(raw)` misses, killing
-    the blob rail AGAIN: no niche, no crm_lead_id, no opening_line after a
-    mid-call reconnect → CallLog.lead_id=NULL → lead status never advances.
+    `sign()` is inert while `VOBIZ_STREAM_SECRET` is unset, so `token ==
+    raw_token` and the distinction is invisible — which is why this contract was
+    written backwards twice (and shipped a regression on 2026-09-21). With the
+    secret SET, the SIGNED form is what every consumer receives: the answer_url
+    path segment, the `ws_url` that `answer_stream_xml` rebuilds from it, and
+    `custom_identifier["call_id"]` / `callback_data` on the SmartFlo rail.
+    `answer_stream_xml` and `vobiz_stream_ws` therefore look the blob up with the
+    SIGNED token, and `_verify_stream_token(token)` checks the signature on it.
+
+    Keying by the raw uuid instead made every lookup MISS: no niche, no
+    crm_lead_id, no opening_line → CallLog.lead_id=NULL → lead status never
+    advances.
     """
     import asyncio
 
@@ -374,9 +374,7 @@ def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
     async def _fake_store(token, data):
         stored[token] = data
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
 
     res = asyncio.run(tv.start_stream_call("9876543210", niche="salon_spa", lead_id="lead-42"))
@@ -385,7 +383,15 @@ def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
     raw = signed.rsplit(".", 2)[0]
     # The signing secret is active, so the handed-out token must be signed…
     assert signed != raw and signed.count(".") == 2
-    # …but the pending KEY must be the RAW token the WS will pop with.
-    assert raw in stored
-    assert signed not in stored
-    assert stored[raw]["crm_lead_id"] == "lead-42"
+    # …and it is the token embedded in the URL the provider fetches. The `?` is
+    # load-bearing: `_answer_stream_qs` returns a bare urlencode() with no
+    # separator, so without it the route captures `<token>niche=...` as the path
+    # parameter and the whole query-string rail dies.
+    assert f"/answer-stream/{signed}?" in res["answer_url"]
+    assert "crm_lead_id=lead-42" in res["answer_url"]
+    # The pending KEY must be that same SIGNED token, because that is what
+    # `answer_stream_xml` / `vobiz_stream_ws` receive from the path.
+    assert signed in stored
+    assert raw not in stored
+    assert stored[signed]["crm_lead_id"] == "lead-42"
+    assert len(stored) == 1, "one key per call — a second key doubles _MAX_PENDING churn"

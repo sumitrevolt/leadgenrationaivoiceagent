@@ -345,20 +345,24 @@ async def start_stream_call(
     karo bina real call lagaye. Return me "dry_run": True + stream_token.
     """
     try:
-        # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — stable across a
-        # mid-call WS reconnect so it still verifies AFTER _pop_pending removed
-        # the pending state.
+        # ONE token, and it is the SIGNED one (corrected 2026-09-21).
+        # `sign()` is INERT unless VOBIZ_STREAM_SECRET is set, so `token ==
+        # raw_token` in the default config and the two are indistinguishable —
+        # which is exactly why this kept being written backwards.
         #
-        # TWO tokens, and the distinction is load-bearing (fixed 2026-09-19):
-        #   * `raw_token`  — the uuid. Pending KEY + the value that appears in
-        #     the answer_url / WSS path, so it is exactly what the WS pops with.
-        #   * `token`      — the SIGNED form (`<raw>.<exp>.<sig>`) handed to the
-        #     provider. `verify()` needs the signature; `_peek_pending` does not.
-        # Signing is INERT when the secret is unset, so `token == raw_token` and
-        # today's behavior is unchanged. When the secret IS set they diverge, and
-        # storing under `token` made every `_peek_pending(raw_token)` miss — the
-        # blob rail was dead again in exactly the configuration that turns the
-        # anti-abuse gate on. Store under the RAW token; hand the SIGNED one out.
+        # When the secret IS set, EVERY consumer receives the SIGNED form:
+        #   * the answer_url / hangup_url path segment (built just below)
+        #   * `ws_url`, which `answer_stream_xml` rebuilds FROM that segment
+        #   * `custom_identifier["call_id"]` and `callback_data` on the SmartFlo
+        #     rail, plus the `stream_token` returned to API callers
+        # so `answer_stream_xml` and `vobiz_stream_ws` look the pending blob up
+        # with the SIGNED token, and `_verify_stream_token(token)` checks the
+        # signature on it. The pending KEY must therefore be the SIGNED token.
+        #
+        # Keying it by `raw_token` instead made every `_peek_pending` MISS as
+        # soon as the secret was set: no niche, no crm_lead_id, no opening_line
+        # -> CallLog.lead_id=NULL -> lead status never advances. `raw_token`
+        # exists only to mint the signature.
         raw_token = uuid.uuid4().hex[:10]
         token = _sign_stream_token(raw_token)
         niche_key = (niche or "general").strip() or "general"
@@ -373,13 +377,25 @@ async def start_stream_call(
             template_id=template_id,
             voice_role=voice_role,
         )
-        answer_url = f"{base}/api/telephony/vobiz/answer-stream/{token}{qs}"
+        # The `?` is load-bearing. `_answer_stream_qs` returns a bare
+        # `urlencode(...)` with no separator, so dropping it concatenates the
+        # query straight onto the token: the route then captures
+        # `<token>niche=...&crm_lead_id=...` as the path parameter, query_params
+        # is empty, `_peek_pending` misses, and `_verify_stream_token` fails.
+        # That is what `c6d857fc` did (removed `?{_qs}`) and `989d3fcd` did not
+        # fix when it re-added `{qs}` — so the whole query-string rail the
+        # docstring above promises has been dead since 2026-09-15.
+        answer_url = f"{base}/api/telephony/vobiz/answer-stream/{token}?{qs}"
         hangup_url = f"{base}/api/telephony/vobiz/hangup/{token}"
 
-        # ── Pending-state write (restored 2026-09-19) ───────────────────────
-        # Store under raw_token (and token if signed) so mid-call reconnects,
-        # worker restarts, and verify() pass-throughs all find the pending state.
-        # Both crm_lead_id and lead_id are set for full backwards/forwards compat.
+        # ── Pending-state write ─────────────────────────────────────────────
+        # Keyed by the SIGNED `token` — the single form that is handed out, and
+        # therefore the only key any reader ever looks up (see the block above).
+        # ONE key per call: an earlier dual write (raw + signed) doubled the rate
+        # at which `_MAX_PENDING` is reached, and reaching it CLEARS every
+        # pending stream, dropping the state of live concurrent calls. Both
+        # crm_lead_id and lead_id are set in the payload for backwards/forwards
+        # compat.
         pending_payload = {
             "niche": niche_key,
             "client_id": client_id or "",
@@ -390,9 +406,7 @@ async def start_stream_call(
             "template_id": template_id or "",
             "voice_role": voice_role or "",
         }
-        await _store_pending(raw_token, pending_payload)
-        if token != raw_token:
-            await _store_pending(token, pending_payload)
+        await _store_pending(token, pending_payload)
         from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
         sf_client = TataSmartfloClient()
