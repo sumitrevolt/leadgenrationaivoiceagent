@@ -1304,6 +1304,15 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer flows router not mounted: {_e}")
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
+# Key Manager Agent — /api/admin/keys/* (P0-hardened 2026-09-21: owner-only via
+# ADMIN_API_KEY on EVERY route, Fernet-encrypted at rest, fail-closed 503 when
+# no master key). Guarded mount like every other router above.
+try:
+    from app.platform.key_manager import router as key_manager_router
+
+    app.include_router(key_manager_router)  # /api/admin/keys/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Key Manager router not mounted: {_e}")
 # NOTE (merge resolution): the Admin Command Center router (`app.admin.main:admin_router`,
 # paths /admin/api/*) was included TWICE after the master->main merge — once here via
 # `origin/master`'s module-level alias and once by `origin/main`'s guarded block above
