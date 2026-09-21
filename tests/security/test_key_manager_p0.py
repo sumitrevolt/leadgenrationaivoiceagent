@@ -78,7 +78,11 @@ def _mount_ok() -> None:
 
 MUTATION_AND_READ_ROUTES = [
     ("POST", "/api/admin/keys/set", {"service": "typesafe", "key": "tsk_live_abcdefgh12345678"}),
-    ("POST", "/api/admin/keys/rotate", {"service": "typesafe", "new_key": "tsk_rotated_zzzzzzzz9999"}),
+    (
+        "POST",
+        "/api/admin/keys/rotate",
+        {"service": "typesafe", "new_key": "tsk_rotated_zzzzzzzz9999"},
+    ),
     ("POST", "/api/admin/keys/deploy/typesafe", None),
     ("GET", "/api/admin/keys/status/typesafe", None),
     ("GET", "/api/admin/keys/redacted/typesafe", None),
@@ -101,8 +105,14 @@ def test_unauthenticated_rejected(client, keys_dir, method, path, body):
     saved = os.environ.get("ADMIN_API_KEY")
     os.environ.pop("ADMIN_API_KEY", None)
     try:
-        resp = client.request(method, path, json=body) if body is not None else client.request(method, path)
-        assert resp.status_code == 401, f"{method} {path} expected 401, got {resp.status_code}: {resp.text[:200]}"
+        resp = (
+            client.request(method, path, json=body)
+            if body is not None
+            else client.request(method, path)
+        )
+        assert resp.status_code == 401, (
+            f"{method} {path} expected 401, got {resp.status_code}: {resp.text[:200]}"
+        )
     finally:
         if saved is not None:
             os.environ["ADMIN_API_KEY"] = saved
@@ -114,10 +124,14 @@ def test_unauthenticated_rejected(client, keys_dir, method, path, body):
 def test_wrong_api_key_rejected(client, keys_dir, method, path, body):
     _mount_ok()
     headers = {"X-API-Key": "wrong-key"}
-    resp = client.request(
-        method, path, json=body, headers=headers
-    ) if body is not None else client.request(method, path, headers=headers)
-    assert resp.status_code == 401, f"{method} {path} expected 401 with wrong key, got {resp.status_code}"
+    resp = (
+        client.request(method, path, json=body, headers=headers)
+        if body is not None
+        else client.request(method, path, headers=headers)
+    )
+    assert resp.status_code == 401, (
+        f"{method} {path} expected 401 with wrong key, got {resp.status_code}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +147,9 @@ def test_set_fails_closed_without_master_key(client, keys_dir):
         json={"service": "typesafe", "key": "tsk_live_abcdefgh12345678"},
         headers={"X-API-Key": "test-admin-key-xyz"},
     )
-    assert resp.status_code == 503, f"expected 503 fail-closed, got {resp.status_code}: {resp.text[:200]}"
+    assert resp.status_code == 503, (
+        f"expected 503 fail-closed, got {resp.status_code}: {resp.text[:200]}"
+    )
     keys_file = keys_dir / "keys.json"
     if keys_file.exists():
         content = keys_file.read_text()
@@ -169,7 +185,7 @@ def test_set_stores_ciphertext_not_plaintext(client, keys_dir, monkeypatch):
     assert value.startswith("fm1:"), "encrypted marker missing"
     # Round-trip proves the ciphertext is decryptable with the master key.
     f = Fernet(master)
-    decrypted = f.decrypt(value[len("fm1:"):]).decode()
+    decrypted = f.decrypt(value[len("fm1:") :]).decode()
     assert decrypted == raw_key
 
 
@@ -206,7 +222,9 @@ def test_redacted_response_exposes_no_key_material(client, keys_dir, monkeypatch
 def test_legacy_plaintext_entry_flagged_rotation_required(client, keys_dir):
     """Pre-existing plaintext entry must surface ROTATION_REQUIRED, not be hidden."""
     _mount_ok()
-    (keys_dir / "keys.json").write_text(json.dumps({"typesafe": {"value": "tsk_old_plaintext_key"}}))
+    (keys_dir / "keys.json").write_text(
+        json.dumps({"typesafe": {"value": "tsk_old_plaintext_key"}})
+    )
     resp = client.get(
         "/api/admin/keys/redacted/typesafe",
         headers={"X-API-Key": "test-admin-key-xyz"},
@@ -215,3 +233,106 @@ def test_legacy_plaintext_entry_flagged_rotation_required(client, keys_dir):
     body = resp.json()
     assert body["storage"] == "legacy_plaintext"
     assert body["rotation_required"] is True
+
+
+# ---------------------------------------------------------------------------
+# 6. Regression locks from independent review (Cody/Tessa, 2026-09-21)
+# ---------------------------------------------------------------------------
+
+
+def test_rotate_fails_closed_without_master_key(client, keys_dir):
+    """Rotate must fail closed too — not just set."""
+    _mount_ok()
+    # Seed an existing entry so rotate reaches the write path (not an early 404).
+    (keys_dir / "keys.json").write_text(json.dumps({"typesafe": {"value": "fm1:seeded"}}))
+    resp = client.post(
+        "/api/admin/keys/rotate",
+        json={"service": "typesafe", "new_key": "tsk_rotated_value_87654321"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 503, f"rotate must fail closed, got {resp.status_code}"
+
+
+def test_invalid_master_key_fails_closed(client, keys_dir, monkeypatch):
+    """A malformed KEYS_MASTER_KEY must NOT fall back to plaintext storage."""
+    _mount_ok()
+    monkeypatch.setenv("KEYS_MASTER_KEY", "not-a-valid-fernet-key")
+    resp = client.post(
+        "/api/admin/keys/set",
+        json={"service": "typesafe", "key": "tsk_live_abcdefgh12345678"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 503
+    keys_file = keys_dir / "keys.json"
+    if keys_file.exists():
+        assert "tsk_live_abcdefgh12345678" not in keys_file.read_text()
+
+
+def test_short_key_returns_400_not_500(client, keys_dir, monkeypatch):
+    """A too-short key must be a clean 400, not an opaque 500."""
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+    resp = client.post(
+        "/api/admin/keys/set",
+        json={"service": "typesafe", "key": "short"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 400, f"expected 400, got {resp.status_code}"
+
+
+def test_rotate_unknown_service_returns_404(client, keys_dir, monkeypatch):
+    """Rotating a service with no stored key must be a clean 404."""
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+    resp = client.post(
+        "/api/admin/keys/rotate",
+        json={"service": "does-not-exist", "new_key": "tsk_rotated_zzzzzzzz9999"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 404, f"expected 404, got {resp.status_code}"
+
+
+def test_audit_log_contains_no_key_material(client, keys_dir, monkeypatch):
+    """The audit trail must never carry a key fragment (prefix or suffix)."""
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+    raw = "tsk_audit_probe_555666777888"
+    client.post(
+        "/api/admin/keys/set",
+        json={"service": "typesafe", "key": raw},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    audit = keys_dir / "audit.log"
+    assert audit.exists(), "audit log was not written"
+    text = audit.read_text()
+    for frag in (raw, raw[:8], raw[-4:]):
+        assert frag not in text, f"key fragment {frag!r} leaked into the audit log"
+
+
+def test_legacy_entry_is_reencrypted_on_rotate(client, keys_dir, monkeypatch):
+    """Rotating a legacy plaintext entry must migrate it to ciphertext."""
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    (keys_dir / "keys.json").write_text(
+        json.dumps({"typesafe": {"value": "tsk_old_plaintext_value"}})
+    )
+    master = Fernet.generate_key()
+    monkeypatch.setenv("KEYS_MASTER_KEY", master.decode())
+
+    resp = client.post(
+        "/api/admin/keys/rotate",
+        json={"service": "typesafe", "new_key": "tsk_new_encrypted_value_9999"},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 200, resp.text
+    stored = json.loads((keys_dir / "keys.json").read_text())["typesafe"]["value"]
+    assert stored.startswith("fm1:"), "legacy entry was not migrated to ciphertext"
+    decrypted = Fernet(master).decrypt(stored[len("fm1:") :]).decode()
+    assert decrypted == "tsk_new_encrypted_value_9999"

@@ -18,12 +18,12 @@ Security guarantees (P0 hardening, 2026-09-21):
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
 import re
 import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -46,6 +46,14 @@ _ENCRYPTED_MARKER = "fm1:"  # "format v1"
 
 class PlaintextStorageError(RuntimeError):
     """Raised when a write would persist a key unencrypted (fail-closed)."""
+
+
+class KeyStoreUnreadableError(RuntimeError):
+    """Raised when the key store exists but cannot be parsed.
+
+    Returning an empty dict in this situation would let the next set_key()
+    overwrite every other stored key — silent multi-key data loss.
+    """
 
 
 class KeyManagerAgent:
@@ -80,8 +88,7 @@ class KeyManagerAgent:
         f = self._fernet()
         if f is None:
             raise PlaintextStorageError(
-                "KEYS_MASTER_KEY not configured (or invalid) — "
-                "refusing to store key in plaintext"
+                "KEYS_MASTER_KEY not configured (or invalid) — refusing to store key in plaintext"
             )
         return _ENCRYPTED_MARKER + f.encrypt(plain.encode()).decode()
 
@@ -94,7 +101,7 @@ class KeyManagerAgent:
         if f is None:
             return None  # master key gone; value is unreadable, not plaintext
         try:
-            return f.decrypt(stored[len(_ENCRYPTED_MARKER):]).decode()
+            return f.decrypt(stored[len(_ENCRYPTED_MARKER) :]).decode()
         except Exception:
             return None
 
@@ -130,15 +137,23 @@ class KeyManagerAgent:
             logger.warning(f"Failed to write audit log: {e}")
 
     def _load_keys(self) -> dict[str, Any]:
-        """Load keys from JSON file."""
+        """Load keys from JSON file.
+
+        Raises KeyStoreUnreadableError when the file exists but cannot be
+        parsed. Returning {} here would make the next set_key() overwrite every
+        other stored key (silent multi-key data loss).
+        """
         if not self.keys_file.exists():
             return {}
         try:
             with open(self.keys_file) as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Failed to load keys: {e}")
-            return {}
+            logger.error("Failed to load key store: %s", type(e).__name__)
+            raise KeyStoreUnreadableError(
+                "Key store exists but could not be parsed; refusing to continue "
+                "so existing keys are not silently overwritten."
+            ) from e
 
     def _save_keys(self, keys: dict[str, Any]) -> None:
         """Save keys atomically (tmp + os.replace) to avoid partial-file corruption.
@@ -346,8 +361,10 @@ class KeyManagerAgent:
         else:
             content += f"\n{env_var}={plain}\n"
 
-        # Backup before write
-        backup = env_file.with_suffix(".env.bak")
+        # Backup before write.
+        # NOTE: with_suffix() on a dotfile like ".env" yields ".env.env.bak"
+        # (pathlib treats the whole name as the stem) — build the name explicitly.
+        backup = env_file.with_name(env_file.name + ".bak")
         shutil.copy2(env_file, backup)
 
         # Write updated .env
@@ -399,7 +416,44 @@ def _owner() -> Any:
     return require_api_key()
 
 
+def _handle_store_errors(fn):
+    """Map key-store exceptions to clean owner-facing HTTP responses.
+
+    Without this, a short key (ValueError) or an unparseable store would
+    surface as an opaque 500. Must be applied UNDER the router decorator.
+    """
+
+    @functools.wraps(fn)
+    def _wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except KeyStoreUnreadableError:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Key store unreadable; refusing to continue so existing keys are "
+                    "not silently overwritten. Inspect the store and retry."
+                ),
+            )
+        except PlaintextStorageError:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Key storage not ready: KEYS_MASTER_KEY is not configured or invalid. "
+                    "Refusing to persist a key in plaintext. Configure the host master key "
+                    "and retry."
+                ),
+            )
+        except ValueError as e:
+            detail = str(e)
+            status = 404 if "not found" in detail.lower() else 400
+            raise HTTPException(status_code=status, detail=detail)
+
+    return _wrapped
+
+
 @router.get("/status/{service}")
+@_handle_store_errors
 def get_key_status(
     service: str,
     km: KeyManagerAgent = Depends(get_key_manager),
@@ -410,6 +464,7 @@ def get_key_status(
 
 
 @router.get("/redacted/{service}")
+@_handle_store_errors
 def get_key_redacted(
     service: str,
     km: KeyManagerAgent = Depends(get_key_manager),
@@ -420,6 +475,7 @@ def get_key_redacted(
 
 
 @router.post("/set")
+@_handle_store_errors
 def set_key(
     payload: dict,
     km: KeyManagerAgent = Depends(get_key_manager),
@@ -430,20 +486,11 @@ def set_key(
     key = payload.get("key")
     if not service or not key:
         raise HTTPException(status_code=400, detail="service and key required")
-    try:
-        return km.set_key(service, key, actor="admin_ui")
-    except PlaintextStorageError:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Key storage not ready: KEYS_MASTER_KEY is not configured or invalid. "
-                "Refusing to persist a key in plaintext. Configure the host master key "
-                "and retry."
-            ),
-        )
+    return km.set_key(service, key, actor="admin_ui")
 
 
 @router.post("/rotate")
+@_handle_store_errors
 def rotate_key(
     payload: dict,
     km: KeyManagerAgent = Depends(get_key_manager),
@@ -454,16 +501,11 @@ def rotate_key(
     new_key = payload.get("new_key")
     if not service or not new_key:
         raise HTTPException(status_code=400, detail="service and new_key required")
-    try:
-        return km.rotate_key(service, new_key, actor="admin_ui")
-    except PlaintextStorageError:
-        raise HTTPException(
-            status_code=503,
-            detail="Key storage not ready: KEYS_MASTER_KEY missing/invalid. Configure and retry.",
-        )
+    return km.rotate_key(service, new_key, actor="admin_ui")
 
 
 @router.post("/deploy/{service}")
+@_handle_store_errors
 def deploy_key(
     service: str,
     km: KeyManagerAgent = Depends(get_key_manager),
@@ -474,6 +516,7 @@ def deploy_key(
 
 
 @router.get("/audit/{service}")
+@_handle_store_errors
 def get_audit(
     service: str,
     limit: int = 50,
@@ -485,6 +528,7 @@ def get_audit(
 
 
 @router.get("/audit")
+@_handle_store_errors
 def get_all_audit(
     limit: int = 100,
     km: KeyManagerAgent = Depends(get_key_manager),

@@ -142,6 +142,99 @@ def main() -> int:
 
     check("6. Legacy plaintext entry -> rotation_required", c6)
 
+    # ── 7. Rotate also fails closed without a master key
+    km_mod.KEYS_FILE = Path(workdir) / "keys.json"
+    km_mod._key_manager = None
+    os.environ.pop("KEYS_MASTER_KEY", None)
+    json.dump({"ts_a": {"value": "fm1:seeded"}}, open(keys_file, "w"))
+
+    def c7():
+        r = client.post(
+            "/api/admin/keys/rotate",
+            json={"service": "ts_a", "new_key": "tsk_rotated_12345678"},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 503, f"rotate must fail closed, got {r.status_code}"
+
+    check("7. /rotate fails closed (503) without KEYS_MASTER_KEY", c7)
+
+    # ── 8. Malformed master key must not degrade to plaintext
+    os.environ["KEYS_MASTER_KEY"] = "not-a-valid-fernet-key"
+
+    def c8():
+        r = client.post(
+            "/api/admin/keys/set",
+            json={"service": "ts_a", "key": "tsk_live_invalidmaster_1"},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 503, f"expected 503, got {r.status_code}"
+        assert "tsk_live_invalidmaster_1" not in open(keys_file).read()
+
+    check("8. Invalid KEYS_MASTER_KEY -> 503, no plaintext", c8)
+
+    # ── 9+10. Clean error codes instead of opaque 500s
+    os.environ["KEYS_MASTER_KEY"] = Fernet.generate_key().decode()
+
+    def c9():
+        r = client.post(
+            "/api/admin/keys/set",
+            json={"service": "ts_a", "key": "short"},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 400, f"short key should be 400, got {r.status_code}"
+
+    check("9. Short key -> 400 (not 500)", c9)
+
+    def c10():
+        r = client.post(
+            "/api/admin/keys/rotate",
+            json={"service": "no-such-service", "new_key": "tsk_rotated_12345678"},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 404, f"unknown service should be 404, got {r.status_code}"
+
+    check("10. Unknown service rotate -> 404 (not 500)", c10)
+
+    # ── 11. Audit trail carries no key fragments
+    audit_file = os.path.join(workdir, "audit.log")
+    raw11 = "tsk_audit_probe_555666777888"
+
+    def c11():
+        if os.path.exists(audit_file):
+            os.remove(audit_file)
+        r = client.post(
+            "/api/admin/keys/set",
+            json={"service": "ts_a", "key": raw11},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 200, r.text
+        text = open(audit_file).read()
+        for frag in (raw11, raw11[:8], raw11[-4:]):
+            assert frag not in text, f"key fragment {frag!r} leaked into audit log"
+
+    check("11. Audit log contains no key material", c11)
+
+    # ── 12. Rotating a legacy plaintext entry migrates it to ciphertext
+    def c12():
+        legacy_path = os.path.join(workdir, "legacy_rotate.json")
+        json.dump({"ts_c": {"value": "old_plaintext_value_abc"}}, open(legacy_path, "w"))
+        km_mod.KEYS_FILE = Path(legacy_path)
+        km_mod._key_manager = None
+        master = os.environ["KEYS_MASTER_KEY"]
+        r = client.post(
+            "/api/admin/keys/rotate",
+            json={"service": "ts_c", "new_key": "tsk_new_encrypted_value_99"},
+            headers={"X-API-Key": "owner-key-123"},
+        )
+        assert r.status_code == 200, r.text
+        stored = json.loads(open(legacy_path).read())["ts_c"]["value"]
+        assert stored.startswith("fm1:"), "legacy entry not migrated to ciphertext"
+        assert Fernet(master.encode()).decrypt(stored[len("fm1:") :]).decode() == (
+            "tsk_new_encrypted_value_99"
+        )
+
+    check("12. Legacy plaintext re-encrypted on rotate", c12)
+
     # ── summary
     print("\n" + "=" * 64)
     failed = 0
