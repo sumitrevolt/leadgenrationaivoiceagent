@@ -23,6 +23,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+def _client_without_any_key(ts_module):
+    """Construct an actually keyless client even when a runtime slot vault exists."""
+    with patch.object(ts_module, "get_active_api_key", return_value=""):
+        return ts_module.TypeSafeClient()
+
+
 class TestTypeSafeFailClosed:
     """Test fail-closed behavior when TYPESAFE_API_KEY is absent."""
 
@@ -39,10 +45,8 @@ class TestTypeSafeFailClosed:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
-                client = TypeSafeClient()
+                client = _client_without_any_key(ts_module)
                 assert client.enabled is False
 
                 result = client.initialize()
@@ -63,10 +67,10 @@ class TestTypeSafeFailClosed:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import Choice, TypeSafeClient
+            from app.platform.typesafe_integration import Choice
 
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
-                client = TypeSafeClient()
+                client = _client_without_any_key(ts_module)
                 result = client.system_one(
                     state={"task": "test"},
                     questions={"q": Choice("Test?", {"opt1": "Desc 1"})},
@@ -88,10 +92,8 @@ class TestTypeSafeFailClosed:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
-                client = TypeSafeClient()
+                client = _client_without_any_key(ts_module)
                 result = client.choice("Question?", {}, {"opt1": "Desc"})
                 mock_post.assert_not_called()
                 assert result.success is False
@@ -109,10 +111,8 @@ class TestTypeSafeFailClosed:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
-                client = TypeSafeClient()
+                client = _client_without_any_key(ts_module)
                 result = client.noul("Question?", {})
                 mock_post.assert_not_called()
                 assert result.success is False
@@ -130,10 +130,8 @@ class TestTypeSafeFailClosed:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
             with patch("app.platform.typesafe_integration.requests.post") as mock_post:
-                client = TypeSafeClient()
+                client = _client_without_any_key(ts_module)
                 result = client.score("Question?", {}, ["low", "high"])
                 mock_post.assert_not_called()
                 assert result.success is False
@@ -154,9 +152,7 @@ class TestTypeSafeJevLatestDefault:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
-            client = TypeSafeClient()
+            client = _client_without_any_key(ts_module)
             assert client.model == "jev-latest"
 
     def test_model_override(self):
@@ -218,6 +214,29 @@ class TestTypeSafeJevLatestDefault:
         assert result.model == "jev-1.13.0"
         assert "q1" in result.answers
         assert "q2" in result.answers
+
+    @patch("app.platform.typesafe_integration.requests.post")
+    def test_systemone_supports_bounded_single_attempt_policy_call(self, mock_post):
+        """Critical dispatch paths can opt out of the default long retry budget."""
+        from app.platform.typesafe_integration import Noul, TypeSafeClient
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        mock_resp.text = "temporary outage"
+        mock_post.return_value = mock_resp
+
+        result = TypeSafeClient(api_key="test-key").system_one(
+            {"task": "bounded"},
+            {"q": Noul("Should this proceed?")},
+            connect_timeout_sec=2.0,
+            read_timeout_sec=4.0,
+            max_attempts=1,
+        )
+
+        assert result.success is False
+        assert result.attempts == 1
+        assert mock_post.call_count == 1
+        assert mock_post.call_args.kwargs["timeout"] == (2.0, 4.0)
 
     @patch("app.platform.typesafe_integration.requests.post")
     def test_choice_compatibility_wrapper(self, mock_post):
@@ -289,9 +308,7 @@ class TestTypeSafeJevLatestDefault:
 
             importlib.reload(ts_module)
 
-            from app.platform.typesafe_integration import TypeSafeClient
-
-            client = TypeSafeClient()
+            client = _client_without_any_key(ts_module)
             result = client.system_one(state={"task": "t"}, questions={})
             assert result.success is False
             assert result.model == "jev-latest"

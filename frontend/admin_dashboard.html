@@ -388,6 +388,18 @@
               <div style="font-size:11px;color:#64748b;margin-top:2px">🚌 Staff Bus</div>
             </div>
           </div>
+          <div id="croreController" style="margin:0 0 14px;padding:12px;border:1px solid #bbf7d0;border-radius:12px;background:#f0fdf4">
+            <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:8px">🎯 ₹1 Crore verified-cash controller</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">
+              <div><b id="scCroreMtd">—</b><small style="display:block;color:#64748b">Month collected</small></div>
+              <div><b id="scCroreGap">—</b><small style="display:block;color:#64748b">Remaining gap</small></div>
+              <div><b id="scCroreDaily">—</b><small style="display:block;color:#64748b">Required/day</small></div>
+              <div><b id="scCroreDays">—</b><small style="display:block;color:#64748b">Days left</small></div>
+              <div><b id="scCroreConversion">—</b><small style="display:block;color:#64748b">Paid conversion</small></div>
+              <div><b id="scCroreArpc">—</b><small style="display:block;color:#64748b">Actual ARPC</small></div>
+              <div><b id="scCroreMargin">—</b><small style="display:block;color:#64748b">Gross margin</small></div>
+            </div>
+          </div>
           <!-- Marketing automation ledgers — JSONL counts, not live Google/Meta pixels. 0 = empty/inert. -->
           <div id="ownerMktScorecard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
             <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
@@ -3709,6 +3721,16 @@ function paintOwnerScorecards(t){
     grossEl.textContent = '₹'+Math.round(g);
     grossEl.style.color = g>0 ? '#059669' : '#334155';
   }
+  var crore = t.crore_controller || {};
+  function money(v){ return v===null || v===undefined ? 'Data unavailable' : '₹'+Math.round(Number(v)||0).toLocaleString('en-IN'); }
+  function optional(id, value, suffix){ var el=$(id); if(el) el.textContent=value===null || value===undefined ? 'Data unavailable' : String(value)+(suffix||''); }
+  optional('scCroreMtd', money(crore.verified_net_collected_month_to_date));
+  optional('scCroreGap', money(crore.remaining_target));
+  optional('scCroreDaily', money(crore.required_net_cash_per_day));
+  optional('scCroreDays', crore.remaining_days);
+  optional('scCroreConversion', crore.current_paid_conversion, '%');
+  optional('scCroreArpc', crore.actual_customer_arpc===null || crore.actual_customer_arpc===undefined ? null : money(crore.actual_customer_arpc));
+  optional('scCroreMargin', crore.gross_margin, '%');
   var onb = $('scOnboard');
   if(onb){
     var w = t.onboard_waiting||0, r = t.onboard_running||0, f = t.onboard_failed||0;

@@ -85,6 +85,19 @@ class TestAdminScorecardHTML:
     def test_next_best_action_text(self):
         assert 'id="nextBestActionText"' in self.html
 
+    def test_crore_controller_elements(self):
+        for element_id in (
+            "croreController",
+            "scCroreMtd",
+            "scCroreGap",
+            "scCroreDaily",
+            "scCroreDays",
+            "scCroreConversion",
+            "scCroreArpc",
+            "scCroreMargin",
+        ):
+            assert f'id="{element_id}"' in self.html
+
 
 class TestAdminScorecardJS:
     """JavaScript functions exist and are correctly wired."""
@@ -107,6 +120,8 @@ class TestAdminScorecardJS:
         assert "proposals_accepted" in self.html
         assert "reminders_sent" in self.html
         assert "health_at_risk" in self.html
+        assert "crore_controller" in self.html
+        assert "Data unavailable" in self.html
 
     def test_fetches_today_overview(self):
         assert "/api/growth/overview/today" in self.html

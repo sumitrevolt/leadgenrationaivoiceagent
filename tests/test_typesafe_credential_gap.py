@@ -22,6 +22,7 @@ All keys below are OBVIOUSLY-SYNTHETIC dummies, never real credentials.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -48,6 +49,22 @@ def _isolate(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("TYPESAFE_ENABLED", raising=False)
     monkeypatch.setattr(ah, "_beat_registration_gaps", lambda: [])
     monkeypatch.setenv("AUTOMATION_HEALTH_ALERTS", "0")
+
+    # This checkout can have live TS_A..TS_D vault slots. These tests exercise
+    # env-state transitions, so isolate every non-env key source explicitly.
+    def _env_only_keys():
+        raw = []
+        for name in ("TYPESAFE_API_KEYS", "TYPESAFE_API_KEY", "TYPEsafe_API_KEY"):
+            raw.extend(tsi._split_keys(os.getenv(name, "")))
+        for i in range(1, 5):
+            raw.extend(tsi._split_keys(os.getenv(f"TYPESAFE_API_KEY_{i}", "")))
+        return [
+            key
+            for key in dict.fromkeys(raw)
+            if tsi.fingerprint(key) not in tsi.COMPROMISED_FINGERPRINTS
+        ]
+
+    monkeypatch.setattr(tsi, "_load_all_keys", _env_only_keys)
 
 
 def _typesafe_gaps() -> list[dict]:

@@ -32,6 +32,14 @@ ALLOWED_CONSUMERS = {
     "app/platform/key_manager.py",
     "app/platform/typesafe_executor.py",
     "app/platform/typesafe_services.py",
+    # One bounded judgment routes each governed orchestrator task/session.
+    "app/platform/typesafe_session_policy.py",
+    # These four judgments directly rank an owner queue or drive public API
+    # route results; they are runtime consumers, not synthetic pool builders.
+    "app/platform/hot_queue_owner_pack.py",
+    "app/platform/typesafe_middleware.py",
+    "app/platform/typesafe_scraper.py",
+    "app/platform/typesafe_telephony.py",
     "app/api/typesafe_routes.py",
     "app/integrations/telegram_bot.py",
     "app/integrations/telegram_typesafe.py",

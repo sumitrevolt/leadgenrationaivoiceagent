@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Master Prompt Execution Guide</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --orange: #db6d28;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 {
+    font-size: 1.8em;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 24px;
+    font-size: 0.95em;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 1.2em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .num {
+    background: var(--accent);
+    color: #000;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+  .card h3 {
+    font-size: 1em;
+    margin: 16px 0 8px;
+    color: var(--accent);
+  }
+  .step {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    border-left: 3px solid var(--border);
+  }
+  .step.critical { border-left-color: var(--red); }
+  .step.warning { border-left-color: var(--yellow); }
+  .step.info { border-left-color: var(--accent); }
+  .step.success { border-left-color: var(--green); }
+  .step-number {
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 24px;
+  }
+  .step-content { flex: 1; }
+  .step-title { font-weight: 600; margin-bottom: 4px; }
+  .step-desc { color: var(--muted); font-size: 0.9em; }
+  .step code {
+    background: rgba(255,255,255,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  .step pre {
+    background: rgba(0,0,0,0.3);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin-top: 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.82em;
+    line-height: 1.5;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+  .badge-p0 { background: var(--red); color: #fff; }
+  .badge-p1 { background: var(--orange); color: #fff; }
+  .badge-p2 { background: var(--yellow); color: #000; }
+  .badge-done { background: var(--green); color: #fff; }
+  .badge-typesafe { background: var(--purple); color: #fff; }
+  .access-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .access-item {
+    background: rgba(255,255,255,0.03);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .access-item .label {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .access-item .value {
+    color: var(--muted);
+    font-size: 0.85em;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .access-item .status {
+    margin-top: 6px;
+    font-size: 0.8em;
+  }
+  .status-ok { color: var(--green); }
+  .status-warn { color: var(--yellow); }
+  .status-err { color: var(--red); }
+  .note {
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.9em;
+  }
+  .note strong { color: var(--accent); }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 600px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+  .checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .checklist-item input[type="checkbox"] {
+    margin-top: 4px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+  }
+  .checklist-item label { cursor: pointer; }
+  .checklist-item.done label { text-decoration: line-through; color: var(--muted); }
+  .highlight-box {
+    background: rgba(188,140,255,0.1);
+    border: 1px solid rgba(188,140,255,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+  }
+  .highlight-box strong { color: var(--purple); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎯 LeadGen AI — Master Prompt Execution Guide</h1>
+  <p class="subtitle">TypeSafe-First Maximum Output / ₹1 Crore Autonomous Admin — Complete Execution Plan</p>
+
+  <div class="note">
+    <strong>📋 Master Prompt ke core requirements:</strong> TypeSafe-first decision engine, ₹1 Crore net collected revenue target, 31-agent workforce, 9 worker bots, dual-bot Telegram, single source of truth. Ye guide step-by-step batata hai ki kya karna hai.
+  </div>
+
+  <!-- ACCESS OVERVIEW -->
+  <div class="card">
+    <h2><span class="num">0</span> Access Overview — Kya Available Hai</h2>
+    <div class="access-grid">
+      <div class="access-item">
+        <div class="label">🖥️ Local Machine (Windows)</div>
+        <div class="value">C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent</div>
+        <div class="status status-ok">✅ Full access — filesystem, terminal, .venv</div>
+      </div>
+      <div class="access-item">
+        <div class="label">🌐 VPS (Hostinger Mumbai)</div>
+        <div class="value">root@72.61.245.204 → /opt/leadgen</div>
+        <div class="status status-ok">✅ SSH access — Docker, compose, .env</div>
+      </div>
+      <div class="access-item">
+        <div class="label">🐙 GitHub</div>
+        <div class="value">github.com/sumitrevolt/leadgenrationaivoiceagent</div>
+        <div class="status status-ok">✅ gh CLI + SSH key configured</div>
+      </div>
+      <div class="access-item">
+        <div class="label">🤖 Hermes Desktop</div>
+        <div class="value">localhost:3000 (desktop app)</div>
+        <div class="status status-warn">⚠️ Telegram gateway conflict (409)</div>
+      </div>
+      <div class="access-item">
+        <div class="label">📱 Telegram</div>
+        <div class="value">@Sumits_jarvis_bot + @Leadsgenai1_bot</div>
+        <div class="status status-warn">⚠️ Notify bot token 401 (rotation needed)</div>
+      </div>
+      <div class="access-item">
+        <div class="label">🧠 TypeSafe API</div>
+        <div class="value">api.typesafe.ai — model: jev-latest</div>
+        <div class="status status-ok">✅ Key present in .env (apikey_241d...)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 1: TYPESETUP -->
+  <div class="card">
+    <h2><span class="num">1</span> TypeSafe-First Setup <span class="badge badge-typesafe">MANDATORY</span></h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Master prompt ka sabse important rule — TypeSafe har substantial task me use karna hai. Pehle verify karo ki integration live hai.</p>
+
+    <div class="step success">
+      <div class="step-number">1.1</div>
+      <div class="step-content">
+        <div class="step-title">TypeSafe skill load karo</div>
+        <div class="step-desc">Har session me pehle TypeSafe skill load karo:</div>
+        <pre>from app.platform.typesafe_integration import get_typesafe_client
+ts = get_typesafe_client()
+print(f"TypeSafe: {'ARMED' if ts.enabled else 'DISABLED'} | model: {ts.model}")</pre>
+      </div>
+    </div>
+
+    <div class="step success">
+      <div class="step-number">1.2</div>
+      <div class="step-content">
+        <div class="step-title">TypeSafe API key verify karo</div>
+        <div class="step-desc">Key present hai lekin live verify karo:</div>
+        <pre>python scripts/typesafe_status.py --probe</pre>
+        <div class="step-desc" style="margin-top: 6px;">Expected: <code>PRESENT</code> + <code>jev-latest</code> resolved</div>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">1.3</div>
+      <div class="step-content">
+        <div class="step-title">TypeSafe decision engine test karo</div>
+        <div class="step-desc">Ek sample decision lekar integration test karo:</div>
+        <pre>curl -X POST https://api.typesafe.ai/v1/systemone \
+  -H "Authorization: Bearer $TYPESAFE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"jev-latest","state":"{}","questions":["Should we prioritize lead A or lead B?"]}'</pre>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <strong>⚡ TypeSafe Usage Rule:</strong> Har substantial agent task me <code>decision_id</code>, <code>task_id</code>, <code>tenant_scope</code>, <code>purpose</code>, <code>state_hash</code>, <code>evidence_refs</code> record karo. TypeSafe sirf tab use karo jab semantic judgment materially next action change kare — greetings, exact arithmetic, rote status reads ke liye nahi.
+    </div>
+  </div>
+
+  <!-- PHASE 2: REVENUE TARGET -->
+  <div class="card">
+    <h2><span class="num">2</span> ₹1 Crore Revenue Target — Execution <span class="badge badge-p0">P0</span></h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Primary business target: <strong>₹1,00,00,000 net collected cash per month</strong>. Ye sirf real payment proof se count hota hai — leads, emails, calls nahi.</p>
+
+    <div class="step critical">
+      <div class="step-number">2.1</div>
+      <div class="step-content">
+        <div class="step-title">Current revenue state verify karo</div>
+        <div class="step-desc">VPS pe actual collected revenue check karo:</div>
+        <pre>ssh root@72.61.245.204 "cd /opt/leadgen && docker exec leadgen_app python -c \"
+from app.billing.ledger import get_ledger
+ledger = get_ledger()
+print(f'Total collected: ₹{ledger.total_collected_inr}')
+print(f'Active subs: {len(ledger.active_subscriptions)}')
+print(f'Pending invoices: {len(ledger.pending_invoices)}')
+\""</pre>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="step-number">2.2</div>
+      <div class="step-content">
+        <div class="step-title">Revenue gap calculate karo</div>
+        <div class="step-desc">₹1 Crore target me kitna gap hai:</div>
+        <pre>target = 10_000_000  # ₹1 Crore
+collected = ledger.total_collected_inr
+gap = target - collected
+days_remaining = 30  # September
+required_per_day = gap / days_remaining
+print(f"Gap: ₹{gap:,.0f} | Required/day: ₹{required_per_day:,.0f}")</pre>
+      </div>
+    </div>
+
+    <div class="step warning">
+      <div class="step-number">2.3</div>
+      <div class="step-content">
+        <div class="step-title">Revenue attribution pipeline verify karo</div>
+        <div class="step-desc">Har payment ka source track karo — lead source, campaign, worker, agent, TypeSafe judgment:</div>
+        <pre>ssh root@72.61.245.204 "cd /opt/leadgen && docker exec leadgen_app python -c \"
+from app.billing.ledger import get_ledger
+ledger = get_ledger()
+for entry in ledger.recent_entries(limit=10):
+    print(f'{entry.timestamp} | ₹{entry.amount_inr} | {entry.source} | {entry.attribution}')
+\""</pre>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">2.4</div>
+      <div class="step-content">
+        <div class="step-title">Daily operating controller setup karo</div>
+        <div class="step-desc">Revenue dashboard me daily metrics track karo:</div>
+        <ul style="margin-left: 20px; margin-top: 6px; color: var(--muted);">
+          <li><code>verified_net_collected_month_to_date</code></li>
+          <li><code>remaining_target</code></li>
+          <li><code>remaining_days</code></li>
+          <li><code>required_net_cash_per_day</code></li>
+          <li><code>current_paid_conversion</code></li>
+          <li><code>actual_customer_ARPC</code></li>
+          <li><code>gross_margin</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3: AGENT ARCHITECTURE -->
+  <div class="card">
+    <h2><span class="num">3</span> 31-Agent Workforce + 9 Worker Bots <span class="badge badge-p1">P1</span></h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Canonical architecture: 9 owner worker-bots + 31 specialist agents. Verify karo ki registry live hai.</p>
+
+    <div class="step info">
+      <div class="step-number">3.1</div>
+      <div class="step-content">
+        <div class="step-title">Agent registry verify karo</div>
+        <div class="step-desc">31 agents ka status check karo:</div>
+        <pre>ssh root@72.61.245.204 "cd /opt/leadgen && docker exec leadgen_app python -c \"
+from app.platform.automation_orchestrator import AutomationOrchestrator
+orch = AutomationOrchestrator()
+print(f'Total agents: {len(orch.registry)}')
+for agent_id, agent in orch.registry.items():
+    print(f'  {agent_id}: {agent.role} | {agent.domain}')
+\""</pre>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">3.2</div>
+      <div class="step-content">
+        <div class="step-title">9 worker bots verify karo</div>
+        <div class="step-desc">Supervisory fleet check karo:</div>
+        <pre>ssh root@72.61.245.204 "cd /opt/leadgen && docker exec leadgen_app python -c \"
+from app.platform.automation_orchestrator import AutomationOrchestrator
+orch = AutomationOrchestrator()
+print(f'Worker bots: {len(orch.HERMES_BOTS)}')
+for bot in orch.HERMES_BOTS:
+    print(f'  {bot}: {orch.HERMES_BOTS[bot]}')
+\""</pre>
+      </div>
+    </div>
+
+    <div class="step warning">
+      <div class="step-number">3.3</div>
+      <div class="step-content">
+        <div class="step-title">Task ledger verify karo</div>
+        <div class="step-desc">Canonical task ledger check karo — double claims, conflicting writers:</div>
+        <pre>ssh root@72.61.245.204 "cd /opt/leadgen && docker exec leadgen_app python -c \"
+from app.platform.automation_orchestrator import AutomationOrchestrator
+orch = AutomationOrchestrator()
+tasks = orch.store.all_tasks()
+print(f'Total tasks: {len(tasks)}')
+for t in tasks[-5:]:
+    print(f'  {t.task_id} | {t.status} | {t.owner_bot} → {t.assigned_agent}')
+\""</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 4: TELEGRAM DUAL-BOT -->
+  <div class="card">
+    <h2><span class="num">4</span> Telegram Dual-Bot Coordination <span class="badge badge-p1">P1</span></h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Jarvis bot (ingress) + Notify bot (egress). Dono ek hi token poll nahi kar sakte.</p>
+
+    <div class="step critical">
+      <div class="step-number">4.1</div>
+      <div class="step-content">
+        <div class="step-title">409 conflict resolve karo</div>
+        <div class="step-desc">Hermes desktop gateway stop karo ya VPS ko single owner banao:</div>
+        <pre># Option A: Hermes gateway stop
+hermes --profile pilot gateway stop
+
+# Option B: VPS ko owner set karo
+ssh root@72.61.245.204 "cd /opt/leadgen && echo 'TELEGRAM_INGRESS_OWNER=vps' >> .env && docker compose -f docker-compose.vps.yml restart telegram-jarvis"</pre>
+      </div>
+    </div>
+
+    <div class="step warning">
+      <div class="step-number">4.2</div>
+      <div class="step-content">
+        <div class="step-title">Notify bot token re-issue karo</div>
+        <div class="step-desc">BotFather se naya token banao aur <code>.env</code> me set karo:</div>
+        <pre>TELEGRAM_NOTIFY_BOT_TOKEN=&lt;new_token_here&gt;</pre>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">4.3</div>
+      <div class="step-content">
+        <div class="step-title">Coordination groups wire karo</div>
+        <div class="step-desc">3 REQUIRED groups create karo (owner manually):</div>
+        <pre>python scripts/telegram_wire_coordination_groups.py --set workers_coordination=-100XXXXXXXXXX
+python scripts/telegram_wire_coordination_groups.py --set agents_coordination=-100XXXXXXXXXX
+python scripts/telegram_wire_coordination_groups.py --set admin_command_center=-100XXXXXXXXXX</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 5: PROJECT SSOT -->
+  <div class="card">
+    <h2><span class="num">5</span> Project Single Source of Truth <span class="badge badge-p2">P2</span></h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Duplicate folders, files, configurations merge karo aur clean karo.</p>
+
+    <div class="step success">
+      <div class="step-number">5.1</div>
+      <div class="step-content">
+        <div class="step-title">Duplicate folders removed ✅</div>
+        <div class="step-desc">Ye folders delete ho chuke hain:</div>
+        <pre>✅ .clawhub/          — OpenClaw lock state (moved to docs/)
+✅ .workbuddy-ai/     — WorkBuddy artifacts (moved to docs/)
+✅ .agnes/             — Agnes cache (moved to docs/)
+✅ .freebuff/          — FreeBuff cache (moved to docs/)
+✅ _scratch/           — Scratch files (moved to docs/)
+✅ _work/              — Work files (moved to docs/)
+✅ scratch/            — Scratch files (moved to docs/)
+✅ tmp/                — Temp files (moved to docs/)
+✅ nul                 — Empty file (deleted)
+✅ openclaw-workspace-state.json — Orphaned state (deleted)
+✅ gen_0913.py         — Orphaned script (deleted)</pre>
+      </div>
+    </div>
+
+    <div class="step success">
+      <div class="step-number">5.2</div>
+      <div class="step-content">
+        <div class="step-title">Telegram docs consolidated ✅</div>
+        <div class="step-desc">11 Telegram docs <code>docs/telegram/</code> me move ho chuke hain:</div>
+        <pre>docs/telegram/
+├── TELEGRAM_DUAL_BOT_SETUP.md          — Canonical setup doc
+├── TELEGRAM_ENTERPRISE_SETUP.md       — Enterprise grid setup
+├── TELEGRAM_ENTERPRISE_GRID_SETUP_2026-09-16.md
+├── TELEGRAM_ENTERPRISE_SETUP_COMPLETE.md
+├── TELEGRAM_MANUAL_CREATION_GUIDE.md
+├── TELEGRAM_MANUAL_CREATION_RUNBOOK_2026-09-20.md
+├── TELEGRAM_OWNER_BRIEF_2026-09-16.md
+├── TELEGRAM_PHASE1_2_RUNBOOK.md
+├── TELEGRAM_SINGLE_SOURCE_OF_TRUTH_2026-09-20.md
+├── TELEGRAM_AUTO_CREATE_RUNBOOK_2026-09-16.md
+└── OWNER_ACTION_CHECKLIST.html         — Interactive checklist</pre>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">5.3</div>
+      <div class="step-content">
+        <div class="step-title">Root directory clean ✅</div>
+        <div class="step-desc">Ab sirf essential folders hain:</div>
+        <pre>app/           — FastAPI application
+scripts/       — Automation scripts
+tests/         — Test suite
+docs/          — Documentation (telegram/ subfolder)
+config/        — Configuration files
+data/          — Runtime data
+deploy/        — Deployment scripts
+memory/        — Knowledge base
+frontend/      — Frontend assets
+alembic/       — Database migrations
+monitoring/    — Observability config
+ops/           — Operations scripts
+infrastructure/ — Infrastructure config
+voice_stack/   — Voice AI stack
+video_renderer/ — Video rendering
+unity/         — Unity WebGL build
+designs/       — Design assets
+analysis/      — Analysis scripts
+evals/         — Evaluation scripts
+references/    — Reference materials
+knowledge/     — Knowledge base
+incidents/     — Incident reports
+deliverables/  — Deliverables
+uat_evidence/  — UAT evidence
+logs/          — Log files
+models/        — ML models
+var/           — Variable data
+tools/         — Utility tools</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 6: FINAL VERIFICATION -->
+  <div class="card">
+    <h2><span class="num">6</span> Final Verification Checklist <span class="badge badge-done">VERIFY</span></h2>
+
+    <div class="two-col">
+      <div>
+        <h3>Local Machine</h3>
+        <div class="checklist-item">
+          <input type="checkbox" id="l1">
+          <label for="l1">TypeSafe API key present + valid</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="l2">
+          <label for="l2">Jarvis bot token authenticated</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="l3">
+          <label for="l3">Local runner may poll = true</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="l4">
+          <label for="l4">Project root clean (no .py files)</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="l5">
+          <label for="l5">Telegram docs in docs/telegram/</label>
+        </div>
+      </div>
+      <div>
+        <h3>VPS (Production)</h3>
+        <div class="checklist-item">
+          <input type="checkbox" id="v1">
+          <label for="v1">telegram-jarvis container healthy</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="v2">
+          <label for="v2">VPS polling state = "polling"</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="v3">
+          <label for="v3">0 HTTP 409 conflicts</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="v4">
+          <label for="v4">Notify bot token valid</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="v5">
+          <label for="v5">3 coordination groups wired</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXECUTION ORDER -->
+  <div class="card" style="border-color: var(--accent);">
+    <h2 style="color: var(--accent);">⚡ Recommended Execution Order</h2>
+    <p style="color: var(--muted); margin-bottom: 12px;">Is order me sab karo — pehle critical, phir important, phir nice-to-have:</p>
+
+    <div class="step critical">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <div class="step-title">TypeSafe verify karo (5 min)</div>
+        <div class="step-desc">Key present? Model resolved? Integration working?</div>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <div class="step-title">Revenue state check karo (5 min)</div>
+        <div class="step-desc">Current collected, gap, required daily run-rate</div>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <div class="step-title">409 conflict resolve karo (5 min)</div>
+        <div class="step-desc">Hermes gateway stop ya VPS owner set</div>
+      </div>
+    </div>
+
+    <div class="step warning">
+      <div class="step-number">4</div>
+      <div class="step-content">
+        <div class="step-title">Notify bot token re-issue karo (5 min)</div>
+        <div class="step-desc">BotFather → new token → .env update</div>
+      </div>
+    </div>
+
+    <div class="step warning">
+      <div class="step-number">5</div>
+      <div class="step-content">
+        <div class="step-title">Coordination groups wire karo (10 min)</div>
+        <div class="step-desc">3 groups create → chat IDs → SSOT bind → topics create</div>
+      </div>
+    </div>
+
+    <div class="step info">
+      <div class="step-number">6</div>
+      <div class="step-content">
+        <div class="step-title">Final verification karo (5 min)</div>
+        <div class="step-desc">Local + VPS + Telegram end-to-end test</div>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="margin-top: 16px;">
+      <strong>⏱️ Total Time: ~35 min</strong> — Sab karna hai, koi shortcut nahi. Pehle P0 (TypeSafe + Revenue + 409), phir P1 (Notify + Groups), phir P2 (Verification).
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

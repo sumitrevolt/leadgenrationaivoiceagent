@@ -202,6 +202,71 @@ def test_guardian_safety_gate_blocks_red_lane(temp_store):
     assert "Guardian Safety Gate" in blocked_task.error_message
 
 
+def test_typesafe_session_policy_can_route_substantial_task_to_review(temp_store, monkeypatch):
+    from app.platform import typesafe_session_policy
+
+    monkeypatch.setattr(
+        typesafe_session_policy,
+        "judge_task",
+        lambda **_kw: {
+            "decision_id": "ts-session-1",
+            "route": "review",
+            "reason": "semantic uncertainty",
+            "traced": True,
+        },
+    )
+    orchestrator = AutomationOrchestrator(store=temp_store)
+    task, _ = orchestrator.submit_task(
+        owner_bot="sales",
+        assigned_agent="neha",
+        input_payload={"objective": "Choose the highest-value sales follow-up"},
+        idempotency_key="typesafe-session-review",
+    )
+
+    assert orchestrator.dispatch_task(task.task_id) is False
+    saved = orchestrator.store.get(task.task_id)
+    assert saved.status == TaskStatus.REVIEW
+    assert saved.input_payload["_typesafe_session_policy"]["decision_id"] == "ts-session-1"
+    assert saved.fencing_token is None
+
+
+def test_typesafe_session_policy_is_reused_on_task_retry(temp_store, monkeypatch):
+    from app.platform import typesafe_session_policy
+
+    calls = []
+
+    def _judge(**_kw):
+        calls.append("called")
+        return {
+            "decision_id": "ts-session-once",
+            "route": "proceed",
+            "reason": "typesafe_judgment",
+            "traced": True,
+        }
+
+    monkeypatch.setattr(typesafe_session_policy, "judge_task", _judge)
+    orchestrator = AutomationOrchestrator(store=temp_store)
+    task, _ = orchestrator.submit_task(
+        owner_bot="sales",
+        assigned_agent="neha",
+        input_payload={"objective": "Retry one governed sales task"},
+        idempotency_key="typesafe-session-retry-once",
+    )
+
+    assert orchestrator.dispatch_task(task.task_id) is True
+    first = orchestrator.store.get(task.task_id)
+    assert first.input_payload["_typesafe_session_policy"]["decision_id"] == "ts-session-once"
+    retried = orchestrator.verify_and_complete(
+        task_id=task.task_id,
+        execution_evidence={},
+        is_success=False,
+        error_msg="temporary provider timeout",
+    )
+    assert retried.status == TaskStatus.READY
+    assert orchestrator.dispatch_task(task.task_id) is True
+    assert calls == ["called"]
+
+
 def test_bounded_retry_and_dlq_escalation(temp_store):
     orchestrator = AutomationOrchestrator(store=temp_store)
 
