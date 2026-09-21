@@ -645,3 +645,29 @@ Owner provisioning of four live TypeSafe keys via `/api/admin/keys/slot` or CLI 
 
 **Next Highest Priority:** Owner ke 3 coordination groups wire hone ke baad `--verify` green karna + VPS pe `setup_telegram_vps.sh --check-only` chala kar ingress ownership decide karna (Hermes vs VPS), phir `TELEGRAM_INGRESS_OWNER` set karke ek live `/status` round-trip prove karna.
 
+---
+
+## Loop Run — 2026-09-21 (VPS = single Jarvis ingress owner; deploy 883ef713; PR #542)
+
+**Goal:** VPS ko Jarvis token ka EKMATRA `getUpdates` consumer banana, Hermes ko non-polling cockpit rakhna, aur owner account se ek real `/status` round-trip prove karna.
+
+**Inspected:** VPS live (no `/opt/leadgen/.venv`, systemd unit `not-found`, no telegram containers — clean slate) · Hermes pilot gateway (PID 16064 = token poller; apne log me "Telegram bot token already in use" verbatim; `hermes_cli/web_server_messaging.py:_write_platform_enabled` → `write_platform_config_field` → top-level `platforms.telegram.enabled` → `gateway/config_loader.py` `_enabled_explicit`) · `deploy_vps.sh` SERVICES + pre-deploy tag capture + app-rollout (systemd no-op) · branch protection via `gh api` · `data/telethon_setup.session` (dc5, Sep 17).
+
+**Problems Found:**
+1. Repo RED: `tests/test_telegram_wiring_tool.py` 10 errors — wiring tool file deleted, test reh gaya → tool restore kiya (contract tests se TDD).
+2. 409 probe false negative: single instantaneous probe `FREE` bolti hai jab poller long-poll gap me ho — live `['clean','409','clean']` → probe ab N-spaced, ANY-409 conclusive, zero-409 = `NO_CONFLICT_OBSERVED` (never "free").
+3. VPS `.env` `TELEGRAM_OWNER_CHAT_IDS` khaali aur `telegram_bot.py` ka koi code-default nahi → owner commands "Access Restricted" hote; compose default fix (`.env` untouched).
+4. Systemd unit is host pe boot hi nahi ho sakta (no host venv → 203/EXEC crash-loop guaranteed) → unit delete, Docker service bana.
+5. Deploy race: do `deploy_vps.sh` ek saath (doosra agent VOICE_LAUNCH_KILL 0→1 flip ke saath); mera duplicate kill kiya. Deploy ne 2026-09-20 postmortem ki prediction EXACTLY verify ki: worker-set 883ef713 pe, `systemctl restart leadgen -> OK` (no-op), /health verify FATAL (exit 3); app container baad me out-of-band `up -d --no-deps app` se move hua, `/health` = `883ef713 healthy`.
+6. Governance: required contexts `pytest`/`ruff`/`secret-scanning` kisi workflow job se match NAHI karte (PR #542: 13 checks, 0 match) → koi bhi PR gate se merge nahi ho sakta; aur `pytest-job` sirf `pull_request` pe chalta hai, push-to-main green dikhata hai with pytest SKIPPED (yahi chhupa tha `tests/test_telegram.py` ka collection error, jo doosre agent ke dead-module deletion ke baadbacha).
+
+**Changed:** `scripts/telegram_wire_coordination_groups.py` restore (SSOT writer, guards) · probe retry fix · heartbeat (`data/telegram_jarvis_state.json`, states starting/polling/standby/external_conflict/stopped) + runner SIGTERM→KeyboardInterrupt (lease release) · `docker-compose.vps.yml` `telegram-jarvis` service (single replica, INGRESS_OWNER=vps, owner-chat defaults, heartbeat healthcheck, stop_grace 45s) · systemd unit delete · `deploy_vps.sh` SERVICES += telegram-jarvis (evidence-accurate comment: script leadgen_app ko recreate NAHI karta) · docs §3.4/3.5/6/7 rewrite · `docker compose config` secrets-print footgun warning · PR #542 (test_telegram.py deletion) · ADR-198 entries + 2 incident entries.
+
+**Tests Run & Verification Evidence:** 116 tests green (dual_bot + wiring_tool + integration + setup + bootstrap + webhook + no_app_drift + deploy_guard) · `compileall app scripts` exit 0 (4× duplicate-kwarg SyntaxErrors in typesafe_scraper.py fixed — ye main ko RED kar rahe the) · ruff clean (changed files) · prod_check PASS · check_secrets clean · `docker compose config --quiet` OK · `bash -n` OK · **LIVE:** prod `/health` = `883ef713 healthy`; `leadgen_telegram_jarvis` container healthy, restarts=0; logs me polling start → 409 ×7 (Hermes) → lease release → standby backoff 10→60s (exactly designed, token fight nahi); heartbeat file `instance_id=leadgen-vps state=external_conflict conflicts=7`.
+
+**Risks:** Hermes abhi bhi poll kar raha hai (owner toggle pending) → VPS standby loop me hai (healthy, but not receiving) · round-trip abhi PROVEN NAHI (Telethon se khud bhejna blocked: `TELEGRAM_API_ID/HASH` machine pe kahin nahi; owner ke 10-second action bina possible nahi) · `VOICE_LAUNCH_KILL=1` prod .env me hai (doosre agent ke deploy-flow se; engage-then-revert convention — revert owner ka call) · unmerged PR #542 jab tak orphan-context issue fix nahi hota, merge gate se nahi ho sakta.
+
+**Remaining / owner-only:** (1) Hermes pilot `platforms.telegram.enabled: false` (ya `TELEGRAM_API_ID/HASH` + login mujhe do — phir main session se test bhej dunga); (2) required contexts ko real job names se align karna; (3) 3 coordination groups wire karna; (4) Notify token re-issue; (5) VOICE_LAUNCH_KILL revert decide karna.
+
+**Next Highest Priority:** Owner ke Hermes-toggle (1 line) ke turant baad: VPS logs me 409 ka RUKNA probe karna → `state=polling` heartbeat → owner `/status` round-trip ka evidence (runner log + audit `command_executed` + reply message_id) capture karna.
+

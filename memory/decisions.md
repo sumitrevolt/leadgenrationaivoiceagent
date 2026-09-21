@@ -4,6 +4,23 @@
 
 ---
 
+## ADR-199: The VPS is the single Telegram ingress owner; Hermes is a non-polling cockpit; deploy-rollout gap recorded (2026-09-21)
+
+**Status**: ACCEPTED — CODE-PRESENT on `origin/main` (2f27ea11) and **LIVE-VERIFIED on prod** (`leadgen_telegram_jarvis` at tag `883ef713`, healthy); the ingress transfer itself remains gated on one owner action (Hermes toggle).
+**Context**: ADR-198 built the coordination primitives but named no owner: Hermes' pilot gateway still held the token (its own log: "Telegram bot token already in use by the 'pilot' profile gateway (PID 16064)"), the VPS had no runtime at all (no host venv → the systemd unit would 203/EXEC crash-loop forever; no telegram container), the VPS `.env` carries an **empty** `TELEGRAM_OWNER_CHAT_IDS` while `telegram_bot.py` has no code default (owner commands would be refused as unauthorised), and the deploy script's pre-deploy tag capture refuses a service whose container does not yet exist.
+**Decision**:
+1. **VPS ingress owner, by construction**: new compose service `telegram-jarvis` (single replica of the app image) runs the runner with `TELEGRAM_INSTANCE_ROLE=vps`, `TELEGRAM_INSTANCE_ID=leadgen-vps`, `TELEGRAM_INGRESS_OWNER=vps` and compose-level defaults `TELEGRAM_OWNER_CHAT_IDS=1621120182` / `TELEGRAM_OWNER_USERNAMES=sumitrevolt` (the `:-` form covers unset **and** empty, so the production `.env` is never touched and still wins when it carries a real value).
+2. **Liveness is self-reported and identity-bound**: the loop writes `data/telegram_jarvis_state.json` (state starting/polling/standby/external_conflict/stopped + polls/updates/conflicts); the container healthcheck requires `instance_id == leadgen-vps` and a heartbeat younger than 240s — identity matters because `./data` is a shared bind mount a stale LOCAL heartbeat must not satisfy a CONTAINER check. The runner converts SIGTERM to its Ctrl-C path so the lease is released on every stop.
+3. **Hermes keeps the cockpit, loses ingress**: the supported mechanism is Hermes' own `write_platform_config_field("telegram", "enabled", False)` → top-level `platforms.telegram.enabled: false` in the pilot profile (consumed by `gateway/config_loader.py` as `_enabled_explicit`), then restart the gateway — reversible in one line. Hermes continues to serve egress sends, cron owner briefs and MCP tools; only `getUpdates` moves to the VPS.
+4. **Rollout order for a new compose service**: bootstrap once at the already-deployed tag (`up -d --no-deps telegram-jarvis`) BEFORE adding it to `deploy_vps.sh SERVICES` (which now includes it, so later releases roll it in lockstep).
+5. **Deploy truth-telling**: the SERVICES comment now records that nothing in `deploy_vps.sh` recreates `leadgen_app` — a green deploy covers the rolled services only, and `/health.version` is a separate check. Verified live this date: workers hit the new tag, `systemctl restart leadgen -> OK` moved nothing (dead unit), the verify gate failed closed, and the app container moved only via an out-of-band recreate.
+6. **Probe honesty**: the 409 probe retries (single clean probe = false negative, observed `['clean','409','clean']`); any 409 is conclusive, zero 409s is `NO_CONFLICT_OBSERVED`, never "free".
+**Consequences**: The runtime state is legible from one file and one log: while Hermes polls, the VPS container sits in documented standby (observed: 7 conflicts, lease released each time, backoff 10→60s, restarts=0) instead of fighting; the moment Hermes' toggle lands, the next poll succeeds and heartbeat flips to `polling` with no redeploy. Governance debt recorded the same day: the branch-protection required contexts (`pytest`/`ruff`/`secret-scanning`) match no workflow job, so no PR can merge through the gate — aligning them is an owner action.
+**Owner actions**: (1) set `platforms.telegram.enabled: false` on the Hermes pilot profile + restart (or hand over `TELEGRAM_API_ID/HASH` for a Telethon-verified round-trip instead); (2) align the three required CI context strings with real job names; (3) the ADR-198 owner actions (Notify token, group wiring) stand.
+**Reference**: `docker-compose.vps.yml` (`telegram-jarvis`) · `scripts/deploy_vps.sh` (SERVICES) · `scripts/run_telegram_jarvis.py` (SIGTERM) · `app/platform/telegram_coordinator.py` (heartbeat) · `docs/TELEGRAM_DUAL_BOT_SETUP.md` §3.4–3.5, §6 · incident `2026-09-21` deploy entry
+
+---
+
 ## ADR-198: One Telegram token, one poller — lease + owner-role coordination, and token VALIDITY instead of token PRESENCE (2026-09-21)
 
 **Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; rollout is an OWNER gate — see "Owner actions")
