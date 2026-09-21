@@ -312,6 +312,8 @@ def test_rotate_unknown_service_returns_404(client, keys_dir, monkeypatch):
         "1starts_with_digit",  # invalid env var name
         "",  # empty
         "x" * 65,  # over length cap
+        "svc\n",  # re.match + "$" would have accepted this trailing newline
+        "svc\r",  # bare CR
     ],
     ids=[
         "regex-wildcard",
@@ -322,6 +324,8 @@ def test_rotate_unknown_service_returns_404(client, keys_dir, monkeypatch):
         "leading-digit",
         "empty",
         "too-long",
+        "trailing-newline",
+        "bare-cr",
     ],
 )
 def test_invalid_service_name_returns_400(client, keys_dir, monkeypatch, bad_service):
@@ -389,6 +393,101 @@ def test_deploy_env_replacement_is_literal_not_regex(monkeypatch, tmp_path):
     assert f"MYAPP_API_KEY={weird}" in written, written
     assert "EXISTING=1" in written, written
     assert "MYAPP_API_KEY=old" not in written, written
+
+
+def _deploy_env_setup(monkeypatch, tmp_path, initial: str, key_value: str, service: str = "myapp"):
+    """Point the hardcoded /opt/leadgen/.env target at a temp file, then deploy.
+
+    Returns (env_file, result).
+    """
+    from pathlib import Path as RealPath
+
+    from app.platform import key_manager as km
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(initial)
+
+    monkeypatch.setattr(km, "KEYS_DIR", tmp_path)
+    monkeypatch.setattr(km, "KEYS_FILE", tmp_path / "keys.json")
+    monkeypatch.setattr(km, "AUDIT_LOG", tmp_path / "audit.log")
+
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+
+    kmgr = km.KeyManagerAgent()
+    kmgr.set_key(service, key_value)
+
+    original_path = km.Path
+    monkeypatch.setattr(
+        km, "Path", lambda p: env_file if str(p) == "/opt/leadgen/.env" else original_path(p)
+    )
+    return env_file, kmgr.deploy_to_env(service)
+
+
+def test_duplicate_env_key_lines_all_replaced(monkeypatch, tmp_path):
+    """Most .env parsers are last-wins, so a stale duplicate must not survive.
+
+    Regression guard: an early version of the literal-replacement rewrite broke
+    out of the loop after the first match, leaving the later duplicate intact —
+    which would make the deployed credential ambiguous.
+    """
+    env_file, res = _deploy_env_setup(
+        monkeypatch,
+        tmp_path,
+        "MYAPP_API_KEY=first\nOTHER=1\nMYAPP_API_KEY=second\n",
+        "tsk_duplicate_probe_123456",
+    )
+    assert res.get("success") is True, res
+
+    written = env_file.read_text()
+    assert "MYAPP_API_KEY=first" not in written, written
+    assert "MYAPP_API_KEY=second" not in written, written
+    assert written.count("MYAPP_API_KEY=") == 2, written
+    assert "OTHER=1" in written, written
+
+
+def test_env_value_with_unicode_line_separator_preserved(monkeypatch, tmp_path):
+    """``str.splitlines()`` breaks on \\u2028, \\x85 and \\x0b — a key value
+    containing one of those would be split across lines and corrupted."""
+    tricky = "tsk_\u2028sep_\x85nel_\x0bvt_123456"
+    env_file, res = _deploy_env_setup(monkeypatch, tmp_path, "MYAPP_API_KEY=old\n", tricky)
+    assert res.get("success") is True, res
+
+    written = env_file.read_text()
+    assert f"MYAPP_API_KEY={tricky}" in written, repr(written)
+
+
+def test_crlf_env_file_is_handled(monkeypatch, tmp_path):
+    """A CRLF .env must be replaced cleanly, not leave a stray \\r in the value."""
+    env_file, res = _deploy_env_setup(
+        monkeypatch, tmp_path, "OTHER=1\r\nMYAPP_API_KEY=old\r\n", "tsk_crlf_probe_12345678"
+    )
+    assert res.get("success") is True, res
+
+    written = env_file.read_text()
+    assert "MYAPP_API_KEY=tsk_crlf_probe_12345678\n" in written, repr(written)
+    assert "MYAPP_API_KEY=old" not in written, repr(written)
+    assert "OTHER=1" in written, repr(written)
+
+
+@pytest.mark.parametrize("bad_key", [12345678, None, ["a"] * 8], ids=["int", "null", "list"])
+def test_non_string_key_returns_400(client, keys_dir, monkeypatch, bad_key):
+    """A non-string key payload must be a 400, not a 500.
+
+    ``len(key) < 8`` raised TypeError on a non-str, which escaped the
+    ValueError -> 400 mapping in ``_handle_store_errors``.
+    """
+    _mount_ok()
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("KEYS_MASTER_KEY", Fernet.generate_key().decode())
+    resp = client.post(
+        "/api/admin/keys/set",
+        json={"service": "typesafe", "key": bad_key},
+        headers={"X-API-Key": "test-admin-key-xyz"},
+    )
+    assert resp.status_code == 400, f"expected 400, got {resp.status_code}: {resp.text[:200]}"
 
 
 def test_audit_log_contains_no_key_material(client, keys_dir, monkeypatch):

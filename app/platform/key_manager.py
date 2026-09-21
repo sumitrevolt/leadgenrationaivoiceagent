@@ -47,7 +47,11 @@ _ENCRYPTED_MARKER = "fm1:"  # "format v1"
 # into the deployment .env file, so they must be restricted to the POSIX
 # identifier charset. This is a *constant* pattern — never built from input —
 # which also removes the regex-injection surface (CodeQL py/regex-injection).
-_SERVICE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
+#
+# Deliberately unanchored and matched with ``fullmatch``: ``re.match`` with a
+# ``$`` anchor still accepts a trailing newline ("svc\n" -> True), which would
+# smuggle a line break into the generated env var name.
+_SERVICE_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 
 
 def validate_service_name(service: str) -> str:
@@ -57,7 +61,7 @@ def validate_service_name(service: str) -> str:
     owner-only auth gate; this is defence in depth so a malformed name can
     never reach the regex/env-write path.
     """
-    if not isinstance(service, str) or not _SERVICE_NAME_RE.match(service):
+    if not isinstance(service, str) or _SERVICE_NAME_RE.fullmatch(service) is None:
         raise ValueError("Invalid service name: expected 1-64 chars matching [A-Za-z][A-Za-z0-9_]*")
     return service
 
@@ -279,7 +283,9 @@ class KeyManagerAgent:
         """
         validate_service_name(service)
 
-        if not key or len(key) < 8:
+        # isinstance guard first: len() on a non-str (int/None/list) raised
+        # TypeError, which escaped the ValueError mapping and surfaced as a 500.
+        if not isinstance(key, str) or len(key) < 8:
             raise ValueError("Key too short")
 
         # Fail closed: never persist plaintext.
@@ -385,16 +391,29 @@ class KeyManagerAgent:
         # key value would be interpreted as backreference escapes (invalid-group
         # error, or a silently mangled credential). Both go away with plain
         # string comparison.
+        #
+        # Two subtleties that a naive rewrite gets wrong:
+        #   * Split on "\n" only. ``str.splitlines()`` also breaks on \x0b, \x0c,
+        #     \x1c-\x1e, \x85, \u2028 and \u2029, so a value containing one of
+        #     those would be split across lines and silently corrupted.
+        #   * Replace EVERY matching line, not just the first. Most .env parsers
+        #     are last-wins, so leaving a stale duplicate would make the deployed
+        #     credential ambiguous — and the old ``re.sub`` did replace all.
         env_var = f"{service.upper()}_API_KEY"
         new_line = f"{env_var}={plain}"
 
-        lines = content.splitlines()
+        lines = content.split("\n")
+        if len(lines) > 1 and lines[-1] == "":
+            lines.pop()  # drop the empty tail from a trailing newline
+        lines = [ln[:-1] if ln.endswith("\r") else ln for ln in lines]
+
         prefix = f"{env_var}="
+        replaced = False
         for idx, line in enumerate(lines):
             if line.startswith(prefix):
                 lines[idx] = new_line
-                break
-        else:
+                replaced = True
+        if not replaced:
             lines.append(new_line)
 
         content = "\n".join(lines) + "\n"

@@ -237,7 +237,18 @@ def main() -> int:
 
     # ── 13. CodeQL py/regex-injection: metacharacter service names -> 400
     def c13():
-        bad = ["FOO.*", "a)$", "svc; rm -rf /", "a b", "../escape", "1digit", "", "x" * 65]
+        bad = [
+            "FOO.*",
+            "a)$",
+            "svc; rm -rf /",
+            "a b",
+            "../escape",
+            "1digit",
+            "",
+            "x" * 65,
+            "svc\n",  # re.match + "$" would have accepted this trailing newline
+            "svc\r",
+        ]
         for name in bad:
             r = client.post(
                 "/api/admin/keys/set",
@@ -284,6 +295,81 @@ def main() -> int:
         km_mod._key_manager = None
 
     check("14. deploy_to_env writes backslash values literally", c14)
+
+    # ── 15. deploy_to_env replaces EVERY duplicate line (last-wins parsers)
+    def c15():
+        from pathlib import Path as RealPath
+
+        from app.platform.key_manager import KeyManagerAgent
+
+        env_file = Path(workdir) / "dup_target.env"
+        env_file.write_text("MYAPP_API_KEY=first\nOTHER=1\nMYAPP_API_KEY=second\n")
+
+        km_mod.KEYS_FILE = Path(workdir) / "dup_keys.json"
+        km_mod._key_manager = None
+        kmgr = KeyManagerAgent()
+        kmgr.set_key("myapp", "tsk_duplicate_probe_123456")
+
+        original_path = km_mod.Path
+        km_mod.Path = lambda p: env_file if str(p) == "/opt/leadgen/.env" else original_path(p)
+        try:
+            res = kmgr.deploy_to_env("myapp")
+        finally:
+            km_mod.Path = original_path
+            km_mod.KEYS_FILE = Path(keys_file)
+            km_mod._key_manager = None
+
+        assert res.get("success") is True, res
+        written = env_file.read_text()
+        assert "MYAPP_API_KEY=first" not in written, "stale duplicate left in place"
+        assert "MYAPP_API_KEY=second" not in written, "stale duplicate left in place"
+        assert written.count("MYAPP_API_KEY=") == 2, f"expected 2 lines, got: {written!r}"
+        assert "OTHER=1" in written, "unrelated line dropped"
+
+    check("15. Duplicate .env key lines all replaced", c15)
+
+    # ── 16. Values with Unicode line separators are not split
+    def c16():
+        from pathlib import Path as RealPath
+
+        from app.platform.key_manager import KeyManagerAgent
+
+        env_file = Path(workdir) / "uni_target.env"
+        env_file.write_text("MYAPP_API_KEY=old\n")
+
+        # str.splitlines() would break on these; split("\n") must not.
+        tricky = "tsk_\u2028sep_\x85nel_\x0bvt_123456"
+        km_mod.KEYS_FILE = Path(workdir) / "uni_keys.json"
+        km_mod._key_manager = None
+        kmgr = KeyManagerAgent()
+        kmgr.set_key("myapp", tricky)
+
+        original_path = km_mod.Path
+        km_mod.Path = lambda p: env_file if str(p) == "/opt/leadgen/.env" else original_path(p)
+        try:
+            res = kmgr.deploy_to_env("myapp")
+        finally:
+            km_mod.Path = original_path
+            km_mod.KEYS_FILE = Path(keys_file)
+            km_mod._key_manager = None
+
+        assert res.get("success") is True, res
+        written = env_file.read_text()
+        assert f"MYAPP_API_KEY={tricky}" in written, f"value split/corrupted: {written!r}"
+
+    check("16. Unicode line separators in values preserved", c16)
+
+    # ── 17. Non-string key payload -> 400, not 500
+    def c17():
+        for payload in (12345678, None, ["a", "b", "c", "d", "e", "f", "g", "h"]):
+            r = client.post(
+                "/api/admin/keys/set",
+                json={"service": "ts_a", "key": payload},
+                headers={"X-API-Key": "owner-key-123"},
+            )
+            assert r.status_code == 400, f"key={payload!r} -> {r.status_code}, expected 400"
+
+    check("17. Non-string key -> 400 (not 500)", c17)
 
     # ── summary
     print("\n" + "=" * 64)
