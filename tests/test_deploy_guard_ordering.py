@@ -227,10 +227,19 @@ def test_no_undeclared_destructive_script() -> None:
         set(GUARDED_NOW)
         | set(UNGUARDED_DEBT)
         | set(PY_GUARDED)
-        # A reclassified path is deliberately OUT of the release-path population,
-        # so it is exempt from this scan — which is exactly why it must carry an
-        # evidence reason and still exist on disk (see the anti-rot assert below).
-        | set(RECLASSIFIED)
+        # RECLASSIFIED belongs in `known`. Its members ARE matched by the
+        # destructive scanner, but they were reclassified by READING the file —
+        # that is the whole point of the bucket. Omitting it here meant
+        # reclassification had no effect on this check, so the bucket was
+        # decorative and a correctly reclassified path kept failing as
+        # "undeclared".
+        #
+        # Normalised to basenames because the loop below compares `path.name`:
+        # a slashed key would silently do nothing — the exact rot called out in
+        # the RECLASSIFIED note above. Being in `known` also means the loop
+        # never re-reads the file, so this exemption stays paired with the
+        # anti-rot asserts in test_reclassified_paths_are_not_treated_as_release_paths.
+        | {n.split("/")[-1] for n in RECLASSIFIED}
     )
     undeclared: list[str] = []
     for path in sorted(SCRIPTS.glob("*")):

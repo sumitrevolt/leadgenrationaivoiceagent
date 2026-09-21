@@ -377,9 +377,13 @@ async def start_stream_call(
         hangup_url = f"{base}/api/telephony/vobiz/hangup/{token}"
 
         # ── Pending-state write (restored 2026-09-19) ───────────────────────
-        # Store under raw_token (and token if signed) so mid-call reconnects,
-        # worker restarts, and verify() pass-throughs all find the pending state.
-        # Both crm_lead_id and lead_id are set for full backwards/forwards compat.
+        # Store under raw_token ONLY — that is the key the WS pops with, and it
+        # is what `_peek_pending(raw_token)` looks up. Storing under `token` as
+        # well contradicts the two-token contract above: the signed key is never
+        # popped, so it leaks, and it doubles the rate at which `_MAX_PENDING` is
+        # reached — and reaching it CLEARS every pending stream, dropping the
+        # state of live concurrent calls. Both crm_lead_id and lead_id are set in
+        # the payload for full backwards/forwards compat.
         pending_payload = {
             "niche": niche_key,
             "client_id": client_id or "",
@@ -391,8 +395,6 @@ async def start_stream_call(
             "voice_role": voice_role or "",
         }
         await _store_pending(raw_token, pending_payload)
-        if token != raw_token:
-            await _store_pending(token, pending_payload)
         from app.telephony.tata_smartflo_handler import TataSmartfloClient
 
         sf_client = TataSmartfloClient()
