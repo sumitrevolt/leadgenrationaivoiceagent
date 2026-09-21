@@ -306,9 +306,11 @@ def create_topics(key: str, token: str | None = None) -> int:
         print(f"[SKIP] {key} declares no forum topics")
         return 0
 
-    resolved = token or _default_token()
-    if not resolved:
-        print("[ERROR] no telegram token available (set TELEGRAM_JARVIS_BOT_TOKEN)")
+    # A free token alone never authorises network side effects: the caller must
+    # explicitly pass one (CLI --create-topics / tests via monkeypatch). No
+    # implicit auto-send from environment credentials.
+    if not token:
+        print(f"[REFUSED] {key}: an explicit bot token is required to create topics")
         return 1
 
     topic_ids: dict[str, Any] = dict(group.get("topic_ids") or {})
@@ -316,7 +318,7 @@ def create_topics(key: str, token: str | None = None) -> int:
     for topic in declared:
         if topic in topic_ids:
             continue
-        res = _telegram_api(resolved, "createForumTopic", {"chat_id": chat_id, "name": topic})
+        res = _telegram_api(token, "createForumTopic", {"chat_id": chat_id, "name": topic})
         if res.get("ok"):
             topic_ids[topic] = (res.get("result") or {}).get("message_thread_id")
             created.append(topic)
@@ -480,7 +482,8 @@ def main(argv: list[str] | None = None) -> int:
         key, _, chat_id = args.set.partition("=")
         return bind_chat_id(key.strip(), chat_id.strip(), force=args.force)
     if args.create_topics:
-        return create_topics(args.create_topics.strip())
+        token = _default_token()  # explicit CLI invocation = operator consent
+        return create_topics(args.create_topics.strip(), token=token)
     if args.verify:
         return verify(deep=args.deep)
     if args.discover:

@@ -46,3 +46,4 @@
 {"at": "2026-09-10T14:23:34+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Reel Idea", "actor": "backfill", "key": "cq:9:draft"}
 {"at": "2026-09-10T14:46:55+00:00", "client_id": "jiya-makeover", "event": "identity_alias_linked", "detail": "billing_alias:d79d690f61b3", "actor": "test", "key": "alias:jiya-makeover:d79d690f61b3"}
 {"at": "2026-09-15T16:22:09+00:00", "client_id": "jiya-makeover", "event": "post_approved", "detail": "Festive offer", "actor": "system"}
+{"at": "2026-09-21T17:50:41+00:00", "client_id": "jiya-makeover", "event": "sla_breached", "detail": "no_deliverable_24h, setup_incomplete, manual_publish_mode", "actor": "product_one_health", "key": "sla_breach:2026-09-21", "meta": {"reasons": ["no_deliverable_24h", "setup_incomplete", "manual_publish_mode"], "health_score": 41}}

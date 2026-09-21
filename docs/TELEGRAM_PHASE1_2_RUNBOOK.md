@@ -2,7 +2,7 @@
 
 **Status:** Ready to execute  
 **Script:** `scripts/telegram_create_chats.py`  
-**Credentials:** Provided by owner (api_id=30160587, api_hash=5a6af325bc59e9da130999f2ccda1674)
+**Credentials:** Supplied via the `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` environment variables. Never commit them — this repository is PUBLIC.
 
 ---
 
@@ -10,8 +10,8 @@
 
 ```bash
 python scripts/telegram_create_chats.py \
-  --api-id 30160587 \
-  --api-hash "5a6af325bc59e9da130999f2ccda1674" \
+  --api-id "$TELEGRAM_API_ID" \
+  --api-hash "$TELEGRAM_API_HASH" \
   --phone +91XXXXXXXXXX
 ```
 
@@ -30,8 +30,8 @@ python scripts/telegram_create_chats.py \
 
 ```bash
 python scripts/telegram_create_chats.py \
-  --api-id 30160587 \
-  --api-hash "5a6af325bc59e9da130999f2ccda1674" \
+  --api-id "$TELEGRAM_API_ID" \
+  --api-hash "$TELEGRAM_API_HASH" \
   --phone +91XXXXXXXXXX \
   --code 123456
 ```
