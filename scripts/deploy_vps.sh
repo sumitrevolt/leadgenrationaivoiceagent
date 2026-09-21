@@ -30,15 +30,18 @@ COMPOSE=docker-compose.vps.yml
 # recreation and version skew can still occur. DSH worker is a separately built
 # hardened image but shares APP_VERSION provenance and must deploy in lockstep.
 #
-# `app` is deliberately NOT in this list (2026-09-15, owner decision: systemd is
-# the authoritative serving path). Production serves :8000 from the systemd unit
-# `leadgen` — EnvironmentFile=/opt/leadgen/.env, host uvicorn — NOT from a
-# container, so no `leadgen_app` container exists and the
-# `127.0.0.1:8000:8080` publish declared for `app` in docker-compose.vps.yml can
-# never bind while that unit holds the port. Keeping `app` here made the skew
-# check fail closed on a service that cannot run. The app is rolled by
-# `systemctl restart leadgen` after the live checkout moves; see below.
-SERVICES="worker scheduler worker-heavy worker-video"
+# `app` is deliberately NOT in this list, and NOTHING in this script recreates
+# the `leadgen_app` container: the app-rollout step below only restarts the
+# systemd unit `leadgen`. On the 2026-09-21 run that mattered: every rolled
+# service moved to the new tag while `leadgen_app` stayed on the previous sha,
+# and the /health verify failed closed (exit 3) — correctly, because prod was
+# NOT uniformly on the deployed code. (`leadgen_app` reached the new tag later
+# only via an out-of-band `docker compose up -d --no-deps app`.) Treat a green
+# deploy as covering $SERVICES only, and always verify /health.version
+# separately.
+# telegram-jarvis (2026-09-21): the single getUpdates consumer for the Jarvis
+# bot. It must roll WITH the workers or it stays behind on an old sha (skew).
+SERVICES="worker scheduler worker-heavy worker-video telegram-jarvis"
 DSH_SERVICES="dsh-worker"
 ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"
 DRY_RUN="${DRY_RUN:-0}"
