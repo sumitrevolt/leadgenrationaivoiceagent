@@ -1,0 +1,31 @@
+[Unit]
+Description=LeadGen AI Jarvis Telegram Bot (interactive ingress polling owner)
+Documentation=file:/opt/leadgen/docs/TELEGRAM_DUAL_BOT_SETUP.md
+After=network-online.target docker.service
+Wants=network-online.target
+# A revoked token or a persistent 409 must not produce an infinite restart storm.
+StartLimitIntervalSec=300
+StartLimitBurst=20
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/leadgen
+# Only telegram keys, derived from .env by scripts/setup_telegram_vps.sh (mode 0600).
+# The leading '-' keeps the unit startable when the file is absent (fail-closed in code).
+EnvironmentFile=-/opt/leadgen/.env.telegram-jarvis
+Environment=PYTHONUNBUFFERED=1
+Environment=TELEGRAM_INSTANCE_ROLE=vps
+Environment=TELEGRAM_INSTANCE_ID=leadgen-vps
+ExecStart=/opt/leadgen/.venv/bin/python /opt/leadgen/scripts/run_telegram_jarvis.py --role vps --instance leadgen-vps
+Restart=always
+RestartSec=15
+# The runner handles SIGINT by releasing its polling lease; never SIGKILL a lease holder.
+KillSignal=SIGINT
+TimeoutStopSec=20
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
