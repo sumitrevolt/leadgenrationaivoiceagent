@@ -50,6 +50,7 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
     "daily_owner_brief": (8, 10),
     "hot_queue_brief": (8, 15),
     "hot_queue_owner_pack": (9, 0),
+    "hot_queue_followup": (10, 0),
     "digest": (8, 30),
     "readiness_digest": (8, 30),
     "engineer_finops": (9, 0),
@@ -150,6 +151,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "hot_queue_owner_pack": {
         "label": "Owner 1-click close pack (subah 9:00)",
         "kya": "Hot leads ka CSV+MD banata hai + owner phone pe wa.me links ka ntfy push",
+    },
+    "hot_queue_followup": {
+        "label": "Hot Queue stale-card reminder (subah 10:00)",
+        "kya": "24h+ se pending owner-pack cards ka ntfy reminder bhejta hai (read-only)",
     },
     "digest": {"label": "Daily digest (subah 8:30)", "kya": "Din ka summary email Sumit ko"},
     "prospect": {

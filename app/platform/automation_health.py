@@ -132,6 +132,11 @@ EXPECTED_GAP_MIN = {
     "content": 30 * 60,
     "hot_queue_brief": 30 * 60,  # daily 08:15 IST, health-gated revenue brief
     "hot_queue_owner_pack": 30 * 60,  # daily 09:00 IST, CSV+MD+nfty for owner 1-click close
+    # daily 10:00 IST, ntfy reminder when an owner-pack card is stale 24h+. Was
+    # added to STAFF_JOBS + JOB_META + beat by dd1a0c38 but never registered
+    # here, so the dead-man watch had no gap for it and this job could stop
+    # firing with no alarm — the exact blind spot this registry exists to close.
+    "hot_queue_followup": 30 * 60,
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 24
