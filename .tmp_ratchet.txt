@@ -1,0 +1,206 @@
+=== runtime-data mutable-path scan ===
+  AMBIGUOUS_REQUIRES_REVIEW    453
+  CANONICAL_RUNTIME_PATH       212
+  DECLARED_LEGACY_READ         56
+  DECLARED_LEGACY_WRITE        118
+  DOCUMENTATION_EXAMPLE        0
+  FIXTURE_ONLY                 24
+  GENERATED_ARTIFACT           1
+  REBUILDABLE_CACHE            0
+  STATIC_ASSET                 0
+  UNDECLARED_MUTABLE_PATH      550
+  mutating                     820
+  total                        1414
+
+  --- gate counters (derived) ---
+  ambiguous_mutable_paths      453
+  canonical                    212
+  declared_legacy_reads        56
+  declared_legacy_writes       118
+  undeclared_mutable_paths     550
+
+  ALLOWLIST PROBLEMS:
+      x ops.telegram_group_ids.write: path_pattern 'REPO_ROOT / "data" / "new_group_chat_ids.json"' does not appear in scripts/telegram_create_chats.py — the declared path does not match the code
+      x telegram.audit.log: unknown store_id 'telegram.audit'
+      x telegram.audit.log: path_pattern "Path('data/telegram/audit.jsonl')" does not appear in app/api/telegram_bot_api.py — the declared path does not match the code
+      x ops.telegram_group_ids.write: STALE — no live finding at scripts/telegram_create_chats.py:results_path. Remove the entry or point it at the code that replaced it.
+      x ops.telegram_group_ids.write: no scanner finding at scripts/telegram_create_chats.py:results_path — declaration is unbound
+
+=== debt ratchet ===
+  baseline fingerprints : 788
+  unresolved now        : 1003
+  newly unresolved      : 24
+  regressions           : 0
+  resolved since baseline: 0
+  removed since baseline : 6
+
+  RATCHET FAILED — new debt or classification regression:
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: app/platform/telegram_coordinator.py
+  symbol: tmp
+  operation: REPLACE
+  path: _LEASE_PATH.with_suffix('.tmp')
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: app/platform/telegram_coordinator.py
+  symbol: tmp
+  operation: REPLACE
+  path: _LEASE_PATH.with_suffix('.tmp')
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: app/platform/typesafe_integration.py
+  symbol: _RUNTIME_KEYS_FILE
+  operation: READ
+  path: os.path.join('data', 'typesafe_keys.json')
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: data/hunter_leads/_hunt_insert_vps.py
+  symbol: <literal>
+  operation: REWRITE
+  path: data
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/hourly_audit.py
+  symbol: LOG_FILE
+  operation: APPEND
+  path: '/opt/leadgen/data/hourly_audit.log'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/hourly_audit.py
+  symbol: <literal>
+  operation: READ
+  path: data
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/hourly_audit.py
+  symbol: OUTPUT_FILE
+  operation: REWRITE
+  path: '/opt/leadgen/data/grd_hourly.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/legacy/pilot_dispatch_0830_1455.py
+  symbol: p
+  operation: READ
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/legacy/pilot_dispatch_0830_1455.py
+  symbol: p
+  operation: REWRITE
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/legacy/pilot_nudge_run.py
+  symbol: p
+  operation: READ
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/legacy/pilot_nudge_run.py
+  symbol: p
+  operation: REWRITE
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/legacy/pilot_run_tick.py
+  symbol: p
+  operation: READ
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/legacy/pilot_run_tick.py
+  symbol: p
+  operation: REWRITE
+  path: 'command_center/data/tasks.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/ops_rev_recon.py
+  symbol: DB_PATH
+  operation: SQLITE
+  path: 'data/leadgen_dev.db'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/ops_rev_recon2.py
+  symbol: DB_PATH
+  operation: SQLITE
+  path: 'data/leadgen_dev.db'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/ops_rev_recon2.py
+  symbol: fpath
+  operation: READ
+  path: os.path.join(data_dir, fname)
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/ops_rev_recon3.py
+  symbol: db_path
+  operation: SQLITE
+  path: 'data/orchestrator_ledger.db'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/ops_rev_recon3.py
+  symbol: fpath
+  operation: READ
+  path: os.path.join(data_dir, fname)
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/ops_rev_recon4.py
+  symbol: fpath
+  operation: READ
+  path: os.path.join(data_dir, fname)
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/ops_rev_recon4.py
+  symbol: fpath
+  operation: READ
+  path: os.path.join(data_dir, fname)
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/prospect_stats.py
+  symbol: <literal>
+  operation: READ
+  path: data
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/vobiz_monitor.py
+  symbol: LOG_FILE
+  operation: APPEND
+  path: '/opt/leadgen/data/vobiz_monitor.log'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_AMBIGUOUS_REQUIRES_REVIEW
+  file: scripts/vobiz_monitor.py
+  symbol: <literal>
+  operation: READ
+  path: data
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+
+NEW_UNDECLARED_MUTABLE_PATH
+  file: scripts/vobiz_monitor.py
+  symbol: ALERT_FILE
+  operation: REWRITE
+  path: '/opt/leadgen/data/.watchdog_alert.json'
+  action: classify the store (allowlist entry with owner, migration_tier, review_condition) or provide an evidence-backed exclusion
+

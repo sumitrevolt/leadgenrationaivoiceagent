@@ -11,16 +11,19 @@ Master prompt execution: TypeSafe-first substantial-session policy, verified-cas
 - Added the owner dashboard ₹1 crore monthly controller. MTD counts only current-month, positive, owner-approved UPI cash; `auto_activated` and invoice totals are excluded. Unknown conversion/margin render as `Data unavailable`.
 - Persisted the TypeSafe-first rule in byte-identical `AGENTS.md` and `CLAUDE.md` for every substantial future chat/session; trivial greetings/status/simple arithmetic are exempt.
 - Synced the generated API endpoint index after route changes.
+- Made the Admin Key Manager default to canonical external runtime data (`LEADGEN_RUNTIME_DATA_DIR/secrets`) instead of container-local `/opt/leadgen/secrets`, removed the unsafe fallback path, and wired Telegram coordinator egress to resolve env-first then encrypted-vault credentials. Jarvis polling remains env-only.
+- Fixed Hot Queue TypeSafe ranking so each of the first 20 sanitized lead summaries receives its own typed urgency judgment inside one bounded System One request. The previous batch-wide score was copied to every row and therefore did not semantically rank individual leads.
 
 ## Live evidence
 
 - TypeSafe `jev-latest` resolved to `jev-1.13.0`; two successful live decisions were traced and outcomes recorded: `tsadm-20260921T132451-0c0da3`, `tsadm-20260921T133700-73e185`.
+- A fresh credential probe and a separate synthetic non-PII Hot Queue semantic canary both completed successfully after the per-lead ranking fix. The synthetic final scores tied after deterministic bonus/clamping, so the canary proves live typed execution—not production ranking quality.
 - Current TypeSafe credential fingerprint is safe/different; the historical exposed credential returns 401 and the tripwire blocks it.
 - September verified collected cash: ₹0; target gap ₹1,00,00,000; Sep 21–30 pace: ₹10,00,000/day. Lifetime owner-confirmed cash remains ₹1,999.
 - Workforce truth: 31 agents, 9 owner bots, durable task ledger currently 0 tasks.
 - Telegram 409 was traced to a hidden local `gateway run --profile pilot` process tree, stopped by exact PID, then observed for multiple polling cadences with no new 409. VPS remains the single poller.
 - Telegram Notify bot token was rotated in BotFather after explicit owner confirmation. The replacement value was never printed into repo files or logs. Production Admin Key Manager accepted it as service `telegram_notify_bot_token` (`200`, success audit at `2026-09-21T13:15:39Z`), storing only an encrypted vault envelope with mode `0600`.
-- Read-only VPS inspection found `/opt/leadgen/secrets/keys.json` is inside the app container and is not on any configured bind mount. The current vault write therefore is not restart-persistent and Telegram runtime does not yet consume this generic service key; do not claim activation until a code/deploy fix is explicitly authorized and verified.
+- Read-only VPS inspection found the currently deployed `/opt/leadgen/secrets/keys.json` inside the app container. Local code now fixes persistence/consumption, but before a later authorized deploy the encrypted envelope and audit log must be copied to the host runtime-data `secrets/` directory with mode `0600`; otherwise container recreation would hide the current value.
 - Telegram Web live verification under the company account (`Sunny Leadsgenai`) proved the canonical coordination triad in `config/telegram/setup_spec.yaml`: Admin `-1004387221522`, Agents `-1004368756403`, Worker `-1003951449805`. Each has 4 members: company-account owner, Jarvis, LeadGen Notify, and LeadGen AI Admin.
 - Canonical forum topics are complete: Admin = `system-health`, `metrics`, `kill-switch`, `revenue`, `deploys`; Agents = `agent-status`, `assignments`, `verdicts`, `skill-share`; Worker = `worker-status`, `task-handoffs`, `urgent`.
 - Telegram Web also shows two additional copies of each coordination group. Duplicate IDs are Admin `-1004496638744`, `-1003981563517`; Agents `-1004423137205`, `-1003734587807`; Worker `-1003724742490`, `-1003306734107`. They were not deleted because cloud deletion/leave requires action-time confirmation.
@@ -32,11 +35,13 @@ Master prompt execution: TypeSafe-first substantial-session policy, verified-cas
 - All TypeSafe test files: 149 passed earlier in this session.
 - Ruff: exit 0. Admin dashboard JS: `JS_OK`.
 - `scripts/check_secrets.py`: no secrets detected. `git diff --check`: exit 0.
-- `scripts/prod_check.py`: exit 0, 1476 routes, 66 pages/0 gaps, automation 0 gaps. API docs were then regenerated; rerun required before a final deploy claim.
+- Vault/Telegram regression set: 54 passed; focused 1000-engineer preflight: Ruff PASS, secrets PASS, 36 tests PASS.
+- Hot Queue TypeSafe TDD proof: the new per-lead contract failed against the batch-wide implementation, then passed after the fix; focused suite 9 passed and broader Hot Queue/TypeSafe regression 35 passed. Scoped Ruff PASS.
+- `scripts/prod_check.py`: exit 0, 1476 routes, 66 pages/0 gaps, automation 0 gaps, API index in sync. One non-blocking stale-PYC signal remains for three untracked historical Telegram helper modules.
 
 ## Still pending / gates
 
-- Telegram Notify token rotation is complete and the encrypted vault write is audited, but restart-safe storage plus runtime consumption remain pending a code/deploy change.
+- Telegram Notify token rotation is complete; restart-safe storage plus runtime consumption are TEST-PROVEN/LOCAL-ONLY. Activation still requires an explicit reviewed deploy after the encrypted-envelope pre-copy in `memory/playbooks.md`.
 - Coordination group creation is complete; do not create any more groups. Six duplicate groups remain pending an explicit action-time confirmation before leave/delete.
 - Owner command authorization is still unproven: messages sent from company account `8687893086` receive `Access Restricted`, while the canonical allow-listed owner remains `1621120182`. Close this only after `/status` is sent from the owner account in a canonical group and a valid reply is observed, or after an explicit reviewed authorization change.
 - No commit, push or deploy was performed. Shared tree contains concurrent changes not owned by this work, including `app/platform/telegram_coordinator.py`, deletion of `tests/test_telegram.py`, and untracked `docs/telegram/`; do not revert or include them blindly.

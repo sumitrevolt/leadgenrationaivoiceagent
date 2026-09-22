@@ -54,9 +54,9 @@ def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             Noul,
             Score,
             TypeSafeClient,
+            _get_api_key,
             credential_state,
             fingerprint,
-            _get_api_key,
         )
 
         cred = credential_state()
@@ -98,20 +98,24 @@ def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "leads": row_summaries[:20],  # send top-20 only (quota discipline)
         }
 
-        # Score question: how urgent to contact? URGENT/SOON/LATER
+        # Each lead gets an independent judgment, but all questions share one
+        # bounded request. Question ids map directly back to `leads[idx]`.
+        questions: dict[str, Any] = {
+            f"lead_{item['idx']}_urgency": Score(
+                f"For `leads[{item['idx']}]`, how urgently should the owner contact "
+                "this lead to maximize a paid conversion? Judge only the supplied "
+                "intent, channel, niche, city, age and reachability signals.",
+                criteria=["urgent_contact_now", "contact_today", "can_wait"],
+            )
+            for item in state["leads"]
+        }
+        questions["has_high_intent_lead"] = Noul(
+            "Does this hot-queue batch contain at least one lead likely to convert "
+            "to a paid subscription if the owner contacts them within 2 hours?"
+        )
         resp = client.system_one(
             state,
-            {
-                "top_lead_urgency": Score(
-                    "Rank these hot-queue leads by contact urgency for the owner to maximize revenue conversion. "
-                    "Interested/question intents with phone reachability = highest urgency.",
-                    criteria=["urgent_contact_now", "contact_today", "can_wait"],
-                ),
-                "has_high_intent_lead": Noul(
-                    "Does this hot-queue batch contain at least one lead likely to convert "
-                    "to a paid subscription if the owner contacts them within 2 hours?"
-                ),
-            },
+            questions,
         )
 
         if not resp.success:
@@ -138,12 +142,13 @@ def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "not_interested": -0.5,
             "unsubscribe": -0.8,
         }
-        base_score_val = resp.value
-        base = _URGENCY_MAP.get(str(base_score_val or "contact_today"), 0.6)
         has_high_intent = (resp.answers.get("has_high_intent_lead") or {}).get("noul", 0.5)
 
         scored = []
-        for r in rows:
+        for idx, r in enumerate(rows):
+            urgency_answer = resp.answers.get(f"lead_{idx}_urgency") or {}
+            urgency = urgency_answer.get("choice") or urgency_answer.get("value")
+            base = _URGENCY_MAP.get(str(urgency or "contact_today"), 0.6)
             intent_b = _INTENT_BONUS.get(str(r.get("intent") or ""), 0.0)
             phone_b = 0.1 if r.get("phone") else 0.0
             wa_b = 0.1 if r.get("wa_link") else 0.0

@@ -375,3 +375,15 @@ Rollback: latest `tasks.json.bak-*`, `bots.json.bak-*`, `messages.jsonl.bak-*` k
 - **Trace:** `logs/typesafe_decisions.jsonl` (gitignored, append-only). ⚠️ **`data/` me mat rakho:** us tree pe runtime-data manifest + ratchets lagu hote hain — `tests/test_runtime_data_a1_ratchet.py` ka `_uncontrolled_path_findings()` har `data/`-rooted path ko reviewed surface ginta hai aur `EXPECTED_ALLOWLIST_ENTRIES`/`EXPECTED_BASELINE_FINGERPRINTS` pin karta hai, isliye ek trace log wahan add karna **gate change** ban jata hai (aur uski entry count re-pin karni padti hai). Verification shortcut: `python -c "from tests.test_runtime_data_a1_ratchet import _uncontrolled_path_findings as f; print(f('scripts/typesafe_admin_triage.py'))"` → `[]` hona chahiye. — `kind: decision` record me task_id/state_hash/evidence_refs/requested_model/resolved_model/latency/raw answers/decision/downstream_action/`outcome: null`; baad me `kind: outcome` record `task_id` se judta hai. Decision record **rewrite nahi hota** (WORM-ish). Key value trace me kabhi nahi jaati (test se pinned).
 - **Out-of-menu choice:** model koi aisa id de de jo registry me nahi hai (ya missing risk answer) → `next_action_source: "ranking_fallback"` + computed ranking se pick hota hai, aur `unknown != 0` (unjudged finding judged se upar nahi jaata). Ye behaviour tests me pinned hai.
 - **Consumer discipline:** naya TypeSafe consumer = `tests/test_typesafe_consumer_inventory.py` ka `ALLOWED_CONSUMERS` deliberately update karo + batao kaunsa downstream behaviour badalta hai. Decorative ya loop-over-synthetic-items wala consumer merge mat karo (ADR-195).
+
+## Admin Key Manager runtime-vault cutover (2026-09-22)
+
+Use only with an explicitly authorized reviewed deploy. The deployed legacy envelope currently lives inside `leadgen_app` at `/opt/leadgen/secrets`; the new code resolves to `${LEADGEN_RUNTIME_DATA_DIR}/secrets`, backed by host `${LEADGEN_RUNTIME_DATA_HOST_DIR}/secrets`.
+
+1. Before recreating any container, verify the running container has encrypted `keys.json` (`encrypted=true`) and never print/decrypt its ciphertext or values.
+2. On the host, create `${LEADGEN_RUNTIME_DATA_HOST_DIR}/secrets` with directory mode `0700`; copy the encrypted `keys.json` and `audit.log` from the running container into it; set files to `0600`.
+3. Verify host paths resolve under the external runtime-data root, not the Git checkout. Abort if the source envelope is absent, plaintext, corrupt, or the destination is inside the repo.
+4. Run the canonical deploy only. After recreation, verify the app and Telegram processes report the Notify slot present/authenticated without printing the credential, then send one non-destructive owner canary.
+5. Rollback: keep env-token precedence available; restore the prior release if the vault cannot decrypt. Do not delete the host encrypted envelope during rollback.
+
+No secret value, token prefix, or decrypted payload belongs in shell history, docs, logs, or chat.

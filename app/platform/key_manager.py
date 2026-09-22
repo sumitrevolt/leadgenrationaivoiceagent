@@ -32,7 +32,8 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-# Canonical key storage path (outside git, server-side only)
+# Legacy pre-runtime-cutover path. New default writes resolve beneath the
+# canonical external runtime-data mount; these names stay for migration tools.
 KEYS_DIR = Path("/opt/leadgen/secrets")
 KEYS_FILE = KEYS_DIR / "keys.json"
 AUDIT_LOG = KEYS_DIR / "audit.log"
@@ -64,20 +65,23 @@ class KeyManagerAgent:
     """Manages API keys securely with encryption at rest and audit logging."""
 
     def __init__(self, keys_file: Path | None = None, audit_log: Path | None = None):
-        self.keys_file = keys_file or KEYS_FILE
-        self.audit_log = audit_log or AUDIT_LOG
+        if keys_file is None and audit_log is None:
+            from app.platform.runtime_data import store_dir
+
+            secrets_dir = store_dir("secrets")
+        else:
+            explicit_path = keys_file or audit_log
+            assert explicit_path is not None
+            secrets_dir = explicit_path.parent
+
+        self.keys_file = keys_file or secrets_dir / "keys.json"
+        self.audit_log = audit_log or secrets_dir / "audit.log"
         self._ensure_dirs()
 
     def _ensure_dirs(self) -> None:
-        """Create secrets directory if missing."""
-        try:
-            self.keys_file.parent.mkdir(parents=True, exist_ok=True)
-            self.audit_log.parent.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            # Fallback to app directory if /opt/leadgen not accessible
-            self.keys_file = Path("data/secrets/keys.json")
-            self.audit_log = Path("data/secrets/audit.log")
-            self.keys_file.parent.mkdir(parents=True, exist_ok=True)
+        """Create secret directories; never fall back to an ungoverned path."""
+        self.keys_file.parent.mkdir(parents=True, exist_ok=True)
+        self.audit_log.parent.mkdir(parents=True, exist_ok=True)
 
     def _log_audit(
         self, action: str, service: str, actor: str, success: bool, note: str = ""
@@ -106,7 +110,7 @@ class KeyManagerAgent:
         if not self.keys_file.exists():
             return {}
         try:
-            with open(self.keys_file, "r", encoding="utf-8") as f:
+            with open(self.keys_file, encoding="utf-8") as f:
                 content = json.load(f)
 
             if isinstance(content, dict) and content.get("encrypted") is True:
@@ -334,7 +338,7 @@ class KeyManagerAgent:
             return []
 
         try:
-            with open(self.audit_log, "r", encoding="utf-8") as f:
+            with open(self.audit_log, encoding="utf-8") as f:
                 entries = [json.loads(line) for line in f if line.strip()]
         except Exception:
             return []
@@ -392,6 +396,28 @@ def get_key_manager() -> KeyManagerAgent:
     if _key_manager is None:
         _key_manager = KeyManagerAgent()
     return _key_manager
+
+
+def resolve_service_secret(service: str, env_names: tuple[str, ...] = ()) -> str | None:
+    """Resolve a secret env-first, then from the encrypted in-process vault.
+
+    Provider-specific callers validate format/length and fail closed when the
+    value is absent. Raw values are never logged or exposed through an API —
+    including on vault failure, where only a category marker is logged because
+    an exception message can carry ciphertext fragments.
+    """
+    for env_name in env_names:
+        value = os.getenv(env_name, "").strip()
+        if value:
+            return value
+    try:
+        value = get_key_manager().get_key_value(service)
+        return str(value).strip() if value else None
+    except Exception:
+        # Fail-closed log path: category only, NEVER the exception message —
+        # decrypt/envelope errors can embed ciphertext fragments.
+        logger.debug("[vault_unavailable] secret lookup skipped service=%s", service)
+        return None
 
 
 # FastAPI router for admin access — require_admin enforced on every handler

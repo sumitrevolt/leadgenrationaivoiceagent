@@ -62,32 +62,23 @@ _GROUP_CATALOG: dict[str, str] | None = None
 _dead_tokens: set[str] = set()
 
 
-def _vault_notify_token() -> str:
-    """Encrypted-vault Notify credential (restart-safe, no plaintext env needed).
-
-    Fail-open to "" when the vault/key-manager is unavailable — the caller still
-    falls back to env, and an empty candidate list stays fail-closed.
-    Never returns a secret into logs; only same-process in-memory use.
-    """
-    try:
-        from app.platform import key_manager
-
-        value = key_manager.get_key_manager().get_key_value("telegram_notify_bot_token")
-        return (value or "").strip()
-    except Exception:
-        return ""
-
-
 def _token_candidates() -> list[str]:
     """All configured egress tokens in priority order, dead ones filtered out.
 
-    Priority: env NOTIFY -> encrypted-vault NOTIFY -> env legacy BOT_TOKEN ->
-    env JARVIS (last-resort fallback so P0 alerts never silently die).
+    The Notify slot (env NOTIFY -> encrypted-vault NOTIFY) resolves through the
+    ONE shared resolver, ``key_manager.resolve_service_secret`` — there is no
+    second vault path here. Legacy BOT_TOKEN and JARVIS stay env-only last
+    resorts so P0 alerts never silently die when the Notify credential is
+    absent (verified 2026-09-20: env NOTIFY was 401-dead on BOTH local and VPS
+    while JARVIS was valid).
     """
-    vault = _vault_notify_token()
+    from app.platform.key_manager import resolve_service_secret
+
+    notify = resolve_service_secret(
+        "telegram_notify_bot_token", ("TELEGRAM_NOTIFY_BOT_TOKEN",)
+    )
     cands = [
-        os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN", "").strip(),
-        vault,
+        notify or "",
         os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
         os.environ.get("TELEGRAM_JARVIS_BOT_TOKEN", "").strip(),
     ]
@@ -103,10 +94,6 @@ def _token_candidates() -> list[str]:
 def _bot_token() -> str | None:
     """Best live egress token. Fail-closed: None if missing.
 
-    Priority: NOTIFY bot (dedicated egress) -> legacy BOT_TOKEN -> JARVIS bot
-    (last-resort fallback so P0 alerts NEVER silently die when the Notify
-    token is revoked — verified 2026-09-20: TELEGRAM_NOTIFY_BOT_TOKEN was
-    401-dead on BOTH local and VPS while JARVIS was valid).
     A token that fails with 401 is blacklisted for this process and the next
     candidate is used, so a revoked Notify token cannot shadow a valid one.
     """

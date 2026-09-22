@@ -91,6 +91,22 @@ _TOKEN_SLOTS: tuple[tuple[str, str], ...] = (
     ("jarvis", "TELEGRAM_JARVIS_BOT_TOKEN"),
 )
 
+_VAULT_SERVICE_BY_SLOT = {
+    "notify": "telegram_notify_bot_token",
+    "fallback": "telegram_bot_token",
+}
+
+
+def _token_for_slot(label: str, env_name: str) -> str:
+    """Resolve egress slots env-first; keep Jarvis polling env-only."""
+    if label == "jarvis":
+        return os.getenv(env_name, "").strip()
+    from app.platform.key_manager import resolve_service_secret
+
+    return (
+        resolve_service_secret(_VAULT_SERVICE_BY_SLOT[label], (env_name,)) or ""
+    ).strip()
+
 
 def get_polling_token() -> str | None:
     """Get the polling (Jarvis) bot token. Fail-closed: None if missing or too short."""
@@ -100,11 +116,11 @@ def get_polling_token() -> str | None:
 
 def get_egress_token() -> str | None:
     """Get the egress (Notify) bot token. Fail-closed: None if missing or too short."""
-    tok = (
-        os.getenv("TELEGRAM_NOTIFY_BOT_TOKEN", "").strip()
-        or os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    )
-    return tok if len(tok) >= 20 else None
+    for label, env_name in _TOKEN_SLOTS[:2]:
+        token = _token_for_slot(label, env_name)
+        if len(token) >= 20:
+            return token
+    return None
 
 
 def get_owner_chat_ids() -> set[int]:
@@ -257,7 +273,7 @@ def token_health(live: bool = True) -> dict[str, Any]:
     """PRESENT/AUTHENTICATED/INVALID state for every Telegram credential slot."""
     health: dict[str, Any] = {}
     for label, env_name in _TOKEN_SLOTS:
-        token = os.getenv(env_name, "").strip()
+        token = _token_for_slot(label, env_name)
         if not token:
             health[label] = {"present": False, "valid": None, "env": env_name, "reason": "absent"}
             continue
@@ -278,7 +294,7 @@ def egress_token_candidates() -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     seen: set[str] = set()
     for label, env_name in _TOKEN_SLOTS:
-        token = os.getenv(env_name, "").strip()
+        token = _token_for_slot(label, env_name)
         if len(token) < 20 or token in seen or token in _dead_egress_tokens:
             continue
         seen.add(token)

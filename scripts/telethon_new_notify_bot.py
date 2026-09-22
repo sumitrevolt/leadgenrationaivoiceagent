@@ -14,6 +14,7 @@ touched here.
 Usage:
     python scripts/telethon_new_notify_bot.py [--name "LeadGen Notify"] [--username LeadgenaiNotify_bot]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -82,6 +83,7 @@ async def main() -> int:
     a = ap.parse_args()
 
     from telethon import TelegramClient
+
     client = TelegramClient(SESSION, int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
@@ -96,6 +98,7 @@ async def main() -> int:
     async def wait_pattern(after_text: str, needles: list[str], timeout: float = 60) -> str:
         """Poll BotFather's latest reply until it contains one of `needles`."""
         import time as _t
+
         start = _t.time()
         while _t.time() - start < timeout:
             await asyncio.sleep(2)
@@ -108,8 +111,11 @@ async def main() -> int:
 
     # 1) /newbot  -> BotFather asks for a display name
     await client.send_message(bf, "/newbot")
-    q1 = await wait_pattern("/newbot", ["give it a name", "what would you like to call",
-                                        "choose one that indicates", "name?"], timeout=45)
+    q1 = await wait_pattern(
+        "/newbot",
+        ["give it a name", "what would you like to call", "choose one that indicates", "name?"],
+        timeout=45,
+    )
     print(f"[new-bot] BotFather Q1: {q1[:90]!r}")
 
     # 2) display name  -> BotFather asks for a username

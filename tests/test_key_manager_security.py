@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models.user import User, UserRole
-from app.platform.key_manager import KeyManagerAgent, TYPESAFE_SLOTS
+from app.platform.key_manager import TYPESAFE_SLOTS, KeyManagerAgent
 
 
 @pytest.fixture
@@ -230,3 +230,27 @@ def test_authenticated_admin_can_access_slots():
             app.dependency_overrides[require_admin] = saved_admin
         else:
             app.dependency_overrides.pop(require_admin, None)
+
+
+def test_resolve_service_secret_logs_category_only_on_vault_failure(monkeypatch, caplog):
+    """Vault-unavailable logs a category marker, NEVER the exception message.
+
+    The resolver docstring promises raw values are never logged; exception text
+    from a decrypt/envelope failure can carry ciphertext fragments, so the log
+    path is fail-closed: category + service name only.
+    """
+    import logging
+
+    import app.platform.key_manager as key_manager
+
+    def broken_key_manager():
+        raise RuntimeError("gAAAAABmSYNTHETICFRAGMENTforLOGTESTonly")
+
+    monkeypatch.setattr(key_manager, "get_key_manager", broken_key_manager)
+    with caplog.at_level(logging.DEBUG, logger="app.platform.key_manager"):
+        result = key_manager.resolve_service_secret("telegram_notify_bot_token")
+
+    assert result is None
+    assert "gAAAAABmSYNTHETICFRAGMENT" not in caplog.text, "exception text leaked into logs"
+    assert "vault_unavailable" in caplog.text
+    assert "telegram_notify_bot_token" in caplog.text

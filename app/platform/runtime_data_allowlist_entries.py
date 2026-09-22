@@ -1919,23 +1919,15 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Lock must stay fail-closed; never auto-clear a live lock.",
     },
-    {
-        "allowlist_id": "ops.telegram_group_ids.write",
-        "file": "scripts/telegram_create_chats.py",
-        "line_or_symbol": "results_path",
-        "path_pattern": 'REPO_ROOT / "data" / "new_group_chat_ids.json"',
-        "store_id": "ops.telegram_group_ids",
-        "access_modes": ["REWRITE"],
-        "reason": (
-            "One-shot provisioning result: chat_ids of created groups written for "
-            "manual wiring into setup_spec.yaml. Rebuildable by re-running."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "ops",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Result file is hand-consumed; never auto-applied to config.",
-    },
+    # 2026-09-22 (prod_check runtime-gates repair): the
+    # `ops.telegram_group_ids.write` entry was REMOVED, deliberately not
+    # re-pointed. `scripts/telegram_create_chats.py` no longer writes
+    # data/new_group_chat_ids.json at all -- it writes the resolved chat_id back
+    # into its own spec (`SPEC = config/telegram/setup_spec.yaml`, line 43). A
+    # config write is not a runtime-data write, so pointing this entry at that
+    # path would be a false declaration of exactly the kind this module exists to
+    # prevent. The STORE is still live and still declared, via the Telethon
+    # variant below, which does write the JSON.
     {
         "allowlist_id": "ops.telegram_group_ids.write_telethon",
         "file": "scripts/telethon_create_groups.py",
@@ -1957,7 +1949,15 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "telegram.audit.log",
         "file": "app/api/telegram_bot_api.py",
         "line_or_symbol": "log_path",
-        "path_pattern": "Path('data/telegram/audit.jsonl')",
+        # Quote style is LOAD-BEARING here, not cosmetic. `_check_path_pattern`
+        # derives the basename with `core.rsplit("/", 1)[-1]`, so this literal's
+        # basename is `audit.jsonl")` -- the trailing quote and paren are part of
+        # it. The code under test says Path("data/telegram/audit.jsonl") with
+        # DOUBLE quotes, and unlike `path_components_match`, `_check_path_pattern`
+        # does NOT normalise quote characters (it only strips a .tmp/.lock
+        # suffix). So declaring single quotes here can never match, and the gate
+        # reports "the declared path does not match the code" forever.
+        "path_pattern": 'Path("data/telegram/audit.jsonl")',
         "store_id": "telegram.audit",
         "access_modes": ["READ"],
         "reason": (

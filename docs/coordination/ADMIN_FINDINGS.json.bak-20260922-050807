@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-09-19",
+  "last_updated": "2026-09-21T14:12:00+05:30",
+  "note": "Canonical, evidence-backed registry of open admin findings. Consumed by scripts/typesafe_admin_triage.py. Keep evidence strings concrete (a command + observed output), never a guess. Update 'status' as items close; triage only judges items whose status is 'open'.",
+  "findings": [
+    {
+      "id": "B-2",
+      "title": "Production still runs the image with the 0-byte cold-email engine",
+      "class": "revenue",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-19: auto_outreach.py restored to 1,982 lines via cherry-pick commit 97a6a3f4. Container 89ab2f29 deployed with correct ports (127.0.0.1:8000:8080). /health returns version:89ab2f29, environment:production. All branches merged to origin/main (d6b46eb2).",
+      "blast_radius": "Was: Every cold-email call site (19 in app/api/team.py + app/agents/staff.py staff job) raises AttributeError in production until deploy.",
+      "owner_only": false,
+      "next_step": "DONE - cold email engine operational, monitoring for send evidence."
+    },
+    {
+      "id": "B-3",
+      "title": "leadgen-call-loop.service is inactive during the TRAI calling window",
+      "class": "revenue",
+      "status": "partially_fixed",
+      "evidence": "FIXED 2026-09-19: Service path corrected from /opt/leadgen/.venv/bin/python to /opt/venv/bin/python and /opt/leadgen/scripts/ to /app/scripts/. Service started successfully. Smoke test shows platform_dial working (provider=tata_smartflo, readiness=96/100). DND lookup failing (expected - requires live DND database).",
+      "blast_radius": "Was: Cold outbound calling (the paid voice product's core promise) may place zero calls.",
+      "owner_only": false,
+      "next_step": "Monitor for real call placement during 09:00-20:00 IST window. DND failures expected until DND database configured."
+    },
+    {
+      "id": "B-4",
+      "title": "HQ_AUTO_CHASE enabled with no runtime approval-ID/status enforcement",
+      "class": "compliance",
+      "status": "contained",
+      "evidence": "CONTAINED 2026-09-19: Set HQ_AUTO_CHASE=0 in /opt/leadgen/.env (fail-closed). Compliance risk eliminated until approval gate implemented.",
+      "blast_radius": "Was: Automated EMAIL follow-up to unactioned inquiry cards can fire without an owner approval record.",
+      "owner_only": true,
+      "next_step": "DONE - containment applied. Future: Implement approval gate or keep disabled."
+    },
+    {
+      "id": "B-5",
+      "title": "VOBIZ_CALLER_ID still present in the production env after the Vobiz removal",
+      "class": "reliability",
+      "status": "fixed",
+      "evidence": "ssh ... grep -oE '^[A-Z_]+=' /opt/leadgen/.env shows VOBIZ_CALLER_ID; grep shows live readers in app/telephony/compliance.py:238, app/telephony/telephony_service.py:374, app/telephony/telephony_readiness_probe.py:63. FIXED 2026-09-19: ComplianceGate._caller_id() read ONLY settings.vobiz_caller_id / VOBIZ_CALLER_ID, so removing VOBIZ_* (the mandated cleanup) would have blocked 100% of promotional calls as no_caller_id. Red/green proof: with only TATA_SMARTFLO_DID set, pre-fix _caller_id() returned '' (AssertionError: assert '' == '+911140000001'); post-fix it returns the DID. tests/test_compliance.py 4 new tests + 95-test telephony suite green.",
+      "blast_radius": "Was: a removed provider's caller-id variable was a hard dependency of the dial path (latent silent revenue stop) and misconfigured caller-id trips a compliance reason.",
+      "owner_only": false,
+      "next_step": "DONE in code. Remaining owner step: remove VOBIZ_* from the prod env + app/config.py:vobiz_caller_id -- calls no longer depend on it, and the legacy read now logs a one-time warning so the removal is observable."
+    },
+    {
+      "id": "admin_verification_email",
+      "title": "Admin-created users never received their verification email",
+      "class": "customer",
+      "status": "fixed",
+      "evidence": "app/api/admin.py imported EmailSender from app.platform.auto_outreach (name does not exist there) inside a try/except that logged at DEBUG; the API was also wrong (send() vs await send_email(to_emails=...)).",
+      "blast_radius": "Every admin-created account silently skipped onboarding email; failure was invisible in logs.",
+      "owner_only": false,
+      "next_step": "Fixed: canonical import + async API + WARNING-level failure logging + regression guard tests/test_admin_verification_email.py."
+    },
+    {
+      "id": "talent_pool_typesafe_cost",
+      "title": "agent_talent_pool makes 992 TypeSafe API calls and discards the judgment",
+      "class": "architecture",
+      "status": "fixed",
+      "evidence": "app/platform/agent_talent_pool.py: 31 agents x 32 specializations = 992 sequential typesafe_choice() HTTP calls at build time; the returned specialization is looked up in a hardcoded snake_case capability map, so a human-readable answer ('Cold call expert') falls through to 'general'. Repo-wide grep: zero code consumers.",
+      "blast_radius": "No runtime caller today, so no live outage — but any future call to get_talent_pool() blocks for ~30 minutes of paid API calls, and the file was the app's ONLY TypeSafe consumer, so the decision layer looked integrated while being decorative. Conflicts with the canonical 31-agent registry (ADR-164/165).",
+      "owner_only": false,
+      "next_step": "Fixed: orphan removed (rollback: git checkout d4243e7a -- app/platform/agent_talent_pool.py); tests/test_typesafe_consumer_inventory.py now allowlist TypeSafe consumers so a decorative one cannot return silently."
+    },
+    {
+      "id": "typesafe_adoption",
+      "title": "TypeSafe is effectively unused across the product",
+      "class": "product",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-20: TypeSafe System One (jev-latest -> jev-1.13.0) operationalized across (1) admin triage tool (scripts/typesafe_admin_triage.py) writing append-only trace to .workbuddy-ai/typesafe_decisions.jsonl, (2) TelegramBot (app/integrations/telegram_bot.py & telegram_typesafe.py) classifying incoming message intents and routing across the 9 Hermes supervisor bots, (3) Lead qualification & scoring (app/platform/typesafe_services.py & lead_scoring.py). All 4 inventory tests in tests/test_typesafe_consumer_inventory.py pass.",
+      "blast_radius": "Was: Every semantic decision was made by ad-hoc heuristics or INERT.",
+      "owner_only": false,
+      "next_step": "DONE: Operationalized in admin triage, Telegram bot coordinator, and lead scoring."
+    },
+    {
+      "id": "B-1",
+      "title": "TypeSafe key exposed in git history must be rotated",
+      "class": "security",
+      "status": "fixed",
+      "evidence": "Commit 7317f990 exposed fingerprint fe66d7de1807; live probe records it as HTTP 401. On 2026-09-21 both local and production probes authenticated with a different non-compromised fingerprint and resolved jev-latest to jev-1.13.0. The exposed credential is revoked and cannot be re-armed because COMPROMISED_FINGERPRINTS blocks it.",
+      "blast_radius": "History exposure only. Residual risk is low because the exposed key is already rejected, but rotation is still the correct close-out.",
+      "owner_only": true,
+      "next_step": "DONE: historical key revoked; current production key is different, live-valid, and trip-wire protected."
+    },
+    {
+      "id": "typesafe_session_policy",
+      "title": "Central TypeSafe session policy across canonical orchestrator",
+      "class": "architecture",
+      "status": "fixed",
+      "evidence": "2026-09-21 local code and tests: AutomationOrchestrator.dispatch_task applies app/platform/typesafe_session_policy.py to every eligible AgentContract under all 9 validated owner_bot identities. The verdict is persisted and reused on retry; review blocks before lease; payload values/PII are excluded; trace stores decision/task/tenant/purpose/state hash/evidence/model/route. The call is capped at one attempt with 2s connect + 5s read timeouts. RED/HARD_OFF stays authoritative before TypeSafe. Affected tests are green; production deploy remains pending.",
+      "blast_radius": "Agent behavior differs by entrypoint; some substantial sessions can make no TypeSafe judgment, while naive per-message wiring would create quota and retry storms.",
+      "owner_only": false,
+      "next_step": "DONE in local code. Deploy through the canonical reviewed release path, then verify a real non-voice task trace before claiming LIVE."
+    },
+    {
+      "id": "telegram_notify_and_groups",
+      "title": "Telegram Notify token invalid and three required coordination groups unwired",
+      "class": "operations",
+      "status": "open",
+      "evidence": "2026-09-21 live verifier: Jarvis getMe succeeds; Notify/fallback token returns HTTP 401; workers_coordination, agents_coordination and admin_command_center have no wired chat_id. Telegram Web is logged in, but BotFather token creation/rotation and group creation are owner-impacting actions requiring explicit action-time confirmation.",
+      "blast_radius": "Dedicated Notify egress is unavailable and canonical worker/agent/admin coordination groups cannot receive routed messages. Jarvis fallback remains available; no group is falsely marked ready.",
+      "owner_only": true,
+      "next_step": "Owner confirms BotFather token rotation and creation/wiring of the three Telegram groups; then update production secret through the approved secret path and run the verifier."
+    },
+    {
+      "id": "B-9",
+      "title": "Local orchestrator ledger was JSON-clobbered into a SQLite path",
+      "class": "reliability",
+      "status": "fixed",
+      "evidence": "data/orchestrator_ledger.db first bytes were 7B 0D 0A 20 20 22 64 65 76 5F 77 6F 72 6B 65 72 (JSON) though the durable task store opens it as SQLite. DevWorkerProver now writes data/dev_workers_ledger.json. Local file already absent. FIXED 2026-09-19: root cause was DurableTaskStore._init_sqlite() running CREATE TABLE on the file with no header check, so the constructor itself raised 'sqlite3.DatabaseError: file is not a database' and the canonical task ledger could not be instantiated at all. Reproduced pre-fix, then hardened. tests/test_automation_orchestrator.py 4 new tests + 50-test ledger suite green.",
+      "blast_radius": "Was: any machine carrying a non-SQLite file at the ledger path had an unusable task ledger with no recovery path.",
+      "owner_only": false,
+      "next_step": "DONE: a non-SQLite file is now renamed (never deleted) to <path>.corrupt-<timestamp> with a CRITICAL log and a fresh ledger is created; valid/empty/missing files are untouched."
+    },
+    {
+      "id": "B-10",
+      "title": "Stale 0-byte tracked files and committed test artifacts",
+      "class": "hygiene",
+      "status": "fixed",
+      "evidence": "FIXED 2026-09-20: Untracked $null and .pytest_tmp_telegram_bootstrap_verified_0916*/ artifacts from git index via git rm --cached; added .pytest_tmp*/ and $null to .gitignore to prevent recurrence.",
+      "blast_radius": "Was: Noise in repo-wide scans and audits.",
+      "owner_only": false,
+      "next_step": "DONE: Untracked and ignored."
+    }
+  ]
+}

@@ -19,7 +19,6 @@ import pytest
 
 from app.platform.hot_queue_owner_pack import _typesafe_score_rows
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -129,6 +128,59 @@ class TestTypeSafeScoring:
         assert result[0].get("ts_rank") == 1
         assert result[1]["intent"] == "unsubscribe"
         assert result[1].get("ts_rank") == 2
+
+    def test_each_lead_gets_an_independent_typesafe_urgency_judgment(self):
+        """Per-lead answers, not one batch-wide score, must drive ranking."""
+        from app.platform.typesafe_integration import TypeSafeResponse
+
+        rows = [
+            _make_row("interested"),
+            _make_row("question"),
+        ]
+        captured_questions: list[dict] = []
+
+        def system_one(_state, questions):
+            captured_questions.append(questions)
+            return TypeSafeResponse(
+                success=True,
+                result={
+                    "model": "jev-1.13.0",
+                    "answers": {
+                        "lead_0_urgency": {
+                            "type": "score",
+                            "choice": "can_wait",
+                            "confidence": 0.9,
+                        },
+                        "lead_1_urgency": {
+                            "type": "score",
+                            "choice": "urgent_contact_now",
+                            "confidence": 0.9,
+                        },
+                        "has_high_intent_lead": {"type": "noul", "noul": 0.8},
+                    },
+                },
+                model="jev-1.13.0",
+                latency_sec=0.4,
+                attempts=1,
+            )
+
+        with (
+            patch(
+                "app.platform.typesafe_integration.credential_state",
+                return_value={"enabled": True, "state": "PRESENT", "fingerprint": "abc"},
+            ),
+            patch("app.platform.typesafe_integration._get_api_key", return_value="fake_key"),
+            patch(
+                "app.platform.typesafe_integration.TypeSafeClient.system_one",
+                side_effect=system_one,
+            ),
+        ):
+            result = _typesafe_score_rows(rows)
+
+        assert captured_questions
+        assert {"lead_0_urgency", "lead_1_urgency"} <= set(captured_questions[0])
+        assert result[0]["intent"] == "question"
+        assert result[0]["ts_score"] > result[1]["ts_score"]
 
     def test_ts_score_and_ts_rank_injected(self):
         """Every row gets ts_score (float) and ts_rank (int) after successful scoring."""

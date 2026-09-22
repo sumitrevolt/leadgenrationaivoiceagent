@@ -1,0 +1,4 @@
+rank,ts_score,ts_rank,business,from,niche,city,channel,intent,phone,wa_link,draft_preview
+1,,,AFM SOLAR,a@x.com,solar_residential,Pune,calling_flagged,interested,919999999999,https://wa.me/919999999999?text=Namaste,Namaste
+2,,,SAVEMAX,b@x.com,solar_residential,Mumbai,calling_flagged,interested,919888888888,https://wa.me/919888888888?text=Hello,Hello
+3,,,GLOBAL,c@x.com,real_estate,Nagpur,calling_flagged,interested,,,
