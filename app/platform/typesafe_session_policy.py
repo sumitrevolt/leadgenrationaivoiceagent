@@ -116,4 +116,130 @@ def judge_task(*, record: Any, contract: Any, client: Any | None = None, trace_p
     return {"decision_id": decision_id, "route": route, "reason": reason, "traced": traced}
 
 
-__all__ = ["judge_task"]
+def judge_task_multipass(
+    *,
+    record: Any,
+    contract: Any,
+    artifact: dict[str, Any] | None = None,
+    options: list[str] | None = None,
+    downstream_action: str = "dispatch",
+    side_effect_id: str | None = None,
+    observed_outcome: Any = None,
+    trace_path: Path | None = None,
+) -> dict[str, Any]:
+    """5-stage multi-pass lifecycle for substantial agent sessions.
+
+    ADDITIVE to `judge_task` (the bounded 1-call ADR-199 gate). This is the
+    optional M00A richer lifecycle for sessions that have:
+      - non-trivial evidence to assess (intake)
+      - a small set of next-action candidates (plan)
+      - a draft artifact worth QA (intermediate_qa)
+      - a planned downstream action (final)
+      - an observed outcome to record (outcome)
+
+    The legacy `judge_task` route decision is PRESERVED here as the AUTHORITY
+    on dispatch — multipass never weakens it. If the legacy gate returns
+    `route=review`, multipass is SKIPPED and the existing review verdict wins.
+
+    Deterministic / mock fallback: when `TYPESAFE_API_KEY` is ABSENT the
+    multipass consumer returns the deterministic mock for every stage, so the
+    full lifecycle is reproducible in CI / local without a real key. ABSENT is
+    recorded in the trace summary (`mock_calls`) so audit consumers can tell.
+
+    Trace contract (per M00A + ADR-201):
+      decision_id: str
+      task_id: str
+      tenant_scope: str
+      verdict: {"route": "proceed"|"review", "reason": str, "traced": bool}
+      consumed_calls: int
+      by_kind: {real, mock, cached, skipped}
+      by_stage: {intake, plan, intermediate_qa, final, outcome}
+      legacy_decision_id: str  # the bounded gate's decision_id, for audit
+    """
+    # Honour the legacy bounded gate FIRST. Provider failure there already
+    # degrades to proceed; we never weaken it, never replace it.
+    legacy = judge_task(record=record, contract=contract, trace_path=trace_path)
+    if legacy.get("route") == "review":
+        return {
+            "decision_id": legacy["decision_id"],
+            "task_id": record.task_id,
+            "tenant_scope": str((record.input_payload or {}).get("tenant_id") or (record.input_payload or {}).get("client_id") or "platform"),
+            "verdict": legacy,
+            "consumed_calls": 0,
+            "by_kind": {"real": 0, "mock": 0, "cached": 0, "skipped": 5},
+            "by_stage": {},
+            "legacy_decision_id": legacy["decision_id"],
+            "reason": "legacy_review_short_circuit",
+        }
+
+    # Try to import the multipass consumer; if the module is unavailable
+    # (e.g. partial deploy) we degrade gracefully without raising.
+    try:
+        from app.platform.typesafe_multipass import multipass_consumer
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("[typesafe_session] multipass consumer unavailable: %s", exc)
+        return {
+            "decision_id": legacy["decision_id"],
+            "task_id": record.task_id,
+            "tenant_scope": "platform",
+            "verdict": legacy,
+            "consumed_calls": 0,
+            "by_kind": {"real": 0, "mock": 0, "cached": 0, "skipped": 5},
+            "by_stage": {},
+            "legacy_decision_id": legacy["decision_id"],
+            "reason": "multipass_module_unavailable",
+        }
+
+    tenant_scope = str((record.input_payload or {}).get("tenant_id") or (record.input_payload or {}).get("client_id") or "platform")
+    cons = multipass_consumer(task_id=record.task_id, tenant_scope=tenant_scope)
+
+    evidence = (record.input_payload or {}).get("evidence", {})
+    cons.intake_pass(evidence=evidence, task=str(record.assigned_agent or ""), evidence_refs=[f"agent:{record.assigned_agent}"])
+
+    plan_options = options or ["dispatch", "review", "skip"]
+    cons.plan_pass(task=str(record.assigned_agent or ""), options=plan_options, evidence_refs=[f"agent:{record.assigned_agent}"])
+
+    if artifact is not None:
+        cons.qa_pass(artifact={"kind": "session_artifact", **(artifact or {})}, stage_label="intermediate_qa", evidence_refs=[f"agent:{record.assigned_agent}"])
+        cons.final_pass(artifact={"kind": "session_artifact", **(artifact or {})}, downstream_action=downstream_action, evidence_refs=[f"agent:{record.assigned_agent}"])
+
+    if side_effect_id is not None:
+        cons.outcome_pass(side_effect_id=side_effect_id, observed_outcome=observed_outcome)
+
+    summary = cons.summary()
+
+    # Persist a compact trace row alongside the legacy one.
+    trace_row = {
+        "kind": "session_decision_multipass",
+        "decision_id": legacy["decision_id"],
+        "task_id": record.task_id,
+        "tenant_scope": tenant_scope,
+        "purpose": "substantial_agent_session_multipass",
+        "owner_bot": record.owner_bot,
+        "assigned_agent": record.assigned_agent,
+        "agent_lane": str(getattr(contract, "lane", "")),
+        "consumed_calls": summary["consumed_total"],
+        "by_kind": summary["by_kind"],
+        "by_stage": summary["by_stage"],
+        "legacy_decision_id": legacy["decision_id"],
+        "verdict_route": legacy["route"],
+        "verdict_reason": legacy["reason"],
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    traced = _append(trace_path or _TRACE, trace_row)
+
+    return {
+        "decision_id": legacy["decision_id"],
+        "task_id": record.task_id,
+        "tenant_scope": tenant_scope,
+        "verdict": legacy,
+        "consumed_calls": summary["consumed_total"],
+        "by_kind": summary["by_kind"],
+        "by_stage": summary["by_stage"],
+        "legacy_decision_id": legacy["decision_id"],
+        "traced": traced,
+        "reason": "multipass_complete",
+    }
+
+
+__all__ = ["judge_task", "judge_task_multipass"]
