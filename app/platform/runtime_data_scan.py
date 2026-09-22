@@ -107,6 +107,17 @@ _SKIP_DIRS = frozenset(
         ".worktrees",
         ".claude",
         ".agents",
+        # 2026-09-22 (Wave 4 ratchet repair): `scripts/legacy/` holds the old
+        # command_center/patches/pilot_*.py pilots, moved when the runtime
+        # switched to Postgres. Verified genuinely inactive — no imports, no
+        # scheduler/cron references, no subprocess calls anywhere in the
+        # current codebase (grep across app/, scripts/active, tests/, .github/
+        # returns zero hits). The legacy pilots read/write the deleted
+        # command_center/data/tasks.json path; the directory no longer exists
+        # at runtime. Excluding the whole directory from the scanner is
+        # cheaper + safer than 6 individual allowlist entries that would just
+        # document known-dead code.
+        "scripts/legacy",
         ".codex",
         ".hermes",
         ".clawhub",
