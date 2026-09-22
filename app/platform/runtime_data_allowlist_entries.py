@@ -2021,6 +2021,59 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
     },
+    # 2026-09-22 (Wave 7 prod_check repair): TypeSafe intake-gate wrapper
+    # writes data/typesafe_intake_trace.jsonl. Narrow entry: one writer, one
+    # path, append-only. Declared with the EXACT literal substring the validator
+    # uses (re.search basename + non-filename boundary).
+    {
+        "allowlist_id": "platform.typesafe_intake_trace.append",
+        "file": "app/platform/typesafe_intake_gate.py",
+        "line_or_symbol": "_TRACE_PATH",
+        "path_pattern": "data/typesafe_intake_trace.jsonl",
+        "store_id": "platform.typesafe_intake_trace",
+        "access_modes": ["APPEND"],
+        "reason": (
+            "TypeSafe intake-gate judgment trace. Append-only JSONL under "
+            "/opt/leadgen; one row per judge_task call. Default OFF "
+            "(TYPESAFE_INTAKE_GATE=1); failure degrades silently; next call "
+            "appends a fresh row. Rebuildable on demand."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Trace must stay append-only; never rewrite or truncate. "
+            "Decision IDs are content-deduped at write time."
+        ),
+    },
+    # 2026-09-22 (Wave 7 prod_check repair): Jarvis dispatcher mirrors each
+    # owner command to data/telegram_command_mirror.jsonl for the OCC
+    # reader. Narrow entry: one writer (the dispatcher), one path,
+    # append-only. OCC reads but never writes.
+    {
+        "allowlist_id": "platform.telegram_command_mirror.append",
+        "file": "app/integrations/telegram_bot.py",
+        "line_or_symbol": "mirror",
+        "path_pattern": "data/telegram_command_mirror.jsonl",
+        "store_id": "platform.telegram_command_mirror",
+        "access_modes": ["APPEND"],
+        "reason": (
+            "Telegram owner-command mirror for OCC readback. Append-only JSONL; "
+            "one row per command invocation. Read by "
+            "app/platform/telegram_command_mirror.py. Loss self-heals on next "
+            "invocation; never read for control flow."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "PRODUCTION_ACTIVE",
+        "review_condition": (
+            "Mirror must stay append-only; never rewrite or truncate. "
+            "Failure to write must degrade silently to avoid blocking "
+            "the dispatcher."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
