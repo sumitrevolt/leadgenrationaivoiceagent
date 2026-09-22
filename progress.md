@@ -645,3 +645,28 @@ Owner provisioning of four live TypeSafe keys via `/api/admin/keys/slot` or CLI 
 
 **Next Highest Priority:** Owner ke 3 coordination groups wire hone ke baad `--verify` green karna + VPS pe `setup_telegram_vps.sh --check-only` chala kar ingress ownership decide karna (Hermes vs VPS), phir `TELEGRAM_INGRESS_OWNER` set karke ek live `/status` round-trip prove karna.
 
+
+## Loop Run — 2026-09-22 05:00 IST (addendum v3 bootstrap + Telegram dual-bot + P0 hardening)
+
+**Goal:** Telegram local+VPS dual-bot coordination setup, lossless SSOT consolidation, P0 secret/credential hygiene, TypeSafe-first verification on the live revenue path.
+**Inspected:** local repo (HEAD ea472249 ? main behind), GitHub main (2962d26e), VPS /opt/leadgen@2962d26e, docker compose (leadgen_app healthy, 8000?8080), 13 telegram groups wired, jarvis container ingress owner=vps, 409 containment active, TYPESAFE key PRESENT (fp=2e13ca55f7f8, jev-latest), notify egress vault-resolved.
+**Problems Found:**
+1. Committed Telethon pi_id+pi_hash hardcoded in 4 scripts + 2 docs (repo PUBLIC ? ROTATION_REQUIRED).
+2. create_topics() auto-sent with env credentials (no explicit consent) — 3 failing test cases.
+3. leadgen_mcp container on stale image (89ab2f29), not in canonical deploy rollout.
+4. leadgen.service systemd unit broken-legacy (points at dead .venv), crash-looping 15k+ times.
+5. 6 duplicate Telegram groups (2 extra copies of 3 canonical) — no action without owner confirm.
+6. VPS load avg 13-15 (normal 2-4) — investigate.
+**Changed:**
+- scripts/telethon_*.py: removed hardcoded api_id/api_hash defaults; require env (exit 2 if missing).
+- scripts/telegram_wire_coordination_groups.py: create_topics() now requires explicit token arg (no implicit auto-send); CLI passes token explicitly.
+- pp/utils/telegram_egress.py: _token_candidates() now falls back to encrypted vault via Key Manager (restart-safe Notify token).
+- pp/platform/telegram_coordinator.py: get_egress_token() now vault-first (no .env mutation needed after rotation).
+- docs/TELEGRAM_LOCAL_VPS_SETUP_2026-09-22.md: runbook for local+VPS coordination.
+- AGENTS.md/CLAUDE.md: Current State updated to 2026-09-22 live truth.
+- VPS: stopped dead leadgen.service systemd unit (crash-loop freeze).
+**Tests Run:** 	ests/test_telegram_wiring_tool.py (10/10), 	ests/test_telegram_dual_bot.py, 	ests/test_telegram_egress.py, 	ests/test_key_manager_security.py — all green.
+**Verification Evidence:** check_secrets.py = 0 secrets; ruff clean; VPS /health = healthy@2962d26e; 409 count in last 2h = 2 (transient, no recurrence); jarvis ingress owner=vps confirmed.
+**Risks:** VPS load avg still high (celery workers + chromium under observation); leadgen_mcp on stale image (89ab2f29) — not in deploy rollout; owner allow-list path (1621120182) unproven.
+**Remaining / owner-only:** (1) Telethon api_hash ROTATION at my.telegram.org; (2) owner 1621120182 send /status to @Sumits_jarvis_bot to close last command-path segment; (3) leadgen_mcp image update to 2962d26e; (4) 6 duplicate Telegram group cleanup (owner confirmation required).
+**Next Highest Priority:** Investigate VPS load avg 13-15; update leadgen_mcp to 2962d26e; owner allow-list path proof.
