@@ -4,6 +4,37 @@
 
 ---
 
+## ADR-201: TypeSafe multi-pass consumer (M00A lifecycle implementation) (2026-09-22)
+
+**Status**: ACCEPTED (CODE-PRESENT + LOCAL-TESTS-PASSING; protected PR pending owner go-ahead)
+
+**Context**: Owner directive (`docs/OWNER_DIRECTIVE_2026-09-22.md`, M00A) requires TypeSafe to function as an ACTIVE MULTI-PASS output engine, not a single decorative call. The lifecycle is intake → plan → generate (host) → intermediate QA → targeted revision → final QA → authorized delivery → independently verified outcome → session continuation. Existing canonical TypeSafe integration (`app/platform/typesafe_integration.py`) already exposes `typesafe_choice` / `typesafe_noul` / `typesafe_score` / `typesafe_system_one` plus `Choice`/`Noul`/`Score`/`TypeSafeResponse` and credential state (`PRESENT` / `ABSENT` / `INVALID` / `ROTATION_REQUIRED`). What was missing: (1) a governed wrapper that any worker, agent or sub-agent can inherit without re-implementing HTTP/credential/retry, (2) deterministic trace records per consumed call (decision_id, state_hash, evidence_refs, model, latency, confidence, downstream_action, side_effect_id, observed_outcome), (3) a fixture path so callers can ship without a live TypeSafe key without fabricating API calls, (4) bounded cache so repeated identical inputs do not burn quota.
+
+**Decision**: New module `app/platform/typesafe_multipass.py` + tests `tests/test_typesafe_multipass.py`.
+
+- Public surface:
+  - `multipass_consumer(task_id, tenant_scope, enabled, cache_window_sec)` → `MultipassConsumer`
+  - 5 stage methods (intake_pass / plan_pass / qa_pass / final_pass / outcome_pass) + an internal revise shell (revision is the host re-running `qa_pass` with the revision artifact; we don't double-charge TypeSafe for the same stage)
+  - `summary()` returns aggregate stats (consumed_total, by_kind, by_stage, real/mock/cached/skipped counts)
+  - CLI `python -m app.platform.typesafe_multipass` for owner-visible fixture replay
+- Trace record (`MultipassTraceRecord` dataclass + `to_dict()` for JSON serialisation) is emitted for EVERY stage call, even when `enabled=False` or `cache hit`, so audit consumers see the lifecycle was honored.
+- REAL path: only when `credential_state().state == "PRESENT"` AND the canonical `_ts.typesafe_system_one` returns success. The credential fingerprint (sha256[:12]) is recorded for audit; the key itself is NEVER stored or logged.
+- MOCK path (ABSENT): deterministic — same input → same answer via SHA-256 over canonical JSON of {primitive, stage, state, questions}. Confidence = 0.5 (explicit placeholder so downstream readers know "no real judgment").
+- CACHE: 5-minute default; cache key is `(task_id, stage, primitive, SHA-256 of normalized state+questions)`. Cache HIT reuses the original `decision_id` (audit continuity) with `result_kind="cached"`.
+- NO duplicate SDK, no duplicate secret store, no second key pool, no second HTTP client. All real traffic flows through the canonical `_ts.typesafe_system_one` (which already wraps rotation, retries, cooldown, fingerprint audit).
+
+**Consequences**:
+- Any worker/agent that wants multi-pass can `from app.platform.typesafe_multipass import multipass_consumer` + 5 stage calls — no extra wiring.
+- Local dev runs without `TYPESAFE_API_KEY` are reproducible (mock is deterministic), so tests + fixture replays never fabricate live results.
+- Live TypeSafe usage requires a real key in env OR vault (`KeyManager TS_A..TS_D`) — no new code path was added; the canonical four-slot rotation is the only credential surface.
+- The CLI (`python -m app.platform.typesafe_multipass --task-id t --tenant default --mode fixture`) gives the owner a quick "show me the trace" command without entering prod.
+- Tests: 10/10 PASS (`pytest tests/test_typesafe_multipass.py`).
+- Ratchet: the new module introduces 0 UNDECLARED / 0 AMBIGUOUS findings (`runtime_data_scan.py` over the module alone).
+
+**Reference**: `app/platform/typesafe_multipass.py` · `tests/test_typesafe_multipass.py` · `app/platform/typesafe_integration.py` (canonical client) · `docs/OWNER_DIRECTIVE_2026-09-22.md` (M00A) · AGENTS.md §2.2.
+
+---
+
 ## ADR-199: Bounded TypeSafe judgment per governed agent task/session (2026-09-21)
 
 **Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; production deploy pending)
