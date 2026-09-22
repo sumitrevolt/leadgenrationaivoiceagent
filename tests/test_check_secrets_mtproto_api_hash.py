@@ -178,15 +178,27 @@ def test_suffix_label_pattern_exists() -> None:
 # attempt added `\b\w*` to the generic "unquoted credential" alternation and this
 # created 225 repo-wide findings, ~220 of them false positives. These cases pin the
 # reason the dedicated-pattern design was chosen: a noisy scanner gets muted.
+#
+# The `# nosecret` markers are REQUIRED, not cosmetic. Once ruff collapsed these
+# entries onto single lines, the GENERIC patterns legitimately match them — e.g.
+# `token` label followed by a 43-char identifier run. That the generic patterns
+# match this noise is precisely the point of the test, and precisely why the
+# suffix-label pattern must stay narrow. The marker is check_secrets.py's documented
+# escape hatch for deliberate false positives. Put it on the VALUE line: that is the
+# line the scanner reads.
 
 NOISE = {
-    "secrets baseline sha1": ('    "hashed_secret": "b60d121b438a380c343d5ec3c2037564b82ffef3",'),
-    "test fn name with password": (
-        "def test_change_password_returns_409_when_no_credential_row(client, monkeypatch):"
+    "secrets baseline sha1": (
+        '    "hashed_secret": "b60d121b438a380c343d5ec3c2037564b82ffef3",'  # nosecret
     ),
-    "test fn name with token": ("def test_token_store_unavailable_fails_closed_503(monkeypatch):"),
+    "test fn name with password": (
+        "def test_change_password_returns_409_when_no_credential_row(client, monkeypatch):"  # nosecret
+    ),
+    "test fn name with token": (
+        "def test_token_store_unavailable_fails_closed_503(monkeypatch):"  # nosecret
+    ),
     "test env token literal": (
-        '    monkeypatch.setenv("FASTAPI_MCP_TOKEN", "test-token-32-chars-or-longer-aaa")'
+        '    monkeypatch.setenv("FASTAPI_MCP_TOKEN", "test-token-32-chars-or-longer-aaa")'  # nosecret
     ),
 }
 
