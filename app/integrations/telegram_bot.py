@@ -341,11 +341,37 @@ class TelegramBot:
         elif cmd == "/test_handoff":
             return self._cmd_test_handoff()
         else:
-            return (
-                f"Unknown command: `{cmd}`\nUse /help to see all available commands.",
-                "command",
-                None,
-            )
+            # Wave 7: dispatch the 9 new owner commands to
+            # ``telegram_owner_commands.handle_owner_command``. The result's
+            # ``status`` field is preserved so callers can distinguish OK /
+            # EMPTY / UNAVAILABLE / NOT_INSTRUMENTED — never fabricated.
+            try:
+                from app.integrations.telegram_owner_commands import (
+                    handle_owner_command,
+                )
+
+                result = handle_owner_command(cmd)
+                # Mirror the result to the data pipeline for the dashboard.
+                try:
+                    import json
+                    from app.platform.runtime_data import store_path
+                    mirror = store_path("telegram_command_mirror.jsonl")
+                    mirror.parent.mkdir(parents=True, exist_ok=True)
+                    with mirror.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(result.to_data_payload(), ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                return (
+                    result.to_telegram_text(),
+                    result.status,
+                    None,
+                )
+            except ImportError:
+                return (
+                    f"Unknown command: `{cmd}`\nUse /help to see all available commands.",
+                    "command",
+                    None,
+                )
 
     def _cmd_help(self) -> tuple[str, str, str | None]:
         bot_name = self._bot_info.get("first_name", "Jarvis")
