@@ -1,2 +1,4 @@
 scripts/_leadgen_dev_up.sh text eol=lf
 deploy/dsh/hardening.patch text eol=lf
+
+docs/OWNER_DIRECTIVE_2026-09-22.md text eol=lf
