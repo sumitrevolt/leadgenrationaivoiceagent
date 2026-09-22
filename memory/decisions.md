@@ -4,6 +4,19 @@
 
 ---
 
+## ADR-201: Owner-directive archive pinned to LF — checksum tamper-evidence restored (2026-09-22)
+
+**Status**: SHIPPED (commit `e9b584c7`, incorporated byte-identical in PR #556 @ `00810bea`; merge/deploy pending owner)
+
+**Context**: `docs/OWNER_DIRECTIVE_2026-09-22.md` (immutable archive, SHA-256 pinned in AGENTS.md / CLAUDE.md stub / docs/AGENTS_REFERENCE.md) was created on disk with CRLF endings while git normalized the committed blob to LF (`core.autocrlf=true`) — the pin never matched actual checked-out bytes, so tamper-evidence was dead. Initial checkout-smudge hypothesis was FALSIFIED by a fresh-clone negative control @ `bbf8b5e6` (already checks out LF); the defect was creation-time CRLF in one local worktree.
+
+**Decision**: File-specific `.gitattributes` rule `docs/OWNER_DIRECTIVE_2026-09-22.md text eol=lf` + regression test `tests/test_owner_directive_checksum.py` (hashes actual disk bytes vs the pin parsed from AGENTS.md; fails on CRLF or content drift). No repo-wide renormalization; no archive content change (blob already LF).
+
+**Consequences**: Pin verifiable on every platform/config; accidental CRLF re-save or content edit fails loudly. Verified: fresh clone @ `e9b584c7` (autocrlf=true) disk SHA = pin = blob; test EXIT:0 in clone; 9/9 governance tests; check_secrets clean. PR #556 content diff vs `e9b584c7` empty; ancestry locally confirmed (`e9b584c7` + `eec99295` + `00810bea`).
+**Reference**: `deliverables/owner-os/handoff-checksum-verification-2026-09-22.md` (full evidence handoff to Hermes)
+
+---
+
 ## ADR-200: Single canonical AGENTS.md; CLAUDE.md retired to redirect stub (2026-09-22)
 
 **Status**: ACCEPTED (CODE-PRESENT + LOCAL-TESTED; protected PR + production deploy pending owner go-ahead)
