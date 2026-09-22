@@ -27,8 +27,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SESSION = str(ROOT / "data" / "telethon_setup.session")
-API_ID = os.environ.get("TELEGRAM_API_ID", "30160587")
-API_HASH = os.environ.get("TELEGRAM_API_HASH", "5a6af325bc59e9da130999f2ccda1674")
+# Credentials MUST come from the environment. Never commit an api_id/api_hash as a
+# source default — this repository is PUBLIC, so a committed credential is
+# compromised by definition and must be rotated.
+API_ID = os.environ.get("TELEGRAM_API_ID", "").strip()
+API_HASH = os.environ.get("TELEGRAM_API_HASH", "").strip()
+if not (API_ID and API_HASH):
+    print(
+        "[error] TELEGRAM_API_ID and TELEGRAM_API_HASH must be set in the environment.\n"
+        "        Obtain them from https://my.telegram.org and export them; never commit them.",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 OUT = ROOT / "data" / "notify_token_new.txt"
 
 TOKEN_RE = re.compile(r"\b\d+:[A-Za-z0-9_\-]{30,}\b")
