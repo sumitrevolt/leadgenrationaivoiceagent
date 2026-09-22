@@ -268,7 +268,9 @@ def evaluate_outcome(
     # presence). Per owner correction: 'Never classify an unsuccessful provider
     # call as a successful REAL evaluation.' Source default = MOCK; upgraded
     # inside the try block based on judge_task's reason field.
-    from app.platform import typesafe_integration as _ts  # noqa: F841 (kept for future key-state reads)
+    from app.platform import (
+        typesafe_integration as _ts,  # noqa: F841 (kept for future key-state reads)
+    )
 
     # Build minimal outcome state for hash + canonical client call.
     # CRITICAL: never include raw evidence, customer data, or credentials.

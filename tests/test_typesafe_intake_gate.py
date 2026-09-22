@@ -33,9 +33,7 @@ def _clean_trace_file(tmp_path, monkeypatch):
     Monkey-patch the function so tests don't pollute repo data.
     """
     trace = tmp_path / "typesafe_intake_trace.jsonl"
-    monkeypatch.setattr(
-        "app.platform.typesafe_intake_gate._intake_trace_path", lambda: trace
-    )
+    monkeypatch.setattr("app.platform.typesafe_intake_gate._intake_trace_path", lambda: trace)
     yield trace
 
 
@@ -502,7 +500,6 @@ def test_dispatch_task_final_review_off_no_call(tmp_path, monkeypatch):
     )
 
 
-
 # ---------- outcome_review (Wave 8 P0 correction) ----------
 
 
@@ -565,14 +562,18 @@ def test_outcome_gate_on_no_key_returns_mock():
         from app.platform.typesafe_intake_gate import evaluate_outcome
 
         v_ok = evaluate_outcome(
-            task_id="t_mock_ok", success=True, evidence="ok-evidence",
+            task_id="t_mock_ok",
+            success=True,
+            evidence="ok-evidence",
             downstream_result="ok-category",
         )
         assert v_ok.source == "MOCK"
         assert v_ok.verdict == "met"
 
         v_fail = evaluate_outcome(
-            task_id="t_mock_fail", success=False, evidence="fail-evidence",
+            task_id="t_mock_fail",
+            success=False,
+            evidence="fail-evidence",
             downstream_result="fail-category",
         )
         assert v_fail.source == "MOCK"
@@ -642,9 +643,7 @@ def test_outcome_judge_task_cannot_upgrade_failed_task(monkeypatch):
                 "traced": True,
             }
 
-        monkeypatch.setattr(
-            "app.platform.typesafe_session_policy.judge_task", _spy_judge
-        )
+        monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge)
 
         from app.platform.typesafe_intake_gate import evaluate_outcome
 
@@ -665,6 +664,7 @@ def test_outcome_route_review_yields_partial(monkeypatch):
     """judge_task route='review' with local success=True yields 'partial' (not 'met')."""
     os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
     try:
+
         def _spy_judge(*args, **kwargs):
             return {
                 "decision_id": "tsi-spy",
@@ -673,9 +673,7 @@ def test_outcome_route_review_yields_partial(monkeypatch):
                 "traced": True,
             }
 
-        monkeypatch.setattr(
-            "app.platform.typesafe_session_policy.judge_task", _spy_judge
-        )
+        monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge)
 
         from app.platform.typesafe_intake_gate import evaluate_outcome
 
@@ -768,6 +766,7 @@ def test_outcome_does_not_call_intake_judge_task(monkeypatch):
         if saved_key is not None:
             os.environ["TYPESAFE_API_KEY"] = saved_key
 
+
 def test_outcome_provider_failure_source_is_distinct_from_real(monkeypatch):
     """Per owner correction: 'Never classify an unsuccessful provider call as
     a successful REAL evaluation.' When judge_task returns reason=provider_fallback
@@ -777,6 +776,7 @@ def test_outcome_provider_failure_source_is_distinct_from_real(monkeypatch):
     saved_key = os.environ.get("TYPESAFE_API_KEY")
     os.environ["TYPESAFE_API_KEY"] = "fake-but-present"
     try:
+
         def _spy_judge_fallback(*args, **kwargs):
             return {
                 "decision_id": "tss-spy",
@@ -784,10 +784,10 @@ def test_outcome_provider_failure_source_is_distinct_from_real(monkeypatch):
                 "reason": "provider_fallback",
                 "traced": True,
             }
-        monkeypatch.setattr(
-            "app.platform.typesafe_session_policy.judge_task", _spy_judge_fallback
-        )
+
+        monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge_fallback)
         from app.platform.typesafe_intake_gate import evaluate_outcome
+
         v = evaluate_outcome(
             task_id="t_provider_fail",
             success=True,
@@ -815,12 +815,13 @@ def test_outcome_provider_exception_source_is_distinct(monkeypatch):
     saved_key = os.environ.get("TYPESAFE_API_KEY")
     os.environ["TYPESAFE_API_KEY"] = "fake-but-present"
     try:
+
         def _spy_judge_exception(*args, **kwargs):
             raise RuntimeError("provider connection refused")
-        monkeypatch.setattr(
-            "app.platform.typesafe_session_policy.judge_task", _spy_judge_exception
-        )
+
+        monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge_exception)
         from app.platform.typesafe_intake_gate import evaluate_outcome
+
         v = evaluate_outcome(
             task_id="t_provider_exc",
             success=True,
@@ -846,6 +847,7 @@ def test_outcome_real_source_requires_actual_typesafe_judgment(monkeypatch):
     saved_key = os.environ.get("TYPESAFE_API_KEY")
     os.environ["TYPESAFE_API_KEY"] = "fake-but-present"
     try:
+
         def _spy_judge_real(*args, **kwargs):
             return {
                 "decision_id": "tss-spy",
@@ -853,10 +855,10 @@ def test_outcome_real_source_requires_actual_typesafe_judgment(monkeypatch):
                 "reason": "typesafe_judgment",
                 "traced": True,
             }
-        monkeypatch.setattr(
-            "app.platform.typesafe_session_policy.judge_task", _spy_judge_real
-        )
+
+        monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge_real)
         from app.platform.typesafe_intake_gate import evaluate_outcome
+
         v = evaluate_outcome(
             task_id="t_real",
             success=True,
