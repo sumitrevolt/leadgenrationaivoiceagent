@@ -2021,6 +2021,91 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
     },
+    {
+        # 2026-09-22 (Wave 4 ratchet repair, ADR-201 PR #553 / PR #552): the
+        # telegram poll-lease uses the canonical atomic-write pattern
+        # `tmp = _LEASE_PATH.with_suffix('.tmp'); ...; os.replace(tmp, _LEASE_PATH)`.
+        # The scanner picks up the staging `.tmp` file as a separate REPLACE
+        # writer; that is the SAME atomic publish operation, not a separate store.
+        # Declared here so the ratchet recognises the staging file as part of the
+        # canonical lease lifecycle, not new undeclared debt.
+        "allowlist_id": "telegram.poll_lease.atomic_tmp",
+        "file": "app/platform/telegram_coordinator.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": '_LEASE_PATH.with_suffix(".tmp")',
+        "store_id": "telegram.poll_lease",
+        "access_modes": ["REPLACE"],
+        "reason": (
+            "Atomic-write staging for the telegram poll-lease (single-instance "
+            "guarantee across the Jarvis + Notify dual-bot setup). The .tmp is the "
+            "publish-then-rename staging file; it is replaced by os.replace into "
+            "the final lease path and never persists as a separate file."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "telegram",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Atomic lease must stay in the same filesystem as the lease itself; "
+            "any cross-filesystem move breaks os.replace atomicity."
+        ),
+    },
+    {
+        # 2026-09-22 (Wave 4 ratchet repair): same atomic-write pattern as the
+        # poll-lease but for the coordinator's heartbeat JSON (the file the
+        # systemd watchdog reads). The `.tmp` is the staging file before
+        # os.replace; declared so it isn't flagged as a separate REPLACE writer.
+        "allowlist_id": "telegram.heartbeat.atomic_tmp",
+        "file": "app/platform/telegram_coordinator.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": '_HEARTBEAT_PATH.with_suffix(".tmp")',
+        "store_id": "telegram.heartbeat",
+        "access_modes": ["REPLACE"],
+        "reason": (
+            "Atomic-write staging for the telegram heartbeat JSON. Same "
+            "publish-then-rename pattern as the poll-lease; the .tmp is the "
+            "staging file before os.replace and never persists as a separate file."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "telegram",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Heartbeat is a liveness signal only; never expand to carry secrets."
+        ),
+    },
+    {
+        # 2026-09-22 (Wave 4 ratchet repair): the canonical TypeSafe runtime-key
+        # store. Already inside the secure key-management contract
+        # (app/platform/key_manager.py provides the encrypted four-slot vault;
+        # this file is the OPTIONAL admin override path used when the operator
+        # wants to drop a new key without restarting the worker). Read-only at
+        # app load; never written by the integration itself.
+        "allowlist_id": "platform.typesafe_runtime_keys.store",
+        "file": "app/platform/typesafe_integration.py",
+        "line_or_symbol": "_RUNTIME_KEYS_FILE",
+        # Use DOUBLE quotes here to match the literal source code; the validator
+        # does a non-normalised substring test against the file, so single quotes
+        # would always fail to match.
+        "path_pattern": 'os.path.join("data", "typesafe_keys.json")',
+        "store_id": "platform.typesafe_credentials",
+        "access_modes": ["READ", "CREATE"],
+        "reason": (
+            "Canonical admin-overridable TypeSafe runtime-key store. Read at "
+            "process load only; never written by the integration. The encrypted "
+            "four-slot vault (KeyManager TS_A..TS_D) is the primary path; this "
+            "file is the documented escape hatch."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Only fingerprint-grade data goes through this file; the live key "
+            "value is NEVER written here, NEVER logged, NEVER exported. Rotation "
+            "must come from KeyManager, not from this file."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

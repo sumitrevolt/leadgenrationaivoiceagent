@@ -1511,6 +1511,80 @@ STORES: list[dict[str, Any]] = [
             "never inside the checkout; fully rebuildable by the next poll."
         ),
     ),
+    # 2026-09-22 (Wave 4 ratchet repair): telegram poll-lease, declared so the
+    # canonical atomic-write staging file (.tmp -> os.replace) is not flagged
+    # as new undeclared debt by the runtime-data ratchet.
+    _e(
+        store_id="telegram.poll_lease",
+        display_name="Telegram dual-bot poll-lease (single-instance guarantee)",
+        legacy_paths=["data/telegram_poll_lease.json"],
+        writer_modules=["app/platform/telegram_coordinator.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="communications",
+        durability_class="retention-sensitive-artifact",
+        concurrency_model="atomic write (.tmp + os.replace) under flock",
+        tenant_scope="owner/admin (not customer tenant)",
+        target_runtime_subpath="communications/telegram_poll_lease.json",
+        migration_tier=TIER_2,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22. The poll-lease prevents the Jarvis + Notify "
+            "bots from both issuing getUpdates (the 409-conflict case). Atomic "
+            "publish: tmp = _LEASE_PATH.with_suffix('.tmp'); os.replace(tmp, _LEASE_PATH). "
+            "The .tmp staging file never persists as a separate file."
+        ),
+    ),
+    # 2026-09-22 (Wave 4 ratchet repair): telegram coordinator heartbeat.
+    _e(
+        store_id="telegram.heartbeat",
+        display_name="Telegram coordinator heartbeat (liveness signal)",
+        legacy_paths=["data/telegram_heartbeat.json"],
+        writer_modules=["app/platform/telegram_coordinator.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="communications",
+        durability_class="rebuildable-cache",
+        concurrency_model="atomic write (.tmp + os.replace)",
+        tenant_scope="owner/admin (not customer tenant)",
+        target_runtime_subpath="communications/telegram_heartbeat.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22. Heartbeat JSON is rewritten each poll cycle "
+            "by the systemd watchdog; same atomic-publish pattern as the poll-lease. "
+            "Liveness signal only — never carries secrets or PII."
+        ),
+    ),
+    # 2026-09-22 (Wave 4 ratchet repair): the optional admin-overridable
+    # TypeSafe runtime-key store. Read at process load; the encrypted four-slot
+    # KeyManager vault (TS_A..TS_D) is the primary path, this file is the
+    # documented escape hatch.
+    _e(
+        store_id="platform.typesafe_credentials",
+        display_name="TypeSafe runtime-key admin override store",
+        legacy_paths=["data/typesafe_keys.json"],
+        writer_modules=["app/platform/typesafe_integration.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="platform",
+        durability_class="credential-store",
+        concurrency_model="read at process load only; never written by integration",
+        tenant_scope="owner/admin (TypeSafe API access; not customer tenant)",
+        target_runtime_subpath="platform/typesafe_keys.json",
+        migration_tier=TIER_2,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22. Loaded by _load_runtime_keys() in "
+            "app/platform/typesafe_integration.py; the canonical secure path is "
+            "the encrypted KeyManager vault (TS_A..TS_D). Live key values are "
+            "NEVER written, logged or exported from this file — only the "
+            "credential_fingerprint (sha256[:12]) is recorded."
+        ),
+    ),
 ]
 
 
