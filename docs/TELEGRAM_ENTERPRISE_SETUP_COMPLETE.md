@@ -104,7 +104,7 @@
 
 ## Webhook Configuration
 - **Endpoint**: POST /api/webhooks/telegram
-- **Secret**: TELEGRAM_WEBHOOK_SECRET=59edea328eb17786d2b995badd1872a466bbe24b891dfa55
+- **Secret**: supplied via the `TELEGRAM_WEBHOOK_SECRET` environment variable. Never commit it — this repository is PUBLIC. A value previously printed here was committed and must be rotated.
 - **Status**: ✅ LIVE and verified
 - **Inbox**: data/telegram_inbox.jsonl
 

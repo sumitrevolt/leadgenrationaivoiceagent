@@ -14,6 +14,7 @@ touched here.
 Usage:
     python scripts/telethon_new_notify_bot.py [--name "LeadGen Notify"] [--username LeadgenaiNotify_bot]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,8 +28,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SESSION = str(ROOT / "data" / "telethon_setup.session")
-API_ID = os.environ.get("TELEGRAM_API_ID", "30160587")
-API_HASH = os.environ.get("TELEGRAM_API_HASH", "5a6af325bc59e9da130999f2ccda1674")
+# Credentials MUST come from the environment. Never commit an api_id/api_hash as a
+# source default — this repository is PUBLIC, so a committed credential is
+# compromised by definition and must be rotated.
+API_ID = os.environ.get("TELEGRAM_API_ID", "").strip()
+API_HASH = os.environ.get("TELEGRAM_API_HASH", "").strip()
+if not (API_ID and API_HASH):
+    print(
+        "[error] TELEGRAM_API_ID and TELEGRAM_API_HASH must be set in the environment.\n"
+        "        Obtain them from https://my.telegram.org and export them; never commit them.",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 OUT = ROOT / "data" / "notify_token_new.txt"
 TOKEN_RE = re.compile(r"\b\d+:[A-Za-z0-9_\-]{30,}\b")
 
@@ -72,6 +83,7 @@ async def main() -> int:
     a = ap.parse_args()
 
     from telethon import TelegramClient
+
     client = TelegramClient(SESSION, int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
@@ -86,6 +98,7 @@ async def main() -> int:
     async def wait_pattern(after_text: str, needles: list[str], timeout: float = 60) -> str:
         """Poll BotFather's latest reply until it contains one of `needles`."""
         import time as _t
+
         start = _t.time()
         while _t.time() - start < timeout:
             await asyncio.sleep(2)
@@ -98,8 +111,11 @@ async def main() -> int:
 
     # 1) /newbot  -> BotFather asks for a display name
     await client.send_message(bf, "/newbot")
-    q1 = await wait_pattern("/newbot", ["give it a name", "what would you like to call",
-                                        "choose one that indicates", "name?"], timeout=45)
+    q1 = await wait_pattern(
+        "/newbot",
+        ["give it a name", "what would you like to call", "choose one that indicates", "name?"],
+        timeout=45,
+    )
     print(f"[new-bot] BotFather Q1: {q1[:90]!r}")
 
     # 2) display name  -> BotFather asks for a username
@@ -109,7 +125,7 @@ async def main() -> int:
 
     # 3) username -> BotFather replies with the token (or an already-taken error)
     await client.send_message(bf, uname)
-    print(f"[new-bot] waiting for token reply ...")
+    print("[new-bot] waiting for token reply ...")
     token = ""
     for _ in range(25):
         await asyncio.sleep(2)

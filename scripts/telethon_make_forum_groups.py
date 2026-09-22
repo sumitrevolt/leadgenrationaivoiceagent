@@ -15,6 +15,7 @@ Outcome: the spec points at the new FORUM groups. The 3 earlier empty
 non-forum groups (old ids in data/new_group_chat_ids.json, pre-forum)
 become orphans the owner closes in-app (see the trailing NOTE).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -27,8 +28,18 @@ ROOT = Path(__file__).resolve().parent.parent
 SESSION = str(ROOT / "data" / "telethon_setup.session")
 NEW_IDS = ROOT / "data" / "new_group_chat_ids.json"
 OLD_IDS = ROOT / "data" / "old_nonforum_group_ids.json"
-API_ID = os.environ.get("TELEGRAM_API_ID", "30160587")
-API_HASH = os.environ.get("TELEGRAM_API_HASH", "5a6af325bc59e9da130999f2ccda1674")
+# Credentials MUST come from the environment. Never commit an api_id/api_hash as a
+# source default — this repository is PUBLIC, so a committed credential is
+# compromised by definition and must be rotated.
+API_ID = os.environ.get("TELEGRAM_API_ID", "").strip()
+API_HASH = os.environ.get("TELEGRAM_API_HASH", "").strip()
+if not (API_ID and API_HASH):
+    print(
+        "[error] TELEGRAM_API_ID and TELEGRAM_API_HASH must be set in the environment.\n"
+        "        Obtain them from https://my.telegram.org and export them; never commit them.",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 PHONE = os.environ.get("TELEGRAM_PHONE", "+918261030181")
 
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -47,8 +58,16 @@ def _bot_usernames() -> list[str]:
                 out[k.strip()] = v.strip().strip('"').strip("'")
     except Exception:
         pass
-    j = os.environ.get("TELEGRAM_JARVIS_BOT_USERNAME") or out.get("TELEGRAM_JARVIS_BOT_USERNAME") or "Sumits_jarvis_bot"
-    n = os.environ.get("TELEGRAM_NOTIFY_BOT_USERNAME") or out.get("TELEGRAM_NOTIFY_BOT_USERNAME") or "Leadsgenai1_bot"
+    j = (
+        os.environ.get("TELEGRAM_JARVIS_BOT_USERNAME")
+        or out.get("TELEGRAM_JARVIS_BOT_USERNAME")
+        or "Sumits_jarvis_bot"
+    )
+    n = (
+        os.environ.get("TELEGRAM_NOTIFY_BOT_USERNAME")
+        or out.get("TELEGRAM_NOTIFY_BOT_USERNAME")
+        or "Leadsgenai1_bot"
+    )
     return [u.lstrip("@") for u in (j, n)]
 
 
@@ -74,9 +93,17 @@ async def main() -> int:
     print(f"[make-forum] logged in as: {me.first_name} ({me.phone})")
 
     rights = types.ChatAdminRights(
-        change_info=True, post_messages=True, edit_messages=True, delete_messages=True,
-        ban_users=True, invite_users=True, pin_messages=True, add_admins=True,
-        manage_call=True, manage_topics=True, other=True,
+        change_info=True,
+        post_messages=True,
+        edit_messages=True,
+        delete_messages=True,
+        ban_users=True,
+        invite_users=True,
+        pin_messages=True,
+        add_admins=True,
+        manage_call=True,
+        manage_topics=True,
+        other=True,
     )
     bot_names = _bot_usernames()
 
@@ -96,13 +123,21 @@ async def main() -> int:
         print(f"\n--- {key}: {title} (forum supergroup) ---")
 
         # CREATE — the returned entity carries the access_hash for all later calls.
-        res = await client(functions.channels.CreateChannelRequest(
-            title=title, about=about, broadcast=False, megagroup=True, forum=True,
-        ))
+        res = await client(
+            functions.channels.CreateChannelRequest(
+                title=title,
+                about=about,
+                broadcast=False,
+                megagroup=True,
+                forum=True,
+            )
+        )
         ent = res.chats[0]
         cid = int(f"-100{ent.id}")
         new_id_str = f"-100{ent.id}"
-        print(f"[OK] created forum group {key} -> {new_id_str} (is_forum={getattr(ent, 'is_forum', '?')})")
+        print(
+            f"[OK] created forum group {key} -> {new_id_str} (is_forum={getattr(ent, 'is_forum', '?')})"
+        )
 
         new_ids[key] = new_id_str
 
@@ -111,8 +146,11 @@ async def main() -> int:
             try:
                 bot = await client.get_entity("@" + uname)
                 await client(functions.channels.InviteToChannelRequest(channel=ent, users=[bot]))
-                await client(functions.channels.EditAdminRequest(
-                    channel=ent, user_id=bot, admin_rights=rights, rank="Coordination"))
+                await client(
+                    functions.channels.EditAdminRequest(
+                        channel=ent, user_id=bot, admin_rights=rights, rank="Coordination"
+                    )
+                )
                 print(f"[OK] @{uname} member + admin (manage_topics=True)")
             except Exception as exc:
                 print(f"[WARN] @{uname} admin: {exc}")
@@ -124,7 +162,7 @@ async def main() -> int:
             try:
                 tr = await client(CreateForumTopicRequest(peer=ent, title=topic[:128]))
                 tid = None
-                for upd in (getattr(tr, "updates", []) or []):
+                for upd in getattr(tr, "updates", []) or []:
                     cft = getattr(upd, "created_forum_topic", None)
                     if cft is not None:
                         ft = getattr(cft, "forum_topic", None)
@@ -150,7 +188,9 @@ async def main() -> int:
     NEW_IDS.write_text(json.dumps(new_ids, indent=2), encoding="utf-8")
     await client.disconnect()
     print(f"\n[make-forum] done — new forum ids written to {NEW_IDS.name}.")
-    print("[make-forum] Re-verify next: python scripts/telegram_wire_coordination_groups.py --verify --deep")
+    print(
+        "[make-forum] Re-verify next: python scripts/telegram_wire_coordination_groups.py --verify --deep"
+    )
     return 0
 
 

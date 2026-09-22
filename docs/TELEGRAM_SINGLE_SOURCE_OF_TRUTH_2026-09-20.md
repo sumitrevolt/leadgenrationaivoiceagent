@@ -132,8 +132,9 @@ TELEGRAM_SETUP_ENABLED=1 TELEGRAM_BOT_TOKEN=<token> \
 
 **Alternative (Path B — fully automated):**
 ```bash
-export TELEGRAM_API_ID=30160587
-export TELEGRAM_API_HASH=5a6af325bc59e9da130999f2ccda1674
+# Obtain these from https://my.telegram.org — never commit them (this repo is PUBLIC)
+export TELEGRAM_API_ID=<your_api_id>
+export TELEGRAM_API_HASH=<your_api_hash>
 python scripts/telegram_create_chats.py --apply --write-spec
 python scripts/telegram_wire_bot.py --apply
 TELEGRAM_SETUP_ENABLED=1 TELEGRAM_BOT_TOKEN=<token> \

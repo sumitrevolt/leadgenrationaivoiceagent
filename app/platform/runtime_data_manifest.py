@@ -1422,8 +1422,14 @@ STORES: list[dict[str, Any]] = [
         store_id="ops.telegram_group_ids",
         display_name="Provisioned Telegram group chat_ids result (offline)",
         legacy_paths=["data/new_group_chat_ids.json"],
+        # 2026-09-22 (prod_check runtime-gates repair): was
+        # ["scripts/telegram_create_chats.py"], which NO LONGER writes this
+        # store. That script now writes the resolved chat_id back into its own
+        # spec (SPEC = config/telegram/setup_spec.yaml, line 43), and a config
+        # write is not a runtime-data write. Only the Telethon provisioner still
+        # emits data/new_group_chat_ids.json.
         writer_modules=[
-            "scripts/telegram_create_chats.py",
+            "scripts/telethon_create_groups.py",
         ],
         production_activity="OFFLINE_TOOLING",
         current_authority="FILE",
@@ -1436,10 +1442,48 @@ STORES: list[dict[str, Any]] = [
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
         evidence=(
-            "Declared 2026-09-18 (CI baseline repair). Group-creation scripts "
-            "(web + telethon variants) write the resulting chat_ids to "
+            "Declared 2026-09-18 (CI baseline repair). The Telethon "
+            "group-creation script writes the resulting chat_ids to "
             "data/new_group_chat_ids.json for manual wiring into setup_spec.yaml. "
             "Rebuildable by re-running the provisioner."
+        ),
+    ),
+    _e(
+        store_id="telegram.audit",
+        display_name="Telegram bot command audit trail",
+        legacy_paths=["data/telegram/audit.jsonl"],
+        writer_modules=["app/integrations/telegram_bot.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="communications",
+        durability_class="retention-sensitive-artifact",
+        concurrency_model="append-only; readers open read-only",
+        tenant_scope="owner/admin command history (not customer tenant)",
+        target_runtime_subpath="communications/telegram_audit.jsonl",
+        migration_tier=TIER_2,
+        migration_state=LEGACY_IN_CHECKOUT,
+        # WHY NOT A BLOCKER, even though the state is LEGACY_IN_CHECKOUT and the
+        # durability class is in `derived_blocker`'s "required" set:
+        # `data/telegram/audit.jsonl` is NOT tracked by git -- verified with
+        # `git ls-files --error-unmatch`, which reports "did not match any
+        # file(s) known to git". `derived_blocker` infers `inside_checkout` from
+        # `bool(legacy_paths)`, which over-approximates for an untracked runtime
+        # file: `git reset --hard` cannot destroy what git does not manage. That
+        # inference is corrected here explicitly rather than by mislabelling the
+        # store as rebuildable, which would be a false claim about an audit
+        # trail. `git clean -fdx` WOULD remove it -- that is the real exposure,
+        # and it is why this store is declared rather than ignored.
+        inside_checkout=False,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22 (prod_check runtime-gates repair). The store "
+            "was already referenced by the `telegram.audit.log` allowlist entry "
+            "but had never been registered here, so `validate()` reported "
+            "'unknown store_id'. Written by app/integrations/telegram_bot.py; "
+            "read by GET /api/telegram/bot/audit/logs in "
+            "app/api/telegram_bot_api.py:260. Append-only owner/admin command "
+            "history -- not rebuildable, hence retention-sensitive rather than "
+            "a cache."
         ),
     ),
     _e(
