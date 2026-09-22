@@ -69,6 +69,44 @@ def test_token_resolution_valid(monkeypatch):
     assert is_telegram_configured() is True
 
 
+def test_egress_token_uses_encrypted_vault_when_env_is_absent(monkeypatch):
+    """Rotated Notify token remains usable after restart without plaintext env mutation."""
+    import app.platform.key_manager as key_manager
+
+    vault_token = "V" * 30
+
+    class FakeKeyManager:
+        def get_key_value(self, service):
+            return vault_token if service == "telegram_notify_bot_token" else None
+
+    monkeypatch.delenv("TELEGRAM_NOTIFY_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_JARVIS_BOT_TOKEN", raising=False)
+    monkeypatch.setattr(key_manager, "get_key_manager", lambda: FakeKeyManager())
+
+    assert get_egress_token() == vault_token
+    assert tc.egress_token_candidates() == [("notify", vault_token)]
+
+
+def test_egress_env_token_keeps_precedence_over_vault(monkeypatch):
+    """Environment remains the emergency rollback path and wins over the vault."""
+    import app.platform.key_manager as key_manager
+
+    env_token = "E" * 30
+
+    class FakeKeyManager:
+        def get_key_value(self, service):
+            return "V" * 30
+
+    monkeypatch.setenv("TELEGRAM_NOTIFY_BOT_TOKEN", env_token)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_JARVIS_BOT_TOKEN", raising=False)
+    monkeypatch.setattr(key_manager, "get_key_manager", lambda: FakeKeyManager())
+
+    assert get_egress_token() == env_token
+    assert tc.egress_token_candidates()[0] == ("notify", env_token)
+
+
 def test_owner_authentication(monkeypatch):
     monkeypatch.setenv("TELEGRAM_OWNER_CHAT_IDS", "1621120182, 999888777")
     monkeypatch.setenv("TELEGRAM_OWNER_USERNAMES", "sumitrevolt, owner_test")

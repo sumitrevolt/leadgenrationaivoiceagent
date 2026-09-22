@@ -31,6 +31,18 @@ def temp_km(tmp_path: Path):
     return KeyManagerAgent(keys_file=keys_file, audit_log=audit_log)
 
 
+def test_default_store_uses_canonical_runtime_data_root(monkeypatch, tmp_path: Path):
+    """Default vault must survive container recreation on the shared runtime mount."""
+    runtime_root = tmp_path / "runtime"
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("LEADGEN_RUNTIME_DATA_DIR", str(runtime_root))
+
+    km = KeyManagerAgent()
+
+    assert km.keys_file == runtime_root / "secrets" / "keys.json"
+    assert km.audit_log == runtime_root / "secrets" / "audit.log"
+
+
 def test_encryption_at_rest_never_stores_plaintext(temp_km: KeyManagerAgent):
     """Writing a key to KeyManager must store Fernet ciphertext, NEVER plaintext."""
     secret_key = "typesafe_live_test_secret_key_12345678"  # nosecret

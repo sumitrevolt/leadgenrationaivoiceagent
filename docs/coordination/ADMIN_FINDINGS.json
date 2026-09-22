@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-09-19",
-  "last_updated": "2026-09-21T14:12:00+05:30",
+  "last_updated": "2026-09-22T11:05:00+05:30",
   "note": "Canonical, evidence-backed registry of open admin findings. Consumed by scripts/typesafe_admin_triage.py. Keep evidence strings concrete (a command + observed output), never a guess. Update 'status' as items close; triage only judges items whose status is 'open'.",
   "findings": [
     {
@@ -97,11 +97,11 @@
       "id": "telegram_notify_and_groups",
       "title": "Telegram Notify token invalid and three required coordination groups unwired",
       "class": "operations",
-      "status": "open",
-      "evidence": "2026-09-21 live verifier: Jarvis getMe succeeds; Notify/fallback token returns HTTP 401; workers_coordination, agents_coordination and admin_command_center have no wired chat_id. Telegram Web is logged in, but BotFather token creation/rotation and group creation are owner-impacting actions requiring explicit action-time confirmation.",
-      "blast_radius": "Dedicated Notify egress is unavailable and canonical worker/agent/admin coordination groups cannot receive routed messages. Jarvis fallback remains available; no group is falsely marked ready.",
+      "status": "partially_fixed",
+      "evidence": "2026-09-22 live re-verification (agent, read-only + Bot API + Telethon + Telegram Web): (1) TELEGRAM_NOTIFY_BOT_TOKEN now AUTHENTICATED via getMe -> @LeadgenaiNotify_bot id 8773095142 (the old @Leadsgenai1_bot token was HTTP 401); TELEGRAM_BOT_TOKEN points at the same bot and is AUTHENTICATED. (2) All three canonical coordination supergroups EXIST and match config/telegram/setup_spec.yaml: workers_coordination=-1003951449805, agents_coordination=-1004368756403, admin_command_center=-1004387221522. (3) Telegram Web proves each canonical group has the expected forum topics and 4-member roster: Sunny Leadsgenai owner, Jarvis, LeadGen Notify, LeadGen AI Admin. (4) VPS leadgen_telegram_jarvis heartbeat state=polling (was external_conflict, conflicts 38 -> 1). (5) End-to-end ingress PROVEN: a /status sent to @Sumits_jarvis_bot was ingested and answered within 5s. NOTE: the grid was created under a SECOND Telegram account (\"Sunny Leadsgenai\", id 8687893086) because the owner account 1621120182 is spam-limited by Telegram and cannot create groups; 1621120182 remains the correct owner allow-list entry (TELEGRAM_OWNER_CHAT_IDS). (6) Two extra copies of every coordination group exist; canonical IDs are the setup_spec IDs above and no additional groups should be created. | CORRECTION 2026-09-22: downgraded fixed -> partially_fixed after a TypeSafe Noul judgment (question: do the supplied facts establish this finding is resolved?) returned 0.18, i.e. NO. Accepted: the literal sub-claims (notify token invalid; three coordination groups unwired) ARE both verifiably false now, but the purpose of the finding (the owner can actually use the command plane) remains UNPROVEN because the only available MTProto session belongs to the grid-admin account 8687893086, not owner 1621120182.",
+      "blast_radius": "Notify egress token live and all three coordination groups wired. Residual: owner-account command path unproven; and the leaked MTProto credential is still unrotated (owner-only).",
       "owner_only": true,
-      "next_step": "Owner confirms BotFather token rotation and creation/wiring of the three Telegram groups; then update production secret through the approved secret path and run the verifier."
+      "next_step": "Owner: (a) rotate the leaked Telegram MTProto credential, (b) run one /status from owner account 1621120182 in a canonical group and verify the reply, (c) explicitly confirm before leaving/deleting the six duplicate groups."
     },
     {
       "id": "B-9",

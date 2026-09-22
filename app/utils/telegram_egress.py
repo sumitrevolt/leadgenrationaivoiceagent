@@ -62,10 +62,32 @@ _GROUP_CATALOG: dict[str, str] | None = None
 _dead_tokens: set[str] = set()
 
 
+def _vault_notify_token() -> str:
+    """Encrypted-vault Notify credential (restart-safe, no plaintext env needed).
+
+    Fail-open to "" when the vault/key-manager is unavailable — the caller still
+    falls back to env, and an empty candidate list stays fail-closed.
+    Never returns a secret into logs; only same-process in-memory use.
+    """
+    try:
+        from app.platform import key_manager
+
+        value = key_manager.get_key_manager().get_key_value("telegram_notify_bot_token")
+        return (value or "").strip()
+    except Exception:
+        return ""
+
+
 def _token_candidates() -> list[str]:
-    """All configured egress tokens in priority order, dead ones filtered out."""
+    """All configured egress tokens in priority order, dead ones filtered out.
+
+    Priority: env NOTIFY -> encrypted-vault NOTIFY -> env legacy BOT_TOKEN ->
+    env JARVIS (last-resort fallback so P0 alerts never silently die).
+    """
+    vault = _vault_notify_token()
     cands = [
         os.environ.get("TELEGRAM_NOTIFY_BOT_TOKEN", "").strip(),
+        vault,
         os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
         os.environ.get("TELEGRAM_JARVIS_BOT_TOKEN", "").strip(),
     ]

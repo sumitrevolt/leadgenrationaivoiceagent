@@ -1,4 +1,4 @@
-# SESSION HANDOFF — 2026-09-21 18:48 IST
+# SESSION HANDOFF — 2026-09-22 11:05 IST
 
 ## Objective
 
@@ -21,6 +21,9 @@ Master prompt execution: TypeSafe-first substantial-session policy, verified-cas
 - Telegram 409 was traced to a hidden local `gateway run --profile pilot` process tree, stopped by exact PID, then observed for multiple polling cadences with no new 409. VPS remains the single poller.
 - Telegram Notify bot token was rotated in BotFather after explicit owner confirmation. The replacement value was never printed into repo files or logs. Production Admin Key Manager accepted it as service `telegram_notify_bot_token` (`200`, success audit at `2026-09-21T13:15:39Z`), storing only an encrypted vault envelope with mode `0600`.
 - Read-only VPS inspection found `/opt/leadgen/secrets/keys.json` is inside the app container and is not on any configured bind mount. The current vault write therefore is not restart-persistent and Telegram runtime does not yet consume this generic service key; do not claim activation until a code/deploy fix is explicitly authorized and verified.
+- Telegram Web live verification under the company account (`Sunny Leadsgenai`) proved the canonical coordination triad in `config/telegram/setup_spec.yaml`: Admin `-1004387221522`, Agents `-1004368756403`, Worker `-1003951449805`. Each has 4 members: company-account owner, Jarvis, LeadGen Notify, and LeadGen AI Admin.
+- Canonical forum topics are complete: Admin = `system-health`, `metrics`, `kill-switch`, `revenue`, `deploys`; Agents = `agent-status`, `assignments`, `verdicts`, `skill-share`; Worker = `worker-status`, `task-handoffs`, `urgent`.
+- Telegram Web also shows two additional copies of each coordination group. Duplicate IDs are Admin `-1004496638744`, `-1003981563517`; Agents `-1004423137205`, `-1003734587807`; Worker `-1003724742490`, `-1003306734107`. They were not deleted because cloud deletion/leave requires action-time confirmation.
 - Production health was `environment=production`, version `883ef713` during this session. Local code below is not deployed.
 
 ## Verification
@@ -34,6 +37,7 @@ Master prompt execution: TypeSafe-first substantial-session policy, verified-cas
 ## Still pending / gates
 
 - Telegram Notify token rotation is complete and the encrypted vault write is audited, but restart-safe storage plus runtime consumption remain pending a code/deploy change.
-- Telegram group creation remains platform-blocked. The first owner-provided number resolves to the currently logged-in owner profile and cannot be selected as an additional member. Telegram Web did allow an owner-only `LeadGen AI - Worker Coordination` create request with no selected members, but the request stayed indefinitely on a disabled spinner; a separate authenticated Telegram tab found no chat with that exact title, so no retry/duplicate was issued. This matches the account's existing `spamreported` restriction. The stuck flow was backed out safely; no coordination group was created.
+- Coordination group creation is complete; do not create any more groups. Six duplicate groups remain pending an explicit action-time confirmation before leave/delete.
+- Owner command authorization is still unproven: messages sent from company account `8687893086` receive `Access Restricted`, while the canonical allow-listed owner remains `1621120182`. Close this only after `/status` is sent from the owner account in a canonical group and a valid reply is observed, or after an explicit reviewed authorization change.
 - No commit, push or deploy was performed. Shared tree contains concurrent changes not owned by this work, including `app/platform/telegram_coordinator.py`, deletion of `tests/test_telegram.py`, and untracked `docs/telegram/`; do not revert or include them blindly.
 - After any Telegram cloud mutations: wire only secret references (never token values), verify all three destinations, rerun secrets/prod gates, then use the canonical deploy workflow only with explicit owner authorization.

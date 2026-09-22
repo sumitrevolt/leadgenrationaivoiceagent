@@ -58,6 +58,15 @@ def test_save_spec_writes_a_backup(tool):
 
 
 def test_bind_chat_id_updates_only_the_target_group(tool):
+    # Explicit precondition: the target must start unbound, otherwise bind_chat_id
+    # correctly refuses (see test_bind_chat_id_refuses_silent_replacement) and this
+    # test would only pass while the real spec happened to be unwired.
+    spec = tool.load_spec()
+    target, error = tool.resolve_group(spec, "workers_coordination")
+    assert error == ""
+    target["chat_id"] = ""
+    tool.save_spec(spec, backup=False)
+
     before = dict(tool.group_refs(tool.load_spec()))
     assert tool.bind_chat_id("workers_coordination", "-1001234567890") == 0
 
@@ -117,7 +126,9 @@ def test_verify_shallow_reports_unwired_required_groups(tool, monkeypatch):
         group, error = tool.resolve_group(spec, key)
         assert error == ""
         group["chat_id"] = ""
-    tool.save_spec(tool.load_spec(), backup=False)
+    # Persist the mutation we just made. Saving a freshly reloaded spec here would
+    # silently discard it, coupling this test to the real spec's current wiring.
+    tool.save_spec(spec, backup=False)
     monkeypatch.setattr(tool, "_tokens", lambda: {"jarvis": "J" * 30})
     monkeypatch.setattr(tool, "_get_me", lambda token: {"ok": True, "username": "test_bot", "id": 1})
 
@@ -129,8 +140,10 @@ def test_verify_shallow_reports_unwired_required_groups(tool, monkeypatch):
 
 
 def test_create_topics_requires_binding(tool, monkeypatch):
-    group = tool.find_group(tool.load_spec(), "agents_coordination")
+    spec = tool.load_spec()
+    group = tool.find_group(spec, "agents_coordination")
     group["chat_id"] = ""
-    tool.save_spec(tool.load_spec(), backup=False)
+    # Persist the mutation (see the note in the verify test above).
+    tool.save_spec(spec, backup=False)
 
     assert tool.create_topics("agents_coordination", "J" * 30) == 1
