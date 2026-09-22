@@ -500,3 +500,270 @@ def test_dispatch_task_final_review_off_no_call(tmp_path, monkeypatch):
         f"judge_task was called {judge_calls['count']} times; expected exactly 1 "
         f"(TYPESAFE_FINAL_REVIEW=OFF must NOT add a second invocation)"
     )
+
+
+
+# ---------- outcome_review (Wave 8 P0 correction) ----------
+
+
+def test_outcome_default_off_returns_skipped_with_local_success():
+    """When TYPESAFE_OUTCOME_REVIEW is unset (default OFF), the gate is SKIPPED.
+
+    Per directive P0: outcome_review must be explicitly opt-in (not auto-on via
+    TYPESAFE_INTAKE_GATE). Per directive P0 'Verify that TypeSafe failures
+    cannot silently turn a failed task into a successful one': local
+    `success=True` => verdict='met' regardless of gate state.
+    """
+    os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+    from app.platform.typesafe_intake_gate import evaluate_outcome
+
+    v = evaluate_outcome(
+        task_id="t_outcome_off_ok",
+        success=True,
+        evidence="some evidence text",
+        downstream_result=None,
+    )
+    assert v.source == "SKIPPED"
+    assert v.verdict == "met"
+    assert v.next_action == "proceed"
+    assert v.consumed_calls == 0
+
+
+def test_outcome_default_off_failed_task_returns_not_met():
+    """Failed task with gate OFF must be 'not_met' (NOT 'met' from judge_task).
+
+    Per directive P0 HARD RULE: 'Verify that TypeSafe failures cannot silently
+    turn a failed task into a successful one.' Local `success=False` is
+    authoritative; gate OFF => verdict='not_met'.
+    """
+    os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+    from app.platform.typesafe_intake_gate import evaluate_outcome
+
+    v = evaluate_outcome(
+        task_id="t_outcome_off_fail",
+        success=False,
+        evidence="error: timeout",
+        downstream_result=None,
+    )
+    assert v.source == "SKIPPED"
+    assert v.verdict == "not_met"
+    assert v.next_action == "escalate"
+
+
+def test_outcome_gate_on_no_key_returns_mock():
+    """When gate ON but no API key: source=MOCK (deterministic), verdict based on local success."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    try:
+        # Ensure no API key.
+        os.environ.pop("TYPESAFE_API_KEY", None)
+        from app.platform import typesafe_integration as _ts
+
+        client = _ts.get_typesafe_client()
+        if getattr(client, "enabled", False):
+            pytest.skip("API key present in this environment; cannot test no-key MOCK path")
+
+        from app.platform.typesafe_intake_gate import evaluate_outcome
+
+        v_ok = evaluate_outcome(
+            task_id="t_mock_ok", success=True, evidence="ok-evidence",
+            downstream_result="ok-category",
+        )
+        assert v_ok.source == "MOCK"
+        assert v_ok.verdict == "met"
+
+        v_fail = evaluate_outcome(
+            task_id="t_mock_fail", success=False, evidence="fail-evidence",
+            downstream_result="fail-category",
+        )
+        assert v_fail.source == "MOCK"
+        assert v_fail.verdict == "not_met"
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_does_not_leak_raw_evidence():
+    """Outcome verdict MUST NOT contain raw evidence, customer data, or credentials."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    try:
+        from app.platform.typesafe_intake_gate import evaluate_outcome
+
+        secret = "RAW-SECRET-EVIDENCE-DO-NOT-LEAK-1234567890"
+        v = evaluate_outcome(
+            task_id="t_no_leak",
+            success=True,
+            evidence=secret,
+            downstream_result="customer-private-data",
+            customer_revenue_impact="₹1,00,000 INR revenue leak",
+        )
+        # Verdict is a dataclass; serialize and check no secret substring.
+        s = json.dumps(v.__dict__)
+        assert secret not in s, "raw evidence leaked into verdict"
+        assert "customer-private-data" not in s, "downstream_result leaked"
+        assert "₹1,00,000" not in s, "customer revenue impact leaked"
+        # But the fingerprint is present.
+        assert v.evidence_fingerprint != ""
+        assert len(v.evidence_fingerprint) == 16
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_trace_records_source_real_mock_cached_skipped():
+    """Audit trace MUST distinguish REAL, MOCK, CACHED, SKIPPED sources."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    try:
+        from app.platform.typesafe_intake_gate import (
+            OutcomeVerdict,
+            evaluate_outcome,
+        )
+
+        v = evaluate_outcome(
+            task_id="t_trace_source",
+            success=True,
+            evidence="x",
+            downstream_result="y",
+        )
+        assert v.source in ("REAL", "MOCK", "CACHED", "SKIPPED"), (
+            f"source must be one of the 4 audited values, got {v.source!r}"
+        )
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_judge_task_cannot_upgrade_failed_task(monkeypatch):
+    """Even if judge_task returns route='proceed', a failed task stays 'not_met'."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    try:
+        # Spy on judge_task returning route=proceed.
+        def _spy_judge(*args, **kwargs):
+            return {
+                "decision_id": "tsi-spy",
+                "route": "proceed",  # judge_task says proceed
+                "reason": "typesafe_judgment",
+                "traced": True,
+            }
+
+        monkeypatch.setattr(
+            "app.platform.typesafe_session_policy.judge_task", _spy_judge
+        )
+
+        from app.platform.typesafe_intake_gate import evaluate_outcome
+
+        v = evaluate_outcome(
+            task_id="t_no_upgrade",
+            success=False,  # TASK FAILED
+            evidence="err",
+            downstream_result=None,
+        )
+        # Per HARD RULE: failed task stays not_met even if judge_task says proceed.
+        assert v.verdict == "not_met"
+        assert v.next_action == "escalate"
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_route_review_yields_partial(monkeypatch):
+    """judge_task route='review' with local success=True yields 'partial' (not 'met')."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    try:
+        def _spy_judge(*args, **kwargs):
+            return {
+                "decision_id": "tsi-spy",
+                "route": "review",
+                "reason": "needs_owner_review",
+                "traced": True,
+            }
+
+        monkeypatch.setattr(
+            "app.platform.typesafe_session_policy.judge_task", _spy_judge
+        )
+
+        from app.platform.typesafe_intake_gate import evaluate_outcome
+
+        v = evaluate_outcome(
+            task_id="t_review_partial",
+            success=True,
+            evidence="ok",
+            downstream_result=None,
+        )
+        assert v.verdict == "partial"
+        assert v.next_action == "escalate"
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_disabled_flag_returns_skipped_even_with_key_present():
+    """Gate explicitly OFF => SKIPPED regardless of key presence."""
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "0"
+    try:
+        os.environ["TYPESAFE_API_KEY"] = "fake-key-for-test"  # present
+        from app.platform.typesafe_intake_gate import evaluate_outcome
+
+        v = evaluate_outcome(
+            task_id="t_disabled_with_key",
+            success=True,
+            evidence="ok",
+            downstream_result=None,
+        )
+        assert v.source == "SKIPPED"
+        assert v.consumed_calls == 0
+        # Verdict is met (local success) but source marks SKIPPED for audit clarity.
+        assert v.verdict == "met"
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+        os.environ.pop("TYPESAFE_API_KEY", None)
+
+
+def test_outcome_review_enabled_function():
+    """outcome_review_enabled() reads TYPESAFE_OUTCOME_REVIEW env flag."""
+    from app.platform.typesafe_intake_gate import outcome_review_enabled
+
+    for default_off in ("0", "false", "no", "off", ""):
+        os.environ["TYPESAFE_OUTCOME_REVIEW"] = default_off
+        assert outcome_review_enabled() is False
+
+    for default_on in ("1", "true", "yes", "on"):
+        os.environ["TYPESAFE_OUTCOME_REVIEW"] = default_on
+        assert outcome_review_enabled() is True
+
+    os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+
+
+def test_outcome_does_not_call_intake_judge_task(monkeypatch):
+    """evaluate_outcome must NOT delegate to evaluate_intake (semantically distinct).
+
+    Per directive P0: 'Determine whether evaluate_intake performs genuine outcome
+    evaluation or merely reuses an intake-specific prompt and validation schema.'
+    Answer: evaluate_outcome has its OWN schema (success, downstream_result,
+    customer_revenue_impact); it does NOT call evaluate_intake.
+    """
+    os.environ["TYPESAFE_OUTCOME_REVIEW"] = "1"
+    saved_key = os.environ.pop("TYPESAFE_API_KEY", None)
+    try:
+        from app.platform import typesafe_intake_gate
+
+        intake_called = {"count": 0}
+
+        original_intake = typesafe_intake_gate.evaluate_intake
+
+        def _spy(*args, **kwargs):
+            intake_called["count"] += 1
+            return original_intake(*args, **kwargs)
+
+        monkeypatch.setattr(typesafe_intake_gate, "evaluate_intake", _spy)
+
+        v = typesafe_intake_gate.evaluate_outcome(
+            task_id="t_no_intake_call",
+            success=True,
+            evidence="ok",
+            downstream_result=None,
+        )
+        assert intake_called["count"] == 0, (
+            "evaluate_outcome must NOT call evaluate_intake (semantically distinct stage)"
+        )
+        assert v.decision_id.startswith("tso-"), (
+            f"outcome decision_id should be tso- prefix, got {v.decision_id[:10]}"
+        )
+    finally:
+        os.environ.pop("TYPESAFE_OUTCOME_REVIEW", None)
+        if saved_key is not None:
+            os.environ["TYPESAFE_API_KEY"] = saved_key

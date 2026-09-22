@@ -825,30 +825,33 @@ class AutomationOrchestrator:
         except Exception as e:  # pragma: no cover — defensive
             logger.warning(f"[Orchestrator] dev_workers finish skipped for {task_id}: {e}")
 
-        # Wave 8: TypeSafe outcome_review post-finish hook (ADDITIVE, default OFF).
-        # Runs AFTER dev_workers.finish; never weakens RED/HARD_OFF (those gate
-        # earlier in dispatch_task); never blocks finish; just records the
-        # outcome verdict for downstream consumers. Opt-in via
-        # TYPESAFE_OUTCOME_REVIEW=1. Same single-SDK guarantee as intake_judge +
-        # final_review — uses canonical judge_task via typesafe_intake_gate wrapper.
+        # Wave 8 P0: TypeSafe OUTCOME review (semantically distinct from intake).
+        # Uses evaluate_outcome() with an outcome-specific schema — NOT
+        # evaluate_intake() which is intake-specific (per owner directive P0).
+        # Outcome verdict is: met / partial / not_met / uncertain / skipped
+        # with next_action: proceed / retry / escalate / rollback.
+        # source flag: REAL / MOCK / CACHED / SKIPPED for audit-grade transparency.
+        # HARD RULE: local `success` flag is AUTHORITATIVE for verdict='met';
+        # a failed task can NEVER be upgraded to 'met' by judge_task.
         if os.getenv("TYPESAFE_OUTCOME_REVIEW", "0").strip().lower() in ("1", "true", "yes", "on"):
             try:
-                from app.platform.typesafe_intake_gate import evaluate_intake
+                from app.platform.typesafe_intake_gate import evaluate_outcome
 
-                outcome_verdict = evaluate_intake(
+                outcome_verdict = evaluate_outcome(
                     task_id=task_id,
-                    owner_bot="",
-                    assigned_agent="",
-                    agent_lane="",
-                    priority="OUTCOME",
-                    payload_keys=["success", "evidence"],
-                    tenant_scope="outcome_review",
+                    success=success,
+                    evidence=evidence,
+                    downstream_result=None,
+                    customer_revenue_impact="",
+                    error_message="",
                 )
                 self.metrics["typesafe_outcome_review_consumed_calls"] = (
                     self.metrics.get("typesafe_outcome_review_consumed_calls", 0)
                     + outcome_verdict.consumed_calls
                 )
-                self.metrics["typesafe_outcome_review_last_reason"] = outcome_verdict.reason
+                self.metrics["typesafe_outcome_review_last_verdict"] = outcome_verdict.verdict
+                self.metrics["typesafe_outcome_review_last_source"] = outcome_verdict.source
+                self.metrics["typesafe_outcome_review_last_action"] = outcome_verdict.next_action
             except Exception as exc:
                 logger.debug(
                     "[Orchestrator] TypeSafe outcome_review skipped for %s: %s",
