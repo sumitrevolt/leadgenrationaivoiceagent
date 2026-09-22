@@ -53,7 +53,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 # Canonical VPS endpoint (per legacy deployment contract)
 VPS_HOST = "72.61.245.204"
 VPS_SSH_PORT = 22
@@ -113,7 +112,12 @@ def verify_credentials_present() -> dict[str, Any]:
 
 
 def verify_stream_enabled() -> dict[str, Any]:
-    enabled = os.environ.get("SMARTFLO_VOICE_STREAM_ENABLED", "").strip() in {"1", "true", "yes", "on"}
+    enabled = os.environ.get("SMARTFLO_VOICE_STREAM_ENABLED", "").strip() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     if enabled:
         return {"gate": 1, "status": "PASS"}
     return {
@@ -140,7 +144,7 @@ def verify_vps_reachable() -> dict[str, Any]:
     try:
         with socket.create_connection((VPS_HOST, VPS_SSH_PORT), timeout=4.0) as _:
             return {"gate": 2, "status": "PASS", "host": VPS_HOST}
-    except (socket.timeout, OSError) as exc:
+    except (TimeoutError, OSError) as exc:
         return {
             "gate": 2,
             "status": "FAIL",
@@ -326,12 +330,14 @@ def run_acceptance(*, test_number: str | None) -> dict[str, Any]:
         # Prereq failure — short-circuit
         for g in GATES:
             if g["id"] >= 4:
-                gates.append({
-                    "gate": g["id"],
-                    "name": g["name"],
-                    "status": "BLOCKED",
-                    "reason": "prerequisite_gate_failed",
-                })
+                gates.append(
+                    {
+                        "gate": g["id"],
+                        "name": g["name"],
+                        "status": "BLOCKED",
+                        "reason": "prerequisite_gate_failed",
+                    }
+                )
 
     out["gates"] = gates
     summary = {"PASS": 0, "FAIL": 0, "UNVERIFIED": 0, "BLOCKED": 0}
@@ -352,7 +358,9 @@ def run_acceptance(*, test_number: str | None) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="SmartFlo acceptance test (P0 release gate)")
-    parser.add_argument("--to", default=None, help="Owner-authorized Indian test number (10+ digits)")
+    parser.add_argument(
+        "--to", default=None, help="Owner-authorized Indian test number (10+ digits)"
+    )
     args = parser.parse_args(argv)
 
     result = run_acceptance(test_number=args.to)
