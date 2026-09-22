@@ -65,8 +65,6 @@ class TestTelegramSecretScanning:
 
     def test_scanner_flags_bot_token_in_runbook(self) -> None:
         """Verify the bot-token pattern catches synthetic tokens."""
-        import re
-        # Find the bot-token pattern
         from scripts.check_secrets import PATTERNS
         bot_pat = None
         for label, pat in PATTERNS:
