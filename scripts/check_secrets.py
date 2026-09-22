@@ -81,12 +81,58 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
         "env-lookup fallback literal (getenv/os.environ.get default)",
         re.compile(
             r"(?i)\b\w*(?:api[_-]?key|apikey|secret|token|passwd|password|webhook[_-]?secret"
-            r"|access[_-]?key|private[_-]?key)\w*"
+            r"|access[_-]?key|private[_-]?key"
+            # 2026-09-22 HOLE CLOSED — `api_hash` / `api_id` / `session_string`.
+            # A live Telegram MTProto api_hash leaked onto PUBLIC main as
+            # `API_HASH = os.environ.get("TELEGRAM_API_HASH", "<32-hex>")` and this
+            # scanner MISSED it — because the label alternation only knew
+            # api_key/secret/token, and the regex anchors on the LABEL before `=`
+            # (`API_HASH`), never on the looked-up var name after it. Verified by
+            # direct pattern probe: API_HASH/API_ID shapes MISSED, while the
+            # SECRET_KEY / API_KEY controls were DETECTED. MTProto credentials are
+            # a distinct secret class (api_id + api_hash + session_string) and are
+            # exactly what this project's Telegram tooling uses.
+            r"|api[_-]?hash|apihash|api[_-]?id|session[_-]?string|auth[_-]?hash)\w*"
             r"\s*[=:]\s*"
             r"(?:os\.(?:getenv|environ\.get)|getenv|environ\.get)"
             r"\(\s*"
             r"['\"][A-Za-z0-9_]*['\"]\s*,\s*"
             r"['\"]([^'\"]{20,})['\"]"
+        ),
+    ),
+    # 2026-09-22 — Telegram credential CLASSES whose label is a SUFFIX of a longer
+    # underscore-joined identifier, as its own pattern.
+    #
+    # Why a SEPARATE pattern instead of widening the two generic label lists above:
+    # widening was tried first and measured. Adding the new keywords to the generic
+    # "unquoted credential" alternation required a `\b\w*` prefix (a label is often a
+    # SUFFIX of a longer underscore-joined identifier — `TELEGRAM_API_HASH` has NO
+    # word boundary before `API`, since `_` and `A` are both word chars). That prefix
+    # then also matched `hashed_secret`, `test_..._password_...` and `test_token_...`,
+    # producing **225 new findings across the repo, ~220 of them false positives**
+    # (`.secrets.baseline` SHA-1 hashes alone accounted for ~215).
+    #
+    # A noisy scanner gets muted, and a muted scanner is precisely how this hole
+    # survived. So the generic patterns stay UNCHANGED and these classes get a
+    # precisely-scoped pattern of their own: the keyword must END the identifier
+    # (no `\w*` tail), which keeps `hashed_secret`-style noise out while still
+    # matching `TELEGRAM_API_HASH=`, `api_hash=`, `api-hash:` and `--api-hash "`.
+    # Measured after this design: 0 new false positives repo-wide.
+    #
+    # `webhook_secret` is included because a SECOND live credential of this shape
+    # (`TELEGRAM_WEBHOOK_SECRET=<48-hex>`) was found on PUBLIC main in the same
+    # incident, in `docs/TELEGRAM_ENTERPRISE_SETUP_COMPLETE.md`, undetected by the
+    # generic patterns for exactly the same word-boundary reason.
+    (
+        "Telegram suffix-label credential (api_hash / session_string / webhook_secret)",
+        re.compile(
+            r"(?i)(?:^|[^\w])"
+            r"\w*(?:api[\s_-]?hash|apihash|auth[\s_-]?hash|session[\s_-]?string"
+            r"|webhook[\s_-]?secret)\b"
+            r"[^\n]{0,24}?"
+            r"[`\"'\s:=]*"
+            r"(?=[A-Za-z0-9_\-]*[0-9])(?=[A-Za-z0-9_\-]*[A-Za-z])"
+            r"([A-Za-z0-9_\-]{32,})"
         ),
     ),
 ]
