@@ -825,6 +825,37 @@ class AutomationOrchestrator:
         except Exception as e:  # pragma: no cover — defensive
             logger.warning(f"[Orchestrator] dev_workers finish skipped for {task_id}: {e}")
 
+        # Wave 8: TypeSafe outcome_review post-finish hook (ADDITIVE, default OFF).
+        # Runs AFTER dev_workers.finish; never weakens RED/HARD_OFF (those gate
+        # earlier in dispatch_task); never blocks finish; just records the
+        # outcome verdict for downstream consumers. Opt-in via
+        # TYPESAFE_OUTCOME_REVIEW=1. Same single-SDK guarantee as intake_judge +
+        # final_review — uses canonical judge_task via typesafe_intake_gate wrapper.
+        if os.getenv("TYPESAFE_OUTCOME_REVIEW", "0").strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                from app.platform.typesafe_intake_gate import evaluate_intake
+
+                outcome_verdict = evaluate_intake(
+                    task_id=task_id,
+                    owner_bot="",
+                    assigned_agent="",
+                    agent_lane="",
+                    priority="OUTCOME",
+                    payload_keys=["success", "evidence"],
+                    tenant_scope="outcome_review",
+                )
+                self.metrics["typesafe_outcome_review_consumed_calls"] = (
+                    self.metrics.get("typesafe_outcome_review_consumed_calls", 0)
+                    + outcome_verdict.consumed_calls
+                )
+                self.metrics["typesafe_outcome_review_last_reason"] = outcome_verdict.reason
+            except Exception as exc:
+                logger.debug(
+                    "[Orchestrator] TypeSafe outcome_review skipped for %s: %s",
+                    task_id,
+                    type(exc).__name__,
+                )
+
     @staticmethod
     def _emit_feed(*, severity: str, kind: str, text: str, evidence: str, actor: str) -> None:
         """Best-effort emit to the canonical owner feed. Never raises."""

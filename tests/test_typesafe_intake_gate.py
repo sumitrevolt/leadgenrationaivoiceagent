@@ -26,9 +26,16 @@ os.environ.pop("TYPESAFE_API_KEY", None)
 
 @pytest.fixture(autouse=True)
 def _clean_trace_file(tmp_path, monkeypatch):
-    """Redirect the trace file to a tmp path so tests don't pollute repo data."""
+    """Redirect the trace file to a tmp path so tests don't pollute repo data.
+
+    After the lint-fix in commit 34974452, the trace path is exposed via the
+    function accessor ``_intake_trace_path()`` (not a module-level constant).
+    Monkey-patch the function so tests don't pollute repo data.
+    """
     trace = tmp_path / "typesafe_intake_trace.jsonl"
-    monkeypatch.setattr("app.platform.typesafe_intake_gate._TRACE_PATH", trace)
+    monkeypatch.setattr(
+        "app.platform.typesafe_intake_gate._intake_trace_path", lambda: trace
+    )
     yield trace
 
 
