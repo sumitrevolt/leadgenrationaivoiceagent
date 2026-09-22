@@ -169,7 +169,7 @@ def test_suffix_label_pattern_exists() -> None:
     labels = [label for label, _ in cs.PATTERNS]
     assert _SUFFIX_LABEL in labels, (
         f"REGRESSION: pattern {_SUFFIX_LABEL!r} missing from PATTERNS. Without it the "
-        f"doc forms (`export TELEGRAM_API_HASH=`, `--api-hash \"`, `webhook_secret =`) "
+        f'doc forms (`export TELEGRAM_API_HASH=`, `--api-hash "`, `webhook_secret =`) '
         f"go undetected — which is exactly what happened on 2026-09-22."
     )
 
@@ -180,15 +180,11 @@ def test_suffix_label_pattern_exists() -> None:
 # reason the dedicated-pattern design was chosen: a noisy scanner gets muted.
 
 NOISE = {
-    "secrets baseline sha1": (
-        '    "hashed_secret": "b60d121b438a380c343d5ec3c2037564b82ffef3",'
-    ),
+    "secrets baseline sha1": ('    "hashed_secret": "b60d121b438a380c343d5ec3c2037564b82ffef3",'),
     "test fn name with password": (
         "def test_change_password_returns_409_when_no_credential_row(client, monkeypatch):"
     ),
-    "test fn name with token": (
-        "def test_token_store_unavailable_fails_closed_503(monkeypatch):"
-    ),
+    "test fn name with token": ("def test_token_store_unavailable_fails_closed_503(monkeypatch):"),
     "test env token literal": (
         '    monkeypatch.setenv("FASTAPI_MCP_TOKEN", "test-token-32-chars-or-longer-aaa")'
     ),
@@ -221,9 +217,7 @@ CLEAN = {
     "scrubbed prose mention": (
         "Supplied via the `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` environment variables."
     ),
-    "scrubbed rotate note": (
-        "The api_hash must be rotated at my.telegram.org before merging."
-    ),
+    "scrubbed rotate note": ("The api_hash must be rotated at my.telegram.org before merging."),
     "scrubbed short var ref": 'echo "TELEGRAM_API_HASH is required"',
     # Placeholder forms are the documented way to write a runbook safely.
     "placeholder <your_api_hash>": "export TELEGRAM_API_HASH=<your_api_hash>",

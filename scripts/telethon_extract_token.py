@@ -3,6 +3,7 @@
 bot creation — the bot already exists; just pull the token it handed over).
 Writes to data/notify_token_new.txt (0600). getMe-verifies before saving.
 """
+
 import asyncio
 import json
 import os
@@ -44,6 +45,7 @@ def getme(token):
 
 async def main() -> int:
     from telethon import TelegramClient
+
     client = TelegramClient(SESSION, int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():

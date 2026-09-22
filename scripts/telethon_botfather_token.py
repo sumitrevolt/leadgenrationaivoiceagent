@@ -16,6 +16,7 @@ Safety:
 Usage:
     python scripts/telethon_botfather_token.py [--username Leadsgenai1_bot] [--revoke]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,12 +61,11 @@ def load_dotenv() -> dict[str, str]:
 def getme(token: str) -> bool:
     import json
     import urllib.request
+
     if not token:
         return False
     try:
-        with urllib.request.urlopen(
-            f"https://api.telegram.org/bot{token}/getMe", timeout=15
-        ) as r:
+        with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/getMe", timeout=15) as r:
             data = json.load(r)
         return bool(data.get("ok"))
     except Exception:
@@ -75,13 +75,17 @@ def getme(token: str) -> bool:
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--username", default="Leadsgenai1_bot")
-    ap.add_argument("--revoke", action="store_true",
-                    help="send /revoke (default; guaranteed-live token). "
-                         "Pass without --revoke to send /token (returns current).")
+    ap.add_argument(
+        "--revoke",
+        action="store_true",
+        help="send /revoke (default; guaranteed-live token). "
+        "Pass without --revoke to send /token (returns current).",
+    )
     a = ap.parse_args()
     uname = a.username.lstrip("@")
 
     from telethon import TelegramClient
+
     client = TelegramClient(SESSION, int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
@@ -92,7 +96,9 @@ async def main() -> int:
     try:
         bot = await client.get_entity("@" + uname)
         is_bot = bool(getattr(bot, "is_bot", False))
-        print(f"[bf] @{uname} id={bot.id} is_bot={is_bot} first_name={getattr(bot,'first_name','?')}")
+        print(
+            f"[bf] @{uname} id={bot.id} is_bot={is_bot} first_name={getattr(bot, 'first_name', '?')}"
+        )
     except Exception as exc:
         print(f"[bf] could not resolve @{uname}: {exc}")
         return 1
