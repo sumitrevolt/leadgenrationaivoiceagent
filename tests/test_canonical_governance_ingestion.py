@@ -5,6 +5,7 @@ Verifies that the JSON knowledge store correctly represents both the
 lean canonical AGENTS.md (M00-M17 + A01-A10) and the full legacy body
 in docs/AGENTS_REFERENCE.md.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def _build() -> dict:
     # Import lazily so the test collection does not fail on import error
     from scripts.project_context import build_store
+
     return build_store()
 
 
@@ -46,9 +48,9 @@ class TestCanonicalIngestion:
         states = [n for n in store["nodes"] if n["type"] == "CurrentState"]
         assert len(states) >= 1, "No CurrentState node ingested"
         # Canonical pointer should mention AGENTS_REFERENCE as detail source
-        assert any(
-            "AGENTS_REFERENCE.md" in n.get("summary", "") for n in states
-        ), "Canonical CurrentState should point to AGENTS_REFERENCE.md for detail"
+        assert any("AGENTS_REFERENCE.md" in n.get("summary", "") for n in states), (
+            "Canonical CurrentState should point to AGENTS_REFERENCE.md for detail"
+        )
 
     def test_legacy_landmines_present(self) -> None:
         store = _build()

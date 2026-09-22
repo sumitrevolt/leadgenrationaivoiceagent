@@ -4,6 +4,7 @@
 Verifies archive checksums, TypeSafe skill discovery, and that Telegram
 secret scanning preserves existing MTProto detection while adding bot-token.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -50,6 +51,7 @@ class TestTelegramSecretScanning:
     def test_mtproto_api_hash_detection_preserved(self) -> None:
         """Existing MTProto api_hash/session_string detection must still work."""
         from scripts.check_secrets import PATTERNS
+
         labels = [label for label, _ in PATTERNS]
         assert any("api_hash" in l or "session_string" in l or "MTProto" in l for l in labels), (
             f"MTProto credential detection missing. Labels: {labels}"
@@ -58,6 +60,7 @@ class TestTelegramSecretScanning:
     def test_bot_token_shape_detection_added(self) -> None:
         """Bot-token shape detection must be present."""
         from scripts.check_secrets import PATTERNS
+
         labels = [label for label, _ in PATTERNS]
         assert any("bot-token" in l.lower() or "bot token" in l.lower() for l in labels), (
             f"Bot-token shape detection missing. Labels: {labels}"
@@ -66,6 +69,7 @@ class TestTelegramSecretScanning:
     def test_scanner_flags_bot_token_in_runbook(self) -> None:
         """Verify the bot-token pattern catches synthetic tokens."""
         from scripts.check_secrets import PATTERNS
+
         bot_pat = None
         for label, pat in PATTERNS:
             if "bot-token" in label.lower():
@@ -81,6 +85,7 @@ class TestTelegramSecretScanning:
     def test_scanner_does_not_flag_placeholder(self) -> None:
         """Placeholder tokens must NOT be flagged."""
         from scripts.check_secrets import PATTERNS, PLACEHOLDER
+
         bot_pat = None
         for label, pat in PATTERNS:
             if "bot-token" in label.lower():

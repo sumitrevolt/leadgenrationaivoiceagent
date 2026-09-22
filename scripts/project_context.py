@@ -183,7 +183,9 @@ def ingest_project(nodes, edges, sha):
     # Ingest canonical operating rules (M00-M17) from AGENTS.md
     m_canonical = re.search(r"## 0\. PRECEDENCE.*?$(.+?)(?:## 1\. |\Z)", canonical, re.S | re.M)
     if m_canonical:
-        _node(nodes, "OperatingRule", "m00-m17", "AGENTS.md", m_canonical.group(1).strip()[:240], sha)
+        _node(
+            nodes, "OperatingRule", "m00-m17", "AGENTS.md", m_canonical.group(1).strip()[:240], sha
+        )
     return pid
 
 
