@@ -4,6 +4,32 @@
 
 ---
 
+## ADR-200: Single canonical AGENTS.md; CLAUDE.md retired to redirect stub (2026-09-22)
+
+**Status**: ACCEPTED (CODE-PRESENT + LOCAL-TESTED; protected PR + production deploy pending owner go-ahead)
+
+**Context**: The leadgen-leadgenai repo carried TWO byte-identical copies of the project master (`AGENTS.md` and `CLAUDE.md`, both ~42,451 bytes / 125 lines). The dual-file rule was enforced by `tests/test_1000_engineers_skill.py:67` and the canonical-ship scripts `scripts/run_ship*.ps1` (six variants run_ship, run_ship2-5, run_ship8) which actively `Copy-Item CLAUDE.md → AGENTS.md` and `exit 1` on hash mismatch. The owner-authorised directive `docs/OWNER_DIRECTIVE_2026-09-22.md` (M00–M17 + A01–A10 + U01–U14 + original §§0–45, immutable archive SHA-256 `803A4683B94F6B8CF41DCCB5CB6DA461B3DEF108C43794585D256F78A5CAB6EA`) supersedes any prior dual-source rule and orders a single canonical agent-instruction file with MiniMax-primary authority, TypeSafe multi-pass, and explicit local/VPS separation. Three risks guided the change: (1) ~76 KB loaded twice per turn in Claude Code/Mavis sessions; (2) every ship script silently reset AGENTS.md from CLAUDE.md, blocking any deliberate divergence; (3) the unified master was already a documented P2 item (`deliverables/.../consolidated-audit-revenue-sprint-2026-09-14.md` row 12).
+
+**Decision**: Implement single-source governance.
+- `AGENTS.md` = NEW canonical, lean (~15 KB), always-loaded. Contains: precedence block + Current State pointer + 7 mandatory operating-rules sections (language/canary, TypeSafe multi-pass, loop-engineer, MiniMax-primary, anti-mistakes, reference pointers) + critical invariants + memory protocol + landmines + active constraints + owner-report fields.
+- `docs/AGENTS_REFERENCE.md` = extracted legacy body (~43 KB; sections §0/§2/§3/§4/§5/§6/§7/§9.5 + full Current State). Tracked but NOT auto-loaded; loaded only when the agent needs deep detail (architecture map, full commands, code standards, full landmines).
+- `CLAUDE.md` = 3-line redirect stub (~934 bytes). Any tool that still reads the legacy path gets the canonical pointer.
+- `tests/test_1000_engineers_skill.py`: removed `assert CLAUDE.md == AGENTS.md`; new assertion verifies that `AGENTS.md` exists and the legacy CLAUDE.md path no longer competes.
+- `scripts/run_ship*.ps1` (6 variants): removed `Copy-Item CLAUDE.md → AGENTS.md` + `AGENTS_SYNC` byte-equality `exit 1`. Replaced with a lean existence+non-empty check on `AGENTS.md` (`AGENTS_MD=CANONICAL ...`).
+- `docs/OWNER_DIRECTIVE_2026-09-22.md` = immutable archive of the owner directive (verbatim copy, do NOT edit).
+
+**Consequences**:
+- Save ~32 KB per turn load (from ~42 KB → ~15 KB canonical + pointer-archival).
+- `scripts/run_ship*.ps1` no longer silently reset AGENTS.md from CLAUDE.md; deliberate edits to AGENTS.md now persist across ship scripts.
+- `CLAUDE.md` stays in the repo as a 934-byte redirect stub (not deleted yet — per M05 `do not falsely mark removal complete`; we have shown it is no longer the source and no longer the mandatory loader, but downstream read-only consumers have not been audited yet; safe to retire in a follow-up PR after full sweep).
+- The byte-equality removal touched test + 6 ship scripts. Diff size is small; reviewable in one protected PR.
+- Memory + INDEX unaffected (no `CLAUDE.md` ↔ `AGENTS.md` writes outside these two files).
+- TypeSafe single-call discipline (ADR-199) is preserved; the multi-pass M00A guidance is added to AGENTS.md §2.2 to layer without duplicating the bounded orchestrator policy.
+
+**Reference**: `AGENTS.md` · `docs/AGENTS_REFERENCE.md` · `docs/OWNER_DIRECTIVE_2026-09-22.md` · `tests/test_1000_engineers_skill.py` · `scripts/run_ship.ps1`, `scripts/run_ship2.ps1`, `scripts/run_ship3.ps1`, `scripts/run_ship4.ps1`, `scripts/run_ship5.ps1`, `scripts/run_ship8.ps1`.
+
+---
+
 ## ADR-199: Bounded TypeSafe judgment per governed agent task/session (2026-09-21)
 
 **Status**: ACCEPTED (CODE-PRESENT + TEST-PROVEN locally; production deploy pending)

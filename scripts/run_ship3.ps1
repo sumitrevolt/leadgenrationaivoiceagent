@@ -1,14 +1,14 @@
-# run_ship3.ps1 — stage + commit + push ADR-097 (explicit paths only)
+﻿# run_ship3.ps1 — stage + commit + push ADR-097 (explicit paths only)
 $ErrorActionPreference = 'Continue'
 Set-Location 'C:\Users\Ratanshila\Documents\leadgenrationaiagent'
 Start-Transcript -Path 'ship3_run.log' -Force | Out-Null
 $git = 'C:\PROGRA~1\Git\cmd\git.exe'
 
-Copy-Item -Path CLAUDE.md -Destination AGENTS.md -Force
-$a = (Get-FileHash CLAUDE.md).Hash
-$b = (Get-FileHash AGENTS.md).Hash
-if ($a -eq $b) { Write-Output 'AGENTS_SYNC=OK' } else { Write-Output 'AGENTS_SYNC=MISMATCH'; Stop-Transcript | Out-Null; exit 1 }
-
+# 2026-09-22 (M05): AGENTS.md is the SINGLE canonical agent-instruction file.
+# CLAUDE.md is now a redirect stub. Byte-equality rule retired.
+if (-not (Test-Path AGENTS.md -ErrorAction SilentlyContinue)) { Write-Output 'AGENTS_MD=MISSING'; Stop-Transcript | Out-Null; exit 1 }
+if ((Get-Item AGENTS.md -ErrorAction SilentlyContinue).Length -lt 1000) { Write-Output 'AGENTS_MD=TOO_LEAN'; Stop-Transcript | Out-Null; exit 1 }
+Write-Output 'AGENTS_MD=CANONICAL (CLAUDE.md is a deprecated redirect stub per M05)'
 & $git add -- `
   app/main.py `
   tests/test_image_provenance_guard.py `
