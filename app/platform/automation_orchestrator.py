@@ -575,6 +575,39 @@ class AutomationOrchestrator:
         # also referenced an undefined `lease_token`, so it raised NameError on
         # every submit and the "non-fatal" handler swallowed it silently.
 
+        # Wave 7 §4: TypeSafe intake-judgment pre-write hook (ADDITIVE, default OFF).
+        # Uses canonical typesafe_session_policy.judge_task; never blocks write;
+        # annotates input_payload with `typesafe_intake_judgment` for downstream
+        # observers. Opt-in via TYPESAFE_INTAKE_GATE=1; no parallel client.
+        try:
+            from app.platform.typesafe_intake_gate import (
+                annotate_input_payload,
+                evaluate_intake,
+            )
+
+            contract = self.registry.get(assigned_agent)
+            intake_verdict = evaluate_intake(
+                task_id=task_id,
+                owner_bot=owner_bot,
+                assigned_agent=assigned_agent,
+                agent_lane=str(getattr(contract, "lane", "") if contract else ""),
+                priority=str(priority.value if hasattr(priority, "value") else priority),
+                payload_keys=list((input_payload or {}).keys()),
+            )
+            input_payload = annotate_input_payload(input_payload, intake_verdict)
+            self.metrics["typesafe_intake_consumed_calls"] = (
+                self.metrics.get("typesafe_intake_consumed_calls", 0)
+                + intake_verdict.consumed_calls
+            )
+            if intake_verdict.route == "review":
+                self.metrics["typesafe_intake_review_count"] = (
+                    self.metrics.get("typesafe_intake_review_count", 0) + 1
+                )
+        except Exception as exc:
+            logger.debug(
+                "[Orchestrator] TypeSafe intake gate skipped for %s: %s", task_id, type(exc).__name__
+            )
+
         record = TaskRecord(
             task_id=task_id,
             owner_bot=owner_bot,
@@ -646,6 +679,42 @@ class AutomationOrchestrator:
                 return False
         except Exception as e:
             logger.warning("[Orchestrator] TypeSafe session policy degraded for %s: %s", task_id, e)
+
+        # Wave 7 Gap 3: TypeSafe final_review pre-lease hook (ADDITIVE, default OFF).
+        # Post-judge-task, pre-acquire-lease. Uses canonical judge_task; never
+        # weakens RED/HARD_OFF (already enforced above); just annotates the task
+        # with `typesafe_final_review` and emits metrics. Opt-in via
+        # TYPESAFE_FINAL_REVIEW=1. Same single-SDK guarantee as intake_judge.
+        if os.getenv("TYPESAFE_FINAL_REVIEW", "0").strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                from app.platform.typesafe_intake_gate import (
+                    annotate_input_payload,
+                    evaluate_intake,
+                )
+
+                # Reuse evaluate_intake with a different `decision_id` prefix so
+                # the trace rows are distinguishable. The contract here is the same
+                # AgentContract (lane / mode), but the stage label is `final_review`.
+                final_verdict = evaluate_intake(
+                    task_id=task_id,
+                    owner_bot=record.owner_bot,
+                    assigned_agent=record.assigned_agent,
+                    agent_lane=str(getattr(contract, "lane", "")),
+                    priority=str(record.priority.value if hasattr(record.priority, "value") else record.priority),
+                    payload_keys=list(record.input_payload.keys()),
+                    tenant_scope="final_review",
+                )
+                record.input_payload = annotate_input_payload(record.input_payload, final_verdict)
+                record.input_payload["typesafe_final_review"] = record.input_payload.pop(
+                    "typesafe_intake_judgment", {}
+                )
+                self.metrics["typesafe_final_review_consumed_calls"] = (
+                    self.metrics.get("typesafe_final_review_consumed_calls", 0)
+                    + final_verdict.consumed_calls
+                )
+                self.store.save(record)
+            except Exception as exc:
+                logger.debug("[Orchestrator] TypeSafe final_review skipped for %s: %s", task_id, type(exc).__name__)
 
         fencing_token = self.governor.generate_fencing_token(task_id)
 
