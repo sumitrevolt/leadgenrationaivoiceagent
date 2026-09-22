@@ -41,8 +41,15 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
 def test_dispatch_table_has_9_commands():
     assert len(COMMAND_DISPATCH) == 9
     expected = {
-        "/revenue", "/workers", "/smartflo", "/typesafe", "/blockers",
-        "/email", "/video", "/ci", "/approvals",
+        "/revenue",
+        "/workers",
+        "/smartflo",
+        "/typesafe",
+        "/blockers",
+        "/email",
+        "/video",
+        "/ci",
+        "/approvals",
     }
     assert set(COMMAND_DISPATCH.keys()) == expected
 

@@ -29,7 +29,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -68,7 +67,9 @@ def _check_env_flags() -> dict:
         "TELEPHONY_PROVIDER": {
             "value": (os.getenv("TELEPHONY_PROVIDER", "tata_smartflo").strip()),
             "expected": "tata_smartflo",
-            "state": "OK" if os.getenv("TELEPHONY_PROVIDER", "tata_smartflo").strip() == "tata_smartflo" else "MISMATCH",
+            "state": "OK"
+            if os.getenv("TELEPHONY_PROVIDER", "tata_smartflo").strip() == "tata_smartflo"
+            else "MISMATCH",
         },
     }
 

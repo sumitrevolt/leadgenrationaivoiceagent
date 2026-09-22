@@ -173,24 +173,27 @@ def evaluate_intake(
     )
 
     # Best-effort trace; never raises.
-    traced = _safe_append_trace(
-        {
-            "kind": "intake_decision",
-            "decision_id": verdict_obj.decision_id,
-            "task_id": task_id,
-            "owner_bot": owner_bot,
-            "assigned_agent": assigned_agent,
-            "agent_lane": agent_lane,
-            "priority": priority,
-            "tenant_scope": tenant_scope,
-            "state_hash": state_hash,
-            "route": verdict_obj.route,
-            "reason": verdict_obj.reason,
-            "consumed_calls": verdict_obj.consumed_calls,
-            "elapsed_ms": verdict_obj.elapsed_ms,
-            "ts": time.time(),
-        }
-    ) or traced
+    traced = (
+        _safe_append_trace(
+            {
+                "kind": "intake_decision",
+                "decision_id": verdict_obj.decision_id,
+                "task_id": task_id,
+                "owner_bot": owner_bot,
+                "assigned_agent": assigned_agent,
+                "agent_lane": agent_lane,
+                "priority": priority,
+                "tenant_scope": tenant_scope,
+                "state_hash": state_hash,
+                "route": verdict_obj.route,
+                "reason": verdict_obj.reason,
+                "consumed_calls": verdict_obj.consumed_calls,
+                "elapsed_ms": verdict_obj.elapsed_ms,
+                "ts": time.time(),
+            }
+        )
+        or traced
+    )
 
     return verdict_obj
 

@@ -49,7 +49,7 @@ class OwnerCommandResult:
         """Return the human-readable text, truncated for Telegram 4096-char limit."""
         if len(self.text) <= max_chars:
             return self.text
-        return self.text[:max_chars - 80] + "\n… (truncated)"
+        return self.text[: max_chars - 80] + "\n… (truncated)"
 
     def to_data_payload(self) -> dict[str, Any]:
         """Return the structured JSON payload (for the dashboard mirror)."""
@@ -181,13 +181,19 @@ def cmd_revenue() -> OwnerCommandResult:
         )
 
     # If we have at least one source, compute honest numbers.
-    active_subs = [c for c in clients if str(c.get("status", "")).lower() in ("active", "paid", "live")]
+    active_subs = [
+        c for c in clients if str(c.get("status", "")).lower() in ("active", "paid", "live")
+    ]
     invoices = [b for b in billing_rows if isinstance(b, dict)]
     latest_snapshot = snapshots[-1] if snapshots else None
 
     verified_mrr = 0.0
     if latest_snapshot and isinstance(latest_snapshot, dict):
-        verified_mrr = float(latest_snapshot.get("verified_recurring_mrr_inr") or latest_snapshot.get("mrr_inr") or 0.0)
+        verified_mrr = float(
+            latest_snapshot.get("verified_recurring_mrr_inr")
+            or latest_snapshot.get("mrr_inr")
+            or 0.0
+        )
 
     verified_cash = 0.0
     for inv in invoices:
@@ -243,21 +249,28 @@ def cmd_workers() -> OwnerCommandResult:
     started = time.monotonic()
 
     desktop = _safe(
-        lambda: _read_json(Path(__file__).resolve().parents[2] / "docs" / "coordination" / "desktop_registry.json"),
+        lambda: _read_json(
+            Path(__file__).resolve().parents[2] / "docs" / "coordination" / "desktop_registry.json"
+        ),
         default=None,
         label="desktop_registry.json",
     )
 
     agents = _safe(
-        lambda: list(__import__("app.platform.agent_registry", fromlist=["all_contracts"]).all_contracts().keys()),
+        lambda: list(
+            __import__("app.platform.agent_registry", fromlist=["all_contracts"])
+            .all_contracts()
+            .keys()
+        ),
         default=[],
         label="agent_registry.all_contracts",
     )
 
     hermes_bots = _safe(
         lambda: list(
-            __import__("app.platform.automation_orchestrator", fromlist=["AutomationOrchestrator"])
-            .AutomationOrchestrator.HERMES_BOTS.keys()
+            __import__(
+                "app.platform.automation_orchestrator", fromlist=["AutomationOrchestrator"]
+            ).AutomationOrchestrator.HERMES_BOTS.keys()
         ),
         default=[],
         label="HERMES_BOTS",
@@ -279,7 +292,7 @@ def cmd_workers() -> OwnerCommandResult:
     for bot in hermes_bots:
         text_lines.append(f"  • {bot}")
     text_lines.append("")
-    text_lines.append(f"VPS — 31 agents (specialist execution):")
+    text_lines.append("VPS — 31 agents (specialist execution):")
     if agents:
         for a in sorted(agents)[:31]:
             text_lines.append(f"  • {a}")
@@ -326,7 +339,9 @@ def cmd_smartflo() -> OwnerCommandResult:
 
     # Acceptance gates — best-effort import; missing = NOT_INSTRUMENTED.
     gates = _safe(
-        lambda: __import__("app.voice.smartflo_acceptance", fromlist=["SMARTFLO_GATES"]).SMARTFLO_GATES,
+        lambda: (
+            __import__("app.voice.smartflo_acceptance", fromlist=["SMARTFLO_GATES"]).SMARTFLO_GATES
+        ),
         default=None,
         label="SMARTFLO_GATES",
     )
@@ -336,10 +351,13 @@ def cmd_smartflo() -> OwnerCommandResult:
         text_lines.append(f"  Provider: {provider}")
     else:
         text_lines.append("  Provider: UNKNOWN (call_manager not reachable)")
-    voice_stream_enabled = os.getenv("SMARTFLO_VOICE_STREAM_ENABLED", "0").strip() in ("1", "true", "yes", "on")
-    text_lines.append(
-        f"  SMARTFLO_VOICE_STREAM_ENABLED: {'1' if voice_stream_enabled else '0'}"
+    voice_stream_enabled = os.getenv("SMARTFLO_VOICE_STREAM_ENABLED", "0").strip() in (
+        "1",
+        "true",
+        "yes",
+        "on",
     )
+    text_lines.append(f"  SMARTFLO_VOICE_STREAM_ENABLED: {'1' if voice_stream_enabled else '0'}")
     text_lines.append("")
     text_lines.append("Acceptance gates (12 total; remote gates STUBS = UNVERIFIED):")
     if gates:
@@ -391,8 +409,12 @@ def cmd_typesafe() -> OwnerCommandResult:
     text_lines.append(f"  Total consumed_calls (intake): {consumed_total}")
     text_lines.append("")
     text_lines.append("Wired consumers (Wave 7):")
-    text_lines.append("  • automation_orchestrator.submit_task — wired (additive, TYPESAFE_INTAKE_GATE=1)")
-    text_lines.append("  • Unwired: plan_review / output_review / revision_review / final_review / outcome_review / session_summary")
+    text_lines.append(
+        "  • automation_orchestrator.submit_task — wired (additive, TYPESAFE_INTAKE_GATE=1)"
+    )
+    text_lines.append(
+        "  • Unwired: plan_review / output_review / revision_review / final_review / outcome_review / session_summary"
+    )
 
     return OwnerCommandResult(
         command="typesafe",
@@ -406,8 +428,12 @@ def cmd_typesafe() -> OwnerCommandResult:
             "consumed_calls_total": consumed_total,
             "wired_stages": ["intake_judge (additive, default OFF)"],
             "unwired_stages": [
-                "plan_review", "output_review", "revision_review",
-                "final_review", "outcome_review", "session_summary",
+                "plan_review",
+                "output_review",
+                "revision_review",
+                "final_review",
+                "outcome_review",
+                "session_summary",
             ],
         },
     )
@@ -472,7 +498,10 @@ def cmd_blockers() -> OwnerCommandResult:
         if hasattr(orchestrator, "summary"):
             s = orchestrator.summary() or {}
             for mid, m in (s.get("missions") or {}).items():
-                if isinstance(m, dict) and str(m.get("state", "")).lower() in ("blocked", "changes_requested"):
+                if isinstance(m, dict) and str(m.get("state", "")).lower() in (
+                    "blocked",
+                    "changes_requested",
+                ):
                     rows.append(
                         {
                             "source": "external_agents_orchestrator",
@@ -490,7 +519,9 @@ def cmd_blockers() -> OwnerCommandResult:
     text_lines = ["BLOCKED + FAILED TASKS (cross-store aggregate)\n"]
     if not blocker_rows:
         text_lines.append("  None. All canonical stores report zero blockers.")
-        text_lines.append("  (Source rows: orchestrator + admin ledger + external_agents orchestrator)")
+        text_lines.append(
+            "  (Source rows: orchestrator + admin ledger + external_agents orchestrator)"
+        )
     else:
         for row in blocker_rows[:30]:
             text_lines.append(
@@ -511,7 +542,11 @@ def cmd_blockers() -> OwnerCommandResult:
         data={
             "blocker_rows": blocker_rows,
             "blocker_count": len(blocker_rows),
-            "sources": ["automation_orchestrator", "admin_task_ledger", "external_agents_orchestrator"],
+            "sources": [
+                "automation_orchestrator",
+                "admin_task_ledger",
+                "external_agents_orchestrator",
+            ],
         },
     )
 
@@ -530,12 +565,18 @@ def cmd_email() -> OwnerCommandResult:
     if smtp_user:
         text_lines.append(f"  Active SMTP user: {smtp_user}")
         text_lines.append("  Pool size today: 1 mailbox")
-        text_lines.append("  14-mailbox pool: documented intent (AUTONOMOUS_EXECUTION_MASTER_PLAN_v2.md:115)")
-        text_lines.append("  14-mailbox pool: NOT IMPLEMENTED in code yet (Wave 7 §6 build pending)")
+        text_lines.append(
+            "  14-mailbox pool: documented intent (AUTONOMOUS_EXECUTION_MASTER_PLAN_v2.md:115)"
+        )
+        text_lines.append(
+            "  14-mailbox pool: NOT IMPLEMENTED in code yet (Wave 7 §6 build pending)"
+        )
     else:
         text_lines.append("  SMTP user: NOT CONFIGURED")
         text_lines.append("  Status: BLOCKED")
-        text_lines.append("  Per §6 directive: failed authentication or unconfigured mailbox MUST appear as BLOCKED, never HEALTHY")
+        text_lines.append(
+            "  Per §6 directive: failed authentication or unconfigured mailbox MUST appear as BLOCKED, never HEALTHY"
+        )
 
     return OwnerCommandResult(
         command="email",
@@ -562,8 +603,12 @@ def cmd_video() -> OwnerCommandResult:
     text_lines = ["VIDEO AUTOMATION STATUS\n"]
     if not state and not backlog:
         text_lines.append("  State file: NOT INSTRUMENTED")
-        text_lines.append("  Per §7 + §8 directive: video producer / scheduler / renderer status will show here once instrumentation lands")
-        text_lines.append("  Honest baseline: cadence documented in RUNBOOK_DAILY_VIDEO.md; customer-review backlog per source")
+        text_lines.append(
+            "  Per §7 + §8 directive: video producer / scheduler / renderer status will show here once instrumentation lands"
+        )
+        text_lines.append(
+            "  Honest baseline: cadence documented in RUNBOOK_DAILY_VIDEO.md; customer-review backlog per source"
+        )
     else:
         text_lines.append(f"  State: {state}")
         text_lines.append(f"  Backlog rows: {len(backlog)}")
@@ -589,7 +634,9 @@ def cmd_ci() -> OwnerCommandResult:
     text_lines = ["CI / RELEASE STATUS (in-process state only)\n"]
     text_lines.append("  GitHub PRs #552 #553 #554 #555: open per workspace knowledge")
     text_lines.append("  Status of PRs requires `gh pr list --json` (owner-authorized)")
-    text_lines.append("  prod_check.py invocation: this command surfaces results but does NOT execute prod_check")
+    text_lines.append(
+        "  prod_check.py invocation: this command surfaces results but does NOT execute prod_check"
+    )
 
     return OwnerCommandResult(
         command="ci",
@@ -611,7 +658,9 @@ def cmd_approvals() -> OwnerCommandResult:
     text_lines.append("    • Kill switch toggle requests (AUTOMATION_STOP_NEW_CLAIMS)")
     text_lines.append("    • Payment verification (owner_confirmed_upi)")
     text_lines.append("    • Owner-OS controls (pause / resume / kill)")
-    text_lines.append("  Real-time count requires auth-gated read of external_agents/orchestrator.summary()")
+    text_lines.append(
+        "  Real-time count requires auth-gated read of external_agents/orchestrator.summary()"
+    )
     text_lines.append("  Command returns UNAVAILABLE for safety — never fabricates a zero count.")
 
     return OwnerCommandResult(

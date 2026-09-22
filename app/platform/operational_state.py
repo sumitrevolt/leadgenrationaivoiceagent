@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -31,29 +31,29 @@ from typing import Any
 class OperationalState(str, Enum):
     """The 10 canonical states for any registered entity."""
 
-    REGISTERED = "REGISTERED"            # config present, no heartbeat yet
-    CONFIGURED = "CONFIGURED"            # env flag ON, code wired, no real execution
-    CONNECTED = "CONNECTED"              # live process / heartbeat / lease
-    RUNNING = "RUNNING"                  # currently executing
+    REGISTERED = "REGISTERED"  # config present, no heartbeat yet
+    CONFIGURED = "CONFIGURED"  # env flag ON, code wired, no real execution
+    CONNECTED = "CONNECTED"  # live process / heartbeat / lease
+    RUNNING = "RUNNING"  # currently executing
     VERIFIED_WORKING = "VERIFIED_WORKING"  # has real evidence row
-    DEGRADED = "DEGRADED"                # connected but sub-engines not green
-    BLOCKED = "BLOCKED"                  # waiting on owner/dependency
-    FAILED = "FAILED"                    # terminal failure, retry exhausted
-    UNKNOWN = "UNKNOWN"                  # cannot determine — credential absent or code inert
-    STALE = "STALE"                      # last heartbeat beyond freshness limit
+    DEGRADED = "DEGRADED"  # connected but sub-engines not green
+    BLOCKED = "BLOCKED"  # waiting on owner/dependency
+    FAILED = "FAILED"  # terminal failure, retry exhausted
+    UNKNOWN = "UNKNOWN"  # cannot determine — credential absent or code inert
+    STALE = "STALE"  # last heartbeat beyond freshness limit
 
 
 # Default freshness limits per entity class (seconds).
 DEFAULT_FRESHNESS = {
-    "agent_execution": 120.0,        # 2 min
-    "external_cli_run": 3600.0,      # 1 hour
-    "telegram_poll": 60.0,           # 1 min
-    "email_poll": 600.0,             # 10 min
-    "video_render": 1800.0,          # 30 min
-    "smartflo_call": 60.0,           # 1 min (during call)
-    "smartflo_idle": 86400.0,        # 24h
-    "ci_check": 600.0,               # 10 min
-    "billing_poll": 43200.0,         # 12h
+    "agent_execution": 120.0,  # 2 min
+    "external_cli_run": 3600.0,  # 1 hour
+    "telegram_poll": 60.0,  # 1 min
+    "email_poll": 600.0,  # 10 min
+    "video_render": 1800.0,  # 30 min
+    "smartflo_call": 60.0,  # 1 min (during call)
+    "smartflo_idle": 86400.0,  # 24h
+    "ci_check": 600.0,  # 10 min
+    "billing_poll": 43200.0,  # 12h
 }
 
 
@@ -127,7 +127,11 @@ def classify(
      11. registered, nothing yet       → REGISTERED
      12. fallback                      → UNKNOWN (never healthy / running)
     """
-    freshness = freshness_seconds if freshness_seconds is not None else DEFAULT_FRESHNESS.get(entity_class, 300.0)
+    freshness = (
+        freshness_seconds
+        if freshness_seconds is not None
+        else DEFAULT_FRESHNESS.get(entity_class, 300.0)
+    )
 
     if is_failed_terminal:
         return OperationalState.FAILED

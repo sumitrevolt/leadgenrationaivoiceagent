@@ -74,10 +74,34 @@ def test_command_count_by_status_aggregates_correctly(_hermetic_mirror):
     _write_rows(
         _hermetic_mirror,
         [
-            {"command": "/revenue", "status": "OK", "fetched_at": "t1", "elapsed_ms": 0, "data": {}},
-            {"command": "/workers", "status": "OK", "fetched_at": "t2", "elapsed_ms": 0, "data": {}},
-            {"command": "/email", "status": "BLOCKED", "fetched_at": "t3", "elapsed_ms": 0, "data": {}},
-            {"command": "/ci", "status": "UNAVAILABLE", "fetched_at": "t4", "elapsed_ms": 0, "data": {}},
+            {
+                "command": "/revenue",
+                "status": "OK",
+                "fetched_at": "t1",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/workers",
+                "status": "OK",
+                "fetched_at": "t2",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/email",
+                "status": "BLOCKED",
+                "fetched_at": "t3",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/ci",
+                "status": "UNAVAILABLE",
+                "fetched_at": "t4",
+                "elapsed_ms": 0,
+                "data": {},
+            },
         ],
     )
     counts = command_count_by_status()
@@ -90,9 +114,27 @@ def test_latest_for_command_filters_correctly(_hermetic_mirror):
     _write_rows(
         _hermetic_mirror,
         [
-            {"command": "/revenue", "status": "OK", "fetched_at": "t1", "elapsed_ms": 0, "data": {}},
-            {"command": "/workers", "status": "OK", "fetched_at": "t2", "elapsed_ms": 0, "data": {}},
-            {"command": "/revenue", "status": "EMPTY", "fetched_at": "t3", "elapsed_ms": 0, "data": {}},
+            {
+                "command": "/revenue",
+                "status": "OK",
+                "fetched_at": "t1",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/workers",
+                "status": "OK",
+                "fetched_at": "t2",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/revenue",
+                "status": "EMPTY",
+                "fetched_at": "t3",
+                "elapsed_ms": 0,
+                "data": {},
+            },
         ],
     )
     rev = latest_for_command("/revenue", limit=5)
@@ -105,9 +147,27 @@ def test_summary_ok_with_real_rows(_hermetic_mirror):
     _write_rows(
         _hermetic_mirror,
         [
-            {"command": "/revenue", "status": "OK", "fetched_at": "t1", "elapsed_ms": 12, "data": {}},
-            {"command": "/workers", "status": "OK", "fetched_at": "t2", "elapsed_ms": 4, "data": {}},
-            {"command": "/blockers", "status": "EMPTY", "fetched_at": "t3", "elapsed_ms": 1, "data": {}},
+            {
+                "command": "/revenue",
+                "status": "OK",
+                "fetched_at": "t1",
+                "elapsed_ms": 12,
+                "data": {},
+            },
+            {
+                "command": "/workers",
+                "status": "OK",
+                "fetched_at": "t2",
+                "elapsed_ms": 4,
+                "data": {},
+            },
+            {
+                "command": "/blockers",
+                "status": "EMPTY",
+                "fetched_at": "t3",
+                "elapsed_ms": 1,
+                "data": {},
+            },
         ],
     )
     s = summary()
@@ -124,8 +184,20 @@ def test_summary_includes_unique_commands_sorted(_hermetic_mirror):
     _write_rows(
         _hermetic_mirror,
         [
-            {"command": "/smartflo", "status": "OK", "fetched_at": "t1", "elapsed_ms": 0, "data": {}},
-            {"command": "/revenue", "status": "OK", "fetched_at": "t2", "elapsed_ms": 0, "data": {}},
+            {
+                "command": "/smartflo",
+                "status": "OK",
+                "fetched_at": "t1",
+                "elapsed_ms": 0,
+                "data": {},
+            },
+            {
+                "command": "/revenue",
+                "status": "OK",
+                "fetched_at": "t2",
+                "elapsed_ms": 0,
+                "data": {},
+            },
             {"command": "/agents", "status": "OK", "fetched_at": "t3", "elapsed_ms": 0, "data": {}},
         ],
     )
@@ -137,7 +209,18 @@ def test_malformed_lines_are_skipped_not_fatal(_hermetic_mirror):
     _hermetic_mirror.parent.mkdir(parents=True, exist_ok=True)
     with _hermetic_mirror.open("w", encoding="utf-8") as fh:
         fh.write("not valid json\n")
-        fh.write(json.dumps({"command": "/revenue", "status": "OK", "fetched_at": "t", "elapsed_ms": 0, "data": {}}) + "\n")
+        fh.write(
+            json.dumps(
+                {
+                    "command": "/revenue",
+                    "status": "OK",
+                    "fetched_at": "t",
+                    "elapsed_ms": 0,
+                    "data": {},
+                }
+            )
+            + "\n"
+        )
         fh.write("\n")  # empty line
     rows = read_recent()
     assert len(rows) == 1

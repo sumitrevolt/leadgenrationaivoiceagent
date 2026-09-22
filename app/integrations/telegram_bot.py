@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 import requests
 
+from app.agents.skills import execute_skill
 from app.integrations.telegram_typesafe import (
     HERMES_BOT_CHOICES,
     TelegramBotCoordinator,
@@ -38,7 +39,6 @@ from app.integrations.telegram_typesafe import (
 )
 from app.platform.automation_orchestrator import AutomationOrchestrator, TaskPriority, TaskStatus
 from app.platform.typesafe_integration import get_typesafe_client
-from app.agents.skills import execute_skill
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +354,9 @@ class TelegramBot:
                 # Mirror the result to the data pipeline for the dashboard.
                 try:
                     import json
+
                     from app.platform.runtime_data import store_path
+
                     mirror = store_path("telegram_command_mirror.jsonl")
                     mirror.parent.mkdir(parents=True, exist_ok=True)
                     with mirror.open("a", encoding="utf-8") as fh:
@@ -406,9 +408,7 @@ class TelegramBot:
                 status = info.get("status", "ABSENT")
                 last_ver = info.get("last_verified") or "Never"
                 rot = "YES" if info.get("rotation_required") else "NO"
-                lines.append(
-                    f"• `{slot}`: **{status}** | Rot: {rot} | Verified: `{last_ver}`"
-                )
+                lines.append(f"• `{slot}`: **{status}** | Rot: {rot} | Verified: `{last_ver}`")
             lines.append("\n*Zero raw keys or secrets are transmitted or stored in plaintext.*")
             return "\n".join(lines), "keys_status", "board"
         except Exception as e:
@@ -577,10 +577,9 @@ class TelegramBot:
                 "guardian",
             )
 
-
     def _execute_skill_for_intent(self, intent: str, message: str, user_id: str) -> str | None:
         """Execute a skill based on TypeSafe-classified intent.
-        
+
         Returns skill response text if skill executed successfully, None otherwise.
         """
         skill_map = {
@@ -590,18 +589,18 @@ class TelegramBot:
             "command": "orchestrator-control",
             "general_question": "general-knowledge",
         }
-        
+
         skill_name = skill_map.get(intent)
         if not skill_name:
             return None
-            
+
         try:
             result = execute_skill(skill_name, user_id, {"message": message})
             if result and result.get("success"):
                 return result.get("output", str(result))
         except Exception as e:
             logger.warning("[telegram_bot] Skill execution failed for %s: %s", skill_name, e)
-        
+
         return None
 
     def _log_audit(self, **kwargs: Any) -> None:

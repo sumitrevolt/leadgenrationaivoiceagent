@@ -46,7 +46,6 @@ from app.integrations.telegram_owner_commands import (
     handle_owner_command,
 )
 
-
 # ---------- trace record ----------
 
 
@@ -140,9 +139,7 @@ def test_e2e_revenue_never_combines_scoreboards():
     has_mrr = "verified_recurring_mrr_inr" in data_keys
     has_cash = "verified_net_collected_cash_inr" in data_keys
     # If one is present, the other MUST be present too — they're symmetric.
-    assert has_mrr == has_cash, (
-        f"MRR/cash asymmetry: has_mrr={has_mrr} has_cash={has_cash}"
-    )
+    assert has_mrr == has_cash, f"MRR/cash asymmetry: has_mrr={has_mrr} has_cash={has_cash}"
 
 
 def test_e2e_blockers_reads_three_canonical_stores():
@@ -176,8 +173,7 @@ def test_e2e_typesafe_returns_intake_gate_metrics(tmp_path):
     os.environ["TYPESAFE_INTAKE_GATE"] = "1"
     try:
         # Trigger one intake evaluation via automation_orchestrator.
-        from app.platform.automation_orchestrator import AutomationOrchestrator
-        from app.platform.automation_orchestrator import DurableTaskStore
+        from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
 
         store = DurableTaskStore(db_path=str(tmp_path / "orch.db"))
         orch = AutomationOrchestrator(store=store)

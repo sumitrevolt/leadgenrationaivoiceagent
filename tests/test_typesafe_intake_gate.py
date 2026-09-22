@@ -28,9 +28,7 @@ os.environ.pop("TYPESAFE_API_KEY", None)
 def _clean_trace_file(tmp_path, monkeypatch):
     """Redirect the trace file to a tmp path so tests don't pollute repo data."""
     trace = tmp_path / "typesafe_intake_trace.jsonl"
-    monkeypatch.setattr(
-        "app.platform.typesafe_intake_gate._TRACE_PATH", trace
-    )
+    monkeypatch.setattr("app.platform.typesafe_intake_gate._TRACE_PATH", trace)
     yield trace
 
 
@@ -81,7 +79,10 @@ def test_gate_enabled_no_key_returns_credential_unavailable():
         # The canonical session-policy gate returns reason="credential_unavailable" when
         # client.enabled is False — the wrapper passes that through.
         assert v.route == "proceed"
-        assert v.consumed_calls in (0, 1)  # 0 when policy_disabled earlier; 1 when judge_task called
+        assert v.consumed_calls in (
+            0,
+            1,
+        )  # 0 when policy_disabled earlier; 1 when judge_task called
         assert v.reason in (
             "credential_unavailable",
             "policy_disabled",
@@ -188,9 +189,7 @@ def test_submit_task_unchanged_when_gate_disabled(tmp_path, monkeypatch):
         }
 
     # Spy on judge_task (the real API consumer) — it must NOT be called when gate is OFF.
-    monkeypatch.setattr(
-        "app.platform.typesafe_session_policy.judge_task", _spy_judge
-    )
+    monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge)
 
     db = tmp_path / "orch.db"
     from app.platform.automation_orchestrator import DurableTaskStore
@@ -203,7 +202,9 @@ def test_submit_task_unchanged_when_gate_disabled(tmp_path, monkeypatch):
         assigned_agent="manager",
         input_payload={"k": "v"},
     )
-    assert judge_calls["count"] == 0, "judge_task must NOT be called when TYPESAFE_INTAKE_GATE is OFF"
+    assert judge_calls["count"] == 0, (
+        "judge_task must NOT be called when TYPESAFE_INTAKE_GATE is OFF"
+    )
 
 
 def _has_store_path_kwarg(cls):
@@ -245,9 +246,7 @@ def test_submit_task_calls_gate_when_enabled(tmp_path, monkeypatch):
             captured["annotations"].append((payload, verdict))
             return {**(payload or {}), "typesafe_intake_judgment": "spy"}
 
-        monkeypatch.setattr(
-            "app.platform.typesafe_intake_gate.evaluate_intake", _spy_evaluate
-        )
+        monkeypatch.setattr("app.platform.typesafe_intake_gate.evaluate_intake", _spy_evaluate)
         monkeypatch.setattr(
             "app.platform.typesafe_intake_gate.annotate_input_payload", _spy_annotate
         )
@@ -272,8 +271,9 @@ def test_submit_task_calls_gate_when_enabled(tmp_path, monkeypatch):
 
 def test_trace_append_is_best_effort(tmp_path, monkeypatch):
     """Trace append must NEVER raise even if the file write fails."""
-    from app.platform.typesafe_intake_gate import _safe_append_trace
     from pathlib import Path as _Path
+
+    from app.platform.typesafe_intake_gate import _safe_append_trace
 
     # Force Path.open to fail on the trace file.
     real_open = _Path.open
@@ -324,12 +324,12 @@ def test_submit_task_no_import_when_gate_off(monkeypatch):
     os.environ.pop("TYPESAFE_INTAKE_GATE", None)
 
     # Patch the module-level attribute to detect any import.
-    from app.platform import typesafe_intake_gate as t
-
     # The function evaluate_intake exists in the module already (lazy import inside).
     # But the orchestrator must NOT import it when gate is OFF.
     # We assert this by ensuring typesafe_intake_gate.evaluate_intake is never called.
     import sys
+
+    from app.platform import typesafe_intake_gate as t
 
     sentinel = object()
 
@@ -340,11 +340,12 @@ def test_submit_task_no_import_when_gate_off(monkeypatch):
     # Patch the symbol that automation_orchestrator imports lazily.
     monkeypatch.setattr(t, "evaluate_intake", _spy)
 
+    import tempfile
+
     from app.platform.automation_orchestrator import (
         AutomationOrchestrator,
         DurableTaskStore,
     )
-    import tempfile
 
     with tempfile.TemporaryDirectory() as td:
         store = DurableTaskStore(db_path=str(Path(td) / "orch.db"))
@@ -399,9 +400,7 @@ def test_dispatch_task_final_review_annotation(tmp_path, monkeypatch):
             captured["annotations"].append((payload, verdict))
             return {**(payload or {}), "typesafe_intake_judgment": "spy"}
 
-        monkeypatch.setattr(
-            "app.platform.typesafe_intake_gate.evaluate_intake", _spy_evaluate
-        )
+        monkeypatch.setattr("app.platform.typesafe_intake_gate.evaluate_intake", _spy_evaluate)
         monkeypatch.setattr(
             "app.platform.typesafe_intake_gate.annotate_input_payload", _spy_annotate
         )
@@ -467,9 +466,7 @@ def test_dispatch_task_final_review_off_no_call(tmp_path, monkeypatch):
     # Spy on the canonical judge_task — it must NOT be called from final_review
     # when the gate is OFF. (The existing judge_task call above is allowed;
     # this spy just ensures no ADDITIONAL call happens.)
-    monkeypatch.setattr(
-        "app.platform.typesafe_session_policy.judge_task", _spy_judge
-    )
+    monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge)
 
     db = tmp_path / "orch.db"
     store = DurableTaskStore(db_path=str(db))
