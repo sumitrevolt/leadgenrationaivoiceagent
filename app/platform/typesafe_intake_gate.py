@@ -121,7 +121,7 @@ class OutcomeVerdict:
     next_action: str  # "proceed" | "retry" | "escalate" | "rollback"
     evidence_fingerprint: str  # sha256[:16] of evidence — NEVER raw evidence text
     consumed_calls: int  # 0 for SKIPPED/MOCK; 1 for REAL/CACHED
-    source: str  # "REAL" | "MOCK" | "CACHED" | "SKIPPED"
+    source: str  # "REAL" | "MOCK" | "CACHED" | "SKIPPED" | "PROVIDER_FAILURE"
     state_hash: str
     elapsed_ms: float
 
@@ -264,13 +264,11 @@ def evaluate_outcome(
         )
         return verdict
 
-    # Gate is ON. Determine source: REAL if API key present + canonical client
-    # enabled; MOCK otherwise.
-    from app.platform import typesafe_integration as _ts
-
-    client = _ts.get_typesafe_client()
-    is_real = bool(getattr(client, "enabled", False))
-    source = "REAL" if is_real else "MOCK"
+    # Gate is ON. Determine source from ACTUAL call outcome (NOT credential
+    # presence). Per owner correction: 'Never classify an unsuccessful provider
+    # call as a successful REAL evaluation.' Source default = MOCK; upgraded
+    # inside the try block based on judge_task's reason field.
+    from app.platform import typesafe_integration as _ts  # noqa: F841 (kept for future key-state reads)
 
     # Build minimal outcome state for hash + canonical client call.
     # CRITICAL: never include raw evidence, customer data, or credentials.
@@ -294,6 +292,13 @@ def evaluate_outcome(
     consumed_calls = 0
     traced = False
     judge_reason = ""
+    upstream_decision_id = ""
+    # Source is computed from ACTUAL API outcome, not just credential presence.
+    # Per owner correction: 'Never classify an unsuccessful provider call as a
+    # successful REAL evaluation.'
+    # Default = MOCK (key absent). Upgraded to REAL on actual success.
+    # = PROVIDER_FAILURE on call failure.
+    source = "MOCK"
 
     try:
         # IMPORTANT: import the MODULE (not the symbol) so monkeypatch.setattr on
@@ -331,24 +336,29 @@ def evaluate_outcome(
         route = judge_result.get("route", "proceed")
         judge_reason = judge_result.get("reason", "credential_unavailable")
         consumed_calls = 1
-        # KEEP the outcome-side tso- prefix even on success. judge_task's
-        # internal tss- prefix would obscure the stage distinction in traces;
-        # the upstream decision_id is preserved in the trace row's
-        # ``upstream_decision_id`` field instead.
         upstream_decision_id = judge_result.get("decision_id", "")
         traced = bool(judge_result.get("traced", False))
+        # CRITICAL source classification per owner correction:
+        # 'typesafe_judgment' = REAL (provider succeeded AND returned a verdict)
+        # 'provider_fallback' = PROVIDER_FAILURE (call returned a fallback path)
+        # 'provider_exception' = PROVIDER_FAILURE (call threw)
+        # 'credential_unavailable' = MOCK (no key)
+        # 'policy_disabled' = MOCK (gate off, but we already handled this above)
+        if judge_reason == "typesafe_judgment":
+            source = "REAL"
+        elif judge_reason in ("provider_fallback", "provider_exception"):
+            source = "PROVIDER_FAILURE"
+        else:
+            source = "MOCK"
     except Exception as exc:
         logger.warning(
             "typesafe_intake_gate.evaluate_outcome failed for %s: %s",
             task_id,
             type(exc).__name__,
         )
-        # Exception path: KEEP the default 'proceed' route (set at line 292).
-        # Do NOT override with success-conditional logic — that would let a
-        # judge_task failure silently flip the verdict. MOCK semantics are
-        # surfaced via source='MOCK' (computed from client.enabled above),
-        # not via route mutation here.
-        # route is unchanged.
+        # Exception path: source = PROVIDER_FAILURE (exception in call).
+        source = "PROVIDER_FAILURE"
+        # route is unchanged at default 'proceed'.
 
     # Map route to outcome verdict — local success is AUTHORITATIVE for 'met'.
     outcome_verdict, next_action = _map_route_to_verdict(route, success)
