@@ -156,7 +156,12 @@ def _relpath(p: Path) -> str:
 # Ingestors — each returns (nodes-added, edges-added). All tolerant.
 # --------------------------------------------------------------------------- #
 def ingest_project(nodes, edges, sha):
-    claude = read_text_safe(_rel("CLAUDE.md"))
+    # PR #552 (ADR-200): AGENTS.md is the lean canonical always-loaded file.
+    # Full legacy body (§0-§9.5 + landmines + invariants) lives in
+    # docs/AGENTS_REFERENCE.md (tracked, NOT auto-loaded). Project context
+    # ingestion needs the full content for the JSON knowledge store.
+    src = "docs/AGENTS_REFERENCE.md"
+    claude = read_text_safe(_rel(src))
     charter = ""
     m = re.search(r"## 1\. PROJECT CHARTER\s*(.+?)(?:\n## )", claude, re.S)
     if m:
@@ -165,28 +170,29 @@ def ingest_project(nodes, edges, sha):
         nodes,
         "Project",
         "leadgenrationaiagent",
-        "CLAUDE.md",
+        src,
         charter or "LeadGen AI SaaS platform",
         sha,
     )
     # Products (charter names them explicitly)
     for prod in ("AI Automated Marketing", "AI Voice Calling Agent"):
         if prod in claude:
-            n = _node(nodes, "Product", prod, "CLAUDE.md", f"Product: {prod}", sha)
+            n = _node(nodes, "Product", prod, src, f"Product: {prod}", sha)
             edges.append({"src": n, "rel": "BELONGS_TO_PROJECT", "dst": pid})
     return pid
 
 
 def ingest_current_state(nodes, edges, sha, project_id):
-    claude = read_text_safe(_rel("CLAUDE.md"))
+    src = "docs/AGENTS_REFERENCE.md"
+    claude = read_text_safe(_rel(src))
     m = re.search(r"## Current State.*?\n(.+)$", claude, re.S)
     block = m.group(1) if m else ""
     if block:
-        _node(nodes, "CurrentState", "sprint", "CLAUDE.md", block, sha)
+        _node(nodes, "CurrentState", "sprint", src, block, sha)
     bm = re.search(r"Blockers.*?:\s*(.+?)(?:\n\*\*|\n## |\Z)", block, re.S)
     if bm:
         for line in re.findall(r"[-*]\s+(.+)", bm.group(1))[:12]:
-            n = _node(nodes, "Blocker", _clip(line, 60), "CLAUDE.md", line, sha)
+            n = _node(nodes, "Blocker", _clip(line, 60), src, line, sha)
             edges.append({"src": n, "rel": "BLOCKED_BY", "dst": "CurrentState:sprint"})
 
 
@@ -195,7 +201,8 @@ def _bulleted(md: str, limit: int):
 
 
 def ingest_landmines_invariants(nodes, edges, sha):
-    claude = read_text_safe(_rel("CLAUDE.md"))
+    src = "docs/AGENTS_REFERENCE.md"
+    claude = read_text_safe(_rel(src))
     for header, ntype, rel in (
         (r"## 7\. KNOWN LANDMINES", "Landmine", None),
         (r"## 5\. CRITICAL INVARIANTS", "Invariant", None),
@@ -204,7 +211,7 @@ def ingest_landmines_invariants(nodes, edges, sha):
         if not m:
             continue
         for i, line in enumerate(_bulleted(m.group(1), 25)):
-            _node(nodes, ntype, f"{ntype.lower()}-{i:02d}", "CLAUDE.md", line, sha)
+            _node(nodes, ntype, f"{ntype.lower()}-{i:02d}", src, line, sha)
 
 
 def ingest_memory(nodes, edges, sha):

@@ -259,3 +259,99 @@ def test_numeric_api_id_alone_is_not_treated_as_a_secret() -> None:
     """
     line = 'API_ID = os.environ.get("TELEGRAM_API_ID", "30160587")'
     assert not _flagging_patterns(line)
+
+
+# ------------------------------------------------ Telegram bot-token shape
+#
+# Second pass, 2026-09-22. The suffix-label pattern keys off the LABEL, so it only
+# fires when the author names the thing. A bot token is self-identifying by SHAPE
+# (`<8-12 digits>:AA<33+ base64url>`), so it must be caught wherever it lands and
+# under ANY variable name — including one a future author invents. All three live
+# tokens in this repo gate the owner control plane, which is why the class is worth
+# catching by shape rather than by name.
+#
+# The synthetic token is BUILT by concatenation, never written as one literal. A
+# literal would make this suite flag ITSELF, and marking the must-CATCH lines with
+# `# nosecret` would make `_flagging_patterns` return early — so the assertion
+# would pass while testing nothing. Building it keeps both directions honest.
+
+_BOT_LABEL = "Telegram bot-token shape (digits + colon-AA + base64url)"
+_BOT_TOKEN = "8123456789:AA" + "Hk7Qm2Xp9Rt4Vb6Nz1Ld8Wy3Cs5Fg0Ju2"
+
+
+def _bot_pattern():
+    for label, pat in cs.PATTERNS:
+        if label == _BOT_LABEL:
+            return pat
+    return None
+
+
+def test_bot_token_pattern_exists() -> None:
+    assert _bot_pattern() is not None, (
+        f"pattern {_BOT_LABEL!r} is missing — the bot-token class is uncovered again. "
+        f"If it was renamed, update _BOT_LABEL; do not silently drop the coverage."
+    )
+
+
+def test_synthetic_bot_token_fixture_has_the_real_shape() -> None:
+    """Guard the fixture itself: if the tail is too short, every must-CATCH case
+    below would pass vacuously by asserting on a string that is not a token."""
+    tail = _BOT_TOKEN.split(":AA", 1)[1]
+    assert len(tail) >= 33, f"fixture tail is only {len(tail)} chars; the real shape needs 33+"
+    assert _bot_pattern().search(_BOT_TOKEN), (
+        "fixture does not match the pattern it is meant to test"
+    )
+
+
+BOT_TOKEN_LEAKS = {
+    "bare in runbook prose": f"Authenticate with {_BOT_TOKEN} before deploying.",
+    "env assignment": f"TELEGRAM_BOT_TOKEN={_BOT_TOKEN}",
+    "shell export": f"export TELEGRAM_JARVIS_BOT_TOKEN={_BOT_TOKEN}",
+    "yaml value": f'  token: "{_BOT_TOKEN}"',
+    "json value": f'  "notify_token": "{_BOT_TOKEN}",',
+    "unknown future variable name": f"OWNER_RELAY_CREDENTIAL={_BOT_TOKEN}",
+}
+
+
+@pytest.mark.parametrize("name", sorted(BOT_TOKEN_LEAKS))
+def test_bot_token_shape_is_flagged_regardless_of_label(name: str) -> None:
+    pat = _bot_pattern()
+    assert pat is not None
+    line = BOT_TOKEN_LEAKS[name]
+    assert pat.search(line), (
+        f"REGRESSION: {name} not flagged. A bot token is identified by SHAPE and must "
+        f"be caught under ANY variable name — that is the entire point of this pattern. "
+        f"If this fails, the scanner has been narrowed back to label-matching.\n"
+        f"  line: {line}"
+    )
+
+
+BOT_TOKEN_CLEAN = {
+    # Scrubbed / reference forms — must stay quiet or the scanner gets muted.
+    "shell var reference": "export TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}",
+    "bare env lookup": 'TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]',
+    "prose placeholder": "Set TELEGRAM_BOT_TOKEN=your-bot-token-here",
+    "angle placeholder": "TELEGRAM_BOT_TOKEN=<token>",
+    "empty default": 'BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")',
+    # High-entropy but NOT token-shaped: this is what keeps the pattern precise.
+    "hex digest": f"sha256={H}",
+    "uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "git sha": "commit bbf8b5e6c1a94f2d8e7b03a5c6d1e4f7082a9b3c",
+    "iso timestamp": "2026-09-22T17:43:17.026895800+05:30",
+    "AA infix but short tail": "8123456789:AAHk7Qm2Xp",
+    "digits colon AA then space": f"ratio {H[:8]}:AA is not a token",
+    "too few leading digits": "1234567:AAHk7Qm2Xp9Rt4Vb6Nz1Ld8Wy3Cs5Fg0Ju2",
+}
+
+
+@pytest.mark.parametrize("name", sorted(BOT_TOKEN_CLEAN))
+def test_bot_token_shape_does_not_flag_noise(name: str) -> None:
+    pat = _bot_pattern()
+    assert pat is not None
+    line = BOT_TOKEN_CLEAN[name]
+    assert not pat.search(line), (
+        f"FALSE POSITIVE: {name} matched the bot-token shape pattern. This pattern was "
+        f"shipped only because a repo-wide measurement found 0 matches across all 5,087 "
+        f"tracked files. Widening it past the real token shape reintroduces the noise "
+        f"that gets a scanner muted.\n  line: {line}"
+    )
