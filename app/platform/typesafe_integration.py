@@ -392,6 +392,18 @@ class TypeSafeResponse:
         """
         return bool(self._answer_items())
 
+    @staticmethod
+    def _clamp_01(v: Any) -> Any:
+        """Clamp numeric TypeSafe answers to [0, 1].
+
+        The wire contract states scores/probabilities are 0.0-1.0, but the API has
+        returned values slightly above 1.0 (e.g. 1.02) in production. Clamp rather
+        than reject — a 1.02 score is a strong positive signal, not an error.
+        """
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return max(0.0, min(1.0, float(v)))
+        return v
+
     @property
     def value(self) -> Any | None:
         """Get the primary value from first answer.
@@ -404,7 +416,7 @@ class TypeSafeResponse:
             if isinstance(v, dict):
                 for key in ("choice", "noul", "probability", "score"):
                     if v.get(key) is not None:
-                        return v.get(key)
+                        return self._clamp_01(v.get(key))
             elif isinstance(v, (str, int, float, bool)):
                 return v
         return None
@@ -425,9 +437,9 @@ class TypeSafeResponse:
                         continue
                     coerced = _as_float(v.get(key))
                     if coerced is not None:
-                        return coerced
+                        return self._clamp_01(coerced)
             elif isinstance(v, (int, float)) and not isinstance(v, bool):
-                return float(v)
+                return self._clamp_01(float(v))
         return 0.5
 
     @property

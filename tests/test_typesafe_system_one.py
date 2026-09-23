@@ -99,6 +99,14 @@ def test_typesafe_response_parsing():
     assert r_noul.value == 0.88
     assert r_noul.confidence == 0.88
 
+    # Out-of-range / malformed answers clamp or report honestly, never crash
+    r_oob = TypeSafeResponse(
+        success=True,
+        result={"answers": {"q": {"score": 1.02, "confidence": 1.5}}},
+    )
+    assert r_oob.value == 1.0, f"1.02 should clamp to 1.0, got {r_oob.value}"
+    assert r_oob.confidence == 1.0, f"1.5 should clamp to 1.0, got {r_oob.confidence}"
+
     # Empty/error parsing
     r_err = TypeSafeResponse(success=False, error="timeout")
     assert r_err.value is None
