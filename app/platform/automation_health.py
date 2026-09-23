@@ -138,6 +138,7 @@ EXPECTED_GAP_MIN = {
     * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
     "pipeline": 30 * 60,
     "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace
+    "hot_queue_followup": 10 * 60,  # daily 10:00 IST: stale card ntfy reminder
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
     "midday_prospect": 30 * 60,  # daily 14:30
     "evening_wrap": 30 * 60,

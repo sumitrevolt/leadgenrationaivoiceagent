@@ -23,7 +23,7 @@ Non-conflicting legacy rules (loop-engineer mode, anti-mistakes, current-state d
 **Sprint goal (2026-09-22):** GTM 0→1 — pehle paid Marketing customers. Mid-funnel bottleneck = Hot Queue `/app/inbox` + dialer sprint. 1 real paying customer (jiya makeover). MRR and net cash via `app/admin/services/task_ledger.py` (admin) + `/api/admin/revenue/*`.
 
 **Live facts (must RE-VERIFY at session start):**
-- Repo HEAD `35f4d33c` on `feat/auto-20260922-0e113f55`. `origin/main` `3698732e`.
+- Repo HEAD `bbf8b5e6` on `main` (single-canonical-AGENTS.md migration). `origin/main` `3698732e`; ahead 1 commit. Last re-verified at session start 2026-09-23.
 - VPS = `srv1736379` (Hostinger Mumbai, Ubuntu 24.04). Port 8000 owner = Docker `leadgen_app` (NOT systemd). Canonical deploy = `scripts/deploy_vps.sh` ONLY.
 - Production SHA only via `/health.version` — never from `git log` (4 different revisions run in one prod; see `memory/incidents.md` 2026-09-20).
 - TypeSafe skill = `.claude/skills/typesafe-ai/SKILL.md` (always load). Status: `python scripts/typesafe_status.py --probe` (state only, never the value).
