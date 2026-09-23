@@ -35,7 +35,9 @@ class TestTypeSafeSkillDiscovery:
         assert path.exists(), "TypeSafe skill must exist at canonical path"
 
     def test_typesafe_skill_mentions_jev_latest(self) -> None:
-        skill = (ROOT / ".claude" / "skills" / "typesafe-ai" / "SKILL.md").read_text()
+        skill = (ROOT / ".claude" / "skills" / "typesafe-ai" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
         assert "Jev" in skill or "jev" in skill.lower(), "TypeSafe skill must reference Jev model"
 
     def test_typesafe_status_script_exists(self) -> None:
