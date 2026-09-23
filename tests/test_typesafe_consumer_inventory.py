@@ -43,6 +43,12 @@ ALLOWED_CONSUMERS = {
     "app/api/typesafe_routes.py",
     "app/integrations/telegram_bot.py",
     "app/integrations/telegram_typesafe.py",
+    # Config-only / future placeholder — no real judgment API call.
+    # intake_gate delegates to typesafe_session_policy.judge_task;
+    # the typesafe_integration import is a future key-state read placeholder.
+    "app/platform/typesafe_intake_gate.py",
+    # smartflo_acceptance calls _ts.credential_state() (config-only, no network).
+    "app/voice/smartflo_acceptance.py",
 }
 
 # The definition module itself never counts as a consumer.
