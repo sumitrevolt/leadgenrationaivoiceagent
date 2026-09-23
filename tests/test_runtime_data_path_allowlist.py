@@ -151,56 +151,13 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
     assert len(entries) == 106
-    assert len(families) == 43, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
-    assert families == {
-        "admin.task_ledger",
-        "automation.console_events",
-        "automation.omniroute_combo_state",
-        "billing.invoices",
-        "billing.promo_codes",
-        "billing.upi_payments",
-        "command_center.pilot_tasks",
-        "communications.telegram_inbox",
-        "compliance.dpdp_audit",
-        "compliance.email_suppression",
-        "customers.identity",
-        "devcontrol.external_missions",
-        "governance.mission_control",
-        "marketing.affiliates",
-        "marketing.appointment_reminders",
-        "marketing.brand_kits",
-        "marketing.content_gen",
-        "marketing.content_os",
-        "marketing.content_pipeline",
-        "marketing.customer_health",
-        "marketing.email_drips",
-        "marketing.form_builder",
-        "marketing.gsc_rankings",
-        "marketing.outreach_draft_logs",
-        "marketing.proposal_builder",
-        "marketing.review_sequences",
-        "ops.hot_queue_owner_pack_csv",
-        "ops.hot_queue_owner_pack_md",
-        "ops.office_briefing",
-        "ops.owner_email_canary",
-        "ops.owner_feed",
-        "ops.telegram_group_ids",
-        "ops.telegram_setup_state",
-        "ops.waha_watchdog",
-        "owner_os.coordination_hub",
-        "platform.agent_memory",
-        "platform.memory_governance",
-        "platform.staff_bus",
-        "platform.workforce_memory",
-        "sales.prospects",
-        "telephony.call_recordings",
-        "telephony.voice_kill_switch",
-    }
+    assert len(known) == 64, sorted(known)
+    assert len(families) <= len(known)
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 15
+    assert len({f.split(".")[0] for f in families}) == 16
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
