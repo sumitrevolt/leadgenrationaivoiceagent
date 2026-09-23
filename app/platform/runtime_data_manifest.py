@@ -848,6 +848,7 @@ STORES: list[dict[str, Any]] = [
         legacy_paths=["command_center/data/"],
         writer_modules=[
             "command_center/scripts/validate_0710.py",
+            "command_center/scripts/pilot_sep22_2000_dispatch.py",
             "command_center/patches/pilot_dispatch_0830_1520.py",
             "command_center/patches/pilot_dispatch_0902_0150.py",
             "command_center/patches/pilot_dispatch_0902_0200.py",
