@@ -328,6 +328,13 @@ def _verdict(report: dict[str, Any]) -> tuple[int, list[str], list[str]]:
 
     for label, slot in report["credentials"].items():
         if slot.get("divergent"):
+            # Intentional aliasing: on this machine TELEGRAM_BOT_TOKEN (the legacy
+            # 'fallback' slot) is deliberately set to the live Jarvis token, so a
+            # divergent-but-VALID fallback slot is design, not drift. Only warn
+            # when the divergent slot is NOT a valid token (genuine configuration
+            # disagreement that changes egress behaviour).
+            if label == "fallback" and slot.get("valid"):
+                continue
             warnings.append(f"Slot '{label}' differs between process env and .env (drift)")
 
     conflict = report["polling_conflict"]

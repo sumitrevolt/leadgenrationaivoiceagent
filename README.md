@@ -118,7 +118,7 @@ Dockerfile.lock          CANONICAL build input
 
 ## Docs
 
-- Operating manual: `CLAUDE.md` / `AGENTS.md` (byte-identical)
+- Operating manual: `AGENTS.md` (canonical; `CLAUDE.md` = deprecated redirect stub since ADR-200)
 - Loop ledger: `progress.md`
 - Architecture + ADRs: `docs/`
 - Knowledge base: `memory/` (`memory/INDEX.md` first)

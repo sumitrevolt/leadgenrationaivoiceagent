@@ -35,9 +35,19 @@ def _load_tool():
 
 @pytest.fixture
 def tool(tmp_path, monkeypatch):
-    """A writable copy of the real spec, isolated in tmp_path."""
+    """A writable copy of the real spec, isolated in tmp_path.
+
+    The live spec legitimately has the three coordination groups bound to real
+    chat_ids (and agents_coordination may carry previously created topic_ids),
+    so the test copy is normalised first: the coordination groups start empty
+    with no topic_ids. Tests that need a bound group bind it explicitly.
+    """
     module = _load_tool()
     source = yaml.safe_load((ROOT / "config" / "telegram" / "setup_spec.yaml").read_text(encoding="utf-8"))
+    for group in source.get("cross_product") or []:
+        if group.get("key") in module.COORDINATION_KEYS:
+            group["chat_id"] = ""
+            group.pop("topic_ids", None)
     tmp_spec = tmp_path / "setup_spec.yaml"
     tmp_spec.write_text(yaml.safe_dump(source, sort_keys=False, allow_unicode=True, width=4096), encoding="utf-8")
     monkeypatch.setattr(module, "SPEC_PATH", tmp_spec)
@@ -117,6 +127,7 @@ def test_verify_shallow_reports_unwired_required_groups(tool, monkeypatch):
         group, error = tool.resolve_group(spec, key)
         assert error == ""
         group["chat_id"] = ""
+        group.pop("topic_ids", None)
     tool.save_spec(tool.load_spec(), backup=False)
     monkeypatch.setattr(tool, "_tokens", lambda: {"jarvis": "J" * 30})
     monkeypatch.setattr(tool, "_get_me", lambda token: {"ok": True, "username": "test_bot", "id": 1})
@@ -131,6 +142,7 @@ def test_verify_shallow_reports_unwired_required_groups(tool, monkeypatch):
 def test_create_topics_requires_binding(tool, monkeypatch):
     group = tool.find_group(tool.load_spec(), "agents_coordination")
     group["chat_id"] = ""
+    group.pop("topic_ids", None)
     tool.save_spec(tool.load_spec(), backup=False)
 
     assert tool.create_topics("agents_coordination", "J" * 30) == 1
