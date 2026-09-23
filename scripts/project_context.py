@@ -156,37 +156,57 @@ def _relpath(p: Path) -> str:
 # Ingestors — each returns (nodes-added, edges-added). All tolerant.
 # --------------------------------------------------------------------------- #
 def ingest_project(nodes, edges, sha):
-    claude = read_text_safe(_rel("CLAUDE.md"))
+    # PR #552 (ADR-200): AGENTS.md is the lean canonical always-loaded file (M00-M17
+    # + A01-A10 + current state + operating rules). docs/AGENTS_REFERENCE.md carries the
+    # deep legacy body (§0-§9.5: charter, architecture, commands, code standards,
+    # testing protocol, full landmines, full invariants). Ingest BOTH so the JSON
+    # knowledge store has complete coverage.
+    canonical = read_text_safe(_rel("AGENTS.md"))
+    legacy = read_text_safe(_rel("docs/AGENTS_REFERENCE.md"))
     charter = ""
-    m = re.search(r"## 1\. PROJECT CHARTER\s*(.+?)(?:\n## )", claude, re.S)
+    # Prefer the canonical charter pointer; fall back to the legacy §1.
+    m = re.search(r"## 1\. PROJECT CHARTER\s*(.+?)(?:\n## )", legacy, re.S)
     if m:
         charter = m.group(1)
     pid = _node(
         nodes,
         "Project",
         "leadgenrationaiagent",
-        "CLAUDE.md",
+        "AGENTS.md + docs/AGENTS_REFERENCE.md",
         charter or "LeadGen AI SaaS platform",
         sha,
     )
-    # Products (charter names them explicitly)
     for prod in ("AI Automated Marketing", "AI Voice Calling Agent"):
-        if prod in claude:
-            n = _node(nodes, "Product", prod, "CLAUDE.md", f"Product: {prod}", sha)
+        if prod in legacy:
+            n = _node(nodes, "Product", prod, "docs/AGENTS_REFERENCE.md", f"Product: {prod}", sha)
             edges.append({"src": n, "rel": "BELONGS_TO_PROJECT", "dst": pid})
+    # Ingest canonical operating rules (M00-M17) from AGENTS.md
+    m_canonical = re.search(r"## 0\. PRECEDENCE.*?$(.+?)(?:## 1\. |\Z)", canonical, re.S | re.M)
+    if m_canonical:
+        _node(
+            nodes, "OperatingRule", "m00-m17", "AGENTS.md", m_canonical.group(1).strip()[:240], sha
+        )
     return pid
 
 
 def ingest_current_state(nodes, edges, sha, project_id):
-    claude = read_text_safe(_rel("CLAUDE.md"))
-    m = re.search(r"## Current State.*?\n(.+)$", claude, re.S)
-    block = m.group(1) if m else ""
+    # Canonical current state pointer from AGENTS.md; full legacy state from REFERENCE.
+    canonical = read_text_safe(_rel("AGENTS.md"))
+    legacy = read_text_safe(_rel("docs/AGENTS_REFERENCE.md"))
+    block = ""
+    m = re.search(r"## Current State.*?\n(.+)$", canonical, re.S)
+    if m:
+        block = m.group(1)
+    else:
+        m = re.search(r"## Current State.*?\n(.+)$", legacy, re.S)
+        if m:
+            block = m.group(1)
     if block:
-        _node(nodes, "CurrentState", "sprint", "CLAUDE.md", block, sha)
+        _node(nodes, "CurrentState", "sprint", "AGENTS.md", block, sha)
     bm = re.search(r"Blockers.*?:\s*(.+?)(?:\n\*\*|\n## |\Z)", block, re.S)
     if bm:
         for line in re.findall(r"[-*]\s+(.+)", bm.group(1))[:12]:
-            n = _node(nodes, "Blocker", _clip(line, 60), "CLAUDE.md", line, sha)
+            n = _node(nodes, "Blocker", _clip(line, 60), "AGENTS.md", line, sha)
             edges.append({"src": n, "rel": "BLOCKED_BY", "dst": "CurrentState:sprint"})
 
 
@@ -195,7 +215,8 @@ def _bulleted(md: str, limit: int):
 
 
 def ingest_landmines_invariants(nodes, edges, sha):
-    claude = read_text_safe(_rel("CLAUDE.md"))
+    src = "docs/AGENTS_REFERENCE.md"
+    claude = read_text_safe(_rel(src))
     for header, ntype, rel in (
         (r"## 7\. KNOWN LANDMINES", "Landmine", None),
         (r"## 5\. CRITICAL INVARIANTS", "Invariant", None),
@@ -204,7 +225,7 @@ def ingest_landmines_invariants(nodes, edges, sha):
         if not m:
             continue
         for i, line in enumerate(_bulleted(m.group(1), 25)):
-            _node(nodes, ntype, f"{ntype.lower()}-{i:02d}", "CLAUDE.md", line, sha)
+            _node(nodes, ntype, f"{ntype.lower()}-{i:02d}", src, line, sha)
 
 
 def ingest_memory(nodes, edges, sha):

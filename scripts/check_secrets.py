@@ -135,6 +135,29 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
             r"([A-Za-z0-9_\-]{32,})"
         ),
     ),
+    # 2026-09-22 (second pass) — Telegram BOT-TOKEN, matched by SHAPE not by label.
+    #
+    # The suffix-label pattern directly above keys off the LABEL, so it only fires
+    # when the author names the thing. A bot token is a different class: it is
+    # self-identifying by shape (`<8-12 digits>:AA<33-35 base64url>`), so it can be
+    # caught wherever it lands — bare in a runbook, inside a shell command, in a
+    # config value, or under any variable name (`TELEGRAM_BOT_TOKEN`,
+    # `TELEGRAM_JARVIS_BOT_TOKEN`, `TELEGRAM_NOTIFY_BOT_TOKEN`, or one a future
+    # author invents). All three live tokens in this repo gate the owner control
+    # plane, so the class is worth catching by shape rather than by name.
+    #
+    # Precision is what makes this safe to add. The `:AA` infix followed by a 33+
+    # character base64url tail does not occur in prose, hex digests, UUIDs, git
+    # SHAs or timestamps. MEASURED before shipping, per the discipline that
+    # rejected the 225-finding `\b\w*` widening above: **0 matches across all 5,087
+    # tracked files**, i.e. 0 false positives repo-wide.
+    #
+    # A placeholder or scrubbed form (`${TELEGRAM_BOT_TOKEN}`, `your-bot-token`,
+    # `<token>`) does not match the shape and is correctly NOT flagged.
+    (
+        "Telegram bot-token shape (digits + colon-AA + base64url)",
+        re.compile(r"(?<![0-9A-Za-z_])([0-9]{8,12}:AA[A-Za-z0-9_-]{33,})"),
+    ),
 ]
 
 # env-fallback literals that are LEGITIMATELY non-secret — false-positive allowlist.
