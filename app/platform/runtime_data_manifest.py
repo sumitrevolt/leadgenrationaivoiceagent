@@ -239,7 +239,7 @@ STORES: list[dict[str, Any]] = [
         store_id="sales.prospects",
         display_name="Prospect store",
         legacy_paths=["data/prospects.jsonl"],
-        writer_modules=["app/platform/prospector.py"],
+        writer_modules=["app/platform/prospector.py", "scripts/run_tick.py", "scripts/send_telegram_nudge_via_gateway.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=20332879,
         last_write="2026-07-25",
@@ -851,6 +851,10 @@ STORES: list[dict[str, Any]] = [
             "command_center/patches/pilot_dispatch_0830_1520.py",
             "command_center/patches/pilot_dispatch_0902_0150.py",
             "command_center/patches/pilot_dispatch_0902_0200.py",
+            "scripts/legacy/pilot_dispatch_0830_1455.py",
+            "scripts/legacy/pilot_nudge_run.py",
+            "scripts/legacy/pilot_run_tick.py",
+            "scripts/run_task_scheduler.ps1",
         ],
         production_activity="OFFLINE_TOOLING",
         size_bytes=0,
@@ -1568,6 +1572,57 @@ STORES: list[dict[str, Any]] = [
             "app/integrations/telegram_bot.py writes one JSONL row per owner "
             "command invocation. Read by app/platform/telegram_command_mirror.py "
             "for the OCC summary card. Loss self-heals on next invocation."
+        ),
+    ),
+    # 2026-09-23 (CI ratchet pilot slice 1): Telegram poll-lease state file.
+    # telegram_coordinator.py persists a per-process poll lease to prevent
+    # concurrent poll loops. Fully rebuildable; loss only resets lease timing.
+    _e(
+        store_id="communications.telegram_poll_lease",
+        display_name="Telegram poll coordinator lease state",
+        legacy_paths=["data/telegram_poll_lease.json"],
+        writer_modules=["app/platform/telegram_coordinator.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="communications",
+        durability_class="rebuildable",
+        concurrency_model="single-writer lease with TTL; atomic replace via tmp",
+        target_runtime_subpath="communications/telegram_poll_lease.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-23 (CI ratchet pilot slice 1). telegram_coordinator.py "
+            "writes data/telegram_poll_lease.json (JSON lease record: holder id, "
+            "timestamp, TTL) before entering the poll loop. Atomic replace via "
+            "tmp + os.replace. Loss self-heals: next poll cycle rewrites the lease."
+        ),
+    ),
+    # 2026-09-23 (CI ratchet pilot slice 1): TypeSafe admin runtime key store.
+    # typesafe_integration.py reads data/typesafe_keys.json for the four-slot
+    # KeyManager runtime override. Admin-set; not auto-generated; readable
+    # absence = [] fallback.
+    _e(
+        store_id="platform.typesafe_keys",
+        display_name="TypeSafe runtime key store (admin-set)",
+        legacy_paths=["data/typesafe_keys.json"],
+        writer_modules=["app/platform/typesafe_integration.py"],
+        production_activity="PRODUCTION_INACTIVE",
+        current_authority="FILE",
+        business_category="governance",
+        durability_class="rebuildable",
+        concurrency_model="read-only at runtime; admin writes via CLI, never by the app",
+        target_runtime_subpath="platform/typesafe_keys.json",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-23 (CI ratchet pilot slice 1). "
+            "app/platform/typesafe_integration.py reads data/typesafe_keys.json "
+            "as the admin-set runtime override for the four-slot KeyManager. "
+            "The file is written ONLY by an explicit admin CLI command, never by "
+            "the application at runtime. Loss falls back to [] (no override), "
+            "which is the documented safe default."
         ),
     ),
 ]

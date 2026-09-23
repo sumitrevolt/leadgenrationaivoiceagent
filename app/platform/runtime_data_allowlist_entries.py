@@ -1396,6 +1396,66 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Local admin script; no production customer data.",
     },
+    # --- scripts/legacy pilot tick scripts (offline tooling, 2026-09-23) ---------
+    # CI ratchet NEW finding source: three one-shot pilot scripts read + rewrite
+    # command_center/data/tasks.json via module symbol `p`. Declared per repo
+    # convention (one entry per file+symbol, store command_center.pilot_tasks,
+    # owner operations, tier 3 OFFLINE_TOOLING) — mirrors the existing
+    # command_center.pilot.dispatch.tasks_json_patches entry.
+    {
+        "allowlist_id": "command_center.pilot.legacy_dispatch_0830_1455",
+        "file": "scripts/legacy/pilot_dispatch_0830_1455.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "One-shot pilot dispatch tick (2026-08-30 14:55 IST) reads/writes "
+            "tasks.json for evidence updates via symbol `p`. Offline admin "
+            "tooling; same store family as the existing pilot dispatch entries."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "operations",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Local admin script; no production customer data.",
+    },
+    {
+        "allowlist_id": "command_center.pilot.legacy_nudge_run",
+        "file": "scripts/legacy/pilot_nudge_run.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "One-shot pilot nudge tick reads/writes tasks.json for evidence "
+            "updates via symbol `p`. Offline admin tooling; same store family "
+            "as the existing pilot dispatch entries."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "operations",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Local admin script; no production customer data.",
+    },
+    {
+        "allowlist_id": "command_center.pilot.legacy_run_tick",
+        "file": "scripts/legacy/pilot_run_tick.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "One-shot pilot run tick (2026-08-29 07:26 IST cron) reads/writes "
+            "tasks.json for evidence updates via symbol `p`. Offline admin "
+            "tooling; same store family as the existing pilot dispatch entries."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "operations",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Local admin script; no production customer data.",
+    },
     {
         "allowlist_id": "marketing.email_drips.runs",
         "file": "app/marketing/email_drips.py",
@@ -2020,6 +2080,51 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "communications",
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
+    },
+    # 2026-09-23 (CI ratchet pilot slice 1): Telegram poll-lease state.
+    # telegram_coordinator.py persists the per-process poll lease via atomic
+    # tmp + os.replace. Fully rebuildable: loss self-heals on the next poll.
+    {
+        "allowlist_id": "communications.telegram_poll_lease.state",
+        "file": "app/platform/telegram_coordinator.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": "data/telegram_poll_lease.json.tmp",
+        "store_id": "communications.telegram_poll_lease",
+        "access_modes": ["CREATE", "REPLACE"],
+        "reason": (
+            "Per-process poll lease persisted to data/telegram_poll_lease.json "
+            "via atomic tmp + os.replace (tmp derived as _LEASE_PATH.with_suffix('.tmp')). "
+            "Creates the data/ parent dir (exist_ok, idempotent) before each write. "
+            "Prevents concurrent poll loops. Loss self-heals: next poll cycle "
+            "rewrites the lease from scratch."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "communications",
+        "production_relevance": "LIVE",
+        "review_condition": "Atomic replace only; never partial write.",
+    },
+    # 2026-09-23 (CI ratchet pilot slice 1): TypeSafe admin runtime key store.
+    # typesafe_integration.py reads data/typesafe_keys.json for the four-slot
+    # KeyManager runtime override. Written only by an explicit admin CLI command.
+    {
+        "allowlist_id": "platform.typesafe_keys.runtime_store",
+        "file": "app/platform/typesafe_integration.py",
+        "line_or_symbol": "_RUNTIME_KEYS_FILE",
+        "path_pattern": "data/typesafe_keys.json",
+        "store_id": "platform.typesafe_keys",
+        "access_modes": ["READ"],
+        "reason": (
+            "Admin-set runtime override for the four-slot TypeSafe KeyManager. "
+            "Read-only at application runtime; written ONLY by an explicit "
+            "admin CLI command. Absence falls back to [] (no override), "
+            "which is the documented safe default."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "governance",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Must remain read-only in app code; admin CLI only.",
     },
 ]
 
