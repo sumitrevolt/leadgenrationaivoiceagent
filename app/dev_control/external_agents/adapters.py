@@ -205,14 +205,14 @@ class ClaudeAdapter(_BaseAdapter):
 
 class AgnesAdapter(_BaseAdapter):
     """Agnes Desktop executor — file-based and API-driven operations.
-    
+
     Agnes operates via:
     - File reads/writes (read/write tools)
     - GitHub API (github__* tools)
     - Web research (web_search, read_webpage, image_search)
     - Shell commands (when available)
     - Artifact creation (agnes_artifacts__*)
-    
+
     Does NOT have:
     - Windows GUI automation (no mouse/keyboard)
     - Direct VPS SSH access
@@ -225,7 +225,9 @@ class AgnesAdapter(_BaseAdapter):
 
     def build_packet(self, mission: Mission) -> dict[str, Any]:
         packet = super().build_packet(mission)
-        packet["interface"] = "Agnes Desktop — file reads, GitHub API, web research, shell (when available)"
+        packet["interface"] = (
+            "Agnes Desktop — file reads, GitHub API, web research, shell (when available)"
+        )
         packet["capabilities"] = {
             "file_reads": True,
             "file_writes": True,

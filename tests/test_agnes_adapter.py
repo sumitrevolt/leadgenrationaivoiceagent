@@ -1,7 +1,8 @@
 """Test for Agnes adapter registration and functionality."""
 
 import pytest
-from app.dev_control.external_agents.adapters import AgnesAdapter, known_executors, get_adapter
+
+from app.dev_control.external_agents.adapters import AgnesAdapter, get_adapter, known_executors
 from app.dev_control.external_agents.schema import Mission, RiskClass
 
 
@@ -33,13 +34,16 @@ def test_agnes_build_packet():
         branch="feat/test-agnes",
         worktree="/tmp/test-worktree",
     )
-    
+
     adapter = get_adapter("agnes")
     packet = adapter.build_packet(mission)
-    
+
     assert packet["mission_id"] == mission.mission_id
     assert packet["adapter"] == "agnes"
-    assert packet["interface"] == "Agnes Desktop — file reads, GitHub API, web research, shell (when available)"
+    assert (
+        packet["interface"]
+        == "Agnes Desktop — file reads, GitHub API, web research, shell (when available)"
+    )
     assert packet["capabilities"]["file_reads"] is True
     assert packet["capabilities"]["github_api"] is True
     assert packet["capabilities"]["gui_automation"] is False
@@ -61,25 +65,31 @@ def test_agnes_validate_result():
         worktree="/tmp/test-worktree",
         required_tests=["test_agnes_adapter.py"],
     )
-    
+
     adapter = get_adapter("agnes")
-    
+
     # Valid result
     result = {
         "mission_id": mission.mission_id,
         "executor": "agnes",
         "changed_files": ["app/dev_control/external_agents/adapters.py"],
         "commands": ["python -m pytest tests/test_agnes_adapter.py"],
-        "tests": [{"command": "python -m pytest tests/test_agnes_adapter.py", "exit_code": 0, "summary": "passed"}],
+        "tests": [
+            {
+                "command": "python -m pytest tests/test_agnes_adapter.py",
+                "exit_code": 0,
+                "summary": "passed",
+            }
+        ],
         "summary": "Test passed",
         "evidence": {"type": "test_result", "path": "tests/test_agnes_adapter.py"},
         "scope_breach": False,
     }
-    
+
     validation = adapter.validate_result(mission, result)
     assert validation["accepted"] is True
     assert validation["violations"] == []
-    
+
     # Invalid result (scope breach)
     result_breach = result.copy()
     result_breach["changed_files"] = [".env"]
@@ -101,7 +111,7 @@ def test_agnes_requires_worktree():
         branch="",  # Empty branch
         worktree="",  # Empty worktree
     )
-    
+
     adapter = get_adapter("agnes")
     result = {
         "mission_id": mission.mission_id,
@@ -110,7 +120,7 @@ def test_agnes_requires_worktree():
         "tests": [],
         "scope_breach": False,
     }
-    
+
     validation = adapter.validate_result(mission, result)
     assert validation["accepted"] is False
     assert any("worktree" in v for v in validation["violations"])

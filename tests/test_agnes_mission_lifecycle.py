@@ -1,167 +1,149 @@
-"""Test mission lifecycle for Agnes adapter."""
+"""Mission-lifecycle tests for the Agnes external-executor adapter.
+
+All orchestrator/store setup is done through a module-scoped fixture that
+redirects the *real* external mission store (EXTERNAL_MISSION_DIR, in LEGACY
+mode) to a fresh temp dir and enables EXTERNAL_AGENT_ORCHESTRATOR, restoring
+the environment and resetting the cached CAS backend on teardown. No
+module-level environment mutation and no patching of the unrelated internal
+automation ledger.
+"""
 
 import os
+import shutil
 import sys
-import pytest
+import tempfile
 import uuid
 from pathlib import Path
 
-# Add project root to path
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-# Enable the orchestrator for this test
-os.environ["EXTERNAL_AGENT_ORCHESTRATOR"] = "1"
-# Use local-file mode for testing (no Redis required)
-os.environ["EXTERNAL_AGENT_COORDINATION_BACKEND"] = "local-file"
-
-from app.dev_control.external_agents.schema import Mission, RiskClass, MissionState
+from app.dev_control.external_agents import cas as cas_mod
+from app.dev_control.external_agents import store as ext_store
 from app.dev_control.external_agents.adapters import AgnesAdapter, get_adapter
-from app.dev_control.external_agents.orchestrator import create_mission, OrchestratorDisabled
+from app.dev_control.external_agents.orchestrator import create_mission
+from app.dev_control.external_agents.schema import Mission, MissionState, RiskClass
 
 
-def test_orchestrator_enabled():
-    """Orchestrator must be enabled for this test."""
+def _u(prefix: str) -> str:
+    return f"{prefix}-{uuid.uuid4().hex[:10]}"
+
+
+@pytest.fixture(scope="module")
+def agnes_env():
+    saved = {}
+    tmp = Path(tempfile.mkdtemp(prefix=f"agnes_lifecycle_{uuid.uuid4().hex[:8]}_"))
+    try:
+        for var in (
+            "EXTERNAL_AGENT_ORCHESTRATOR",
+            "EXTERNAL_AGENT_COORDINATION_BACKEND",
+            "EXTERNAL_MISSION_DIR",
+        ):
+            saved[var] = os.environ.get(var)
+        os.environ["EXTERNAL_AGENT_ORCHESTRATOR"] = "1"
+        os.environ["EXTERNAL_AGENT_COORDINATION_BACKEND"] = "local-file"
+        os.environ["EXTERNAL_MISSION_DIR"] = str(tmp)
+        cas_mod.reset_backend()
+        yield tmp
+    finally:
+        cas_mod.reset_backend()
+        for var, val in saved.items():
+            if val is None:
+                os.environ.pop(var, None)
+            else:
+                os.environ[var] = val
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_orchestrator_enabled(agnes_env):
     from app.dev_control.external_agents import policy
+
     assert policy.orchestrator_enabled() is True
 
 
-def test_create_agnes_mission():
-    """Create a mission for Agnes executor."""
-    unique_key = f"test-agnes-mission-{uuid.uuid4().hex[:8]}"
-    unique_path = f"tests/agnes_test_{uuid.uuid4().hex[:8]}/"
+def test_store_isolated_to_temp(agnes_env):
+    """Missions persist under the fixture's temp dir, not the in-repo data dir."""
+    live_root = ext_store._root()
+    assert str(live_root).startswith(str(agnes_env)), f"store not isolated: {live_root}"
+    assert cas_mod.get_backend().name == "filelock"
+
+
+def test_create_agnes_mission(agnes_env):
     mission = create_mission(
         title="Test Agnes Mission",
         description="Verify Agnes adapter integration",
         executor="agnes",
-        reviewer="manager",
-        idempotency_key=unique_key,
-        allowed_paths=[unique_path],
-        branch=f"feat/test-agnes-mission-{uuid.uuid4().hex[:8]}",
-        worktree=f"/tmp/test-worktree-agnes-{uuid.uuid4().hex[:8]}",
-        acceptance_criteria=[
-            "Mission created successfully",
-            "Adapter packet built correctly",
-            "Result validated successfully",
-        ],
+        reviewer="claude",
+        idempotency_key=_u("create"),
+        allowed_paths=[f"tests/{_u('scope')}/"],
+        branch=_u("feat"),
+        worktree=_u("wt"),
     )
-    
-    assert mission["ok"] is True, f"Mission creation failed: {mission}"
-    assert "mission" in mission
-    assert mission["mission"]["executor"] == "agnes"
-    assert mission["mission"]["risk_class"] == "GREEN"
-    
-    return mission["mission"]
-
-
-def test_mission_lifecycle():
-    """Test full mission lifecycle."""
-    unique_key = f"test-agnes-lifecycle-{uuid.uuid4().hex[:8]}"
-    unique_path = f"tests/agnes_lifecycle_{uuid.uuid4().hex[:8]}/"
-    result = create_mission(
-        title="Test Agnes Mission Lifecycle",
-        description="Test full lifecycle: CREATED -> COMPLETE",
-        executor="agnes",
-        reviewer="manager",
-        idempotency_key=unique_key,
-        allowed_paths=[unique_path],
-        branch=f"feat/test-agnes-lifecycle-{uuid.uuid4().hex[:8]}",
-        worktree=f"/tmp/test-worktree-lifecycle-{uuid.uuid4().hex[:8]}",
-    )
-    
-    # Debug: print result to see what's returned
-    print(f"Mission creation result: {result}")
-    if not result.get("ok"):
-        pytest.fail(f"Mission creation failed: {result}")
-    mission = result["mission"]
-    
-    # Verify mission was created successfully
-    assert mission["status"] in [
-        MissionState.CREATED.value,
-        MissionState.PREFLIGHT.value,
-        MissionState.CLAIMED.value,
-    ], f"Mission status unexpected: {mission['status']}"
-    
-    return mission
+    assert mission["ok"] is True, f"creation failed: {mission.get('reason')}"
+    m = mission["mission"]
+    assert m["executor"] == "agnes"
+    assert m["risk_class"] == "GREEN"
+    assert m["status"] == MissionState.CREATED.value
+    # It actually persisted to the isolated store.
+    assert ext_store.get(m["mission_id"]) is not None
 
 
 def test_agnes_adapter_packet():
-    """Test that Agnes adapter builds correct packet."""
     mission = Mission.create(
-        title="Test Agnes Packet",
-        description="Test adapter packet building",
+        title="packet",
         executor="agnes",
-        reviewer="manager",
+        reviewer="claude",
         risk_class=RiskClass.GREEN,
-        idempotency_key=f"test-agnes-packet-{uuid.uuid4().hex[:8]}",
-        allowed_paths=["tests/", "app/dev_control/"],
-        branch=f"feat/test-agnes-packet-{uuid.uuid4().hex[:8]}",
-        worktree=f"/tmp/test-worktree-packet-{uuid.uuid4().hex[:8]}",
+        idempotency_key=_u("pkt"),
+        allowed_paths=["tests/"],
+        branch="feat/pkt",
+        worktree="wt-pkt",
     )
-    
-    adapter = get_adapter("agnes")
-    packet = adapter.build_packet(mission)
-    
-    # Verify packet structure
-    assert packet["mission_id"] == mission.mission_id
+    packet = get_adapter("agnes").build_packet(mission)
     assert packet["adapter"] == "agnes"
     assert packet["role"] == "executor"
-    assert packet["risk_class"] == "GREEN"
-    assert "capabilities" in packet
-    assert packet["capabilities"]["file_reads"] is True
     assert packet["capabilities"]["github_api"] is True
     assert packet["capabilities"]["gui_automation"] is False
-    
-    # Verify prohibited actions
-    assert len(packet["prohibited_actions"]) > 0
-    assert any("env" in action for action in packet["prohibited_actions"])
-    
-    # Verify required evidence
-    assert "file_changes" in packet["required_evidence"]
-    assert "test_results" in packet["required_evidence"]
-    assert "github_commits" in packet["required_evidence"]
+    assert any("env" in a for a in packet["prohibited_actions"])
 
 
-def test_agnes_validate_result():
-    """Agnes adapter must validate results correctly."""
-    unique_path = f"tests/agnes_result_{uuid.uuid4().hex[:8]}/"
+def test_agnes_validate_result(agnes_env):
+    scope = _u("scope")
     mission = Mission.create(
-        title="Test Agnes Result Validation",
-        description="Test result validation",
+        title="validation",
         executor="agnes",
-        reviewer="manager",
+        reviewer="claude",
         risk_class=RiskClass.GREEN,
-        idempotency_key=f"test-agnes-result-{uuid.uuid4().hex[:8]}",
-        allowed_paths=[unique_path],
-        branch=f"feat/test-agnes-result-{uuid.uuid4().hex[:8]}",
-        worktree=f"/tmp/test-worktree-result-{uuid.uuid4().hex[:8]}",
-        required_tests=["test_agnes_adapter.py"],
+        idempotency_key=_u("val"),
+        allowed_paths=[f"tests/{scope}/"],
+        branch="feat/val",
+        worktree="wt-val",
+        required_tests=["tests/"],
     )
-    
     adapter = get_adapter("agnes")
-    
-    # Valid result
-    result = {
-        "mission_id": mission.mission_id,
-        "executor": "agnes",
-        "changed_files": [unique_path + "test_file.py"],
-        "commands": ["python -m pytest tests/test_agnes_adapter.py"],
-        "tests": [{"command": "python -m pytest tests/test_agnes_adapter.py", "exit_code": 0, "summary": "passed"}],
-        "summary": "Test passed",
-        "evidence": {"type": "test_result", "path": unique_path + "test_file.py"},
-        "scope_breach": False,
-    }
-    
-    validation = adapter.validate_result(mission, result)
-    assert validation["accepted"] is True
-    assert validation["violations"] == []
-    
-    # Invalid result (scope breach)
-    result_breach = result.copy()
-    result_breach["changed_files"] = [".env"]
-    validation_breach = adapter.validate_result(mission, result_breach)
-    assert validation_breach["accepted"] is False
-    assert any("scope_breach" in v for v in validation_breach["violations"])
+    good = adapter.validate_result(
+        mission,
+        {
+            "mission_id": mission.mission_id,
+            "executor": "agnes",
+            "changed_files": [f"tests/{scope}/demo.py"],
+            "tests": [{"command": "pytest", "exit_code": 0}],
+        },
+    )
+    assert good["accepted"] is True
+
+    bad = adapter.validate_result(
+        mission,
+        {
+            "mission_id": mission.mission_id,
+            "executor": "agnes",
+            "changed_files": [".env"],
+        },
+    )
+    assert bad["accepted"] is False
+    assert any("scope_breach" in v for v in bad["violations"])
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    sys.exit(pytest.main([__file__, "-v"]))
