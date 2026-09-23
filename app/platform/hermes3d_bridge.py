@@ -99,7 +99,11 @@ class Hermes3DBridge:
                 if clean:
                     self.allowlist.add(clean)
 
-        self.mode_2d_fallback: bool = os.getenv("HERMES3D_2D_MODE", "0").lower() in ("1", "true", "yes")
+        self.mode_2d_fallback: bool = os.getenv("HERMES3D_2D_MODE", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
     def is_client_allowed(self, client_ip: str | None) -> bool:
         if not client_ip:
@@ -121,15 +125,17 @@ class Hermes3DBridge:
         """Return canonical workforce registry (31 staff + 9 supervisory bots)."""
         staff_agents = []
         for agent_id, info in team.STAFF.items():
-            staff_agents.append({
-                "id": agent_id,
-                "name": info.get("name", agent_id),
-                "title": info.get("title", ""),
-                "emoji": info.get("emoji", "🤖"),
-                "product": info.get("product", "platform"),
-                "duties": info.get("duties", ""),
-                "schedule": info.get("schedule", ""),
-            })
+            staff_agents.append(
+                {
+                    "id": agent_id,
+                    "name": info.get("name", agent_id),
+                    "title": info.get("title", ""),
+                    "emoji": info.get("emoji", "🤖"),
+                    "product": info.get("product", "platform"),
+                    "duties": info.get("duties", ""),
+                    "schedule": info.get("schedule", ""),
+                }
+            )
 
         return {
             "agents": staff_agents,
@@ -166,9 +172,22 @@ class Hermes3DBridge:
             "poll_interval_sec": 3.0,
         }
 
-    def handle_command(self, action: str, target_agent: str | None = None, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Dispatch administrative command from 3D office."""
+    def handle_command(
+        self, action: str, target_agent: str | None = None, parameters: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Dispatch administrative command from 3D office.
+
+        Real command lifecycle:
+        1. Validate requested action against SUPPORTED_ACTIONS
+        2. Authorize via orchestrator.submit_task() with TypeSafe intake gate
+        3. Persist canonical task in DurableTaskStore (SQLite ledger)
+        4. Dispatch with lease acquisition and fencing token
+        5. Return canonical task ID and persisted status
+
+        Unsupported actions are rejected with explicit error — never a fake "dispatched".
+        """
         parameters = parameters or {}
+
         if action == "toggle_2d_mode":
             self.mode_2d_fallback = not self.mode_2d_fallback
             logger.info("[hermes3d] 2D fallback mode toggled to: %s", self.mode_2d_fallback)
@@ -178,14 +197,68 @@ class Hermes3DBridge:
                 "mode_2d": self.mode_2d_fallback,
             }
 
-        logger.info("[hermes3d] Dispatched action=%s to target=%s with params=%s", action, target_agent, parameters)
-        return {
-            "success": True,
-            "action": action,
-            "target_agent": target_agent,
-            "parameters": parameters,
-            "status": "dispatched",
+        SUPPORTED_ACTIONS = {
+            "run_cycle",
+            "focus_agent",
+            "status_check",
+            "pause_agent",
+            "resume_agent",
         }
+
+        if action not in SUPPORTED_ACTIONS:
+            logger.warning("[hermes3d] Rejected unsupported action: %s", action)
+            return {
+                "success": False,
+                "action": action,
+                "error": f"unsupported_action",
+                "message": f"Action '{action}' is not supported. Supported: {sorted(SUPPORTED_ACTIONS)}",
+            }
+
+        # Create real canonical task through the orchestrator
+        try:
+            from app.platform.automation_orchestrator import AutomationOrchestrator, TaskPriority
+
+            orch = AutomationOrchestrator()
+            task, is_new = orch.submit_task(
+                owner_bot="guardian",
+                assigned_agent=target_agent or "guardian",
+                priority=TaskPriority.LOW,
+                input_payload={
+                    "action": action,
+                    "parameters": parameters,
+                    "source": "hermes3d_command",
+                },
+            )
+
+            dispatched = orch.dispatch_task(task.task_id)
+            current = orch.store.get(task.task_id)
+
+            return {
+                "success": True,
+                "action": action,
+                "target_agent": target_agent,
+                "parameters": parameters,
+                "task_id": task.task_id,
+                "status": current.status.value,
+                "is_new": is_new,
+                "version": current.version,
+                "dispatched": dispatched,
+            }
+        except ValueError as e:
+            return {
+                "success": False,
+                "action": action,
+                "error": "validation_error",
+                "message": str(e),
+            }
+        except Exception as e:
+            logger.error("[hermes3d] Command dispatch failed: %s", e)
+            return {
+                "success": False,
+                "action": action,
+                "error": "dispatch_failed",
+                "message": str(e),
+            }
 
 
 _bridge: Hermes3DBridge | None = None
