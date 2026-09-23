@@ -422,6 +422,23 @@ class TypeSafeResponse:
         return None
 
     @property
+    def score(self) -> float | None:
+        """Get the clamped score (0.0-1.0) from first Score answer.
+
+        The wire contract states scores are 0.0-1.0, but the API has returned
+        values above 1.0 (e.g. 1.02, 2.4) in production. This property clamps
+        to [0, 1] for safe downstream consumption.
+        """
+        for v in self._answer_items():
+            if isinstance(v, dict):
+                raw = v.get("score")
+                if raw is not None:
+                    return self._clamp_01(_as_float(raw))
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
+                return self._clamp_01(float(v))
+        return None
+
+    @property
     def confidence(self) -> float:
         """Get confidence/probability from first answer.
 
