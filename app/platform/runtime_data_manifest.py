@@ -1511,6 +1511,65 @@ STORES: list[dict[str, Any]] = [
             "never inside the checkout; fully rebuildable by the next poll."
         ),
     ),
+    # 2026-09-22 (Wave 7 prod_check repair): the TypeSafe intake-gate wrapper
+    # writes a per-judgment trace under data/typesafe_intake_trace.jsonl. It is
+    # append-only telemetry, OFF by default (TYPESAFE_INTAKE_GATE must be 1),
+    # best-effort (never raises; rebuildable on next call). Narrow entry to
+    # keep the ratchet green without weakening the gate.
+    _e(
+        store_id="platform.typesafe_intake_trace",
+        display_name="TypeSafe intake-gate judgment append-only trace (Wave 7)",
+        legacy_paths=["data/typesafe_intake_trace.jsonl"],
+        writer_modules=["app/platform/typesafe_intake_gate.py"],
+        production_activity="OFFLINE_TOOLING",
+        current_authority="FILE",
+        business_category="governance",
+        durability_class="rebuildable",
+        concurrency_model="append-only JSONL; row-level dedup via decision_id",
+        tenant_scope="platform-wide (single MiniMax root session + worker fan-in)",
+        target_runtime_subpath="platform/typesafe_intake_trace/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22 (Wave 7). When TYPESAFE_INTAKE_GATE=1, "
+            "evaluate_intake() writes one JSONL row per judgment (decision_id, "
+            "task_id, route, reason, consumed_calls, elapsed_ms). Failures "
+            "degrade silently; next call rewrites a fresh trace from scratch."
+        ),
+    ),
+    # 2026-09-22 (Wave 7 prod_check repair): the Jarvis dispatcher else-branch
+    # appends each owner-command invocation result to
+    # data/telegram_command_mirror.jsonl for the OCC reader
+    # (app/platform/telegram_command_mirror.py). Append-only telemetry,
+    # rebuildable, never read for control flow. Narrow entry.
+    _e(
+        store_id="platform.telegram_command_mirror",
+        display_name="Telegram owner-command mirror for OCC readback (Wave 7)",
+        legacy_paths=["data/telegram_command_mirror.jsonl"],
+        writer_modules=[
+            "app/integrations/telegram_bot.py",
+        ],
+        reader_modules=[
+            "app/platform/telegram_command_mirror.py",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="governance",
+        durability_class="rebuildable",
+        concurrency_model="append-only JSONL; OCC re-tails on every read",
+        tenant_scope="platform-wide (single MiniMax root session)",
+        target_runtime_subpath="platform/telegram_command_mirror/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-09-22 (Wave 7). The Jarvis dispatcher in "
+            "app/integrations/telegram_bot.py writes one JSONL row per owner "
+            "command invocation. Read by app/platform/telegram_command_mirror.py "
+            "for the OCC summary card. Loss self-heals on next invocation."
+        ),
+    ),
 ]
 
 

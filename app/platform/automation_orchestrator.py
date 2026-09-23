@@ -39,7 +39,9 @@ from app.platform.dev_workers import get_prover
 logger = logging.getLogger(__name__)
 
 # Default data storage paths
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data"
+)
 SQLITE_DB_PATH = os.path.join(DATA_DIR, "orchestrator_ledger.db")
 LEDGER_JSON = os.path.join(DATA_DIR, "orchestrator_ledger.json")
 IDEMPOTENCY_JSON = os.path.join(DATA_DIR, "orchestrator_idempotency.json")
@@ -120,7 +122,9 @@ class TaskRecord:
             "task_id": self.task_id,
             "owner_bot": self.owner_bot,
             "assigned_agent": self.assigned_agent,
-            "priority": self.priority.value if isinstance(self.priority, TaskPriority) else self.priority,
+            "priority": self.priority.value
+            if isinstance(self.priority, TaskPriority)
+            else self.priority,
             "status": self.status.value if isinstance(self.status, TaskStatus) else self.status,
             "version": self.version,
             "fencing_token": self.fencing_token,
@@ -231,6 +235,7 @@ class DurableTaskStore:
 
     def _get_conn(self):
         import sqlite3
+
         conn = sqlite3.connect(self.db_path, timeout=10.0)
         try:
             conn.execute("PRAGMA journal_mode=WAL;")
@@ -296,7 +301,8 @@ class DurableTaskStore:
         with self._lock:
             conn = self._get_conn()
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO task_records (
                     task_id, owner_bot, assigned_agent, priority, status, version, fencing_token,
                     retry_count, max_retries, deadline_s, provider, model, idempotency_key,
@@ -313,33 +319,57 @@ class DurableTaskStore:
                     error_message = excluded.error_message,
                     last_heartbeat = excluded.last_heartbeat,
                     updated_at = excluded.updated_at
-            """, (
-                record.task_id, record.owner_bot, record.assigned_agent,
-                record.priority.value if isinstance(record.priority, TaskPriority) else record.priority,
-                record.status.value if isinstance(record.status, TaskStatus) else record.status,
-                record.version, record.fencing_token, record.retry_count, record.max_retries,
-                record.deadline_s, record.provider, record.model, record.idempotency_key,
-                json.dumps(record.input_payload),
-                json.dumps(record.evidence) if record.evidence else None,
-                record.error_message, record.last_heartbeat, record.created_at, record.updated_at
-            ))
+            """,
+                (
+                    record.task_id,
+                    record.owner_bot,
+                    record.assigned_agent,
+                    record.priority.value
+                    if isinstance(record.priority, TaskPriority)
+                    else record.priority,
+                    record.status.value if isinstance(record.status, TaskStatus) else record.status,
+                    record.version,
+                    record.fencing_token,
+                    record.retry_count,
+                    record.max_retries,
+                    record.deadline_s,
+                    record.provider,
+                    record.model,
+                    record.idempotency_key,
+                    json.dumps(record.input_payload),
+                    json.dumps(record.evidence) if record.evidence else None,
+                    record.error_message,
+                    record.last_heartbeat,
+                    record.created_at,
+                    record.updated_at,
+                ),
+            )
             conn.commit()
             conn.close()
 
-    def update_cas(self, task_id: str, expected_version: int, new_status: TaskStatus, new_fencing_token: str) -> bool:
+    def update_cas(
+        self, task_id: str, expected_version: int, new_status: TaskStatus, new_fencing_token: str
+    ) -> bool:
         """Atomic Compare-And-Swap Update: READY -> RUNNING with version increment."""
         with self._lock:
             conn = self._get_conn()
             cursor = conn.cursor()
             now = time.time()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE task_records
                 SET status = ?, version = version + 1, fencing_token = ?, last_heartbeat = ?, updated_at = ?
                 WHERE task_id = ? AND version = ?
-            """, (
-                new_status.value if isinstance(new_status, TaskStatus) else new_status,
-                new_fencing_token, now, now, task_id, expected_version
-            ))
+            """,
+                (
+                    new_status.value if isinstance(new_status, TaskStatus) else new_status,
+                    new_fencing_token,
+                    now,
+                    now,
+                    task_id,
+                    expected_version,
+                ),
+            )
             success = cursor.rowcount > 0
             conn.commit()
             conn.close()
@@ -384,7 +414,9 @@ class DurableTaskStore:
 class RedisGovernorAuthority:
     """Atomic Runtime Coordination Authority (Redis primary with thread-safe file lock fallback)."""
 
-    def __init__(self, max_leases: int = 4, lease_file: str = LEASE_JSON, lease_timeout_s: float = 60.0):
+    def __init__(
+        self, max_leases: int = 4, lease_file: str = LEASE_JSON, lease_timeout_s: float = 60.0
+    ):
         self.max_leases = max_leases
         self.lease_file = lease_file
         self.lease_timeout_s = lease_timeout_s
@@ -396,7 +428,7 @@ class RedisGovernorAuthority:
     def generate_fencing_token(self, task_id: str) -> str:
         with self._lock:
             self._seq += 1
-            return f"fence_{task_id}_{self._seq}_{int(time.time()*1000)}"
+            return f"fence_{task_id}_{self._seq}_{int(time.time() * 1000)}"
 
     def _load_leases(self) -> dict[str, dict[str, Any]]:
         if os.path.exists(self.lease_file):
@@ -424,7 +456,9 @@ class RedisGovernorAuthority:
                 hb = info.get("hb", 0) if isinstance(info, dict) else info
                 if now - hb > self.lease_timeout_s:
                     reclaimed.append(tid)
-                    logger.warning(f"[RedisGovernor] Reclaimed stale lease for process/task {tid} (idle {now - hb:.1f}s)")
+                    logger.warning(
+                        f"[RedisGovernor] Reclaimed stale lease for process/task {tid} (idle {now - hb:.1f}s)"
+                    )
                 else:
                     active_leases[tid] = info
             if reclaimed:
@@ -501,10 +535,13 @@ class AutomationOrchestrator:
         else:
             try:
                 from app.platform.dev_workers import DevWorkerStore
+
                 self.dev_workers = DevWorkerStore(db_path=self.store.db_path)
             except Exception:
                 self.dev_workers = None  # never block the orchestrator on the prover
-        l_file = lease_file or (self.store.db_path + ".leases.json" if hasattr(self.store, "db_path") else LEASE_JSON)
+        l_file = lease_file or (
+            self.store.db_path + ".leases.json" if hasattr(self.store, "db_path") else LEASE_JSON
+        )
         self.governor = RedisGovernorAuthority(max_leases=max_concurrency, lease_file=l_file)
         self.metrics = {
             "task_latency": [],
@@ -526,7 +563,9 @@ class AutomationOrchestrator:
     def recover_stale_running_tasks(self) -> None:
         stale_tids = self.governor.reap_stale_leases()
         for task in self.store.all_tasks():
-            if task.status == TaskStatus.RUNNING and (task.task_id in stale_tids or time.time() - task.last_heartbeat > 60.0):
+            if task.status == TaskStatus.RUNNING and (
+                task.task_id in stale_tids or time.time() - task.last_heartbeat > 60.0
+            ):
                 logger.warning(f"[Orchestrator] Recovering stale RUNNING task {task.task_id}")
                 self.governor.release(task.task_id)
                 self.metrics["lease_expirations"] += 1
@@ -553,10 +592,14 @@ class AutomationOrchestrator:
         deadline_s: int = 300,
     ) -> tuple[TaskRecord, bool]:
         if owner_bot not in self.HERMES_BOTS:
-            raise ValueError(f"Invalid owner_bot '{owner_bot}'. Must be one of {list(self.HERMES_BOTS.keys())}")
+            raise ValueError(
+                f"Invalid owner_bot '{owner_bot}'. Must be one of {list(self.HERMES_BOTS.keys())}"
+            )
 
         if assigned_agent not in self.registry:
-            raise ValueError(f"Invalid assigned_agent '{assigned_agent}'. Must be one of the 31 registered agents.")
+            raise ValueError(
+                f"Invalid assigned_agent '{assigned_agent}'. Must be one of the 31 registered agents."
+            )
 
         key = idempotency_key or f"{owner_bot}:{assigned_agent}:{hash(str(input_payload))}"
 
@@ -574,6 +617,41 @@ class AutomationOrchestrator:
         # kill-switch-blocked task look like it had executed. The old code here
         # also referenced an undefined `lease_token`, so it raised NameError on
         # every submit and the "non-fatal" handler swallowed it silently.
+
+        # Wave 7 §4: TypeSafe intake-judgment pre-write hook (ADDITIVE, default OFF).
+        # Uses canonical typesafe_session_policy.judge_task; never blocks write;
+        # annotates input_payload with `typesafe_intake_judgment` for downstream
+        # observers. Opt-in via TYPESAFE_INTAKE_GATE=1; no parallel client.
+        try:
+            from app.platform.typesafe_intake_gate import (
+                annotate_input_payload,
+                evaluate_intake,
+            )
+
+            contract = self.registry.get(assigned_agent)
+            intake_verdict = evaluate_intake(
+                task_id=task_id,
+                owner_bot=owner_bot,
+                assigned_agent=assigned_agent,
+                agent_lane=str(getattr(contract, "lane", "") if contract else ""),
+                priority=str(priority.value if hasattr(priority, "value") else priority),
+                payload_keys=list((input_payload or {}).keys()),
+            )
+            input_payload = annotate_input_payload(input_payload, intake_verdict)
+            self.metrics["typesafe_intake_consumed_calls"] = (
+                self.metrics.get("typesafe_intake_consumed_calls", 0)
+                + intake_verdict.consumed_calls
+            )
+            if intake_verdict.route == "review":
+                self.metrics["typesafe_intake_review_count"] = (
+                    self.metrics.get("typesafe_intake_review_count", 0) + 1
+                )
+        except Exception as exc:
+            logger.debug(
+                "[Orchestrator] TypeSafe intake gate skipped for %s: %s",
+                task_id,
+                type(exc).__name__,
+            )
 
         record = TaskRecord(
             task_id=task_id,
@@ -601,7 +679,9 @@ class AutomationOrchestrator:
 
     def dispatch_task(self, task_id: str) -> bool:
         if self.is_kill_switch_active():
-            logger.warning("[Orchestrator] Distributed kill switch AUTOMATION_STOP_NEW_CLAIMS active. Dispatch rejected.")
+            logger.warning(
+                "[Orchestrator] Distributed kill switch AUTOMATION_STOP_NEW_CLAIMS active. Dispatch rejected."
+            )
             record = self.store.get(task_id)
             if record:
                 record.status = TaskStatus.BLOCKED
@@ -647,6 +727,50 @@ class AutomationOrchestrator:
         except Exception as e:
             logger.warning("[Orchestrator] TypeSafe session policy degraded for %s: %s", task_id, e)
 
+        # Wave 7 Gap 3: TypeSafe final_review pre-lease hook (ADDITIVE, default OFF).
+        # Post-judge-task, pre-acquire-lease. Uses canonical judge_task; never
+        # weakens RED/HARD_OFF (already enforced above); just annotates the task
+        # with `typesafe_final_review` and emits metrics. Opt-in via
+        # TYPESAFE_FINAL_REVIEW=1. Same single-SDK guarantee as intake_judge.
+        if os.getenv("TYPESAFE_FINAL_REVIEW", "0").strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                from app.platform.typesafe_intake_gate import (
+                    annotate_input_payload,
+                    evaluate_intake,
+                )
+
+                # Reuse evaluate_intake with a different `decision_id` prefix so
+                # the trace rows are distinguishable. The contract here is the same
+                # AgentContract (lane / mode), but the stage label is `final_review`.
+                final_verdict = evaluate_intake(
+                    task_id=task_id,
+                    owner_bot=record.owner_bot,
+                    assigned_agent=record.assigned_agent,
+                    agent_lane=str(getattr(contract, "lane", "")),
+                    priority=str(
+                        record.priority.value
+                        if hasattr(record.priority, "value")
+                        else record.priority
+                    ),
+                    payload_keys=list(record.input_payload.keys()),
+                    tenant_scope="final_review",
+                )
+                record.input_payload = annotate_input_payload(record.input_payload, final_verdict)
+                record.input_payload["typesafe_final_review"] = record.input_payload.pop(
+                    "typesafe_intake_judgment", {}
+                )
+                self.metrics["typesafe_final_review_consumed_calls"] = (
+                    self.metrics.get("typesafe_final_review_consumed_calls", 0)
+                    + final_verdict.consumed_calls
+                )
+                self.store.save(record)
+            except Exception as exc:
+                logger.debug(
+                    "[Orchestrator] TypeSafe final_review skipped for %s: %s",
+                    task_id,
+                    type(exc).__name__,
+                )
+
         fencing_token = self.governor.generate_fencing_token(task_id)
 
         # Atomic Compare-And-Swap Update
@@ -657,7 +781,9 @@ class AutomationOrchestrator:
             new_fencing_token=fencing_token,
         )
         if not cas_ok:
-            logger.warning(f"[Orchestrator] CAS race condition detected for task {task_id}. Dispatch aborted.")
+            logger.warning(
+                f"[Orchestrator] CAS race condition detected for task {task_id}. Dispatch aborted."
+            )
             return False
 
         # Acquire Concurrency Lease
@@ -698,6 +824,40 @@ class AutomationOrchestrator:
                 self.dev_workers.finish(task_id, success=success, evidence=evidence)
         except Exception as e:  # pragma: no cover — defensive
             logger.warning(f"[Orchestrator] dev_workers finish skipped for {task_id}: {e}")
+
+        # Wave 8 P0: TypeSafe OUTCOME review (semantically distinct from intake).
+        # Uses evaluate_outcome() with an outcome-specific schema — NOT
+        # evaluate_intake() which is intake-specific (per owner directive P0).
+        # Outcome verdict is: met / partial / not_met / uncertain / skipped
+        # with next_action: proceed / retry / escalate / rollback.
+        # source flag: REAL / MOCK / CACHED / SKIPPED for audit-grade transparency.
+        # HARD RULE: local `success` flag is AUTHORITATIVE for verdict='met';
+        # a failed task can NEVER be upgraded to 'met' by judge_task.
+        if os.getenv("TYPESAFE_OUTCOME_REVIEW", "0").strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                from app.platform.typesafe_intake_gate import evaluate_outcome
+
+                outcome_verdict = evaluate_outcome(
+                    task_id=task_id,
+                    success=success,
+                    evidence=evidence,
+                    downstream_result=None,
+                    customer_revenue_impact="",
+                    error_message="",
+                )
+                self.metrics["typesafe_outcome_review_consumed_calls"] = (
+                    self.metrics.get("typesafe_outcome_review_consumed_calls", 0)
+                    + outcome_verdict.consumed_calls
+                )
+                self.metrics["typesafe_outcome_review_last_verdict"] = outcome_verdict.verdict
+                self.metrics["typesafe_outcome_review_last_source"] = outcome_verdict.source
+                self.metrics["typesafe_outcome_review_last_action"] = outcome_verdict.next_action
+            except Exception as exc:
+                logger.debug(
+                    "[Orchestrator] TypeSafe outcome_review skipped for %s: %s",
+                    task_id,
+                    type(exc).__name__,
+                )
 
     @staticmethod
     def _emit_feed(*, severity: str, kind: str, text: str, evidence: str, actor: str) -> None:
@@ -741,7 +901,9 @@ class AutomationOrchestrator:
         # Stale Fencing Token Check (Late Worker Return Protection)
         if fencing_token and fencing_token != record.fencing_token:
             self.metrics["stale_result_rejects"] += 1
-            logger.error(f"[Orchestrator] Stale Fencing Token Rejected! Worker token '{fencing_token}' != current '{record.fencing_token}'")
+            logger.error(
+                f"[Orchestrator] Stale Fencing Token Rejected! Worker token '{fencing_token}' != current '{record.fencing_token}'"
+            )
             record.error_message = "Stale Fencing Token Rejected (Late worker return)"
             self.store.save(record)
             return record
@@ -758,7 +920,9 @@ class AutomationOrchestrator:
             record.retry_count += 1
             if record.retry_count < record.max_retries:
                 record.status = TaskStatus.READY
-                record.error_message = f"Attempt {record.retry_count} failed: {error_msg}. Re-queued."
+                record.error_message = (
+                    f"Attempt {record.retry_count} failed: {error_msg}. Re-queued."
+                )
             else:
                 record.status = TaskStatus.FAILED
                 record.error_message = f"Failed after {record.max_retries} attempts: {error_msg}"
@@ -767,7 +931,9 @@ class AutomationOrchestrator:
             self.store.save(record)
             # Execution proof: mark the worker failed (evidence = error + ledger ref).
             self._dev_worker_finish(
-                task_id, False, f"data/orchestrator_ledger.db#task_records:{task_id} | {error_msg or ''}"
+                task_id,
+                False,
+                f"data/orchestrator_ledger.db#task_records:{task_id} | {error_msg or ''}",
             )
             self._emit_feed(
                 severity="P1" if record.status == TaskStatus.FAILED else "info",
@@ -791,7 +957,9 @@ class AutomationOrchestrator:
         if not evidence_obj:
             self.metrics["guardian_rejects"] += 1
             record.status = TaskStatus.REVIEW
-            record.error_message = "Guardian Verification Failed: Evidence must conform to StructuredEvidence schema"
+            record.error_message = (
+                "Guardian Verification Failed: Evidence must conform to StructuredEvidence schema"
+            )
             record.updated_at = time.time()
             self.store.save(record)
             return record
@@ -886,16 +1054,18 @@ class AutomationOrchestrator:
         return completed_task
 
     def get_kanban_board(self) -> dict[str, list[dict[str, Any]]]:
-        board: dict[str, list[dict[str, Any]]] = {
-            status.value: [] for status in TaskStatus
-        }
+        board: dict[str, list[dict[str, Any]]] = {status.value: [] for status in TaskStatus}
         for task in self.store.all_tasks():
             board[task.status.value].append(task.to_dict())
         return board
 
     def get_metrics(self) -> dict[str, Any]:
         tasks = self.store.all_tasks()
-        avg_lat = sum(self.metrics["task_latency"]) / len(self.metrics["task_latency"]) if self.metrics["task_latency"] else 0.0
+        avg_lat = (
+            sum(self.metrics["task_latency"]) / len(self.metrics["task_latency"])
+            if self.metrics["task_latency"]
+            else 0.0
+        )
         return {
             "active_leases": self.governor.active_leases_count,
             "concurrency_high_watermark": self.governor.concurrency_high_watermark,

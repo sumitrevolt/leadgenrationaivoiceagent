@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 import requests
 
+from app.agents.skills import execute_skill
 from app.integrations.telegram_typesafe import (
     HERMES_BOT_CHOICES,
     TelegramBotCoordinator,
@@ -38,7 +39,6 @@ from app.integrations.telegram_typesafe import (
 )
 from app.platform.automation_orchestrator import AutomationOrchestrator, TaskPriority, TaskStatus
 from app.platform.typesafe_integration import get_typesafe_client
-from app.agents.skills import execute_skill
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +230,7 @@ class TelegramBot:
 
         if not is_authenticated:
             response_text = (
-                "🔒 Access Restricted\n\n"
+                "ðŸ”’ Access Restricted\n\n"
                 "This Telegram bot is private to LeadGen AI platform owners. "
                 "Your account is not authorized."
             )
@@ -279,14 +279,14 @@ class TelegramBot:
                 response_text, _, _ = self._cmd_agents()
             else:
                 response_text = (
-                    f"🤖 **Jarvis (LeadGen AI)**\n\n"
+                    f"ðŸ¤– **Jarvis (LeadGen AI)**\n\n"
                     f"Message classified as: `{intent}` (priority: {classification.get('priority', 'medium')})\n"
                     f"Routed to supervisory bot: `@{routed_bot}` ({HERMES_BOT_CHOICES.get(routed_bot, '')})\n\n"
                     f"Available commands:\n"
-                    f"/status — Real-time system & task metrics\n"
-                    f"/tasks — View recent active orchestrator tasks\n"
-                    f"/agents — View the 31 specialist agents\n"
-                    f"/pause & /resume — Control automation kill switch"
+                    f"/status â€” Real-time system & task metrics\n"
+                    f"/tasks â€” View recent active orchestrator tasks\n"
+                    f"/agents â€” View the 31 specialist agents\n"
+                    f"/pause & /resume â€” Control automation kill switch"
                 )
 
         # Validate response
@@ -341,27 +341,54 @@ class TelegramBot:
         elif cmd == "/test_handoff":
             return self._cmd_test_handoff()
         else:
-            return (
-                f"Unknown command: `{cmd}`\nUse /help to see all available commands.",
-                "command",
-                None,
-            )
+            # Wave 7: dispatch the 9 new owner commands to
+            # ``telegram_owner_commands.handle_owner_command``. The result's
+            # ``status`` field is preserved so callers can distinguish OK /
+            # EMPTY / UNAVAILABLE / NOT_INSTRUMENTED â€” never fabricated.
+            try:
+                from app.integrations.telegram_owner_commands import (
+                    handle_owner_command,
+                )
+
+                result = handle_owner_command(cmd)
+                # Mirror the result to the data pipeline for the dashboard.
+                try:
+                    import json
+
+                    from app.platform.runtime_data import store_dir
+
+                    mirror = store_dir("telegram_command_mirror.jsonl")
+                    with mirror.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(result.to_data_payload(), ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                return (
+                    result.to_telegram_text(),
+                    result.status,
+                    None,
+                )
+            except ImportError:
+                return (
+                    f"Unknown command: `{cmd}`\nUse /help to see all available commands.",
+                    "command",
+                    None,
+                )
 
     def _cmd_help(self) -> tuple[str, str, str | None]:
         bot_name = self._bot_info.get("first_name", "Jarvis")
         username = self._bot_info.get("username", "Sumits_jarvis_bot")
         text = (
-            f"👋 **{bot_name} (@{username}) — LeadGen AI Control Plane**\n\n"
+            f"ðŸ‘‹ **{bot_name} (@{username}) â€” LeadGen AI Control Plane**\n\n"
             f"Connected to the canonical 9-worker / 31-agent architecture.\n\n"
             f"**Operational Commands:**\n"
-            f"• `/status` — Live orchestrator state, active leases & task status counts\n"
-            f"• `/keys` or `/slots` — TypeSafe 4 logical slots health & rotation status\n"
-            f"• `/tasks [status]` — List tasks from the durable ledger\n"
-            f"• `/agents` — View the 31 specialist agents across 7 teams\n"
-            f"• `/test_handoff` — Execute a non-destructive verification task\n"
-            f"• `/pause` — Trigger kill switch (stops new task claims)\n"
-            f"• `/resume` — Re-enable automated task claims\n"
-            f"• `/help` — Show this message\n\n"
+            f"â€¢ `/status` â€” Live orchestrator state, active leases & task status counts\n"
+            f"â€¢ `/keys` or `/slots` â€” TypeSafe 4 logical slots health & rotation status\n"
+            f"â€¢ `/tasks [status]` â€” List tasks from the durable ledger\n"
+            f"â€¢ `/agents` â€” View the 31 specialist agents across 7 teams\n"
+            f"â€¢ `/test_handoff` â€” Execute a non-destructive verification task\n"
+            f"â€¢ `/pause` â€” Trigger kill switch (stops new task claims)\n"
+            f"â€¢ `/resume` â€” Re-enable automated task claims\n"
+            f"â€¢ `/help` â€” Show this message\n\n"
             f"You can also send natural language queries; TypeSafe System One (`jev-latest`) "
             f"will classify and route them to the appropriate supervisory bot."
         )
@@ -375,19 +402,17 @@ class TelegramBot:
             km = get_key_manager()
             slots = km.get_all_slots()
 
-            lines = ["🔐 **TypeSafe Key Manager — Logical Slots**\n"]
+            lines = ["ðŸ” **TypeSafe Key Manager â€” Logical Slots**\n"]
             for slot, info in sorted(slots.items()):
                 status = info.get("status", "ABSENT")
                 last_ver = info.get("last_verified") or "Never"
                 rot = "YES" if info.get("rotation_required") else "NO"
-                lines.append(
-                    f"• `{slot}`: **{status}** | Rot: {rot} | Verified: `{last_ver}`"
-                )
+                lines.append(f"â€¢ `{slot}`: **{status}** | Rot: {rot} | Verified: `{last_ver}`")
             lines.append("\n*Zero raw keys or secrets are transmitted or stored in plaintext.*")
             return "\n".join(lines), "keys_status", "board"
         except Exception as e:
             logger.warning("Failed to fetch slots in _cmd_keys: %s", e)
-            return f"❌ Error retrieving slots: {e}", "keys_status", "board"
+            return f"âŒ Error retrieving slots: {e}", "keys_status", "board"
 
     def _cmd_status(self) -> tuple[str, str, str | None]:
         orch = self._get_orchestrator()
@@ -416,19 +441,19 @@ class TelegramBot:
         ts_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         text = (
-            f"📊 **LeadGen AI Orchestrator Status**\n\n"
-            f"• **Supervisory Fleet:** 9 Hermes bots active (`board`, `pilot`, `sales`, etc.)\n"
-            f"• **Specialist Workforce:** {agent_count} agents registered (`team.STAFF`)\n"
-            f"• **Active Worker Leases:** {active_leases} / {orch.governor.max_leases}\n"
-            f"• **Kill Switch (`AUTOMATION_STOP_NEW_CLAIMS`):** {'🛑 ACTIVE (PAUSED)' if kill_switch else '🟢 OFF (RUNNING)'}\n\n"
+            f"ðŸ“Š **LeadGen AI Orchestrator Status**\n\n"
+            f"â€¢ **Supervisory Fleet:** 9 Hermes bots active (`board`, `pilot`, `sales`, etc.)\n"
+            f"â€¢ **Specialist Workforce:** {agent_count} agents registered (`team.STAFF`)\n"
+            f"â€¢ **Active Worker Leases:** {active_leases} / {orch.governor.max_leases}\n"
+            f"â€¢ **Kill Switch (`AUTOMATION_STOP_NEW_CLAIMS`):** {'ðŸ›‘ ACTIVE (PAUSED)' if kill_switch else 'ðŸŸ¢ OFF (RUNNING)'}\n\n"
             f"**Task Ledger ({len(all_tasks)} total tasks):**\n"
-            f"  🟢 Running: {running_cnt}\n"
-            f"  ⏳ Ready: {ready_cnt}\n"
-            f"  🟡 Blocked: {blocked_cnt}\n"
-            f"  ✅ Done: {done_cnt}\n"
-            f"  ❌ Failed: {failed_cnt}\n\n"
-            f"• **TypeSafe:** {typesafe_state} (model: `{ts_client.model}`)\n"
-            f"• **Updated:** `{ts_str}`"
+            f"  ðŸŸ¢ Running: {running_cnt}\n"
+            f"  â³ Ready: {ready_cnt}\n"
+            f"  ðŸŸ¡ Blocked: {blocked_cnt}\n"
+            f"  âœ… Done: {done_cnt}\n"
+            f"  âŒ Failed: {failed_cnt}\n\n"
+            f"â€¢ **TypeSafe:** {typesafe_state} (model: `{ts_client.model}`)\n"
+            f"â€¢ **Updated:** `{ts_str}`"
         )
         return text, "status_check", "board"
 
@@ -452,12 +477,12 @@ class TelegramBot:
             )
 
         # Show latest 5 tasks
-        lines = [f"📋 **Recent Tasks ({len(filtered)} matching):**\n"]
+        lines = [f"ðŸ“‹ **Recent Tasks ({len(filtered)} matching):**\n"]
         for t in filtered[-5:]:
             st = t.status.value if hasattr(t.status, "value") else str(t.status)
             prio = t.priority.value if hasattr(t.priority, "value") else str(t.priority)
             lines.append(
-                f"• `{t.task_id}` | **{st}** | Bot: `{t.owner_bot}` → `{t.assigned_agent}` (prio: {prio})"
+                f"â€¢ `{t.task_id}` | **{st}** | Bot: `{t.owner_bot}` â†’ `{t.assigned_agent}` (prio: {prio})"
             )
 
         lines.append("\nUse `/tasks RUNNING` or `/tasks READY` to filter.")
@@ -467,15 +492,15 @@ class TelegramBot:
         orch = self._get_orchestrator()
         registry = orch.registry
         text = (
-            f"🤖 **Specialist Execution Workforce ({len(registry)} Agents)**\n\n"
+            f"ðŸ¤– **Specialist Execution Workforce ({len(registry)} Agents)**\n\n"
             f"Derived canonically from `team.STAFF` and `agent_registry.py`:\n"
-            f"• **Boss / Coordinator:** manager\n"
-            f"• **Platform & SRE:** devops, security, database, perf, dbre\n"
-            f"• **Marketing & GTM:** content, seo, social, paid, outbound\n"
-            f"• **Sales & CRM:** pipeline, closer, outreach, follow_up\n"
-            f"• **Voice Team:** swara (FROZEN), voice_qa, telephony\n"
-            f"• **QA & Audit:** auditor, tester, compliance, verifier\n"
-            f"• **Finance & Admin:** billing, invoices, legal, ops\n\n"
+            f"â€¢ **Boss / Coordinator:** manager\n"
+            f"â€¢ **Platform & SRE:** devops, security, database, perf, dbre\n"
+            f"â€¢ **Marketing & GTM:** content, seo, social, paid, outbound\n"
+            f"â€¢ **Sales & CRM:** pipeline, closer, outreach, follow_up\n"
+            f"â€¢ **Voice Team:** swara (FROZEN), voice_qa, telephony\n"
+            f"â€¢ **QA & Audit:** auditor, tester, compliance, verifier\n"
+            f"â€¢ **Finance & Admin:** billing, invoices, legal, ops\n\n"
             f"All agents execute under strict governance contracts and fencing tokens."
         )
         return text, "agent_query", "guardian"
@@ -483,7 +508,7 @@ class TelegramBot:
     def _cmd_pause(self) -> tuple[str, str, str | None]:
         os.environ["AUTOMATION_STOP_NEW_CLAIMS"] = "1"
         return (
-            "🛑 **Automation Paused**\n\n"
+            "ðŸ›‘ **Automation Paused**\n\n"
             "Set `AUTOMATION_STOP_NEW_CLAIMS=1`. The orchestrator will reject any new task dispatches until resumed.",
             "command",
             "guardian",
@@ -492,7 +517,7 @@ class TelegramBot:
     def _cmd_resume(self) -> tuple[str, str, str | None]:
         os.environ["AUTOMATION_STOP_NEW_CLAIMS"] = "0"
         return (
-            "🟢 **Automation Resumed**\n\n"
+            "ðŸŸ¢ **Automation Resumed**\n\n"
             "Set `AUTOMATION_STOP_NEW_CLAIMS=0`. The orchestrator is now accepting task claims.",
             "command",
             "pilot",
@@ -534,27 +559,26 @@ class TelegramBot:
             final_status = updated.status.value if updated else "UNKNOWN"
 
             text = (
-                f"✅ **End-to-End Task Handoff Verified!**\n\n"
-                f"• Task ID: `{record.task_id}`\n"
-                f"• Owner Bot: `{owner_bot}`\n"
-                f"• Assigned Agent: `{assigned_agent}`\n"
-                f"• Creation: {'OK' if created else 'Existing'}\n"
-                f"• Claim/Dispatch: {'OK' if dispatched else 'Blocked'}\n"
-                f"• Execution & Verification: {'OK' if completed_record.status == TaskStatus.DONE else 'Review'}\n"
-                f"• Final Ledger Status: `{final_status}`"
+                f"âœ… **End-to-End Task Handoff Verified!**\n\n"
+                f"â€¢ Task ID: `{record.task_id}`\n"
+                f"â€¢ Owner Bot: `{owner_bot}`\n"
+                f"â€¢ Assigned Agent: `{assigned_agent}`\n"
+                f"â€¢ Creation: {'OK' if created else 'Existing'}\n"
+                f"â€¢ Claim/Dispatch: {'OK' if dispatched else 'Blocked'}\n"
+                f"â€¢ Execution & Verification: {'OK' if completed_record.status == TaskStatus.DONE else 'Review'}\n"
+                f"â€¢ Final Ledger Status: `{final_status}`"
             )
             return text, "command", "pilot"
         except Exception as e:
             return (
-                f"❌ Task handoff failed: `{e}`",
+                f"âŒ Task handoff failed: `{e}`",
                 "command",
                 "guardian",
             )
 
-
     def _execute_skill_for_intent(self, intent: str, message: str, user_id: str) -> str | None:
         """Execute a skill based on TypeSafe-classified intent.
-        
+
         Returns skill response text if skill executed successfully, None otherwise.
         """
         skill_map = {
@@ -564,18 +588,18 @@ class TelegramBot:
             "command": "orchestrator-control",
             "general_question": "general-knowledge",
         }
-        
+
         skill_name = skill_map.get(intent)
         if not skill_name:
             return None
-            
+
         try:
             result = execute_skill(skill_name, user_id, {"message": message})
             if result and result.get("success"):
                 return result.get("output", str(result))
         except Exception as e:
             logger.warning("[telegram_bot] Skill execution failed for %s: %s", skill_name, e)
-        
+
         return None
 
     def _log_audit(self, **kwargs: Any) -> None:
