@@ -106,6 +106,21 @@ def test_typesafe_response_parsing():
     )
     assert r_oob.value == 1.0, f"1.02 should clamp to 1.0, got {r_oob.value}"
     assert r_oob.confidence == 1.0, f"1.5 should clamp to 1.0, got {r_oob.confidence}"
+    assert r_oob.score == 1.0, f"1.02 should clamp to 1.0 (score prop), got {r_oob.score}"
+
+    # High out-of-range score (2.4 from real production judgment) also clamps
+    r_high = TypeSafeResponse(
+        success=True,
+        result={"answers": {"q": {"score": 2.4, "confidence": 0.0}}},
+    )
+    assert r_high.score == 1.0, f"2.4 should clamp to 1.0 (score prop), got {r_high.score}"
+
+    # Normal score passes through
+    r_ok = TypeSafeResponse(
+        success=True,
+        result={"answers": {"q": {"score": 0.74, "confidence": 0.85}}},
+    )
+    assert r_ok.score == 0.74, f"0.74 should pass through, got {r_ok.score}"
 
     # Empty/error parsing
     r_err = TypeSafeResponse(success=False, error="timeout")
