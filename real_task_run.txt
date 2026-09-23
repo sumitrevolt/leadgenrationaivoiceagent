@@ -1,0 +1,63 @@
+﻿Live ledger: C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\data\orchestrator_ledger.db (86016B)
+
+=== PRE-STATE ===
+{
+  "task_id": "task_79406871",
+  "status": "READY",
+  "version": 1,
+  "fencing_token": null,
+  "idempotency_key": "p0-76:guardian:hermes:telegram_owner_command",
+  "input_payload": "{\"command\": \"P0-76 ACK\", \"intent\": \"owner-command-center P0-76 closed loop: owner replies 'P0-76 ACK' on private chat 1621120182 -> this orchestrator task -> worker result -> outgoing ACK trace\", \"admin_task_ref\": 76, \"admin_task_label\": \"Telegram P0 (#76 admin Kanban task, owner=guardian, P0, IN_PROGRESS)\", \"outgoing_result_message_id\": 13849, \"owner_chat_id\": 1621120182, \"ingress_owner_designated\": \"vps (TELEGRAM_INGRESS_OWNER=vps; Hermes poller untouched)\", \"status_at_capture\": \"READY - no dispatch, no execution claim (awaiting worker claim + owner ACK)\", \"typesafe_intake_judgment\": {\"decision_id\": \"tsi-bad29a2e3e40\", \"route\": \"proceed\", \"reason\": \"policy_disabled\", \"consumed_calls\": 0, \"state_hash\": \"\", \"elapsed_ms\": 0.0, \"gate_enabled\": false}}",
+  "evidence": null,
+  "error_message": null
+}
+
+=== DISPATCHING update_id=800001 command=/status task=task_79406871 ===
+2026-09-23 22:57:58 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.vector_store | 📦 Vector store initialized: data/vectorstore
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.data_pipeline | 📊 Data pipeline initialized: data\conversations
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.data_pipeline | 📊 Data pipeline initialized: data\conversations
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.auto_trainer | 🎓 Auto Trainer initialized
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-23 22:57:58 | [32mINFO[0m | app.ml.brain_optimizer | 🧠 Brain Optimizer initialized
+2026-09-23 22:57:59 | [32mINFO[0m | app.lead_scraper.scraper_manager | 🔍 Lead Scraper Manager initialized
+2026-09-23 22:57:59 | [32mINFO[0m | app.telephony.call_manager | 📞 Call Manager initialized with tata_smartflo
+2026-09-23 22:57:59 | [32mINFO[0m | app.integrations.google_sheets | Google Sheets not configured (no credentials file) — skipping.
+2026-09-23 22:57:59 | [33mWARNING[0m | app.integrations.hubspot | HubSpot API key not configured
+2026-09-23 22:57:59 | [33mWARNING[0m | app.integrations.whatsapp | WhatsApp credentials not configured
+2026-09-23 22:57:59 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-23 22:57:59 | [32mINFO[0m | app.automation.campaign_manager | 🎯 Campaign Manager initialized
+2026-09-23 22:57:59 | [32mINFO[0m | app.lead_scraper.scraper_manager | 🔍 Lead Scraper Manager initialized
+2026-09-23 22:57:59 | [33mWARNING[0m | app.integrations.whatsapp | WhatsApp credentials not configured
+2026-09-23 22:57:59 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-23 22:57:59 | [32mINFO[0m | app.platform.tenant_manager | 🏢 Tenant Manager initialized
+
+=== RESULT ===
+{
+  "status": "REVIEW",
+  "task_id": "task_79406871",
+  "fencing_token_fingerprint": null,
+  "reply_message_id": null,
+  "reason": "TypeSafe session policy requires owner review",
+  "owner_command_status": null,
+  "started_at_utc": "2026-09-23T17:27:56Z",
+  "finished_at_utc": "2026-09-23T17:28:00Z"
+}
+
+=== POST-STATE ===
+{
+  "task_id": "task_79406871",
+  "status": "REVIEW",
+  "version": 1,
+  "fencing_token": null,
+  "idempotency_key": "p0-76:guardian:hermes:telegram_owner_command",
+  "input_payload": "{\"command\": \"P0-76 ACK\", \"intent\": \"owner-command-center P0-76 closed loop: owner replies 'P0-76 ACK' on private chat 1621120182 -> this orchestrator task -> worker result -> outgoing ACK trace\", \"admin_task_ref\": 76, \"admin_task_label\": \"Telegram P0 (#76 admin Kanban task, owner=guardian, P0, IN_PROGRESS)\", \"outgoing_result_message_id\": 13849, \"owner_chat_id\": 1621120182, \"ingress_owner_designated\": \"vps (TELEGRAM_INGRESS_OWNER=vps; Hermes poller untouched)\", \"status_at_capture\": \"READY - no dispatch, no execution claim (awaiting worker claim + owner ACK)\", \"typesafe_intake_judgment\": {\"decision_id\": \"tsi-bad29a2e3e40\", \"route\": \"proceed\", \"reason\": \"policy_disabled\", \"consumed_calls\": 0, \"state_hash\": \"\", \"elapsed_ms\": 0.0, \"gate_enabled\": false}, \"_typesafe_session_policy\": {\"decision_id\": \"tss-763f9ec6bbd7\", \"route\": \"review\", \"reason\": \"typesafe_judgment\", \"traced\": true}}",
+  "evidence": null,
+  "error_message": "TypeSafe session policy requires owner review"
+}
+
+=== STUBBED SEND CALLS ===
+
+DONE

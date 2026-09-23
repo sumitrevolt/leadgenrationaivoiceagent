@@ -173,10 +173,32 @@ class TelegramBot:
         return False
 
     def send_message(self, chat_id: int | str, text: str, parse_mode: str | None = None) -> bool:
-        """Send a message to a chat via Telegram Bot API (fail-closed, never raises)."""
+        """Send a message to a chat via Telegram Bot API (fail-closed, never raises).
+
+        Backward-compatible boolean contract — returns ``True`` iff the
+        Telegram API accepted the message. The actual outgoing ``message_id``
+        is dropped by this method; callers that need it should use
+        ``send_message_with_message_id`` (added for Task #80).
+        """
+        ok, _message_id = self.send_message_with_message_id(chat_id, text, parse_mode)
+        return ok
+
+    def send_message_with_message_id(
+        self, chat_id: int | str, text: str, parse_mode: str | None = None
+    ) -> tuple[bool, int | None]:
+        """Send a message and return ``(ok, outgoing_message_id)``.
+
+        ``ok`` is ``True`` iff Telegram accepted the message
+        (HTTP 200 + ``response.ok``). ``outgoing_message_id`` is the Telegram-
+        assigned ``message_id`` for the just-sent message, or ``None`` if the
+        send failed (caller decides how to persist a missing id).
+
+        Never raises — caller-friendly for synchronous owner-command flows
+        where the dispatcher must record a result regardless of egress outcome.
+        """
         if not self.token:
             logger.warning("[telegram_bot] Cannot send message: token unconfigured")
-            return False
+            return False, None
 
         try:
             url = f"{TELEGRAM_API_URL}/bot{self.token}/sendMessage"
@@ -188,10 +210,24 @@ class TelegramBot:
                 payload["parse_mode"] = parse_mode
 
             resp = requests.post(url, json=payload, timeout=10)
-            return resp.status_code == 200 and resp.json().get("ok", False)
+            if resp.status_code != 200:
+                logger.warning(
+                    "[telegram_bot] send_message non-200 to %s: %s",
+                    chat_id, resp.status_code,
+                )
+                return False, None
+            body = resp.json()
+            if not body.get("ok", False):
+                logger.warning(
+                    "[telegram_bot] send_message not-ok to %s: %s",
+                    chat_id, body.get("description"),
+                )
+                return False, None
+            msg_id = (body.get("result") or {}).get("message_id")
+            return True, int(msg_id) if msg_id is not None else None
         except Exception as e:
             logger.warning("[telegram_bot] Failed to send message to %s: %s", chat_id, e)
-            return False
+            return False, None
 
     def process_update(self, update: dict[str, Any], send_reply: bool = True) -> BotProcessResult:
         """Process incoming Telegram update with authentication, deduplication, and execution."""
