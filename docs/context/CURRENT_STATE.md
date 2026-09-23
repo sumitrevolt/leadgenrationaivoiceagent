@@ -1,5 +1,19 @@
 # CURRENT_STATE - LeadGen AI (operational truth)
 
+## CODE-READY / LOCAL-ONLY — ADR-200 + SmartFlo + batch cleanup (2026-09-23, committed, UNDEPLOYED)
+- **Repo HEAD on `main` `b8b154fb`. `origin/main` `b8b154fb`.** (Updated 2026-09-23 08:30 IST — supersedes AGENTS.md §1 "Repo HEAD `35f4d33c` on `feat/auto-20260922-0e113f55`" which was the pre-merge state.)
+- **Shipped this session (all on origin/main, CI green):**
+  - `fix(test)`: register new TypeSafe consumers (intake_gate, smartflo_acceptance — config-only, no network)
+  - `feat(smartflo)`: merge acceptance framework + TypeSafe intake gate + telegram owner commands + operational state (26 files, +6169 lines)
+  - `ops(pilot)`: record 20:00 IST dispatch — VPS DOWN, non-VPS tasks routed
+  - `fix(typesafe)`: clamp score/value/confidence to [0,1] — API returned 1.02 in prod, now clamps to 1.0
+  - `test(telegram)`: mock-chain e2e evidence (task ledger → worker → TypeSafe)
+  - `docs`: ADR-200 README update + telegram verify/test refinements
+- **Local gates passed:** prod_check (1474 routes, 0 gaps), 105 targeted tests green, ruff clean, secrets clean
+- **NOT deployed** — VPS unreachable since ~20:00 IST Sep22, awaiting owner Hostinger reboot
+- **Production SHA last verified:** `883ef713` (2026-09-21)
+- Label: GIT_VERIFIED + TEST-PROVEN | deploy = owner gate (VPS recovery + `bash scripts/deploy_vps.sh b8b154fb`)
+
 ## CODE-READY / LOCAL-ONLY — Revenue Sprint batch (2026-08-23, uncommitted)
 - **Goal context:** ₹5L/7-din sprint — GitHub/web research (upi-pg, wacrm, Lago, openpartner, speed-to-lead patterns) + repo gap-audit ke baad MISSING conversion infra ship kiya (dormant engines WIRE kiye, duplicate NAHI banaya).
 - **Shipped:** `app/billing/promo_codes.py` (platform coupon engine — fixed/pct, once-per-customer, max-redemptions, expiry, launch tags) · `offers.issue_custom_offer()` (DFY setup ₹4,999 jaise explicit-amount orders; immutability intact — promo = supersede chain) · `app/api/revenue_sprint.py` router (/api/admin/revenue|promo admin-gated · /api/public/offers/{ref} fail-closed · /api/public/launch-offer) · **`/pay/{order_ref}` hosted pay-page** (amount-prefilled UPI intent+QR, tn=order_ref reconciliation, promo box, /api/upi/submit wiring) · **`/app/revenue-kit`** owner console (pay-link → WhatsApp close text, LAUNCH promo create, ledgers) · pricing.html honest countdown (server-side deadline) · affiliate referral lead→paid flip hooked into BOTH UPI activation sites (`_credit_referral`).
