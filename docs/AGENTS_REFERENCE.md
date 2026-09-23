@@ -3,7 +3,7 @@
 > **🚨 DEPRECATED (2026-09-22):** Yeh file = legacy body of the project master prompt (formerly byte-identical to both `CLAUDE.md` and `AGENTS.md`). It is **NOT** auto-loaded. The canonical, lean, always-loaded agent instruction file is **`AGENTS.md`** at the repo root. Detail/pointer map:
 > - Canonical (lean, always-loaded) → `/AGENTS.md`
 > - This file (deep body, NOT auto-loaded) → `/docs/AGENTS_REFERENCE.md`
-> - Owner priority directive (immutable archive) → `/docs/OWNER_DIRECTIVE_2026-09-22.md` (SHA-256 `803A4683B94F6B8CF41DCCB5CB6DA461B3DEF108C43794585D256F78A5CAB6EA`)
+> - Owner priority directive (immutable archive) → `/docs/OWNER_DIRECTIVE_2026-09-22.md` (SHA-256 `278D617ED406BBDDA38EDC16689071CD31DDFDC8FCBEBAF8AD5F61D9AC9881CD` — re-verified 2026-09-23; Downloads re-upload byte-identical, 126,429 B)
 > - Memory + INDEX → `/memory/INDEX.md`
 >
 > **Do not edit for content drift.** This file's `# CLAUDE.md — ...` title below is the *legacy* title preserved verbatim. Any updates to project instructions go to `AGENTS.md` (root), not here. If something in the legacy body below contradicts `AGENTS.md`, `AGENTS.md` wins.
