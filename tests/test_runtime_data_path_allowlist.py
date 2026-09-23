@@ -151,7 +151,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
     assert len(entries) == 106
-    assert len(families) == 42, sorted(families)
+    assert len(families) == 43, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
