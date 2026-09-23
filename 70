@@ -1,0 +1,3 @@
+ERROR:  argument of AND must be type boolean, not type integer
+LINE 1: ...WHERE status='new' AND lead_score IS NOT NULL AND lead_score...
+                                                             ^
