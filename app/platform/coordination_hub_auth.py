@@ -28,6 +28,7 @@ _KNOWN_TOOLS = (
     "bolt",
     "buzz",
     "hermes",
+    "agnes",  # M020 — Agnes Code desktop (HKCU-installed; per owner direction)
     "openclaw",
     "workbuddy",
     "codex",
