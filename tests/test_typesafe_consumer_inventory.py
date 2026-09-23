@@ -49,6 +49,11 @@ ALLOWED_CONSUMERS = {
     "app/platform/typesafe_intake_gate.py",
     # smartflo_acceptance calls _ts.credential_state() (config-only, no network).
     "app/voice/smartflo_acceptance.py",
+    # 2026-09-23 (task0012 slice 1): pure data-declaration modules. They name
+    # app/platform/typesafe_integration.py only as the owner-module path string
+    # of the platform.typesafe_keys store family; no import, no API call.
+    "app/platform/runtime_data_allowlist_entries.py",
+    "app/platform/runtime_data_manifest.py",
 }
 
 # The definition module itself never counts as a consumer.

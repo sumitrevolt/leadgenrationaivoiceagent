@@ -86,7 +86,14 @@ EXPECTED_BLOCKERS = 0
 # hunt_insert_vps declaration was then removed (2026-09-13) — it declared
 # 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
 # (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
-EXPECTED_ALLOWLIST_ENTRIES = 106
+# 2026-09-23: 106 -> 111 re-pin. task0012 slice 1 (admin ledger #77, PR #565)
+# CLASSIFIED the 5 stale baseline findings instead of tolerating them:
+# 3 pilot legacy writers (scripts_test_dnd/scripts_test_pilot/scripts_test_pilot_phone,
+# test-only scripts, delete-if-unused review condition) + communications.telegram_poll_lease
+# + platform.typesafe_keys (both tier-3 rebuildable non-blockers). The reviewed surface
+# was DECLARED with owner/migration_tier/review_condition; no control was loosened and
+# EXPECTED_BASELINE_FINGERPRINTS is deliberately unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 111
 EXPECTED_BASELINE_FINGERPRINTS = 788
 
 
