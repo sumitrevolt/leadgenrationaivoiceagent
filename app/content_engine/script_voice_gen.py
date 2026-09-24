@@ -16,7 +16,7 @@ async def generate_script(topic):
 
     # Use chat() directly as it is an async function
     script, _ = await chat(system=system, messages=[{"role": "user", "content": prompt}])
-    
+
     # TypeSafe script quality validation
     try:
         from app.platform.typesafe_services import get_typesafe_content_qa
@@ -27,7 +27,7 @@ async def generate_script(topic):
                 logger.warning(f"TypeSafe script QA: {_verdict.reasons}")
     except Exception:
         pass
-    
+
     return script
 
 async def generate_voiceover(script, filename="voiceover.mp3"):
