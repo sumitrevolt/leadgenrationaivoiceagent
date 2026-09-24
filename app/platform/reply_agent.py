@@ -559,8 +559,44 @@ def _imap_uid(meta_envelope: Any) -> str:
     no RFC Message-ID / References to key on. Returns "" when absent (e.g. a
     fake mailbox that does not advertise a UID). Only a numeric token is kept;
     no header text or PII is retained.
+
+    **Scope warning:** a UID is unique only *within one mailbox incarnation*.
+    Two different accounts can both have ``UID 1001`` for different messages, and
+    the same account re-uses UID space after a ``UIDVALIDITY`` change. Callers must
+    therefore pair this with ``_imap_uidvalidity()`` + a mailbox scope before using
+    it as a dedup key — see ``_followup_task_key``.
     """
     m = re.search(r"\bUID\s+(\d{1,12})", str(meta_envelope or ""))
+    return m.group(1) if m else ""
+
+
+def _imap_uidvalidity(select_response: Any) -> str:
+    """Extract ``UIDVALIDITY`` from an IMAP SELECT/EXAMINE response.
+
+    ``UIDVALIDITY`` is the server-advertised epoch for the mailbox's UID space:
+    when it changes, every previously-issued UID becomes meaningless and MUST NOT
+    be reused as an identity for a different message. Parsing it lets the
+    follow-up key refuse to inherit a stale task after such a change.
+
+    Accepts the raw ``M.select()`` response tuple (``typ, data``) or a bare
+    string/bytes. Returns "" when the server did not advertise it (some fake
+    mailboxes do not), in which case the caller degrades to a mailbox-scoped key.
+    Only the numeric token is kept; no header text or PII.
+    """
+    text = ""
+    if isinstance(select_response, tuple) and len(select_response) == 2:
+        _typ, data = select_response
+        if isinstance(data, (list, tuple)):
+            text = " ".join(
+                (b.decode("ascii", "ignore") if isinstance(b, bytes) else str(b)) for b in data
+            )
+        else:
+            text = str(data or "")
+    elif isinstance(select_response, bytes):
+        text = select_response.decode("ascii", "ignore")
+    else:
+        text = str(select_response or "")
+    m = re.search(r"\bUIDVALIDITY\s+(\d{1,20})", text)
     return m.group(1) if m else ""
 
 
@@ -661,8 +697,48 @@ def _reply_delivery_key(sender: str, message_id: str) -> str:
     return hashlib.sha256(f"{sender}|{message_id}".encode("utf-8", "ignore")).hexdigest()[:32]
 
 
+def _mailbox_scope(mailbox: str = "", uidvalidity: str = "") -> str:
+    """Build the mailbox-incarnation scope prefix for a UID-derived key.
+
+    An IMAP UID is only meaningful inside one *mailbox incarnation*: it is unique
+    per account **and** per ``UIDVALIDITY`` epoch. Two accounts can both serve
+    ``UID 1001`` for two unrelated messages, and one account legitimately re-uses
+    its whole UID space after the server bumps ``UIDVALIDITY``. A key built from a
+    bare UID therefore collides across accounts and goes stale across epochs.
+
+    This returns a short, PII-free scope token: the account portion of the
+    mailbox string (never the domain-less local part verbatim — it is hashed) plus
+    the raw numeric ``UIDVALIDITY`` when the server advertised one. Callers use it
+    as a *prefix inside* the key material, so the UID branch keys on
+    ``account | uidvalidity epoch | uid`` instead of the bare UID.
+
+    Returns "" when nothing is known, which makes the caller fall back to the
+    no-identity ``<review>`` path rather than mint a collision-prone key.
+    """
+    import hashlib
+
+    mb = (mailbox or "").strip().lower()
+    uv = (uidvalidity or "").strip()
+    uid_epoch = uv if uv.isdigit() else ""
+    if not mb and not uid_epoch:
+        return ""
+    parts = []
+    if mb:
+        # Hash the account identity: keeps the scope exact without persisting the
+        # address (and any PII inside it) in a key that may be logged.
+        parts.append("mb:" + hashlib.sha256(mb.encode("utf-8", "ignore")).hexdigest()[:12])
+    if uid_epoch:
+        parts.append("uv:" + uid_epoch)
+    return "|".join(parts)
+
+
 def _followup_task_key(
-    sender: str, message_id: str = "", references: str = "", uid: str = ""
+    sender: str,
+    message_id: str = "",
+    references: str = "",
+    uid: str = "",
+    mailbox: str = "",
+    uidvalidity: str = "",
 ) -> str:
     """Stable, PII-minimized idempotency key for a qualified-reply follow-up task.
 
@@ -671,23 +747,33 @@ def _followup_task_key(
     instance — yields the SAME key and dedups to one durable task:
 
       * ``message_id`` present  -> digest of ``sender|<message_id>``
-        (the RFC Message-ID is the stable per-delivery identity).
+        (the RFC Message-ID is the stable per-delivery identity; it wins over
+        every mailbox-local identity, which is only meaningful on one server).
       * ``message_id`` absent, ``references`` present -> digest of
         ``sender|thread:<root>`` where ``root`` is the earliest References token.
-      * neither, ``uid`` present -> digest of ``sender|uid:<n>``. The IMAP UID is
-        the durable per-message mailbox identifier (stable across a restart), so
-        two DISTINCT identifier-less replies from the same sender stay distinct —
-        they never collapse to one shared key.
-      * none of the above        -> an explicit ``<review>`` marker. This is a
-        LAST-RESORT no-identity path: the caller is expected to log it for review,
-        NOT silently mint one sender-scoped task and dedup against it. We surface
-        it rather than hide it so a missing-identity reply is a visible, auditable
-        event instead of a silent dedup collision.
+      * neither, ``uid`` present AND a mailbox scope is known -> digest of
+        ``sender|<mailbox-scope>|uid:<n>``. The IMAP UID is the durable
+        per-message mailbox identifier (stable across a restart), so two DISTINCT
+        identifier-less replies from the same sender stay distinct — they never
+        collapse to one shared key. The mailbox scope prefix is what makes the key
+        correct across accounts and across a ``UIDVALIDITY`` bump:
+          - two different accounts both serving ``UID 1001`` produce different
+            keys (their mailbox scope differs), so unrelated messages never share
+            a task;
+          - when the server bumps ``UIDVALIDITY`` the scope changes, so a recycled
+            UID yields a NEW key instead of silently reusing an old task.
+      * otherwise (including a UID with no trustworthy mailbox scope, or neither
+        identifier) -> an explicit ``<review>`` marker. This is a LAST-RESORT
+        no-identity path: the caller is expected to log it for review, NOT
+        silently mint one sender-scoped task and dedup against it. We surface it
+        rather than hide it so a missing-identity reply is a visible, auditable
+        event instead of a silent dedup collision — refusing to mint beats
+        collapsing two real prospects into one task.
 
     Deterministic (SHA-256), **never** Python ``hash()`` — ``hash()`` is
     PYTHONHASHSEED-salted and unstable across process restarts, so it would not
-    reliably dedup a cross-process replay. No raw email body / PII is used; only
-    the bounded identity tokens above.
+    reliably dedup a cross-process replay. No raw email body / PII is used; the
+    mailbox is hashed and only the bounded identity tokens above are retained.
     """
     import hashlib
 
@@ -703,12 +789,15 @@ def _followup_task_key(
         material = f"{sender}|{message_id}"
     elif refs:
         material = f"{sender}|thread:{refs[0]}"
-    elif uid:
-        material = f"{sender}|uid:{uid}"
     else:
-        # Explicit review marker — NOT a sender-scoped dedup bucket. Callers should
-        # treat this as "record + hold for review", never as a stable task key.
-        return "reply_followup:<review>"
+        scope = _mailbox_scope(mailbox, uidvalidity)
+        if uid and scope:
+            material = f"{sender}|{scope}|uid:{uid}"
+        else:
+            # UID without a mailbox incarnation scope cannot be trusted to be
+            # unique (another account may use the same UID), and no identity at
+            # all is equally unusable: hold for review instead of collapsing.
+            return "reply_followup:<review>"
     digest = hashlib.sha256(material.encode("utf-8", "ignore")).hexdigest()[:32]
     return f"reply_followup:{digest}"
 
@@ -904,6 +993,8 @@ def create_reply_followup_task(
     message_id: str = "",
     references: str = "",
     uid: str = "",
+    mailbox: str = "",
+    uidvalidity: str = "",
     orchestrator: Any | None = None,
 ) -> dict[str, Any]:
     """Idempotently create a canonical WORKER follow-up task for a qualified reply.
@@ -918,17 +1009,21 @@ def create_reply_followup_task(
     * **Idempotent**: the default ``idempotency_key`` is ``_followup_task_key`` — a
       stable digest of the message's delivery/thread identity, in priority order:
       Message-ID, else the thread's earliest References token, else the durable IMAP
-      ``uid``. Re-processing the same message, or the same thread seen by a
-      **brand-new process / orchestrator instance**, yields the SAME key → one
-      durable task (``created=False, reason="duplicate"``); two DIFFERENT messages
-      stay distinct. ``submit_task`` enforces this via its built-in
-      ``get_by_idempotency_key`` check.
+      ``uid`` **scoped by the mailbox/account + ``UIDVALIDITY`` epoch**. Re-processing
+      the same message, or the same thread seen by a **brand-new process /
+      orchestrator instance**, yields the SAME key → one durable task
+      (``created=False, reason="duplicate"``); two DIFFERENT messages stay distinct.
+      ``submit_task`` enforces this via its built-in ``get_by_idempotency_key`` check.
     * ``message_id`` / ``references`` / ``uid`` are the current message's identity
       (``_safe_thread_headers`` + ``_imap_uid``) so the key is derived from THIS
-      reply, never a stale sibling.
-    * **No-identity guard**: when none of Message-ID / References / UID is present,
-      the key resolves to the explicit ``reply_followup:<review>`` marker and this
-      function does NOT mint a task — it returns ``created=False`` with
+      reply, never a stale sibling. ``mailbox`` / ``uidvalidity`` supply the
+      incarnation scope for the UID branch: a UID alone is only unique inside one
+      account *and* one UIDVALIDITY epoch, so two accounts both serving ``UID 1001``
+      must not share a task, and a UID recycled after a UIDVALIDITY bump must not
+      inherit the pre-bump task.
+    * **No-identity guard**: when none of Message-ID / References / (scoped) UID is
+      present, the key resolves to the explicit ``reply_followup:<review>`` marker and
+      this function does NOT mint a task — it returns ``created=False`` with
       ``reason="review:missing_message_identity"`` so the caller can surface it for
       review instead of silently deduping every no-identity reply from a sender into
       one shared task. Never raises.
@@ -947,7 +1042,9 @@ def create_reply_followup_task(
         return out
     biz = str((prospect or {}).get("business_name") or "").strip() or "unknown"
     email = str((prospect or {}).get("email") or "").strip().lower()
-    key = idempotency_key or _followup_task_key(email, message_id, references, uid)
+    key = idempotency_key or _followup_task_key(
+        email, message_id, references, uid, mailbox, uidvalidity
+    )
     out["idempotency_key"] = key
     # No durable per-message identity (no Message-ID / References / UID): do NOT
     # collapse this into a shared sender-scoped task. Surface it for review.
@@ -1321,7 +1418,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
             host, 993, timeout=20
         )  # no timeout = worker hangs on a stalled IMAP read
         M.login(user, pw)
-        M.select("INBOX")
+        # Capture the mailbox *incarnation* alongside SELECT: the account (user) and
+        # the server's UIDVALIDITY epoch. A UID is only unique inside one account +
+        # one epoch, so both must travel with `_uid` into the follow-up key or two
+        # accounts sharing UID 1001 would collide, and a post-UIDVALIDITY-bump UID
+        # would wrongly re-attach to a pre-bump task.
+        _uidvalidity = _imap_uidvalidity(M.select("INBOX"))
+        _mailbox_scope_id = user
         typ, data = M.search(None, "UNSEEN")
         ids = (data[0].split() if data and data[0] else [])[: max(1, limit)]
         pmap = _prospect_map()
@@ -1711,13 +1814,15 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         # (§5 "create or update the appropriate canonical follow-up task").
                         # The key is derived from THIS message's thread identity
                         # (Message-ID, else earliest References token, else the durable
-                        # IMAP UID, else sender) via _followup_task_key — stable across
-                        # re-processing and across a process restart. `_safe_thread_headers(msg)`
-                        # is used here (not the sibling `message_id` variable, which is only
-                        # populated later in the loop and would be stale on the first
-                        # iteration). The IMAP UID is the durable per-message identifier
-                        # for identifier-less replies so two distinct messages from the
-                        # same sender never collapse to one task.
+                        # IMAP UID scoped by mailbox account + UIDVALIDITY) via
+                        # _followup_task_key — stable across re-processing and across a
+                        # process restart. `_safe_thread_headers(msg)` is used here (not
+                        # the sibling `message_id` variable, which is only populated later
+                        # in the loop and would be stale on the first iteration). The
+                        # scoped IMAP UID is the durable per-message identifier for
+                        # identifier-less replies so two distinct messages from the same
+                        # sender never collapse to one task, while the same UID under a
+                        # DIFFERENT account or a DIFFERENT UIDVALIDITY epoch stays distinct.
                         try:
                             _fmid, _frefs = _safe_thread_headers(msg)
                             _ft = create_reply_followup_task(
@@ -1727,6 +1832,8 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                 message_id=_fmid,
                                 references=_frefs,
                                 uid=_uid,
+                                mailbox=_mailbox_scope_id,
+                                uidvalidity=_uidvalidity,
                             )
                             if _ft.get("created") or _ft.get("task_id"):
                                 res["followup_task"] = _ft

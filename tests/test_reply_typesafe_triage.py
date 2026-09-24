@@ -405,20 +405,39 @@ def test_followup_caller_uses_current_message_identity(tmp_path, monkeypatch):
 
 
 def test_followup_key_uid_fallback_keeps_distinct_messages(tmp_path, monkeypatch):
-    """Boss rev3: when a message has NO Message-ID and NO References, the durable
-    IMAP UID distinguishes two distinct messages from the same sender — they must
-    NOT collapse into one shared sender-scoped key."""
+    """Boss rev3 + scoped-UID fix: when a message has NO Message-ID and NO
+    References, the durable IMAP UID distinguishes two distinct messages from the
+    same sender — they must NOT collapse into one shared sender-scoped key.
+
+    A bare UID is only safe when paired with the mailbox-incarnation scope
+    (account + UIDVALIDITY epoch); without that scope the key resolves to the
+    explicit ``<review>`` marker so a bare-UID-only call is a visible event, not
+    a silent dedup. This test therefore passes the scoped identity (mailbox +
+    uidvalidity) alongside the UID."""
     monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
     orch = _temp_orchestrator(tmp_path)
     prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
     ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
 
-    # Two messages with different UIDs from the same sender, no thread identity:
+    # Two messages with different UIDs from the same sender, no thread identity,
+    # but WITH the trusted mailbox + UIDVALIDITY scope:
     m1 = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, uid="1001", orchestrator=orch
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1001",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="1",
+        orchestrator=orch,
     )
     m2 = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, uid="1002", orchestrator=orch
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1002",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="1",
+        orchestrator=orch,
     )
     # Distinct tasks:
     assert m1["created"] is True
@@ -426,19 +445,35 @@ def test_followup_key_uid_fallback_keeps_distinct_messages(tmp_path, monkeypatch
     assert m1["task_id"] != m2["task_id"]
     assert m1["idempotency_key"] != m2["idempotency_key"]
 
-    # Same UID is a duplicate (idempotent replay within one process):
+    # Same scoped UID is a duplicate (idempotent replay within one process):
     m1_replay = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, uid="1001", orchestrator=orch
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1001",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="1",
+        orchestrator=orch,
     )
     assert m1_replay["created"] is False
     assert m1_replay["reason"] == "duplicate"
     assert m1_replay["task_id"] == m1["task_id"]
 
+    # A UID-without-mailbox-scope still resolves to the review marker, not a task:
+    bare = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1001", orchestrator=orch
+    )
+    assert bare["created"] is False
+    assert bare["reason"] == "review:missing_message_identity"
+
 
 def test_followup_key_uid_survives_restart(tmp_path, monkeypatch):
     """Cross-process/restart: a fresh orchestrator over the same ledger DB sees the
-    same UID-derived key as a duplicate — proving the UID fallback is stable across
-    a restart (the core requirement for dedup of identifier-less replies)."""
+    same scoped-UID-derived key as a duplicate — proving the UID fallback is stable
+    across a restart (the core requirement for dedup of identifier-less replies).
+
+    The scoped identity (mailbox + uidvalidity) is what makes the key stable across
+    restarts AND across UIDVALIDITY bumps; a bare UID is intentionally not trusted."""
     monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
     db = str(tmp_path / "orchestrator_ledger.db")
     ledger = str(tmp_path / "orchestrator_ledger.json")
@@ -449,17 +484,43 @@ def test_followup_key_uid_survives_restart(tmp_path, monkeypatch):
     ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
 
     p1 = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, uid="1001", orchestrator=orch1
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1001",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="1",
+        orchestrator=orch1,
     )
     assert p1["created"] is True
 
     orch2 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
     p2 = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, uid="1001", orchestrator=orch2
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1001",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="1",
+        orchestrator=orch2,
     )
     assert p2["created"] is False
     assert p2["reason"] == "duplicate"
     assert p2["task_id"] == p1["task_id"]
+
+    # A different UIDVALIDITY epoch re-mints the key (a recycled UID must not
+    # silently reuse the pre-bump task):
+    p3 = reply_agent.create_reply_followup_task(
+        prospect,
+        "interested",
+        ts_ev,
+        uid="1001",
+        mailbox="sales@leadsgenai.in",
+        uidvalidity="2",
+        orchestrator=orch2,
+    )
+    assert p3["created"] is True
+    assert p3["task_id"] != p1["task_id"]
 
 
 def test_followup_no_identity_does_not_mint_task(tmp_path, monkeypatch):
@@ -602,7 +663,22 @@ def test_content_gate_api_error_holds(monkeypatch):
 # --------------------------------------------------------------------------- #
 # End-to-end: run_reply_triage persists TypeSafe evidence on the draft row
 # --------------------------------------------------------------------------- #
-def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
+def _seed_imap(
+    monkeypatch,
+    tmp_path,
+    body,
+    subject="Re: Free audit",
+    *,
+    uids=("1001",),
+    uidvalidity="42",
+    mailbox_user="u",
+    message_id="<imap-x@biz.in>",
+    followup_flag=False,
+    orchestrator=None,
+):
+    """Hermetic inbox fake. ``uids``/``uidvalidity``/``mailbox_user`` let a test
+    vary the mailbox incarnation so the follow-up key's UID scoping is exercised
+    against real fetch envelopes instead of hand-built arguments."""
     import email
     import email.utils
     from datetime import datetime, timezone
@@ -666,10 +742,14 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
     )
     monkeypatch.setattr("app.platform.team.log_event", lambda *_a, **_k: None)
 
-    msg = email.message_from_string(
-        f"From: owner@biz.in\r\nSubject: {subject}\r\nMessage-ID: <imap-x@biz.in>\r\n"
-        f"Date: {email.utils.format_datetime(datetime.now(timezone.utc))}\r\n\r\n{body}\r\n"
-    )
+    msgs = [
+        email.message_from_string(
+            f"From: owner@biz.in\r\nSubject: {subject}\r\n"
+            + (f"Message-ID: {message_id}\r\n" if message_id else "")
+            + f"Date: {email.utils.format_datetime(datetime.now(timezone.utc))}\r\n\r\n{body}\r\n"
+        )
+        for _ in uids
+    ]
 
     class Mailbox:
         seen = False
@@ -678,15 +758,15 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
             return None
 
         def select(self, *_a):
-            return "OK"
+            return "OK", [f"[UIDVALIDITY {uidvalidity}] 1 EXISTS".encode()] if uidvalidity else "OK"
 
         def search(self, *_a):
-            return "OK", [b"" if self.seen else b"1"]
+            return "OK", [b" ".join(str(i + 1).encode() for i in range(len(msgs)))]
 
         def fetch(self, _id, spec):
-            return "OK", [
-                (b'1 (INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {1})', msg.as_bytes())
-            ]
+            idx = int(_id) - 1
+            envelope = f'1 (UID {uids[idx]} INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {{1}})'
+            return "OK", [(envelope.encode(), msgs[idx].as_bytes())]
 
         def store(self, *_a):
             self.seen = True
@@ -699,8 +779,10 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
             return None
 
     monkeypatch.setattr(ra.imaplib, "IMAP4_SSL", lambda *_a, **_k: Mailbox())
-    monkeypatch.setattr(ra, "_creds", lambda: ("imap.example", "u", "p"))
+    monkeypatch.setattr(ra, "_creds", lambda: ("imap.example", mailbox_user, "p"))
     monkeypatch.setenv("REPLY_AGENT", "1")
+    if followup_flag:
+        monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
     return f
 
 
