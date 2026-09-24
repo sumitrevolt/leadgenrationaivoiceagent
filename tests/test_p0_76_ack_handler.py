@@ -339,19 +339,19 @@ def test_command_linked_fingerprint_distinct(p076_env):
     a = _compute_p0_76_execution(
         task_id="task_79406871",
         update_id=11,
-        fencing_token="fence_task_79406871_1_0",
+        fencing_token="fence_task_79406871_1_0",  # nosecret: deterministic test-fixture fencing token (not a real secret)
         owner_bot=P0_76_EXPECTED_OWNER_BOT,
     )
     bfp = _compute_p0_76_execution(
         task_id="task_79406871",
         update_id=22,
-        fencing_token="fence_task_79406871_1_0",
+        fencing_token="fence_task_79406871_1_0",  # nosecret: deterministic test-fixture fencing token (not a real secret)
         owner_bot=P0_76_EXPECTED_OWNER_BOT,
     )
     cfp = _compute_p0_76_execution(
         task_id="task_79406871",
         update_id=11,
-        fencing_token="fence_task_79406871_2_0",  # fresh claim token
+        fencing_token="fence_task_79406871_2_0",  # fresh claim token  # nosecret: deterministic test-fixture fencing token (not a real secret)
         owner_bot=P0_76_EXPECTED_OWNER_BOT,
     )
     assert a["execution_fingerprint"] != bfp["execution_fingerprint"]
@@ -449,7 +449,7 @@ def test_owner_review_approval_releases_to_ready(tmp_path, monkeypatch):
         version=1,
         idempotency_key=P0_76_IDEMPOTENCY_KEY,
         input_payload={"admin_task_ref": 76},
-        fencing_token="fence_task_79406871_stale_0",
+        fencing_token="fence_task_79406871_stale_0",  # nosecret: deterministic test-fixture fencing token (not a real secret)
         error_message="TypeSafe session policy requires owner review",
     )
     store.save(seed)
