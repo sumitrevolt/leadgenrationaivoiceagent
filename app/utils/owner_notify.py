@@ -23,6 +23,10 @@ DESIGN RULES (non-negotiable — ARCH §M4 / §7)
    `app/utils/telegram_egress.send_to_group`. No second Telegram client.
 7. **Multi-token fallback.** Mirrors `telegram_egress._token_candidates()`: Notify
    bot first, JARVIS bot fallback — so one revoked token cannot silence all alerts.
+8. **Truthful sync result from async callers.** If a running event loop exists
+   (async caller), delivery executes in a one-shot worker thread instead of
+   deadlocking the loop — the returned bool still reflects the ACTUAL delivery
+   outcome, never an optimistic guess.
 
 Truth gate: events sourced from `workforce` are force-`UNVERIFIED` (see owner_feed).
 Evidence label: CODE-PRESENT (new module, pinned by tests/test_owner_notify.py).
@@ -31,6 +35,7 @@ Evidence label: CODE-PRESENT (new module, pinned by tests/test_owner_notify.py).
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import hashlib
 import logging
 import os
@@ -42,6 +47,7 @@ logger = logging.getLogger(__name__)
 # Per-hour dedupe window + rate cap (per chat group). The owner must never be spammed.
 _DEDUPE_WINDOW_S = 3600.0
 _RATE_MAX_PER_HOUR = 30
+_DELIVER_TIMEOUT_S = 30.0
 
 # In-process caches. Process-local by design: dedupe is a *courtesy* layer; the
 # canonical event store (owner_feed) remains the truth. Never fatal.
@@ -95,6 +101,45 @@ def _resolve_group(severity: str, group: str | None) -> str:
 def _fp(v: str) -> str:
     """SHA-256 fingerprint prefix of a secret value. Never prints the secret."""
     return hashlib.sha256((v or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _run_delivery(coro_fn) -> dict:
+    """Run a delivery coroutine to completion; result stays truthful.
+
+    - No running loop (sync caller) → `asyncio.run` directly.
+    - Running loop (async caller) → one-shot worker thread runs a fresh
+      `asyncio.run` so the sync bool reflects the ACTUAL outcome without
+      deadlocking the caller's loop. Bounded by `_DELIVER_TIMEOUT_S`.
+    Never raises; timeout/error → `{"sent": False, ...}` (fail-open).
+
+    IMPORTANT: `coro_fn` is called INSIDE the execution context (worker
+    thread for async callers), NOT in the caller thread, so the coroutine
+    object is created where it will actually run.
+    """
+    try:
+        try:
+            asyncio.get_running_loop()
+            in_running_loop = True
+        except RuntimeError:
+            in_running_loop = False
+        if not in_running_loop:
+            # Sync caller — safe to run the loop here.
+            return asyncio.run(coro_fn())
+        # Async caller — run in a one-shot worker thread so we can BLOCK
+        # for a truthful result without deadlocking the caller's loop.
+        # The coroutine factory is called INSIDE the worker thread so the
+        # coroutine is created in a clean context (no shared loop state).
+        def _run_in_worker():
+            return asyncio.run(coro_fn())
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_run_in_worker)
+            return future.result(timeout=_DELIVER_TIMEOUT_S)
+    except concurrent.futures.TimeoutError:
+        logger.warning("[owner_notify] delivery timed out (fail-open)")
+        return {"sent": False, "error": "delivery_timeout"}
+    except Exception as e:  # fail-open by design
+        logger.warning("[owner_notify] delivery error (fail-open): %s", e)
+        return {"sent": False, "error": str(e)[:200]}
 
 
 def _get_token_candidates() -> list[str]:
@@ -196,12 +241,15 @@ def _deliver_fallback(group: str, message: str) -> bool:
     # Path 1: group-based delivery (multi-token fallback built into telegram_egress)
     try:
         from app.utils.telegram_egress import send_to_group
-        result = asyncio.run(send_to_group(group, message))
+        result = _run_delivery(lambda: send_to_group(group, message))
         if result.get("sent"):
+            # Log only proven facts: destination + receipt message_id. Which
+            # token actually delivered is NOT asserted here (no evidence in
+            # the receipt) — no "via JARVIS" style claims.
             logger.info(
-                "[owner_notify] delivered to group=%s via token fp=%s",
+                "[owner_notify] delivered to group=%s message_id=%s",
                 group,
-                _fp(result.get("token_used") or ""),
+                result.get("message_id"),
             )
             return True
         logger.warning(
@@ -212,16 +260,23 @@ def _deliver_fallback(group: str, message: str) -> bool:
     except Exception as e:
         logger.warning("[owner_notify] group delivery exception: %s", e)
 
-    # Path 2: direct DM fallback to TELEGRAM_CHAT_ID
+    # Path 2: direct DM fallback to TELEGRAM_CHAT_ID.
+    # Telegram Bot API sendMessage REQUIRES chat_id in the request body —
+    # pass the recipient explicitly alongside the message text.
     dm_chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if not dm_chat:
         logger.warning("[owner_notify] no TELEGRAM_CHAT_ID for DM fallback")
         return False
     try:
         from app.utils.telegram_egress import _send_via_bot_api
-        result = asyncio.run(_send_via_bot_api(dm_chat, "sendMessage", {"text": message}))
+        dm_payload = {"chat_id": dm_chat, "text": message}
+        result = _run_delivery(lambda: _send_via_bot_api(dm_chat, "sendMessage", dm_payload))
         if result.get("sent"):
-            logger.info("[owner_notify] delivered to DM chat=%s via token fp=%s", dm_chat, _fp(""))
+            logger.info(
+                "[owner_notify] delivered to DM chat=%s message_id=%s",
+                dm_chat,
+                result.get("message_id"),
+            )
             return True
         logger.warning("[owner_notify] DM delivery failed: %s", result.get("error", "unknown"))
     except Exception as e:

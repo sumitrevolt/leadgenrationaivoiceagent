@@ -7,25 +7,71 @@ Tests cover:
   - UNVERIFIED tag when no evidence
   - Dedupe suppression
   - Dry-run path
-  - Multi-token fallback (Notify->JARVIS) via mock
-  - DM fallback when group chat unavailable
+  - 401 retry via ACTUAL candidate order (Notify first, JARVIS second) with
+    valid-format tokens and a scripted httpx fake (no _send_via_bot_api mock)
+  - DM fallback payload carries the recipient chat_id (Bot API sendMessage
+    requires chat_id in the request body)
+  - Async-caller context: truthful success AND failure results (no
+    optimistic True, no loop deadlock)
 """
 
 from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import app.utils.owner_notify as owner_notify
 from app.platform import owner_feed_bridge, owner_feed_digest
+from app.utils import telegram_egress
 from app.utils.owner_feed import FORCE_UNVERIFIED_SOURCES, build_event, emit, read_events
 
 REPO = Path(__file__).resolve().parents[1]
+
+
+def _make_fake_httpx(script):
+    """Build a fake httpx.AsyncClient class.
+
+    `script` is a list of (status_code, json_body) consumed in call order
+    (last entry repeats if exhausted). Records every (url, json_body) so
+    tests can assert the ACTUAL outgoing payload and recipient.
+    """
+    calls: list = []
+
+    class _Resp:
+        def __init__(self, status_code: int, body: dict):
+            self.status_code = status_code
+            self._body = body
+
+        def json(self):
+            return self._body
+
+        @property
+        def text(self):
+            return json.dumps(self._body)
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc_info):
+            return False
+
+        async def post(self, url, json=None, **kwargs):
+            calls.append((url, json))
+            idx = min(len(calls) - 1, len(script) - 1)
+            status_code, body = script[idx]
+            return _Resp(status_code, body)
+
+    return _FakeClient, calls
 
 
 def _feed(tmp: str) -> str:
@@ -35,6 +81,18 @@ def _feed(tmp: str) -> str:
 class SendOwnerTests(unittest.TestCase):
     def setUp(self):
         owner_notify.reset_caches()
+        # Hermetic: strip any real bot tokens / chat ids from the dev env so
+        # no test can fire a real Telegram request.
+        for _k in (
+            "TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_NOTIFY_BOT_TOKEN",
+            "TELEGRAM_JARVIS_BOT_TOKEN",
+            "TELEGRAM_CHAT_ID",
+        ):
+            os.environ.pop(_k, None)
+        # Reset the per-process 401 blacklist so candidate-order tests are
+        # deterministic.
+        telegram_egress._dead_tokens.clear()
         self._tmp = tempfile.TemporaryDirectory()
         self.feed = _feed(self._tmp.name)
         os.environ["OWNER_FEED_PATH"] = self.feed
@@ -46,6 +104,7 @@ class SendOwnerTests(unittest.TestCase):
         os.environ.pop("TELEGRAM_CHAT_ID", None)
         os.environ.pop("TELEGRAM_NOTIFY_BOT_TOKEN", None)
         os.environ.pop("TELEGRAM_JARVIS_BOT_TOKEN", None)
+        telegram_egress._dead_tokens.clear()
         owner_notify.reset_caches()
 
     # ---- acceptance: fail-open (Telegram down must not break the app) ----
@@ -88,49 +147,125 @@ class SendOwnerTests(unittest.TestCase):
     def test_dry_run_true(self):
         self.assertTrue(owner_notify.send_owner("x", severity="P0", evidence="e", dedupe_key="dr1", dry_run=True))
 
-    # ---- multi-token fallback: Notify 401s, JARVIS succeeds ----
-    def test_multi_token_fallback_notify_401_jarvis_ok(self):
-        """Prove _deliver_fallback tries group path (real send_to_group) then DM path.
+    # ---- 401 retry via ACTUAL candidate order (no _send_via_bot_api mock) ----
+    def test_401_retry_follows_actual_candidate_order(self):
+        """Notify token 401s, JARVIS token succeeds — proved through the REAL
+        _send_via_bot_api token loop + 401-blacklist, using valid-format
+        tokens and a scripted httpx fake. Asserts candidate order, the retry
+        sequence, and the receipt message_id (evidence, not a label)."""
+        notify_token = "111111111:AAFakeNotifyTokenForTest0"
+        jarvis_token = "222222222:AAFakeJarvisTokenForTest1"
+        os.environ["TELEGRAM_NOTIFY_BOT_TOKEN"] = notify_token
+        os.environ["TELEGRAM_JARVIS_BOT_TOKEN"] = jarvis_token
+        os.environ["TELEGRAM_CHAT_ID"] = "999888"
 
-        With resolve_chat_id mocked to return a chat_id, send_to_group will call
-        _send_via_bot_api which is mocked to fail first (401) then succeed.
-        """
-        os.environ["TELEGRAM_BOT_TOKEN"] = "notify-token-123"
-        os.environ["TELEGRAM_JARVIS_BOT_TOKEN"] = "jarvis-token-456"
-        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+        # 1. ACTUAL candidate order from the real _token_candidates().
+        self.assertEqual(telegram_egress._token_candidates(), [notify_token, jarvis_token])
 
-        call_count = 0
+        script = [
+            (401, {"ok": False, "error_code": 401, "description": "Unauthorized"}),
+            (200, {"ok": True, "result": {"message_id": 4242, "chat_id": "999888"}}),
+        ]
+        fake_client, calls = _make_fake_httpx(script)
+        with patch("httpx.AsyncClient", fake_client):
+            with patch.object(telegram_egress, "resolve_chat_id", return_value="999888"):
+                result = owner_notify.send_owner(
+                    "test", severity="P0", evidence="owner_feed#t-401", dedupe_key="re1"
+                )
 
-        async def fake_send_via_bot_api(chat_id, method, payload, timeout_s=15.0):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                # First call (group path via send_to_group) — simulate 401
-                return {"sent": False, "error": "401 Unauthorized"}
-            # Second call (DM fallback path) — success via JARVIS token
-            return {"sent": True, "message_id": 999, "chat_id": chat_id}
+        # 2. Delivery succeeded and the receipt carries a message_id (evidence).
+        self.assertTrue(result, "401 on first token must trigger retry, not failure")
+        self.assertEqual(len(calls), 2, "exactly one 401 attempt + one successful retry")
+        url_1, _ = calls[0]
+        url_2, payload_2 = calls[1]
+        # 3. ACTUAL order: Notify bot first, JARVIS bot second.
+        self.assertIn(f"/bot{notify_token}/sendMessage", url_1)
+        self.assertIn(f"/bot{jarvis_token}/sendMessage", url_2)
+        # 4. The 401 token was blacklisted for this process (real retry evidence).
+        self.assertIn(notify_token, telegram_egress._dead_tokens)
+        # 5. Outgoing payload carried the intended recipient chat_id.
+        self.assertEqual(payload_2["chat_id"], "999888")
+        self.assertIn("P0", payload_2["text"])
 
-        with patch("app.utils.telegram_egress.resolve_chat_id", return_value="12345"):
-            with patch("app.utils.telegram_egress._send_via_bot_api", side_effect=fake_send_via_bot_api):
-                result = owner_notify.send_owner("test", severity="P0", evidence="e", dedupe_key="mtf1")
-                self.assertTrue(result, "Should succeed via DM fallback after group 401")
+    # ---- DM fallback: outgoing payload + intended recipient ----
+    def test_dm_fallback_payload_carries_recipient_chat_id(self):
+        """When group resolution fails, the DM fallback must send a
+        sendMessage payload that carries the actual recipient chat_id
+        (Telegram Bot API requires chat_id in the request body)."""
+        dm_token = "333333333:AAFakeDmTokenForTest2"
+        os.environ["TELEGRAM_BOT_TOKEN"] = dm_token
+        os.environ["TELEGRAM_CHAT_ID"] = "777000"
 
-    # ---- DM fallback when group chat unavailable ----
-    def test_dm_fallback_when_group_chat_not_found(self):
-        """When resolve_chat_id returns None (unknown group), _deliver_fallback
-        must fall through to the DM path using TELEGRAM_CHAT_ID."""
-        os.environ["TELEGRAM_BOT_TOKEN"] = "test-token"
-        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+        script = [
+            (200, {"ok": True, "result": {"message_id": 5151, "chat_id": "777000"}}),
+        ]
+        fake_client, calls = _make_fake_httpx(script)
+        with patch("httpx.AsyncClient", fake_client):
+            with patch.object(telegram_egress, "resolve_chat_id", return_value=None):
+                result = owner_notify.send_owner(
+                    "dm test", severity="P1", evidence="owner_feed#t-dm", dedupe_key="dm2"
+                )
 
-        async def fake_send_via_bot_api(chat_id, method, payload, timeout_s=15.0):
-            return {"sent": True, "message_id": 100, "chat_id": chat_id}
+        self.assertTrue(result, "DM fallback must deliver when group is unresolvable")
+        self.assertEqual(len(calls), 1, "unknown group → exactly one DM attempt")
+        url, payload = calls[0]
+        self.assertIn(f"/bot{dm_token}/sendMessage", url)
+        # Recipient evidence: payload chat_id == intended TELEGRAM_CHAT_ID.
+        self.assertEqual(payload["chat_id"], "777000")
+        self.assertIn("P1", payload["text"])
 
-        # resolve_chat_id returns None → send_to_group returns unknown_group error
-        # → _deliver_fallback falls through to DM path
-        with patch("app.utils.telegram_egress.resolve_chat_id", return_value=None):
-            with patch("app.utils.telegram_egress._send_via_bot_api", side_effect=fake_send_via_bot_api):
-                result = owner_notify.send_owner("test", severity="P0", evidence="e", dedupe_key="dm1")
-                self.assertTrue(result, "Should succeed via DM fallback when group unknown")
+    # ---- async-caller context: truthful success AND failure ----
+    def test_send_owner_from_async_caller_is_truthful_success(self):
+        """send_owner() called FROM a running event loop must still return a
+        truthful True — delivery runs to completion (worker thread), it does
+        not deadlock the loop nor optimistically claim success."""
+        async_token = "444444444:AAFakeAsyncTokenForTest3"
+        os.environ["TELEGRAM_BOT_TOKEN"] = async_token
+        os.environ["TELEGRAM_CHAT_ID"] = "666555"
+
+        script = [
+            (200, {"ok": True, "result": {"message_id": 7070, "chat_id": "666555"}}),
+        ]
+        fake_client, calls = _make_fake_httpx(script)
+
+        async def _async_caller():
+            return owner_notify.send_owner(
+                "async ok", severity="P0", evidence="owner_feed#t-async", dedupe_key="ac1"
+            )
+
+        with patch("httpx.AsyncClient", fake_client):
+            with patch.object(telegram_egress, "resolve_chat_id", return_value=None):
+                result = asyncio.run(_async_caller())
+
+        self.assertTrue(result, "async-caller success must be truthful (delivered)")
+        self.assertEqual(len(calls), 1)
+
+    def test_send_owner_from_async_caller_is_truthful_failure(self):
+        """Same async context, but every token 401s → send_owner() must
+        return a truthful False (no optimistic success, no raise)."""
+        dead_a = "555555555:AAFakeDeadTokenAForTest4"
+        dead_b = "666666666:AAFakeDeadTokenBForTest5"
+        os.environ["TELEGRAM_NOTIFY_BOT_TOKEN"] = dead_a
+        os.environ["TELEGRAM_JARVIS_BOT_TOKEN"] = dead_b
+        os.environ["TELEGRAM_CHAT_ID"] = "666555"
+
+        script = [
+            (401, {"ok": False, "error_code": 401, "description": "Unauthorized"}),
+            (401, {"ok": False, "error_code": 401, "description": "Unauthorized"}),
+        ]
+        fake_client, calls = _make_fake_httpx(script)
+
+        async def _async_caller():
+            return owner_notify.send_owner(
+                "async fail", severity="P0", evidence="owner_feed#t-asyncf", dedupe_key="ac2"
+            )
+
+        with patch("httpx.AsyncClient", fake_client):
+            with patch.object(telegram_egress, "resolve_chat_id", return_value=None):
+                result = asyncio.run(_async_caller())
+
+        self.assertFalse(result, "async-caller failure must be truthful (all tokens 401)")
+        self.assertEqual(len(calls), 2, "each candidate tried exactly once")
 
 
 class WorkforceTruthGateTests(unittest.TestCase):
