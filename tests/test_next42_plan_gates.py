@@ -64,6 +64,27 @@ def test_web_concurrency_hardcoded_two_on_vps_compose():
     text = (REPO / "docker-compose.vps.yml").read_text(encoding="utf-8")
     assert "WEB_CONCURRENCY: 2" in text
     assert "mem_limit: 3g" in text
+    # 2026-09-23 (task0012 slice 2) anti-relaxation pin: the `app:` service
+    # must carry the hardcoded literal 2. PR #549 (e91e45e6) swapped it for
+    # ${WEB_CONCURRENCY:-1}; env_file/.env could then silently drop the app to
+    # 1 worker and resurrect the concurrent-burst 502 class. `app:` is the
+    # first service that sets WEB_CONCURRENCY in the file (the mcp service
+    # keeps its own hardcoded 1), and no service may use the ${..} form.
+    wc_lines = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("WEB_CONCURRENCY")]
+    assert wc_lines[0] == "WEB_CONCURRENCY: 2", wc_lines
+    assert not any("WEB_CONCURRENCY: ${" in ln for ln in text.splitlines()), wc_lines
+    # Two workers are safe only with the durable Celery scheduler path. The
+    # previous ${RUN_IN_PROCESS_SCHEDULER:-1} default silently enabled the
+    # duplicate in-process scheduler on a fresh/rollback deployment. Pin the
+    # app service to 0 so effective compose config cannot default to 1.
+    app_block = text.split("  app:\n", 1)[1].split("\n  [a-z_-]+:\n", 1)[0]
+    scheduler_lines = [
+        ln.strip()
+        for ln in app_block.splitlines()
+        if ln.strip().startswith("RUN_IN_PROCESS_SCHEDULER")
+    ]
+    assert scheduler_lines, scheduler_lines
+    assert scheduler_lines[0] == 'RUN_IN_PROCESS_SCHEDULER: "0"', scheduler_lines
 
 
 def test_inbox_and_start_routes_exist_in_main():
