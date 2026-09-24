@@ -748,6 +748,257 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
     return "other"
 
 
+def _typesafe_triage_evidence(
+    subject: str, body: str, llm_intent: str, prospect: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Canonical TypeSafe reply-triage evidence (opt-in, fail-safe, never raises).
+
+    REUSES the canonical ``typesafe_services.TypeSafeReplyTriage`` — no new SDK,
+    key pool, secret store, or bridge (CLAUDE.md M01/§2.2 architectural NO-NOs).
+
+    * ``REPLY_AGENT_TYPESAFE`` unset (default) → ``{"active": False}``: the LLM
+      ``_classify`` verdict stands unmodified and deterministic compliance gates
+      remain the only authority. No TypeSafe call, no network.
+    * Flag on but the client is INERT (ABSENT credential) → ``{"active": False,
+      "reason": "inert"}``: the observed config state is recorded; no call is made.
+    * Flag on + key PRESENT + reachable → typed evidence: ``intent``/``is_hot``/
+      ``sentiment``/``urgency``/``suggested_action`` plus the resolved ``model``
+      and ``latency_sec`` (real invocation record, per §7 of the task brief).
+
+    ``conflict`` is set ONLY when the LLM called the reply a qualified
+    opportunity (``interested``/``question``) but TypeSafe is confident it is a
+    decline/opt-out and NOT hot — the caller holds that reply for human review
+    instead of inventing customer intent (§4: "Do not classify an email as a
+    qualified opportunity solely because it contains positive language").
+    """
+    marker: dict[str, Any] = {"active": False}
+    if not _flag("REPLY_AGENT_TYPESAFE"):
+        return marker
+    try:
+        from app.platform.typesafe_services import get_typesafe_reply_triage
+
+        svc = get_typesafe_reply_triage()
+        if not svc.client.enabled:
+            # INERT (ABSENT credential): degrade gracefully, record observed state.
+            return {"active": False, "reason": "inert"}
+        lead_ctx = (
+            {
+                "business_name": (prospect or {}).get("business_name"),
+                "niche": (prospect or {}).get("niche"),
+                "status": (prospect or {}).get("status"),
+            }
+            if prospect
+            else None
+        )
+        tri = svc.triage_reply((body or subject or "")[:1500], lead_ctx)
+        md = dict(tri.metadata or {})
+        # Map the canonical TypeSafe intent vocabulary -> this module's LLM vocab
+        # so the conflict check compares like-for-like against `llm_intent`.
+        intent_map = {
+            "demo_request": "interested",
+            "callback_requested": "interested",
+            "pricing_query": "question",
+            "question": "question",
+            "not_interested": "not_interested",
+            "unsubscribe": "unsubscribe",
+            "other": "other",
+        }
+        ts_cat = intent_map.get(str(tri.intent), "other")
+        conflict = (
+            llm_intent in _HOT_INTENTS
+            and ts_cat in ("not_interested", "unsubscribe")
+            and not tri.is_hot
+        )
+        return {
+            "active": True,
+            "intent": str(tri.intent),
+            "mapped_intent": ts_cat,
+            "is_hot": bool(tri.is_hot),
+            "sentiment": str(tri.sentiment),
+            "urgency": str(tri.urgency),
+            "suggested_action": str(tri.suggested_action),
+            "conflict": conflict,
+            "model": md.get("model"),
+            "latency_sec": md.get("latency_sec"),
+        }
+    except Exception as exc:
+        # Unreachable / unexpected failure: report observed failure accurately and
+        # continue with the LLM verdict + deterministic gates (task §7).
+        logger.debug("typesafe triage evidence err: %s", exc)
+        return {"active": False, "reason": str(exc)[:120]}
+
+
+def create_reply_followup_task(
+    prospect: dict[str, Any],
+    intent: str,
+    ts_ev: dict[str, Any],
+    *,
+    idempotency_key: str = "",
+    orchestrator: Any | None = None,
+) -> dict[str, Any]:
+    """Idempotently create a canonical WORKER follow-up task for a qualified reply.
+
+    Targets the **canonical worker-execution ledger** — ``data/orchestrator_ledger.db``
+    via ``AutomationOrchestrator.submit_task`` (the single control plane), NOT the
+    admin Kanban ``data/admin_tasks.db``. A durable ``task_<uuid8>`` id is returned
+    together with its owner_bot / assigned_agent and the evidence URI, so a qualified
+    reply lands in the worker queue with TypeSafe evidence attached.
+
+    * Gated by ``REPLY_AGENT_FOLLOWUP_TASK=1`` (default off → no behaviour change).
+    * **Idempotent**: a stable ``idempotency_key`` (caller-supplied, derived from
+      email + thread so re-processing the same message is a no-op) means a retry
+      returns the existing task (``created=False, reason="duplicate"``) instead of
+      minting a second task/deal. ``submit_task`` enforces this via its built-in
+      ``get_by_idempotency_key`` check.
+    * ``orchestrator`` is injectable so tests point the durable store at a temp DB;
+      default ``None`` builds the canonical production orchestrator.
+    * Never raises.
+    """
+    out: dict[str, Any] = {
+        "created": False,
+        "task_id": None,
+        "owner_bot": None,
+        "assigned_agent": None,
+        "idempotency_key": None,
+    }
+    if not _flag("REPLY_AGENT_FOLLOWUP_TASK"):
+        out["reason"] = "flag_off"
+        return out
+    biz = str((prospect or {}).get("business_name") or "").strip() or "unknown"
+    email = str((prospect or {}).get("email") or "").strip().lower()
+    key = idempotency_key or (
+        f"reply_followup:{email}:{abs(hash((email, str(intent)))):08x}"
+    )
+    out["idempotency_key"] = key
+    try:
+        from app.platform.automation_orchestrator import (
+            AutomationOrchestrator,
+            TaskPriority,
+        )
+
+        orch = orchestrator if orchestrator is not None else AutomationOrchestrator()
+        payload = {
+            "source": "reply_agent",
+            "kind": "qualified_reply_followup",
+            "business": biz,
+            "email": email or None,
+            "intent": intent,
+            "typesafe": ts_ev or {},
+        }
+        record, is_new = orch.submit_task(
+            owner_bot="sales",
+            assigned_agent="rohan",
+            priority=TaskPriority.HIGH,
+            input_payload=payload,
+            idempotency_key=key,
+        )
+        out.update(
+            {
+                "created": is_new,
+                "task_id": record.task_id,
+                "owner_bot": record.owner_bot,
+                "assigned_agent": record.assigned_agent,
+                "status": str(record.status),
+                "reason": "created" if is_new else "duplicate",
+            }
+        )
+        return out
+    except Exception as exc:
+        logger.debug("followup task err: %s", exc)
+        out.update({"created": False, "reason": f"error:{str(exc)[:120]}"})
+        return out
+
+
+def _typesafe_content_gate(
+    subject: str, body: str, prospect: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Opt-in TypeSafe pre-send quality/compliance verdict on an outgoing reply.
+
+    REUSES the canonical ``typesafe_services.TypeSafeContentQA`` (no new gate).
+
+    * ``REPLY_AGENT_TYPESAFE_CONTENT`` unset (default) → ``{"enabled": False}``:
+      deterministic compliance gates (suppression/injection/unknown-prospect/
+      age/scan) remain the only authority and behaviour is unchanged.
+    * Flag on + client INERT/unavailable → ``{"enabled": True, "passed": True,
+      "reason": "inert_or_unavailable"}``: fail-OPEN. We never block the bounded
+      auto-send just because the paid verifier is down; deterministic gates
+      already protect deliverability.
+    * Flag on + verdict available → ``{"enabled": True, "passed": ...,
+      "persuasion_score": ..., "tone": ..., "reasons": [...]}``. A failing
+      verdict (spammy / compliance / aggressive tone) is a soft hold signal the
+      caller records on the draft row; it does NOT silently bypass the
+      deterministic gates above it. Never raises.
+    """
+    out: dict[str, Any] = {"enabled": False}
+    if not _flag("REPLY_AGENT_TYPESAFE_CONTENT"):
+        return out
+    out["enabled"] = True
+    try:
+        from app.platform.typesafe_services import get_typesafe_content_qa
+
+        svc = get_typesafe_content_qa()
+        if not svc.client.enabled:
+            # INERT (no API key): ADVISORY only — never block the bounded auto-send
+            # just because the paid verifier is not armed. Deterministic gates still
+            # protect deliverability, so the row proceeds to the claim/send path.
+            out.update({"state": "inert", "passed": True, "needs_review": False, "reason": "inert"})
+            return out
+        verdict = svc.audit_outbound_message(
+            subject=subject,
+            body=body,
+            channel="email",
+            recipient_context=(
+                {
+                    "business_name": (prospect or {}).get("business_name"),
+                    "niche": (prospect or {}).get("niche"),
+                    "email": (prospect or {}).get("email"),
+                }
+                if prospect
+                else None
+            ),
+        )
+        md = verdict.metadata or {}
+        has_answer = bool(md.get("has_answer", False))
+        api_ok = bool(md.get("success", False))
+        # The gate is a safety check: a customer-facing draft may go out ONLY when
+        # the verifier actively produced a clean, approved verdict. Every other
+        # shape is "needs review" and must be held (never auto-sent):
+        #   * approved=False (spammy / compliance / aggressive) -> hold
+        #   * API error / timeout   -> hold (unverifiable)
+        #   * empty answer          -> hold (no verdict to trust)
+        passed = api_ok and has_answer and verdict.approved
+        state = "ok" if passed else ("error" if not api_ok else ("empty_answer" if not has_answer else "rejected"))
+        out.update(
+            {
+                "state": state,
+                "passed": passed,
+                "needs_review": (not passed),  # any non-clean verdict -> hold for review
+                "approved": bool(verdict.approved),
+                "is_spammy": bool(verdict.is_spammy),
+                "compliance_violation": bool(verdict.compliance_violation),
+                "persuasion_score": verdict.persuasion_score,
+                "tone": verdict.tone,
+                "reasons": list(verdict.reasons),
+                "has_answer": has_answer,
+                "model": md.get("model"),
+                "latency_sec": md.get("latency_sec"),
+            }
+        )
+        return out
+    except Exception as exc:
+        logger.debug("typesafe content gate err: %s", exc)
+        # API/timeout/verifier failure == UNVERIFIABLE -> hold, do NOT fail open.
+        out.update(
+            {
+                "state": "error",
+                "passed": False,
+                "needs_review": True,
+                "reason": f"error:{str(exc)[:80]}",
+            }
+        )
+        return out
+
+
 def _interested_offer_block(biz: str = "") -> str:
     """Offer + payment footer appended to an ``interested`` reply — the money step.
 
@@ -1193,6 +1444,46 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 seen_counts[frm] = seen_counts.get(frm, 0) + 1
                 intent = await _classify(subj, body)
+                # TypeSafe typed evidence (opt-in, fail-safe). Reuses the canonical
+                # typesafe_services triage; INERT/unavailable -> evidence inactive and
+                # the LLM verdict stands unchanged. On a genuine LLM-vs-TypeSafe
+                # conflict (LLM hot, TypeSafe confident decline) demote to "other" and
+                # hold for human review — never invent customer intent (§4/§7).
+                ts_ev = _typesafe_triage_evidence(subj, body, intent, p)
+                if ts_ev.get("active") and ts_ev.get("conflict"):
+                    # LLM called this a qualified opportunity but TypeSafe is confident
+                    # it is actually a decline / opt-out. NEVER build an interested deal,
+                    # cadence or auto-send from it.
+                    intent = "other"
+                    ts_ev["held_for_review"] = True
+                    # An explicit TypeSafe-detected UNSUBSCRIBE is a compliance opt-out:
+                    # persist it to the canonical global suppression path so every
+                    # send/follow-up (email + phone) is blocked. Idempotent on the same
+                    # delivery key, so re-processing the thread never duplicates it.
+                    if ts_ev.get("mapped_intent") == "unsubscribe":
+                        try:
+                            from app.platform import email_unsub
+
+                            _mid = _safe_thread_headers(msg)[0]
+                            _pid = str((p or {}).get("id") or (p or {}).get("pid") or "")
+                            _scope = (
+                                email_unsub.SCOPE_ALL_OUTREACH
+                                if _pid
+                                else email_unsub.SCOPE_QUARANTINE
+                            )
+                            email_unsub.suppress(
+                                frm or "",
+                                reason="typesafe_unsubscribe",
+                                scope=_scope,
+                                prospect_id=_pid,
+                                event_id=_reply_delivery_key(frm or "", _mid),
+                                source="reply_agent_typesafe",
+                            )
+                            ts_ev["suppressed"] = True
+                        except Exception as _tsup_err:  # never break triage
+                            logger.warning("[reply_agent] typesafe unsubscribe suppression failed: %s", _tsup_err)
+                    # A plain semantic "not interested" (mapped_intent not_interested)
+                    # stays a review hold only — we do not invent a hard opt-out.
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
                 # Never blocks — flags the draft so the human reviewer does NOT act on
                 # instructions embedded by a malicious sender. ph18/15-16 (llm-security skill).
@@ -1313,6 +1604,21 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             )
                         except Exception:
                             pass
+                        # Canonical follow-up task (opt-in REPLY_AGENT_FOLLOWUP_TASK=1):
+                        # idempotent task_ledger row so a qualified reply has a durable,
+                        # owner-visible action with TypeSafe evidence persisted in it
+                        # (§5 "create or update the appropriate canonical follow-up task").
+                        try:
+                            _ft = create_reply_followup_task(
+                                {**p, "email": frm},
+                                intent,
+                                ts_ev,
+                                idempotency_key=f"reply_followup:{frm}:{message_id or 'none'}",
+                            )
+                            if _ft.get("created") or _ft.get("task_id"):
+                                res["followup_task"] = _ft
+                        except Exception:
+                            pass
                         # Journey: email_reply trigger (gated JOURNEY_ENGINE=1)
                         try:
                             from app.marketing import journeys
@@ -1363,6 +1669,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         "intent": intent,
                         "draft": draft,
                         "draft_source": draft_source,
+                        "typesafe": ts_ev,
                         "injection_flag": _inj,
                         "scan_status": _scan_status,
                         "channel": "email",
@@ -2244,6 +2551,7 @@ async def run_auto_reply_backlog(
                 "expired",
                 "attempting",
                 "ambiguous",
+                "held_for_review",
             }:
                 continue
             out["seen"] += 1
@@ -2309,14 +2617,8 @@ async def run_auto_reply_backlog(
                     },
                 )
                 continue
-            claim = int(await claim_fn(delivery_key, cap))
-            if claim == -1:
-                out["skipped"] = "daily_cap"
-                break
-            if claim != 1:
-                out["claimed_elsewhere"] += 1
-                continue
-            remaining -= 1
+            # Compute the outgoing message content FIRST — the TypeSafe content gate
+            # below inspects `subject`/`body`, so they must exist before it runs.
             body = _stale_reengagement_body() if stale else str(row.get("draft") or "").strip()
             subject = str(row.get("subject") or "Quick follow-up").strip()
             if not subject.lower().startswith("re:"):
@@ -2328,6 +2630,45 @@ async def run_auto_reply_backlog(
                 headers["In-Reply-To"] = message_id
                 headers["References"] = f"{references} {message_id}".strip()
             headers["Message-ID"] = f"<reply-{delivery_key}@leadsgenai.in>"
+            # OPT-IN TypeSafe pre-send quality/compliance gate (REPLY_AGENT_TYPESAFE_CONTENT=1).
+            # Reuses the canonical typesafe_services content QA. It runs AFTER the
+            # deterministic consent/suppression/injection/unknown/age/scan gates above
+            # and BEFORE the idempotency claim is consumed, so an unsafe or unverifiable
+            # draft is held for review WITHOUT burning the daily cap / claim.
+            #
+            # SAFETY CONTRACT: once the gate is ARMED it never lets an unverifiable
+            # customer-facing draft auto-send. `needs_review` is True on a rejected
+            # verdict (spammy/compliance/aggressive), a conflict, an API error/timeout,
+            # or an empty answer — all of which HOLD the row for human review. The only
+            # proceed-without-verdict case is INERT (no API key), where the gate is
+            # advisory and the deterministic gates above still protect deliverability.
+            # (There is deliberately no "advisory" mode that ships an unsafe draft.)
+            _cgate: dict[str, Any] | None = None
+            if _flag("REPLY_AGENT_TYPESAFE_CONTENT"):
+                _cgate = _typesafe_content_gate(subject, body, prospect)
+                _update_draft_fields(
+                    hq_id,
+                    {"typesafe_content_gate": json.dumps(_cgate, default=str)[:500]},
+                )
+                if _cgate.get("needs_review"):
+                    out["held_for_review"] = out.get("held_for_review", 0) + 1
+                    _reason = _cgate.get("state") or "needs_review"
+                    _update_draft_fields(
+                        hq_id,
+                        {
+                            "auto_send_status": "held_for_review",
+                            "auto_send_reason": f"typesafe_content_gate:{_reason}",
+                        },
+                    )
+                    continue
+            claim = int(await claim_fn(delivery_key, cap))
+            if claim == -1:
+                out["skipped"] = "daily_cap"
+                break
+            if claim != 1:
+                out["claimed_elsewhere"] += 1
+                continue
+            remaining -= 1
             attempts = int(row.get("auto_send_attempts") or 0) + 1
             if not _update_draft_fields(
                 hq_id,

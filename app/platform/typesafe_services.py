@@ -376,7 +376,19 @@ class TypeSafeContentQA:
             persuasion_score=persuasion,
             tone=tone,
             reasons=reasons,
-            metadata={"latency_sec": resp.latency_sec, "model": resp.model},
+            # `success`/`has_answer` are ADDITIVE metadata (no new required
+            # dataclass fields, so every existing construction site keeps
+            # working). They let a caller tell "the verifier ran and produced a
+            # clean verdict" apart from "the API errored / timed out / returned
+            # nothing" — a fail-safe auto-send gate must HOLD in the latter case
+            # rather than treat an empty answer as a pass.
+            metadata={
+                "latency_sec": resp.latency_sec,
+                "model": resp.model,
+                "success": bool(resp.success),
+                "has_answer": bool(resp.has_answer),
+                "attempts": int(getattr(resp, "attempts", 1) or 1),
+            },
         )
 
 
