@@ -522,6 +522,21 @@ def submit_payment(
             # disagrees with the issued order is a mismatch, not an override.
             if str(order.get("package_code") or "").lower() != plan_s.lower():
                 return {"ok": False, "error": "Order reference does not match the submitted plan"}
+            # Tenant-boundary fail-closed: an authenticated client submitting
+            # against somebody else's bound order is refused — no row, no
+            # activation surface, victim order untouched. A matching JWT is
+            # accepted; a guest (empty cid) falls through to adoption below.
+            if cid:
+                offer_cid = str(order.get("client_id") or "").strip()
+                if offer_cid and offer_cid != cid:
+                    logger.warning(
+                        "upi_payments refusing cross-account submit — ref=%s plan=%s cid=%s order_client=%s",
+                        ref_s,
+                        plan_s,
+                        cid,
+                        offer_cid,
+                    )
+                    return {"ok": False, "error": "Order reference belongs to a different account"}
             # Offer-bound client adoption (conversion fast-path, fail-closed):
             # hosted /pay buyers carry no JWT, so cid is empty and every such
             # record would need bind+re-approve before activation. When the JWT

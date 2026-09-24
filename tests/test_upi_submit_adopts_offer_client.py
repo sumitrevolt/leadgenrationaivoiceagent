@@ -67,15 +67,32 @@ def test_offer_without_client_keeps_guest_path(env):
     assert "client_adopted_from_order" not in out
 
 
-def test_logged_in_client_is_never_overridden(env):
-    """JWT identity wins — the offer must not re-point a logged-in payer."""
+def test_mismatched_logged_in_client_is_refused_with_zero_rows(env):
+    """Tenant boundary: JWT cli9 + cli1-bound order → fail-closed, victim order live."""
     upi, offers = env
     o = _issue(offers)
 
     out = upi.submit_payment("cli9", "starter", "TXN1", amount=1999, order_ref=o["order_ref"])
 
+    assert out["ok"] is False
+    assert "different account" in out["error"]
+    assert upi.list_payments("pending") == []
+    assert upi.list_payments() == []
+    # Victim's order untouched — still payable right now.
+    order, reason = offers.resolve_payable(o["order_ref"])
+    assert order is not None and reason == "ok"
+
+
+def test_matching_logged_in_client_accepted_without_adoption_flag(env):
+    """JWT cli1 + cli1-bound order → accepted as self, no adoption marker."""
+    upi, offers = env
+    o = _issue(offers)
+
+    out = upi.submit_payment("cli1", "starter", "TXN1", amount=1999, order_ref=o["order_ref"])
+
     assert out["ok"] is True
-    assert out["client_id"] == "cli9"
+    assert out["client_id"] == "cli1"
+    assert out["needs_client_bind"] is False
     assert "client_adopted_from_order" not in out
 
 
@@ -157,3 +174,92 @@ def test_single_approve_activates_adopted_record_without_bind(env, monkeypatch):
     assert "approved_but_unbound" not in (decided.get("warning") or "")
     assert calls == [("cli1", "starter")]  # exactly once, no double activation
     assert upi.list_actionable() == []
+
+
+@pytest.fixture
+def route_client(env, monkeypatch):
+    """Real route with scripted identity: proves JWT→handler propagation."""
+    from fastapi.testclient import TestClient
+
+    from app.api.customer_auth import optional_customer
+    from app.main import app
+
+    ident = {"cid": ""}
+
+    async def _fake_optional_customer():
+        return ident["cid"]
+
+    app.dependency_overrides[optional_customer] = _fake_optional_customer
+    try:
+        with TestClient(app) as client:
+            yield client, ident
+    finally:
+        app.dependency_overrides.pop(optional_customer, None)
+
+
+def _submit_payload(order_ref, ref="TXN-R1", plan="starter"):
+    return {"plan": plan, "upi_ref": ref, "amount": 1999, "order_ref": order_ref}
+
+
+def test_route_authenticated_mismatch_refused(route_client):
+    """cli9 JWT + cli1-bound order through POST /api/upi/submit → refused, zero rows."""
+    client, ident = route_client
+    from app.marketing import offers as offers_mod  # noqa: F811
+    from app.platform import upi_payments as upi_mod  # noqa: F811
+
+    ident["cid"] = "cli9"
+    o = offers_mod.issue_offer("deal1", "starter", client_id="cli1")
+
+    r = client.post("/api/upi/submit", json=_submit_payload(o["order_ref"]))
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert "different account" in body["error"]
+    assert "id" not in body  # no record leaked
+    assert upi_mod.list_payments() == []
+
+
+def test_route_guest_valid_ref_adopted_through_route(route_client):
+    """JWT-less POST with a bound order → ok, store row carries the offer client."""
+    client, ident = route_client
+    from app.marketing import offers as offers_mod  # noqa: F811
+    from app.platform import upi_payments as upi_mod  # noqa: F811
+
+    ident["cid"] = ""
+    o = offers_mod.issue_offer("deal1", "starter", client_id="cli1")
+
+    r = client.post("/api/upi/submit", json=_submit_payload(o["order_ref"], ref="TXN-R2"))
+
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    rows = upi_mod.list_payments("pending")
+    assert len(rows) == 1
+    assert rows[0]["client_id"] == "cli1"
+    assert rows[0]["client_adopted_from_order"] is True
+
+
+def test_route_mismatch_returns_no_cross_tenant_record(route_client):
+    """Attacker reusing a upi_ref + victim order gets neither row nor replay."""
+    client, ident = route_client
+    from app.marketing import offers as offers_mod  # noqa: F811
+    from app.platform import upi_payments as upi_mod  # noqa: F811
+
+    victim = upi_mod.submit_payment("cli1", "starter", "VICTIM-1", amount=1999)
+    assert victim["ok"] is True
+    o = offers_mod.issue_offer("deal1", "starter", client_id="cli1")
+
+    ident["cid"] = "cli9"
+    r = client.post(
+        "/api/upi/submit",
+        json=_submit_payload(o["order_ref"], ref="VICTIM-1"),
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False  # mismatch refuses; victim row NOT returned as replay
+    assert body.get("duplicate") is not True
+    rows = upi_mod.list_payments()
+    assert len(rows) == 1
+    assert rows[0]["client_id"] == "cli1"
+    assert rows[0]["upi_ref"] == "VICTIM-1"
