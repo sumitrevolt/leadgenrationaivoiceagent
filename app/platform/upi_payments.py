@@ -450,6 +450,11 @@ def submit_payment(
     unknown, expired, superseded, already-paid or cancelled reference is
     rejected fail-closed rather than being recorded as an unverified hint.
     Omitting it preserves the pre-#240 behaviour exactly.
+
+    When the caller has no JWT client (hosted /pay guest) and the resolved
+    offer carries an admin-bound ``client_id``, that id is adopted for the
+    record — one owner approve then suffices instead of bind+re-approve. A
+    logged-in id is never overridden, and ``body.client_id`` is never read.
     """
     try:
         plan_s = (plan or "").strip()
@@ -517,6 +522,21 @@ def submit_payment(
             # disagrees with the issued order is a mismatch, not an override.
             if str(order.get("package_code") or "").lower() != plan_s.lower():
                 return {"ok": False, "error": "Order reference does not match the submitted plan"}
+            # Offer-bound client adoption (conversion fast-path, fail-closed):
+            # hosted /pay buyers carry no JWT, so cid is empty and every such
+            # record would need bind+re-approve before activation. When the JWT
+            # is absent, adopt the client_id the ADMIN bound to the issued
+            # offer — server-resolved above, never body.client_id (a payer must
+            # not pick someone else's account). A logged-in cid is never
+            # overridden; an offer without a client keeps the guest path
+            # (needs_client_bind stays True). Adoption flows through the same
+            # allowlist gate below — no auto-activation bypass (default OFF).
+            adopted_from_order = False
+            if order and not cid:
+                offer_cid = str(order.get("client_id") or "").strip()
+                if offer_cid:
+                    cid = offer_cid
+                    adopted_from_order = True
 
         record = {
             "id": _make_id(rows, ref_s),
@@ -542,6 +562,11 @@ def submit_payment(
             record["package_code"] = str(order.get("package_code") or "")
             record["expected_amount"] = order.get("quoted_amount")
             record["currency"] = str(order.get("currency") or "INR")
+            if adopted_from_order:
+                # Provenance: client came from the admin-issued offer, not
+                # from a JWT and never from payer input (audit trail for
+                # bind-skipped single-approve activations).
+                record["client_adopted_from_order"] = True
             try:
                 record["amount_mismatch"] = bool(
                     float(amount or 0) > 0
