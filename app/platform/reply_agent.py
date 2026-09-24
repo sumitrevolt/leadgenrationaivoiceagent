@@ -549,6 +549,21 @@ def _safe_thread_headers(msg: Any) -> tuple[str, str]:
         return "", ""
 
 
+def _imap_uid(meta_envelope: Any) -> str:
+    """Parse the durable IMAP UID from a fetch-response envelope.
+
+    The envelope is the metadata string that precedes the message body, e.g.
+    ``b'1 (UID 1001 INTERNALDATE "..." BODY[] {n})'``. The UID is a stable,
+    per-message mailbox identifier that survives a process restart — unlike a
+    sequence number — so it is the right durable identity for a message that has
+    no RFC Message-ID / References to key on. Returns "" when absent (e.g. a
+    fake mailbox that does not advertise a UID). Only a numeric token is kept;
+    no header text or PII is retained.
+    """
+    m = re.search(r"\bUID\s+(\d{1,12})", str(meta_envelope or ""))
+    return m.group(1) if m else ""
+
+
 #: Standalone opt-out commands. Deliberately NARROW and deterministic — this
 #: runs before the junk guard, so a loose pattern would suppress real prospects
 #: over a passing mention ("stop by the shop"). Each must appear as a whole word
@@ -646,7 +661,9 @@ def _reply_delivery_key(sender: str, message_id: str) -> str:
     return hashlib.sha256(f"{sender}|{message_id}".encode("utf-8", "ignore")).hexdigest()[:32]
 
 
-def _followup_task_key(sender: str, message_id: str = "", references: str = "") -> str:
+def _followup_task_key(
+    sender: str, message_id: str = "", references: str = "", uid: str = ""
+) -> str:
     """Stable, PII-minimized idempotency key for a qualified-reply follow-up task.
 
     Derived from the message's **delivery/thread identity** so re-processing the
@@ -655,20 +672,28 @@ def _followup_task_key(sender: str, message_id: str = "", references: str = "") 
 
       * ``message_id`` present  -> digest of ``sender|<message_id>``
         (the RFC Message-ID is the stable per-delivery identity).
-      * ``message_id`` absent   -> DISTINCT durable fallback: digest of
-        ``sender|thread:<root>`` where ``root`` is the earliest ``References``
-        token. This keeps two different threads from the same sender distinct
-        instead of collapsing them to one shared ``'none'`` constant.
-      * neither                 -> digest of ``sender|norep`` (sender-scoped).
+      * ``message_id`` absent, ``references`` present -> digest of
+        ``sender|thread:<root>`` where ``root`` is the earliest References token.
+      * neither, ``uid`` present -> digest of ``sender|uid:<n>``. The IMAP UID is
+        the durable per-message mailbox identifier (stable across a restart), so
+        two DISTINCT identifier-less replies from the same sender stay distinct —
+        they never collapse to one shared key.
+      * none of the above        -> an explicit ``<review>`` marker. This is a
+        LAST-RESORT no-identity path: the caller is expected to log it for review,
+        NOT silently mint one sender-scoped task and dedup against it. We surface
+        it rather than hide it so a missing-identity reply is a visible, auditable
+        event instead of a silent dedup collision.
 
     Deterministic (SHA-256), **never** Python ``hash()`` — ``hash()`` is
     PYTHONHASHSEED-salted and unstable across process restarts, so it would not
-    reliably dedup a cross-process replay.
+    reliably dedup a cross-process replay. No raw email body / PII is used; only
+    the bounded identity tokens above.
     """
     import hashlib
 
     sender = (sender or "").strip().lower()
     message_id = (message_id or "").strip()
+    uid = (uid or "").strip()
     refs = re.findall(r"<[^<>\r\n]{1,200}>", references or "")
     if not sender:
         # No sender identity at all — a stable no-op marker so callers never mint
@@ -678,8 +703,12 @@ def _followup_task_key(sender: str, message_id: str = "", references: str = "") 
         material = f"{sender}|{message_id}"
     elif refs:
         material = f"{sender}|thread:{refs[0]}"
+    elif uid:
+        material = f"{sender}|uid:{uid}"
     else:
-        material = f"{sender}|norep"
+        # Explicit review marker — NOT a sender-scoped dedup bucket. Callers should
+        # treat this as "record + hold for review", never as a stable task key.
+        return "reply_followup:<review>"
     digest = hashlib.sha256(material.encode("utf-8", "ignore")).hexdigest()[:32]
     return f"reply_followup:{digest}"
 
@@ -874,6 +903,7 @@ def create_reply_followup_task(
     idempotency_key: str = "",
     message_id: str = "",
     references: str = "",
+    uid: str = "",
     orchestrator: Any | None = None,
 ) -> dict[str, Any]:
     """Idempotently create a canonical WORKER follow-up task for a qualified reply.
@@ -886,15 +916,22 @@ def create_reply_followup_task(
 
     * Gated by ``REPLY_AGENT_FOLLOWUP_TASK=1`` (default off → no behaviour change).
     * **Idempotent**: the default ``idempotency_key`` is ``_followup_task_key`` — a
-      stable digest of the message's delivery/thread identity (Message-ID, else the
-      thread's earliest References token, else the sender). Re-processing the same
-      message, or the same thread seen by a **brand-new process / orchestrator
-      instance**, yields the SAME key → one durable task (``created=False,
-      reason="duplicate"``); two DIFFERENT threads stay distinct. ``submit_task``
-      enforces this via its built-in ``get_by_idempotency_key`` check.
-    * ``message_id`` / ``references`` are the current message's thread identity
-      (from ``_safe_thread_headers``) so the key is derived from THIS reply, never a
-      stale sibling. Never raises.
+      stable digest of the message's delivery/thread identity, in priority order:
+      Message-ID, else the thread's earliest References token, else the durable IMAP
+      ``uid``. Re-processing the same message, or the same thread seen by a
+      **brand-new process / orchestrator instance**, yields the SAME key → one
+      durable task (``created=False, reason="duplicate"``); two DIFFERENT messages
+      stay distinct. ``submit_task`` enforces this via its built-in
+      ``get_by_idempotency_key`` check.
+    * ``message_id`` / ``references`` / ``uid`` are the current message's identity
+      (``_safe_thread_headers`` + ``_imap_uid``) so the key is derived from THIS
+      reply, never a stale sibling.
+    * **No-identity guard**: when none of Message-ID / References / UID is present,
+      the key resolves to the explicit ``reply_followup:<review>`` marker and this
+      function does NOT mint a task — it returns ``created=False`` with
+      ``reason="review:missing_message_identity"`` so the caller can surface it for
+      review instead of silently deduping every no-identity reply from a sender into
+      one shared task. Never raises.
     * ``orchestrator`` is injectable so tests point the durable store at a temp DB;
       default ``None`` builds the canonical production orchestrator.
     """
@@ -910,8 +947,13 @@ def create_reply_followup_task(
         return out
     biz = str((prospect or {}).get("business_name") or "").strip() or "unknown"
     email = str((prospect or {}).get("email") or "").strip().lower()
-    key = idempotency_key or _followup_task_key(email, message_id, references)
+    key = idempotency_key or _followup_task_key(email, message_id, references, uid)
     out["idempotency_key"] = key
+    # No durable per-message identity (no Message-ID / References / UID): do NOT
+    # collapse this into a shared sender-scoped task. Surface it for review.
+    if key.endswith("<review>"):
+        out.update({"created": False, "reason": "review:missing_message_identity"})
+        return out
     try:
         from app.platform.automation_orchestrator import (
             AutomationOrchestrator,
@@ -1289,12 +1331,17 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         seen_counts = _sender_counts(list_drafts(limit=4000)) if flood_cap else {}
         for i in ids:
             try:
-                typ, md = M.fetch(i, "(BODY.PEEK[] INTERNALDATE)")
+                typ, md = M.fetch(i, "(BODY.PEEK[] INTERNALDATE UID)")
                 msg = email.message_from_bytes(md[0][1])
                 frm = email.utils.parseaddr(msg.get("From", ""))[1].lower()
                 subj = _decode(msg.get("Subject", ""))
                 p = pmap.get(frm)
                 body = _body(msg)
+                # Durable per-message mailbox identity (stable across a process
+                # restart) used ONLY as a follow-up-task dedup fallback when the
+                # message carries no RFC Message-ID / References. Never PII; never
+                # written to the draft row body — just threaded into the key.
+                _uid = _imap_uid(md[0][0])
                 # BOUNCE / COMPLAINT GUARD (2026-07-04, hardened 2026-07-25):
                 # mailer-daemon NDRs + FBL complaints must NEVER reach the LLM and
                 # must NEVER count as engagement. Classify structurally (DSN /
@@ -1663,11 +1710,14 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         # owner-visible action with TypeSafe evidence persisted in it
                         # (§5 "create or update the appropriate canonical follow-up task").
                         # The key is derived from THIS message's thread identity
-                        # (Message-ID, else earliest References token, else sender) via
-                        # _followup_task_key — stable across re-processing and across a
-                        # process restart. `_safe_thread_headers(msg)` is used here (not
-                        # the sibling `message_id` variable, which is only populated
-                        # later in the loop and would be stale on the first iteration).
+                        # (Message-ID, else earliest References token, else the durable
+                        # IMAP UID, else sender) via _followup_task_key — stable across
+                        # re-processing and across a process restart. `_safe_thread_headers(msg)`
+                        # is used here (not the sibling `message_id` variable, which is only
+                        # populated later in the loop and would be stale on the first
+                        # iteration). The IMAP UID is the durable per-message identifier
+                        # for identifier-less replies so two distinct messages from the
+                        # same sender never collapse to one task.
                         try:
                             _fmid, _frefs = _safe_thread_headers(msg)
                             _ft = create_reply_followup_task(
@@ -1676,6 +1726,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                 ts_ev,
                                 message_id=_fmid,
                                 references=_frefs,
+                                uid=_uid,
                             )
                             if _ft.get("created") or _ft.get("task_id"):
                                 res["followup_task"] = _ft

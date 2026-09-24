@@ -404,6 +404,101 @@ def test_followup_caller_uses_current_message_identity(tmp_path, monkeypatch):
     assert out["idempotency_key"] == reply_agent._followup_task_key("j@x.in", fmid, frefs)
 
 
+def test_followup_key_uid_fallback_keeps_distinct_messages(tmp_path, monkeypatch):
+    """Boss rev3: when a message has NO Message-ID and NO References, the durable
+    IMAP UID distinguishes two distinct messages from the same sender — they must
+    NOT collapse into one shared sender-scoped key."""
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    orch = _temp_orchestrator(tmp_path)
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
+
+    # Two messages with different UIDs from the same sender, no thread identity:
+    m1 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1001", orchestrator=orch
+    )
+    m2 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1002", orchestrator=orch
+    )
+    # Distinct tasks:
+    assert m1["created"] is True
+    assert m2["created"] is True
+    assert m1["task_id"] != m2["task_id"]
+    assert m1["idempotency_key"] != m2["idempotency_key"]
+
+    # Same UID is a duplicate (idempotent replay within one process):
+    m1_replay = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1001", orchestrator=orch
+    )
+    assert m1_replay["created"] is False
+    assert m1_replay["reason"] == "duplicate"
+    assert m1_replay["task_id"] == m1["task_id"]
+
+
+def test_followup_key_uid_survives_restart(tmp_path, monkeypatch):
+    """Cross-process/restart: a fresh orchestrator over the same ledger DB sees the
+    same UID-derived key as a duplicate — proving the UID fallback is stable across
+    a restart (the core requirement for dedup of identifier-less replies)."""
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    db = str(tmp_path / "orchestrator_ledger.db")
+    ledger = str(tmp_path / "orchestrator_ledger.json")
+    from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
+
+    orch1 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
+
+    p1 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1001", orchestrator=orch1
+    )
+    assert p1["created"] is True
+
+    orch2 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
+    p2 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, uid="1001", orchestrator=orch2
+    )
+    assert p2["created"] is False
+    assert p2["reason"] == "duplicate"
+    assert p2["task_id"] == p1["task_id"]
+
+
+def test_followup_no_identity_does_not_mint_task(tmp_path, monkeypatch):
+    """When NO Message-ID, NO References, and NO UID are available, the key
+    resolves to the explicit <review> marker — the function does NOT create a task
+    (preventing silent sender-scoped dedup collapse). It returns the review path
+    so the caller can surface it."""
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    orch = _temp_orchestrator(tmp_path)
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
+
+    out = reply_agent.create_reply_followup_task(prospect, "interested", ts_ev, orchestrator=orch)
+    # No identity at all: no task minted; explicit review marker returned.
+    assert out["created"] is False
+    assert out.get("reason") == "review:missing_message_identity"
+    assert out["task_id"] is None
+    assert out["idempotency_key"] == "reply_followup:<review>"
+
+    # Confirm the key helper produces the review marker when all identity fields
+    # are empty (and sender is present):
+    assert reply_agent._followup_task_key("j@x.in", "", "", "") == "reply_followup:<review>"
+    # And that the nosender marker is unchanged:
+    assert reply_agent._followup_task_key("", "", "", "") == "reply_followup:<nosender>"
+
+
+def test_imap_uid_parser(tmp_path, monkeypatch):
+    """_imap_uid extracts the numeric UID from the fetch envelope string."""
+    # Standard IMAP envelope with UID:
+    assert (
+        reply_agent._imap_uid(b'1 (UID 1001 INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {1})')
+        == "1001"
+    )
+    # No UID in envelope:
+    assert reply_agent._imap_uid(b'1 (INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {1})') == ""
+    # None input:
+    assert reply_agent._imap_uid(None) == ""
+
+
 # --------------------------------------------------------------------------- #
 # _typesafe_content_gate
 # --------------------------------------------------------------------------- #
