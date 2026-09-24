@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 from app.api.activation import _BLOCKER, _PROBES
 from app.api.automation_flags import AUTOMATION_FLAGS
 from app.config import Settings
@@ -73,18 +75,15 @@ def test_web_concurrency_hardcoded_two_on_vps_compose():
     wc_lines = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("WEB_CONCURRENCY")]
     assert wc_lines[0] == "WEB_CONCURRENCY: 2", wc_lines
     assert not any("WEB_CONCURRENCY: ${" in ln for ln in text.splitlines()), wc_lines
-    # Two workers are safe only with the durable Celery scheduler path. The
-    # previous ${RUN_IN_PROCESS_SCHEDULER:-1} default silently enabled the
-    # duplicate in-process scheduler on a fresh/rollback deployment. Pin the
-    # app service to 0 so effective compose config cannot default to 1.
-    app_block = text.split("  app:\n", 1)[1].split("\n  [a-z_-]+:\n", 1)[0]
-    scheduler_lines = [
-        ln.strip()
-        for ln in app_block.splitlines()
-        if ln.strip().startswith("RUN_IN_PROCESS_SCHEDULER")
+    # Two workers are safe only with the durable Celery scheduler path. Parse
+    # structurally so this pin cannot accidentally collect values from any of the
+    # 13 sibling services in the compose file.
+    compose = yaml.safe_load(text)
+    app_environment = compose["services"]["app"]["environment"]
+    assert app_environment["WEB_CONCURRENCY"] == 2, app_environment["WEB_CONCURRENCY"]
+    assert str(app_environment["RUN_IN_PROCESS_SCHEDULER"]) == "0", app_environment[
+        "RUN_IN_PROCESS_SCHEDULER"
     ]
-    assert scheduler_lines, scheduler_lines
-    assert scheduler_lines[0] == 'RUN_IN_PROCESS_SCHEDULER: "0"', scheduler_lines
 
 
 def test_inbox_and_start_routes_exist_in_main():
