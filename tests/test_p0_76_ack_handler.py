@@ -303,6 +303,146 @@ def test_t4_failed_worker(p076_env, tmp_path, monkeypatch):
     assert env["dev_workers"].finish.called
 
 
+def test_full_chain_real_store_real_worker(tmp_path, monkeypatch):
+    """FULL CHAIN on the REAL DurableTaskStore + REAL DevWorkerStore + real governor.
+
+    inbound owner update -> existing task_79406871 bound by idempotency key ->
+    REAL dispatch_task (fresh fencing token + real lease + real dev_workers
+    claim row) -> command-specific real evidence verification -> REAL
+    verify_and_complete (StructuredEvidence -> DONE + dev_workers done row) ->
+    persisted ACK message_id inside the task record.
+
+    Nothing on the dispatch/verify/governor/claim/finish path is faked; only
+    the two network edges are captured (coordinator dedupe set + jarvis egress
+    message_id). Deterministic policy env: TYPESAFE_ENABLED=0 makes judge_task
+    return the documented policy_disabled/proceed degradation (no live model
+    call, no global bypass of the gate code itself).
+    """
+    import json
+    import sqlite3
+
+    from app.platform import automation_orchestrator as ao
+    from app.platform import telegram_coordinator as tc
+    from app.platform.automation_orchestrator import (
+        AutomationOrchestrator,
+        DurableTaskStore,
+        TaskPriority,
+        TaskRecord,
+        TaskStatus,
+    )
+    from app.platform.dev_workers import DevWorkerStore
+
+    db_path = str(tmp_path / "fullchain_ledger.db")
+    store = DurableTaskStore(db_path=db_path, ledger_file=str(tmp_path / "fullchain_ledger.json"))
+    orch = AutomationOrchestrator(
+        store=store,
+        lease_file=str(tmp_path / "fullchain_lease.json"),
+        dev_worker_store=DevWorkerStore(db_path=db_path),
+    )
+
+    # Seed the EXISTING bound task (task_79406871) in READY — the same
+    # canonical task the live owner-ACK protocol targets. No new task is
+    # created anywhere in this chain.
+    seed = TaskRecord(
+        task_id="task_79406871",
+        owner_bot="guardian",
+        assigned_agent="hermes",
+        priority=TaskPriority.LOW,
+        status=TaskStatus.READY,
+        version=1,
+        idempotency_key=P0_76_IDEMPOTENCY_KEY,
+        input_payload={"admin_task_ref": 76},
+        fencing_token=None,
+    )
+    store.save(seed)
+
+    monkeypatch.setenv("TYPESAFE_ENABLED", "0")
+    monkeypatch.setenv("TELEGRAM_OWNER_CHAT_IDS", str(P0_76_OWNER_CHAT_ID))
+    monkeypatch.setenv("TELEGRAM_OWNER_USERNAMES", "sumitdaryanani")
+
+    bot = TelegramBot.__new__(TelegramBot)
+    bot.token = "test-token"
+    bot._processed_updates = {}
+    bot._bot_info = {"first_name": "Jarvis"}
+    bot.orchestrator = orch
+
+    _dedupe: set = set()
+
+    def _fake_dup(update_id):
+        if update_id in _dedupe:
+            return True
+        _dedupe.add(update_id)
+        return False
+
+    monkeypatch.setattr(tc, "is_duplicate_update", lambda uid: _fake_dup(uid))
+
+    # Real on-disk evidence artifacts for the command-specific worker step.
+    ev_root = tmp_path / "evidence_fullchain"
+    ev_root.mkdir()
+    (ev_root / "verifier_json_20260923.json").write_text(
+        json.dumps({"credentials": {"jarvis": {"valid": True}}}), encoding="utf-8"
+    )
+    (ev_root / "typesafe_call_trace_20260923.json").write_text(
+        json.dumps({"api_call_success": True, "resolved_model": "jev-latest"}), encoding="utf-8"
+    )
+    (ev_root / "P0_76_CODE_HANDOFF.md").write_text("# handoff", encoding="utf-8")
+    monkeypatch.setenv("P0_76_EVIDENCE_DIR", str(ev_root))
+
+    # Egress edge only: capture the single ACK send and its Telegram message_id.
+    sent: list[dict] = []
+
+    def _fake_jarvis_response(chat_id, text, parse_mode="HTML"):
+        sent.append({"chat_id": chat_id, "text": text, "message_id": 91000 + len(sent)})
+        return {"ok": True, "result": {"message_id": 91000 + len(sent) - 1}}
+
+    monkeypatch.setattr(tc, "dispatch_jarvis_response", _fake_jarvis_response)
+
+    # --- run the full chain ---
+    r = handle_p0_76_ack(
+        bot=bot,
+        orchestrator=orch,
+        update=_owner_update(42, ACK_TEXT),
+        chat_id=P0_76_OWNER_CHAT_ID,
+        send_ack=True,
+    )
+
+    # Chain result: claimed by the real dispatch path, completed DONE.
+    assert r.task_found and r.task_id == "task_79406871"
+    assert r.worker_claimed is True
+    assert r.task_final_status == str(TaskStatus.DONE)
+    assert r.ack_sent is True and r.ack_message_id is not None
+    assert len(sent) == 1, "exactly one egress ACK"
+
+    # --- persisted truth in the REAL store ---
+    rec = store.get("task_79406871")
+    assert rec.status == TaskStatus.DONE
+    assert rec.fencing_token and rec.fencing_token.startswith("fence_task_79406871_"), (
+        "fresh fencing token must be minted by the real governor during dispatch"
+    )
+    # ACK message_id persisted back into the task record (outcome-linked proof).
+    assert rec.evidence.get("p0_76_ack_message_id") == r.ack_message_id
+    assert rec.evidence.get("p0_76_inbound_update_id") == 42
+
+    # --- real dev_workers execution proof (M1 T02) ---
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT state, evidence FROM dev_workers WHERE task_id = ?", ("task_79406871",)
+    ).fetchone()
+    conn.close()
+    assert row is not None, "real dev_workers claim/finish row must exist"
+    assert row[0] == "done"
+    assert row[1], "done row must carry non-empty evidence"
+
+    # --- lease released after verify_and_complete ---
+    leases = json.loads((tmp_path / "fullchain_lease.json").read_text(encoding="utf-8"))
+    assert "task_79406871" not in leases, "governor lease must be released on completion"
+
+    # --- no duplicate task: store still has exactly the seeded task ---
+    all_records = store.list_all() if hasattr(store, "list_all") else None
+    if all_records is not None:
+        assert [t.task_id for t in all_records] == ["task_79406871"]
+
+
 def test_no_duplicate_task_created_on_missing_binding(p076_env, monkeypatch):
     """If the bound task is absent, the handler must NOT create a second task."""
     env = p076_env
