@@ -68,15 +68,15 @@ class JustDialLead:
 class JustDialApifyClient:
     """
     JustDial scraper using Apify API (recommended for production).
-    
+
     Apify provides reliable JustDial scraping with:
     - tugelbay/justdial-leads-extractor actor
     - thirdwatch/justdial-business-scraper actor
-    
+
     Environment variables:
     - APIFY_API_TOKEN: Your Apify API token (https://console.apify.com/account#/integrations)
     """
-    
+
     def __init__(self):
         self.api_token = os.environ.get("APIFY_API_TOKEN", "").strip()
         self.base_url = "https://api.apify.com/v2"
@@ -86,11 +86,11 @@ class JustDialApifyClient:
             "justdial_search": "thirdwatch/justdial-business-scraper",
         }
         self._client = None
-    
+
     @property
     def is_configured(self) -> bool:
         return bool(self.api_token)
-    
+
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
@@ -102,7 +102,7 @@ class JustDialApifyClient:
                 timeout=120.0,
             )
         return self._client
-    
+
     async def search_by_category(
         self,
         category: str,
@@ -112,23 +112,23 @@ class JustDialApifyClient:
     ) -> list[JustDialLead]:
         """
         Search JustDial by category and city using Apify.
-        
+
         Args:
             category: Business category (e.g., "real estate agents")
             city: City name (e.g., "Mumbai")
             max_results: Maximum leads to return
             actor_id: Apify actor to use
-        
+
         Returns:
             List of JustDialLead objects
         """
         if not self.is_configured:
             logger.warning("Apify not configured - skipping JustDial search")
             return []
-        
+
         client = await self._get_client()
         actor = self.actor_ids.get(actor_id, actor_id)
-        
+
         # Prepare input for Apify actor
         input_data = {
             "startUrls": [
@@ -141,7 +141,7 @@ class JustDialApifyClient:
                 "extractRatings": True,
             },
         }
-        
+
         try:
             # Run the actor
             run_response = await client.post(
@@ -151,50 +151,50 @@ class JustDialApifyClient:
             run_response.raise_for_status()
             run_data = run_response.json()
             run_id = run_data.get("data", {}).get("id")
-            
+
             if not run_id:
                 logger.error(f"Failed to start Apify run: {run_data}")
                 return []
-            
+
             # Wait for completion (poll)
             logger.info(f"Apify run started: {run_id}")
             result_data = await self._wait_for_run(client, run_id)
-            
+
             # Parse results
             leads = self._parse_apify_results(result_data, category, city)
             logger.info(f"Extracted {len(leads)} leads from JustDial via Apify")
             return leads
-            
+
         except Exception as e:
             logger.error(f"JustDial Apify search failed: {e}")
             return []
-    
+
     async def _wait_for_run(self, client: httpx.AsyncClient, run_id: str) -> list[dict]:
         """Wait for Apify run to complete and fetch results."""
         for attempt in range(30):  # Max 30 minutes
             await asyncio.sleep(10)
-            
+
             status_response = await client.get(f"/acts/{run_id.split('/')[0]}/runs/{run_id}")
             status_response.raise_for_status()
             status_data = status_response.json()
-            
+
             status = status_data.get("status", "")
             if status in ["SUCCEEDED", "FAILED", "TIMED-OUT"]:
                 break
-        
+
         if status != "SUCCEEDED":
             logger.error(f"Apify run failed: {status}")
             return []
-        
+
         # Fetch dataset items
         dataset_response = await client.get(f"/datasets/{run_data.get('defaultDatasetId')}/items")
         dataset_response.raise_for_status()
         return dataset_response.json() or []
-    
+
     def _parse_apify_results(self, items: list[dict], category: str, city: str) -> list[JustDialLead]:
         """Parse Apify dataset items into JustDialLead objects."""
         leads = []
-        
+
         for item in items:
             try:
                 # Apify actor typically returns these fields
@@ -218,13 +218,13 @@ class JustDialApifyClient:
             except Exception as e:
                 logger.debug(f"Error parsing Apify result: {e}")
                 continue
-        
+
         return leads
-    
+
     def _slugify(self, text: str) -> str:
         """Convert text to URL slug."""
         return re.sub(r'[^\w\s-]', '', text.lower()).strip().replace(' ', '-')
-    
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
@@ -234,10 +234,10 @@ class JustDialApifyClient:
 class JustDialLocalScraper:
     """
     Local JustDial scraper using Playwright (fallback when Apify not available).
-    
+
     Uses browser automation to extract business listings.
     """
-    
+
     def __init__(self):
         self.base_url = "https://www.justdial.com"
         self.headers = {
@@ -245,7 +245,7 @@ class JustDialLocalScraper:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
         }
-    
+
     async def search_by_category(
         self,
         category: str,
@@ -258,30 +258,30 @@ class JustDialLocalScraper:
         except ImportError:
             logger.error("Playwright not installed. Install with: pip install playwright")
             return []
-        
+
         leads = []
         city_slug = self._slugify(city)
         category_slug = self._slugify(category)
         url = f"{self.base_url}/{city_slug}/{category_slug}"
-        
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            
+
             try:
                 await page.goto(url, timeout=60000, wait_until="networkidle")
-                
+
                 # Wait for listings to load
                 await page.wait_for_selector('[class*="cntanr"]', timeout=30000)
-                
+
                 # Scroll to load more results
                 for _ in range(3):
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                     await asyncio.sleep(1)
-                
+
                 # Extract listings
                 listings = await page.query_selector_all('[class*="cntanr"], [class*="listing"]')
-                
+
                 for listing in listings[:max_results]:
                     try:
                         lead = await self._extract_listing(listing, city, category, page)
@@ -289,30 +289,30 @@ class JustDialLocalScraper:
                             leads.append(lead)
                     except Exception as e:
                         logger.debug(f"Error extracting listing: {e}")
-            
+
             finally:
                 await browser.close()
-        
+
         logger.info(f"Extracted {len(leads)} leads from JustDial (local)")
         return leads
-    
+
     async def _extract_listing(self, listing, city: str, category: str, page) -> JustDialLead | None:
         """Extract lead data from a listing element."""
         try:
             name_elem = await listing.query_selector('[class*="name"], [class*="company"], span')
             name = await name_elem.inner_text() if name_elem else ""
-            
+
             url_elem = await listing.query_selector('a[href*="justdial.com"]')
             url = await url_elem.get_attribute("href") if url_elem else ""
             if url and not url.startswith("http"):
                 url = f"{self.base_url}{url}"
-            
+
             phone_elem = await listing.query_selector('[class*="phone"], [class*="mobile"], [class*="number"]')
             phone = await phone_elem.inner_text() if phone_elem else None
-            
+
             address_elem = await listing.query_selector('[class*="address"], [class*="location"]')
             address = await address_elem.inner_text() if address_elem else ""
-            
+
             rating_elem = await listing.query_selector('[class*="rating"], [class*="stars"]')
             rating = None
             if rating_elem:
@@ -320,7 +320,7 @@ class JustDialLocalScraper:
                     rating = float(await rating_elem.inner_text() or 0)
                 except ValueError:
                     pass
-            
+
             return JustDialLead(
                 company_name=name.strip() if name else "Unknown",
                 contact_person=None,
@@ -339,7 +339,7 @@ class JustDialLocalScraper:
         except Exception as e:
             logger.debug(f"Error in _extract_listing: {e}")
             return None
-    
+
     def _slugify(self, text: str) -> str:
         return re.sub(r'[^\w\s-]', '', text.lower()).strip().replace(' ', '-')
 
@@ -364,7 +364,7 @@ class IndiaMartLead:
     source: str = "indiamart_api"
     scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     raw_data: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["scraped_at"] = self.scraped_at.isoformat()
@@ -374,24 +374,24 @@ class IndiaMartLead:
 class IndiaMartCRMClient:
     """
     IndiaMART Lead Manager CRM API integration.
-    
+
     Uses IndiaMART's official CRM Pull API to fetch seller's own leads.
     NOT for scraping IndiaMART listings (ToS-blocked).
-    
+
     Environment variables:
     - INDIAMART_CRM_KEY: IndiaMART Lead Manager API key
     """
-    
+
     _PULL_URL = "https://mapi.indiamart.com/wservce/crm/crmListing/v2/"
-    
+
     def __init__(self):
         self.api_key = os.environ.get("INDIAMART_CRM_KEY", "").strip()
         self._client = None
-    
+
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key)
-    
+
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
@@ -399,7 +399,7 @@ class IndiaMartCRMClient:
                 follow_redirects=True,
             )
         return self._client
-    
+
     async def fetch_leads(
         self,
         days: int = 7,
@@ -407,24 +407,24 @@ class IndiaMartCRMClient:
     ) -> list[IndiaMartLead]:
         """
         Fetch leads from IndiaMART Lead Manager CRM API.
-        
+
         Args:
             days: Number of days to look back
             niche: Business niche to filter by
-        
+
         Returns:
             List of IndiaMartLead objects
         """
         if not self.is_configured:
             logger.warning("IndiaMART CRM key not configured - skipping")
             return []
-        
+
         client = await self._get_client()
         end = datetime.now()
         start = end - __import__('datetime').timedelta(days=max(1, int(days)))
-        
+
         fmt = "%d-%b-%Y %H:%M:%S"
-        
+
         try:
             response = await client.get(
                 self._PULL_URL,
@@ -436,24 +436,24 @@ class IndiaMartCRMClient:
             )
             response.raise_for_status()
             body = response.json()
-            
+
             leads = self._parse_response(body, niche)
             logger.info(f"Extracted {len(leads)} leads from IndiaMART CRM")
             return leads
-            
+
         except Exception as e:
             logger.error(f"IndiaMART CRM fetch failed: {e}")
             return []
-    
+
     def _parse_response(self, body: dict, niche: str) -> list[IndiaMartLead]:
         """Parse IndiaMART API response."""
         leads = []
         rows = body.get("RESPONSE") or []
-        
+
         if not isinstance(rows, list):
             logger.error(f"Invalid IndiaMART response format: {type(rows)}")
             return []
-        
+
         for row in rows:
             try:
                 sender_name = str(row.get("SENDER_NAME") or row.get("SENDER_COMPANY") or "").strip()
@@ -461,11 +461,11 @@ class IndiaMartCRMClient:
                 sender_email = str(row.get("SENDER_EMAIL") or "").strip() or None
                 sender_city = str(row.get("SENDER_CITY") or "").strip()
                 query_message = str(row.get("QUERY_MESSAGE") or row.get("QUERY_PRODUCT_NAME") or "").strip()
-                
+
                 # Basic validation
                 if not sender_name and not sender_mobile:
                     continue
-                
+
                 lead = IndiaMartLead(
                     company_name=sender_name or "IndiaMART Buyer",
                     contact_person="",
@@ -480,13 +480,13 @@ class IndiaMartCRMClient:
                     raw_data=row,
                 )
                 leads.append(lead)
-                
+
             except Exception as e:
                 logger.debug(f"Error parsing IndiaMART row: {e}")
                 continue
-        
+
         return leads
-    
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
@@ -507,7 +507,7 @@ class WhatsAppLeadCapture:
     intent: str | None
     captured_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     raw_data: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["captured_at"] = self.captured_at.isoformat()
@@ -517,17 +517,17 @@ class WhatsAppLeadCapture:
 class WhatsAppLeadCaptureHandler:
     """
     Handles lead capture from WhatsApp Business API (WAHA).
-    
+
     Processes incoming WhatsApp messages to extract lead information.
     Integrates with the existing WAHA stack (app/integrations/whatsapp_selfhost.py).
     """
-    
+
     def __init__(self):
-        from app.integrations.whatsapp_selfhost import is_configured, is_active_provider
-        
+        from app.integrations.whatsapp_selfhost import is_active_provider, is_configured
+
         self.waha_configured = is_configured() and is_active_provider()
         self._client = None
-    
+
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
@@ -535,7 +535,7 @@ class WhatsAppLeadCaptureHandler:
                 follow_redirects=True,
             )
         return self._client
-    
+
     async def process_incoming_message(
         self,
         from_number: str,
@@ -544,12 +544,12 @@ class WhatsAppLeadCaptureHandler:
     ) -> dict[str, Any]:
         """
         Process an incoming WhatsApp message to capture lead.
-        
+
         Args:
             from_number: Sender's phone number
             message_body: Message text
             contact_name: Optional contact name
-        
+
         Returns:
             Dict with capture result and extracted lead data
         """
@@ -560,15 +560,15 @@ class WhatsAppLeadCaptureHandler:
             "intent": None,
             "lead_id": None,
         }
-        
+
         # Extract intent from message
         intent = self._classify_intent(message_body)
         result["intent"] = intent
-        
+
         # Extract potential lead data
         city = self._extract_city(message_body)
         result["city"] = city
-        
+
         # Create lead record
         lead = WhatsAppLeadCapture(
             phone=from_number,
@@ -579,12 +579,13 @@ class WhatsAppLeadCaptureHandler:
             raw_data=result,
         )
         result["lead"] = lead.to_dict()
-        
+
         # Save to database (async)
         try:
-            from app.platform import lead_harvester
             import uuid
-            
+
+            from app.platform import lead_harvester
+
             rec = {
                 "id": str(uuid.uuid4()),
                 "found_at": lead.captured_at.isoformat(),
@@ -600,43 +601,43 @@ class WhatsAppLeadCaptureHandler:
                 "status": "new",
                 "lead_score": self._score_lead(intent),
             }
-            
+
             new_id = lead_harvester._append(rec)
             result["lead_id"] = new_id
             result["captured"] = True
-            
+
         except Exception as e:
             logger.error(f"Failed to save WhatsApp lead: {e}")
-        
+
         return result
-    
+
     def _classify_intent(self, message: str) -> str | None:
         """Classify lead intent from message."""
         msg_lower = message.lower()
-        
+
         # High intent indicators
         if any(kw in msg_lower for kw in ["pricing", "price", "quote", "cost", "how much", "charges", "plan", "package"]):
             return "pricing_inquiry"
-        
+
         if any(kw in msg_lower for kw in ["demo", "trial", "test", "sample", "show me", "want to try"]):
             return "demo_requested"
-        
+
         if any(kw in msg_lower for kw in ["buy", "purchase", "order", "hire", "book", "schedule", "appointment", "meeting"]):
             return "purchase_intent"
-        
+
         # Medium intent indicators
         if any(kw in msg_lower for kw in ["interested", "need", "looking for", "searching", "want"]):
             return "interested"
-        
+
         if any(kw in msg_lower for kw in ["more info", "details", "learn more", "tell me", "explain"]):
             return "info_request"
-        
+
         # Low intent indicators
         if any(kw in msg_lower for kw in ["hello", "hi", "hey", "good morning", "good evening"]):
             return "greeting"
-        
+
         return "unknown"
-    
+
     def _extract_city(self, message: str) -> str | None:
         """Extract city from message if mentioned."""
         # Common Indian cities
@@ -646,14 +647,14 @@ class WhatsAppLeadCaptureHandler:
             "Surat", "Kanpur", "Nagpur", "Indore", "Thane",
             "Bhopal", "Visakhapatnam", "Patna", "Vadodara", "Ghaziabad"
         ]
-        
+
         msg_lower = message.lower()
         for city in cities:
             if city.lower() in msg_lower:
                 return city
-        
+
         return None
-    
+
     def _score_lead(self, intent: str | None) -> int:
         """Score lead based on intent."""
         scores = {
@@ -666,11 +667,11 @@ class WhatsAppLeadCaptureHandler:
             "unknown": 20,
         }
         return scores.get(intent, 20)
-    
+
     def _normalize_phone(self, phone: str) -> str:
         """Normalize phone to E.164 format for India."""
         digits = "".join(c for c in str(phone or "") if c.isdigit())
-        
+
         if len(digits) == 10:
             return f"91{digits}"
         elif digits.startswith("0") and len(digits) == 11:
@@ -678,7 +679,7 @@ class WhatsAppLeadCaptureHandler:
         elif digits.startswith("91") and len(digits) == 12:
             return digits
         return digits
-    
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
@@ -706,7 +707,7 @@ class GitHubProjectLead:
     source: str = "github"
     scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     raw_data: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["scraped_at"] = self.scraped_at.isoformat()
@@ -718,13 +719,13 @@ class GitHubProjectLead:
 class GitHubLeadHunter:
     """
     GitHub automation for finding open-source project leads.
-    
+
     Searches for projects with specific tech stacks, recent activity,
     and potential customer signals.
     """
-    
+
     GITHUB_API = "https://api.github.com"
-    
+
     def __init__(self):
         self.token = os.environ.get("GITHUB_TOKEN", "").strip()
         self.headers = {
@@ -734,11 +735,11 @@ class GitHubLeadHunter:
         if self.token:
             self.headers["Authorization"] = f"token {self.token}"
         self._client = None
-    
+
     @property
     def is_configured(self) -> bool:
         return True  # GitHub API works without token (rate limited)
-    
+
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
@@ -747,7 +748,7 @@ class GitHubLeadHunter:
                 timeout=30.0,
             )
         return self._client
-    
+
     async def search_projects(
         self,
         query: str,
@@ -757,22 +758,22 @@ class GitHubLeadHunter:
     ) -> list[GitHubProjectLead]:
         """
         Search GitHub for projects matching criteria.
-        
+
         Args:
             query: Search query (e.g., "solar panel management system")
             sort: Sort by (stars, forks, updated)
             per_page: Results per page (max 100)
             max_pages: Maximum pages to fetch
-        
+
         Returns:
             List of GitHubProjectLead objects
         """
         client = await self._get_client()
         leads = []
-        
+
         # Build search query
         search_query = f"{query} in:name,description"
-        
+
         for page in range(1, max_pages + 1):
             try:
                 response = await client.get(
@@ -787,11 +788,11 @@ class GitHubLeadHunter:
                 )
                 response.raise_for_status()
                 data = response.json()
-                
+
                 items = data.get("items", [])
                 if not items:
                     break
-                
+
                 for repo in items:
                     try:
                         lead = self._parse_repo(repo)
@@ -799,22 +800,22 @@ class GitHubLeadHunter:
                             leads.append(lead)
                     except Exception as e:
                         logger.debug(f"Error parsing repo: {e}")
-                
+
                 # Check if there are more pages
                 total_count = data.get("total_count", 0)
                 if page * per_page >= total_count:
                     break
-                
+
                 # Rate limiting
                 await asyncio.sleep(1)
-                
+
             except Exception as e:
                 logger.error(f"GitHub search failed: {e}")
                 break
-        
+
         logger.info(f"Extracted {len(leads)} leads from GitHub")
         return leads
-    
+
     async def search_by_tech_stack(
         self,
         language: str,
@@ -824,21 +825,21 @@ class GitHubLeadHunter:
     ) -> list[GitHubProjectLead]:
         """
         Search for projects by programming language and star count.
-        
+
         Args:
             language: Programming language (e.g., "python", "javascript")
             min_stars: Minimum stars
             sort: Sort criteria
             limit: Maximum results
-        
+
         Returns:
             List of GitHubProjectLead objects
         """
         client = await self._get_client()
         leads = []
-        
+
         query = f"language:{language} stars:>{min_stars}"
-        
+
         try:
             response = await client.get(
                 "/search/repositories",
@@ -851,7 +852,7 @@ class GitHubLeadHunter:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             for repo in data.get("items", []):
                 try:
                     lead = self._parse_repo(repo)
@@ -859,13 +860,13 @@ class GitHubLeadHunter:
                         leads.append(lead)
                 except Exception:
                     continue
-            
+
         except Exception as e:
             logger.error(f"GitHub tech stack search failed: {e}")
-        
+
         logger.info(f"Extracted {len(leads)} leads from GitHub (tech stack: {language})")
         return leads
-    
+
     async def get_contributor_leads(
         self,
         org: str,
@@ -873,31 +874,31 @@ class GitHubLeadHunter:
     ) -> list[GitHubProjectLead]:
         """
         Get leads from contributors of a specific organization.
-        
+
         Args:
             org: Organization name
             limit: Maximum contributors to fetch
-        
+
         Returns:
             List of GitHubProjectLead objects
         """
         client = await self._get_client()
         leads = []
-        
+
         try:
             response = await client.get(
                 f"/orgs/{org}/members",
                 params={"per_page": limit},
             )
             response.raise_for_status()
-            
+
             for member in response.json():
                 try:
                     # Get user details
                     user_resp = await client.get(f"/users/{member['login']}")
                     user_resp.raise_for_status()
                     user_data = user_resp.json()
-                    
+
                     lead = GitHubProjectLead(
                         repo_name="",
                         owner=member['login'],
@@ -915,30 +916,30 @@ class GitHubLeadHunter:
                     leads.append(lead)
                 except Exception:
                     continue
-            
+
         except Exception as e:
             logger.error(f"GitHub contributor fetch failed: {e}")
-        
+
         logger.info(f"Extracted {len(leads)} contributor leads from {org}")
         return leads
-    
+
     def _parse_repo(self, repo: dict) -> GitHubProjectLead | None:
         """Parse GitHub repository data into a lead."""
         try:
             pushed_at = repo.get("pushed_at")
             updated_at = repo.get("updated_at")
             last_updated = None
-            
+
             if pushed_at:
                 last_updated = datetime.fromisoformat(pushed_at.replace('Z', '+00:00'))
             elif updated_at:
                 last_updated = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
-            
+
             # Try to find contact info from repo
             contact_email = None
             website = None
             location = None
-            
+
             # Check README for contact info
             readme_url = repo.get("readme_url")
             if readme_url:
@@ -962,7 +963,7 @@ class GitHubLeadHunter:
         except Exception as e:
             logger.debug(f"Error parsing repo: {e}")
             return None
-    
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
@@ -976,11 +977,11 @@ class GitHubLeadHunter:
 class MultiSourceDeduplicator:
     """
     Multi-source deduplication for phone numbers.
-    
+
     Normalizes and deduplicates leads from multiple sources (JustDial, IndiaMART,
     WhatsApp, GitHub, Google Maps) based on phone number.
     """
-    
+
     # Common Indian phone formats
     PHONE_PATTERNS = [
         r'\+91[\s-]?(\d{10})',  # +91 9876543210
@@ -988,7 +989,7 @@ class MultiSourceDeduplicator:
         r'0(\d{10})',           # 09876543210
         r'(\d{10})',            # 9876543210
     ]
-    
+
     def __init__(self):
         self._seen_phones: set[str] = set()
         self._seen_emails: set[str] = set()
@@ -997,23 +998,23 @@ class MultiSourceDeduplicator:
             "duplicates_removed": 0,
             "unique_leads": 0,
         }
-    
+
     def normalize_phone(self, phone: str | None) -> str | None:
         """
         Normalize phone number to consistent format.
-        
+
         Args:
             phone: Raw phone number string
-        
+
         Returns:
             Normalized 10-digit phone or None
         """
         if not phone:
             return None
-        
+
         # Extract digits
         digits = re.sub(r'\D', '', str(phone))
-        
+
         # Handle common Indian formats
         if len(digits) == 10:
             # Already 10 digits, validate first digit
@@ -1025,15 +1026,15 @@ class MultiSourceDeduplicator:
         elif len(digits) == 12 and digits.startswith('91'):
             # +91XXXXXXXXXX -> XXXXXXXXXX
             return digits[2:]
-        
+
         return None
-    
+
     def normalize_email(self, email: str | None) -> str | None:
         """Normalize email for deduplication."""
         if not email:
             return None
         return email.strip().lower()
-    
+
     def is_duplicate(
         self,
         phone: str | None,
@@ -1042,17 +1043,17 @@ class MultiSourceDeduplicator:
     ) -> bool:
         """
         Check if lead is duplicate based on phone or email.
-        
+
         Args:
             phone: Lead's phone number
             email: Lead's email
             company_name: Optional company name for logging
-        
+
         Returns:
             True if duplicate, False otherwise
         """
         self._dedup_stats["total_processed"] += 1
-        
+
         # Check phone first (most reliable)
         norm_phone = self.normalize_phone(phone)
         if norm_phone:
@@ -1061,7 +1062,7 @@ class MultiSourceDeduplicator:
                 logger.debug(f"Duplicate by phone: {norm_phone} ({company_name or ''})")
                 return True
             self._seen_phones.add(norm_phone)
-        
+
         # Check email (secondary)
         norm_email = self.normalize_email(email)
         if norm_email:
@@ -1070,41 +1071,41 @@ class MultiSourceDeduplicator:
                 logger.debug(f"Duplicate by email: {norm_email} ({company_name or ''})")
                 return True
             self._seen_emails.add(norm_email)
-        
+
         self._dedup_stats["unique_leads"] += 1
         return False
-    
+
     def deduplicate_leads(self, leads: list[dict]) -> list[dict]:
         """
         Deduplicate a list of leads.
-        
+
         Args:
             leads: List of lead dictionaries
-        
+
         Returns:
             Deduplicated list of leads
         """
         unique = []
-        
+
         for lead in leads:
             phone = lead.get("phone")
             email = lead.get("email")
             company = lead.get("company_name", lead.get("name", ""))
-            
+
             if not self.is_duplicate(phone, email, company):
                 unique.append(lead)
-        
+
         logger.info(
             f"Deduplication complete: {self._dedup_stats['total_processed']} processed, "
             f"{self._dedup_stats['duplicates_removed']} duplicates, "
             f"{len(unique)} unique leads"
         )
         return unique
-    
+
     def get_stats(self) -> dict[str, int]:
         """Get deduplication statistics."""
         return dict(self._dedup_stats)
-    
+
     def reset(self):
         """Reset deduplication state."""
         self._seen_phones.clear()
@@ -1120,7 +1121,7 @@ class MultiSourceDeduplicator:
 # FastAPI Router
 # ============================================================================
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/lead-integrations", tags=["lead-integrations"])
@@ -1180,23 +1181,23 @@ async def get_integration_status():
     """Check which integrations are configured and available."""
     # Check JustDial Apify
     justdial_apify = os.environ.get("APIFY_API_TOKEN", "").strip() != ""
-    
+
     # Check JustDial Local (Playwright)
     justdial_local = True  # Assume available if not using Apify
-    
+
     # Check IndiaMART
     indiamart = os.environ.get("INDIAMART_CRM_KEY", "").strip() != ""
-    
+
     # Check WhatsApp
     try:
-        from app.integrations.whatsapp_selfhost import is_configured, is_active_provider
+        from app.integrations.whatsapp_selfhost import is_active_provider, is_configured
         whatsapp = is_configured() and is_active_provider()
     except ImportError:
         whatsapp = False
-    
+
     # Check GitHub
     github = True  # Always available (rate limited without token)
-    
+
     return IntegrationStatus(
         justdial_apify=justdial_apify,
         justdial_local=justdial_local,
@@ -1213,12 +1214,12 @@ async def search_justdial(
 ):
     """
     Search JustDial for business leads.
-    
+
     Uses Apify API if configured, otherwise falls back to local scraper.
     """
     task_id = str(uuid.uuid4())
     _scrape_tasks[task_id] = {"status": "running", "started_at": datetime.now().isoformat()}
-    
+
     async def run_scrape():
         try:
             if request.use_apify:
@@ -1236,14 +1237,14 @@ async def search_justdial(
                     city=request.city,
                     max_results=request.max_results,
                 )
-            
+
             _scrape_tasks[task_id] = {
                 "status": "completed",
                 "leads_found": len(leads),
                 "completed_at": datetime.now().isoformat(),
             }
             return [lead.to_dict() for lead in leads]
-            
+
         except Exception as e:
             logger.error(f"JustDial search failed: {e}")
             _scrape_tasks[task_id] = {
@@ -1252,9 +1253,9 @@ async def search_justdial(
                 "completed_at": datetime.now().isoformat(),
             }
             return []
-    
+
     background_tasks.add_task(run_scrape)
-    
+
     return [{"task_id": task_id, "status": "running", "message": "Search started"}]
 
 
@@ -1274,12 +1275,12 @@ async def fetch_indiamart_leads(
 ):
     """
     Fetch leads from IndiaMART CRM API.
-    
+
     Requires INDIAMART_CRM_KEY environment variable.
     """
     task_id = str(uuid.uuid4())
     _scrape_tasks[task_id] = {"status": "running", "started_at": datetime.now().isoformat()}
-    
+
     async def run_fetch():
         try:
             client = IndiaMartCRMClient()
@@ -1288,14 +1289,14 @@ async def fetch_indiamart_leads(
                 niche=request.niche,
             )
             await client.close()
-            
+
             _scrape_tasks[task_id] = {
                 "status": "completed",
                 "leads_found": len(leads),
                 "completed_at": datetime.now().isoformat(),
             }
             return [lead.to_dict() for lead in leads]
-            
+
         except Exception as e:
             logger.error(f"IndiaMART fetch failed: {e}")
             _scrape_tasks[task_id] = {
@@ -1304,9 +1305,9 @@ async def fetch_indiamart_leads(
                 "completed_at": datetime.now().isoformat(),
             }
             return []
-    
+
     background_tasks.add_task(run_fetch)
-    
+
     return [{"task_id": task_id, "status": "running", "message": "Fetch started"}]
 
 
@@ -1318,7 +1319,7 @@ async def capture_whatsapp_lead(
 ):
     """
     Capture lead from incoming WhatsApp message.
-    
+
     Processes the message, extracts intent, and saves to lead database.
     """
     try:
@@ -1341,7 +1342,7 @@ async def search_github_projects(
 ):
     """
     Search GitHub for open-source project leads.
-    
+
     Useful for finding tech companies, SaaS projects, and potential customers.
     """
     try:
@@ -1365,7 +1366,7 @@ async def search_by_tech_stack(
 ):
     """
     Search GitHub by programming language and star count.
-    
+
     Finds active projects in a specific tech stack.
     """
     try:
@@ -1387,14 +1388,14 @@ async def search_by_tech_stack(
 async def deduplicate_leads(request: DedupRequest):
     """
     Deduplicate leads from multiple sources.
-    
+
     Normalizes phone numbers and emails, removes duplicates.
     """
     try:
         dedup = MultiSourceDeduplicator()
         unique_leads = dedup.deduplicate_leads(request.leads)
         stats = dedup.get_stats()
-        
+
         return DedupResponse(
             unique_count=len(unique_leads),
             duplicate_count=request.leads.__len__() - len(unique_leads),
@@ -1419,6 +1420,7 @@ async def deduplicate_batch(
 # ============================================================================
 
 from celery import shared_task
+
 from app.platform.celery_async import run as run_async
 
 
@@ -1432,7 +1434,7 @@ def scrape_justdial_task(
 ) -> dict:
     """
     Celery task for JustDial lead scraping.
-    
+
     Uses Apify API if configured, otherwise local Playwright scraper.
     """
     try:
@@ -1451,7 +1453,7 @@ def scrape_justdial_task(
                 city=city,
                 max_results=max_results,
             ))
-        
+
         return {
             "status": "completed",
             "leads_found": len(leads),
@@ -1470,7 +1472,7 @@ def fetch_indiamart_task(self, days: int = 7, niche: str = "general") -> dict:
         client = IndiaMartCRMClient()
         leads = run_async(client.fetch_leads(days=days, niche=niche))
         run_async(client.close())
-        
+
         return {
             "status": "completed",
             "leads_found": len(leads),
@@ -1493,7 +1495,7 @@ def search_github_task(query: str, sort: str = "stars", max_pages: int = 3) -> d
             max_pages=max_pages,
         ))
         run_async(hunter.close())
-        
+
         return {
             "status": "completed",
             "leads_found": len(leads),
@@ -1512,7 +1514,7 @@ def deduplicate_leads_task(leads: list[dict]) -> dict:
         dedup = MultiSourceDeduplicator()
         unique = dedup.deduplicate_leads(leads)
         stats = dedup.get_stats()
-        
+
         return {
             "status": "completed",
             "unique_count": len(unique),
