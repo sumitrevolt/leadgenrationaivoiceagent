@@ -91,8 +91,6 @@ from app.api.admin_dashboard_builders import (  # noqa: F401  (helpers extracted
     _sync_db,
 )
 
-from app.platform.kpi_ledger import get_ledger
-
 # ----------------------------------------------------------------------------
 # Pydantic models (the contract the HTML expects)
 # ----------------------------------------------------------------------------
@@ -108,6 +106,7 @@ from app.api.admin_dashboard_models import (  # noqa: F401  (models extracted 20
     LeadsByNiche,
     RevenueCostSeries,
 )
+from app.platform.kpi_ledger import get_ledger
 
 
 # ----------------------------------------------------------------------------
