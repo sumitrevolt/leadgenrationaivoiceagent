@@ -214,15 +214,21 @@ class TypeSafeLeadScorer:
                 recommended_product = str(prod_choice)
 
             # Composite calculation: 45% fit + 35% intent + 20% budget
-            calc_score = int((fit_weight * 0.45) + (intent_prob * 100 * 0.35) + (budget_weight * 0.20))
+            calc_score = int(
+                (fit_weight * 0.45) + (intent_prob * 100 * 0.35) + (budget_weight * 0.20)
+            )
             base_score = max(5, min(99, calc_score))
 
             if recommended_product == "voice_agent":
                 pitch_angle = "Zero-human telecalling and instant AI inbound call response"
             elif recommended_product == "combo":
-                pitch_angle = "Complete hands-off growth: automated organic marketing plus 500-min AI voice"
+                pitch_angle = (
+                    "Complete hands-off growth: automated organic marketing plus 500-min AI voice"
+                )
             else:
-                pitch_angle = "Affordable ₹1,999/mo Google reviews and programmatic local lead generation"
+                pitch_angle = (
+                    "Affordable ₹1,999/mo Google reviews and programmatic local lead generation"
+                )
 
         is_hot = base_score >= 75 and buying_intent
 
@@ -484,7 +490,9 @@ class TypeSafeReplyTriage:
 
             # Sentiment
             sent_ans = answers.get("sentiment") or {}
-            sentiment = str(sent_ans.get("choice") if isinstance(sent_ans, dict) else sent_ans) or "neutral"
+            sentiment = (
+                str(sent_ans.get("choice") if isinstance(sent_ans, dict) else sent_ans) or "neutral"
+            )
 
             # Urgency
             urg_ans = answers.get("urgency") or {}
@@ -548,7 +556,10 @@ class TypeSafeValueExtractor:
             "candidates": candidates,
         }
 
-        instr = instructions or f"Select the candidate that accurately represents the {field_name} from the text"
+        instr = (
+            instructions
+            or f"Select the candidate that accurately represents the {field_name} from the text"
+        )
         resp = self.client.choice(instr, state, criteria)
 
         if resp.success and resp.value:
@@ -574,7 +585,9 @@ class TypeSafeValueExtractor:
 class CallDispositionResult:
     """Post-call evaluation verdict and telemetry."""
 
-    disposition: str  # hot_lead | callback_scheduled | follow_up_needed | not_interested | dnd_requested
+    disposition: (
+        str  # hot_lead | callback_scheduled | follow_up_needed | not_interested | dnd_requested
+    )
     explicit_consent_given: bool
     lead_warmth: str  # cold | lukewarm | warm | hot
     next_action: str  # assign_sales_rep | send_whatsapp_deck | schedule_calendar | mark_dnd
@@ -634,7 +647,10 @@ class TypeSafeCallEvaluator:
 
             # Disposition
             disp_ans = answers.get("disposition") or {}
-            disposition = str(disp_ans.get("choice") if isinstance(disp_ans, dict) else disp_ans) or "follow_up_needed"
+            disposition = (
+                str(disp_ans.get("choice") if isinstance(disp_ans, dict) else disp_ans)
+                or "follow_up_needed"
+            )
 
             # Consent Noul
             con_ans = answers.get("consent") or {}

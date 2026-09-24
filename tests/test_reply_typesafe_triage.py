@@ -76,8 +76,15 @@ def _triage_svc(intent, is_hot=False, enabled=True, latency=0.5, model="jev-1.13
 
 
 class _FakeContentQASvc:
-    def __init__(self, enabled: bool, approved: bool, tone="professional", reasons=(),
-                 success=True, has_answer=True):
+    def __init__(
+        self,
+        enabled: bool,
+        approved: bool,
+        tone="professional",
+        reasons=(),
+        success=True,
+        has_answer=True,
+    ):
         self.enabled = enabled
         self._approved = approved
         self._tone = tone
@@ -98,7 +105,7 @@ class _FakeContentVerdict:
         self.persuasion_score = "strong" if approved else "weak"
         self.tone = tone
         self.compliance_violation = (not approved) and (tone == "aggressive")
-        self.is_spammy = (not approved)
+        self.is_spammy = not approved
         self.reasons = reasons
         # Mirror the real ContentQAResult.metadata contract (success + has_answer),
         # which the gate's `needs_review`/`state` decision depends on.
@@ -134,14 +141,20 @@ def _isolate_flags(monkeypatch):
 # --------------------------------------------------------------------------- #
 def test_triage_evidence_inactive_when_flag_off(monkeypatch):
     # Flag off (autouse) -> no TypeSafe call, even if the service would be active.
-    monkeypatch.setattr(typesafe_services, "get_typesafe_reply_triage", lambda: _triage_svc("demo_request", True))
+    monkeypatch.setattr(
+        typesafe_services, "get_typesafe_reply_triage", lambda: _triage_svc("demo_request", True)
+    )
     ev = reply_agent._typesafe_triage_evidence("s", "b", "interested", None)
     assert ev == {"active": False}
 
 
 def test_triage_evidence_inert_records_state(monkeypatch):
     monkeypatch.setenv("REPLY_AGENT_TYPESAFE", "1")
-    monkeypatch.setattr(typesafe_services, "get_typesafe_reply_triage", lambda: _triage_svc("demo_request", enabled=False))
+    monkeypatch.setattr(
+        typesafe_services,
+        "get_typesafe_reply_triage",
+        lambda: _triage_svc("demo_request", enabled=False),
+    )
     ev = reply_agent._typesafe_triage_evidence("s", "b", "interested", None)
     assert ev == {"active": False, "reason": "inert"}
 
@@ -154,7 +167,10 @@ def test_triage_evidence_active_records_invocation(monkeypatch):
         lambda: _triage_svc("demo_request", is_hot=True, latency=1.06, model="jev-1.13.0"),
     )
     ev = reply_agent._typesafe_triage_evidence(
-        "Re: audit", "demo this week please", "interested", {"business_name": "Jiya", "niche": "salon"}
+        "Re: audit",
+        "demo this week please",
+        "interested",
+        {"business_name": "Jiya", "niche": "salon"},
     )
     assert ev["active"] is True
     assert ev["intent"] == "demo_request"
@@ -174,9 +190,7 @@ def test_triage_evidence_conflict_demotes_to_review(monkeypatch):
         "get_typesafe_reply_triage",
         lambda: _triage_svc("unsubscribe", is_hot=False),
     )
-    ev = reply_agent._typesafe_triage_evidence(
-        "s", "no thanks, stop emailing", "interested", None
-    )
+    ev = reply_agent._typesafe_triage_evidence("s", "no thanks, stop emailing", "interested", None)
     assert ev["active"] is True
     assert ev["conflict"] is True
     assert ev["mapped_intent"] == "unsubscribe"
@@ -229,7 +243,11 @@ def test_followup_task_targets_orchestrator_ledger(tmp_path, monkeypatch):
     ts_ev = {"active": True, "intent": "demo_request", "is_hot": True, "model": "jev-1.13.0"}
 
     first = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, idempotency_key="reply_followup:j@x.in::<thread>", orchestrator=orch
+        prospect,
+        "interested",
+        ts_ev,
+        idempotency_key="reply_followup:j@x.in::<thread>",
+        orchestrator=orch,
     )
     assert first["created"] is True
     assert first["task_id"] is not None
@@ -244,11 +262,146 @@ def test_followup_task_targets_orchestrator_ledger(tmp_path, monkeypatch):
 
     # Idempotent: re-processing the same thread returns the SAME task, no new row.
     second = reply_agent.create_reply_followup_task(
-        prospect, "interested", ts_ev, idempotency_key="reply_followup:j@x.in::<thread>", orchestrator=orch
+        prospect,
+        "interested",
+        ts_ev,
+        idempotency_key="reply_followup:j@x.in::<thread>",
+        orchestrator=orch,
     )
     assert second["created"] is False
     assert second.get("reason") == "duplicate"
     assert second["task_id"] == first["task_id"]
+
+
+def test_followup_key_stable_from_thread_identity():
+    """Boss #5: the default idempotency key is derived from stable delivery/thread
+    identity, NOT a per-process Python ``hash()``. The same message yields the same
+    key every time; two DIFFERENT threads from the same sender stay distinct; a
+    missing Message-ID falls back to a DISTINCT durable thread-root (never a shared
+    ``'none'`` constant)."""
+    # Same sender + same Message-ID -> identical key, stable across calls.
+    k1 = reply_agent._followup_task_key("j@x.in", "<abc@mail>", "<r0> <abc@mail>")
+    k2 = reply_agent._followup_task_key("j@x.in", "<abc@mail>", "<r0> <abc@mail>")
+    assert k1 == k2
+    assert k1.startswith("reply_followup:")
+    # Sender is lower-cased into the identity.
+    assert k1 == reply_agent._followup_task_key("J@X.IN", "<abc@mail>")
+
+    # Distinct threads (no Message-ID, only References) stay DISTINCT — no collapse
+    # to a shared 'none' constant.
+    a = reply_agent._followup_task_key("j@x.in", "", "<r-a>")
+    b = reply_agent._followup_task_key("j@x.in", "", "<r-b>")
+    assert a != b
+
+    # Missing Message-ID -> durable thread-root fallback; present -> Message-ID form.
+    assert a.startswith("reply_followup:")
+    assert k1 != a  # different identity material
+
+    # Deterministic: not salted per-process (Python hash() would differ by seed).
+    assert reply_agent._followup_task_key("j@x.in", "<abc@mail>") == k1
+    assert reply_agent._followup_task_key("", "<x>") == "reply_followup:<nosender>"
+
+
+def test_followup_key_missing_message_id_distinct_durable(tmp_path, monkeypatch):
+    """Two threads from the same sender WITHOUT a Message-ID must NOT collapse to
+    one shared key; each gets a distinct durable key via the thread-root fallback."""
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    orch = _temp_orchestrator(tmp_path)
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True, "model": "jev-1.13.0"}
+
+    t1 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, message_id="", references="<r-1>", orchestrator=orch
+    )
+    t2 = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, message_id="", references="<r-2>", orchestrator=orch
+    )
+    assert t1["created"] is True and t2["created"] is True
+    assert t1["task_id"] != t2["task_id"]
+    assert t1["idempotency_key"] != t2["idempotency_key"]
+
+    # A retry of thread 1 dedups; a retry of thread 2 dedups independently.
+    t1b = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, message_id="", references="<r-1>", orchestrator=orch
+    )
+    t2b = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, message_id="", references="<r-2>", orchestrator=orch
+    )
+    assert t1b["created"] is False and t1b["reason"] == "duplicate"
+    assert t1b["task_id"] == t1["task_id"]
+    assert t2b["created"] is False and t2b["reason"] == "duplicate"
+    assert t2b["task_id"] == t2["task_id"]
+
+
+def test_followup_key_dedups_across_restart(tmp_path, monkeypatch):
+    """Cross-process/restart regression: simulate a RESTART by building a fresh
+    orchestrator (fresh DurableTaskStore) over the SAME ledger DB, then re-submit
+    with the identically-derived key. The second (new-process) submission must be
+    a duplicate of the first process's task — proving the key is stable across a
+    process boundary, which a per-process Python ``hash()`` would break."""
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    db = str(tmp_path / "orchestrator_ledger.db")
+    ledger = str(tmp_path / "orchestrator_ledger.json")
+
+    # ---- "process 1": build orchestrator, submit, capture the task + key. ----
+    from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
+
+    orch1 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True, "model": "jev-1.13.0"}
+    p1 = reply_agent.create_reply_followup_task(
+        prospect,
+        "interested",
+        ts_ev,
+        message_id="<abc@mail>",
+        references="<r0>",
+        orchestrator=orch1,
+    )
+    assert p1["created"] is True and p1["task_id"]
+    key = p1["idempotency_key"]
+
+    # ---- "process 2": a brand-new orchestrator instance over the SAME db. ----
+    orch2 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
+    p2 = reply_agent.create_reply_followup_task(
+        prospect,
+        "interested",
+        ts_ev,
+        message_id="<abc@mail>",
+        references="<r0>",
+        orchestrator=orch2,
+    )
+    # Independently re-deriving the key must land on the SAME task.
+    assert p2["created"] is False
+    assert p2["reason"] == "duplicate"
+    assert p2["task_id"] == p1["task_id"]
+    assert p2["idempotency_key"] == key
+
+
+def test_followup_caller_uses_current_message_identity(tmp_path, monkeypatch):
+    """Regression for the stale-variable defect: the triage call site must derive
+    the key from the CURRENT message's thread identity, not a sibling variable that
+    is only populated later in the loop. Here we call exactly as the caller does —
+    passing message_id/references straight from _safe_thread_headers of THIS msg —
+    and confirm the resulting key is stable and dedup-safe."""
+    import email as email_mod
+
+    monkeypatch.setenv("REPLY_AGENT_FOLLOWUP_TASK", "1")
+    orch = _temp_orchestrator(tmp_path)
+    raw = (
+        b"From: J <j@x.in>\r\nSubject: Re: demo\r\n"
+        b"Message-ID: <msg-777@x.in>\r\nReferences: <r0@x.in> <msg-777@x.in>\r\n"
+        b"\r\nYes, do a demo this week.\r\n"
+    )
+    msg = email_mod.message_from_bytes(raw)
+    fmid, frefs = reply_agent._safe_thread_headers(msg)
+    assert fmid == "<msg-777@x.in>"
+    prospect = {"business_name": "Jiya Makeover", "email": "j@x.in"}
+    ts_ev = {"active": True, "intent": "demo_request", "is_hot": True}
+    out = reply_agent.create_reply_followup_task(
+        prospect, "interested", ts_ev, message_id=fmid, references=frefs, orchestrator=orch
+    )
+    assert out["created"] is True
+    assert out["idempotency_key"] == reply_agent._followup_task_key("j@x.in", fmid, frefs)
 
 
 # --------------------------------------------------------------------------- #
@@ -265,7 +418,9 @@ def test_content_gate_inert_fails_open(monkeypatch):
     # False, so the row still proceeds to the claim/send path. We never block the
     # bounded auto-send just because the paid verifier is not armed.
     monkeypatch.setenv("REPLY_AGENT_TYPESAFE_CONTENT", "1")
-    monkeypatch.setattr(typesafe_services, "get_typesafe_content_qa", lambda: _content_svc(enabled=False))
+    monkeypatch.setattr(
+        typesafe_services, "get_typesafe_content_qa", lambda: _content_svc(enabled=False)
+    )
     out = reply_agent._typesafe_content_gate("s", "b")
     assert out["enabled"] is True
     assert out["passed"] is True
@@ -281,7 +436,9 @@ def test_content_gate_records_clean_verdict(monkeypatch):
         "get_typesafe_content_qa",
         lambda: _content_svc(approved=True, tone="professional", success=True, has_answer=True),
     )
-    out = reply_agent._typesafe_content_gate("Re: demo", "Thanks, we can do a demo.", {"business_name": "Jiya"})
+    out = reply_agent._typesafe_content_gate(
+        "Re: demo", "Thanks, we can do a demo.", {"business_name": "Jiya"}
+    )
     assert out["enabled"] is True
     assert out["passed"] is True
     assert out["needs_review"] is False
@@ -360,26 +517,45 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
     f = tmp_path / "reply_drafts.jsonl"
     f.write_text("", encoding="utf-8")
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
-    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {"owner@biz.in": {"business_name": "Jiya Makeover", "niche": "salon", "emailed_at": "2026-09-01T00:00:00+00:00"}})
-    monkeypatch.setattr(ra, "_prospect_map", lambda: {"owner@biz.in": {"business_name": "Jiya Makeover"}})
+    monkeypatch.setattr(
+        ra,
+        "_full_prospect_map",
+        lambda: {
+            "owner@biz.in": {
+                "business_name": "Jiya Makeover",
+                "niche": "salon",
+                "emailed_at": "2026-09-01T00:00:00+00:00",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        ra, "_prospect_map", lambda: {"owner@biz.in": {"business_name": "Jiya Makeover"}}
+    )
 
     async def _disabled():
         return False
+
     monkeypatch.setattr(ra, "_reply_auto_send_enabled", _disabled)
+
     async def _classify(_s, _b, _h=""):
         return "interested"
+
     monkeypatch.setattr(ra, "_classify", _classify)
+
     async def _draft(*_a, **_k):
         return "Drafted reply text"
+
     monkeypatch.setattr(ra, "_draft", _draft)
     monkeypatch.setattr(ra, "_notify", lambda *_a, **_k: None)
     monkeypatch.setattr("app.platform.interaction_log.record", lambda **_k: None)
     monkeypatch.setattr("app.platform.objection_extractor.extract_from_reply", lambda **_k: None)
     monkeypatch.setattr("app.platform.llm_guard.scan", lambda *_a, **_k: {"suspicious": False})
+
     # Hermetic: neutralise the external side-effect integrations the interested
     # branch touches so no real network/DB calls leak into the test.
     async def _noop(*_a, **_k):
         return None
+
     monkeypatch.setattr("app.platform.revenue_attribution.record_touch", lambda **_k: {"ok": True})
     monkeypatch.setattr("app.marketing.sales_pipeline.upsert_deal", lambda *_a, **_k: {})
     monkeypatch.setattr("app.marketing.cadence.enroll", lambda *_a, **_k: {})
@@ -387,8 +563,12 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
     monkeypatch.setattr("app.integrations.ntfy.push", _noop)
     monkeypatch.setattr("app.platform.email_unsub.is_suppressed", lambda *_a, **_k: False)
     monkeypatch.setattr("app.platform.email_unsub.suppress", lambda *_a, **_k: True)
-    monkeypatch.setattr("app.platform.email_warmup.record_complaint", lambda *_a, **_k: {"paused": False})
-    monkeypatch.setattr("app.platform.email_warmup.record_bounce", lambda *_a, **_k: {"paused": False})
+    monkeypatch.setattr(
+        "app.platform.email_warmup.record_complaint", lambda *_a, **_k: {"paused": False}
+    )
+    monkeypatch.setattr(
+        "app.platform.email_warmup.record_bounce", lambda *_a, **_k: {"paused": False}
+    )
     monkeypatch.setattr("app.platform.team.log_event", lambda *_a, **_k: None)
 
     msg = email.message_from_string(
@@ -409,7 +589,9 @@ def _seed_imap(monkeypatch, tmp_path, body, subject="Re: Free audit"):
             return "OK", [b"" if self.seen else b"1"]
 
         def fetch(self, _id, spec):
-            return "OK", [(b'1 (INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {1})', msg.as_bytes())]
+            return "OK", [
+                (b'1 (INTERNALDATE "23-Sep-2026 10:00:00 +0000" BODY[] {1})', msg.as_bytes())
+            ]
 
         def store(self, *_a):
             self.seen = True
@@ -502,10 +684,15 @@ def test_auto_send_typesafe_content_gate_blocks(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
-    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {"owner@biz.in": {"emailed_at": "2026-09-20T00:00:00+00:00"}})
+    monkeypatch.setattr(
+        ra,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-09-20T00:00:00+00:00"}},
+    )
 
     async def _enabled():
         return True
+
     monkeypatch.setattr(ra, "_reply_auto_send_enabled", _enabled)
 
     claims = []
@@ -522,6 +709,7 @@ def test_auto_send_typesafe_content_gate_blocks(tmp_path, monkeypatch):
     async def _sender(frm, subject, body, headers):
         sent.append(frm)
         return True
+
     monkeypatch.setattr(ra, "_send_reply_email", _sender)
     # Let the deterministic pre-gates pass so the row reaches the content gate.
     monkeypatch.setattr("app.platform.email_unsub.is_suppressed", lambda *_a, **_k: False)

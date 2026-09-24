@@ -646,6 +646,44 @@ def _reply_delivery_key(sender: str, message_id: str) -> str:
     return hashlib.sha256(f"{sender}|{message_id}".encode("utf-8", "ignore")).hexdigest()[:32]
 
 
+def _followup_task_key(sender: str, message_id: str = "", references: str = "") -> str:
+    """Stable, PII-minimized idempotency key for a qualified-reply follow-up task.
+
+    Derived from the message's **delivery/thread identity** so re-processing the
+    same message — or the same thread seen by a brand-new process / orchestrator
+    instance — yields the SAME key and dedups to one durable task:
+
+      * ``message_id`` present  -> digest of ``sender|<message_id>``
+        (the RFC Message-ID is the stable per-delivery identity).
+      * ``message_id`` absent   -> DISTINCT durable fallback: digest of
+        ``sender|thread:<root>`` where ``root`` is the earliest ``References``
+        token. This keeps two different threads from the same sender distinct
+        instead of collapsing them to one shared ``'none'`` constant.
+      * neither                 -> digest of ``sender|norep`` (sender-scoped).
+
+    Deterministic (SHA-256), **never** Python ``hash()`` — ``hash()`` is
+    PYTHONHASHSEED-salted and unstable across process restarts, so it would not
+    reliably dedup a cross-process replay.
+    """
+    import hashlib
+
+    sender = (sender or "").strip().lower()
+    message_id = (message_id or "").strip()
+    refs = re.findall(r"<[^<>\r\n]{1,200}>", references or "")
+    if not sender:
+        # No sender identity at all — a stable no-op marker so callers never mint
+        # a task from an empty identity (the orchestrator guard rejects it).
+        return "reply_followup:<nosender>"
+    if message_id:
+        material = f"{sender}|{message_id}"
+    elif refs:
+        material = f"{sender}|thread:{refs[0]}"
+    else:
+        material = f"{sender}|norep"
+    digest = hashlib.sha256(material.encode("utf-8", "ignore")).hexdigest()[:32]
+    return f"reply_followup:{digest}"
+
+
 def _body(msg) -> str:
     try:
         if msg.is_multipart():
@@ -834,6 +872,8 @@ def create_reply_followup_task(
     ts_ev: dict[str, Any],
     *,
     idempotency_key: str = "",
+    message_id: str = "",
+    references: str = "",
     orchestrator: Any | None = None,
 ) -> dict[str, Any]:
     """Idempotently create a canonical WORKER follow-up task for a qualified reply.
@@ -845,14 +885,18 @@ def create_reply_followup_task(
     reply lands in the worker queue with TypeSafe evidence attached.
 
     * Gated by ``REPLY_AGENT_FOLLOWUP_TASK=1`` (default off → no behaviour change).
-    * **Idempotent**: a stable ``idempotency_key`` (caller-supplied, derived from
-      email + thread so re-processing the same message is a no-op) means a retry
-      returns the existing task (``created=False, reason="duplicate"``) instead of
-      minting a second task/deal. ``submit_task`` enforces this via its built-in
-      ``get_by_idempotency_key`` check.
+    * **Idempotent**: the default ``idempotency_key`` is ``_followup_task_key`` — a
+      stable digest of the message's delivery/thread identity (Message-ID, else the
+      thread's earliest References token, else the sender). Re-processing the same
+      message, or the same thread seen by a **brand-new process / orchestrator
+      instance**, yields the SAME key → one durable task (``created=False,
+      reason="duplicate"``); two DIFFERENT threads stay distinct. ``submit_task``
+      enforces this via its built-in ``get_by_idempotency_key`` check.
+    * ``message_id`` / ``references`` are the current message's thread identity
+      (from ``_safe_thread_headers``) so the key is derived from THIS reply, never a
+      stale sibling. Never raises.
     * ``orchestrator`` is injectable so tests point the durable store at a temp DB;
       default ``None`` builds the canonical production orchestrator.
-    * Never raises.
     """
     out: dict[str, Any] = {
         "created": False,
@@ -866,9 +910,7 @@ def create_reply_followup_task(
         return out
     biz = str((prospect or {}).get("business_name") or "").strip() or "unknown"
     email = str((prospect or {}).get("email") or "").strip().lower()
-    key = idempotency_key or (
-        f"reply_followup:{email}:{abs(hash((email, str(intent)))):08x}"
-    )
+    key = idempotency_key or _followup_task_key(email, message_id, references)
     out["idempotency_key"] = key
     try:
         from app.platform.automation_orchestrator import (
@@ -919,15 +961,20 @@ def _typesafe_content_gate(
     * ``REPLY_AGENT_TYPESAFE_CONTENT`` unset (default) → ``{"enabled": False}``:
       deterministic compliance gates (suppression/injection/unknown-prospect/
       age/scan) remain the only authority and behaviour is unchanged.
-    * Flag on + client INERT/unavailable → ``{"enabled": True, "passed": True,
-      "reason": "inert_or_unavailable"}``: fail-OPEN. We never block the bounded
-      auto-send just because the paid verifier is down; deterministic gates
-      already protect deliverability.
-    * Flag on + verdict available → ``{"enabled": True, "passed": ...,
-      "persuasion_score": ..., "tone": ..., "reasons": [...]}``. A failing
-      verdict (spammy / compliance / aggressive tone) is a soft hold signal the
-      caller records on the draft row; it does NOT silently bypass the
-      deterministic gates above it. Never raises.
+    * Flag on + client INERT/unavailable (no API key) → ``{"enabled": True,
+      "state": "inert", "passed": True, "needs_review": False}``: ADVISORY only.
+      The verifier is not armed, so the row proceeds to the claim/send path; the
+      deterministic gates above it still protect deliverability. This is the ONLY
+      case where the gate does not hold.
+    * Flag on + armed + verdict available → the gate HOLDS the row for review
+      (``needs_review=True``) on ANY non-clean shape, never fail-open:
+        * ``approved=False`` (spammy / compliance / aggressive tone) → HOLD
+        * API error / timeout / verifier exception      → HOLD (unverifiable)
+        * empty answer (no verdict to trust)             → HOLD
+      Only an active, approved, answer-carrying verdict passes
+      (``state="ok", needs_review=False``). The caller consumes ``needs_review``
+      BEFORE the idempotency claim is burned and records the hold on the draft
+      row as ``auto_send_status="held_for_review"``. Never raises.
     """
     out: dict[str, Any] = {"enabled": False}
     if not _flag("REPLY_AGENT_TYPESAFE_CONTENT"):
@@ -967,7 +1014,11 @@ def _typesafe_content_gate(
         #   * API error / timeout   -> hold (unverifiable)
         #   * empty answer          -> hold (no verdict to trust)
         passed = api_ok and has_answer and verdict.approved
-        state = "ok" if passed else ("error" if not api_ok else ("empty_answer" if not has_answer else "rejected"))
+        state = (
+            "ok"
+            if passed
+            else ("error" if not api_ok else ("empty_answer" if not has_answer else "rejected"))
+        )
         out.update(
             {
                 "state": state,
@@ -1481,7 +1532,10 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             )
                             ts_ev["suppressed"] = True
                         except Exception as _tsup_err:  # never break triage
-                            logger.warning("[reply_agent] typesafe unsubscribe suppression failed: %s", _tsup_err)
+                            logger.warning(
+                                "[reply_agent] typesafe unsubscribe suppression failed: %s",
+                                _tsup_err,
+                            )
                     # A plain semantic "not interested" (mapped_intent not_interested)
                     # stays a review hold only — we do not invent a hard opt-out.
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
@@ -1608,12 +1662,20 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         # idempotent task_ledger row so a qualified reply has a durable,
                         # owner-visible action with TypeSafe evidence persisted in it
                         # (§5 "create or update the appropriate canonical follow-up task").
+                        # The key is derived from THIS message's thread identity
+                        # (Message-ID, else earliest References token, else sender) via
+                        # _followup_task_key — stable across re-processing and across a
+                        # process restart. `_safe_thread_headers(msg)` is used here (not
+                        # the sibling `message_id` variable, which is only populated
+                        # later in the loop and would be stale on the first iteration).
                         try:
+                            _fmid, _frefs = _safe_thread_headers(msg)
                             _ft = create_reply_followup_task(
                                 {**p, "email": frm},
                                 intent,
                                 ts_ev,
-                                idempotency_key=f"reply_followup:{frm}:{message_id or 'none'}",
+                                message_id=_fmid,
+                                references=_frefs,
                             )
                             if _ft.get("created") or _ft.get("task_id"):
                                 res["followup_task"] = _ft
@@ -1872,6 +1934,7 @@ async def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
                 auto_wa = False
                 try:
                     from app.marketing import whatsapp_campaign as _wa_mod
+
                     if _wa_mod.auto_ready():
                         _wres = await _wa_mod.send_one(f"+91{phone10}", wa_msg)
                         auto_wa = bool(_wres.get("sent"))
