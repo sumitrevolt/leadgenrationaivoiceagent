@@ -39,7 +39,7 @@ class KpiRecord:
         verified: bool,
         evidence: str = "",
         source: str = "",
-        tags: Optional[dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
     ):
         self.metric_name = metric_name
         self.value = value
@@ -61,7 +61,7 @@ class KpiRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "KpiRecord":
+    def from_dict(cls, data: dict[str, Any]) -> KpiRecord:
         return cls(
             metric_name=data["metric"],
             value=data["value"],
@@ -89,7 +89,7 @@ class KpiLedger:
         if not os.path.exists(self.ledger_path):
             return
         try:
-            with open(self.ledger_path, "r") as f:
+            with open(self.ledger_path) as f:
                 lines = f.readlines()
                 for line in lines[-1000:]:  # last 1000 records
                     line = line.strip()
@@ -119,7 +119,7 @@ class KpiLedger:
         verified: bool,
         evidence: str = "",
         source: str = "",
-        tags: Optional[dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
     ):
         """Record a KPI metric (verified or unverified)."""
         record = KpiRecord(
@@ -147,7 +147,7 @@ class KpiLedger:
             if r.metric_name == metric_name and not r.verified
         ][:limit]
 
-    def get_all(self, metric_name: Optional[str] = None, limit: int = 100) -> list[KpiRecord]:
+    def get_all(self, metric_name: str | None = None, limit: int = 100) -> list[KpiRecord]:
         """Get recent records (optionally filtered by metric)."""
         records = self._cache[::-1]
         if metric_name:
@@ -170,7 +170,7 @@ class KpiLedger:
         """Print human-readable KPI status."""
         summary = self.get_summary()
         print(f"\n{'='*60}")
-        print(f"  KPI LEDGER STATUS")
+        print("  KPI LEDGER STATUS")
         print(f"{'='*60}")
         if not summary:
             print("  No KPI records yet.")
@@ -183,7 +183,7 @@ class KpiLedger:
 
 
 # Module-level singleton
-_ledger: Optional[KpiLedger] = None
+_ledger: KpiLedger | None = None
 
 
 def get_ledger() -> KpiLedger:
@@ -200,7 +200,7 @@ def record_kpi(
     verified: bool,
     evidence: str = "",
     source: str = "",
-    tags: Optional[dict[str, str]] = None,
+    tags: dict[str, str] | None = None,
 ):
     """Convenience function to record a KPI."""
     ledger = get_ledger()
