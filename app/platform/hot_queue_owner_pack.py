@@ -54,9 +54,9 @@ def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             Noul,
             Score,
             TypeSafeClient,
+            _get_api_key,
             credential_state,
             fingerprint,
-            _get_api_key,
         )
 
         cred = credential_state()

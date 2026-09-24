@@ -16,8 +16,8 @@ capacity = 1  # Single daily follow-up check
 
 def check_followup():
     """Check if hot queue pack from yesterday was actioned; if not, send ntfy reminder."""
-    from app.integrations.ntfy import push as ntfy_push, enabled as ntfy_enabled
-    from app.platform.hot_queue_owner_pack import check_gates
+    from app.integrations.ntfy import enabled as ntfy_enabled
+    from app.integrations.ntfy import push as ntfy_push
 
     gates = check_gates()
     open_gates = [k for k, v in gates.items() if v != "pass"]

@@ -106,7 +106,7 @@ class KeyManagerAgent:
         if not self.keys_file.exists():
             return {}
         try:
-            with open(self.keys_file, "r", encoding="utf-8") as f:
+            with open(self.keys_file, encoding="utf-8") as f:
                 content = json.load(f)
 
             if isinstance(content, dict) and content.get("encrypted") is True:
@@ -334,7 +334,7 @@ class KeyManagerAgent:
             return []
 
         try:
-            with open(self.audit_log, "r", encoding="utf-8") as f:
+            with open(self.audit_log, encoding="utf-8") as f:
                 entries = [json.loads(line) for line in f if line.strip()]
         except Exception:
             return []
