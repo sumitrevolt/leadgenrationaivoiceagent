@@ -8,7 +8,7 @@ the owner received nothing. This module is the L1 delivery layer of
 `docs/context/OWNER_TELEGRAM_FEED_DESIGN.md`.
 
 DESIGN RULES (non-negotiable — ARCH §M4 / §7)
----------------------------------------------
+----------------------------------------------
 1. **Fail-open.** Telegram down / token missing / rate-limited must NEVER raise and
    NEVER break the caller. `send_owner()` returns a bool; app-flow continues.
 2. **Egress-only.** Hermes is the sole ingress consumer (`HERMES_CONTROL_PLANE.md`);
@@ -21,6 +21,8 @@ DESIGN RULES (non-negotiable — ARCH §M4 / §7)
    `config/telegram/setup_spec.yaml` via `telegram_egress.resolve_chat_id` — never hardcoded.
 6. **Reuse, don't rebuild.** Delivery goes through the existing TEST-PROVEN
    `app/utils/telegram_egress.send_to_group`. No second Telegram client.
+7. **Multi-token fallback.** Mirrors `telegram_egress._token_candidates()`: Notify
+   bot first, JARVIS bot fallback — so one revoked token cannot silence all alerts.
 
 Truth gate: events sourced from `workforce` are force-`UNVERIFIED` (see owner_feed).
 Evidence label: CODE-PRESENT (new module, pinned by tests/test_owner_notify.py).
@@ -28,6 +30,8 @@ Evidence label: CODE-PRESENT (new module, pinned by tests/test_owner_notify.py).
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -51,6 +55,10 @@ _DEFAULT_GROUP_BY_SEVERITY: dict[str, str] = {
     "P1": "internal_admin",
     "info": "internal_admin",
 }
+
+# Chat ID target for owner direct DM — used when group-based routing fails.
+# Read from env so it can be overridden per-deployment without code change.
+_OWNER_DM_CHAT_ID = "TELEGRAM_CHAT_ID"
 
 
 def _rate_ok(group: str) -> bool:
@@ -84,6 +92,23 @@ def _resolve_group(severity: str, group: str | None) -> str:
     return _DEFAULT_GROUP_BY_SEVERITY.get(severity, "internal_admin")
 
 
+def _fp(v: str) -> str:
+    """SHA-256 fingerprint prefix of a secret value. Never prints the secret."""
+    return hashlib.sha256((v or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _get_token_candidates() -> list[str]:
+    """Get all configured Telegram bot tokens in priority order.
+    Mirrors telegram_egress._token_candidates() exactly.
+    """
+    try:
+        from app.utils import telegram_egress
+        return telegram_egress._token_candidates()
+    except Exception:
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        return [token] if token else []
+
+
 def send_owner(
     text: str,
     *,
@@ -96,6 +121,9 @@ def send_owner(
     dry_run: bool = False,
 ) -> bool:
     """Send one alert to the owner's Telegram group. **Never raises.**
+
+    Uses multi-token fallback (Notify → JARVIS) via telegram_egress._token_candidates().
+    Falls back to direct DM via TELEGRAM_CHAT_ID env when group chat is unavailable.
 
     Args:
         text: message body (Hinglish OK). Truncated by the egress layer.
@@ -130,15 +158,14 @@ def send_owner(
         # Dedupe — per-hour.
         if not _dedupe_ok(dedupe_key):
             logger.info("[owner_notify] dedupe suppressed key=%s", dedupe_key)
-            # Still mirror to the canonical feed so the event is not lost.
             _mirror_feed(sev, source, actor, body, evidence or "", verified, dedupe_key)
             return False
 
-        target = _resolve_group(sev, group)
+        target_group = _resolve_group(sev, group)
 
         # Rate-limit — never spam.
-        if not _rate_ok(target):
-            logger.warning("[owner_notify] rate-limited group=%s (dropping)", target)
+        if not _rate_ok(target_group):
+            logger.warning("[owner_notify] rate-limited group=%s (dropping)", target_group)
             _mirror_feed(sev, source, actor, body, evidence or "", verified, dedupe_key)
             return False
 
@@ -151,46 +178,56 @@ def send_owner(
         if dry_run:
             return True
 
-        # Fail-open delivery via the existing egress layer.
-        sent = _deliver(target, message)
+        # Fail-open delivery with multi-token fallback + DM fallback.
+        sent = _deliver_fallback(target_group, message)
         return sent
     except Exception as e:  # pragma: no cover — fail-open by design
         logger.warning("[owner_notify] send_owner failed (fail-open): %s", e)
         return False
 
 
-def _deliver(group: str, message: str) -> bool:
-    """Hand off to app/utils/telegram_egress.send_to_group. Never raises.
+def _deliver_fallback(group: str, message: str) -> bool:
+    """Try group-based delivery, then fall back to DM if group chat is invalid.
 
-    The egress layer is async; we run it to completion from sync callers. If an
-    event loop is already running in this thread, we fall back to a fresh loop.
+    1. Try telegram_egress.send_to_group(group, message) — uses multi-token fallback.
+    2. If that fails with 'chat not found', try sending to TELEGRAM_CHAT_ID env directly.
+    Never raises. Returns True on any successful send.
     """
+    # Path 1: group-based delivery (multi-token fallback built into telegram_egress)
     try:
         from app.utils.telegram_egress import send_to_group
-    except Exception as e:
-        logger.warning("[owner_notify] telegram_egress unavailable: %s", e)
-        return False
-
-    import asyncio
-
-    async def _go() -> dict[str, Any]:
-        return await send_to_group(group, message)
-
-    try:
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop and loop.is_running():
-            # We are inside a running loop — schedule and don't block. Return True
-            # optimistically (fire-and-forget); the feed mirror already recorded it.
-            loop.create_task(_go())
+        result = asyncio.run(send_to_group(group, message))
+        if result.get("sent"):
+            logger.info(
+                "[owner_notify] delivered to group=%s via token fp=%s",
+                group,
+                _fp(result.get("token_used") or ""),
+            )
             return True
-        result = asyncio.run(_go())
-        return bool(result.get("sent"))
-    except Exception as e:  # pragma: no cover — fail-open
-        logger.warning("[owner_notify] delivery failed (fail-open): %s", e)
+        logger.warning(
+            "[owner_notify] group delivery failed group=%s: %s",
+            group,
+            result.get("error", "unknown"),
+        )
+    except Exception as e:
+        logger.warning("[owner_notify] group delivery exception: %s", e)
+
+    # Path 2: direct DM fallback to TELEGRAM_CHAT_ID
+    dm_chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not dm_chat:
+        logger.warning("[owner_notify] no TELEGRAM_CHAT_ID for DM fallback")
         return False
+    try:
+        from app.utils.telegram_egress import _send_via_bot_api
+        result = asyncio.run(_send_via_bot_api(dm_chat, "sendMessage", {"text": message}))
+        if result.get("sent"):
+            logger.info("[owner_notify] delivered to DM chat=%s via token fp=%s", dm_chat, _fp(""))
+            return True
+        logger.warning("[owner_notify] DM delivery failed: %s", result.get("error", "unknown"))
+    except Exception as e:
+        logger.warning("[owner_notify] DM delivery exception: %s", e)
+
+    return False
 
 
 def _mirror_feed(
