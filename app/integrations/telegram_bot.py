@@ -259,8 +259,39 @@ class TelegramBot:
         #    EXISTING orchestrator task and never creates a duplicate.
         from app.integrations.telegram_p0_76_ack import (
             handle_p0_76_ack,
+            handle_p0_76_review_approval,
             is_p0_76_ack,
+            is_p0_76_approval,
         )
+
+        if is_p0_76_approval(text):
+            appres = handle_p0_76_review_approval(
+                bot=self,
+                orchestrator=self._get_orchestrator(),
+                update=update,
+                chat_id=chat_id,
+                send_reply=send_reply,
+            )
+            self._log_audit(
+                event_type="p0_76_review_approval",
+                user_id=user_id,
+                username=username,
+                chat_id=chat_id,
+                text=text,
+                is_owner=appres.authorized,
+                intent="p0_76_review_approval",
+                routed_bot="guardian",
+                response=appres.response_text,
+            )
+            return BotProcessResult(
+                success=(not appres.error) or appres.replayed,
+                response_text=appres.response_text,
+                intent="p0_76_review_approval",
+                is_owner=appres.authorized,
+                routed_bot="guardian",
+                deduplicated=appres.replayed,
+                error=appres.error,
+            )
 
         if is_p0_76_ack(text):
             p0res = handle_p0_76_ack(
