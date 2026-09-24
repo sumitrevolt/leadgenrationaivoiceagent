@@ -134,7 +134,11 @@ def _collect_p0_76_inputs() -> tuple[bool, dict[str, Any], str]:
         present = os.path.exists(p)
         payload[f"input:{fname}"] = present
         all_present = all_present and present
-    detail = "all optional inputs present" if all_present else "some optional inputs missing (input-only, non-fatal)"
+    detail = (
+        "all optional inputs present"
+        if all_present
+        else "some optional inputs missing (input-only, non-fatal)"
+    )
     return all_present, payload, detail
 
 
@@ -425,6 +429,7 @@ def handle_p0_76_ack(
         ),
         extra={"execution": execution},
     )
+
 
 @dataclass
 class P076ApprovalResult:

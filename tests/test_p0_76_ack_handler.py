@@ -410,6 +410,7 @@ def test_typesafe_enabled_review_verdict_on_task_79406871(tmp_path, monkeypatch)
         system_one=lambda *a, **k: fake_response,
     )
     import app.platform.typesafe_session_policy as tsp
+
     monkeypatch.setattr(tsp, "get_typesafe_client", lambda: fake_client)
 
     dispatched = orch.dispatch_task("task_79406871")
