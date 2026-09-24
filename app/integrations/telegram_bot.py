@@ -254,6 +254,43 @@ class TelegramBot:
             )
 
         # Authorized processing
+        # 0. P0-76 owner-ACK (owner-gated, existing-task-bound) — intercept before
+        #    the generic slash-command / TypeSafe-intent paths so it binds to the
+        #    EXISTING orchestrator task and never creates a duplicate.
+        from app.integrations.telegram_p0_76_ack import (
+            handle_p0_76_ack,
+            is_p0_76_ack,
+        )
+
+        if is_p0_76_ack(text):
+            p0res = handle_p0_76_ack(
+                bot=self,
+                orchestrator=self._get_orchestrator(),
+                update=update,
+                chat_id=chat_id,
+                send_ack=send_reply,
+            )
+            self._log_audit(
+                event_type="p0_76_ack",
+                user_id=user_id,
+                username=username,
+                chat_id=chat_id,
+                text=text,
+                is_owner=True,
+                intent="p0_76_ack",
+                routed_bot="guardian",
+                response=p0res.response_text,
+            )
+            return BotProcessResult(
+                success=(not p0res.error) or p0res.deduplicated,
+                response_text=p0res.response_text,
+                intent="p0_76_ack",
+                is_owner=True,
+                routed_bot="guardian",
+                deduplicated=p0res.deduplicated,
+                error=p0res.error,
+            )
+
         # 1. Check if slash command
         if text.startswith("/"):
             response_text, intent, routed_bot = self._execute_command(text)
@@ -385,7 +422,7 @@ class TelegramBot:
             f"â€¢ `/keys` or `/slots` â€” TypeSafe 4 logical slots health & rotation status\n"
             f"â€¢ `/tasks [status]` â€” List tasks from the durable ledger\n"
             f"â€¢ `/agents` â€” View the 31 specialist agents across 7 teams\n"
-            f"â€¢ `/test_handoff` â€” Execute a non-destructive verification task\n"
+            f"â€¢ `/test_handoff` â€” Non-destructive self-check (NOT execution proof for #76)\n"
             f"â€¢ `/pause` â€” Trigger kill switch (stops new task claims)\n"
             f"â€¢ `/resume` â€” Re-enable automated task claims\n"
             f"â€¢ `/help` â€” Show this message\n\n"
@@ -438,10 +475,23 @@ class TelegramBot:
         done_cnt = counts.get(TaskStatus.DONE.value, 0)
         failed_cnt = counts.get(TaskStatus.FAILED.value, 0)
 
+        # Ingress/egress SMOKE block (owner directive: /status = status/smoke surface, NOT an execution proof).
+        from app.platform import telegram_coordinator as _tc
+
+        lease = _tc.get_polling_lease()
+        conflicts = _tc.ingress_conflict_state()
+        egress_slots = [slot for slot, _ in _tc.egress_token_candidates()]
+        ingress_lines = [
+            "INGRESS/EGRESS SMOKE (status read - NOT an execution proof):",
+            f"  Ingress token (Jarvis): configured={bool(_tc.get_polling_token())}",
+            f"  Polling lease: holder={lease.get('holder')} backend={lease.get('backend')} held_by_me={lease.get('held_by_me')}",
+            f"  409 external conflicts: {conflicts.get('conflict_count', 0)} (last={conflicts.get('last_conflict_at')})",
+            f"  Egress slots: {egress_slots}",
+        ]
         ts_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         text = (
-            f"ðŸ“Š **LeadGen AI Orchestrator Status**\n\n"
+            f"ðŸ“Š **LeadGen AI Orchestrator Status - ingress/egress SMOKE TEST**\n\n"
             f"â€¢ **Supervisory Fleet:** 9 Hermes bots active (`board`, `pilot`, `sales`, etc.)\n"
             f"â€¢ **Specialist Workforce:** {agent_count} agents registered (`team.STAFF`)\n"
             f"â€¢ **Active Worker Leases:** {active_leases} / {orch.governor.max_leases}\n"
@@ -454,6 +504,9 @@ class TelegramBot:
             f"  âŒ Failed: {failed_cnt}\n\n"
             f"â€¢ **TypeSafe:** {typesafe_state} (model: `{ts_client.model}`)\n"
             f"â€¢ **Updated:** `{ts_str}`"
+            + "\n".join(ingress_lines)
+            + "\n\n"
+            + "*Smoke/status surface only - not an execution proof. Execution evidence = bound `p0_76_ack` handler results + worker result rows.*"
         )
         return text, "status_check", "board"
 
