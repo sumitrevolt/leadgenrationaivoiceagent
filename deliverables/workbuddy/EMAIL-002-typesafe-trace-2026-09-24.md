@@ -35,6 +35,24 @@ unknown-prospect / age / scan / injection) remain the sole authority.
 
 ---
 
+## 4. This session — fresh LIVE calls (2026-09-24, post commit `1d6867fe`)
+
+**Not mock, not old-trace replay.** Executed via `_scratch/_email002_typesafe_live.py`
+against the real System One endpoint in the current environment.
+Credential source `env:TYPESAFE_API_KEY`, pool **4/4 healthy** (live re-probed, not
+assumed from history), fingerprint `2e13ca55f7f8` (NOT in the compromised tripwire).
+
+| Call | `requested` | `resolved model` | verdict | `latency` | consumed code action |
+|---|---|---|---|---|---|
+| Reply-triage: canned "we would love a demo this week" | `jev-latest` | `jev-1.13.0` | `intent=demo_request`, `is_hot=true`, `sentiment=positive`, `urgency=same_day`, `suggested_action=schedule_call` | 1.312s | **PROCEED** → interested path (draft + canonical follow-up task) |
+| Content-QA: canned "Hi, thanks for your interest…" | `jev-latest` | `jev-1.13.0` | `approved=false`, `is_spammy=false`, `compliance_violation=true`, `tone=professional`, `success=true`, `has_answer=true`, `attempts=1` | 1.204s | armed gate → **HOLD** (`needs_review=true`, `auto_send_status=held_for_review`) |
+
+Honest fields: the raw System One response does **not** expose a numeric `decision_id`
+(`metadata.decision_id` is null on both calls) — so no decision ID is fabricated here;
+the trace is keyed by resolved model + fingerprint + latency + verdict. No email sent.
+
+---
+
 ## 3. API-failure regression coverage (test, hermetic — no network)
 - `tests/test_reply_typesafe_triage.py::test_content_gate_api_error_holds` → assert `state=error, needs_review=True`.
 - `tests/test_reply_typesafe_triage.py::test_content_gate_empty_answer_holds` → assert `state=empty_answer, needs_review=True`.
