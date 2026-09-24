@@ -1,0 +1,22 @@
+﻿TASK_79406871_STATE_FROM_REAL_LEDGER
+{
+  "task_id": "task_79406871",
+  "status": "REVIEW",
+  "version": 1,
+  "fencing_token": null,
+  "idempotency_key": "p0-76:guardian:hermes:telegram_owner_command",
+  "error_message": "TypeSafe session policy requires owner review",
+  "retry_count": 0,
+  "updated_at": 1790184480.5755124,
+  "owner_bot": "guardian",
+  "assigned_agent": "hermes",
+  "priority": "HIGH",
+  "_input_payload_fingerprint": "fp_2036618ce9",
+  "_evidence_fingerprint": null,
+  "_input_payload_size": 890,
+  "_evidence_size": 0
+}
+
+DB_PATH=C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\data\orchestrator_ledger.db
+DB_SIZE=90112B
+DB_MTIME=1790210533.8620782

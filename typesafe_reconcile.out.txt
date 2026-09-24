@@ -1,0 +1,80 @@
+﻿LIVE_TYPESAFE_CALL_START
+2026-09-24 07:53:08 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.vector_store | 📦 Vector store initialized: data/vectorstore
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.data_pipeline | 📊 Data pipeline initialized: data\conversations
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.data_pipeline | 📊 Data pipeline initialized: data\conversations
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.auto_trainer | 🎓 Auto Trainer initialized
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.feedback_loop | 🔄 Feedback loop initialized
+2026-09-24 07:53:09 | [32mINFO[0m | app.ml.brain_optimizer | 🧠 Brain Optimizer initialized
+2026-09-24 07:53:14 | [32mINFO[0m | app.lead_scraper.scraper_manager | 🔍 Lead Scraper Manager initialized
+2026-09-24 07:53:14 | [32mINFO[0m | app.telephony.call_manager | 📞 Call Manager initialized with tata_smartflo
+2026-09-24 07:53:14 | [32mINFO[0m | app.integrations.google_sheets | Google Sheets not configured (no credentials file) — skipping.
+2026-09-24 07:53:14 | [33mWARNING[0m | app.integrations.hubspot | HubSpot API key not configured
+2026-09-24 07:53:14 | [33mWARNING[0m | app.integrations.whatsapp | WhatsApp credentials not configured
+2026-09-24 07:53:14 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-24 07:53:14 | [32mINFO[0m | app.automation.campaign_manager | 🎯 Campaign Manager initialized
+2026-09-24 07:53:14 | [32mINFO[0m | app.lead_scraper.scraper_manager | 🔍 Lead Scraper Manager initialized
+2026-09-24 07:53:14 | [33mWARNING[0m | app.integrations.whatsapp | WhatsApp credentials not configured
+2026-09-24 07:53:14 | [33mWARNING[0m | app.integrations.email_sender | Email credentials not configured
+2026-09-24 07:53:14 | [32mINFO[0m | app.platform.tenant_manager | 🏢 Tenant Manager initialized
+LIVE_TYPESAFE_CALL_DONE latency_sec=25.122 wrote=C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.worktrees\fix-t80-telegram-owner-command\typesafe_reconcile.json
+{
+  "decision_id": null,
+  "model_resolved": "jev-1.13.0",
+  "latency_sec": 25.122,
+  "answer_route": {
+    "type": "choice",
+    "choice": "owner_directive",
+    "confidence": 0.52,
+    "probabilities": {
+      "assigned_agent": 0.01,
+      "pr_566_p0_76_ack_handler": 0.01,
+      "vps_poller_touched": 0.0,
+      "owner_bot": 0.01,
+      "pr_568_p0_76_ack_handler": 0.05,
+      "evidence_refs": 0.02,
+      "task_79406871_state_in_real_ledger": 0.06,
+      "pr_568_head": 0.01,
+      "owner_directive": 0.54,
+      "pr_566_real_tests_pass": 0.04,
+      "pr_568_path": 0.01,
+      "pr_566_path": 0.01,
+      "pr_566_head": 0.0,
+      "agent_lane": 0.01,
+      "pr_568_full_ci": 0.09,
+      "tenant_scope": 0.0,
+      "purpose": 0.07,
+      "priority": 0.01,
+      "task_id": 0.03,
+      "pr_566_type_safe_proposal": 0.01,
+      "pr_568_type_safe": 0.01
+    }
+  },
+  "answer_reason": {
+    "type": "noul",
+    "noul": 0.53
+  },
+  "confidence_basis": null,
+  "answers_full": {
+    "route": "{'type': 'choice', 'choice': 'owner_directive', 'confidence': 0.52, 'probabilities': {'assigned_agent': 0.01, 'pr_566_p0_76_ack_handler': 0.01, 'vps_poller_touched': 0.0, 'owner_bot': 0.01, 'pr_568_p0_76_ack_handler': 0.05, 'evidence_refs': 0.02, 'task_79406871_state_in_real_ledger': 0.06, 'pr_568_head': 0.01, 'owner_directive': 0.54, 'pr_566_real_tests_pass': 0.04, 'pr_568_path': 0.01, 'pr_566_path': 0.01, 'pr_566_head': 0.0, 'agent_lane': 0.01, 'pr_568_full_ci': 0.09, 'tenant_scope': 0.0, 'purpose': 0.07, 'priority': 0.01, 'task_id': 0.03, 'pr_566_type_safe_proposal': 0.01, 'pr_568_type_safe': 0.01}}",
+    "reason": "{'type': 'noul', 'noul': 0.53}"
+  },
+  "generated_at_utc": "2026-09-24T02:23:17Z",
+  "credential_state": {
+    "state": "PRESENT",
+    "enabled": true,
+    "source": "env:TYPESAFE_API_KEY",
+    "fingerprint": "2e13ca55f7f8",
+    "model": "jev-latest",
+    "pool_size": 4,
+    "pool_fingerprints": [
+      "2e13ca55f7f8",
+      "d6607c44af49",
+      "c01eb8b3f8fa",
+      "570c70192ca5"
+    ]
+  },
+  "script_path": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.worktrees\\fix-t80-telegram-owner-command\\typesafe_reconcile.json"
+}
