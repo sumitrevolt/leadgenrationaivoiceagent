@@ -1,0 +1,114 @@
+﻿I001 [*] Import block is un-sorted or un-formatted
+  --> .worktrees\fix-t80-telegram-owner-command\tests\test_telegram_owner_command_dispatcher_REAL.py:51:5
+   |
+49 |       cleanup_fn)``.
+50 |       """
+51 | /     import shutil
+52 | |     from app.platform.automation_orchestrator import (
+53 | |         AutomationOrchestrator,
+54 | |         DurableTaskStore,
+55 | |         TaskRecord,
+56 | |         TaskStatus,
+57 | |     )
+   | |_____^
+58 |
+59 |       tmpdir = tempfile.mkdtemp(prefix="m020_real_ledger_")
+   |
+help: Organize imports
+   |
+51 |     import shutil
+52 +
+53 |     from app.platform.automation_orchestrator import (
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> .worktrees\fix-t80-telegram-owner-command\tests\test_telegram_owner_command_dispatcher_REAL.py:251:5
+    |
+249 |   def test_real_fencing_token_stale_rejected():
+250 |       os.environ["TELEGRAM_OWNER_CHAT_IDS"] = "1621120182"
+251 | /     from app.platform.telegram_owner_command_dispatcher import dispatch_owner_command
+252 | |     from app.platform.automation_orchestrator import (
+253 | |         StructuredEvidence, TaskStatus,
+254 | |     )
+    | |_____^
+255 |
+256 |       task_id = "task_real_003"
+    |
+help: Organize imports
+    |
+250 |     os.environ["TELEGRAM_OWNER_CHAT_IDS"] = "1621120182"
+    -     from app.platform.telegram_owner_command_dispatcher import dispatch_owner_command
+251 |     from app.platform.automation_orchestrator import (
+    -         StructuredEvidence, TaskStatus,
+252 +         StructuredEvidence,
+253 +         TaskStatus,
+254 |     )
+255 +     from app.platform.telegram_owner_command_dispatcher import dispatch_owner_command
+256 |
+    |
+
+F541 [*] f-string without any placeholders
+   --> .worktrees\fix-t80-telegram-owner-command\tests\test_telegram_owner_command_dispatcher_REAL.py:275:25
+    |
+273 |         ev = StructuredEvidence(
+274 |             type="telegram_owner_command_dispatch",
+275 |             uri_or_path=f"telegram://chat/1621120182/update/999",
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+276 |             producer="stale_worker",
+277 |             checksum_or_result={"handler_executed": True},
+    |
+help: Remove extraneous `f` prefix
+    |
+274 |             type="telegram_owner_command_dispatch",
+    -             uri_or_path=f"telegram://chat/1621120182/update/999",
+275 +             uri_or_path="telegram://chat/1621120182/update/999",
+276 |             producer="stale_worker",
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> .worktrees\fix-t80-telegram-owner-command\tests\test_telegram_owner_command_dispatcher_REAL.py:303:5
+    |
+301 |   def test_real_invalid_evidence_marks_REVIEW_via_guardian_gate():
+302 |       os.environ["TELEGRAM_OWNER_CHAT_IDS"] = "1621120182"
+303 | /     from app.platform.automation_orchestrator import (
+304 | |         StructuredEvidence, TaskStatus,
+305 | |     )
+    | |_____^
+306 |
+307 |       task_id = "task_real_004"
+    |
+help: Organize imports
+    |
+303 |     from app.platform.automation_orchestrator import (
+    -         StructuredEvidence, TaskStatus,
+304 +         StructuredEvidence,
+305 +         TaskStatus,
+306 |     )
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> .worktrees\fix-t80-telegram-owner-command\tests\test_telegram_owner_command_dispatcher_REAL.py:480:5
+    |
+478 |   def test_real_handler_crash_marks_FAILED_with_truthful_reason():
+479 |       os.environ["TELEGRAM_OWNER_CHAT_IDS"] = "1621120182"
+480 | /     from app.platform.telegram_owner_command_dispatcher import (
+481 | |         dispatch_owner_command,
+482 | |     )
+483 | |     import app.platform.telegram_owner_command_dispatcher as disp_mod
+    | |_____________________________________________________________________^
+484 |
+485 |       task_id = "task_real_008"
+    |
+help: Organize imports
+    |
+479 |     os.environ["TELEGRAM_OWNER_CHAT_IDS"] = "1621120182"
+480 +     import app.platform.telegram_owner_command_dispatcher as disp_mod
+481 |     from app.platform.telegram_owner_command_dispatcher import (
+482 |         dispatch_owner_command,
+483 |     )
+    -     import app.platform.telegram_owner_command_dispatcher as disp_mod
+484 |
+    |
+
+Found 5 errors.
+[*] 5 fixable with the `--fix` option.

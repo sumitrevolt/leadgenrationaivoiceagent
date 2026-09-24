@@ -231,6 +231,8 @@ class TelegramBot:
 
     def process_update(self, update: dict[str, Any], send_reply: bool = True) -> BotProcessResult:
         """Process incoming Telegram update with authentication, deduplication, and execution."""
+        # Initialize per-call dispatch context (cleared at end of this method).
+        self._last_processed_update_ctx = None
         update_id = update.get("update_id")
         message_data = update.get("message") or update.get("channel_post") or {}
 
@@ -292,7 +294,23 @@ class TelegramBot:
         # Authorized processing
         # 1. Check if slash command
         if text.startswith("/"):
-            response_text, intent, routed_bot = self._execute_command(text)
+            # Stash update context so dispatcher-bound commands (/dispatch)
+            # can access update_id and chat_id. Cleared immediately after
+            # _execute_command returns.
+            self._last_processed_update_ctx = {
+                "update_id": update_id,
+                "chat_id": chat_id,
+                "user_id": user_id,
+                "username": username,
+                "text": text,
+            }
+            try:
+                response_text, intent, routed_bot = self._execute_command(text)
+            finally:
+                # Keep ctx for the duration of the response validation +
+                # audit + reply send so anything downstream that needs it
+                # still has it; clear at end of process_update below.
+                pass
         else:
             # 2. Natural language intent classification using TypeSafe
             classification = self.classifier.classify_intent(text, str(user_id), is_owner=True)
@@ -344,6 +362,10 @@ class TelegramBot:
             quality_score=validation.get("quality_score", 0.0),
         )
 
+        # Clear the stashed dispatch context — only valid for the current
+        # invocation. _cmd_dispatch has already read what it needs.
+        self._last_processed_update_ctx = None
+
         return BotProcessResult(
             success=True,
             response_text=response_text,
@@ -362,6 +384,11 @@ class TelegramBot:
 
         if cmd in ("/start", "/help"):
             return self._cmd_help()
+        elif cmd == "/dispatch":
+            # Task #80: route owner-initiated dispatch through the new
+            # telegram_owner_command_dispatcher. This is the authorized
+            # path for the P0-76 ACK owner-control-plane flow.
+            return self._cmd_dispatch(args)
         elif cmd == "/status":
             return self._cmd_status()
         elif cmd in ("/keys", "/slots"):
@@ -540,6 +567,99 @@ class TelegramBot:
             f"All agents execute under strict governance contracts and fencing tokens."
         )
         return text, "agent_query", "guardian"
+
+    def _cmd_dispatch(self, args: list[str]) -> tuple[str, str, str | None]:
+        """Authorized owner-command path → telegram_owner_command_dispatcher.
+
+        Wire-up (Task #80, 2026-09-23):
+          ``/dispatch <task_id>`` — route this authorized owner command
+          through the dispatcher. The dispatcher binds the current
+          ``update_id`` to the task, transitions READY → RUNNING via
+          ``orchestrator.dispatch_task``, executes the registered
+          owner-command handler synchronously, persists the result
+          with the fencing token, and sends the Telegram reply carrying
+          the actual outgoing ``message_id``.
+
+          If no ``task_id`` is given, the dispatcher looks for the
+          canonical "P0-76" task (``task_79406871``). This is the
+          owner-control-plane closed loop: owner replies "P0-76 ACK"
+          on the private chat → this command → task dispatch → worker
+          result → Telegram ACK with message_id persisted.
+
+          For other READY tasks the owner can pass the task_id
+          explicitly, e.g. ``/dispatch task_79406871``.
+        """
+        from app.platform.telegram_owner_command_dispatcher import dispatch_owner_command
+
+        # Resolve task_id: explicit arg, or default to the canonical P0-76
+        # closed-loop task. The owner can override by passing ``/dispatch <id>``.
+        task_id = args[0].strip() if args else "task_79406871"
+
+        # We need the current update_id / chat_id — process_update passes
+        # them via _last_processed_update_ctx (set just before this call).
+        ctx = getattr(self, "_last_processed_update_ctx", None) or {}
+        update_id = ctx.get("update_id")
+        chat_id = ctx.get("chat_id")
+
+        if update_id is None or chat_id is None:
+            return (
+                "Dispatcher wiring missing update_id / chat_id context. "
+                "Please retry from the Telegram client.",
+                "dispatch_error",
+                "pilot",
+            )
+
+        orch = self._get_orchestrator()
+        result = dispatch_owner_command(
+            update_id=update_id,
+            chat_id=chat_id,
+            command="/dispatch",  # the slash command form for handler lookup
+            task_id=task_id,
+            orchestrator=orch,
+            telegram_bot=self,
+        )
+
+        # Render redacted reply for the owner
+        from app.platform.telegram_owner_command_dispatcher import (
+            DispatchResult as _DR,
+        )
+
+        red = result.to_redacted_dict()
+        if result.status == "DISPATCHED":
+            body = (
+                f"OK dispatch\n"
+                f"task_id: `{result.task_id}`\n"
+                f"fencing_token: `{red.get('fencing_token_fingerprint') or 'n/a'}`\n"
+                f"reply_message_id: `{result.reply_message_id}`\n"
+                f"owner_command_status: `{result.owner_command_status}`\n"
+                f"finished_at: `{red.get('finished_at_utc')}`"
+            )
+            return body, "dispatch_ok", "pilot"
+
+        if result.status == "IDEMPOTENT_REPLAY":
+            return (
+                f"Replay (idempotent)\ntask_id: `{result.task_id}`\n"
+                f"reply_message_id: `{result.reply_message_id}`",
+                "dispatch_replay",
+                "pilot",
+            )
+
+        if result.status in ("UNAUTHORIZED", "KILLED", "NO_READY_TASK",
+                              "DISPATCH_FAILED", "HANDLER_MISSING",
+                              "HANDLER_FAILED", "DISPATCHED_NO_REPLY",
+                              "REVIEW"):
+            return (
+                f"{result.status}\ntask_id: `{result.task_id or 'n/a'}`\n"
+                f"reason: `{result.reason or 'n/a'}`",
+                f"dispatch_{result.status.lower()}",
+                "pilot",
+            )
+
+        return (
+            f"UNKNOWN: {result.status}\nreason: `{result.reason or 'n/a'}`",
+            "dispatch_unknown",
+            "pilot",
+        )
 
     def _cmd_pause(self) -> tuple[str, str, str | None]:
         os.environ["AUTOMATION_STOP_NEW_CLAIMS"] = "1"

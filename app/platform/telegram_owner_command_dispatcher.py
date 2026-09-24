@@ -41,6 +41,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
+# Import TaskStatus directly so we don't rely on DurableTaskStore exposing
+# it as a class attribute (the real store does NOT).
+from app.platform.automation_orchestrator import TaskStatus as _TaskStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -276,14 +280,25 @@ def dispatch_owner_command(
         return res
 
     # 6. Idempotent replay on the SAME task (already-dispatched update_id)
-    if (
-        getattr(task, "outgoing_message_id", None) is not None
-        or (task.evidence and "handler_executed" in str(task.evidence))
+    # Real TaskRecord doesn't have an outgoing_message_id column — the
+    # dispatcher persists it inside input_payload so the replay path can
+    # read it back without a schema change. Fall back to evidence inspection
+    # for older rows written before this convention.
+    persisted_msg_id: int | None = None
+    try:
+        payload = json.loads(task.input_payload) if task.input_payload else {}
+        if isinstance(payload, dict):
+            persisted_msg_id = payload.get("dispatched_outgoing_message_id")
+    except Exception:
+        persisted_msg_id = None
+    if persisted_msg_id is None:
+        persisted_msg_id = getattr(task, "outgoing_message_id", None)
+    if persisted_msg_id is not None or (
+        task.evidence and "handler_executed" in str(task.evidence)
     ):
-        # Already processed this update_id (replay safety).
         res.status = "IDEMPOTENT_REPLAY"
         res.fencing_token = task.fencing_token
-        res.reply_message_id = getattr(task, "outgoing_message_id", None)
+        res.reply_message_id = persisted_msg_id
         res.reason = "task_already_completed_for_this_update_id"
         res.finished_at = time.time()
         return res
@@ -291,7 +306,7 @@ def dispatch_owner_command(
     # 7. Kill switch
     try:
         if orchestrator.is_kill_switch_active():
-            task.status = orchestrator.store.TaskStatus.BLOCKED  # type: ignore[attr-defined]
+            task.status = _TaskStatus.BLOCKED
             task.error_message = "Kill switch AUTOMATION_STOP_NEW_CLAIMS active"
             task.updated_at = time.time()
             orchestrator.store.save(task)
@@ -333,7 +348,7 @@ def dispatch_owner_command(
     # 10. Resolve and execute handler
     handler = _resolve_handler(command)
     if handler is None:
-        task.status = orchestrator.store.TaskStatus.REVIEW  # type: ignore[attr-defined]
+        task.status = _TaskStatus.REVIEW
         task.error_message = "handler_missing:no_registered_handler_for_command"
         task.updated_at = time.time()
         orchestrator.store.save(task)
@@ -345,7 +360,7 @@ def dispatch_owner_command(
     try:
         owner_result = handler(command)
     except Exception as e:
-        task.status = orchestrator.store.TaskStatus.FAILED  # type: ignore[attr-defined]
+        task.status = _TaskStatus.FAILED
         task.error_message = f"handler_crashed:{type(e).__name__}:{e}"
         task.updated_at = time.time()
         orchestrator.store.save(task)
@@ -354,30 +369,10 @@ def dispatch_owner_command(
         res.finished_at = time.time()
         return res
 
-    # 11. Persist handler result with fencing token
-    try:
-        evidence_payload = {
-            "owner_command_result": (
-                owner_result.to_data_payload()
-                if hasattr(owner_result, "to_data_payload")
-                else {"status": getattr(owner_result, "status", None)}
-            ),
-            "handler_executed": True,
-            "handler_invoked_at": time.time(),
-            "command": command,
-            "fencing_token": res.fencing_token,
-        }
-        task.evidence = json.dumps(evidence_payload)
-    except Exception as e:
-        task.error_message = f"evidence_persist_failed:{type(e).__name__}"
-        task.updated_at = time.time()
-        orchestrator.store.save(task)
-        res.status = "HANDLER_FAILED"
-        res.reason = task.error_message
-        res.finished_at = time.time()
-        return res
-
-    # 12. Send reply, capture outgoing message_id
+    # 11. Send reply, capture outgoing message_id (BEFORE verify_and_complete
+    # so the StructuredEvidence can carry the persisted message_id even if
+    # the egress side failed and we end up marking the task FAILED via the
+    # canonical path).
     text = ""
     try:
         text = owner_result.to_telegram_text()
@@ -385,36 +380,115 @@ def dispatch_owner_command(
         text = f"(formatter error: {type(e).__name__})"
     ok, reply_msg_id = _send_reply(telegram_bot, chat_id, text)
 
-    # 13. Transition to DONE / FAILED with the reply outcome persisted
+    # 12. Build the canonical StructuredEvidence + call verify_and_complete.
+    # This is the worker's "finish" path: it validates the fencing token,
+    # runs the Guardian StructuredEvidence gate, transitions the task to
+    # DONE / FAILED / REVIEW, releases the governor lease, calls
+    # _dev_worker_finish (execution proof), and emits the feed events.
+    from app.platform.automation_orchestrator import StructuredEvidence
+
+    evidence_payload_struct = {
+        "owner_command_result": (
+            owner_result.to_data_payload()
+            if hasattr(owner_result, "to_data_payload")
+            else {"status": getattr(owner_result, "status", None)}
+        ),
+        "handler_executed": True,
+        "handler_invoked_at": time.time(),
+        "command": command,
+        "fencing_token": res.fencing_token,
+        "outgoing_message_id": reply_msg_id,
+        "outgoing_delivery_ok": ok,
+        "update_id": update_id,
+        "chat_id": chat_id,
+        "owner_command_status": getattr(owner_result, "status", None),
+    }
+
+    # Persist the dispatched message_id into input_payload so the replay
+    # branch (above) can find it without a schema migration. Save BEFORE
+    # verify_and_complete so the row is committed with the dispatched
+    # fields; verify_and_complete then re-fetches, sets status/evidence/
+    # error_message, and saves again — but the input_payload column is
+    # preserved by the ON CONFLICT DO UPDATE clause above.
+    if reply_msg_id is not None:
+        try:
+            ipayload = json.loads(task.input_payload) if task.input_payload else {}
+            if not isinstance(ipayload, dict):
+                ipayload = {}
+            ipayload["dispatched_outgoing_message_id"] = reply_msg_id
+            ipayload["dispatched_fencing_token"] = res.fencing_token
+            ipayload["dispatched_update_id"] = update_id
+            task.input_payload = json.dumps(ipayload)
+            task.updated_at = time.time()
+            orchestrator.store.save(task)
+        except Exception as e:
+            logger.warning(
+                "telegram_owner_command_dispatcher: dispatch persist failed: %s",
+                type(e).__name__,
+            )
+    structured_evidence = StructuredEvidence(
+        type="telegram_owner_command_dispatch",
+        uri_or_path=(
+            f"telegram://chat/{chat_id}/msg/{reply_msg_id}"
+            if reply_msg_id is not None
+            else f"telegram://chat/{chat_id}/update/{update_id}"
+        ),
+        producer="telegram_owner_command_dispatcher",
+        checksum_or_result=evidence_payload_struct,
+    )
+
+    # If egress failed, we still mark the handler as FAILED via
+    # verify_and_complete(is_success=False) so the canonical path records
+    # the failure — we DO NOT silently upgrade an egress failure to DONE.
+    if ok:
+        try:
+            completed = orchestrator.verify_and_complete(
+                task_id=task_id,
+                execution_evidence=structured_evidence,
+                is_success=True,
+                fencing_token=res.fencing_token,
+            )
+        except Exception as e:  # pragma: no cover - defensive
+            res.status = "HANDLER_FAILED"
+            res.reason = f"verify_and_complete_raised:{type(e).__name__}:{e}"
+            res.finished_at = time.time()
+            return res
+        # Re-read the post-verify_and_complete record to capture state
+        post_task = orchestrator.store.get(task_id) or completed
+        res.status = "DISPATCHED"
+        res.reply_message_id = reply_msg_id
+        res.owner_command_status = getattr(owner_result, "status", None)
+        res.reason = None
+        res.finished_at = time.time()
+        return res
+
+    # Egress failed — mark FAILED via canonical path with truthful reason.
+    egress_evidence = StructuredEvidence(
+        type="telegram_owner_command_dispatch",
+        uri_or_path=f"telegram://chat/{chat_id}/update/{update_id}",
+        producer="telegram_owner_command_dispatcher",
+        checksum_or_result={
+            **evidence_payload_struct,
+            "outgoing_message_id": None,
+            "outgoing_delivery_ok": False,
+        },
+    )
     try:
-        if ok:
-            task.status = orchestrator.store.TaskStatus.DONE  # type: ignore[attr-defined]
-            task.error_message = None
-            try:
-                task.outgoing_message_id = reply_msg_id  # type: ignore[attr-defined]
-            except AttributeError:
-                # TaskRecord doesn't have outgoing_message_id — store in
-                # input_payload so the evidence is still inspectable.
-                try:
-                    payload = json.loads(task.input_payload) if task.input_payload else {}
-                except Exception:
-                    payload = {}
-                payload["outgoing_message_id"] = reply_msg_id
-                task.input_payload = json.dumps(payload)
-        else:
-            task.status = orchestrator.store.TaskStatus.FAILED  # type: ignore[attr-defined]
-            task.error_message = "egress_failure:send_message_returned_false"
-        task.updated_at = time.time()
-        orchestrator.store.save(task)
+        orchestrator.verify_and_complete(
+            task_id=task_id,
+            execution_evidence=egress_evidence,
+            is_success=False,
+            error_msg="egress_failure:send_message_returned_false",
+            fencing_token=res.fencing_token,
+        )
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(
-            "telegram_owner_command_dispatcher: final persist failed: %s",
+            "telegram_owner_command_dispatcher: egress failure persist failed: %s",
             type(e).__name__,
         )
-
-    res.status = "DISPATCHED" if ok else "DISPATCHED_NO_REPLY"
-    res.reply_message_id = reply_msg_id
+    res.status = "DISPATCHED_NO_REPLY"
+    res.reply_message_id = None
     res.owner_command_status = getattr(owner_result, "status", None)
-    res.reason = None if ok else "egress_failure_but_handler_executed"
+    res.reason = "egress_failure_but_handler_executed"
     res.finished_at = time.time()
     return res
