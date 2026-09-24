@@ -1262,49 +1262,49 @@
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 104,
+        "line": 105,
         "scope": "_direct"
       },
       {
         "call": "app.platform.agent_runtime.run_task",
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 105,
+        "line": 106,
         "scope": "_direct"
       },
       {
         "call": "app.platform.agent_runtime.AgentTask",
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 106,
+        "line": 107,
         "scope": "_direct"
       },
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
-        "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 148,
-        "scope": "_dsh_preflight"
-      },
-      {
-        "call": "app.platform.agent_runtime.evaluate_policy",
         "file": "app/platform/workforce_runtime/dispatch.py",
         "line": 149,
         "scope": "_dsh_preflight"
       },
       {
-        "call": "app.platform.agent_runtime.AgentTask",
+        "call": "app.platform.agent_runtime.evaluate_policy",
         "file": "app/platform/workforce_runtime/dispatch.py",
         "line": 150,
         "scope": "_dsh_preflight"
       },
       {
+        "call": "app.platform.agent_runtime.AgentTask",
+        "file": "app/platform/workforce_runtime/dispatch.py",
+        "line": 151,
+        "scope": "_dsh_preflight"
+      },
+      {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 342,
+        "line": 343,
         "scope": "runtime_status"
       },
       {
         "call": "app.platform.agent_runtime.runtime_status",
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 343,
+        "line": 344,
         "scope": "runtime_status"
       },
       {
@@ -1328,19 +1328,19 @@
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 463,
+        "line": 466,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.AgentTask",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 464,
+        "line": 467,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.run_task",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 475,
+        "line": 478,
         "scope": "execute_governed_capability"
       },
       {
@@ -2845,7 +2845,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 101,
+        "line": 102,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "_direct",
@@ -2853,23 +2853,23 @@
       },
       {
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 102,
+        "line": 103,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "_direct",
-        "symbol": ""
-      },
-      {
-        "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 145,
-        "local_name": "agent_runtime",
-        "module": "app.platform.agent_runtime",
-        "scope": "_dsh_preflight",
         "symbol": ""
       },
       {
         "file": "app/platform/workforce_runtime/dispatch.py",
         "line": 146,
+        "local_name": "agent_runtime",
+        "module": "app.platform.agent_runtime",
+        "scope": "_dsh_preflight",
+        "symbol": ""
+      },
+      {
+        "file": "app/platform/workforce_runtime/dispatch.py",
+        "line": 147,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "_dsh_preflight",
@@ -2877,7 +2877,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 339,
+        "line": 340,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "runtime_status",
@@ -2885,7 +2885,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/dispatch.py",
-        "line": 340,
+        "line": 341,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "runtime_status",
@@ -2933,7 +2933,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 460,
+        "line": 463,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "execute_governed_capability",
@@ -2941,7 +2941,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 461,
+        "line": 464,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "execute_governed_capability",
