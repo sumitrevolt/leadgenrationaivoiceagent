@@ -36,28 +36,28 @@ class TelephonyDecision:
 class TypeSafeTelephony:
     """
     TypeSafe-powered telephony integration.
-    
+
     Provides intelligent call routing, lead qualification,
     outcome prediction, and retry decisions using Jev model.
     """
-    
+
     def __init__(self):
         self.decision_log = Path("data/telephony_decisions.jsonl")
         self.decision_log.parent.mkdir(parents=True, exist_ok=True)
-    
+
     def route_call(self, call_data: dict[str, Any]) -> TelephonyDecision:
         """
         Route call to optimal agent/channel using TypeSafe.
-        
+
         Args:
             call_data: Call details including lead info, campaign, context
-        
+
         Returns:
             TelephonyDecision with routing recommendation
         """
         start_time = time.time()
         decision_id = f"route_{call_data.get('call_id', 'unknown')}_{int(time.time())}"
-        
+
         state = {
             "call_id": call_data.get("call_id", ""),
             "lead_id": call_data.get("lead_id", ""),
@@ -69,7 +69,7 @@ class TypeSafeTelephony:
             "time_of_day": call_data.get("time_of_day", "business_hours"),
             "day_of_week": call_data.get("day_of_week", "weekday"),
         }
-        
+
         questions = {
             "route_to": {
                 "type": "choice",
@@ -90,24 +90,24 @@ class TypeSafeTelephony:
                 "criteria": ["morning", "afternoon", "evening", "any_time"]
             }
         }
-        
+
         try:
             from app.platform.typesafe_integration import get_typesafe_client
             client = get_typesafe_client()
-            
+
             if not client.enabled:
                 logger.warning("TypeSafe not enabled, using heuristic call routing")
                 return self._heuristic_route(call_data, decision_id, start_time)
-            
+
             response = client.evaluate(
                 model="jev-latest",
                 state=state,
                 questions=questions
             )
-            
+
             answers = response.get("answers", {})
             latency_ms = (time.time() - start_time) * 1000
-            
+
             decision = TelephonyDecision(
                 decision_id=decision_id,
                 call_id=call_data.get("call_id", "unknown"),
@@ -122,27 +122,27 @@ class TypeSafeTelephony:
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 source="typesafe"
             )
-            
+
             self._log_decision(decision)
             return decision
-            
+
         except Exception as e:
             logger.error(f"TypeSafe call routing failed: {e}")
             return self._heuristic_route(call_data, decision_id, start_time)
-    
+
     def qualify_before_call(self, lead_data: dict[str, Any]) -> TelephonyDecision:
         """
         Qualify lead before calling using TypeSafe.
-        
+
         Args:
             lead_data: Lead information
-        
+
         Returns:
             TelephonyDecision with qualification result
         """
         start_time = time.time()
         decision_id = f"qualify_{lead_data.get('id', 'unknown')}_{int(time.time())}"
-        
+
         state = {
             "lead_id": lead_data.get("id", ""),
             "company": lead_data.get("company", ""),
@@ -154,7 +154,7 @@ class TypeSafeTelephony:
             "phone_verified": lead_data.get("phone_verified", False),
             "last_contacted": lead_data.get("last_contacted", "never"),
         }
-        
+
         questions = {
             "call_worthwhile": {
                 "type": "choice",
@@ -172,23 +172,23 @@ class TypeSafeTelephony:
                 "criteria": ["interested", "not_interested", "callback", "no_answer", "voicemail"]
             }
         }
-        
+
         try:
             from app.platform.typesafe_integration import get_typesafe_client
             client = get_typesafe_client()
-            
+
             if not client.enabled:
                 return self._heuristic_qualify(lead_data, decision_id, start_time)
-            
+
             response = client.evaluate(
                 model="jev-latest",
                 state=state,
                 questions=questions
             )
-            
+
             answers = response.get("answers", {})
             latency_ms = (time.time() - start_time) * 1000
-            
+
             decision = TelephonyDecision(
                 decision_id=decision_id,
                 call_id=lead_data.get("id", "unknown"),
@@ -203,27 +203,27 @@ class TypeSafeTelephony:
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 source="typesafe"
             )
-            
+
             self._log_decision(decision)
             return decision
-            
+
         except Exception as e:
             logger.error(f"TypeSafe lead qualification failed: {e}")
             return self._heuristic_qualify(lead_data, decision_id, start_time)
-    
+
     def predict_outcome(self, call_context: dict[str, Any]) -> TelephonyDecision:
         """
         Predict call outcome using TypeSafe.
-        
+
         Args:
             call_context: Call context including lead data, history, timing
-        
+
         Returns:
             TelephonyDecision with outcome prediction
         """
         start_time = time.time()
         decision_id = f"predict_{call_context.get('call_id', 'unknown')}_{int(time.time())}"
-        
+
         state = {
             "call_id": call_context.get("call_id", ""),
             "lead_id": call_context.get("lead_id", ""),
@@ -234,7 +234,7 @@ class TypeSafeTelephony:
             "time_of_day": call_context.get("time_of_day", "business_hours"),
             "day_of_week": call_context.get("day_of_week", "weekday"),
         }
-        
+
         questions = {
             "predicted_outcome": {
                 "type": "choice",
@@ -253,23 +253,23 @@ class TypeSafeTelephony:
                 "criteria": ["cold_outreach", "warm_followup", "appointment_confirm", "re_engagement"]
             }
         }
-        
+
         try:
             from app.platform.typesafe_integration import get_typesafe_client
             client = get_typesafe_client()
-            
+
             if not client.enabled:
                 return self._heuristic_predict(call_context, decision_id, start_time)
-            
+
             response = client.evaluate(
                 model="jev-latest",
                 state=state,
                 questions=questions
             )
-            
+
             answers = response.get("answers", {})
             latency_ms = (time.time() - start_time) * 1000
-            
+
             decision = TelephonyDecision(
                 decision_id=decision_id,
                 call_id=call_context.get("call_id", "unknown"),
@@ -284,28 +284,28 @@ class TypeSafeTelephony:
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 source="typesafe"
             )
-            
+
             self._log_decision(decision)
             return decision
-            
+
         except Exception as e:
             logger.error(f"TypeSafe outcome prediction failed: {e}")
             return self._heuristic_predict(call_context, decision_id, start_time)
-    
+
     def decide_retry(self, call_data: dict[str, Any], outcome: str) -> TelephonyDecision:
         """
         Decide whether to retry a call using TypeSafe.
-        
+
         Args:
             call_data: Original call details
             outcome: Call outcome (no_answer, busy, voicemail, etc.)
-        
+
         Returns:
             TelephonyDecision with retry recommendation
         """
         start_time = time.time()
         decision_id = f"retry_{call_data.get('call_id', 'unknown')}_{int(time.time())}"
-        
+
         state = {
             "call_id": call_data.get("call_id", ""),
             "lead_id": call_data.get("lead_id", ""),
@@ -316,7 +316,7 @@ class TypeSafeTelephony:
             "last_attempt": call_data.get("last_attempt", "unknown"),
             "time_since_last": call_data.get("time_since_last", 0),
         }
-        
+
         questions = {
             "should_retry": {
                 "type": "choice",
@@ -334,23 +334,23 @@ class TypeSafeTelephony:
                 "criteria": ["same_agent", "different_agent", "different_time", "different_channel"]
             }
         }
-        
+
         try:
             from app.platform.typesafe_integration import get_typesafe_client
             client = get_typesafe_client()
-            
+
             if not client.enabled:
                 return self._heuristic_retry(call_data, outcome, decision_id, start_time)
-            
+
             response = client.evaluate(
                 model="jev-latest",
                 state=state,
                 questions=questions
             )
-            
+
             answers = response.get("answers", {})
             latency_ms = (time.time() - start_time) * 1000
-            
+
             decision = TelephonyDecision(
                 decision_id=decision_id,
                 call_id=call_data.get("call_id", "unknown"),
@@ -365,14 +365,14 @@ class TypeSafeTelephony:
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 source="typesafe"
             )
-            
+
             self._log_decision(decision)
             return decision
-            
+
         except Exception as e:
             logger.error(f"TypeSafe retry decision failed: {e}")
             return self._heuristic_retry(call_data, outcome, decision_id, start_time)
-    
+
     def _log_decision(self, decision: TelephonyDecision):
         """Log decision to JSONL file."""
         try:
@@ -389,21 +389,21 @@ class TypeSafeTelephony:
                 }) + "\n")
         except Exception as e:
             logger.warning(f"Failed to log telephony decision: {e}")
-    
+
     # Heuristic fallbacks
-    
+
     def _heuristic_route(self, call_data: dict, decision_id: str, start_time: float) -> TelephonyDecision:
         """Fallback heuristic for call routing."""
         priority = call_data.get("priority", "medium")
         lead_score = call_data.get("lead_score", 50)
-        
+
         if priority == "critical" or lead_score >= 80:
             route, call_prio = "priority_queue", "immediate"
         elif priority == "high" or lead_score >= 60:
             route, call_prio = "sales_team", "high"
         else:
             route, call_prio = "general_queue", "normal"
-        
+
         return TelephonyDecision(
             decision_id=decision_id,
             call_id=call_data.get("call_id", "unknown"),
@@ -414,15 +414,15 @@ class TypeSafeTelephony:
             timestamp=datetime.now(timezone.utc).isoformat(),
             source="heuristic"
         )
-    
+
     def _heuristic_qualify(self, lead_data: dict, decision_id: str, start_time: float) -> TelephonyDecision:
         """Fallback heuristic for lead qualification."""
         fit_score = lead_data.get("fit_score", 50)
         budget = lead_data.get("budget_signal", 50)
-        
+
         worthwhile = fit_score >= 50 and budget >= 40
         priority = "critical" if fit_score >= 80 else "high" if fit_score >= 60 else "medium"
-        
+
         return TelephonyDecision(
             decision_id=decision_id,
             call_id=lead_data.get("id", "unknown"),
@@ -437,11 +437,11 @@ class TypeSafeTelephony:
             timestamp=datetime.now(timezone.utc).isoformat(),
             source="heuristic"
         )
-    
+
     def _heuristic_predict(self, call_context: dict, decision_id: str, start_time: float) -> TelephonyDecision:
         """Fallback heuristic for outcome prediction."""
         lead_score = call_context.get("lead_score", 50)
-        
+
         if lead_score >= 80:
             outcome, prob = "interested", 75
         elif lead_score >= 60:
@@ -450,7 +450,7 @@ class TypeSafeTelephony:
             outcome, prob = "voicemail", 40
         else:
             outcome, prob = "no_answer", 25
-        
+
         return TelephonyDecision(
             decision_id=decision_id,
             call_id=call_context.get("call_id", "unknown"),
@@ -465,16 +465,16 @@ class TypeSafeTelephony:
             timestamp=datetime.now(timezone.utc).isoformat(),
             source="heuristic"
         )
-    
+
     def _heuristic_retry(self, call_data: dict, outcome: str, decision_id: str, start_time: float) -> TelephonyDecision:
         """Fallback heuristic for retry decision."""
         retry_count = call_data.get("retry_count", 0)
         lead_score = call_data.get("lead_score", 50)
         max_retries = call_data.get("max_retries", 3)
-        
+
         should_retry = retry_count < max_retries and lead_score >= 40 and outcome in ["no_answer", "busy", "voicemail"]
         timing = "tomorrow" if should_retry else "never"
-        
+
         return TelephonyDecision(
             decision_id=decision_id,
             call_id=call_data.get("call_id", "unknown"),
@@ -492,7 +492,7 @@ class TypeSafeTelephony:
 
 
 # Singleton instance
-_telephony: Optional[TypeSafeTelephony] = None
+_telephony: TypeSafeTelephony | None = None
 
 
 def get_telephony() -> TypeSafeTelephony:
