@@ -488,12 +488,25 @@ def test_store_manifest_still_validates() -> None:
     # pilot slice 1 — 3 legacy pilot tick scripts declared against the existing
     # command_center.pilot_tasks family (+3 rows), plus 2 NEW rebuildable cache
     # families: communications.telegram_poll_lease (poll lease, tier-3, loss
-    # self-heals) and platform.typesafe_keys (admin-set 4-slot override, tier-3).
-    # All 5 non-blockers: tier-3 REBUILDABLE_CACHE, deployment_blocker=False.
+    # self-heals) and platform.typesafe_keys (admin-set 4-slot override).
+    # 2026-09-23 follow-up: platform.typesafe_keys reclassified TIER_NONE /
+    # FALLBACK_ONLY / secret-config — the file persists RAW API keys, so it is
+    # NOT a rebuildable cache and must never join the data cutover
+    # (fix-selection tss-1edb0c9e13dc). All 5 non-blockers stay non-blockers.
     # The pre-existing pilot-family row already carried the ps1 writer script.
     assert counts["unique_families"] == 65
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
+    # Pin the corrected slice-1 classifications (regression vs re-mislabeling):
+    tk = by_id["platform.typesafe_keys"]
+    assert tk["migration_tier"] == manifest.TIER_NONE
+    assert tk["migration_state"] == manifest.FALLBACK_ONLY
+    assert tk["durability_class"] == "secret-config"
+    assert manifest.derived_blocker(tk) is False
+    lease = by_id["communications.telegram_poll_lease"]
+    assert lease["migration_tier"] == manifest.TIER_3
+    assert lease["migration_state"] == manifest.REBUILDABLE_CACHE
+    assert manifest.derived_blocker(lease) is False
     ext = by_id["devcontrol.external_missions"]
     assert ext["migration_tier"] == manifest.TIER_1
     assert ext["migration_state"] == manifest.CUTOVER_COMPLETE

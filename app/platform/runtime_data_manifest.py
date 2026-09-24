@@ -239,7 +239,11 @@ STORES: list[dict[str, Any]] = [
         store_id="sales.prospects",
         display_name="Prospect store",
         legacy_paths=["data/prospects.jsonl"],
-        writer_modules=["app/platform/prospector.py", "scripts/run_tick.py", "scripts/send_telegram_nudge_via_gateway.py"],
+        writer_modules=[
+            "app/platform/prospector.py",
+            "scripts/run_tick.py",
+            "scripts/send_telegram_nudge_via_gateway.py",
+        ],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=20332879,
         last_write="2026-07-25",
@@ -1602,27 +1606,39 @@ STORES: list[dict[str, Any]] = [
     # typesafe_integration.py reads data/typesafe_keys.json for the four-slot
     # KeyManager runtime override. Admin-set; not auto-generated; readable
     # absence = [] fallback.
+    # 2026-09-23 reclassification (slice-1 follow-up, tss-1edb0c9e13dc): the
+    # file persists RAW API key strings, so "rebuildable cache" was the wrong
+    # class — secrets are re-entered by an admin, never regenerated. Moved to
+    # TIER_NONE + FALLBACK_ONLY + secret-config: env vars stay the canonical
+    # key source, the file is an optional runtime override, and it must never
+    # be copied, committed, or migrated as part of the data cutover.
     _e(
         store_id="platform.typesafe_keys",
-        display_name="TypeSafe runtime key store (admin-set)",
+        display_name="TypeSafe runtime key store (admin-set, secret-bearing)",
         legacy_paths=["data/typesafe_keys.json"],
         writer_modules=["app/platform/typesafe_integration.py"],
         production_activity="PRODUCTION_INACTIVE",
         current_authority="FILE",
         business_category="governance",
-        durability_class="rebuildable",
+        durability_class="secret-config",
         concurrency_model="read-only at runtime; admin writes via CLI, never by the app",
-        target_runtime_subpath="platform/typesafe_keys.json",
-        migration_tier=TIER_3,
-        migration_state=REBUILDABLE_CACHE,
+        target_runtime_subpath="platform/typesafe_keys.json",  # inert: TIER_NONE, never selected for cutover
+        migration_tier=TIER_NONE,
+        migration_state=FALLBACK_ONLY,
         deployment_blocker=False,
         evidence=(
-            "Declared 2026-09-23 (CI ratchet pilot slice 1). "
+            "Declared 2026-09-23 (CI ratchet pilot slice 1); reclassified same "
+            "day after credential-persistence review. "
             "app/platform/typesafe_integration.py reads data/typesafe_keys.json "
-            "as the admin-set runtime override for the four-slot KeyManager. "
-            "The file is written ONLY by an explicit admin CLI command, never by "
-            "the application at runtime. Loss falls back to [] (no override), "
-            "which is the documented safe default."
+            "as the admin-set runtime override for the four-slot KeyManager "
+            "(_load_runtime_keys; READ-only — record_key_success touches only "
+            "in-memory cooldowns). The file persists RAW API key strings "
+            "({'keys': [...]}), written ONLY by an explicit admin CLI command, "
+            "never by the application at runtime. It is gitignored (data/*) and "
+            "TYPESAFE_API_KEY(S) env vars remain the canonical key source, so "
+            "loss falls back to env/[] — the documented safe default. NOT a "
+            "rebuildable cache: content is secret config re-entered by an "
+            "admin. NEVER copy, commit, or include in the runtime-data cutover."
         ),
     ),
 ]

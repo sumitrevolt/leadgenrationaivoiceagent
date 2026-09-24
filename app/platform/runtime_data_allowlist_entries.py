@@ -2116,15 +2116,22 @@ ENTRIES: list[dict[str, Any]] = [
         "access_modes": ["READ"],
         "reason": (
             "Admin-set runtime override for the four-slot TypeSafe KeyManager. "
-            "Read-only at application runtime; written ONLY by an explicit "
-            "admin CLI command. Absence falls back to [] (no override), "
-            "which is the documented safe default."
+            "Read-only at application runtime (_load_runtime_keys); written "
+            "ONLY by an explicit admin CLI command. SECRET-BEARING: the file "
+            "persists raw API key strings, so it is NOT a rebuildable cache "
+            "and must never be committed, copied, or included in the "
+            "runtime-data cutover. Env vars are the canonical key source; "
+            "absence falls back to env/[] (documented safe default)."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
         "owner": "governance",
         "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Must remain read-only in app code; admin CLI only.",
+        "review_condition": (
+            "Must remain read-only in app code (admin CLI writes only) and "
+            "must never be committed or copied by any cutover/migration step "
+            "(contains raw API keys)."
+        ),
     },
 ]
 
