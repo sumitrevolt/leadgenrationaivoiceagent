@@ -18,19 +18,14 @@ def _guard() -> str:
     return source[start:end]
 
 
-def _run_guard(
-    *, systemd_active: bool, docker_running: bool
-) -> subprocess.CompletedProcess:
+def _run_guard(*, systemd_active: bool, docker_running: bool) -> subprocess.CompletedProcess:
     st = 0 if systemd_active else 3
     value = "true" if docker_running else "false"
     fake = f"systemctl() {{ return {st}; }}\ndocker() {{ echo {value}; }}\n"
     bash = "bash"
     if os.name == "nt":
         git_bash = (
-            Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
-            / "Git"
-            / "bin"
-            / "bash.exe"
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git" / "bin" / "bash.exe"
         )
         if git_bash.is_file():
             bash = str(git_bash)
