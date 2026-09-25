@@ -122,9 +122,9 @@ def test_write_is_verified_before_restarting():
 def test_rollout_failure_uses_a_distinct_exit_code():
     t = _text()
     # 10 must not collide with the pre-existing refusal exits (1-9, 91, 92)
-    codes = sorted({int(m) for m in re.findall(r"^\s*exit (\d+)\s*$", t, re.M)})
+    codes = sorted({int(m) for m in re.findall(r"^\s*exit (\d+)\s*$", t, re.MULTILINE)})
     assert codes == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 91, 92], codes
-    assert len(re.findall(r"^\s*exit 10\s*$", t, re.M)) == 3
+    assert len(re.findall(r"^\s*exit 10\s*$", t, re.MULTILINE)) == 4
 
 
 # ------------------------------------------------------------------- resolver
@@ -182,7 +182,7 @@ def test_shell_services_match_the_retention_planner_expected_set():
     but not from EXPECTED_SERVICES. This test makes that impossible to repeat.
     """
     t = _text()
-    m = re.search(r'^SERVICES="([^"]+)"', t, re.M)
+    m = re.search(r'^SERVICES="([^"]+)"', t, re.MULTILINE)
     assert m, "SERVICES assignment not found in deploy_vps.sh"
     shell_services = set(m.group(1).split())
 
