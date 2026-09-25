@@ -11,16 +11,15 @@
 #   - prod_check + pytest          ← aggregator over parallel lanes
 #   - harness real-redis integration
 #
-# Heavy pytest is PR/dispatch only. Push to main is covered by deploy-vps `gate`
-# (and optional `DEPLOY_RETEST=true` shards). Re-running the 17-min sequential
-# suite after every auto-merge was the merge-train bottleneck.
+# Every main push runs the same blocking quality, runtime, pytest, audit, and
+# real-Redis gates as a PR. The deploy-vps workflow is gate-only; CI failure
+# must remain visible on the exact main commit.
 # =============================================================================
 name: CI
 
 on:
   push:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
   # NO paths-ignore on pull_request (2026-07-25). The `Protect main` ruleset
   # requires "Lint + syntax + secrets", "prod_check + pytest" and "harness
   # real-redis integration" — all defined in THIS workflow. With a path filter
@@ -90,7 +89,7 @@ jobs:
   # Runtime gates that import app.platform. Parallel with pytest shards.
   prod-check:
     name: prod_check runtime gates
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -107,7 +106,7 @@ jobs:
   # Parallel with pytest so audit latency is not on the merge critical path.
   pip-audit:
     name: pip-audit installed env
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -145,7 +144,7 @@ jobs:
   # Now one job = deterministic, faster feedback, same coverage.
   pytest-job:
     name: Pytest Tests
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -172,7 +171,7 @@ jobs:
   # treats skipped required contexts as blocking with a worse UI).
   tests:
     name: prod_check + pytest
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     # 2026-09-14 (Engineering Assurance audit): the aggregator previously depended on
     # only [prod-check, pytest-job, pip-audit], so `quality` ("Lint + syntax + secrets")
     # and `harness-redis-integration` were NOT covered by the aggregator at all — a RED
@@ -215,7 +214,7 @@ jobs:
   # allowed to pass here: HARNESS_REQUIRE_REDIS=1 turns "no Redis" into a failure.
   harness-redis-integration:
     name: harness real-redis integration
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
