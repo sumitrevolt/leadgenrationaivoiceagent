@@ -29,29 +29,45 @@ OWNER = "hermes"
 
 ENTRIES = [
     {
-        "title": "1CR-BLK-OMNI-CREDS-CLEARED-20260925: OmniRoute provider_connections empty on VPS -> 6 providers seeded, inference restored",
+        "title": "1CR-BLK-OMNI-CREDS-CLEARED-20260925: OmniRoute 3-layer outage fixed - creds seeded, 476 slots pruned, 112 repointed, 14/14 combos 142-386ms",
         "priority": Priority.P0,
         "status": Status.DONE,
         "description": (
-            "ROOT CAUSE: leadgen_omniroute storage.sqlite had combos=14 but "
-            "provider_connections=0, provider_nodes=0, registered_keys=0. Every "
-            "chat completion failed ('No active credentials for provider: "
-            "anthropic' / 'Maximum combo retry limit reached') while /v1/models "
-            "still returned 200, so the gateway looked healthy. Keys were present "
-            "in the leadgen_app container env; the gateway simply had none. "
-            "FIX: scripts/omniroute_seed_provider_connections.py (backup-first, "
-            "idempotent, secrets never printed) seeded 0 -> 6 providers "
-            "(cerebras, gemini, groq, mistral, nvidia, openrouter), then "
-            "docker restart leadgen_omniroute. VERIFIED: 'leadsgen combo 1' "
-            "streams a real completion from nvidia/nemotron-3-super-120b-a12b."
+            "FULLY FIXED AND VERIFIED. THREE stacked faults, each masked by the "
+            "one above. (1) provider_connections was EMPTY (also provider_nodes, "
+            "registered_keys) -> 'No active credentials for provider: anthropic'. "
+            "Keys were present in the leadgen_app container env; the gateway had "
+            "none. (2) Each combo declared 42 model slots across 42 providers but "
+            "only 6 had credentials, so every request walked ~36 credential-less "
+            "providers. (3) The surviving slots named RETIRED models: groq 404 on "
+            "llama-3.3-70b-versatile, cerebras 404 on llama-3.3-70b, Google "
+            "'gemini-2.5-pro is no longer available to new users'. Why self-heal "
+            "missed all three: it reseeds COMBOS and syncs LOCAL client config, "
+            "never the gateway credential store, and printed '[OK] seed skipped'; "
+            "its /api/health probe hit a 404 that surfaced as '401 Unauthorized'. "
+            "RESULT: combos 1-14 all OK at 142-386ms (were 45s timeouts), real "
+            "reply 'content':'PONG' with finish_reason=stop, 8 live failover slots "
+            "across 5 providers per combo. Idempotency proven live: re-running "
+            "each script reports 0 changes. leadgen_app never restarted or "
+            "redeployed."
         ),
         "evidence": {
             "gateway_db": "/var/lib/docker/volumes/leadgen_omniroute_data/_data/storage.sqlite",
-            "provider_connections_before": 0,
-            "provider_connections_after": 6,
-            "backup": "storage.sqlite.bak-seedproviders-20260925_105807",
-            "verified_inference_model": "nvidia/nemotron-3-super-120b-a12b",
-            "script": "scripts/omniroute_seed_provider_connections.py",
+            "provider_connections": "0 -> 6 (cerebras, gemini, groq, mistral, nvidia, openrouter)",
+            "credential_less_slots_dropped": 476,
+            "slots_repointed": 112,
+            "combos_verified": "14/14 OK, 142-386ms",
+            "real_completion": '"content":"PONG", finish_reason=stop',
+            "failover_depth": "8 live slots across 5 providers per combo",
+            "idempotency": "re-run reports 0 changes on all four gateway scripts",
+            "backups": [
+                "storage.sqlite.bak-seedproviders-20260925_105807",
+                "storage.sqlite.bak-pruneslots-<ts>",
+                "storage.sqlite.bak-repoint-<ts>",
+            ],
+            "branch": "fix/omniroute-credential-recovery",
+            "commit": "3681fdcbc0e17a11021fe7e7ef15b229f41f5453",
+            "prod_untouched": "leadgen_app b5d806fe, /health + /health/ready 200, never restarted",
         },
     },
     {
