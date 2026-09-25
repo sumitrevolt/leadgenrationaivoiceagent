@@ -86,7 +86,19 @@ EXPECTED_BLOCKERS = 0
 # hunt_insert_vps declaration was then removed (2026-09-13) — it declared
 # 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
 # (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
-EXPECTED_ALLOWLIST_ENTRIES = 106
+# 2026-09-25: 106 -> 111 re-pin, for the nine findings that reddened
+# prod_check on 29 of 30 open PRs. Each was classified from the code rather
+# than absorbed into the baseline (the regenerator stays out of CI on
+# purpose). Five declarations, no baseline change -- the baseline stays 788
+# because nothing was re-frozen:
+#   1. ops.telegram_polling_lease.store      (telegram_coordinator .tmp)
+#   2. platform.typesafe_runtime_keys.probe_read (typesafe_keys.json read)
+#   3. command_center.pilot_tasks.legacy_run_tick
+#   4. command_center.pilot_tasks.legacy_nudge_run
+#   5. command_center.pilot_tasks.legacy_dispatch_0830_1455
+# Entries 3-5 reuse the EXISTING command_center.pilot_tasks store id; the
+# allowlist matches per file+symbol, so each dead pilot script needs its own.
+EXPECTED_ALLOWLIST_ENTRIES = 111
 EXPECTED_BASELINE_FINGERPRINTS = 788
 
 
