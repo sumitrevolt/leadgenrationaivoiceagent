@@ -104,9 +104,10 @@ def main() -> int:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    active = {
-        r[0] for r in cur.execute("SELECT provider FROM provider_connections WHERE is_active = 1")
-    }
+    active_providers = cur.execute(  # nosecurity
+        "SELECT provider FROM provider_connections WHERE is_active = 1"
+    )
+    active = {r[0] for r in active_providers}
     print(f"providers with active credentials: {len(active)}")
     print(f"  {', '.join(sorted(active))}\n")
 

@@ -66,7 +66,10 @@ PROVIDERS: dict[str, tuple[str, str, str]] = {
 def read_keys() -> dict[str, str]:
     conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
     out = dict(
-        conn.execute("SELECT provider, api_key FROM provider_connections WHERE is_active = 1")
+        # nosecurity: fixed literal against our own gateway table, no user input.
+        conn.execute(  # nosecurity
+            "SELECT provider, api_key FROM provider_connections WHERE is_active = 1"
+        )
     )
     conn.close()
     return out

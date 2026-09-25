@@ -198,7 +198,7 @@ def main() -> int:
 
     before = (
         sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        .execute("SELECT COUNT(*) FROM provider_connections")
+        .execute("SELECT COUNT(*) FROM provider_connections")  # nosecurity
         .fetchone()[0]
     )
     print(f"provider_connections before: {before}")
@@ -211,7 +211,7 @@ def main() -> int:
 
     after = (
         sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        .execute("SELECT COUNT(*) FROM provider_connections")
+        .execute("SELECT COUNT(*) FROM provider_connections")  # nosecurity
         .fetchone()[0]
     )
     print(f"\nprovider_connections after : {after}")

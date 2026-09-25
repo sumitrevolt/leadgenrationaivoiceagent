@@ -180,7 +180,10 @@ def main() -> int:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     keys = dict(
-        cur.execute("SELECT provider, api_key FROM provider_connections WHERE is_active = 1")
+        # nosecurity: fixed literal against our own gateway table, no user input.
+        cur.execute(  # nosecurity
+            "SELECT provider, api_key FROM provider_connections WHERE is_active = 1"
+        )
     )
 
     if args.apply:
