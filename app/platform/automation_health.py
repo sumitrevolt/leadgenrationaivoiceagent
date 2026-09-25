@@ -146,6 +146,7 @@ EXPECTED_GAP_MIN = {
     "content": 30 * 60,
     "hot_queue_brief": 30 * 60,  # daily 08:15 IST, health-gated revenue brief
     "hot_queue_owner_pack": 30 * 60,  # daily 09:00 IST, CSV+MD+nfty for owner 1-click close
+    "hot_queue_followup": 30 * 60,  # daily 10:00 IST, stale-card reminder
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 24
