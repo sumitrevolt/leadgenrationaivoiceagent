@@ -1242,7 +1242,9 @@ def route_qualified_reply_to_task(
     # stop being contacted. The durable suppression row is the existing
     # unsubscribe branch's job; here we just refuse to route to a worker.
     optout_conflict = bool(
-        ts_ev.get("active") and ts_ev.get("conflict") and ts_ev.get("mapped_intent") == "unsubscribe"
+        ts_ev.get("active")
+        and ts_ev.get("conflict")
+        and ts_ev.get("mapped_intent") == "unsubscribe"
     )
     if llm_intent == "unsubscribe" or optout_conflict:
         trace = build_typesafe_qa_trace(
@@ -1370,7 +1372,11 @@ def route_qualified_reply_to_task(
         client_id=client_id,
     )
     task_id = str(outcome.get("task_id") or "")
-    branch = "task_minted" if outcome.get("created") else ("duplicate" if outcome.get("task_id") else "owner_review")
+    branch = (
+        "task_minted"
+        if outcome.get("created")
+        else ("duplicate" if outcome.get("task_id") else "owner_review")
+    )
     decision = "route_task" if outcome.get("created") or outcome.get("task_id") else "route_review"
     trace = build_typesafe_qa_trace(
         task_id=task_id,

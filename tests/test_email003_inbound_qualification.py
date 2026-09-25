@@ -39,9 +39,7 @@ def _temp_orchestrator(tmp_path: Any) -> AutomationOrchestrator:
     """Point the durable task store at a temp DB (never the real ledger)."""
     db = str(tmp_path / "orchestrator_ledger.db")
     ledger = str(tmp_path / "orchestrator_ledger.json")
-    return AutomationOrchestrator(
-        store=DurableTaskStore(db_path=db, ledger_file=ledger)
-    )
+    return AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
 
 
 def _orch_files(tmp_path: Any) -> tuple[str, str]:
@@ -179,9 +177,7 @@ def test_restart_replay_dedups(tmp_path, monkeypatch):
     )
     assert r1["created"] is True
     # "Restart": brand-new orchestrator instance, same ledger files.
-    orch2 = AutomationOrchestrator(
-        store=DurableTaskStore(db_path=db, ledger_file=ledger)
-    )
+    orch2 = AutomationOrchestrator(store=DurableTaskStore(db_path=db, ledger_file=ledger))
     r2 = reply_agent.route_qualified_reply_to_task(
         intent="interested",
         prospect=p,
