@@ -36,6 +36,7 @@ def _notify_screen(title: str, detail: str = "", duration: float = 3.5):
     """Trigger visual on-screen HUD notification so the owner sees what the agent is doing."""
     try:
         from scripts.desktop_action_overlay import notify_computer_action
+
         notify_computer_action(title, detail, duration=duration)
     except Exception:
         pass
@@ -44,22 +45,24 @@ def _notify_screen(title: str, detail: str = "", duration: float = 3.5):
 def tool_thousand_engineers(args: dict) -> dict:
     """Retrieve 1000-engineers doctrine, 10-lens review, or specific discipline packs (D1-D12)."""
     topic = str(args.get("topic") or args.get("discipline") or "doctrine").strip().lower()
-    
+
     if not ENGINEERS_1000_FILE.exists():
         fallback = REPO_ROOT / ".claude" / "skills" / "thousand-engineers" / "SKILL.md"
         if fallback.exists():
             return {"text": fallback.read_text(encoding="utf-8")}
-        return {"text": "1000-engineers canonical file missing at deploy/dsh/skills/1000-engineers.md"}
-    
+        return {
+            "text": "1000-engineers canonical file missing at deploy/dsh/skills/1000-engineers.md"
+        }
+
     content = ENGINEERS_1000_FILE.read_text(encoding="utf-8")
-    
+
     if topic in ("all", "full"):
         return {"text": content}
-    
+
     if topic in ("doctrine", "rules", "invariants", "0"):
         lines = content.splitlines()[:72]
         return {"text": "\n".join(lines)}
-        
+
     if topic in ("10-lens", "review", "lenses", "1"):
         lines = content.splitlines()
         start = -1
@@ -72,7 +75,7 @@ def tool_thousand_engineers(args: dict) -> dict:
                 break
         if start != -1:
             return {"text": "\n".join(lines[start : end if end != -1 else start + 30])}
-            
+
     pack_map = {
         "d1": "### D1. Architecture",
         "arch": "### D1. Architecture",
@@ -108,7 +111,7 @@ def tool_thousand_engineers(args: dict) -> dict:
         "d12": "### D12. Debugging",
         "debug": "### D12. Debugging",
     }
-    
+
     target_header = pack_map.get(topic)
     if target_header:
         lines = content.splitlines()
@@ -123,11 +126,11 @@ def tool_thousand_engineers(args: dict) -> dict:
                 extracted.append(l)
         if extracted:
             return {"text": "\n".join(extracted)}
-            
+
     matched = [l for l in content.splitlines() if topic in l.lower()]
     if matched:
         return {"text": "\n".join(matched[:50])}
-        
+
     return {"text": f"Discipline/topic '{topic}' not found in 1000-engineers knowledge pack."}
 
 
@@ -136,22 +139,22 @@ def tool_execute_admin_command(args: dict) -> dict:
     cmd = str(args.get("command") or "").strip()
     if not cmd:
         return {"text": "Error: 'command' argument is required."}
-    
+
     _notify_screen("Admin Shell Execution", cmd, duration=4.0)
 
     blocked = ["format ", "rmdir /s /q c:\\", "rm -rf /", "del /f /s /q c:\\"]
     if any(b in cmd.lower() for b in blocked):
         return {"text": f"Blocked by safety guard: command '{cmd}' contains dangerous operations."}
-    
+
     timeout = int(args.get("timeout_seconds") or 120)
     timeout = max(5, min(300, timeout))
-    
+
     run_cmd = cmd
     if cmd.startswith("python "):
         run_cmd = f'"{PYTHON_EXE}" {cmd[7:]}'
     elif cmd.startswith("pytest "):
         run_cmd = f'"{PYTHON_EXE}" -m pytest {cmd[7:]}'
-        
+
     try:
         res = subprocess.run(
             run_cmd,
@@ -182,14 +185,17 @@ def tool_mouse_move_and_click(args: dict) -> dict:
     """Smoothly move physical mouse cursor to (x, y), click, and display glowing animated ripple on screen."""
     try:
         from scripts.desktop_mouse_visualizer import click_mouse, get_mouse_position
+
         x = args.get("x")
         y = args.get("y")
         button = str(args.get("button") or "left")
         clicks = int(args.get("clicks") or 1)
-        
+
         click_mouse(x=x, y=y, button=button, clicks=clicks, visual_ripple=True)
         pos = get_mouse_position()
-        return {"text": f"Mouse clicked at ({pos[0]}, {pos[1]}) [button={button}, clicks={clicks}]. Visual ripple displayed."}
+        return {
+            "text": f"Mouse clicked at ({pos[0]}, {pos[1]}) [button={button}, clicks={clicks}]. Visual ripple displayed."
+        }
     except Exception as e:
         return {"text": f"Mouse click error: {e}"}
 
@@ -198,6 +204,7 @@ def tool_mouse_scroll(args: dict) -> dict:
     """Scroll mouse wheel (positive = up, negative = down)."""
     try:
         from scripts.desktop_mouse_visualizer import scroll_mouse
+
         amount = int(args.get("amount") or 1)
         scroll_mouse(amount)
         return {"text": f"Scrolled mouse by {amount} units."}
@@ -209,6 +216,7 @@ def tool_keyboard_type(args: dict) -> dict:
     """Physically type text characters into the currently focused window on screen."""
     try:
         from scripts.desktop_mouse_visualizer import type_text
+
         text = str(args.get("text") or "")
         delay = float(args.get("delay_seconds") or 0.02)
         type_text(text, delay=delay)
@@ -221,6 +229,7 @@ def tool_keyboard_hotkey(args: dict) -> dict:
     """Press keyboard hotkey combination (e.g. 'ctrl+c', 'enter', 'win+r', 'alt+tab')."""
     try:
         from scripts.desktop_mouse_visualizer import press_hotkey
+
         keys = str(args.get("keys") or "").strip()
         press_hotkey(keys)
         return {"text": f"Pressed keyboard hotkey: {keys}"}
@@ -232,6 +241,7 @@ def tool_show_screen_glow_frame(args: dict) -> dict:
     """Display glowing full-screen perimeter border & top badge indicating AI Computer Control."""
     try:
         from scripts.desktop_mouse_visualizer import show_screen_glow_frame
+
         duration = float(args.get("duration_seconds") or 3.0)
         title = str(args.get("title") or "AI Computer Use Active")
         show_screen_glow_frame(duration=duration, title=title)
@@ -244,6 +254,7 @@ def tool_get_screen_state(args: dict) -> dict:
     """Get screen resolution and current mouse cursor position."""
     try:
         from scripts.desktop_mouse_visualizer import get_mouse_position, get_screen_resolution
+
         sw, sh = get_screen_resolution()
         mx, my = get_mouse_position()
         return {"text": f"Screen Resolution: {sw}x{sh} | Current Mouse Position: ({mx}, {my})"}
@@ -255,6 +266,7 @@ def tool_capture_screen_preview(args: dict) -> dict:
     """Capture a live full desktop screenshot so the owner/agent can see exactly what is on the screen."""
     try:
         from scripts.desktop_mouse_visualizer import capture_screen_preview
+
         out_file = capture_screen_preview(output_name="latest_screen.png")
         if out_file and os.path.exists(out_file):
             size_kb = round(os.path.getsize(out_file) / 1024, 1)
@@ -280,8 +292,9 @@ def tool_self_harness_verify(args: dict) -> dict:
     """Execute standard verification suites (prod_check, secrets, billing truth, mcp_engineer)."""
     suite = str(args.get("suite") or "all").strip().lower()
     _notify_screen("Self-Harness Check", f"Running suite: {suite}", duration=4.0)
-    
+
     results = []
+
     def run_check(label: str, script_args: list[str]):
         cmd = [PYTHON_EXE] + script_args
         try:
@@ -295,7 +308,11 @@ def tool_self_harness_verify(args: dict) -> dict:
                 timeout=60,
             )
             status = "PASS" if r.returncode == 0 else f"FAIL (exit {r.returncode})"
-            summary = (r.stdout.strip().splitlines()[-1] if r.stdout.strip() else "") if r.returncode == 0 else (r.stderr or r.stdout)[-300:]
+            summary = (
+                (r.stdout.strip().splitlines()[-1] if r.stdout.strip() else "")
+                if r.returncode == 0
+                else (r.stderr or r.stdout)[-300:]
+            )
             results.append(f"[{status}] {label}: {summary}")
         except Exception as e:
             results.append(f"[ERR] {label}: {e}")
@@ -305,7 +322,9 @@ def tool_self_harness_verify(args: dict) -> dict:
     if suite in ("all", "secrets"):
         run_check("check_secrets.py", [str(REPO_ROOT / "scripts" / "check_secrets.py")])
     if suite in ("all", "billing"):
-        run_check("test_billing_truth_2026.py", ["-m", "pytest", "tests/test_billing_truth_2026.py", "-q"])
+        run_check(
+            "test_billing_truth_2026.py", ["-m", "pytest", "tests/test_billing_truth_2026.py", "-q"]
+        )
     if suite in ("all", "mcp_engineer"):
         run_check("verify_mcp_engineer.py", [str(REPO_ROOT / "scripts" / "verify_mcp_engineer.py")])
 
@@ -317,7 +336,7 @@ def tool_hot_queue_triage(args: dict) -> dict:
     action = str(args.get("action") or "summary").strip().lower()
     scope = str(args.get("scope") or "boss").strip().lower()
     _notify_screen("Hot Queue Triage", f"Action: {action} ({scope})", duration=3.0)
-    
+
     cmd = [
         PYTHON_EXE,
         "-c",
@@ -341,7 +360,7 @@ elif action == 'park':
     hq_id = '{args.get("hq_id", "")}'
     note = '{args.get("note", "")}'
     print('Parked:', reply_agent.park_for_admin(hq_id, note=note))
-"""
+""",
     ]
     try:
         r = subprocess.run(
@@ -353,60 +372,71 @@ elif action == 'park':
             errors="replace",
             timeout=30,
         )
-        return {"text": r.stdout if r.returncode == 0 else f"HotQueue error: {r.stderr or r.stdout}"}
+        return {
+            "text": r.stdout if r.returncode == 0 else f"HotQueue error: {r.stderr or r.stdout}"
+        }
     except Exception as exc:
         return {"text": f"HotQueue query failed: {exc}"}
-
 
 
 def tool_omniroute_list_combos(args: dict) -> dict:
     """List the 14 canonical LeadsGen combos, roles, dedicated worker emails, and provider lanes."""
     from scripts.sync_all_combos_all_apps import ALL_COMBOS
+
     output = ["=== OmniRoute 14 Canonical LeadsGen Combos ==="]
     for c in ALL_COMBOS:
         output.append(f"• {c['canonical']} | {c['name']}")
         output.append(f"  - Role: {c.get('role', 'Worker')}")
         output.append(f"  - Worker Email Key: {c.get('email', 'N/A')}")
         output.append(f"  - App Route Alias: {c['real']} / {c['id']}")
-        output.append(f"  - Live Provider Slots: 3 free-tier lanes (Total 42 across gateway)")
+        output.append("  - Live Provider Slots: 3 free-tier lanes (Total 42 across gateway)")
     return {"text": "\n".join(output)}
 
 
 def tool_omniroute_query_combo(args: dict) -> dict:
     """Query OmniRoute gateway with any of the 14 combos or task aliases."""
     import urllib.request
+
     combo = str(args.get("combo") or "leadsgen combo 1").strip()
     prompt = str(args.get("prompt") or "").strip()
-    system_prompt = str(args.get("system") or "You are an autonomous AI worker powering the LeadGen platform.").strip()
+    system_prompt = str(
+        args.get("system") or "You are an autonomous AI worker powering the LeadGen platform."
+    ).strip()
     if not prompt:
         return {"text": "Error: prompt is required"}
 
     try:
         from app.platform.safe_ai_payload import mask_customer_data
+
         safe_prompt = mask_customer_data(prompt)
     except Exception:
         safe_prompt = prompt
-    
+
     api_key = os.environ.get("OMNIROUTE_API_KEY", "")
-    endpoints = ["http://127.0.0.1:20128/v1/chat/completions", "http://127.0.0.1:22000/v1/chat/completions"]
+    endpoints = [
+        "http://127.0.0.1:20128/v1/chat/completions",
+        "http://127.0.0.1:22000/v1/chat/completions",
+    ]
     last_err = None
-    
-    payload = json.dumps({
-        "model": combo,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": safe_prompt}
-        ],
-        "max_tokens": int(args.get("max_tokens") or 2048),
-        "temperature": float(args.get("temperature") or 0.2)
-    }).encode("utf-8")
-    
+
+    payload = json.dumps(
+        {
+            "model": combo,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": safe_prompt},
+            ],
+            "max_tokens": int(args.get("max_tokens") or 2048),
+            "temperature": float(args.get("temperature") or 0.2),
+        }
+    ).encode("utf-8")
+
     headers = {
         "Content-Type": "application/json",
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-    
+
     for url in endpoints:
         try:
             req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
@@ -419,13 +449,14 @@ def tool_omniroute_query_combo(args: dict) -> dict:
         except Exception as e:
             last_err = e
             continue
-            
+
     return {"text": f"OmniRoute query failed on all endpoints: {last_err}"}
 
 
 def tool_omniroute_health_check(args: dict) -> dict:
     """Probe OmniRoute gateway, Claude proxy, container status, and combo database health."""
     import urllib.request
+
     results = []
 
     # 1. Probe port 20128.
@@ -455,7 +486,9 @@ def tool_omniroute_health_check(args: dict) -> dict:
             data = json.loads(resp.read().decode("utf-8"))
             models = data.get("data", [])
             combo_models = [m for m in models if "leadsgen combo" in m.get("id", "")]
-            results.append(f"Active LeadsGen Combos: {len(combo_models)} / 14 registered in live models")
+            results.append(
+                f"Active LeadsGen Combos: {len(combo_models)} / 14 registered in live models"
+            )
     except Exception as e:
         results.append(f"Models probe: {e}")
 
@@ -464,12 +497,14 @@ def tool_omniroute_health_check(args: dict) -> dict:
     # failed with "No active credentials for provider". Liveness of the model
     # list says nothing about credentials, so probe one real inference.
     try:
-        payload = json.dumps({
-            "model": "leadsgen combo 1",
-            "messages": [{"role": "user", "content": "reply with the single word OK"}],
-            "max_tokens": 12,
-            "stream": False,
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": "leadsgen combo 1",
+                "messages": [{"role": "user", "content": "reply with the single word OK"}],
+                "max_tokens": 12,
+                "stream": False,
+            }
+        ).encode()
         req = urllib.request.Request(
             "http://127.0.0.1:20128/v1/chat/completions",
             data=payload,
@@ -497,7 +532,7 @@ def tool_omniroute_self_heal(args: dict) -> dict:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=90
+            timeout=90,
         )
         out = r.stdout if r.returncode == 0 else f"Self-heal error: {r.stderr or r.stdout}"
     except Exception as e:
@@ -510,15 +545,18 @@ def tool_omniroute_self_heal(args: dict) -> dict:
     # tool report healthy without checking the credential store too.
     try:
         import urllib.request
+
         with urllib.request.urlopen(
             urllib.request.Request(
                 "http://127.0.0.1:20128/v1/chat/completions",
-                data=json.dumps({
-                    "model": "leadsgen combo 1",
-                    "messages": [{"role": "user", "content": "reply OK"}],
-                    "max_tokens": 8,
-                    "stream": False,
-                }).encode(),
+                data=json.dumps(
+                    {
+                        "model": "leadsgen combo 1",
+                        "messages": [{"role": "user", "content": "reply OK"}],
+                        "max_tokens": 8,
+                        "stream": False,
+                    }
+                ).encode(),
                 headers={"Content-Type": "application/json"},
             ),
             timeout=90,
@@ -546,14 +584,18 @@ def tool_project_status(args: dict) -> dict:
     summary = []
     summary.append(f"Repository Root: {REPO_ROOT}")
     summary.append(f"Python Executable: {PYTHON_EXE}")
-    summary.append(f"1000-Engineers Canonical Doc: {'EXISTS' if ENGINEERS_1000_FILE.exists() else 'NOT FOUND'}")
-    
+    summary.append(
+        f"1000-Engineers Canonical Doc: {'EXISTS' if ENGINEERS_1000_FILE.exists() else 'NOT FOUND'}"
+    )
+
     env_file = REPO_ROOT / ".env"
     summary.append(f".env Config File: {'PRESENT (Secured)' if env_file.exists() else 'NOT FOUND'}")
-    
+
     graph_file = REPO_ROOT / "app" / "graphify-out" / "graph.json"
-    summary.append(f"Graphify Code Graph: {'PRESENT (' + str(round(graph_file.stat().st_size / 1024, 1)) + ' KB)' if graph_file.exists() else 'NOT FOUND'}")
-    
+    summary.append(
+        f"Graphify Code Graph: {'PRESENT (' + str(round(graph_file.stat().st_size / 1024, 1)) + ' KB)' if graph_file.exists() else 'NOT FOUND'}"
+    )
+
     return {"text": "\n".join(summary)}
 
 
@@ -579,7 +621,10 @@ TOOLS = [
             "properties": {
                 "x": {"type": "integer", "description": "Target X pixel coordinate on screen"},
                 "y": {"type": "integer", "description": "Target Y pixel coordinate on screen"},
-                "button": {"type": "string", "description": "'left' (default), 'right', or 'middle'"},
+                "button": {
+                    "type": "string",
+                    "description": "'left' (default), 'right', or 'middle'",
+                },
                 "clicks": {"type": "integer", "description": "Number of clicks (default: 1)"},
             },
         },
@@ -590,7 +635,10 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "amount": {"type": "integer", "description": "Number of scroll clicks (+1 to scroll up, -1 to scroll down)"},
+                "amount": {
+                    "type": "integer",
+                    "description": "Number of scroll clicks (+1 to scroll up, -1 to scroll down)",
+                },
             },
             "required": ["amount"],
         },
@@ -602,7 +650,10 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "text": {"type": "string", "description": "Text to type"},
-                "delay_seconds": {"type": "number", "description": "Delay between keystrokes (default: 0.02)"},
+                "delay_seconds": {
+                    "type": "number",
+                    "description": "Delay between keystrokes (default: 0.02)",
+                },
             },
             "required": ["text"],
         },
@@ -613,7 +664,10 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "keys": {"type": "string", "description": "Hotkey string (e.g., 'ctrl+s', 'enter', 'win+r')"},
+                "keys": {
+                    "type": "string",
+                    "description": "Hotkey string (e.g., 'ctrl+s', 'enter', 'win+r')",
+                },
             },
             "required": ["keys"],
         },
@@ -624,8 +678,14 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title": {"type": "string", "description": "Banner text (e.g., 'Automating Form Fill')"},
-                "duration_seconds": {"type": "number", "description": "Duration in seconds (default: 3.0)"},
+                "title": {
+                    "type": "string",
+                    "description": "Banner text (e.g., 'Automating Form Fill')",
+                },
+                "duration_seconds": {
+                    "type": "number",
+                    "description": "Duration in seconds (default: 3.0)",
+                },
             },
         },
     },
@@ -663,9 +723,15 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title": {"type": "string", "description": "Banner title (e.g., 'Starting Browser Task')"},
+                "title": {
+                    "type": "string",
+                    "description": "Banner title (e.g., 'Starting Browser Task')",
+                },
                 "detail": {"type": "string", "description": "Action details"},
-                "duration_seconds": {"type": "number", "description": "Banner display duration (default: 4.0)"},
+                "duration_seconds": {
+                    "type": "number",
+                    "description": "Banner display duration (default: 4.0)",
+                },
             },
             "required": ["title"],
         },

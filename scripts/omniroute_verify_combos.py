@@ -30,12 +30,21 @@ def probe(model: str, timeout: int = 90) -> tuple[bool, str]:
     try:
         out = subprocess.run(
             [
-                "curl", "-s", "--max-time", str(timeout),
-                "-X", "POST", GW,
-                "-H", "Content-Type: application/json",
-                "-d", body,
+                "curl",
+                "-s",
+                "--max-time",
+                str(timeout),
+                "-X",
+                "POST",
+                GW,
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                body,
             ],
-            capture_output=True, text=True, timeout=timeout + 15,
+            capture_output=True,
+            text=True,
+            timeout=timeout + 15,
         ).stdout
     except subprocess.TimeoutExpired:
         return False, "timeout"

@@ -83,20 +83,23 @@ def main() -> int:
                 r = fn(question, STATE, criteria)
             dt = time.time() - t0
             print(f"[{i}] {name}")
-            print(f"    requested=jev-latest resolved={getattr(r, 'model', '?')} "
-                  f"latency={dt:.2f}s")
+            print(f"    requested=jev-latest resolved={getattr(r, 'model', '?')} latency={dt:.2f}s")
             print(f"    result: {redact(getattr(r, 'answer', r))}")
         except Exception as e:  # noqa: BLE001 - report honestly, never fake
             unavailable += 1
             dt = time.time() - t0
             print(f"[{i}] {name}")
-            print(f"    TypeSafe call UNAVAILABLE after {dt:.2f}s — "
-                  f"{type(e).__name__}: {str(e)[:200]}")
+            print(
+                f"    TypeSafe call UNAVAILABLE after {dt:.2f}s — "
+                f"{type(e).__name__}: {str(e)[:200]}"
+            )
         print()
 
     if unavailable:
-        print(f"{unavailable}/{len(CHECKPOINTS)} checkpoints: TypeSafe call unavailable "
-              "(transport/credential issue, not a fabricated result)")
+        print(
+            f"{unavailable}/{len(CHECKPOINTS)} checkpoints: TypeSafe call unavailable "
+            "(transport/credential issue, not a fabricated result)"
+        )
     return 0
 
 

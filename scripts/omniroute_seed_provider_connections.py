@@ -82,8 +82,11 @@ def find_db_path() -> str:
     """Locate the gateway DB inside its volume, from a host-side mount point."""
     out = subprocess.run(
         [
-            "docker", "inspect", GATEWAY_CONTAINER,
-            "--format", "{{range .Mounts}}{{if eq .Destination \"/root/.omniroute\"}}{{.Source}}{{end}}{{end}}",
+            "docker",
+            "inspect",
+            GATEWAY_CONTAINER,
+            "--format",
+            '{{range .Mounts}}{{if eq .Destination "/root/.omniroute"}}{{.Source}}{{end}}{{end}}',
         ],
         capture_output=True,
         text=True,
@@ -193,9 +196,11 @@ def main() -> int:
         return 1
     print(f"keys found : {len(keys)} ({', '.join(sorted(keys))})\n")
 
-    before = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True).execute(
-        "SELECT COUNT(*) FROM provider_connections"
-    ).fetchone()[0]
+    before = (
+        sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        .execute("SELECT COUNT(*) FROM provider_connections")
+        .fetchone()[0]
+    )
     print(f"provider_connections before: {before}")
 
     if args.apply:
@@ -204,9 +209,11 @@ def main() -> int:
 
     n = seed(db_path, keys, apply=args.apply)
 
-    after = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True).execute(
-        "SELECT COUNT(*) FROM provider_connections"
-    ).fetchone()[0]
+    after = (
+        sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        .execute("SELECT COUNT(*) FROM provider_connections")
+        .fetchone()[0]
+    )
     print(f"\nprovider_connections after : {after}")
     print(f"rows written               : {n}")
 

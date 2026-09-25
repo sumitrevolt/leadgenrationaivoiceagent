@@ -94,10 +94,15 @@ PREFERRED: dict[str, list[str]] = {
 def find_db_path() -> str:
     out = subprocess.run(
         [
-            "docker", "inspect", GATEWAY_CONTAINER,
-            "--format", "{{range .Mounts}}{{if eq .Destination \"/root/.omniroute\"}}{{.Source}}{{end}}{{end}}",
+            "docker",
+            "inspect",
+            GATEWAY_CONTAINER,
+            "--format",
+            '{{range .Mounts}}{{if eq .Destination "/root/.omniroute"}}{{.Source}}{{end}}{{end}}',
         ],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     src = out.stdout.strip()
     if not src:
@@ -125,7 +130,9 @@ def live_ids(provider: str, key: str) -> list[str]:
         header = ["-H", f"Authorization: Bearer {key}"]
     r = subprocess.run(
         ["curl", "-s", "--max-time", "25", url, *header],
-        capture_output=True, text=True, timeout=40,
+        capture_output=True,
+        text=True,
+        timeout=40,
     )
     try:
         d = json.loads(r.stdout)
@@ -172,9 +179,9 @@ def main() -> int:
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    keys = dict(cur.execute(
-        "SELECT provider, api_key FROM provider_connections WHERE is_active = 1"
-    ))
+    keys = dict(
+        cur.execute("SELECT provider, api_key FROM provider_connections WHERE is_active = 1")
+    )
 
     if args.apply:
         bak = backup(db_path)
@@ -200,8 +207,7 @@ def main() -> int:
         want = needed[provider]
         sel = pick(provider, ids, want)
         chosen[provider] = sel
-        print(f"  {provider:<11} {len(ids):>4} live / {want:>2} slots needed "
-              f"-> {len(sel)} chosen")
+        print(f"  {provider:<11} {len(ids):>4} live / {want:>2} slots needed -> {len(sel)} chosen")
         for i in sel[:4]:
             print(f"                 {i}")
 

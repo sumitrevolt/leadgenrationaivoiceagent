@@ -65,9 +65,9 @@ PROVIDERS: dict[str, tuple[str, str, str]] = {
 
 def read_keys() -> dict[str, str]:
     conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
-    out = dict(conn.execute(
-        "SELECT provider, api_key FROM provider_connections WHERE is_active = 1"
-    ))
+    out = dict(
+        conn.execute("SELECT provider, api_key FROM provider_connections WHERE is_active = 1")
+    )
     conn.close()
     return out
 
@@ -75,7 +75,9 @@ def read_keys() -> dict[str, str]:
 def fetch(url: str, header: str, key: str, timeout: int = 25) -> list[str]:
     r = subprocess.run(
         ["curl", "-s", "--max-time", str(timeout), url, "-H", header.format(key=key)],
-        capture_output=True, text=True, timeout=timeout + 10,
+        capture_output=True,
+        text=True,
+        timeout=timeout + 10,
     )
     try:
         d = json.loads(r.stdout)
@@ -117,10 +119,7 @@ def main() -> int:
         ids = fetch(url, header, key)
         # The generic walk also picks up non-model ids; keep plausible ones and
         # drop the "models/" prefix Google uses.
-        ids = [
-            i for i in ids
-            if "/" in i or "-" in i
-        ]
+        ids = [i for i in ids if "/" in i or "-" in i]
         if args.filter:
             ids = [i for i in ids if args.filter in i.lower()]
         ids = [i.replace("models/", "") for i in ids]

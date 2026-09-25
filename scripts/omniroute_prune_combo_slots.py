@@ -66,10 +66,15 @@ DB_NAME = "storage.sqlite"
 def find_db_path() -> str:
     out = subprocess.run(
         [
-            "docker", "inspect", GATEWAY_CONTAINER,
-            "--format", "{{range .Mounts}}{{if eq .Destination \"/root/.omniroute\"}}{{.Source}}{{end}}{{end}}",
+            "docker",
+            "inspect",
+            GATEWAY_CONTAINER,
+            "--format",
+            '{{range .Mounts}}{{if eq .Destination "/root/.omniroute"}}{{.Source}}{{end}}{{end}}',
         ],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     src = out.stdout.strip()
     if not src:
@@ -100,9 +105,7 @@ def main() -> int:
     cur = conn.cursor()
 
     active = {
-        r[0] for r in cur.execute(
-            "SELECT provider FROM provider_connections WHERE is_active = 1"
-        )
+        r[0] for r in cur.execute("SELECT provider FROM provider_connections WHERE is_active = 1")
     }
     print(f"providers with active credentials: {len(active)}")
     print(f"  {', '.join(sorted(active))}\n")
@@ -130,13 +133,16 @@ def main() -> int:
         if not keep:
             # An empty combo is strictly worse than a slow one: it can never
             # answer. Treat it as a hard stop rather than writing it.
-            print(f"  {name:<18} {len(slots):>2} slots  BLOCKED - "
-                  "no slot has credentials, refusing to empty the combo")
+            print(
+                f"  {name:<18} {len(slots):>2} slots  BLOCKED - "
+                "no slot has credentials, refusing to empty the combo"
+            )
             blocked += 1
             continue
 
-        print(f"  {name:<18} {len(slots):>2} -> {len(keep)} slots  "
-              f"(drop {dropped} credential-less)")
+        print(
+            f"  {name:<18} {len(slots):>2} -> {len(keep)} slots  (drop {dropped} credential-less)"
+        )
         total_dropped += dropped
 
         if args.apply:
