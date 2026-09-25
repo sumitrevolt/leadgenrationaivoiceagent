@@ -33,7 +33,11 @@ def _write(path: Path, body: str) -> None:
 
 
 def _sandbox(
-    tmp_path: Path, *, fail_target: bool = False, missing_image: bool = False
+    tmp_path: Path,
+    *,
+    fail_target: bool = False,
+    missing_image: bool = False,
+    app_running: bool = True,
 ) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     bin_dir = tmp_path / "bin"
@@ -52,7 +56,14 @@ def _sandbox(
         echo "docker $* APP_VERSION=${{APP_VERSION:-}}" >> {log.as_posix()!r}
         case "$*" in
           *"compose"*"ps -q"*) echo "cid-${{@:$#}}" ;;
-          *".State.Running"*) echo true ;;
+          *".State.Running"*)
+            last="${{!#}}"
+            if [ "$last" = "leadgen_app" ]; then
+              echo {str(app_running).lower()}
+            else
+              echo true
+            fi
+            ;;
           *".Config.Image"*)
             last="${{!#}}"
             if [ "$last" = "leadgen_app" ]; then
@@ -92,6 +103,29 @@ def _run(repo: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
             "PATH": f"{(tmp_path / 'bin').as_posix()}:/usr/bin:/bin",
             "REPO": repo.as_posix(),
             "ROLLBACK_DB_COMPATIBLE": "1",
+            "HEALTH_MAX_ATTEMPTS": "1",
+        }
+    )
+    return subprocess.run(
+        [str(BASH), str(SCRIPT), "2222222"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+        timeout=30,
+    )
+
+
+def _run_recovery(
+    repo: Path, tmp_path: Path, *, source: str = "1111111"
+) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env.update(
+        {
+            "PATH": f"{(tmp_path / 'bin').as_posix()}:/usr/bin:/bin",
+            "REPO": repo.as_posix(),
+            "ROLLBACK_DB_COMPATIBLE": "1",
+            "ROLLBACK_SOURCE_TAG": source,
             "HEALTH_MAX_ATTEMPTS": "1",
         }
     )
@@ -151,5 +185,28 @@ def test_missing_rollback_artifact_refuses_before_env_or_container_change(tmp_pa
     result = _run(repo, tmp_path)
     assert result.returncode == 12
     assert "required rollback image is missing" in result.stdout
+    assert (repo / ".env").read_text(encoding="utf-8") == "APP_VERSION=1111111\n"
+    assert "up -d --no-deps" not in log.read_text(encoding="utf-8")
+
+
+@requires_bash
+def test_recovery_can_restore_when_failed_candidate_app_is_not_running(tmp_path: Path) -> None:
+    repo, log = _sandbox(tmp_path, app_running=False)
+    result = _run_recovery(repo, tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ROLLBACK VERIFIED" in result.stdout
+    assert (repo / ".env").read_text(encoding="utf-8") == "APP_VERSION=2222222\n"
+    assert (
+        "up -d --no-deps app worker scheduler worker-heavy worker-video dsh-worker"
+        in log.read_text(encoding="utf-8")
+    )
+
+
+@requires_bash
+def test_recovery_refuses_source_env_mismatch_before_mutation(tmp_path: Path) -> None:
+    repo, log = _sandbox(tmp_path)
+    result = _run_recovery(repo, tmp_path, source="3333333")
+    assert result.returncode == 12
+    assert "match source 3333333" in result.stdout
     assert (repo / ".env").read_text(encoding="utf-8") == "APP_VERSION=1111111\n"
     assert "up -d --no-deps" not in log.read_text(encoding="utf-8")

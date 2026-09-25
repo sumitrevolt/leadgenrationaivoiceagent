@@ -127,8 +127,26 @@ def test_rollout_failure_uses_a_distinct_exit_code():
     t = _text()
     # 10 must not collide with the pre-existing refusal exits (1-9, 91, 92)
     codes = sorted({int(m) for m in re.findall(r"^\s*exit (\d+)\s*$", t, re.MULTILINE)})
-    assert codes == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 91, 92], codes
+    assert codes == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 21, 91, 92], codes
     assert len(re.findall(r"^\s*exit 10\s*$", t, re.MULTILINE)) == 5
+
+
+def test_compose_failure_trap_binds_candidate_and_previous_tags():
+    t = _text()
+    trap = t.index("trap _recover_failed_compose_rollout EXIT")
+    mutation = t.index("COMPOSE_MUTATION_STARTED=1")
+    up = t.index("_compose_up > /tmp/deploy_up.log")
+    assert trap < mutation < up
+    assert 'ROLLBACK_SOURCE_TAG="$VER" ROLLBACK_DB_COMPATIBLE=1' in t
+    assert 'bash "$_script_dir/rollback_vps_compose.sh" "$PREV_PROD_TAG"' in t
+
+
+def test_compose_failure_trap_is_disarmed_only_after_success_path():
+    t = _text()
+    success = t.rindex("DEPLOY_SUCCEEDED=1")
+    smoke = t.index('echo "=== SMOKE (revenue + auth critical paths) ==="')
+    skew = t.index('echo "=== SKEW CHECK')
+    assert skew < smoke < success
 
 
 # ------------------------------------------------------------------- resolver

@@ -509,6 +509,31 @@ PREV_PROD_TAG="$(python3 "$_script_dir/deploy_image_retention.py" \
 echo "PREV_PROD_TAG=$PREV_PROD_TAG"
 echo "RUNNING_JSON=$RUNNING_JSON"
 
+# Once Compose mutation starts, every non-zero exit must make one bounded effort
+# to restore the exact pre-deploy cohort. The helper's explicit source binding
+# prevents a stale/foreign .env or container from being overwritten. Recovery
+# never tries to re-apply the failed candidate if the target also fails.
+COMPOSE_MUTATION_STARTED=0
+DEPLOY_SUCCEEDED=0
+_recover_failed_compose_rollout() {
+  _deploy_rc=$?
+  trap - EXIT
+  if [ "$_deploy_rc" -eq 0 ] || [ "$WEB_TOPOLOGY" != "compose" ] || \
+     [ "$COMPOSE_MUTATION_STARTED" != "1" ] || [ "$DEPLOY_SUCCEEDED" = "1" ]; then
+    exit "$_deploy_rc"
+  fi
+  echo "=== AUTOMATIC RECOVERY: candidate=$VER target=$PREV_PROD_TAG ==="
+  if ROLLBACK_SOURCE_TAG="$VER" ROLLBACK_DB_COMPATIBLE=1 \
+      bash "$_script_dir/rollback_vps_compose.sh" "$PREV_PROD_TAG"; then
+    echo "AUTOMATIC RECOVERY VERIFIED; preserving deploy failure rc=$_deploy_rc."
+    exit "$_deploy_rc"
+  fi
+  echo "FATAL: automatic recovery failed; operator recovery required."
+  exit 21
+}
+trap _recover_failed_compose_rollout EXIT
+COMPOSE_MUTATION_STARTED=1
+
 _compose_up > /tmp/deploy_up.log 2>&1
 UP_RC=$?
 echo "UP_RC=$UP_RC"
@@ -800,5 +825,7 @@ if [ "$_CLEANUP_OK" -eq 1 ]; then
 else
   echo "=== BUILD CACHE skipped — zero destructive cleanup executed (retention refuse) ==="
 fi
+
+DEPLOY_SUCCEEDED=1
 
 echo "=== DEPLOYED $VER OK ==="

@@ -7,6 +7,7 @@ REPO="${REPO:-/opt/leadgen}"
 COMPOSE="${COMPOSE:-docker-compose.vps.yml}"
 SERVICES="app worker scheduler worker-heavy worker-video dsh-worker"
 TARGET_TAG="${1:-}"
+SOURCE_TAG="${ROLLBACK_SOURCE_TAG:-}"
 HEALTH_MAX_ATTEMPTS="${HEALTH_MAX_ATTEMPTS:-12}"
 HEALTH_RETRY_SECONDS="${HEALTH_RETRY_SECONDS:-5}"
 
@@ -20,6 +21,15 @@ if [ "${#TARGET_TAG}" -lt 7 ] || [ "${#TARGET_TAG}" -gt 40 ]; then
   echo "FATAL: rollback tag must be a 7-40 character lowercase git SHA."
   exit 2
 fi
+if [ -n "$SOURCE_TAG" ]; then
+  case "$SOURCE_TAG" in
+    *[!0-9a-f]* ) echo "FATAL: recovery source tag must be a lowercase git SHA."; exit 2 ;;
+  esac
+  if [ "${#SOURCE_TAG}" -lt 7 ] || [ "${#SOURCE_TAG}" -gt 40 ] || [ "$SOURCE_TAG" = "$TARGET_TAG" ]; then
+    echo "FATAL: recovery source tag must be a distinct 7-40 character git SHA."
+    exit 2
+  fi
+fi
 if [ "${ROLLBACK_DB_COMPATIBLE:-0}" != "1" ]; then
   echo "FATAL: set ROLLBACK_DB_COMPATIBLE=1 after migration compatibility review."
   exit 11
@@ -30,29 +40,44 @@ if systemctl is-active --quiet leadgen >/dev/null 2>&1; then
   echo "FATAL: systemd leadgen is active; this rollback is Compose-only."
   exit 10
 fi
-if [ "$(docker inspect -f '{{.State.Running}}' leadgen_app 2>/dev/null || true)" != "true" ]; then
-  echo "FATAL: leadgen_app is not the running web app."
-  exit 10
-fi
-
-CURRENT_IMAGE="$(docker inspect -f '{{.Config.Image}}' leadgen_app 2>/dev/null || true)"
-CURRENT_TAG="${CURRENT_IMAGE##*:}"
-case "$CURRENT_TAG" in
-  ""|*[!0-9a-f]* ) echo "FATAL: current app image is not immutable: $CURRENT_IMAGE"; exit 2 ;;
-esac
-if [ "${#CURRENT_TAG}" -lt 7 ] || [ "${#CURRENT_TAG}" -gt 40 ]; then
-  echo "FATAL: current app image tag has invalid SHA length: $CURRENT_IMAGE"
-  exit 2
-fi
-if [ "$CURRENT_TAG" = "$TARGET_TAG" ]; then
-  echo "FATAL: target already serves production; refusing a no-op rollback."
-  exit 2
-fi
 ENV_TAG_COUNT="$(grep -cE '^APP_VERSION=' "$REPO/.env" 2>/dev/null || true)"
 ENV_TAG="$(grep -E '^APP_VERSION=' "$REPO/.env" 2>/dev/null | head -1 | cut -d= -f2 || true)"
-if [ "$ENV_TAG_COUNT" != "1" ] || [ "$ENV_TAG" != "$CURRENT_TAG" ]; then
-  echo "FATAL: .env APP_VERSION must occur once and match running tag $CURRENT_TAG."
-  exit 12
+if [ -n "$SOURCE_TAG" ]; then
+  CURRENT_TAG="$SOURCE_TAG"
+  if [ "$ENV_TAG_COUNT" != "1" ] || [ "$ENV_TAG" != "$SOURCE_TAG" ]; then
+    echo "FATAL: recovery requires .env APP_VERSION to occur once and match source $SOURCE_TAG."
+    exit 12
+  fi
+  CURRENT_IMAGE="$(docker inspect -f '{{.Config.Image}}' leadgen_app 2>/dev/null || true)"
+  if [ -n "$CURRENT_IMAGE" ]; then
+    _observed_tag="${CURRENT_IMAGE##*:}"
+    if [ "$_observed_tag" != "$SOURCE_TAG" ] && [ "$_observed_tag" != "$TARGET_TAG" ]; then
+      echo "FATAL: recovery observed unexpected app image '$CURRENT_IMAGE'."
+      exit 12
+    fi
+  fi
+else
+  if [ "$(docker inspect -f '{{.State.Running}}' leadgen_app 2>/dev/null || true)" != "true" ]; then
+    echo "FATAL: leadgen_app is not the running web app."
+    exit 10
+  fi
+  CURRENT_IMAGE="$(docker inspect -f '{{.Config.Image}}' leadgen_app 2>/dev/null || true)"
+  CURRENT_TAG="${CURRENT_IMAGE##*:}"
+  case "$CURRENT_TAG" in
+    ""|*[!0-9a-f]* ) echo "FATAL: current app image is not immutable: $CURRENT_IMAGE"; exit 2 ;;
+  esac
+  if [ "${#CURRENT_TAG}" -lt 7 ] || [ "${#CURRENT_TAG}" -gt 40 ]; then
+    echo "FATAL: current app image tag has invalid SHA length: $CURRENT_IMAGE"
+    exit 2
+  fi
+  if [ "$CURRENT_TAG" = "$TARGET_TAG" ]; then
+    echo "FATAL: target already serves production; refusing a no-op rollback."
+    exit 2
+  fi
+  if [ "$ENV_TAG_COUNT" != "1" ] || [ "$ENV_TAG" != "$CURRENT_TAG" ]; then
+    echo "FATAL: .env APP_VERSION must occur once and match running tag $CURRENT_TAG."
+    exit 12
+  fi
 fi
 
 _set_env_tag() {
@@ -122,6 +147,10 @@ done
 
 _set_env_tag "$TARGET_TAG" || { echo "FATAL: could not pin APP_VERSION."; exit 12; }
 if ! _compose_up "$TARGET_TAG" || ! _health_matches "$TARGET_TAG" || ! _cohort_matches "$TARGET_TAG"; then
+  if [ -n "$SOURCE_TAG" ]; then
+    echo "FATAL: deploy recovery target failed verification; operator recovery required."
+    exit 21
+  fi
   _restore_previous || {
     echo "FATAL: rollback and automatic restore both failed; operator recovery required."
     exit 21
