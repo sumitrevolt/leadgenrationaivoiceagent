@@ -427,15 +427,19 @@ def tool_omniroute_health_check(args: dict) -> dict:
     """Probe OmniRoute gateway, Claude proxy, container status, and combo database health."""
     import urllib.request
     results = []
-    
-    # 1. Probe port 20128
+
+    # 1. Probe port 20128.
+    # NOTE (2026-09-25): this used to hit /api/health, which the Next.js gateway
+    # does not serve -> HTTP 404, which urllib reported as "401 Unauthorized" and
+    # which read as "gateway down". The gateway was UP the whole time. /v1/models
+    # is the endpoint that actually exists, so probe that for liveness.
     try:
-        req = urllib.request.Request("http://127.0.0.1:20128/api/health")
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        req = urllib.request.Request("http://127.0.0.1:20128/v1/models")
+        with urllib.request.urlopen(req, timeout=5) as resp:
             results.append(f"OmniRoute Gateway (:20128): HEALTHY (HTTP {resp.getcode()})")
     except Exception as e:
-        results.append(f"OmniRoute Gateway (:20128): {e}")
-        
+        results.append(f"OmniRoute Gateway (:20128): DOWN - {e}")
+
     # 2. Probe port 22000
     try:
         req = urllib.request.Request("http://127.0.0.1:22000/api/health")
@@ -443,18 +447,43 @@ def tool_omniroute_health_check(args: dict) -> dict:
             results.append(f"Claude Proxy (:22000): HEALTHY (HTTP {resp.getcode()})")
     except Exception as e:
         results.append(f"Claude Proxy (:22000): {e}")
-        
+
     # 3. Probe combos count
     try:
         req = urllib.request.Request("http://127.0.0.1:20128/v1/models")
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             models = data.get("data", [])
             combo_models = [m for m in models if "leadsgen combo" in m.get("id", "")]
             results.append(f"Active LeadsGen Combos: {len(combo_models)} / 14 registered in live models")
     except Exception as e:
         results.append(f"Models probe: {e}")
-        
+
+    # 4. A registered combo is NOT a working combo. On 2026-09-25 all 14 combos
+    # were registered while provider_connections was empty, so every completion
+    # failed with "No active credentials for provider". Liveness of the model
+    # list says nothing about credentials, so probe one real inference.
+    try:
+        payload = json.dumps({
+            "model": "leadsgen combo 1",
+            "messages": [{"role": "user", "content": "reply with the single word OK"}],
+            "max_tokens": 12,
+            "stream": False,
+        }).encode()
+        req = urllib.request.Request(
+            "http://127.0.0.1:20128/v1/chat/completions",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            body = resp.read().decode("utf-8", "replace")
+        if "error" in body and "content" not in body:
+            results.append("Gateway INFERENCE probe: FAILED - " + body[:160])
+        else:
+            results.append("Gateway INFERENCE probe: OK (combo 1 completed)")
+    except Exception as e:
+        results.append(f"Gateway INFERENCE probe: FAILED - {e}")
+
     return {"text": "\n".join(results)}
 
 
@@ -470,9 +499,46 @@ def tool_omniroute_self_heal(args: dict) -> dict:
             errors="replace",
             timeout=90
         )
-        return {"text": r.stdout if r.returncode == 0 else f"Self-heal error: {r.stderr or r.stdout}"}
+        out = r.stdout if r.returncode == 0 else f"Self-heal error: {r.stderr or r.stdout}"
     except Exception as e:
         return {"text": f"Self-heal execution failed: {e}"}
+
+    # GAP FIX (2026-09-25): sync_all_combos_all_apps.py reseeds the 14 COMBOS and
+    # syncs LOCAL client config. It does NOT touch the gateway's provider
+    # credential store -- on the VPS that table was empty, so it reported
+    # "[OK] ... seed skipped" and every inference still failed. Do not let this
+    # tool report healthy without checking the credential store too.
+    try:
+        import urllib.request
+        with urllib.request.urlopen(
+            urllib.request.Request(
+                "http://127.0.0.1:20128/v1/chat/completions",
+                data=json.dumps({
+                    "model": "leadsgen combo 1",
+                    "messages": [{"role": "user", "content": "reply OK"}],
+                    "max_tokens": 8,
+                    "stream": False,
+                }).encode(),
+                headers={"Content-Type": "application/json"},
+            ),
+            timeout=90,
+        ) as resp:
+            body = resp.read().decode("utf-8", "replace")
+        if "error" in body and "content" not in body:
+            out += (
+                "\n\n[INCOMPLETE] combo sync alone did not restore inference: "
+                + body[:200]
+                + "\n  If this says 'No active credentials for provider', the "
+                "gateway's provider_connections table is empty. On the VPS run: "
+                "python3 scripts/omniroute_seed_provider_connections.py --apply "
+                "&& docker restart leadgen_omniroute"
+            )
+        else:
+            out += "\n\n[VERIFIED] combo 1 completed a real inference post-heal."
+    except Exception as e:
+        out += f"\n\n[UNVERIFIED] could not confirm inference after heal: {e}"
+
+    return {"text": out}
 
 
 def tool_project_status(args: dict) -> dict:
