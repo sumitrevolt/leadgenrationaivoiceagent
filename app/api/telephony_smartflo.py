@@ -139,7 +139,14 @@ async def smartflo_stream_ws(websocket: WebSocket) -> None:
         "true",
         "yes",
     )
-    if require_secret and secret:
+    if require_secret:
+        if not secret:
+            logger.error("[smartflo-stream] rejected: required WS secret is not configured")
+            try:
+                await websocket.close(code=1008)
+            except Exception:
+                pass
+            return
         # Verify from query param or header
         token = websocket.query_params.get("token", "")
         if not token:
