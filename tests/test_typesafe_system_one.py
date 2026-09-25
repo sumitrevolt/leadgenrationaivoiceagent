@@ -73,7 +73,8 @@ def test_score_dict_to_list_normalization():
 
         resp = client.score("Rate relevance", {"state": "sample"}, {"1": "low", "2": "high"})
         assert resp.success is True
-        assert resp.value == 2.5
+        assert resp.value == 1.0  # public score is clamped to the [0, 1] contract
+        assert resp.result["answers"]["q"]["score"] == 2.5  # raw answer preserved
         assert resp.confidence == 0.85
 
         # Check posted payload structure
