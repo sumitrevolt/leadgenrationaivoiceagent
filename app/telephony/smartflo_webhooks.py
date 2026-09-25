@@ -96,8 +96,30 @@ _CONNECTED_STATUSES = {
 
 
 def _webhook_secret() -> str:
-    """Shared secret for webhook auth (empty = auth disabled)."""
+    """Shared secret for webhook auth.
+
+    Fail-closed: in production (ENV=production by default) this MUST be set.
+    If unset, the receiver returns 503 — we never silently accept
+    unauthenticated CDR/billing/lead data. Dev/test opt-in is gated behind
+    ``ALLOW_UNAUTH_WEBHOOK=true`` and a non-production ENV value.
+    """
     return os.getenv("SMARTFLO_WEBHOOK_SECRET", "") or ""
+
+
+def _allow_unauth_webhook() -> bool:
+    """Whether the receiver is allowed to skip shared-secret auth.
+
+    Only true when BOTH conditions hold:
+      - ENV is dev|test (case-insensitive)
+      - ALLOW_UNAUTH_WEBHOOK is explicitly truthy
+
+    Production never skips auth, regardless of ALLOW_UNAUTH_WEBHOOK.
+    """
+    env = os.getenv("ENV", "production").strip().lower()
+    flag = os.getenv("ALLOW_UNAUTH_WEBHOOK", "false").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    return env in {"dev", "test"} and flag
 
 
 def _normalize_keys(body: dict[str, Any]) -> dict[str, Any]:
@@ -158,9 +180,31 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
     Best-effort; returns 200 so Smartflo does not retry (it retries twice when
     we don't answer). Logs the event and triggers billing / lead updates.
     """
-    # --- Optional shared-secret auth (Smartflo sends none of its own) -------
+    # --- Shared-secret auth (P0 fail-closed) ---------------------------------
+    # Smartflo does not provide its own authentication. When the operator has
+    # configured SMARTFLO_WEBHOOK_SECRET in the portal's "Headers" section, we
+    # require a matching ``X-Smartflo-Secret`` header (constant-time compare).
+    # When the secret is UNSET in production we REJECT the request with 503:
+    # silently accepting unauthenticated CDR/billing/lead events would let any
+    # third party spoof call outcomes, trigger fraudulent billing metering,
+    # and poison the funnel. Dev/test opt-in only via ALLOW_UNAUTH_WEBHOOK.
     secret = _webhook_secret()
-    if secret:
+    if not secret:
+        if _allow_unauth_webhook():
+            logger.warning(
+                "[smartflo-webhook] ALLOW_UNAUTH_WEBHOOK=true in non-production; "
+                "accepting request WITHOUT secret header. NEVER use in prod."
+            )
+        else:
+            logger.critical(
+                "[smartflo-webhook] SMARTFLO_WEBHOOK_SECRET unset in production; "
+                "REJECTING webhook to protect CDR/billing/lead integrity."
+            )
+            return JSONResponse(
+                content={"error": "webhook_auth_not_configured"},
+                status_code=503,
+            )
+    else:
         provided = request.headers.get("X-Smartflo-Secret", "")
         if not hmac.compare_digest(provided, secret):
             logger.warning("[smartflo-webhook] rejected: bad/missing secret")
