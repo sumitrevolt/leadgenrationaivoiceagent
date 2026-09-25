@@ -84,6 +84,11 @@ def test_send_email_applies_extra_headers(monkeypatch):
     from app.integrations import email_sender as es
 
     sender = es.EmailSender()
+
+    async def _approve(subject, body, channel="email"):
+        return {"approved": True, "score": 100, "issues": [], "grade": "A"}
+
+    monkeypatch.setattr(sender, "validate_content", _approve)
     monkeypatch.setattr(sender, "user", "u", raising=False)
     monkeypatch.setattr(sender, "password", "p", raising=False)
 
@@ -115,3 +120,22 @@ def test_send_email_applies_extra_headers(monkeypatch):
     msg = captured["msg"]
     assert msg["List-Unsubscribe"] == "<https://leadsgenai.in/u/abc>"
     assert msg["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+
+
+def test_rejected_content_never_reaches_email_transport(monkeypatch):
+    """A TypeSafe rejection must block the SMTP send even with fake credentials."""
+    from app.integrations import email_sender as es
+
+    sender = es.EmailSender()
+    monkeypatch.setattr(sender, "user", "u", raising=False)
+    monkeypatch.setattr(sender, "password", "p", raising=False)
+
+    async def _reject(subject, body, channel="email"):
+        return {"approved": False, "score": 0, "issues": ["rejected"], "grade": "F"}
+
+    async def _unexpected_send(*args, **kwargs):
+        raise AssertionError("SMTP transport reached after TypeSafe rejection")
+
+    monkeypatch.setattr(sender, "validate_content", _reject)
+    monkeypatch.setattr(es.aiosmtplib, "send", _unexpected_send)
+    assert asyncio.run(sender.send_email(["x@example.com"], "subj", "body")) is False
