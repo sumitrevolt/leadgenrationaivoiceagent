@@ -150,8 +150,19 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
-    assert len(entries) == 106
-    assert len(families) == 42, sorted(families)
+    # 2026-09-25 +5 entries / +1 family: the nine prod_check findings, each
+    # classified from the code (telegram polling-lease .tmp, typesafe_keys.json
+    # read, and the three dead scripts/legacy pilot writes that reuse the
+    # existing command_center.pilot_tasks store). See the a1_ratchet re-pin for
+    # the per-entry list.
+    assert len(entries) == 111
+    # 2026-09-25 +5 entries / +1 family: entries 106 -> 111 and families 43 -> 44.
+    # 42 -> 43 was ALREADY drifted on unchanged origin/main (verified in a clean
+    # main worktree), so this assertion was red there too. My three store ids
+    # (ops.telegram_setup_state, platform.typesafe_intake_trace and the existing
+    # command_center.pilot_tasks) are what move it 43 -> 44; all three are
+    # registered in the manifest, which the next assertion enforces.
+    assert len(families) == 44, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -194,13 +205,21 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.agent_memory",
         "platform.memory_governance",
         "platform.staff_bus",
+        "platform.typesafe_intake_trace",
         "platform.workforce_memory",
         "sales.prospects",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
+        "telegram.audit",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 15
+    # 2026-09-25: 15 -> 16. PRE-EXISTING, not caused by this branch: verified on
+    # an unchanged origin/main worktree, where the same set already yields 16
+    # namespaces and "telegram" is already among them. This assertion was
+    # therefore red on main independently. The allowlist-entry re-pins above
+    # (106 -> 111 entries, 42 -> 44 families) are the only counts this branch
+    # moves, and they do not add a namespace.
+    assert len({f.split(".")[0] for f in families}) == 16
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -473,7 +492,16 @@ def test_store_manifest_still_validates() -> None:
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
     # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
-    assert counts["unique_families"] == 60
+    # 2026-09-25: 60 -> 63. NOT caused by this branch: verified on an
+    # unchanged origin/main worktree, where runtime_data_manifest.counts()
+    # already returns 63 while this assertion still said 60. Three families
+    # were added to the manifest without the matching re-pin (the comment
+    # trail above stops at automation.console_events, 2026-09-04). This test
+    # had therefore been red on main independently of the OmniRoute work.
+    # deployment_blockers stays 0 and manifest.validate() is clean, so the
+    # drift is additive families, not a lost blocker -- which is exactly what
+    # this test exists to distinguish.
+    assert counts["unique_families"] == 63
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

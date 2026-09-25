@@ -18,6 +18,7 @@ but it must be a judgment whose result actually changes downstream behaviour.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -51,17 +52,51 @@ ALLOWED_CONSUMERS = {
     "app/voice/smartflo_acceptance.py",
 }
 
+# A real code reference: importing the module, or using it as an object.
+# Two shapes matter, both of which appear in this repo:
+#   from app.platform.typesafe_integration import X        (single line)
+#   from app.platform import typesafe_integration as _ts    (inside a parenthesised
+#                                                         multi-line import block)
+# so the leading `^` anchor cannot be used. A bare quoted PATH such as
+# "app/platform/typesafe_integration.py" in a data table is excluded by the
+# lookbehind: naming the module that OWNS a store is not a call into it.
+_CODE_RE = re.compile(
+    r"""(?x)
+    \bfrom\s+[\w.]*typesafe_integration\b        # from ... import / from ... as
+    |^\s*import\s+[\w.]*typesafe_integration\b    # plain import (own line)
+    |(?<!["'\w./-])typesafe_integration\s*\.\s*[A-Za-z_]   # attribute access
+    """
+)
+# `from app.platform import typesafe_integration as _ts` is the one form the
+# pattern above cannot see, because here it is the IMPORTED NAME rather than part
+# of the dotted path. Matched separately so the guarded set stays complete.
+_IMPORT_NAME_RE = re.compile(
+    r"""(?x)
+    \bfrom\s+[\w.]+\s+import\s+(?:[\w,\s(]*\s)?typesafe_integration\b
+    """
+)
+
 # The definition module itself never counts as a consumer.
 _SELF = "app/platform/typesafe_integration.py"
 
 
 def _reference_sites() -> set[str]:
+    """Modules that actually import/use the integration, not merely name it.
+
+    A plain substring scan used to do this, which also matched a PATH quoted in a
+    data table. `app/platform/runtime_data_allowlist_entries.py` carries
+    `"file": "app/platform/typesafe_integration.py"` to name the module that OWNS
+    the `platform.typesafe_intake_trace` store, and that made this guard report a
+    phantom consumer. Naming a module is not calling it, so scan for real
+    references: an import of the module, or an attribute access on it.
+    """
     sites: set[str] = set()
     for path in (ROOT / "app").rglob("*.py"):
         rel = path.relative_to(ROOT).as_posix()
         if rel == _SELF:
             continue
-        if "typesafe_integration" in path.read_text(encoding="utf-8", errors="replace"):
+        source = path.read_text(encoding="utf-8", errors="replace")
+        if _CODE_RE.search(source) or _IMPORT_NAME_RE.search(source):
             sites.add(rel)
     return sites
 
