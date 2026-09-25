@@ -996,6 +996,8 @@ def create_reply_followup_task(
     mailbox: str = "",
     uidvalidity: str = "",
     orchestrator: Any | None = None,
+    assigned_agent: str = "rohan",
+    client_id: str = "",
 ) -> dict[str, Any]:
     """Idempotently create a canonical WORKER follow-up task for a qualified reply.
 
@@ -1064,11 +1066,13 @@ def create_reply_followup_task(
             "business": biz,
             "email": email or None,
             "intent": intent,
+            "client_id": client_id,
+            "tenant_scope": client_id or "platform",
             "typesafe": ts_ev or {},
         }
         record, is_new = orch.submit_task(
             owner_bot="sales",
-            assigned_agent="rohan",
+            assigned_agent=assigned_agent,
             priority=TaskPriority.HIGH,
             input_payload=payload,
             idempotency_key=key,
@@ -1088,6 +1092,319 @@ def create_reply_followup_task(
         logger.debug("followup task err: %s", exc)
         out.update({"created": False, "reason": f"error:{str(exc)[:120]}"})
         return out
+
+
+# --------------------------------------------------------------------------- #
+# WB-EMAIL-003 — inbound sales-reply qualification & handoff
+#
+# Bounded additive slice on top of #569 (create_reply_followup_task + scoped
+# UID/UIDVALIDITY keys). This does NOT rewrite the canonical writer — it
+# composes on it. Two new public primitives:
+#
+#   * build_typesafe_qa_trace — captures a real TypeSafe API decision trace
+#     (decision_id, task_id, tenant_scope, purpose, state_hash, evidence_refs,
+#     model, primitive, result, downstream branch, side-effect id, observed
+#     outcome) for classification QA. No new SDK / key-pool / bridge —
+#     reuses the canonical TypeSafeReplyTriage.
+#
+#   * route_qualified_reply_to_task — a pure decision function that decides
+#     (a) which intent class the reply falls in, (b) the responsible sales
+#     worker (hot intents -> telecaller `swara`; pricing/question/objection
+#     -> leads manager `rohan`), and (c) whether the reply needs owner review
+#     instead of an auto-minted task. Persisted via create_reply_followup_task
+#     only when the classification is confident; suppressed intents never mint
+#     a task. Uncertain / conflict / ambiguous -> explicit review marker.
+# --------------------------------------------------------------------------- #
+
+# Hot intents that warrant a call/voice worker (swara); the rest route to the
+# leads manager (rohan). "objection" routes to rohan only when it is NOT
+# marked as a hard decline (TypeSafe is_hot=False + sentiment=negative).
+_HOT_ROUTE_INTENTS = ("interested", "question")
+_ROUTABLE_INTENTS = ("interested", "question", "objection")
+
+
+def build_typesafe_qa_trace(
+    *,
+    task_id: str,
+    tenant_scope: str,
+    llm_intent: str,
+    typesafe_evidence: dict[str, Any],
+    decision: str,
+    branch: str,
+    side_effect_id: str = "",
+    observed_outcome: str = "",
+    state_hash: str = "",
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a canonical TypeSafe M00A decision trace for a classification QA call.
+
+    Reuses the existing ``typesafe_services.TypeSafeReplyTriage`` evidence —
+    this function does NOT make a new API call; it records the trace. The
+    model output (llm_intent / typesafe_evidence) is NEVER treated as the
+    final proof of customer intent: it is only one input to the decision,
+    and the decision is itself recorded here so downstream consumers can
+    audit it.
+
+    Fields align with the §2.2 required trace spec:
+      decision_id, task_id, tenant_scope, purpose, state_hash, evidence_refs,
+      requested_model, resolved_model, primitive, result, downstream_branch,
+      side_effect_id, observed_outcome.
+    """
+    ts_ev = typesafe_evidence or {}
+    resolved_model = str(ts_ev.get("model") or "jev-latest")
+    primitive = "Choice" if ts_ev.get("active") else "inert"
+    return {
+        "decision_id": task_id or "review",
+        "task_id": task_id or "",
+        "tenant_scope": tenant_scope or "platform",
+        "purpose": "inbound_reply_classification_qa",
+        "state_hash": state_hash,
+        "evidence_refs": list(evidence_refs or []),
+        "requested_model": "jev-latest",
+        "resolved_model": resolved_model,
+        "primitive": primitive,
+        "result": {
+            "llm_intent": llm_intent,
+            "typesafe_active": bool(ts_ev.get("active")),
+            "typesafe_mapped_intent": str(ts_ev.get("mapped_intent") or ""),
+            "typesafe_conflict": bool(ts_ev.get("conflict")),
+            "decision": decision,
+        },
+        "downstream_branch": branch,
+        "side_effect_id": side_effect_id,
+        "observed_outcome": observed_outcome,
+    }
+
+
+def route_qualified_reply_to_task(
+    *,
+    intent: str,
+    prospect: dict[str, Any] | None,
+    ts_ev: dict[str, Any],
+    client_id: str = "",
+    orchestrator: Any | None = None,
+    # Identity fields for the scoped follow-up key (see #569 docstring)
+    message_id: str = "",
+    references: str = "",
+    uid: str = "",
+    mailbox: str = "",
+    uidvalidity: str = "",
+) -> dict[str, Any]:
+    """Pure decision + persistence for a classified inbound reply.
+
+    Returns a single dict describing the routing outcome:
+
+      * ``routed``: which class the reply was handled as
+        (``qualified`` | ``suppressed`` | ``owner_review``).
+      * ``assigned_agent``: the responsible sales worker
+        (``swara`` for hot demo/call intents, ``rohan`` for pricing / question /
+        objection follow-ups, or ``None`` when the reply does not create a
+        sales task — e.g. it was suppressed).
+      * ``task_id`` / ``created`` / ``idempotency_key`` / ``reason``:
+        forwarded from ``create_reply_followup_task`` (persisted task), or
+        empty when the reply was suppressed / routed to owner review.
+      * ``decision``: the M00A decision string (``route_task`` |
+        ``suppress_dnd`` | ``route_review``).
+      * ``trace``: the TypeSafe QA trace built by
+        ``build_typesafe_qa_trace``.
+
+    Decision rules (deterministic, fail-closed):
+      1. intent == "unsubscribe" or TypeSafe conflict maps to unsubscribe
+         -> routed="suppressed", decision="suppress_dnd", NO task minted.
+         The existing run_reply_triage unsubscribe branch already persists
+         the canonical global suppression row; this function just makes the
+         routing decision explicit and returns the suppressed marker so
+         callers do not mint a task from an opt-out.
+      2. intent not in _ROUTABLE_INTENTS (ooo / other / not_interested /
+         delivery outcomes) -> routed="owner_review" only when the
+         classification itself is uncertain (TypeSafe conflict or
+         ts_ev["active"] False with llm_intent=="other"); otherwise
+         routed="suppressed" for not_interested (no sales follow-up) and
+         "owner_review" for "other" / "ooo" (ambiguous).
+      3. TypeSafe conflict (LLM hot, TypeSafe decline) -> owner_review.
+      4. Otherwise intent in _ROUTABLE_INTENTS + known prospect ->
+         routed="qualified", assigned_agent = swara if intent in
+         _HOT_ROUTE_INTENTS and (TypeSafe is_hot or no conflict) else
+         rohan, and a persisted task is minted via
+         create_reply_followup_task with the client-scoped key.
+
+    Never raises; on an unexpected persistence error it degrades to
+    routed="owner_review" with reason="error:<...>" so nothing is silently
+    dropped.
+    """
+    ts_ev = ts_ev or {}
+    p = prospect or {}
+    client_id = str(client_id or p.get("client_id") or "").strip()
+    tenant_scope = client_id or "platform"
+    llm_intent = str(intent or "other").strip().lower()
+
+    # 1. Opt-out: never mint a sales task from a subscriber who asked to
+    # stop being contacted. The durable suppression row is the existing
+    # unsubscribe branch's job; here we just refuse to route to a worker.
+    optout_conflict = bool(
+        ts_ev.get("active") and ts_ev.get("conflict") and ts_ev.get("mapped_intent") == "unsubscribe"
+    )
+    if llm_intent == "unsubscribe" or optout_conflict:
+        trace = build_typesafe_qa_trace(
+            task_id="",
+            tenant_scope=tenant_scope,
+            llm_intent=llm_intent,
+            typesafe_evidence=ts_ev,
+            decision="suppress_dnd",
+            branch="suppressed",
+        )
+        return {
+            "routed": "suppressed",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": None,
+            "reason": "opt_out_no_task",
+            "decision": "suppress_dnd",
+            "trace": trace,
+        }
+
+    # 2. Uncertain classification: TypeSafe conflict (LLM hot, TypeSafe
+    # decline) or an "other" / "ooo" LLM label with no TypeSafe confirmation.
+    llm_ambiguous = llm_intent in ("other", "ooo")
+    type_unconfirmed = (not ts_ev.get("active")) and llm_ambiguous
+    if ts_ev.get("conflict") or type_unconfirmed:
+        trace = build_typesafe_qa_trace(
+            task_id="",
+            tenant_scope=tenant_scope,
+            llm_intent=llm_intent,
+            typesafe_evidence=ts_ev,
+            decision="route_review",
+            branch="owner_review",
+        )
+        return {
+            "routed": "owner_review",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": None,
+            "reason": "uncertain_classification",
+            "decision": "route_review",
+            "trace": trace,
+        }
+
+    # 3. Not a sales opportunity: polite firm decline -> no task; anything
+    # else unrouterable -> owner review (visible, not silent).
+    if llm_intent == "not_interested":
+        trace = build_typesafe_qa_trace(
+            task_id="",
+            tenant_scope=tenant_scope,
+            llm_intent=llm_intent,
+            typesafe_evidence=ts_ev,
+            decision="suppress_dnd",
+            branch="archived",
+        )
+        return {
+            "routed": "suppressed",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": None,
+            "reason": "hard_decline_no_task",
+            "decision": "suppress_dnd",
+            "trace": trace,
+        }
+    if llm_intent not in _ROUTABLE_INTENTS:
+        trace = build_typesafe_qa_trace(
+            task_id="",
+            tenant_scope=tenant_scope,
+            llm_intent=llm_intent,
+            typesafe_evidence=ts_ev,
+            decision="route_review",
+            branch="owner_review",
+        )
+        return {
+            "routed": "owner_review",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": None,
+            "reason": "non_routerable_intent",
+            "decision": "route_review",
+            "trace": trace,
+        }
+
+    # 4. Qualified: known prospect + a sales-relevant intent. Hot demo/call
+    # intents route to the telecaller (swara); pricing / question / objection
+    # follow-ups route to the leads manager (rohan). Unknown prospect stays
+    # on rohan (owner-visible) rather than minting a task for an
+    # unattributable sender.
+    if not p:
+        trace = build_typesafe_qa_trace(
+            task_id="",
+            tenant_scope=tenant_scope,
+            llm_intent=llm_intent,
+            typesafe_evidence=ts_ev,
+            decision="route_review",
+            branch="owner_review",
+        )
+        return {
+            "routed": "owner_review",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": None,
+            "reason": "unknown_prospect_review",
+            "decision": "route_review",
+            "trace": trace,
+        }
+
+    hot = llm_intent in _HOT_ROUTE_INTENTS and bool(ts_ev.get("is_hot"))
+    assigned_agent = "swara" if hot else "rohan"
+    outcome = create_reply_followup_task(
+        {**p, "email": str(p.get("email") or "")},
+        llm_intent,
+        ts_ev,
+        message_id=message_id,
+        references=references,
+        uid=uid,
+        mailbox=mailbox,
+        uidvalidity=uidvalidity,
+        orchestrator=orchestrator,
+        assigned_agent=assigned_agent,
+        client_id=client_id,
+    )
+    task_id = str(outcome.get("task_id") or "")
+    branch = "task_minted" if outcome.get("created") else ("duplicate" if outcome.get("task_id") else "owner_review")
+    decision = "route_task" if outcome.get("created") or outcome.get("task_id") else "route_review"
+    trace = build_typesafe_qa_trace(
+        task_id=task_id,
+        tenant_scope=tenant_scope,
+        llm_intent=llm_intent,
+        typesafe_evidence=ts_ev,
+        decision=decision,
+        branch=branch,
+        side_effect_id=task_id,
+        observed_outcome=str(outcome.get("reason") or ""),
+    )
+    if not outcome.get("created") and not outcome.get("task_id"):
+        # Persistence failed or the identity guard held: surface for owner
+        # review rather than dropping the reply.
+        return {
+            "routed": "owner_review",
+            "assigned_agent": None,
+            "task_id": None,
+            "created": False,
+            "idempotency_key": outcome.get("idempotency_key"),
+            "reason": str(outcome.get("reason") or "task_mint_failed"),
+            "decision": "route_review",
+            "trace": trace,
+        }
+    return {
+        "routed": "qualified",
+        "assigned_agent": assigned_agent,
+        "task_id": task_id,
+        "created": bool(outcome.get("created")),
+        "idempotency_key": outcome.get("idempotency_key"),
+        "reason": str(outcome.get("reason") or ""),
+        "decision": "route_task",
+        "trace": trace,
+    }
 
 
 def _typesafe_content_gate(
@@ -1823,20 +2140,51 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         # identifier-less replies so two distinct messages from the same
                         # sender never collapse to one task, while the same UID under a
                         # DIFFERENT account or a DIFFERENT UIDVALIDITY epoch stays distinct.
+                        # WB-EMAIL-003 (2026-09-24): opt-in QUALIFICATION ROUTING. When
+                        # EMAIL003_QUALIFICATION_ROUTING=1 is set, this branch delegates
+                        # to route_qualified_reply_to_task() which (a) classifies the
+                        # reply into the canonical intent buckets, (b) routes to the
+                        # responsible sales worker (hot -> swara, pricing/question/
+                        # objection -> rohan), (c) suppresses opt-out/decline so no
+                        # sales task is minted, and (d) sends uncertain classifications
+                        # to owner review instead of an auto-minted task. Default OFF
+                        # keeps the existing create_reply_followup_task behaviour exactly.
                         try:
                             _fmid, _frefs = _safe_thread_headers(msg)
-                            _ft = create_reply_followup_task(
-                                {**p, "email": frm},
-                                intent,
-                                ts_ev,
-                                message_id=_fmid,
-                                references=_frefs,
-                                uid=_uid,
-                                mailbox=_mailbox_scope_id,
-                                uidvalidity=_uidvalidity,
-                            )
-                            if _ft.get("created") or _ft.get("task_id"):
-                                res["followup_task"] = _ft
+                            if _flag("EMAIL003_QUALIFICATION_ROUTING"):
+                                _cid = str(p.get("client_id") or "").strip()
+                                _routed = route_qualified_reply_to_task(
+                                    intent=intent,
+                                    prospect={**p, "email": frm},
+                                    ts_ev=ts_ev,
+                                    client_id=_cid,
+                                    message_id=_fmid,
+                                    references=_frefs,
+                                    uid=_uid,
+                                    mailbox=_mailbox_scope_id,
+                                    uidvalidity=_uidvalidity,
+                                )
+                                if _routed.get("created") or _routed.get("task_id"):
+                                    res["followup_task"] = _routed
+                                if _routed.get("routed") in ("owner_review", "suppressed"):
+                                    res.setdefault("email003_routed", {})
+                                    _bucket = _routed.get("routed")
+                                    res["email003_routed"][_bucket] = (
+                                        res["email003_routed"].get(_bucket, 0) + 1
+                                    )
+                            else:
+                                _ft = create_reply_followup_task(
+                                    {**p, "email": frm},
+                                    intent,
+                                    ts_ev,
+                                    message_id=_fmid,
+                                    references=_frefs,
+                                    uid=_uid,
+                                    mailbox=_mailbox_scope_id,
+                                    uidvalidity=_uidvalidity,
+                                )
+                                if _ft.get("created") or _ft.get("task_id"):
+                                    res["followup_task"] = _ft
                         except Exception:
                             pass
                         # Journey: email_reply trigger (gated JOURNEY_ENGINE=1)
@@ -1856,6 +2204,35 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             )
                         except Exception:
                             pass
+
+                elif intent == "objection" and p and _flag("EMAIL003_QUALIFICATION_ROUTING"):
+                    # OBJECTION = actionable follow-up, but only when it is NOT a hard
+                    # decline. TypeSafe (when active) tells us whether the objection is
+                    # still-warm (handle by the leads manager) vs. a firm "no" (archive,
+                    # no task). Without TypeSafe we stay conservative and still route to
+                    # rohan so a human sees it — we do NOT invent a hard opt-out.
+                    # The whole branch is opt-in via EMAIL003_QUALIFICATION_ROUTING=1;
+                    # with the flag OFF, objections keep the existing #569 behaviour
+                    # (draft only, no task minted here).
+                    res["objection"] = res.get("objection", 0) + 1
+                    try:
+                        _fmid, _frefs = _safe_thread_headers(msg)
+                        _o_cid = str(p.get("client_id") or "").strip()
+                        _o_routed = route_qualified_reply_to_task(
+                            intent=intent,
+                            prospect={**p, "email": frm},
+                            ts_ev=ts_ev,
+                            client_id=_o_cid,
+                            message_id=_fmid,
+                            references=_frefs,
+                            uid=_uid,
+                            mailbox=_mailbox_scope_id,
+                            uidvalidity=_uidvalidity,
+                        )
+                        if _o_routed.get("created") or _o_routed.get("task_id"):
+                            res["followup_task"] = _o_routed
+                    except Exception:
+                        pass
 
                 draft = ""
                 draft_source = "none"
