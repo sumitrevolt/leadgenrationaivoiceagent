@@ -1,4 +1,4 @@
-"""Contract tests: deploy_vps.sh rolls the app via systemd, not compose.
+"""Contract tests: deploy_vps.sh rolls the web app by proven live topology.
 
 Context (2026-09-15, owner decision: systemd is the authoritative serving path).
 Production serves :8000 from the systemd unit `leadgen`
@@ -65,13 +65,16 @@ def _resolver_body() -> str:
 # ---------------------------------------------------------------- app rollout
 
 
-def test_app_is_not_in_the_compose_rollout_surface():
+def test_app_is_added_only_to_the_compose_rollout_surface():
     t = _text()
     assert 'SERVICES="worker scheduler worker-heavy worker-video"' in t
     assert 'SERVICES="app ' not in t
+    assert 'WEB_ROLLOUT_SERVICE=""' in t
+    assert 'WEB_ROLLOUT_SERVICE="app"' in t
     # dsh worker still deploys in lockstep
     assert 'DSH_SERVICES="dsh-worker"' in t
     assert 'ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"' in t
+    assert 'ALL_ROLLOUT_SERVICES="$WEB_ROLLOUT_SERVICE $SERVICES $DSH_SERVICES"' in t
 
 
 def test_env_app_version_is_written_in_place_not_appended():
@@ -105,8 +108,9 @@ def test_unit_is_restarted_after_pull_and_before_health_verify():
 
 def test_restart_is_guarded_on_the_unit_existing():
     t = _text()
-    assert "if systemctl cat leadgen >/dev/null 2>&1;" in t
-    assert "no systemd unit 'leadgen' — app is container-managed" in t
+    assert 'if [ "$WEB_TOPOLOGY" = "systemd" ]; then' in t
+    assert "if ! systemctl cat leadgen >/dev/null 2>&1; then" in t
+    assert "Compose app moved with the verified worker cohort" in t
 
 
 def test_write_is_verified_before_restarting():
@@ -123,8 +127,8 @@ def test_rollout_failure_uses_a_distinct_exit_code():
     t = _text()
     # 10 must not collide with the pre-existing refusal exits (1-9, 91, 92)
     codes = sorted({int(m) for m in re.findall(r"^\s*exit (\d+)\s*$", t, re.MULTILINE)})
-    assert codes == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 91, 92], codes
-    assert len(re.findall(r"^\s*exit 10\s*$", t, re.MULTILINE)) == 4
+    assert codes == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 91, 92], codes
+    assert len(re.findall(r"^\s*exit 10\s*$", t, re.MULTILINE)) == 5
 
 
 # ------------------------------------------------------------------- resolver

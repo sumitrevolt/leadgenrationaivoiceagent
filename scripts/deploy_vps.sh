@@ -30,34 +30,41 @@ COMPOSE=docker-compose.vps.yml
 # recreation and version skew can still occur. DSH worker is a separately built
 # hardened image but shares APP_VERSION provenance and must deploy in lockstep.
 #
-# `app` is deliberately NOT in this list (2026-09-15, owner decision: systemd is
-# the authoritative serving path). Production serves :8000 from the systemd unit
-# `leadgen` — EnvironmentFile=/opt/leadgen/.env, host uvicorn — NOT from a
-# container, so no `leadgen_app` container exists and the
-# `127.0.0.1:8000:8080` publish declared for `app` in docker-compose.vps.yml can
-# never bind while that unit holds the port. Keeping `app` here made the skew
-# check fail closed on a service that cannot run. The app is rolled by
-# `systemctl restart leadgen` after the live checkout moves; see below.
+# These four services exist in both supported serving topologies and remain the
+# lineage planner's canonical set. The web service is selected separately after
+# proving that EXACTLY ONE of systemd or Compose owns port 8000.
 SERVICES="worker scheduler worker-heavy worker-video"
 DSH_SERVICES="dsh-worker"
+WEB_ROLLOUT_SERVICE=""
 ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"
 DRY_RUN="${DRY_RUN:-0}"
 
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 
-# This release path still rolls the web app through systemd. Some hosts now
-# serve port 8000 from the Compose app container instead. Refuse that topology
-# before candidate creation, image builds, checkout movement, or container
-# recreation; otherwise workers can advance while the customer-facing app does
-# not. A Docker-serving release needs a reviewed app-container rollout first.
+# Prove the live serving topology before candidate creation, image builds,
+# checkout movement, or container recreation. Dual-active and no-web states are
+# ambiguous and always refuse. Docker mode adds `app` to the exact same rollout
+# cohort as its workers; systemd mode keeps the established restart path.
 _systemd_app_active=0
 _docker_app_running="$(docker inspect -f '{{.State.Running}}' leadgen_app 2>/dev/null || true)"
 systemctl is-active --quiet leadgen >/dev/null 2>&1 && _systemd_app_active=1
-if [ "$_docker_app_running" = "true" ] || [ "$_systemd_app_active" -ne 1 ]; then
-  echo "FATAL: unsupported web-serving topology for this systemd-only deploy path."
+if [ "$_systemd_app_active" -eq 1 ] && [ "$_docker_app_running" != "true" ]; then
+  WEB_TOPOLOGY="systemd"
+elif [ "$_systemd_app_active" -eq 0 ] && [ "$_docker_app_running" = "true" ]; then
+  WEB_TOPOLOGY="compose"
+  WEB_ROLLOUT_SERVICE="app"
+  ALL_ROLLOUT_SERVICES="$WEB_ROLLOUT_SERVICE $SERVICES $DSH_SERVICES"
+else
+  echo "FATAL: ambiguous or absent web-serving topology."
   echo "       systemd_active=$_systemd_app_active docker_app_running=${_docker_app_running:-unknown}"
-  echo "       Refusing before any release mutation; reconcile app rollout first."
+  echo "       Refusing before any release mutation; exactly one owner is required."
   exit 10
+fi
+echo "WEB_TOPOLOGY=$WEB_TOPOLOGY"
+if [ "$WEB_TOPOLOGY" = "compose" ] && [ "${ROLLBACK_DB_COMPATIBLE:-0}" != "1" ]; then
+  echo "FATAL: Compose rollout requires ROLLBACK_DB_COMPATIBLE=1 after migration review."
+  echo "       Refusing before any release mutation because rollback is not acknowledged."
+  exit 11
 fi
 
 # ---------------------------------------------------- runtime-data guard
@@ -79,7 +86,11 @@ fi
 # before git pull" test could not, because the line WAS there and still failed
 # open. 91 = guard unavailable, distinct from 90 = guard ran and denied.
 _script_dir="$(cd "$(dirname "$0")" && pwd)"
-for _dep in _deploy_gate_container.sh _deploy_candidate.sh _runtime_data_guard.sh; do
+_release_helpers="_deploy_gate_container.sh _deploy_candidate.sh _runtime_data_guard.sh"
+if [ "$WEB_TOPOLOGY" = "compose" ]; then
+  _release_helpers="$_release_helpers rollback_vps_compose.sh"
+fi
+for _dep in $_release_helpers; do
   if [ ! -r "$_script_dir/$_dep" ]; then
     echo "FATAL: release helper not found or unreadable at: $_script_dir/$_dep"
     echo "       Refusing to deploy unguarded. Restore it, do not remove the call."
@@ -213,7 +224,7 @@ if [ -z "$ENV_APP_VER" ] || [ "$ENV_APP_VER" = "dev" ]; then
   echo "       FIX: sed -i 's/^APP_VERSION=.*/APP_VERSION=$VER/' .env"
   ENV_ERRORS=$((ENV_ERRORS + 1))
 fi
-if echo "$ENV_DB_URL" | grep -q '@pgbouncer:'; then
+if [ "$WEB_TOPOLOGY" = "systemd" ] && echo "$ENV_DB_URL" | grep -q '@pgbouncer:'; then
   echo "FATAL: .env DATABASE_URL uses Docker DNS '@pgbouncer:6432'."
   echo "       Systemd runs on HOST, not in Docker network — cannot resolve."
   echo "       FIX: sed -i 's|@pgbouncer:6432|@127.0.0.1:5432|' .env"
@@ -529,20 +540,15 @@ if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
   fi
 fi
 
-# ------------------------------------ app rollout: restart the systemd unit
-# The app is served by systemd (`leadgen`), NOT by a container, so rolling it is
-# not a compose operation and `app` is absent from SERVICES above. The unit is
-# restarted HERE — after every fail-closed gate (runtime-data guard, deployment
-# gate, live pull, lineage capture, compose rollout, alembic) has passed — because
-# EnvironmentFile is a snapshot taken at process start and app/main.py never
-# re-reads .env: new code on disk is not live until the process is replaced.
-# Restarting earlier would move production and THEN abort on a later gate, which
-# is a partial deploy — worse than the failure it was meant to fix. It must still
-# precede the /health verify below, which reads this very process.
-# Guarded on the unit existing so the script still works on a host that has not
-# adopted the systemd serving path. Exit 10 is distinct from the other refusal
-# exits (1/2/3/4/5/7/8) so a failed release is diagnosable from its code alone.
-if systemctl cat leadgen >/dev/null 2>&1; then
+# --------------------------------------------- web rollout by proven topology
+# Compose mode already recreated `app` with the worker cohort above. Never
+# restart an inactive-but-installed systemd unit on that host: it would race the
+# container for 127.0.0.1:8000 and can turn a good rollout into an outage.
+if [ "$WEB_TOPOLOGY" = "systemd" ]; then
+  if ! systemctl cat leadgen >/dev/null 2>&1; then
+    echo "FATAL: systemd topology was selected but unit 'leadgen' is unavailable."
+    exit 10
+  fi
   echo "=== app rollout: systemctl restart leadgen ==="
   if ! systemctl restart leadgen; then
     echo "FATAL: systemctl restart leadgen failed — prod is NOT running the gated code."
@@ -550,7 +556,7 @@ if systemctl cat leadgen >/dev/null 2>&1; then
   fi
   echo "  systemctl restart leadgen -> OK"
 else
-  echo "=== app rollout: no systemd unit 'leadgen' — app is container-managed ==="
+  echo "=== app rollout: Compose app moved with the verified worker cohort ==="
 fi
 
 sleep 22
