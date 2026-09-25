@@ -16,7 +16,21 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_JSONL_PATH = os.path.join("data", "automation_logs.jsonl")
+_JSONL_PATH = "data/automation_logs.jsonl"
+
+
+def _resolved_jsonl_path() -> str:
+    """Resolve the fallback log path at operation time (tests redirect safely)."""
+    if _JSONL_PATH != "data/automation_logs.jsonl":
+        return _JSONL_PATH
+    if (os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or "").strip().lower() in {
+        "test",
+        "testing",
+    }:
+        from app.platform import runtime_data as _runtime_data
+
+        return str(_runtime_data.store_path("automation", "automation_logs.jsonl"))
+    return _JSONL_PATH
 
 
 def _now() -> str:
@@ -77,7 +91,8 @@ def log_event(
         logger.debug("AutomationLog DB write failed, falling back to JSONL: %s", exc)
         # Fallback to JSONL file
         try:
-            os.makedirs(os.path.dirname(_JSONL_PATH), exist_ok=True)
+            jsonl_path = _resolved_jsonl_path()
+            os.makedirs(os.path.dirname(jsonl_path), exist_ok=True)
             rec = {
                 "id": log_id,
                 "client_id": client_id,
@@ -96,7 +111,7 @@ def log_event(
                 "meta_json": meta_json,
                 "created_at": _now(),
             }
-            with open(_JSONL_PATH, "a", encoding="utf-8") as f:
+            with open(jsonl_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
             return log_id
         except Exception as e2:
@@ -158,11 +173,12 @@ def _row_to_dict(r: Any) -> dict[str, Any]:
 def _read_jsonl(
     client_id: str = "", job_type: str = "", status: str = "", days: int = 7, limit: int = 200
 ) -> list[dict[str, Any]]:
-    if not os.path.isfile(_JSONL_PATH):
+    path = _resolved_jsonl_path()
+    if not os.path.isfile(path):
         return []
     rows: list[dict[str, Any]] = []
     try:
-        with open(_JSONL_PATH, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
