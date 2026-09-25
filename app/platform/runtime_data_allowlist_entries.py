@@ -2021,6 +2021,135 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Must stay read-only; never mutate or truncate the inbox.",
     },
+    # --- 2026-09-25: unblock prod_check ratchet (3 layers of the 1CR sweep) ---
+    # These three findings appeared AFTER the baseline was frozen (788 entries),
+    # so the ratchet reported them as newly-unresolved debt and failed CI on 29
+    # of 30 open PRs. Each is classified here from the code, not absorbed.
+    {
+        "allowlist_id": "ops.telegram_polling_lease.store",
+        "file": "app/platform/telegram_coordinator.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": '_LEASE_PATH.with_suffix(".tmp")',
+        "store_id": "ops.telegram_setup_state",
+        "access_modes": ["REPLACE"],
+        "reason": (
+            "Single-writer polling lease for the Telegram owner ingress. The "
+            "detected finding is the `tmp = _LEASE_PATH.with_suffix('.tmp')` "
+            "atomic-rename staging file: the code writes tmp then "
+            "os.replace(tmp, _LEASE_PATH). This entry declares ONLY that staging "
+            "write (REPLACE on the .tmp companion), not the lease store itself -- "
+            "the scanner's .tmp-companion rule maps it onto the store it hangs "
+            "off, and this store is mutable coordination state, not a cache."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "communications",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "The lease prevents duplicate Telegram polling (the 409 war of "
+            "2026-09-24). Any change that makes the write non-atomic, drops "
+            "os.replace, or lets two pollers write concurrently must re-verify "
+            "single-poller containment."
+        ),
+    },
+    {
+        "allowlist_id": "platform.typesafe_runtime_keys.probe_read",
+        "file": "app/platform/typesafe_integration.py",
+        "line_or_symbol": "_RUNTIME_KEYS_FILE",
+        "path_pattern": "data/typesafe_keys.json",
+        "store_id": "platform.typesafe_intake_trace",
+        "access_modes": ["READ"],
+        "reason": (
+            "Optional runtime override of TypeSafe credentials. This file holds "
+            "raw API-key strings, so it is explicitly NOT a rebuildable cache: "
+            "the app READS it, the admin CLI writes it, .env stays canonical, and "
+            "the file is gitignored. Classified TIER_NONE + FALLBACK_ONLY + "
+            "secret-config: a read of a secret store, never a cache to wipe. "
+            "Scope here is the READ only; the writer is admin-CLI and stays "
+            "classified separately."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "ai",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must stay gitignored and must never be logged, printed or returned "
+            "by a status endpoint -- report key state as a fingerprint only "
+            "(scripts/typesafe_status.py --probe). Any change that echoes its "
+            "contents is a secret-leak regression."
+        ),
+    },
+    {
+        "allowlist_id": "command_center.pilot_tasks.legacy_run_tick",
+        "file": "scripts/legacy/pilot_run_tick.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "Three DEAD pilot scripts (pilot_run_tick.py, pilot_nudge_run.py, "
+            "pilot_dispatch_0830_1455.py) mutate a command_center scratch task "
+            "list. They are superseded local-tooling leftovers, referenced by "
+            "nothing under app/ (verified by grep), and are not a live store "
+            "authority. Classified OFFLINE_TOOLING so the ratchet stops reading "
+            "their writes as undeclared live debt."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Prefer deletion: if these scripts are removed, delete this entry in "
+            "the same change so it does not go STALE. Must never become a "
+            "dependency of a live app path."
+        ),
+    },
+    # The two sibling legacy scripts below reach the SAME
+    # command_center/data/tasks.json store, so they reuse the existing
+    # command_center.pilot_tasks store_id. The allowlist matches per file+symbol,
+    # which is why each file needs its own entry.
+    {
+        "allowlist_id": "command_center.pilot_tasks.legacy_nudge_run",
+        "file": "scripts/legacy/pilot_nudge_run.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "Dead pilot script mutating the same command_center scratch task list "
+            "as pilot_run_tick.py. Superseded local-tooling leftover, referenced "
+            "by nothing under app/ (verified by grep), not a live store authority."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Prefer deletion: remove this entry in the same change if the script "
+            "goes. Must never become a dependency of a live app path."
+        ),
+    },
+    {
+        "allowlist_id": "command_center.pilot_tasks.legacy_dispatch_0830_1455",
+        "file": "scripts/legacy/pilot_dispatch_0830_1455.py",
+        "line_or_symbol": "p",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "Dead pilot dispatch script mutating the same command_center scratch "
+            "task list. Superseded local-tooling leftover, referenced by nothing "
+            "under app/ (verified by grep), not a live store authority."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": (
+            "Prefer deletion: remove this entry in the same change if the script "
+            "goes. Must never become a dependency of a live app path."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
