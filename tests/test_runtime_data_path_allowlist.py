@@ -198,7 +198,6 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "ops.office_briefing",
         "ops.owner_email_canary",
         "ops.owner_feed",
-        "ops.telegram_setup_state",
         "ops.telegram_group_ids",
         "ops.telegram_setup_state",
         "ops.waha_watchdog",
