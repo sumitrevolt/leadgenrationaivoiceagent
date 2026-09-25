@@ -10,12 +10,17 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "deploy_vps.sh"
 def _guard() -> str:
     source = SCRIPT.read_text(encoding="utf-8")
     start = source.index("_systemd_app_active=0")
-    end = source.index("# ---------------------------------------------------- runtime-data guard", start)
+    end = source.index(
+        "# ---------------------------------------------------- runtime-data guard",
+        start,
+    )
     assert end < source.index("candidate_add")
     return source[start:end]
 
 
-def _run_guard(*, systemd_active: bool, docker_running: bool) -> subprocess.CompletedProcess:
+def _run_guard(
+    *, systemd_active: bool, docker_running: bool
+) -> subprocess.CompletedProcess:
     st = 0 if systemd_active else 3
     value = "true" if docker_running else "false"
     fake = f"systemctl() {{ return {st}; }}\ndocker() {{ echo {value}; }}\n"

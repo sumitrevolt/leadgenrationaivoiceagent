@@ -96,7 +96,7 @@ def test_unit_is_restarted_after_pull_and_before_health_verify():
     # the echo banner, both of which sit BEFORE the pull and would false-pass.
     m = re.search(r"if ! systemctl restart leadgen; then", t)
     assert m, "deploy_vps.sh must restart the systemd unit"
-    health = t.index('curl -s -m 10 127.0.0.1:8000/health')
+    health = t.index("curl -s -m 10 127.0.0.1:8000/health")
     assert pull < m.start() < health, (
         "systemctl restart leadgen must sit between the live pull and the "
         "/health verify, else /health reads a frozen APP_VERSION and exits 3"
