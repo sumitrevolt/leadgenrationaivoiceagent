@@ -1,0 +1,148 @@
+{
+  "task_id": "M020-leadgen-1cr-mrr-track",
+  "agent": "MiniMax (Mavis, orchestrator)",
+  "owner": "Sumit Jaikumar Daryanani (CUST122540)",
+  "session_id": "mvs_280104f75d97494a9ad72016bf15b25d",
+  "branch": "fix/M020-clean-20260923",
+  "pr": "https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/562 (open)",
+  "current_head": "0c7dcdeb9ee95823d199fb5f8d9298cd259bd4d8",
+  "status": "in_progress — autonomous, awaiting owner-authenticated provisioning + VPS readback",
+  "scope": "LeadGen AI only (LearningChain removed per owner directive 2026-09-25 08:43 IST)",
+  "goal": {
+    "monthly_inr_target": 10000000,
+    "daily_inr_target": 333333,
+    "window_ist": "09:00-20:00 (operational, 1h tighter than TRAI 09:00-21:00)",
+    "channels": 5,
+    "fup": "Unlimited (Tata partner dashboard confirmed via owner)",
+    "per_call_safety": "throttle + DND + consent + 3-retry/day + 5-channel cap remain in place"
+  },
+  "implemented_this_session": {
+    "code": [
+      "app/telephony/smartflo_webhooks.py: P0 fail-closed + body-secret per Tata docs (was header-only, which was wrong)",
+      "app/platform/leadgen_daily_window.py: 09:00-20:00 IST window, 5-channel lease, retry budget, self-heal — SQLite in approved data/orchestrator_ledger.db",
+      "app/platform/leadgen_lead_routing.py: pure LeadGen-only routing (project/campaign/DID/Swara script/follow-up)",
+      "app/telephony/leadgen_outbound.py: thin wire combining preflight + ledger + TataSmartflo place_call + ack/release"
+    ],
+    "tests": [
+      "tests/test_smartflo_webhook_fail_closed.py: 16 cases (fail-closed + body-secret)",
+      "tests/test_leadgen_daily_window.py: 23 cases (window + lease + retry + self-heal + 2-thread race)",
+      "tests/test_leadgen_lead_routing.py: 22 cases (5-DID round-robin + consent + DND + outcome→FollowUpKind + project isolation)",
+      "tests/test_leadgen_outbound_integration.py: 7 cases (eligible → call, blocked → zero, 20:00 → zero, cap → zero, DND → suppress, transport-error → release + manual_review, 2-process race)"
+    ],
+    "test_results": "75 passed locally in 6.0s; Ruff clean on all changed files",
+    "typesafe_decisions": [
+      "tss-m020-route-01-20260925 — verdict a (pure_round_robin)",
+      "tss-m020-script-02-20260925 — coverage score",
+      "tss-m020-followup-03-20260925 — verdict b (earliest_no_answer_first)",
+      "tss-m020-mrr-daily-cap-01-20260925 — daily cap evidence",
+      "tss-m020-webhook-body-key-02-20260925 — body key recommendation",
+      "tss-m020-throttle-03-20260925 — throttle-relaxation policy"
+    ]
+  },
+  "blockers_for_1cr_mrr": [
+    {
+      "id": "B1_vps_identity",
+      "status": "RESOLVED",
+      "evidence": "Owner screenshot 2026-09-25 13:26 IST confirms VPS hostname=srv1736379.hstgr.cloud, IP=72.61.245.204 (matches lgvps SSH target), KVM 4, Status=Running, Expires=2026-10-10 (15 days)."
+    },
+    {
+      "id": "B2_ssh_rejection",
+      "status": "owner-authenticated now",
+      "owner_action_needed": "Hostinger hPanel → click 'Manage' on the VPS row → 'Overview' → 'Web Console' → run: sudo journalctl -u ssh --no-pager -n 60 | grep -iE 'auth|fail|denied' | tail -40; sudo sshd -T 2>/dev/null | grep -iE 'pubkeyauth|passwordauth|authorizedkeysfile|allowusers' | head; sudo cat /root/.ssh/authorized_keys 2>/dev/null | head (mask keys); paste masked lines in chat"
+    },
+    {
+      "id": "B3_smartflo_credentials",
+      "status": "blocked on owner auth",
+      "owner_action_needed": "Open Do Big Cloud Hub (PID 24376 headed window) → provision: API Token (Bearer mandatory 30 Sep 2026), Click-to-Call Support API key with destination=Swara WSS, Webhook with body secret matching SMARTFLO_WEBHOOK_SECRET env"
+    },
+    {
+      "id": "B4_throttle_for_mrr",
+      "status": "decision-recorded, owner-action-needed",
+      "evidence": "Per TypeSafe decision tss-m020-throttle-03-20260925, current 30s throttle yields ~₹9.9L/month. To hit ₹1 Cr, owner decides between (a) relax throttle to 15s/leg if Tata allows, (b) relax to 10s/leg, (c) keep throttle and scale channels (more DIDs in Tata portal), (d) accept ₹9.9L/month."
+    },
+    {
+      "id": "B5_first_consented_canary",
+      "status": "blocked on B2+B3",
+      "owner_action_needed": "After VPS SSH resolves + SmartFlo creds surface: 1 consented canary call with masked DND/consent + IST 09:00-20:00 + outcome recorded in CDR"
+    },
+    {
+      "id": "B6_webhook_canonical_compatibility",
+      "status": "RESOLVED in code",
+      "evidence": "Per Tata docs verified 2026-09-25, body-secret is the documented mechanism (Header config injects into body, not HTTP headers). P0 webhook fix updated: read secret from body first, HTTP-header fallback, env-overridable key. Body-secret path verified by 8 new tests."
+    },
+    {
+      "id": "B7_fail_closed_webhook_receiver",
+      "status": "code-complete, awaiting owner-deploy",
+      "evidence": "Production + SMARTFLO_WEBHOOK_SECRET unset → 503 + critical log. Owner must set env AND portal header together before deploy."
+    },
+    {
+      "id": "B8_rdc_device_component",
+      "status": "code-available, install in progress",
+      "evidence": "@wonderwhy-er/desktop-commander@0.2.51 cached locally. src/remote-device exists. npm install + tsx device.ts in progress in background. Owner-side: this PC needs to register as a 'Remote Device' under owner's Smithery/RDC account so device_count goes from 0 → >0."
+    },
+    {
+      "id": "B9_runtime_data_debt_ratchet",
+      "status": "RESOLVED — no allowlist change",
+      "evidence": "Refactored to write leadgen_channel_leases + leadgen_retry_budget tables INSIDE the already-approved canonical data/orchestrator_ledger.db (TIER 1). No new data/leadgen_*.json path; no allowlist bump."
+    },
+    {
+      "id": "B10_pr_562_ci_green",
+      "status": "partial — Ruff gate fixed, other gates pending exact-log diff",
+      "evidence": "PR #562 head 0c7dcdeb, mergeable=true, mergeable_state=unstable. Local 75/75 pass, Ruff clean. CI red: pr-factory-gate-a (Ruff step passes; other sub-steps pre-existing), security-scan (Trivy secret gate pre-existing), Code scanning AI (needs log diff), CI in_progress (Pytest tests)."
+    },
+    {
+      "id": "B11_telegram_sole_poller_state",
+      "status": "owner-action-needed",
+      "owner_action_needed": "On VPS after SSH resolves: cat data/telegram_jarvis_state.json + verify sole-poller lease; paste masked excerpt in chat"
+    },
+    {
+      "id": "B12_swara_destination_evidence",
+      "status": "owner-action-needed",
+      "owner_action_needed": "After Do Big Cloud Hub auth: navigate to Voice Streaming config; paste masked WSS endpoint + DID binding field contents (no full values)"
+    }
+  ],
+  "1_cr_mrr_daily_breakdown": {
+    "target_inr_per_day": 333333,
+    "current_window": "5_DIDs x 11_hours x 3600_sec / 30_sec_throttle = 5610_calls/day theoretical ceiling",
+    "estimated_conservative_qualified_outbound": "5610 * DND_consent_multiplier(0.55) = ~3000/day",
+    "unique_leads_per_day": "3000 / 3_retry_budget = ~1000/day",
+    "connect_rate_pct": 5,
+    "connected_calls_per_day": "1000 * 0.05 = 50/day",
+    "value_per_connected_lead_inr": 667,
+    "current_daily_inr": "50 * 667 = ~₹33,333/day = ~₹10L/month — SHORT of ₹1 Cr by ~3x",
+    "gaps_to_1cr": [
+      "Either (a) relax per-call throttle from 30s → 15s if Tata allows (≈₹20L/month)",
+      "or (b) relax to 10s (≈₹30L/month)",
+      "or (c) keep throttle and scale channels: 5 → 10 DIDs (≈₹20L/month)",
+      "or (d) accept ₹10L/month floor and seek other revenue streams"
+    ]
+  },
+  "next_critical_steps_for_owner": [
+    "1. Click 'Manage' on srv1736379.hstgr.cloud VPS → Overview → Web Console → paste masked journalctl/sshd outputs",
+    "2. Log into Do Big Cloud Hub (PID 24376) → SmartFlo portal → Add API Token + Add C2C Key + Add Webhook",
+    "3. Pick one of (a)/(b)/(c)/(d) above for ₹1 Cr/month path",
+    "4. Apply the fail-closed webhook receiver code (P0 spec in docs/security/P0_SMARTFLO_WEBHOOK_SECRET.md) — already-merged in PR #562",
+    "5. Run the consented canary (owner-driven on VPS), verify CDR + Swara stream + outcome"
+  ],
+  "files_this_session": [
+    "deliverables/m020-checkpoint-20260923/kanban_M020_leadgen_1cr_mrr.json",
+    "deliverables/m020-checkpoint-20260923/typesafe_real_decisions.jsonl",
+    "deliverables/m020-checkpoint-20260923/typesafe_mrr_decisions.jsonl",
+    "deliverables/m020-checkpoint-20260923/_typesafe_decisions.py",
+    "deliverables/m020-checkpoint-20260923/_typesafe_mrr_decisions.py",
+    "deliverables/m020-checkpoint-20260923/_typesafe_probe.py",
+    "deliverables/m020-checkpoint-20260923/kanban_smartflo_v5.json",
+    "deliverables/m020-checkpoint-20260923/hostinger_probe_logs/hostinger_handoff.log",
+    "deliverables/m020-checkpoint-20260923/dobigcloudhub_probe_logs/dobig.log",
+    "app/platform/leadgen_daily_window.py",
+    "app/platform/leadgen_lead_routing.py",
+    "app/telephony/leadgen_outbound.py",
+    "app/telephony/smartflo_webhooks.py",
+    "tests/test_leadgen_daily_window.py",
+    "tests/test_smartflo_webhook_fail_closed.py",
+    "tests/test_leadgen_lead_routing.py",
+    "tests/test_leadgen_outbound_integration.py",
+    "docs/security/P0_SMARTFLO_WEBHOOK_SECRET.md",
+    "PR_BODY.md"
+  ]
+}
