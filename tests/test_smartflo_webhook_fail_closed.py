@@ -133,3 +133,120 @@ def test_webhook_secret_production_never_bypassed_even_with_flag(client_for):
     resp = client.post("/tata-smartflo", json={"call_id": "x"})
     # Still 503 because production is production; flag is ignored.
     assert resp.status_code == 503
+
+
+# ----- Body-injected secret (per Tata Smartflo docs 2026-09-25) -------------
+# Per official docs, the portal "Headers" section injects key/value into the
+# REQUEST BODY, not into HTTP headers. So the receiver must look up the
+# configured secret in the parsed JSON body.
+
+
+def test_webhook_secret_in_body_passes(client_for):
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={
+            "$call_id": "CA-body-001",
+            "$call_status": "completed",
+            "$duration": "30",
+            "$customer_number": "+91xxxxxxxxxx",
+            "X-Smartflo-Secret": "matching-secret-32chars-min",
+        },
+    )
+    assert resp.status_code == 200
+
+
+def test_webhook_secret_in_body_wrong_value_returns_401(client_for):
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={
+            "$call_id": "CA-body-002",
+            "$call_status": "completed",
+            "X-Smartflo-Secret": "wrong-secret",
+        },
+    )
+    assert resp.status_code == 401
+
+
+def test_webhook_secret_in_body_normalized_dollar_prefix(client_for):
+    """Body may carry ``$X-Smartflo-Secret`` (Tata docs use ``$`` sigil)."""
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={
+            "$call_id": "CA-body-003",
+            "X-Smartflo-Secret": "matching-secret-32chars-min",
+        },
+    )
+    assert resp.status_code == 200
+
+
+def test_webhook_secret_body_overrides_header(client_for):
+    """If both body and header carry the secret, body wins (Tata-doc mechanism)."""
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={
+            "$call_id": "CA-body-004",
+            "X-Smartflo-Secret": "matching-secret-32chars-min",  # body has correct
+        },
+        headers={"X-Smartflo-Secret": "wrong-secret"},  # header has wrong
+    )
+    assert resp.status_code == 200
+
+
+def test_webhook_secret_header_only_when_body_missing(client_for):
+    """HTTP header is fallback when body has no secret field."""
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={"$call_id": "CA-body-005"},
+        headers={"X-Smartflo-Secret": "matching-secret-32chars-min"},
+    )
+    assert resp.status_code == 200
+
+
+def test_webhook_secret_custom_body_key(client_for):
+    """Operator can rename the body key via SMARTFLO_WEBHOOK_SECRET_BODY_KEY."""
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+        SMARTFLO_WEBHOOK_SECRET_BODY_KEY="MySecret",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={
+            "$call_id": "CA-body-006",
+            "MySecret": "matching-secret-32chars-min",
+        },
+    )
+    assert resp.status_code == 200
+
+
+def test_webhook_secret_custom_body_key_wrong_returns_401(client_for):
+    client = client_for(
+        ENV="production",
+        SMARTFLO_WEBHOOK_SECRET="matching-secret-32chars-min",
+        SMARTFLO_WEBHOOK_SECRET_BODY_KEY="MySecret",
+    )
+    resp = client.post(
+        "/tata-smartflo",
+        json={"$call_id": "x", "MySecret": "wrong-secret"},
+    )
+    assert resp.status_code == 401

@@ -179,21 +179,29 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
 
     Best-effort; returns 200 so Smartflo does not retry (it retries twice when
     we don't answer). Logs the event and triggers billing / lead updates.
+
+    Auth semantics — verified against
+    https://docs.smartflo.tatatelebusiness.com/docs/webhook (2026-09-25):
+
+      - Smartflo does NOT sign the request.
+      - The portal "Headers" section does NOT inject HTTP headers on the
+        request Smartflo sends to us. It injects additional top-level keys
+        INTO THE REQUEST BODY (the JSON payload Tata POSTs).
+      - We look up the configured secret in the body first (documented),
+        then fall back to the ``X-Smartflo-Secret`` HTTP header (in case
+        the operator front-ends Tata with a reverse-proxy that adds it).
+
+    When SMARTFLO_WEBHOOK_SECRET is UNSET in production we REJECT with 503:
+    silently accepting unauthenticated CDR/billing/lead events would let any
+    third party spoof call outcomes, trigger fraudulent billing metering,
+    and poison the funnel. Dev/test opt-in only via ALLOW_UNAUTH_WEBHOOK.
     """
-    # --- Shared-secret auth (P0 fail-closed) ---------------------------------
-    # Smartflo does not provide its own authentication. When the operator has
-    # configured SMARTFLO_WEBHOOK_SECRET in the portal's "Headers" section, we
-    # require a matching ``X-Smartflo-Secret`` header (constant-time compare).
-    # When the secret is UNSET in production we REJECT the request with 503:
-    # silently accepting unauthenticated CDR/billing/lead events would let any
-    # third party spoof call outcomes, trigger fraudulent billing metering,
-    # and poison the funnel. Dev/test opt-in only via ALLOW_UNAUTH_WEBHOOK.
     secret = _webhook_secret()
     if not secret:
         if _allow_unauth_webhook():
             logger.warning(
                 "[smartflo-webhook] ALLOW_UNAUTH_WEBHOOK=true in non-production; "
-                "accepting request WITHOUT secret header. NEVER use in prod."
+                "accepting request WITHOUT secret. NEVER use in prod."
             )
         else:
             logger.critical(
@@ -204,11 +212,11 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
                 content={"error": "webhook_auth_not_configured"},
                 status_code=503,
             )
+        body_secret = ""
+        header_secret = ""
     else:
-        provided = request.headers.get("X-Smartflo-Secret", "")
-        if not hmac.compare_digest(provided, secret):
-            logger.warning("[smartflo-webhook] rejected: bad/missing secret")
-            return JSONResponse(content={"ok": False}, status_code=401)
+        body_secret = ""     # populated below
+        header_secret = request.headers.get("X-Smartflo-Secret", "")
 
     # --- Parse body (JSON or form-urlencoded) -------------------------------
     try:
@@ -220,6 +228,20 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
             body = dict(await request.form())
         except Exception:
             body = {}
+
+    if secret:
+        # Populate body_secret NOW that body is parsed.
+        # The operator-chosen header name (env-overridable) is what Tata will
+        # inject; default is ``X-Smartflo-Secret`` to match the HTTP-header
+        # fallback name.
+        body_secret_key = os.getenv("SMARTFLO_WEBHOOK_SECRET_BODY_KEY", "X-Smartflo-Secret")
+        # Check both raw and normalized ($-stripped) variants
+        body_secret = body.get(body_secret_key) or body.get(body_secret_key.lstrip("$")) or ""
+        provided = body_secret or header_secret
+        if not hmac.compare_digest(provided or "", secret):
+            logger.warning("[smartflo-webhook] rejected: bad/missing secret (body=%s header=%s)",
+                           bool(body_secret), bool(header_secret))
+            return JSONResponse(content={"ok": False}, status_code=401)
 
     # Smartflo documents variables with a ``$`` sigil; accept both forms.
     data = _normalize_keys(body)

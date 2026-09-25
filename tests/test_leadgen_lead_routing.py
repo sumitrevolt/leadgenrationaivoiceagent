@@ -15,13 +15,13 @@ import pytest
 
 from app.platform.leadgen_lead_routing import (
     LEADGEN_DIDS,
-    Outcome,
     FollowUpKind,
-    route_lead,
-    round_robin_did,
+    Outcome,
+    perform_consent_checks,
     resolve_campaign,
     resolve_swara_script_id,
-    perform_consent_checks,
+    round_robin_did,
+    route_lead,
 )
 
 
@@ -140,7 +140,7 @@ def test_route_lead_did_round_robin_deterministic():
 
 def test_route_lead_5_dids_distributed_across_50_leads():
     consent = perform_consent_checks(True, False, False)
-    counts = {did: 0 for did in LEADGEN_DIDS}
+    counts = dict.fromkeys(LEADGEN_DIDS, 0)
     for i in range(50):
         r = route_lead(rr_index=i, lead_source=None, consent=consent)
         counts[r.did] += 1
