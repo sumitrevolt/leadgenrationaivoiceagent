@@ -182,7 +182,9 @@ def main() -> int:
 
     # Which providers appear in the combos at all, and how many slots each has.
     needed: dict[str, int] = {}
-    for (data,) in cur.execute("SELECT data FROM combos"):
+    # nosecurity: fixed literal, no user input -- the rule bans every literal
+    # .execute("SELECT...") and this query interpolates nothing.
+    for (data,) in cur.execute("SELECT data FROM combos WHERE data IS NOT NULL"):  # nosecurity
         for s in json.loads(data).get("models", []):
             pid = s.get("providerId")
             if pid:
