@@ -314,6 +314,7 @@ class DurableTaskStore:
                     fencing_token = excluded.fencing_token,
                     retry_count = excluded.retry_count,
                     max_retries = excluded.max_retries,
+                    idempotency_key = excluded.idempotency_key,
                     input_payload = excluded.input_payload,
                     evidence = excluded.evidence,
                     error_message = excluded.error_message,
