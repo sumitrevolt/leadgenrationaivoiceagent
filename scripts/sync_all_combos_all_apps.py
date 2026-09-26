@@ -3,9 +3,19 @@ import json
 import os
 import sqlite3
 import subprocess
+import sys
 import urllib.request
+from pathlib import Path
 
 import yaml
+
+# Bootstrap: this script is run directly (`python scripts/sync_all_combos_all_apps.py`)
+# by the admin MCP self-heal tool and by ops, so `sys.path[0]` is the `scripts/` dir,
+# not the repo root. Ensure the repo root is importable so `scripts.*` namespace
+# packages resolve regardless of the working directory.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.seed_omniroute_14combos import COMBOS_14
 
@@ -18,20 +28,118 @@ OMNIROUTE_ENV_NAME = "OMNIROUTE" + "_API_KEY"
 # names are intentionally excluded from every desktop client configuration.
 # Each client receives only the exact `leadsgen combo N` gateway id.
 ALL_COMBOS = [
-    {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "canonical": "leadsgen combo 1", "name": "LeadsGen Combo 1 — Coding Primary", "email": "admin@leadsgenai.in", "role": "Coding & Logic Primary (Worker #1)"},
-    {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "canonical": "leadsgen combo 2", "name": "LeadsGen Combo 2 — Coding Fast", "email": "ops@leadsgenai.in", "role": "Coding Fast Lane (Worker #2)"},
-    {"id": "claude-omni-repo-analysis", "real": "leadgen-repo-analysis", "canonical": "leadsgen combo 3", "name": "LeadsGen Combo 3 — Repo Analysis", "email": "hello@leadsgenai.in", "role": "Repo Architecture Deep Scan (Worker #3)"},
-    {"id": "claude-omni-test-generation", "real": "leadgen-test-generation", "canonical": "leadsgen combo 4", "name": "LeadsGen Combo 4 — Test Generation", "email": "support@leadsgenai.in", "role": "Automated Test & QA (Worker #4)"},
-    {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "canonical": "leadsgen combo 5", "name": "LeadsGen Combo 5 — Agent Ops", "email": "sunny@leadsgenai.in", "role": "Agent Workforce Operations (Worker #5)"},
-    {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "canonical": "leadsgen combo 6", "name": "LeadsGen Combo 6 — Swara Live", "email": "sumit20016@gmail.com", "role": "Voice Realtime Fallback (Worker #6 / VPS)"},
-    {"id": "claude-omni-marketing-content", "real": "leadgen-marketing-content", "canonical": "leadsgen combo 7", "name": "LeadsGen Combo 7 — Marketing Content", "email": "bunnybunnysunny49@gmail.com", "role": "Marketing Content & Copy (Worker #7)"},
-    {"id": "claude-omni-prospect-enrich", "real": "leadgen-prospect-enrich", "canonical": "leadsgen combo 8", "name": "LeadsGen Combo 8 — Prospect Enrich", "email": "bunnysunnysunny49@gmail.com", "role": "Prospecting & Lead Enrichment (Worker #8)"},
-    {"id": "claude-omni-outreach-email", "real": "leadgen-outreach-email", "canonical": "leadsgen combo 9", "name": "LeadsGen Combo 9 — Outreach Email", "email": "damsamsamdam39@gmail.com", "role": "Outreach Email & Follow-up (Worker #9)"},
-    {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "canonical": "leadsgen combo 10", "name": "LeadsGen Combo 10 — SEO Keyword", "email": "daryananisumit440@gmail.com", "role": "SEO & SEM Keyword Clustering (Worker #10)"},
-    {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "canonical": "leadsgen combo 11", "name": "LeadsGen Combo 11 — Governor Review", "email": "sunnybunny23211@gmail.com", "role": "Dual Governor Code Review (Worker #11)"},
-    {"id": "claude-omni-project-best", "real": "leadgen-project-best", "canonical": "leadsgen combo 12", "name": "LeadsGen Combo 12 — Project Best", "email": "sunnydaryanani2@gmail.com", "role": "50-Model Master Flagship (Worker #12)"},
-    {"id": "leadsgen combo 13", "real": "leadsgen combo 13", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)", "email": "jiyawasnik11@gmail.com", "role": "Free-First Failover Lane (Worker #13 / VPS)"},
-    {"id": "leadsgen combo 14", "real": "leadsgen combo 14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General", "email": "sumitrevolt23@gmail.com", "role": "General Purpose Free-Tier (Worker #14)"},
+    {
+        "id": "claude-omni-coding-primary",
+        "real": "leadgen-coding-primary",
+        "canonical": "leadsgen combo 1",
+        "name": "LeadsGen Combo 1 — Coding Primary",
+        "email": "admin@leadsgenai.in",
+        "role": "Coding & Logic Primary (Worker #1)",
+    },
+    {
+        "id": "claude-omni-coding-fast",
+        "real": "leadgen-coding-fast",
+        "canonical": "leadsgen combo 2",
+        "name": "LeadsGen Combo 2 — Coding Fast",
+        "email": "ops@leadsgenai.in",
+        "role": "Coding Fast Lane (Worker #2)",
+    },
+    {
+        "id": "claude-omni-repo-analysis",
+        "real": "leadgen-repo-analysis",
+        "canonical": "leadsgen combo 3",
+        "name": "LeadsGen Combo 3 — Repo Analysis",
+        "email": "hello@leadsgenai.in",
+        "role": "Repo Architecture Deep Scan (Worker #3)",
+    },
+    {
+        "id": "claude-omni-test-generation",
+        "real": "leadgen-test-generation",
+        "canonical": "leadsgen combo 4",
+        "name": "LeadsGen Combo 4 — Test Generation",
+        "email": "support@leadsgenai.in",
+        "role": "Automated Test & QA (Worker #4)",
+    },
+    {
+        "id": "claude-omni-agent-ops",
+        "real": "leadgen-agent-ops",
+        "canonical": "leadsgen combo 5",
+        "name": "LeadsGen Combo 5 — Agent Ops",
+        "email": "sunny@leadsgenai.in",
+        "role": "Agent Workforce Operations (Worker #5)",
+    },
+    {
+        "id": "claude-omni-swara-live",
+        "real": "leadgen-swara-live",
+        "canonical": "leadsgen combo 6",
+        "name": "LeadsGen Combo 6 — Swara Live",
+        "email": "sumit20016@gmail.com",
+        "role": "Voice Realtime Fallback (Worker #6 / VPS)",
+    },
+    {
+        "id": "claude-omni-marketing-content",
+        "real": "leadgen-marketing-content",
+        "canonical": "leadsgen combo 7",
+        "name": "LeadsGen Combo 7 — Marketing Content",
+        "email": "bunnybunnysunny49@gmail.com",
+        "role": "Marketing Content & Copy (Worker #7)",
+    },
+    {
+        "id": "claude-omni-prospect-enrich",
+        "real": "leadgen-prospect-enrich",
+        "canonical": "leadsgen combo 8",
+        "name": "LeadsGen Combo 8 — Prospect Enrich",
+        "email": "bunnysunnysunny49@gmail.com",
+        "role": "Prospecting & Lead Enrichment (Worker #8)",
+    },
+    {
+        "id": "claude-omni-outreach-email",
+        "real": "leadgen-outreach-email",
+        "canonical": "leadsgen combo 9",
+        "name": "LeadsGen Combo 9 — Outreach Email",
+        "email": "damsamsamdam39@gmail.com",
+        "role": "Outreach Email & Follow-up (Worker #9)",
+    },
+    {
+        "id": "claude-omni-seo-keyword",
+        "real": "leadgen-seo-keyword",
+        "canonical": "leadsgen combo 10",
+        "name": "LeadsGen Combo 10 — SEO Keyword",
+        "email": "daryananisumit440@gmail.com",
+        "role": "SEO & SEM Keyword Clustering (Worker #10)",
+    },
+    {
+        "id": "claude-omni-governor-review",
+        "real": "leadgen-governor-review",
+        "canonical": "leadsgen combo 11",
+        "name": "LeadsGen Combo 11 — Governor Review",
+        "email": "sunnybunny23211@gmail.com",
+        "role": "Dual Governor Code Review (Worker #11)",
+    },
+    {
+        "id": "claude-omni-project-best",
+        "real": "leadgen-project-best",
+        "canonical": "leadsgen combo 12",
+        "name": "LeadsGen Combo 12 — Project Best",
+        "email": "sunnydaryanani2@gmail.com",
+        "role": "50-Model Master Flagship (Worker #12)",
+    },
+    {
+        "id": "leadsgen combo 13",
+        "real": "leadsgen combo 13",
+        "canonical": "leadsgen combo 13",
+        "name": "LeadsGen Combo 13 — Free First (VPS)",
+        "email": "jiyawasnik11@gmail.com",
+        "role": "Free-First Failover Lane (Worker #13 / VPS)",
+    },
+    {
+        "id": "leadsgen combo 14",
+        "real": "leadsgen combo 14",
+        "canonical": "leadsgen combo 14",
+        "name": "LeadsGen Combo 14 — General",
+        "email": "sumitrevolt23@gmail.com",
+        "role": "General Purpose Free-Tier (Worker #14)",
+    },
 ]
 
 # Canonical ids are the only app-facing ids. The literal alias-shaped fields
@@ -54,11 +162,7 @@ STALE_CLIENT_MODEL_IDS.update(
         "claude-omni-general",
     }
 )
-STALE_CLIENT_MODEL_IDS.update(
-    alias
-    for _, _, _, aliases in COMBOS_14
-    for alias in aliases
-)
+STALE_CLIENT_MODEL_IDS.update(alias for _, _, _, aliases in COMBOS_14 for alias in aliases)
 for _combo in ALL_COMBOS:
     _combo["id"] = _combo["canonical"]
     _combo["real"] = _combo["canonical"]
@@ -135,7 +239,9 @@ def sync_dsh():
 
         with open(dsh_yaml_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-        print(f"[OK] DSH settings synced ({len(models_list)} unique combos - 1M context + Full Project MCPs) -> {dsh_yaml_path}")
+        print(
+            f"[OK] DSH settings synced ({len(models_list)} unique combos - 1M context + Full Project MCPs) -> {dsh_yaml_path}"
+        )
 
 
 def sync_claude():
@@ -353,9 +459,8 @@ def sync_hermes():
                     configured_models = provider_config.get("models", [])
                     if not isinstance(configured_models, list):
                         configured_models = []
-                    if (
-                        provider_config.get("model") in STALE_CLIENT_MODEL_IDS
-                        or any(model in STALE_CLIENT_MODEL_IDS for model in configured_models)
+                    if provider_config.get("model") in STALE_CLIENT_MODEL_IDS or any(
+                        model in STALE_CLIENT_MODEL_IDS for model in configured_models
                     ):
                         cfg_data["providers"].pop(provider_key, None)
                 for stale_id in STALE_CLIENT_MODEL_IDS:
@@ -489,11 +594,11 @@ def sync_openclaw():
         if "defaults" not in data["agents"] or not isinstance(data["agents"]["defaults"], dict):
             data["agents"]["defaults"] = {}
 
-        data["agents"]["defaults"]["model"] = {
-            "primary": "omniroute/leadsgen combo 12"
-        }
+        data["agents"]["defaults"]["model"] = {"primary": "omniroute/leadsgen combo 12"}
 
-        if "models" not in data["agents"]["defaults"] or not isinstance(data["agents"]["defaults"]["models"], dict):
+        if "models" not in data["agents"]["defaults"] or not isinstance(
+            data["agents"]["defaults"]["models"], dict
+        ):
             data["agents"]["defaults"]["models"] = {}
 
         data["agents"]["defaults"]["models"] = {
@@ -505,7 +610,9 @@ def sync_openclaw():
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-        print(f"[OK] OpenClaw config synced with OmniRoute & Claude Proxy 14 Combos -> {config_path}")
+        print(
+            f"[OK] OpenClaw config synced with OmniRoute & Claude Proxy 14 Combos -> {config_path}"
+        )
     except Exception as e:
         print(f"[WARN] OpenClaw sync note: {e}")
 
@@ -532,9 +639,13 @@ def sync_omniroute_sqlite():
     try:
         with urllib.request.urlopen("http://127.0.0.1:20128/v1/models", timeout=60) as response:
             payload = json.loads(response.read().decode("utf-8", errors="replace"))
-        model_ids = {str(item.get("id", "")) for item in payload.get("data", []) if isinstance(item, dict)}
+        model_ids = {
+            str(item.get("id", "")) for item in payload.get("data", []) if isinstance(item, dict)
+        }
         if set(CANONICAL_COMBO_IDS).issubset(model_ids):
-            print("[OK] OmniRoute live gateway already exposes all 14 canonical combos; SQLite seed skipped")
+            print(
+                "[OK] OmniRoute live gateway already exposes all 14 canonical combos; SQLite seed skipped"
+            )
             return
     except Exception:
         # Gateway unavailable or malformed: fall through to the recovery seed.
@@ -555,7 +666,9 @@ def sync_omniroute_sqlite():
         try:
             mount = subprocess.run(
                 ["docker", "inspect", "--format", "{{json .Mounts}}", container],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if "/app/data" in (mount.stdout or ""):
                 env["OMNIROUTE_DB_PATH"] = "/app/data/storage.sqlite"
@@ -622,7 +735,7 @@ def sync_verdant():
                 "apiKeyEnv": "OMNIROUTE_API_KEY",
                 "models": models,
                 "context_length": 1048576,
-            }
+            },
         },
         "mcpServers": UNIVERSAL_MCP_SERVERS,
     }
@@ -643,13 +756,17 @@ def sync_verdant():
 
             settings_file = os.path.join(target, "settings.json")
             with open(settings_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "activeProvider": "omniroute",
-                    "activeModel": "leadsgen combo 1",
-                    "autoFallback": True,
-                    "mcpEnabled": True,
-                    "workerEmail": "admin@leadsgenai.in"
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "activeProvider": "omniroute",
+                        "activeModel": "leadsgen combo 1",
+                        "autoFallback": True,
+                        "mcpEnabled": True,
+                        "workerEmail": "admin@leadsgenai.in",
+                    },
+                    f,
+                    indent=2,
+                )
 
             print(f"[OK] Verdant Desktop provisioned ({len(models)} combos + MCPs) -> {target}")
         except Exception as e:
