@@ -150,20 +150,26 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
-    assert len(entries) == 106
-    assert len(families) == 42, sorted(families)
+    # 2026-09-26: current-main drift + task 117 declarations.
+    # Pre-existing: telegram.audit family. Task 117 adds 8 bound entries:
+    # 3 legacy pilot rows (existing family) + telegram poll lease + TypeSafe
+    # secret-config + 3 automation-log fallback rows.
+    assert len(entries) == 114
+    assert len(families) == 46, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
     assert families == {
         "admin.task_ledger",
         "automation.console_events",
+        "automation.log_fallback",
         "automation.omniroute_combo_state",
         "billing.invoices",
         "billing.promo_codes",
         "billing.upi_payments",
         "command_center.pilot_tasks",
         "communications.telegram_inbox",
+        "communications.telegram_poll_lease",
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
@@ -194,13 +200,15 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.agent_memory",
         "platform.memory_governance",
         "platform.staff_bus",
+        "platform.typesafe_keys",
         "platform.workforce_memory",
         "sales.prospects",
+        "telegram.audit",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 15
+    assert len({f.split(".")[0] for f in families}) == 16
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -473,9 +481,25 @@ def test_store_manifest_still_validates() -> None:
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
     # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
-    assert counts["unique_families"] == 60
+    # 2026-09-26: 60 -> 66. Three pre-existing current-main families were
+    # unpinned (telegram.audit, platform.typesafe_intake_trace,
+    # platform.telegram_command_mirror); task 117 adds three evidence-backed
+    # families for Telegram lease, TypeSafe secret config, and DB JSONL fallback.
+    assert counts["unique_families"] == 66
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
+    ts_keys = by_id["platform.typesafe_keys"]
+    assert ts_keys["migration_tier"] == manifest.TIER_NONE
+    assert ts_keys["migration_state"] == manifest.FALLBACK_ONLY
+    assert ts_keys["durability_class"] == "secret-config"
+    assert manifest.derived_blocker(ts_keys) is False
+    lease = by_id["communications.telegram_poll_lease"]
+    assert lease["migration_tier"] == manifest.TIER_3
+    assert lease["migration_state"] == manifest.REBUILDABLE_CACHE
+    assert manifest.derived_blocker(lease) is False
+    fallback = by_id["automation.log_fallback"]
+    assert fallback["current_authority"] == "DATABASE"
+    assert fallback["migration_state"] == manifest.FALLBACK_ONLY
     ext = by_id["devcontrol.external_missions"]
     assert ext["migration_tier"] == manifest.TIER_1
     assert ext["migration_state"] == manifest.CUTOVER_COMPLETE
