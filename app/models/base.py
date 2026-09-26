@@ -48,13 +48,28 @@ def _get_sync_engine():
                 sync_url = sync_url.replace("sqlite+aiosqlite://", "sqlite://")
             elif sync_url.startswith("sqlite+pysqlite://"):
                 sync_url = sync_url.replace("sqlite+pysqlite://", "sqlite://")
-            # Ensure relative paths are resolved to absolute
+            # Ensure relative paths are resolved to absolute.
+            # SQLAlchemy spells sqlite three ways: "sqlite:///rel.db" (relative),
+            # "sqlite:////abs.db" (POSIX absolute) and "sqlite:///C:/abs.db"
+            # (Windows absolute). Only the RELATIVE form may be rebased onto the
+            # cwd. Stripping the leading "/" of a POSIX absolute URL turned it
+            # into a cwd-relative one, so the conftest per-worker URL
+            # sqlite:////tmp/leadgen_test_gw1.db resolved to <cwd>/tmp/... and
+            # sqlite failed with "unable to open database file" because a fresh
+            # checkout has no tmp/ directory. Windows never showed it because
+            # "C:/..." has no leading slash to strip.
             if sync_url.startswith("sqlite:///"):
                 import os
-                rel_path = sync_url[len("sqlite:///"):]
-                if rel_path.startswith("/"):
-                    rel_path = rel_path[1:]
-                abs_path = os.path.abspath(rel_path)
+
+                db_path = sync_url[len("sqlite:///") :]
+                # POSIX absolute keeps its leading "/" after the scheme; Windows
+                # absolute arrives as "C:/..." and is already absolute.
+                is_abs = db_path.startswith("/") or os.path.isabs(db_path)
+                abs_path = db_path if is_abs else os.path.abspath(db_path)
+                # sqlite cannot create a file in a directory that does not exist.
+                parent = os.path.dirname(abs_path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
                 sync_url = f"sqlite:///{abs_path}"
 
             # Sync engine = migrations + occasional background sync only (rarely
