@@ -7,7 +7,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from app.admin.models import (
     KanbanBoard,
@@ -52,6 +52,40 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
+def _coerce_status(raw: Any) -> Status:
+    """Map a persisted status string to the Status enum, fail-safe.
+
+    Historically the admin ledger only knew 4 statuses; agent/pilot lanes
+    later persisted ready/blocked and the read path 500ed on them
+    (ValueError -> /admin/api/tasks/kanban 500). We add those to the enum
+    and STILL fail-safe here so a brand-new status introduced by a later
+    lane never takes the whole board down again: unknown -> BACKLOG (the
+    safe, non-terminal default).
+    """
+    try:
+        return Status(str(raw))
+    except ValueError:
+        return Status.BACKLOG
+
+
+def _clamp_title(raw: Any) -> str:
+    """Clamp a persisted task title to the 500-char model cap, fail-safe.
+
+    The `tasks.title` column is unconstrained TEXT and out-of-band (raw-SQL)
+    ledger writes have stored 500+ char titles. The pydantic model
+    `Task.title` enforces `max_length=500`, so `_row_to_task` 500s the whole
+    `/admin/api/tasks` + kanban + owner command-center read path on any such
+    row. Clamp here (mirroring `_coerce_status`'s fail-safe read pattern) so a
+    brand-new over-long title written by any lane never takes the board down.
+    Truncation is lossless for the read path: full detail lives in
+    `description`/`evidence`, never in the title.
+    """
+    t = str(raw if raw is not None else "")
+    if len(t) > 500:
+        return t[:497] + "..."
+    return t
+
+
 def _row_to_task(row) -> Task:
     if isinstance(row, tuple):
         row = {
@@ -68,11 +102,11 @@ def _row_to_task(row) -> Task:
         }
     return Task(
         id=row["id"],
-        title=row["title"],
+        title=_clamp_title(row["title"]),
         description=row["description"],
         owner=row["owner"],
         priority=Priority(row["priority"]),
-        status=Status(row["status"]),
+        status=_coerce_status(row["status"]),
         deadline=row["deadline"],
         evidence=row["evidence"],
         created_at=datetime.fromisoformat(row["created_at"]),
@@ -319,8 +353,12 @@ def get_kanban() -> KanbanBoard:
     for t in tasks:
         if t.status == Status.BACKLOG:
             board.backlog.append(t)
+        elif t.status == Status.READY:
+            board.ready.append(t)
         elif t.status == Status.IN_PROGRESS:
             board.in_progress.append(t)
+        elif t.status == Status.BLOCKED:
+            board.blocked.append(t)
         elif t.status == Status.REVIEW:
             board.review.append(t)
         elif t.status == Status.DONE:

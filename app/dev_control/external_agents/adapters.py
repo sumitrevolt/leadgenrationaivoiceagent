@@ -203,7 +203,74 @@ class ClaudeAdapter(_BaseAdapter):
         }
 
 
-_ADAPTERS: dict[str, _BaseAdapter] = {CURSOR: CursorAdapter(), CLAUDE: ClaudeAdapter()}
+class AgnesAdapter(_BaseAdapter):
+    """Agnes Desktop executor — file-based and API-driven operations.
+
+    Agnes operates via:
+    - File reads/writes (read/write tools)
+    - GitHub API (github__* tools)
+    - Web research (web_search, read_webpage, image_search)
+    - Shell commands (when available)
+    - Artifact creation (agnes_artifacts__*)
+
+    Does NOT have:
+    - Windows GUI automation (no mouse/keyboard)
+    - Direct VPS SSH access
+    - Telegram polling (Hermes owns Jarvis)
+    """
+
+    name = "agnes"
+    role = "executor"
+    requires_worktree = True
+
+    def build_packet(self, mission: Mission) -> dict[str, Any]:
+        packet = super().build_packet(mission)
+        packet["interface"] = (
+            "Agnes Desktop — file reads, GitHub API, web research, shell (when available)"
+        )
+        packet["capabilities"] = {
+            "file_reads": True,
+            "file_writes": True,
+            "github_api": True,
+            "web_search": True,
+            "shell": "partial",
+            "gui_automation": False,
+            "vps_ssh": False,
+        }
+        packet["prohibited_actions"] = [
+            "modifying .env or secrets",
+            "deploying to VPS without owner authorization",
+            "polling Telegram (Hermes owns Jarvis token)",
+            "modifying voice/telephony code without explicit mandate",
+            "modifying billing code without explicit mandate",
+        ]
+        packet["required_evidence"] = ["file_changes", "test_results", "github_commits"]
+        return packet
+
+    def validate_result(self, mission: Mission, result: dict[str, Any]) -> dict[str, Any]:
+        violations = self._base_violations(mission, result)
+        if self.requires_worktree and not (mission.branch and mission.worktree):
+            violations.append("agnes mission needs a dedicated branch and worktree")
+        if not result.get("changed_files"):
+            violations.append("agnes mission must report changed_files")
+        tests = result.get("tests") or []
+        if mission.required_tests and not tests:
+            violations.append("required tests were not run")
+        for test in tests:
+            if int(test.get("exit_code", 1)) != 0:
+                violations.append(f"test failed: {test.get('command')}")
+        return {
+            "accepted": not violations,
+            "violations": violations,
+            "result": policy.redact(result),
+        }
+
+
+_ADAPTERS: dict[str, _BaseAdapter] = {
+    CURSOR: CursorAdapter(),
+    CLAUDE: ClaudeAdapter(),
+    "agnes": AgnesAdapter(),
+}
 
 
 def get_adapter(name: str) -> _BaseAdapter:

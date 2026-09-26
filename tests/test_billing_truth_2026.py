@@ -283,3 +283,63 @@ def test_starter_feature_groups_synced_to_billing_plan():
     plan = PRICING_PLANS["starter"]
     assert getattr(plan, "feature_groups", None), "billing plan me feature_groups sync hone chahiye"
     assert len(plan.feature_groups) == len(starter_pkg["feature_groups"])
+
+
+# ---------------- 1-Cr MRR target truth (2026-09-25) ---------------- #
+def test_1cr_target_constant_not_ten_times_inflated():
+    """The project's own source-of-truth constant for the ₹1 Cr monthly target is
+    10,000,000.0 (one crore). A parallel lane's planning note inflated it to
+    100,000,000 (ten crore), which silently breaks every target-mix and daily-pace
+    calculation downstream. Pin the canonical value so no 10x drift returns.
+
+    This is a TRUTH pin, not a revenue claim: it locks the number the dashboard /
+    scoreboard / owner-command surfaces read, so "MRR vs target" variance is
+    computed against the right denominator.
+    """
+    from app.platform import today_overview
+
+    assert today_overview._CRORE_TARGET_DEFAULT_INR == 10_000_000.0
+    assert today_overview._CRORE_TARGET_DEFAULT_INR != 100_000_000.0, (
+        "1 Cr = ₹10M, not ₹100M — a 10x inflation breaks target-mix + daily pace."
+    )
+    # daily pace must be consistent with the same constant
+    assert round(today_overview._CRORE_TARGET_DEFAULT_INR / 30, 2) == 333_333.33
+
+
+def test_1cr_target_mix_anchored_to_package_source_of_truth():
+    """Any 1-Cr "customer mix" must be computed from packages.py / voice_packages.py
+    source-of-truth prices — never from fabricated tier figures. A prior planning
+    note claimed a mix of ₹9,999 + ₹19,999 tiers as MARKETING tiers; but 9999/19999
+    are VOICE Band B/C, not marketing (marketing source-of-truth = starter 1999 /
+    advanced 5999). This pins the floor: the MINIMUM customers at source-of-truth
+    prices to reach ₹1 Cr/month, so a mix that "totals under 1 Cr" is provably short.
+    """
+    import math
+
+    from app.marketing.packages import get_public_packages
+    from app.marketing.voice_packages import BANDS
+    from app.platform import today_overview
+
+    target = today_overview._CRORE_TARGET_DEFAULT_INR  # 10,000,000
+
+    mkt = {p["key"]: float(p["price_inr_month"]) for p in get_public_packages()}
+    paid_mkt = {k: v for k, v in mkt.items() if v > 0}
+    assert set(paid_mkt) == {"starter", "advanced"}, f"marketing tiers drifted: {paid_mkt}"
+    assert paid_mkt["starter"] == 1999.0
+    assert paid_mkt["advanced"] == 5999.0
+
+    # the 'fabricated' 9999/19999 figures are voice bands B/C, not marketing tiers
+    assert BANDS["B"]["price_month"] == 9999
+    assert BANDS["C"]["price_month"] == 19999
+
+    # floor at the top marketing tier (best case, no voice mix): ceil(1Cr / 5999)
+    floor_advanced = math.ceil(target / paid_mkt["advanced"])
+    assert floor_advanced == 1667, f"source-of-truth floor = {floor_advanced}"
+    assert floor_advanced * paid_mkt["advanced"] >= target
+    # a "400 advanced + 600 starter" plan is provably UNDER the target
+    planned = 400 * paid_mkt["advanced"] + 600 * paid_mkt["starter"]
+    assert planned < target, f"planned mix {planned} must stay under {target}"
+    # and still short of 1 Cr even fully blended with the top voice band:
+    top_voice = max(float(b["price_month"]) for b in BANDS.values() if b["price_month"])
+    full_blend = 400 * paid_mkt["advanced"] + 600 * paid_mkt["starter"] + 120 * top_voice
+    assert full_blend < target, f"even blended {full_blend} stays under {target}"
