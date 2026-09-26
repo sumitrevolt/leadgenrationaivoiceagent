@@ -454,16 +454,23 @@ def evaluate_intake(
         from app.platform.typesafe_session_policy import judge_task
 
         class _StubContract:
-            lane = agent_lane
+            pass
 
         class _StubRecord:
-            task_id = task_id
-            owner_bot = owner_bot
-            assigned_agent = assigned_agent
-            priority = priority
-            input_payload = {"tenant_id": tenant_scope, "client_id": tenant_scope}
+            pass
 
-        verdict = judge_task(record=_StubRecord(), contract=_StubContract())
+        contract = _StubContract()
+        contract.lane = agent_lane
+        contract.default_mode = None
+
+        record = _StubRecord()
+        record.task_id = task_id
+        record.owner_bot = owner_bot
+        record.assigned_agent = assigned_agent
+        record.priority = priority
+        record.input_payload = {"tenant_id": tenant_scope, "client_id": tenant_scope}
+
+        verdict = judge_task(record=record, contract=contract)
         route = verdict.get("route", "proceed")
         reason = verdict.get("reason", "credential_unavailable")
         consumed_calls = 1
