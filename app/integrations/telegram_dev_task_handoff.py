@@ -5,6 +5,7 @@ snapshot of the six frozen CLI worker profiles. It creates one canonical
 Postgres DevTask, claims it as the Telegram Jarvis API worker, persists the
 observed result, and terminates the task. No customer/provider side effect.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,7 +44,9 @@ def run_canonical_handoff(*, session_factory=None, now: datetime | None = None) 
     now = now or _utcnow()
     task_id = str(uuid.uuid4())
     key = f"telegram:test_handoff:{task_id}"
-    objective = "Telegram canonical coordination verification: DevTask claim + six CLI worker liveness"
+    objective = (
+        "Telegram canonical coordination verification: DevTask claim + six CLI worker liveness"
+    )
 
     with session_factory() as db:
         task = DevTask(
