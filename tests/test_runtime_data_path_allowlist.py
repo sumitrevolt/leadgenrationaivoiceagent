@@ -150,8 +150,15 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
-    assert len(entries) == 106
-    assert len(families) == 42, sorted(families)
+    # 2026-09-23 +5 entries / +4 families: CI ratchet pilot slice 1 —
+    # command_center.pilot_tasks (3 legacy pilot tick scripts, existing family),
+    # sales.prospects (2 scripts, existing family),
+    # communications.telegram_poll_lease (1 entry, 1 new family),
+    # platform.typesafe_keys (1 entry, 1 new family),
+    # telegram.audit (1 existing entry, pre-existing family not in test set).
+    # CLASSIFIED, not tolerated: baseline debt unchanged.
+    assert len(entries) == 111
+    assert len(families) == 45, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -164,6 +171,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "billing.upi_payments",
         "command_center.pilot_tasks",
         "communications.telegram_inbox",
+        "communications.telegram_poll_lease",
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
@@ -194,13 +202,16 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.agent_memory",
         "platform.memory_governance",
         "platform.staff_bus",
+        "platform.typesafe_keys",
         "platform.workforce_memory",
         "sales.prospects",
+        "telegram.audit",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 15
+    # 2026-09-23: +1 telegram.* -> 16 (telegram.audit pre-existing, newly pinned).
+    assert len({f.split(".")[0] for f in families}) == 16
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -473,9 +484,29 @@ def test_store_manifest_still_validates() -> None:
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
     # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
-    assert counts["unique_families"] == 60
+    # 2026-09-23: +5 manifest families (55 -> 60 -> 65... no, 60 -> 65): CI ratchet
+    # pilot slice 1 — 3 legacy pilot tick scripts declared against the existing
+    # command_center.pilot_tasks family (+3 rows), plus 2 NEW rebuildable cache
+    # families: communications.telegram_poll_lease (poll lease, tier-3, loss
+    # self-heals) and platform.typesafe_keys (admin-set 4-slot override).
+    # 2026-09-23 follow-up: platform.typesafe_keys reclassified TIER_NONE /
+    # FALLBACK_ONLY / secret-config — the file persists RAW API keys, so it is
+    # NOT a rebuildable cache and must never join the data cutover
+    # (fix-selection tss-1edb0c9e13dc). All 5 non-blockers stay non-blockers.
+    # The pre-existing pilot-family row already carried the ps1 writer script.
+    assert counts["unique_families"] == 65
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
+    # Pin the corrected slice-1 classifications (regression vs re-mislabeling):
+    tk = by_id["platform.typesafe_keys"]
+    assert tk["migration_tier"] == manifest.TIER_NONE
+    assert tk["migration_state"] == manifest.FALLBACK_ONLY
+    assert tk["durability_class"] == "secret-config"
+    assert manifest.derived_blocker(tk) is False
+    lease = by_id["communications.telegram_poll_lease"]
+    assert lease["migration_tier"] == manifest.TIER_3
+    assert lease["migration_state"] == manifest.REBUILDABLE_CACHE
+    assert manifest.derived_blocker(lease) is False
     ext = by_id["devcontrol.external_missions"]
     assert ext["migration_tier"] == manifest.TIER_1
     assert ext["migration_state"] == manifest.CUTOVER_COMPLETE
