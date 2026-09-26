@@ -590,7 +590,10 @@ def submit_payment(
             except Exception:
                 record["amount_mismatch"] = False
         rows.append(record)
-        _write_store(rows)
+        if not _write_store(rows):
+            # A claim without a durable row cannot be reconciled or approved.
+            # Never acknowledge success or alert an operator for a lost write.
+            return {"ok": False, "error": "Payment record unavailable — retry later"}
 
         # Best-effort admin notify (after persist so the record is durable first).
         _notify_admin(record)
