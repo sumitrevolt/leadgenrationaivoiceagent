@@ -43,8 +43,8 @@ try:
 except ModuleNotFoundError:  # Direct `python scripts/buzz_local_workspace.py` execution.
     from buzz_start_harness import KNOWN as CANONICAL_AGENT_PUBKEYS
 
-BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
-APPDATA = Path(os.environ["APPDATA"]) / "xyz.block.buzz.app"
+BUZZ = Path(os.environ.get("LOCALAPPDATA", ".")) / "Buzz" / "buzz.exe"
+APPDATA = Path(os.environ.get("APPDATA", ".")) / "xyz.block.buzz.app"
 AGENTS_PATH = APPDATA / "agents" / "managed-agents.json"
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 

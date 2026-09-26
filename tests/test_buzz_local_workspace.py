@@ -27,7 +27,9 @@ def agent(pubkey: str, name: str, relay: str = "", active: bool = True) -> dict:
     }
 
 
-def test_selects_only_source_backed_identities_despite_name_duplicates():
+def test_selects_only_source_backed_identities_despite_name_duplicates(monkeypatch):
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.delenv("APPDATA", raising=False)
     mod = load_module()
     known = mod.CANONICAL_AGENT_PUBKEYS
     rows = [agent("0" * 64, "Honey", "ws://127.0.0.1:3100")]
