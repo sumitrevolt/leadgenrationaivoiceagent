@@ -241,21 +241,14 @@ def cmd_revenue() -> OwnerCommandResult:
 
 
 def cmd_workers() -> OwnerCommandResult:
-    """/workers — local desktop apps + VPS 9 worker domains + 31 agents.
-
-    Per §3 directive: distinguish REGISTERED / CONFIGURED / CONNECTED /
-    RUNNING / VERIFIED_WORKING / DEGRADED / BLOCKED / FAILED / UNKNOWN / STALE.
-    """
+    """/workers ? truthful 8 desktop + 6 CLI + 9 supervisory + 31 staff view."""
     started = time.monotonic()
-
+    root = Path(__file__).resolve().parents[2]
     desktop = _safe(
-        lambda: _read_json(
-            Path(__file__).resolve().parents[2] / "docs" / "coordination" / "desktop_registry.json"
-        ),
+        lambda: _read_json(root / "docs" / "coordination" / "desktop_registry.json"),
         default=None,
         label="desktop_registry.json",
     )
-
     agents = _safe(
         lambda: list(
             __import__("app.platform.agent_registry", fromlist=["all_contracts"])
@@ -265,7 +258,6 @@ def cmd_workers() -> OwnerCommandResult:
         default=[],
         label="agent_registry.all_contracts",
     )
-
     hermes_bots = _safe(
         lambda: list(
             __import__(
@@ -275,49 +267,93 @@ def cmd_workers() -> OwnerCommandResult:
         default=[],
         label="HERMES_BOTS",
     )
-
+    cli_workers = _safe(
+        lambda: list(__import__("app.workers.cli_worker", fromlist=["CLI_WORKERS"]).CLI_WORKERS),
+        default=[],
+        label="cli_worker.CLI_WORKERS",
+    )
+    presence = _safe(
+        lambda: __import__(
+            "app.platform.coordination_hub_events", fromlist=["list_presence"]
+        ).list_presence(),
+        default={"tools": {}, "updated_at": None},
+        label="coordination_hub.presence",
+    )
+    auth = _safe(
+        lambda: __import__(
+            "app.platform.coordination_hub_auth", fromlist=["tool_auth_status"]
+        ).tool_auth_status(),
+        default={"tools_configured": {}},
+        label="coordination_hub.auth",
+    )
+    now = time.time()
+    ptools = presence.get("tools", {}) if isinstance(presence, dict) else {}
+    configured = auth.get("tools_configured", {}) if isinstance(auth, dict) else {}
     desktop_apps = []
     if isinstance(desktop, dict):
-        for app_entry in desktop.get("apps", []):
+        for entry in desktop.get("apps", []):
+            tid = str(entry.get("id") or "").strip().lower()
+            seen = ptools.get(tid) if isinstance(ptools, dict) else None
+            last_seen = int(seen.get("last_seen") or 0) if isinstance(seen, dict) else 0
+            age_s = max(0, int(now - last_seen)) if last_seen else None
+            if (
+                last_seen
+                and age_s is not None
+                and age_s <= 300
+                and str(seen.get("status") or "").lower() == "online"
+            ):
+                runtime = "VERIFIED_WORKING"
+            elif last_seen:
+                runtime = "STALE"
+            elif configured.get(tid):
+                runtime = "CONFIGURED_NOT_SEEN"
+            else:
+                runtime = "REGISTERED_NOT_ENROLLED"
             desktop_apps.append(
                 {
-                    "id": app_entry.get("id"),
-                    "name": app_entry.get("name"),
-                    "status": app_entry.get("status"),
+                    "id": tid,
+                    "name": entry.get("name"),
+                    "registration": entry.get("status"),
+                    "runtime_status": runtime,
+                    "last_seen_age_s": age_s,
+                    "hmac_configured": bool(configured.get(tid)),
                 }
             )
 
-    text_lines = ["WORKFORCE OVERVIEW (LOCAL + VPS)\n"]
-    text_lines.append("VPS — 9 Hermes bots (orchestration planes):")
-    for bot in hermes_bots:
-        text_lines.append(f"  • {bot}")
+    text_lines = ["WORKFORCE OVERVIEW (LIVE-AWARE)\n"]
+    text_lines.append(f"VPS ? CLI workers ({len(cli_workers)} approved runtime workers):")
+    text_lines.extend(f"  ? {w}" for w in cli_workers)
     text_lines.append("")
-    text_lines.append("VPS — 31 agents (specialist execution):")
-    if agents:
-        for a in sorted(agents)[:31]:
-            text_lines.append(f"  • {a}")
-    else:
-        text_lines.append("  (registry not initialized)")
+    text_lines.append(f"VPS ? supervisory domains ({len(hermes_bots)}):")
+    text_lines.extend(f"  ? {b}" for b in hermes_bots)
     text_lines.append("")
-    text_lines.append(f"LOCAL — Desktop apps ({len(desktop_apps)} in registry):")
-    for app_entry in desktop_apps:
-        text_lines.append(f"  • {app_entry['id']:18s} — {app_entry['status']}")
+    text_lines.append(f"STAFF ? specialist agents ({len(agents)}):")
+    text_lines.extend(f"  ? {a}" for a in sorted(agents)[:31])
+    text_lines.append("")
+    text_lines.append(f"LOCAL ? desktop agents ({len(desktop_apps)} canonical):")
+    for d in desktop_apps:
+        age = "never" if d["last_seen_age_s"] is None else f"{d['last_seen_age_s']}s"
+        text_lines.append(f"  ? {d['id']:10s} ? {d['runtime_status']} (heartbeat_age={age})")
 
+    verified = sum(1 for d in desktop_apps if d["runtime_status"] == "VERIFIED_WORKING")
     return OwnerCommandResult(
         command="workers",
-        status="OK" if (agents or desktop_apps or hermes_bots) else "NOT_INSTRUMENTED",
+        status="OK"
+        if (len(cli_workers) == 6 and len(hermes_bots) == 9 and len(agents) == 31)
+        else "DEGRADED",
         fetched_at=_now_iso(),
         elapsed_ms=round((time.monotonic() - started) * 1000, 2),
         text="\n".join(text_lines),
         data={
+            "cli_workers": cli_workers,
+            "cli_worker_count": len(cli_workers),
             "hermes_bots": hermes_bots,
+            "supervisory_count": len(hermes_bots),
             "agent_count": len(agents),
             "desktop_apps": desktop_apps,
             "desktop_total": len(desktop_apps),
-            "desktop_registered": sum(1 for d in desktop_apps if d["status"] == "registered"),
-            "desktop_observed_not_attested": sum(
-                1 for d in desktop_apps if "observed" in (d["status"] or "").lower()
-            ),
+            "desktop_verified_working": verified,
+            "desktop_not_verified": len(desktop_apps) - verified,
         },
     )
 
