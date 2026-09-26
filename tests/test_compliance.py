@@ -37,7 +37,7 @@ class _FakeDND:
 IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)  # noon IST — inside both windows
 LATE = datetime(2026, 6, 7, 22, 0, tzinfo=IST)  # 22:00 IST — outside both windows
 EARLY_0930 = datetime(2026, 6, 7, 9, 30, tzinfo=IST)  # 09:30 IST — inside new promo window
-EVENING_1930 = datetime(2026, 6, 7, 19, 30, tzinfo=IST)  # 19:30 IST — past promo window end
+EVENING_2030 = datetime(2026, 6, 7, 20, 30, tzinfo=IST)  # 20:30 IST — past promo window end
 
 
 @pytest.fixture(autouse=True)
@@ -104,28 +104,28 @@ def test_outside_hours_blocked():
     assert any("outside_calling_hours" in r for r in d.reasons)
 
 
-def test_promo_window_default_is_9_to_19(monkeypatch):
+def test_promo_window_default_is_9_to_20(monkeypatch):
     """D-0 (LEGAL-GATE): promo window default starts 09:00 (not 10:00) and ends
-    19:00 — a conservative subset of TRAI's 09:00–21:00. The 09:30 slot, which the
+    20:00 — the owner operating window within TRAI's 09:00–21:00 ceiling. The 09:30 slot, which the
     old 10:00 default blocked, is now allowed (with DLT + caller-id set)."""
     monkeypatch.setenv("DLT_APPROVED", "1")
     monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
     g = ComplianceGate(dnd_checker=_FakeDND(False))
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=EARLY_0930))
     assert d.allowed, d.reasons
-    assert d.checks.get("window") == "09:00-19:00"
+    assert d.checks.get("window") == "09:00-20:00"
     assert d.checks.get("within_hours") is True
 
 
-def test_promo_after_1900_blocked(monkeypatch):
-    """19:30 is past the promo window end → blocked even with DLT + caller-id."""
+def test_promo_after_2000_blocked(monkeypatch):
+    """20:30 is past the promo window end → blocked even with DLT + caller-id."""
     monkeypatch.setenv("DLT_APPROVED", "1")
     monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
     g = ComplianceGate(dnd_checker=_FakeDND(False))
-    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=EVENING_1930))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=EVENING_2030))
     assert not d.allowed
     assert any("outside_calling_hours" in r for r in d.reasons)
-    assert d.checks.get("window") == "09:00-19:00"
+    assert d.checks.get("window") == "09:00-20:00"
 
 
 def test_promo_window_env_override(monkeypatch):
@@ -137,7 +137,7 @@ def test_promo_window_env_override(monkeypatch):
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=EARLY_0930))
     assert not d.allowed
     assert any("outside_calling_hours" in r for r in d.reasons)
-    assert d.checks.get("window") == "10:00-19:00"
+    assert d.checks.get("window") == "10:00-20:00"
 
 
 def test_kill_switch_allows(monkeypatch):
@@ -222,18 +222,18 @@ def test_promo_window_start_override_floored_to_0900(monkeypatch):
     monkeypatch.setenv("COMPLIANCE_PROMO_START", "06:00")  # before 09:00 floor
     g = ComplianceGate(dnd_checker=_FakeDND(False))
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
-    assert d.checks.get("window") == "09:00-19:00"  # floored to 09:00
+    assert d.checks.get("window") == "09:00-20:00"  # floored to 09:00
 
 
 def test_promo_window_garbage_env_falls_back_to_default(monkeypatch):
-    """Un-parseable overrides fall back to the safe default 09:00-19:00."""
+    """Un-parseable overrides fall back to the safe default 09:00-20:00."""
     monkeypatch.setenv("DLT_APPROVED", "1")
     monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
     monkeypatch.setenv("COMPLIANCE_PROMO_START", "banana")
     monkeypatch.setenv("COMPLIANCE_PROMO_END", "99:99")
     g = ComplianceGate(dnd_checker=_FakeDND(False))
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
-    assert d.checks.get("window") == "09:00-19:00"
+    assert d.checks.get("window") == "09:00-20:00"
 
 
 def test_promo_window_degenerate_override_falls_back(monkeypatch):
@@ -244,7 +244,7 @@ def test_promo_window_degenerate_override_falls_back(monkeypatch):
     monkeypatch.setenv("COMPLIANCE_PROMO_END", "23:00")
     g = ComplianceGate(dnd_checker=_FakeDND(False))
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
-    assert d.checks.get("window") == "09:00-19:00"
+    assert d.checks.get("window") == "09:00-20:00"
 
 
 def test_effective_promo_window_helper_clamps(monkeypatch):
@@ -255,7 +255,7 @@ def test_effective_promo_window_helper_clamps(monkeypatch):
     assert effective_promo_window() == ("09:00", "21:00")
     monkeypatch.setenv("COMPLIANCE_PROMO_START", "banana")
     monkeypatch.delenv("COMPLIANCE_PROMO_END", raising=False)
-    assert effective_promo_window() == ("09:00", "19:00")
+    assert effective_promo_window() == ("09:00", "20:00")
 
 
 def test_dnd_fail_open_ignored_in_production(monkeypatch):

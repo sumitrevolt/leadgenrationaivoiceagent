@@ -256,7 +256,7 @@ class Settings(BaseSettings):
     call_retry_attempts: int = 3
     call_retry_delay_minutes: int = 30
     working_hours_start: str = "09:00"
-    working_hours_end: str = "18:00"
+    working_hours_end: str = "20:00"
     timezone: str = "Asia/Kolkata"
 
     # Support Contact Settings

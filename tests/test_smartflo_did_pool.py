@@ -296,7 +296,7 @@ def test_default_window_is_the_conservative_compliance_default(
 
     cfg = ttc.TataTeleConfig()
 
-    assert (cfg.outbound_start, cfg.outbound_end) == (time(9, 0), time(19, 0))
+    assert (cfg.outbound_start, cfg.outbound_end) == (time(9, 0), time(20, 0))
 
 
 def test_window_clock_is_ist_not_host_local() -> None:
