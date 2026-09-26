@@ -64,6 +64,7 @@ def _client():
 def _sign_headers(secret: str, tool_id: str, event_type: str, body_bytes: bytes):
     """Build the canonical HMAC headers for a request."""
     from app.platform import coordination_hub_auth as auth
+
     issued_at = int(time.time())
     nonce = secrets.token_urlsafe(24)
     body_sha = auth.body_sha256(body_bytes)
@@ -109,6 +110,7 @@ def test_status_endpoint_lists_agnes_when_enrolled() -> None:
     """Agnes-specific HMAC enrollment: she appears in known_tools and is
     configurable via COORD_HUB_TOOL_AGNES_SECRET in env."""
     from app.platform import coordination_hub_auth as auth
+
     assert "agnes" in auth._KNOWN_TOOLS
     # Without a secret configured for agnes in env, tools_configured['agnes'] is False
     os.environ.pop("COORD_HUB_TOOL_AGNES_SECRET", None)
@@ -123,6 +125,7 @@ def test_status_endpoint_lists_agnes_when_enrolled() -> None:
 def test_agnes_secret_env_name_lookup() -> None:
     """The dedicated env var COORD_HUB_TOOL_AGNES_SECRET is the source for agnes."""
     from app.platform import coordination_hub_auth as auth
+
     assert auth._secret_env_name("agnes") == "COORD_HUB_TOOL_AGNES_SECRET"
     # buzz keeps its special name (per existing coord_hub_auth convention)
     assert auth._secret_env_name("buzz") == "COORD_HUB_BUZZ_SECRET"
@@ -219,15 +222,19 @@ def test_replay_nonce_rejected(hermes_secret) -> None:
 def test_expired_token_rejected(hermes_secret) -> None:
     """Token issued more than 300s ago must be rejected."""
     from app.platform import coordination_hub_auth as auth
+
     client, _app = _client()
     body = json.dumps({}).encode("utf-8")
     body_sha = auth.body_sha256(body)
     issued_at = int(time.time()) - 600  # 10 min ago
     nonce = secrets.token_urlsafe(24)
     sig = auth.build_tool_signature(
-        secret=hermes_secret, tool_id="hermes",
-        event_type="executor.next_task", body_sha256=body_sha,
-        issued_at=issued_at, nonce=nonce,
+        secret=hermes_secret,
+        tool_id="hermes",
+        event_type="executor.next_task",
+        body_sha256=body_sha,
+        issued_at=issued_at,
+        nonce=nonce,
     )
     headers = {
         "Content-Type": "application/json",
@@ -290,6 +297,7 @@ def test_reference_client_script_runs_smoke(monkeypatch, tmp_path, hermes_secret
     import time as t
 
     from scripts import executor_handshake as ref
+
     body = json.dumps({}).encode("utf-8")
     headers = ref._build_headers("hermes", "executor.next_task", body, hermes_secret)
     assert headers["X-Tool-Id"] == "hermes"

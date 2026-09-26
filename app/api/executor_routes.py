@@ -258,7 +258,10 @@ async def next_task(
         # The orchestrator's get_metrics + get_kanban_board return per-role slices.
         # For a real "give me next task" call, we walk the kanban board.
         try:
-            for status_name in ("ready", "blocked"):  # prefer ready; fall back to blocked (observed-not-running)
+            for status_name in (
+                "ready",
+                "blocked",
+            ):  # prefer ready; fall back to blocked (observed-not-running)
                 tasks = orch.store.all_tasks()
                 for task in tasks:
                     if (
@@ -314,6 +317,7 @@ async def heartbeat(
         body_bytes = await request.body()
         if isinstance(body_bytes, bytes) and body_bytes:
             import json
+
             body_data = json.loads(body_bytes.decode("utf-8") or "{}")
     except Exception:
         body_data = {}
@@ -361,6 +365,7 @@ async def claim(
         raise HTTPException(status_code=403, detail="tool_id_mismatch")
 
     import json
+
     body_data: dict[str, Any] = {}
     try:
         raw = await request.body() if hasattr(request, "body") else b""
@@ -432,6 +437,7 @@ async def complete(
         raise HTTPException(status_code=403, detail="tool_id_mismatch")
 
     import json
+
     body_data: dict[str, Any] = {}
     try:
         raw = await request.body() if hasattr(request, "body") else b""

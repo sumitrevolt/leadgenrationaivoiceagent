@@ -47,6 +47,7 @@ def _sign_request(
 ) -> tuple[str, str]:
     """Compute the canonical signature + body_sha256. Returns (sig, body_sha)."""
     from app.platform import coordination_hub_auth as auth
+
     body_sha = auth.body_sha256(body_bytes)
     sig = auth.build_tool_signature(
         secret=secret,
@@ -59,7 +60,9 @@ def _sign_request(
     return sig, body_sha
 
 
-def _post(url: str, headers: dict[str, str], body_bytes: bytes, timeout: int = 30) -> dict[str, Any]:
+def _post(
+    url: str, headers: dict[str, str], body_bytes: bytes, timeout: int = 30
+) -> dict[str, Any]:
     """POST with stdlib urllib. Returns parsed JSON. Raises on non-2xx."""
     import urllib.error
     import urllib.request
@@ -79,13 +82,17 @@ def _post(url: str, headers: dict[str, str], body_bytes: bytes, timeout: int = 3
 def _get(url: str, timeout: int = 30) -> dict[str, Any]:
     import urllib.error
     import urllib.request
+
     req = urllib.request.Request(url, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        return {"_http_error": exc.code, "_reason": exc.reason,
-                "_body": exc.read().decode("utf-8", errors="replace")}
+        return {
+            "_http_error": exc.code,
+            "_reason": exc.reason,
+            "_body": exc.read().decode("utf-8", errors="replace"),
+        }
 
 
 # --------------------------------------------------------------------------- #
@@ -97,8 +104,12 @@ def _build_headers(tool_id: str, event_type: str, body_bytes: bytes, secret: str
     issued_at = int(time.time())
     nonce = secrets.token_urlsafe(24)
     sig, body_sha = _sign_request(
-        secret=secret, tool_id=tool_id, event_type=event_type,
-        body_bytes=body_bytes, issued_at=issued_at, nonce=nonce,
+        secret=secret,
+        tool_id=tool_id,
+        event_type=event_type,
+        body_bytes=body_bytes,
+        issued_at=issued_at,
+        nonce=nonce,
     )
     return {
         "Content-Type": "application/json",
@@ -145,13 +156,15 @@ def complete(
     success: bool = True,
     error_msg: str | None = None,
 ) -> dict[str, Any]:
-    body = json.dumps({
-        "task_id": task_id,
-        "fencing_token": fencing_token,
-        "evidence": evidence,
-        "success": success,
-        "error_msg": error_msg,
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "task_id": task_id,
+            "fencing_token": fencing_token,
+            "evidence": evidence,
+            "success": success,
+            "error_msg": error_msg,
+        }
+    ).encode("utf-8")
     headers = _build_headers(tool_id, "executor.complete", body, secret)
     return _post(f"{base_url}/api/executor/{tool_id}/complete", headers, body)
 
@@ -167,14 +180,21 @@ def _main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--base-url", required=True, help="e.g. https://leadsgenai.in")
     p.add_argument("--tool-id", required=True, help="e.g. hermes, agnes, openclaw")
-    p.add_argument("--secret-env", required=True,
-                    help="env var holding the HMAC secret (e.g. COORD_HUB_TOOL_HERMES_SECRET)")
-    p.add_argument("--action", required=True,
-                    choices=["status", "next-task", "heartbeat", "claim", "complete"])
+    p.add_argument(
+        "--secret-env",
+        required=True,
+        help="env var holding the HMAC secret (e.g. COORD_HUB_TOOL_HERMES_SECRET)",
+    )
+    p.add_argument(
+        "--action", required=True, choices=["status", "next-task", "heartbeat", "claim", "complete"]
+    )
     p.add_argument("--task-id", default=None)
     p.add_argument("--fencing-token", default=None)
-    p.add_argument("--evidence-file", default=None,
-                    help="JSON file with the evidence payload for --action complete")
+    p.add_argument(
+        "--evidence-file",
+        default=None,
+        help="JSON file with the evidence payload for --action complete",
+    )
     args = p.parse_args(argv)
 
     secret = os.environ.get(args.secret_env, "").strip()
@@ -204,7 +224,10 @@ def _main(argv: list[str] | None = None) -> int:
         if args.evidence_file:
             evidence = json.loads(Path(args.evidence_file).read_text(encoding="utf-8"))
         out = complete(
-            args.base_url, args.tool_id, secret, args.task_id,
+            args.base_url,
+            args.tool_id,
+            secret,
+            args.task_id,
             fencing_token=args.fencing_token,
             evidence=evidence,
         )
