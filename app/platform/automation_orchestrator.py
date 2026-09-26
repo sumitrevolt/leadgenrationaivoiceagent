@@ -328,7 +328,9 @@ class DurableTaskStore:
                         record.priority.value
                         if isinstance(record.priority, TaskPriority)
                         else record.priority,
-                        record.status.value if isinstance(record.status, TaskStatus) else record.status,
+                        record.status.value
+                        if isinstance(record.status, TaskStatus)
+                        else record.status,
                         record.version,
                         record.fencing_token,
                         record.retry_count,
