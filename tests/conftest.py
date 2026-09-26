@@ -31,6 +31,7 @@ os.environ.setdefault("KB_PREWARM", "0")
 # Dono ka graceful fallback hai = zero test-behaviour change, sirf hang khatam.
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
 os.environ.setdefault("QDRANT_URL", "")
+os.environ.setdefault("APP_ENV", "test")
 # App singleton DB must match the harness file DB. Set BEFORE any app.* import
 # (pydantic Settings freezes database_url on first load).
 #
@@ -49,6 +50,18 @@ os.environ["DATABASE_URL"] = (
     + __import__("tempfile").gettempdir().replace("\\", "/")
     + f"/leadgen_test{_XDIST_DB_SUFFIX}.db"
 )
+
+# Runtime-data isolation (2026-09-25): keep scheduler/heartbeat/log writers
+# out of the checkout's real data/ directory. The runtime-data resolver is
+# operation-time by design; without this root, TestClient startup can write
+# job_runs.jsonl/job_heartbeats.json while xdist workers are running.
+_RUNTIME_ROOT = __import__("pathlib").Path(__import__("tempfile").gettempdir()) / (
+    f"leadgen_runtime_test_{_XDIST_WORKER.replace('/', '_')}"
+    if _XDIST_WORKER
+    else "leadgen_runtime_test_serial"
+)
+_RUNTIME_ROOT.mkdir(parents=True, exist_ok=True)
+os.environ["LEADGEN_RUNTIME_DATA_DIR"] = str(_RUNTIME_ROOT)
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
 # kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout

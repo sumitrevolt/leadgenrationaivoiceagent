@@ -20,15 +20,13 @@ logger = setup_logger(__name__)
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTRY_PATH = _REPO_ROOT / "docs" / "coordination" / "desktop_registry.json"
 
+# Minimal fields every desktop enrollment must provide. Historical registry
+# metadata (project/worktree/buzzlock_tool/harness/headless_cli) remains optional:
+# runtime health comes from HMAC-attested Coordination Hub presence, not docs.
 _REQUIRED_APP_KEYS = (
     "id",
     "name",
-    "project",
-    "worktree",
     "channel",
-    "buzzlock_tool",
-    "harness",
-    "headless_cli",
     "heartbeat",
     "status",
 )

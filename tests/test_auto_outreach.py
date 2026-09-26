@@ -41,6 +41,21 @@ def _hermetic_email_verify(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _hermetic_typesafe_content_qa(monkeypatch):
+    """Keep outreach behavior tests deterministic and network/secret independent.
+
+    TypeSafe fail-closed behavior is covered by its dedicated integration tests;
+    these tests exercise outreach batching, suppression, caps, and persistence.
+    """
+    from app.integrations import email_sender
+
+    async def _approve(self, subject, body, channel="email"):
+        return {"approved": True, "score": 100, "issues": [], "grade": "strong", "tone": "ok"}
+
+    monkeypatch.setattr(email_sender.EmailSender, "validate_content", _approve)
+
+
+@pytest.fixture(autouse=True)
 def _isolated_email_suppression(monkeypatch, tmp_path):
     from app.platform import email_unsub
 

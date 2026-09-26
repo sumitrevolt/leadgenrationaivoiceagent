@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 from app.api.activation import _BLOCKER, _PROBES
 from app.api.automation_flags import AUTOMATION_FLAGS
 from app.config import Settings
@@ -64,6 +66,24 @@ def test_web_concurrency_hardcoded_two_on_vps_compose():
     text = (REPO / "docker-compose.vps.yml").read_text(encoding="utf-8")
     assert "WEB_CONCURRENCY: 2" in text
     assert "mem_limit: 3g" in text
+    # 2026-09-23 (task0012 slice 2) anti-relaxation pin: the `app:` service
+    # must carry the hardcoded literal 2. PR #549 (e91e45e6) swapped it for
+    # ${WEB_CONCURRENCY:-1}; env_file/.env could then silently drop the app to
+    # 1 worker and resurrect the concurrent-burst 502 class. `app:` is the
+    # first service that sets WEB_CONCURRENCY in the file (the mcp service
+    # keeps its own hardcoded 1), and no service may use the ${..} form.
+    wc_lines = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("WEB_CONCURRENCY")]
+    assert wc_lines[0] == "WEB_CONCURRENCY: 2", wc_lines
+    assert not any("WEB_CONCURRENCY: ${" in ln for ln in text.splitlines()), wc_lines
+    # Two workers are safe only with the durable Celery scheduler path. Parse
+    # structurally so this pin cannot accidentally collect values from any of the
+    # 13 sibling services in the compose file.
+    compose = yaml.safe_load(text)
+    app_environment = compose["services"]["app"]["environment"]
+    assert app_environment["WEB_CONCURRENCY"] == 2, app_environment["WEB_CONCURRENCY"]
+    assert str(app_environment["RUN_IN_PROCESS_SCHEDULER"]) == "0", app_environment[
+        "RUN_IN_PROCESS_SCHEDULER"
+    ]
 
 
 def test_inbox_and_start_routes_exist_in_main():

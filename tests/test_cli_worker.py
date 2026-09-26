@@ -4,6 +4,7 @@ Hermetic: points app.models.base.async_session at an in-memory SQLite DB, then r
 one bounded cycle and asserts the dev_workers row is registered + heartbeat is fresh.
 Skipped (not faked) when SQLAlchemy/aiosqlite are unavailable.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -57,6 +58,64 @@ class CliWorkerSmoke(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(w["kind"], "cli")
         self.assertTrue(w["authoritative"])
         self.assertEqual(w["health"], "healthy")
+
+    async def test_one_cycle_does_not_claim_or_fake_success(self):
+        from app.models.base import async_session
+        from app.models.dev_task import DevTask
+        from app.models.dev_worker import DevWorker, decode_capabilities
+        from app.workers.cli_worker import run
+
+        maker = async_session()
+        async with maker() as db:
+            db.add(
+                DevTask(
+                    id="queued-task-1",
+                    idempotency_key="cli-test-noop-0001",
+                    parent_objective="must remain queued without a real handler",
+                    priority=100,
+                    state="queued",
+                    acceptance_criteria="[]",
+                    file_ownership="[]",
+                    dependencies="[]",
+                )
+            )
+            await db.commit()
+
+        rc = await run("engineering", once=True)
+        self.assertEqual(rc, 0)
+
+        async with maker() as db:
+            task = await db.get(DevTask, "queued-task-1")
+            worker = await db.get(DevWorker, "cli_engineering")
+        self.assertEqual(task.state, "queued")
+        self.assertIsNone(task.lease_owner)
+        self.assertEqual(worker.success_count, 0)
+        self.assertEqual(worker.failure_count, 0)
+        self.assertIsNone(worker.current_task_id)
+        self.assertNotIn("noop.executor", decode_capabilities(worker.capabilities))
+        self.assertIn("claim.disabled.no_handler", decode_capabilities(worker.capabilities))
+
+    async def test_cycle_failure_records_worker_failure_without_claiming(self):
+        from unittest.mock import patch
+
+        from app.models.base import async_session
+        from app.models.dev_worker import DevWorker
+        from app.workers.cli_worker import run
+
+        async def fail_cycle(db, worker_id):
+            raise RuntimeError("synthetic cycle failure")
+
+        with patch("app.workers.cli_worker._cycle", new=fail_cycle):
+            rc = await run("guardian", once=True)
+        self.assertEqual(rc, 0)
+
+        maker = async_session()
+        async with maker() as db:
+            worker = await db.get(DevWorker, "cli_guardian")
+        self.assertEqual(worker.success_count, 0)
+        self.assertEqual(worker.failure_count, 1)
+        self.assertIsNone(worker.current_task_id)
+        self.assertIn("synthetic cycle failure", worker.last_error)
 
     async def test_rejects_non_worker_supervisor(self):
         from app.workers.cli_worker import run

@@ -30,6 +30,13 @@ def _RUNS() -> str:
     """Scheduler job-run jsonl — resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
+    if (os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or "").strip().lower() in {
+        "test",
+        "testing",
+    }:
+        from app.platform import runtime_data as _runtime_data
+
+        return str(_runtime_data.store_path("automation", "job_runs.jsonl"))
     return str(
         _auth.resolve_store_path(
             store_id="automation.job_runs",
@@ -43,6 +50,13 @@ def _BEATS() -> str:
     """Latest-per-job heartbeat snapshot — sibling under the same store family."""
     from app.platform import runtime_data_authority as _auth
 
+    if (os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or "").strip().lower() in {
+        "test",
+        "testing",
+    }:
+        from app.platform import runtime_data as _runtime_data
+
+        return str(_runtime_data.store_path("automation", "job_heartbeats.json"))
     return str(
         _auth.resolve_store_path(
             store_id="automation.job_runs",
@@ -132,6 +146,7 @@ EXPECTED_GAP_MIN = {
     "content": 30 * 60,
     "hot_queue_brief": 30 * 60,  # daily 08:15 IST, health-gated revenue brief
     "hot_queue_owner_pack": 30 * 60,  # daily 09:00 IST, CSV+MD+nfty for owner 1-click close
+    "hot_queue_followup": 30 * 60,  # daily 10:00 IST, stale-card reminder
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 24

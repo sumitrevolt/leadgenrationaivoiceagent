@@ -254,6 +254,74 @@ class TelegramBot:
             )
 
         # Authorized processing
+        # 0. P0-76 owner-ACK (owner-gated, existing-task-bound) — intercept before
+        #    the generic slash-command / TypeSafe-intent paths so it binds to the
+        #    EXISTING orchestrator task and never creates a duplicate.
+        from app.integrations.telegram_p0_76_ack import (
+            handle_p0_76_ack,
+            handle_p0_76_review_approval,
+            is_p0_76_ack,
+            is_p0_76_approval,
+        )
+
+        if is_p0_76_approval(text):
+            appres = handle_p0_76_review_approval(
+                bot=self,
+                orchestrator=self._get_orchestrator(),
+                update=update,
+                chat_id=chat_id,
+                send_reply=send_reply,
+            )
+            self._log_audit(
+                event_type="p0_76_review_approval",
+                user_id=user_id,
+                username=username,
+                chat_id=chat_id,
+                text=text,
+                is_owner=appres.authorized,
+                intent="p0_76_review_approval",
+                routed_bot="guardian",
+                response=appres.response_text,
+            )
+            return BotProcessResult(
+                success=(not appres.error) or appres.replayed,
+                response_text=appres.response_text,
+                intent="p0_76_review_approval",
+                is_owner=appres.authorized,
+                routed_bot="guardian",
+                deduplicated=appres.replayed,
+                error=appres.error,
+            )
+
+        if is_p0_76_ack(text):
+            p0res = handle_p0_76_ack(
+                bot=self,
+                orchestrator=self._get_orchestrator(),
+                update=update,
+                chat_id=chat_id,
+                send_ack=send_reply,
+            )
+            self._log_audit(
+                event_type="p0_76_ack",
+                user_id=user_id,
+                username=username,
+                chat_id=chat_id,
+                text=text,
+                is_owner=True,
+                intent="p0_76_ack",
+                routed_bot="guardian",
+                response=p0res.response_text,
+            )
+            return BotProcessResult(
+                success=(not p0res.error) or p0res.deduplicated,
+                response_text=p0res.response_text,
+                intent="p0_76_ack",
+                is_owner=True,
+                routed_bot="guardian",
+                deduplicated=p0res.deduplicated,
+                error=p0res.error,
+            )
+
         # 1. Check if slash command
         if text.startswith("/"):
             response_text, intent, routed_bot = self._execute_command(text)
@@ -385,7 +453,7 @@ class TelegramBot:
             f"â€¢ `/keys` or `/slots` â€” TypeSafe 4 logical slots health & rotation status\n"
             f"â€¢ `/tasks [status]` â€” List tasks from the durable ledger\n"
             f"â€¢ `/agents` â€” View the 31 specialist agents across 7 teams\n"
-            f"â€¢ `/test_handoff` â€” Execute a non-destructive verification task\n"
+            f"â€¢ `/test_handoff` â€” Non-destructive self-check (NOT execution proof for #76)\n"
             f"â€¢ `/pause` â€” Trigger kill switch (stops new task claims)\n"
             f"â€¢ `/resume` â€” Re-enable automated task claims\n"
             f"â€¢ `/help` â€” Show this message\n\n"
@@ -438,10 +506,23 @@ class TelegramBot:
         done_cnt = counts.get(TaskStatus.DONE.value, 0)
         failed_cnt = counts.get(TaskStatus.FAILED.value, 0)
 
+        # Ingress/egress SMOKE block (owner directive: /status = status/smoke surface, NOT an execution proof).
+        from app.platform import telegram_coordinator as _tc
+
+        lease = _tc.get_polling_lease()
+        conflicts = _tc.ingress_conflict_state()
+        egress_slots = [slot for slot, _ in _tc.egress_token_candidates()]
+        ingress_lines = [
+            "INGRESS/EGRESS SMOKE (status read - NOT an execution proof):",
+            f"  Ingress token (Jarvis): configured={bool(_tc.get_polling_token())}",
+            f"  Polling lease: holder={lease.get('holder')} backend={lease.get('backend')} held_by_me={lease.get('held_by_me')}",
+            f"  409 external conflicts: {conflicts.get('conflict_count', 0)} (last={conflicts.get('last_conflict_at')})",
+            f"  Egress slots: {egress_slots}",
+        ]
         ts_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         text = (
-            f"ðŸ“Š **LeadGen AI Orchestrator Status**\n\n"
+            f"ðŸ“Š **LeadGen AI Orchestrator Status - ingress/egress SMOKE TEST**\n\n"
             f"â€¢ **Supervisory Fleet:** 9 Hermes bots active (`board`, `pilot`, `sales`, etc.)\n"
             f"â€¢ **Specialist Workforce:** {agent_count} agents registered (`team.STAFF`)\n"
             f"â€¢ **Active Worker Leases:** {active_leases} / {orch.governor.max_leases}\n"
@@ -454,6 +535,9 @@ class TelegramBot:
             f"  âŒ Failed: {failed_cnt}\n\n"
             f"â€¢ **TypeSafe:** {typesafe_state} (model: `{ts_client.model}`)\n"
             f"â€¢ **Updated:** `{ts_str}`"
+            + "\n".join(ingress_lines)
+            + "\n\n"
+            + "*Smoke/status surface only - not an execution proof. Execution evidence = bound `p0_76_ack` handler results + worker result rows.*"
         )
         return text, "status_check", "board"
 
@@ -524,54 +608,34 @@ class TelegramBot:
         )
 
     def _cmd_test_handoff(self) -> tuple[str, str, str | None]:
-        """Execute one authorized, non-destructive agent handoff end to end."""
-        orch = self._get_orchestrator()
-
-        # Pick a non-destructive, green-lane agent (e.g. lekha or devops)
-        owner_bot = "pilot"
-        assigned_agent = "lekha" if "lekha" in orch.registry else list(orch.registry.keys())[0]
-
+        """Run a real, non-destructive handoff through canonical DevTask/dev_workers."""
         try:
-            from app.platform.automation_orchestrator import StructuredEvidence
+            from app.integrations.telegram_dev_task_handoff import run_canonical_handoff
 
-            record, created = orch.submit_task(
-                owner_bot=owner_bot,
-                assigned_agent=assigned_agent,
-                priority=TaskPriority.LOW,
-                input_payload={"test_run": True, "initiated_by": "telegram_verification"},
-                idempotency_key=f"tg_verify:{int(time.time())}",
-            )
-            dispatched = orch.dispatch_task(record.task_id)
-
-            evidence = StructuredEvidence(
-                type="test_result",
-                uri_or_path="telegram_bot_test_handoff",
-                producer=assigned_agent,
-                checksum_or_result={"verified": True, "source": "telegram_bot_test_handoff"},
-            )
-            completed_record = orch.verify_and_complete(
-                record.task_id,
-                execution_evidence=evidence,
-                is_success=True,
-            )
-
-            updated = orch.store.get(record.task_id)
-            final_status = updated.status.value if updated else "UNKNOWN"
-
+            result = run_canonical_handoff()
+            task_id = result.get("task_id")
+            if result.get("ok"):
+                text = (
+                    "✅ **Canonical Task Handoff Verified**\n\n"
+                    f"• DevTask: `{task_id}`\n"
+                    f"• Worker: `{result.get('worker_id')}` (kind=api)\n"
+                    f"• Real live CLI workers: {result.get('live_cli_count')}/6\n"
+                    f"• Final DevTask state: `{result.get('state')}`\n"
+                    "• Execution: read-only worker-registry liveness snapshot\n"
+                    "• Customer/provider side effects: none"
+                )
+                return text, "command", "pilot"
             text = (
-                f"âœ… **End-to-End Task Handoff Verified!**\n\n"
-                f"â€¢ Task ID: `{record.task_id}`\n"
-                f"â€¢ Owner Bot: `{owner_bot}`\n"
-                f"â€¢ Assigned Agent: `{assigned_agent}`\n"
-                f"â€¢ Creation: {'OK' if created else 'Existing'}\n"
-                f"â€¢ Claim/Dispatch: {'OK' if dispatched else 'Blocked'}\n"
-                f"â€¢ Execution & Verification: {'OK' if completed_record.status == TaskStatus.DONE else 'Review'}\n"
-                f"â€¢ Final Ledger Status: `{final_status}`"
+                "❌ **Canonical Task Handoff Failed**\n\n"
+                f"• DevTask: `{task_id or 'unavailable'}`\n"
+                f"• Reason: `{result.get('reason') or result.get('state') or 'verification_failed'}`\n"
+                f"• Missing CLI workers: `{result.get('missing_cli_workers') or []}`"
             )
-            return text, "command", "pilot"
+            return text, "command", "guardian"
         except Exception as e:
+            logger.exception("Canonical Telegram test handoff failed")
             return (
-                f"âŒ Task handoff failed: `{e}`",
+                f"❌ Canonical task handoff failed: `{type(e).__name__}: {str(e)[:180]}`",
                 "command",
                 "guardian",
             )

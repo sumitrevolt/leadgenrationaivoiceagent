@@ -317,6 +317,13 @@ def _wire_dialer(monkeypatch, fake, *, placed=True, error="", ssc_calls=None):
     monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient.available", lambda self: True)
 
+    async def _auth_probe_ok(*a, **k):
+        return {"ok": True, "status_code": 200, "reason": ""}
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient.auth_probe", _auth_probe_ok
+    )
+
     async def _nosleep(*a, **k):
         return None
 
