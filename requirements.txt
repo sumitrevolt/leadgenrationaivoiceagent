@@ -191,4 +191,4 @@ fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 # =============================================================================
 pytest==7.4.4
 pytest-asyncio==0.23.4
-pytest-cov==4.1.0
+pytest-cov==7.1.0
