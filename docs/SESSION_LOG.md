@@ -1840,3 +1840,17 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 ### Prod lineage correction
 - Live `/health` = `cdc28e0d` (2026-09-15). `git fetch` confirms **`cdc28e0d` IS an ancestor of `origin/main` (`e77f8e08`)** — today's fetch re-converged the 2026-09-14 "DIVERGED" warning; main = prod + 5 docs/security commits. Build/deploy branches off `origin/main`, not stale local refs.
 
+### 2026-09-23 — Agnes Desktop checkpoint: Hermes handoff received, VPS still down
+- **Source:** owner-relayed Hermes Desktop report; independent verification by Agnes Desktop (local `git fetch`, curl probes, live TypeSafe call).
+- **Verified:** `origin/main` = `b8b154fb` (object exists, rev-parse match). VPS srv1736379 DOWN — `leadsgenai.in` /health, /, /openapi.json all HTTP 000 (15s timeout, 08:10 IST). Live prod SHA unknown while down; last known `883ef713` (Sep 21, per Hermes). TypeSafe live locally: state PRESENT (fp `2e13ca55f7f8`), pool 4/4, one real `typesafe_score` call success=true, value 0.74, has_answer=true, latency 0.59s.
+- **Claimed-only (NOT re-verified by Agnes):** Hermes "105 targeted tests pass", "CI green at b8b154fb", SmartFlo 26-file / ADR-200 commit contents.
+- **Conflicts:** (1) Hermes reported TypeSafe "Score 1.02" — out of scale for a 0–1 score primitive (independent call returned 0.74); data-quality flag, no gate bypass. (2) AGENTS.md CURRENT STATE pointer stale (`35f4d33c`/feat branch) vs actual `main @ b8b154fb` — docs drift, code wins.
+- **Decision (owner-gated):** VPS recovery = owner-only (Hostinger hPanel reboot). Deploy `b8b154fb` via `scripts/deploy_vps.sh b8b154fb` only after VPS is back + owner approval. No agent may deploy while VPS is down.
+- **Handoff routing:** all desktop-agent prompts this wave = OWNER-TO-FORWARD (no direct cross-agent control surface from this desktop; master-prompt §9 receipt-proof remains UNVERIFIED).
+- **Open threads:** PR #556 status + CI for `b8b154fb` unverified (GitHub queries inconclusive this session) → assigned to FreeBuff.
+- **Owner directive:** MiniMax ko FULL OWNER AUTHORITY (08:55+ IST); owner-gated blocks removed (VPS, deploy, customer sends, billing). MiniMax autonomous execution authorized.
+- **2026-09-23 Hermes deploy-readiness result:** 3 commits applied to main (`06f33607`): TS score clamp fix + v1 hazard doc + deploy card. PR #557 OPEN but CI FAIL (3 tests: pytest, prod_check runtime gates, prod_check+pytest). VPS was DOWN (08:10) but **RECOVERED at 09:18 IST** — `/health` returns version `2962d26e` (production, uptime 1m34s). Deploy card ready: `scripts/deploy_vps.sh 06f33607`.
+- **2026-09-23 FreeBuff directive-2 receipt:** FreeBuff reported: PR #556 OPEN + mergeable CLEAN + CI Gate A SUCCESS + GitGuardian SUCCESS + reviewDecision=empty (0 approvals) — **AGNES VERIFIED** via `gh pr view 556`. Found Windows cp1252 UnicodeDecodeError in `test_governance_integrity.py:38` (missing `encoding="utf-8"` on `read_text()`) — fixed locally `5c54bdfb` on branch `fix/pr556-typesafe-skill-utf8`, NOT pushed (Hermes PR owner). admin_tasks.db 48 rows all placeholder — FreeBuff's own task #73 recorded. Owner notes: Hermes/MiniMax ko bhi ledger me real task IDs chahiye.
+
+Owner directive: **har agent ko har chat me baar-baar real TypeSafe API calls lena hai** — sirf skill load nahi, actual calls with trace per invocation.
+
