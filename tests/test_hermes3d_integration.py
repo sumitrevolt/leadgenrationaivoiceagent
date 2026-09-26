@@ -157,3 +157,44 @@ def test_allowlist_rejection():
         assert bridge.is_client_allowed("192.168.1.50") is True
     finally:
         bridge.allowlist = original_allowlist
+
+
+def test_hermes3d_command_rejects_unsupported_action():
+    """Hermes3D bridge must reject unsupported actions with explicit error."""
+    bridge = Hermes3DBridge()
+    result = bridge.handle_command("hack_the_galaxy", target_agent="isha")
+    assert result["success"] is False
+    assert result["error"] == "unsupported_action"
+    assert "hack_the_galaxy" in result["message"]
+
+
+def test_hermes3d_command_creates_real_canonical_task():
+    """Hermes3D command must create a real persisted task through the orchestrator."""
+    bridge = Hermes3DBridge()
+    result = bridge.handle_command("run_cycle", target_agent="isha", parameters={"zoom": 1.0})
+    assert result["success"] is True
+    assert "task_id" in result
+    assert result["is_new"] is True
+    assert "status" in result
+    # Verify task is persisted
+    from app.platform.automation_orchestrator import DurableTaskStore
+
+    store = DurableTaskStore()
+    task = store.get(result["task_id"])
+    assert task is not None
+    assert task.owner_bot == "guardian"
+    assert task.input_payload["action"] == "run_cycle"
+
+
+def test_hermes3d_command_no_duplicate_tasks_on_retry():
+    """Retrying an identical command must return the existing task (idempotency)."""
+    bridge = Hermes3DBridge()
+    result1 = bridge.handle_command(
+        "status_check", target_agent="isha", parameters={"idempotent_key": "same"}
+    )
+    result2 = bridge.handle_command(
+        "status_check", target_agent="isha", parameters={"idempotent_key": "same"}
+    )
+    assert result1["success"] is True
+    assert result2["success"] is True
+    assert result1["task_id"] == result2["task_id"]
