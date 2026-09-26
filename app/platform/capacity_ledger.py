@@ -71,7 +71,7 @@ class CapacitySnapshot:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CapacitySnapshot":
+    def from_dict(cls, data: dict[str, Any]) -> CapacitySnapshot:
         return cls(
             email_capacity=data["email_capacity"],
             voice_capacity=data["voice_capacity"],
@@ -88,7 +88,7 @@ class CapacityLedger:
 
     def __init__(self, snapshot_path: str = "data/capacity_snapshot.json"):
         self.snapshot_path = snapshot_path
-        self.snapshot: Optional[CapacitySnapshot] = None
+        self.snapshot: CapacitySnapshot | None = None
         self._load()
 
     def _load(self):
@@ -96,7 +96,7 @@ class CapacityLedger:
         if not os.path.exists(self.snapshot_path):
             return
         try:
-            with open(self.snapshot_path, "r") as f:
+            with open(self.snapshot_path) as f:
                 data = json.load(f)
                 self.snapshot = CapacitySnapshot.from_dict(data)
         except Exception as e:
@@ -165,7 +165,7 @@ class CapacityLedger:
         self._save()
         return self.snapshot
 
-    def get_snapshot(self) -> Optional[CapacitySnapshot]:
+    def get_snapshot(self) -> CapacitySnapshot | None:
         """Get last computed snapshot (or None if not computed yet)."""
         return self.snapshot
 
@@ -173,7 +173,7 @@ class CapacityLedger:
         """Print human-readable capacity status."""
         snapshot = self.compute()
         print(f"\n{'='*60}")
-        print(f"  CAPACITY SNAPSHOT (weekly)")
+        print("  CAPACITY SNAPSHOT (weekly)")
         print(f"{'='*60}")
         print(f"  Email:    {snapshot.email_capacity:6,d} contacts/week")
         print(f"  Voice:    {snapshot.voice_capacity:6,d} contacts/week")
@@ -188,7 +188,7 @@ class CapacityLedger:
 
 
 # Module-level singleton
-_ledger: Optional[CapacityLedger] = None
+_ledger: CapacityLedger | None = None
 
 
 def get_ledger() -> CapacityLedger:

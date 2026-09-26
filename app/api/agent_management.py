@@ -37,9 +37,9 @@ class WorkerExecuteRequest(BaseModel):
 
 class WorkerExecuteResponse(BaseModel):
     success: bool
-    task_id: Optional[str] = None
-    status: Optional[str] = None
-    error: Optional[str] = None
+    task_id: str | None = None
+    status: str | None = None
+    error: str | None = None
 
 
 @router.get("/workers")
@@ -56,12 +56,12 @@ async def execute_worker_task(
 ) -> WorkerExecuteResponse:
     """Execute a task on a worker bot."""
     from app.agents.workers import execute_task
-    
+
     result = execute_task(request.worker_id, request.skill_name, request.input_data)
-    
+
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-    
+
     return WorkerExecuteResponse(
         success=result.get("success", True),
         task_id=result.get("task_id"),
@@ -100,12 +100,12 @@ class DailySummaryResponse(BaseModel):
 
 @router.get("/agents")
 async def list_agents(
-    product: Optional[str] = None,
+    product: str | None = None,
     _user=Depends(require_admin),
 ) -> AgentListResponse:
     """List all 31 agent bots."""
     from app.agents.agents import list_agents
-    
+
     agents = list_agents(product)
     return AgentListResponse(agents=agents, total=len(agents))
 
@@ -117,13 +117,13 @@ async def get_agent_stats(
 ) -> AgentStatsResponse:
     """Get detailed stats for an agent."""
     from app.agents.agents import get_agent_manager
-    
+
     manager = get_agent_manager()
     agent = manager.get_agent(agent_id)
-    
+
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
-    
+
     return AgentStatsResponse(
         agent_id=agent.agent_id,
         name=agent.name,
@@ -140,7 +140,7 @@ async def get_agent_stats(
 async def get_daily_summary(_user=Depends(require_admin)) -> DailySummaryResponse:
     """Get daily summary of all agent activity."""
     from app.agents.agents import daily_summary
-    
+
     summary = daily_summary()
     return DailySummaryResponse(**summary)
 
@@ -152,13 +152,13 @@ async def activate_agent(
 ) -> dict[str, Any]:
     """Activate an agent."""
     from app.agents.agents import get_agent_manager
-    
+
     manager = get_agent_manager()
     result = manager.activate_agent(agent_id)
-    
+
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
-    
+
     return result
 
 
@@ -169,13 +169,13 @@ async def pause_agent(
 ) -> dict[str, Any]:
     """Pause an agent."""
     from app.agents.agents import get_agent_manager
-    
+
     manager = get_agent_manager()
     result = manager.pause_agent(agent_id)
-    
+
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
-    
+
     return result
 
 
@@ -196,26 +196,25 @@ class SkillExecuteRequest(BaseModel):
 
 class SkillExecuteResponse(BaseModel):
     success: bool
-    execution: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
+    execution: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @router.get("/skills")
 async def list_skills(
-    category: Optional[str] = None,
+    category: str | None = None,
     _user=Depends(require_admin),
 ) -> SkillListResponse:
     """List all registered skills."""
-    from app.agents.skills import list_skills
-    from app.agents.skills import SkillCategory
-    
+    from app.agents.skills import SkillCategory, list_skills
+
     category_enum = None
     if category:
         try:
             category_enum = SkillCategory(category)
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
-    
+
     skills = list_skills(category_enum)
     return SkillListResponse(skills=skills, total=len(skills))
 
@@ -227,12 +226,12 @@ async def execute_skill(
 ) -> SkillExecuteResponse:
     """Execute a skill."""
     from app.agents.skills import execute_skill
-    
+
     result = execute_skill(request.skill_name, request.executor_id, request.input_data)
-    
+
     if "error" in result:
         return SkillExecuteResponse(success=False, error=result["error"])
-    
+
     return SkillExecuteResponse(
         success=result.get("success", True),
         execution=result.get("execution"),
@@ -246,7 +245,7 @@ async def get_skill_stats(
 ) -> dict[str, Any]:
     """Get statistics for a skill."""
     from app.agents.skills import get_skill_stats
-    
+
     return get_skill_stats(skill_name)
 
 
@@ -254,7 +253,7 @@ async def get_skill_stats(
 async def get_registry_summary(_user=Depends(require_admin)) -> dict[str, Any]:
     """Get skill registry summary."""
     from app.agents.skills import get_skill_registry
-    
+
     return get_skill_registry().get_registry_summary()
 
 
@@ -284,16 +283,16 @@ class FeedbackRecordRequest(BaseModel):
     skill_name: str
     input_data: dict[str, Any]
     success: bool = True
-    quality_score: Optional[float] = None
-    duration_seconds: Optional[float] = None
-    feedback_text: Optional[str] = None
+    quality_score: float | None = None
+    duration_seconds: float | None = None
+    feedback_text: str | None = None
 
 
 @router.get("/improve/status")
 async def get_loop_status(_user=Depends(require_admin)) -> LoopStatusResponse:
     """Get self-improvement loop status."""
     from app.feedback.loop import get_loop_status
-    
+
     status = get_loop_status()
     return LoopStatusResponse(**status)
 
@@ -305,7 +304,7 @@ async def toggle_loop(
 ) -> dict[str, Any]:
     """Enable or disable self-improvement loop."""
     from app.feedback.loop import toggle_loop
-    
+
     return toggle_loop(request.enabled)
 
 
@@ -316,7 +315,7 @@ async def record_feedback(
 ) -> dict[str, Any]:
     """Record feedback for a task."""
     from app.feedback.loop import record_feedback
-    
+
     result = record_feedback(
         task_id=request.task_id,
         agent_id=request.agent_id,
@@ -327,20 +326,20 @@ async def record_feedback(
         duration_seconds=request.duration_seconds,
         feedback_text=request.feedback_text,
     )
-    
+
     return {"success": True, "feedback_id": result.task_id}
 
 
 @router.get("/improve/proposals")
 async def get_proposals(
-    agent_id: Optional[str] = None,
-    status: Optional[str] = None,
+    agent_id: str | None = None,
+    status: str | None = None,
     limit: int = 50,
     _user=Depends(require_admin),
 ) -> list[dict[str, Any]]:
     """Get improvement proposals."""
     from app.feedback.loop import get_loop
-    
+
     return get_loop().get_proposals(agent_id, status, limit)
 
 
@@ -351,7 +350,7 @@ async def approve_proposal(
 ) -> dict[str, Any]:
     """Approve an improvement proposal."""
     from app.feedback.loop import get_loop
-    
+
     return get_loop().approve_proposal(proposal_id, approved_by=_user.email if hasattr(_user, 'email') else 'admin')
 
 
@@ -362,19 +361,19 @@ async def reject_proposal(
 ) -> dict[str, Any]:
     """Reject an improvement proposal."""
     from app.feedback.loop import get_loop
-    
+
     return get_loop().reject_proposal(proposal_id)
 
 
 @router.get("/improve/performance/{agent_id}")
 async def get_performance(
     agent_id: str,
-    skill_name: Optional[str] = None,
+    skill_name: str | None = None,
     _user=Depends(require_admin),
 ) -> list[dict[str, Any]]:
     """Get performance metrics for an agent."""
     from app.feedback.loop import get_performance
-    
+
     return get_performance(agent_id, skill_name)
 
 
@@ -382,5 +381,5 @@ async def get_performance(
 async def get_all_performance(_user=Depends(require_admin)) -> list[dict[str, Any]]:
     """Get all agent performance metrics."""
     from app.feedback.loop import get_loop
-    
+
     return get_loop().get_all_performance()

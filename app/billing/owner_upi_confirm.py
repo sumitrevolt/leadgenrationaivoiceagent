@@ -56,8 +56,8 @@ class PendingPayment:
         self.timestamp = timestamp
         self.status = status
         self.evidence = evidence
-        self.confirmed_at: Optional[str] = None
-        self.invoice_id: Optional[str] = None
+        self.confirmed_at: str | None = None
+        self.invoice_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,7 +74,7 @@ class PendingPayment:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PendingPayment":
+    def from_dict(cls, data: dict[str, Any]) -> PendingPayment:
         payment = cls(
             payment_id=data["payment_id"],
             client_id=data["client_id"],
@@ -115,7 +115,7 @@ class OwnerUpiConfirm:
         if not os.path.exists(self.ledger_path):
             return
         try:
-            with open(self.ledger_path, "r") as f:
+            with open(self.ledger_path) as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -212,7 +212,7 @@ class OwnerUpiConfirm:
         logger.info(f"[owner_upi] Generated stub invoice: {invoice_id}")
         return invoice_id
 
-    def get_pending(self, client_id: Optional[str] = None) -> list[PendingPayment]:
+    def get_pending(self, client_id: str | None = None) -> list[PendingPayment]:
         """Get pending payments (optionally filtered by client)."""
         payments = [p for p in self.payments.values() if p.status == "pending"]
         if client_id:
@@ -236,7 +236,7 @@ class OwnerUpiConfirm:
         """Print human-readable status."""
         summary = self.get_summary()
         print(f"\n{'='*60}")
-        print(f"  OWNER UPI CONFIRM STATUS")
+        print("  OWNER UPI CONFIRM STATUS")
         print(f"{'='*60}")
         print(f"  Pending:    {summary['pending_count']:3d} payments (₹{summary['total_amount_pending_inr']:,.0f})")
         print(f"  Confirmed:  {summary['confirmed_count']:3d} payments")
@@ -255,7 +255,7 @@ class OwnerUpiConfirm:
 
 
 # Module-level singleton
-_confirm: Optional[OwnerUpiConfirm] = None
+_confirm: OwnerUpiConfirm | None = None
 
 
 def get_confirm() -> OwnerUpiConfirm:

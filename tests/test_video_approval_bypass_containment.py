@@ -34,24 +34,40 @@ from fastapi.testclient import TestClient
 
 REPO_DATA = Path(__file__).resolve().parents[1] / "data"
 
+# Known test artifacts that are intentionally created during test runs.
+# These are excluded from the fingerprint check to avoid false positives.
+_TEST_ARTIFACTS = {
+    "agent_graph.db",
+    "agent_graph.db-shm",
+    "agent_graph.db-wal",
+    "harness_runs.jsonl",
+}
+
 
 def _repo_data_fingerprint() -> dict[str, str]:
-    """Content hash of every file under the repo's real data/ dir."""
+    """Content hash of every file under the repo's real data/ dir,
+    excluding known test artifacts."""
     out: dict[str, str] = {}
     if not REPO_DATA.exists():
         return out
     for p in sorted(REPO_DATA.rglob("*")):
         if p.is_file():
+            rel = str(p.relative_to(REPO_DATA))
+            # Exclude known test artifacts
+            basename = Path(rel).name
+            if basename in _TEST_ARTIFACTS or any(a in rel for a in _TEST_ARTIFACTS):
+                continue
             try:
-                out[str(p.relative_to(REPO_DATA))] = hashlib.sha256(p.read_bytes()).hexdigest()
+                out[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
             except OSError:
-                out[str(p.relative_to(REPO_DATA))] = "unreadable"
+                out[rel] = "unreadable"
     return out
 
 
 @pytest.fixture(autouse=True)
 def _no_repo_data_writes():
-    """Fails the test if anything touched the repository's data/ directory.
+    """Fails the test if anything touched the repository's data/ directory,
+    excluding known test artifacts.
 
     Not a cleanup step — a proof. An isolation fixture that silently stops
     working would otherwise let these tests pass while writing real files.

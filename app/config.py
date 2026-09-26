@@ -3,15 +3,7 @@ AI Voice Agent - B2B Lead Generation Platform
 Main Application Configuration
 """
 
-import json
-import re
-from functools import lru_cache
-
-from pydantic import AliasChoices, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings
-
-
-class Settings(BaseSettings):
+import jsonimport refrom functools import lru_cachefrom pydantic import AliasChoices, Field, field_validator, model_validatorfrom pydantic_settings import BaseSettingsclass Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
     # Application
