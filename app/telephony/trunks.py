@@ -60,34 +60,60 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _smartflo_dids() -> list[str]:
+    """REAL Tata SmartFlo DIDs from the canonical channel config. Never raises.
+
+    ``app/telephony/tata_tele_config.py`` owns the 5-channel DID pool (env-driven)
+    and never returns its built-in placeholder numbers, so a placeholder can
+    never reach a call path. If that import fails for any reason we fall back to
+    the legacy single env slot rather than silently losing the trunk.
+    """
+    try:
+        from app.telephony.tata_tele_config import configured_dids
+
+        return list(configured_dids())
+    except Exception:
+        legacy = _env("TATA_SMARTFLO_DID")
+        return [legacy] if legacy else []
+
+
 def list_active_trunks() -> list[Trunk]:
     """Return all CONFIGURED+ENABLED trunks. Used by readiness + dispatcher.
     Never raises. Order = provider name (stable).
 
     Vobiz + Jio removed 2026-09-15 — Tata SmartFlo is the sole provider.
+
+    One Trunk per REAL configured DID (2026-09-24). Previously exactly one trunk
+    was built from the single ``TATA_SMARTFLO_DID`` env value, so a 5-DID
+    provisioning could not be used by the dialer at all. When no real DID is
+    configured the trunk is still listed with an EMPTY caller_id — readiness can
+    then report "creds present, DID missing" while ``pick_trunk()`` keeps
+    skipping it (a call is never placed without a caller-ID).
     """
     out: list[Trunk] = []
     # --- Tata Tele Smartflo Pro (₹1,250/license/month, unlimited India) ---
     tata_creds = bool(_env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY"))
     tata_enabled = _env_bool("TATA_SMARTFLO_ENABLED", False)
     if tata_creds and tata_enabled:
-        out.append(
-            Trunk(
-                name="tata_smartflo",
-                enabled=True,
-                caller_id=_env("TATA_SMARTFLO_DID"),
-                weight=_env_int("TATA_SMARTFLO_WEIGHT", 50),
-                cps_limit=_env_int("TATA_SMARTFLO_CPS_LIMIT", 2),
-                max_concurrent=_env_int("TATA_SMARTFLO_MAX_CONCURRENT", 5),
-                cost_per_min_inr=0.0,
-                notes=(
-                    "Tata Smartflo Pro; ₹1,250/license/mo unlimited India (5000 min FUP/pool). "
-                    "₹10,000 one-time. 1 DID bundled. Click-to-Call REST API. "
-                    "⚠️ Standard DID — TRAI lanes depend on DLT registration."
-                ),
-                lanes=frozenset({"promotional", "transactional"}),
+        dids = _smartflo_dids() or [""]
+        for did in dids:
+            out.append(
+                Trunk(
+                    name="tata_smartflo",
+                    enabled=True,
+                    caller_id=did,
+                    weight=_env_int("TATA_SMARTFLO_WEIGHT", 50),
+                    cps_limit=_env_int("TATA_SMARTFLO_CPS_LIMIT", 2),
+                    max_concurrent=_env_int("TATA_SMARTFLO_MAX_CONCURRENT", 5),
+                    cost_per_min_inr=0.0,
+                    notes=(
+                        "Tata Smartflo Pro; ₹1,250/license/mo unlimited India (5000 min FUP/pool). "
+                        "₹10,000 one-time. 1 DID bundled per licence. Click-to-Call REST API. "
+                        "⚠️ Standard DID — TRAI lanes depend on DLT registration."
+                    ),
+                    lanes=frozenset({"promotional", "transactional"}),
+                )
             )
-        )
     return out
 
 
@@ -113,8 +139,10 @@ def pick_trunk(lead: Any = None) -> tuple[str, str]:
     compliance lane — a trunk that the lane forbids (e.g. non-140 jio_mobile
     on a promotional call) is never chosen, even weighted. Unknown lead =>
     promotional lane (fail-closed).
-    Returns (provider_name, caller_id). ("none", "") when no eligible trunk.
-    Never raises.
+    With N real DIDs configured the weighted pick spreads across all N
+    caller-IDs (each same-weight trunk), so a 5-DID provisioning is exercised
+    round-robin. Returns (provider_name, caller_id). ("none", "") when no
+    eligible trunk. Never raises.
     """
     lane = _lane_for(lead)
     trunks = [
