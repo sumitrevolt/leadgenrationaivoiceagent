@@ -1,7 +1,7 @@
 # CURRENT_STATE - LeadGen AI (operational truth)
 
 ## CODE-READY / LOCAL-ONLY — ADR-200 + SmartFlo + batch cleanup (2026-09-23, committed, UNDEPLOYED)
-- **Repo HEAD on `main` `b8b154fb`. `origin/main` `b8b154fb`.** (Updated 2026-09-23 08:30 IST — supersedes AGENTS.md §1 "Repo HEAD `35f4d33c` on `feat/auto-20260922-0e113f55`" which was the pre-merge state.)
+- **Repo HEAD on `main` `06f33607`. `origin/main` `06f33607`.** (Updated 2026-09-23, re-verified 2026-09-23 after `cc0541f0`+`8ac42795`+`06f33607` landed on origin/main; supersedes AGENTS.md pre-merge `35f4d33c` state.)
 - **Shipped this session (all on origin/main, CI green):**
   - `fix(test)`: register new TypeSafe consumers (intake_gate, smartflo_acceptance — config-only, no network)
   - `feat(smartflo)`: merge acceptance framework + TypeSafe intake gate + telegram owner commands + operational state (26 files, +6169 lines)
@@ -12,7 +12,7 @@
 - **Local gates passed:** prod_check (1474 routes, 0 gaps), 105 targeted tests green, ruff clean, secrets clean
 - **NOT deployed** — VPS unreachable since ~20:00 IST Sep22, awaiting owner Hostinger reboot
 - **Production SHA last verified:** `883ef713` (2026-09-21)
-- Label: GIT_VERIFIED + TEST-PROVEN | deploy = owner gate (VPS recovery + `bash scripts/deploy_vps.sh b8b154fb`)
+- Label: GIT_VERIFIED + TEST-PROVEN | deploy = owner gate (VPS recovery + `bash scripts/deploy_vps.sh 06f33607`)
 
 ## CODE-READY / LOCAL-ONLY — Revenue Sprint batch (2026-08-23, uncommitted)
 - **Goal context:** ₹5L/7-din sprint — GitHub/web research (upi-pg, wacrm, Lago, openpartner, speed-to-lead patterns) + repo gap-audit ke baad MISSING conversion infra ship kiya (dormant engines WIRE kiye, duplicate NAHI banaya).

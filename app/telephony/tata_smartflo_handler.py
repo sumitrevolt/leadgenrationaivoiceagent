@@ -32,6 +32,7 @@ Import-safe: no network at import time; httpx imported lazily.
 
 import os
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from app.config import settings
@@ -40,6 +41,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 SMARTFLO_C2C_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
+SMARTFLO_CDR_ENDPOINT = "https://api-smartflo.tatateleservices.com/v1/call/records"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -94,6 +96,50 @@ class TataSmartfloClient:
     def available(self) -> bool:
         """True when both token and key are configured."""
         return bool(self.api_token and self.api_key)
+
+    async def auth_probe(self) -> dict[str, Any]:
+        """Read-only bearer-token probe against Smartflo CDR.
+
+        A token can still have a future JWT expiry while being revoked by the
+        provider. Probe once before a campaign so we fail before touching leads.
+        """
+        if not self.api_token:
+            return {"ok": False, "status_code": 0, "reason": "smartflo_token_missing"}
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        params = {
+            "from_date": f"{today} 00:00:00",
+            "to_date": f"{today} 23:59:59",
+            "page": "1",
+            "limit": "1",
+        }
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                resp = await client.get(
+                    SMARTFLO_CDR_ENDPOINT,
+                    params=params,
+                    headers=self._headers(),
+                )
+            if resp.status_code == 200:
+                return {"ok": True, "status_code": 200, "reason": ""}
+            if resp.status_code in (401, 403):
+                return {
+                    "ok": False,
+                    "status_code": resp.status_code,
+                    "reason": "smartflo_auth_rejected",
+                }
+            return {
+                "ok": False,
+                "status_code": resp.status_code,
+                "reason": f"smartflo_auth_probe_http_{resp.status_code}",
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "status_code": 0,
+                "reason": f"smartflo_auth_probe_{type(exc).__name__}",
+            }
 
     def _headers(self) -> dict[str, str]:
         return {

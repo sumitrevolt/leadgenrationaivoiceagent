@@ -463,6 +463,34 @@ async def _dial_vobiz_campaign(
     if not dry_run and not ready:
         return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": ready_error}
 
+    # Fail fast on a revoked/rotated Smartflo bearer. Without this, one daily
+    # campaign burns one provider attempt per lead and trips the circuit breaker
+    # after repeated HTTP 401s even though no call can possibly connect.
+    if not dry_run:
+        from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+        auth = await TataSmartfloClient().auth_probe()
+        if not auth.get("ok"):
+            reason = str(auth.get("reason") or "smartflo_auth_probe_failed")
+            try:
+                from app.platform.telegram_coordinator import dispatch_egress_alert
+
+                dispatch_egress_alert(
+                    "SmartFlo calling blocked",
+                    f"Daily voice campaign stopped before dialing: {reason}. "
+                    "Rotate/repair the SmartFlo API token, then re-run the campaign.",
+                    severity="ERROR",
+                )
+            except Exception:
+                pass
+            return {
+                "ok": 0,
+                "skip": len(prospects),
+                "fail": 0,
+                "placed_ids": [],
+                "error": reason,
+            }
+
     # Result contract this loop depends on (start_stream_call): placed=True → ok;
     # error exactly "compliance_blocked" (pre-dial refusal, NOT a provider
     # failure) → skip; anything else → fail.
