@@ -4,15 +4,15 @@ Contract (docs/architecture/24X7_FINAL_DECISION_2026-09-12.md +
 docs/architecture/24X7_ARCHITECTURE_RECORD.md section 3):
 
 * registers itself in ``dev_workers`` with ``kind="cli"`` and its ``supervisor_bot``
-* heartbeats every 60 s (lease TTL 600 s lives in ``app/dev_control/claims.py``)
-* claims the highest-priority QUEUED ``DevTask`` via ``claim_next`` and reports the
-  outcome with ``mark_result``
+* heartbeats every 60 s using the canonical ``dev_workers`` registry
+* does **not** claim ``DevTask`` rows until an executable supervisor-specific
+  handler is registered; liveness must never be mistaken for task completion
 * graceful stop on --once / --cycles N (no orphan state)
 
-SAFE BY DEFAULT: this reference worker performs **no side effects**. It claims and
-releases; per-agent execution handlers are registered separately so no customer /
-payment / voice action can ever run from an unaudited entrypoint. Nothing here
-arms production unless it is explicitly launched.
+SAFE BY DEFAULT: this reference worker performs **no side effects** and does not
+consume the shared task queue. Per-agent execution handlers are registered separately,
+so no task is claimed or reported successful by a process that cannot execute it.
+Nothing here arms production unless it is explicitly launched.
 """
 
 from __future__ import annotations
@@ -25,9 +25,8 @@ import socket
 import sys
 from typing import Any
 
-from app.dev_control.claims import DEFAULT_LEASE_SECONDS, claim_next
 from app.models.dev_worker import heartbeat as beat
-from app.models.dev_worker import mark_result, register, snapshot
+from app.models.dev_worker import register, snapshot
 
 logger = logging.getLogger("app.workers.cli_worker")
 
@@ -36,7 +35,7 @@ CLI_WORKERS = ("operations", "engineering", "platform", "guardian", "sales", "su
 
 HEARTBEAT_SECONDS = 60
 VERSION = "24x7.final"
-CAPABILITIES = ["devtask.claim", "dev_worker.heartbeat", "noop.executor"]
+CAPABILITIES = ["dev_worker.heartbeat", "claim.disabled.no_handler"]
 
 
 def _pid_host() -> str:
@@ -50,25 +49,15 @@ def _session_factory():
     return async_session()
 
 
-def _task_id(claim: dict[str, Any]) -> str:
-    return str(claim.get("id") or claim.get("task_id") or claim.get("dev_task_id") or "")
-
-
 async def _cycle(db, worker_id: str) -> dict[str, Any]:
-    """One claim/heartbeat/report cycle. Returns a small JSON-able result."""
-    claim = await claim_next(db, worker_id, lease_seconds=DEFAULT_LEASE_SECONDS)
-    if not claim:
-        await beat(db, worker_id)
-        await db.commit()
-        return {"claimed": None}
-    tid = _task_id(claim)
-    await beat(db, worker_id, current_task_id=tid)
+    """One liveness cycle; never claim work without an executable handler."""
+    await beat(db, worker_id)
     await db.commit()
-    # Reference executor: deliberately inert (no customer/payment/voice side effect).
-    await mark_result(db, worker_id, success=True)
-    await db.commit()
-    logger.info("worker %s claimed task %s (no-op reference executor)", worker_id, tid)
-    return {"claimed": tid, "ok": True}
+    return {
+        "claimed": None,
+        "mode": "heartbeat_only",
+        "reason": "no_execution_handler_registered",
+    }
 
 
 async def run(
@@ -81,14 +70,21 @@ async def run(
 ) -> int:
     """Run the worker loop. ``once``/``cycles`` give a bounded, testable run."""
     if supervisor_bot not in CLI_WORKERS:
-        raise SystemExit("unknown supervisor_bot %r (expected one of %s)" % (supervisor_bot, CLI_WORKERS))
+        raise SystemExit(
+            "unknown supervisor_bot %r (expected one of %s)" % (supervisor_bot, CLI_WORKERS)
+        )
     session = _session_factory()
     worker_id = worker_id or ("cli_%s" % supervisor_bot)
 
     async with session() as db:
         await register(
-            db, worker_id, kind="cli", supervisor_bot=supervisor_bot,
-            capabilities=CAPABILITIES, version=VERSION, pid_host=_pid_host(),
+            db,
+            worker_id,
+            kind="cli",
+            supervisor_bot=supervisor_bot,
+            capabilities=CAPABILITIES,
+            version=VERSION,
+            pid_host=_pid_host(),
         )
         await db.commit()
     logger.info("worker %s registered (supervisor_bot=%s, kind=cli)", worker_id, supervisor_bot)
@@ -117,7 +113,11 @@ async def run(
         snap = await snapshot(db)
     logger.info(
         "worker %s stopping after %d cycle(s); registry total=%s healthy=%s dead=%s",
-        worker_id, n, snap.get("total"), snap.get("healthy"), snap.get("dead"),
+        worker_id,
+        n,
+        snap.get("total"),
+        snap.get("healthy"),
+        snap.get("dead"),
     )
     return 0
 
