@@ -309,3 +309,29 @@ def test_reference_client_script_runs_smoke(monkeypatch, tmp_path, hermes_secret
     client, _app = _client()
     r = client.post("/api/executor/hermes/next-task", content=body, headers=headers)
     assert r.status_code == 200, r.text
+
+
+def test_reference_client_missing_secret_redacts_env_name(monkeypatch, capsys) -> None:
+    """A missing credential error must not echo its environment-variable name."""
+    from scripts import executor_handshake as ref
+
+    env_name = "COORD_HUB_TOOL_HERMES_SECRET"
+    monkeypatch.delenv(env_name, raising=False)
+
+    rc = ref._main(
+        [
+            "--base-url",
+            "https://example.invalid",
+            "--tool-id",
+            "hermes",
+            "--secret-env",
+            env_name,
+            "--action",
+            "status",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert rc == 2
+    assert env_name not in output
+    assert json.loads(output) == {"error": "executor_secret_unset"}

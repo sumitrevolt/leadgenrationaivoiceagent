@@ -199,7 +199,7 @@ def _main(argv: list[str] | None = None) -> int:
 
     secret = os.environ.get(args.secret_env, "").strip()
     if not secret:
-        print(json.dumps({"error": f"{args.secret_env}_unset"}, indent=2))
+        print(json.dumps({"error": "executor_secret_unset"}, indent=2))
         return 2
 
     if args.action == "status":
