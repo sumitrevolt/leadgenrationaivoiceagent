@@ -608,54 +608,34 @@ class TelegramBot:
         )
 
     def _cmd_test_handoff(self) -> tuple[str, str, str | None]:
-        """Execute one authorized, non-destructive agent handoff end to end."""
-        orch = self._get_orchestrator()
-
-        # Pick a non-destructive, green-lane agent (e.g. lekha or devops)
-        owner_bot = "pilot"
-        assigned_agent = "lekha" if "lekha" in orch.registry else list(orch.registry.keys())[0]
-
+        """Run a real, non-destructive handoff through canonical DevTask/dev_workers."""
         try:
-            from app.platform.automation_orchestrator import StructuredEvidence
+            from app.integrations.telegram_dev_task_handoff import run_canonical_handoff
 
-            record, created = orch.submit_task(
-                owner_bot=owner_bot,
-                assigned_agent=assigned_agent,
-                priority=TaskPriority.LOW,
-                input_payload={"test_run": True, "initiated_by": "telegram_verification"},
-                idempotency_key=f"tg_verify:{int(time.time())}",
-            )
-            dispatched = orch.dispatch_task(record.task_id)
-
-            evidence = StructuredEvidence(
-                type="test_result",
-                uri_or_path="telegram_bot_test_handoff",
-                producer=assigned_agent,
-                checksum_or_result={"verified": True, "source": "telegram_bot_test_handoff"},
-            )
-            completed_record = orch.verify_and_complete(
-                record.task_id,
-                execution_evidence=evidence,
-                is_success=True,
-            )
-
-            updated = orch.store.get(record.task_id)
-            final_status = updated.status.value if updated else "UNKNOWN"
-
+            result = run_canonical_handoff()
+            task_id = result.get("task_id")
+            if result.get("ok"):
+                text = (
+                    "✅ **Canonical Task Handoff Verified**\n\n"
+                    f"• DevTask: `{task_id}`\n"
+                    f"• Worker: `{result.get('worker_id')}` (kind=api)\n"
+                    f"• Real live CLI workers: {result.get('live_cli_count')}/6\n"
+                    f"• Final DevTask state: `{result.get('state')}`\n"
+                    "• Execution: read-only worker-registry liveness snapshot\n"
+                    "• Customer/provider side effects: none"
+                )
+                return text, "command", "pilot"
             text = (
-                f"âœ… **End-to-End Task Handoff Verified!**\n\n"
-                f"â€¢ Task ID: `{record.task_id}`\n"
-                f"â€¢ Owner Bot: `{owner_bot}`\n"
-                f"â€¢ Assigned Agent: `{assigned_agent}`\n"
-                f"â€¢ Creation: {'OK' if created else 'Existing'}\n"
-                f"â€¢ Claim/Dispatch: {'OK' if dispatched else 'Blocked'}\n"
-                f"â€¢ Execution & Verification: {'OK' if completed_record.status == TaskStatus.DONE else 'Review'}\n"
-                f"â€¢ Final Ledger Status: `{final_status}`"
+                "❌ **Canonical Task Handoff Failed**\n\n"
+                f"• DevTask: `{task_id or 'unavailable'}`\n"
+                f"• Reason: `{result.get('reason') or result.get('state') or 'verification_failed'}`\n"
+                f"• Missing CLI workers: `{result.get('missing_cli_workers') or []}`"
             )
-            return text, "command", "pilot"
+            return text, "command", "guardian"
         except Exception as e:
+            logger.exception("Canonical Telegram test handoff failed")
             return (
-                f"âŒ Task handoff failed: `{e}`",
+                f"❌ Canonical task handoff failed: `{type(e).__name__}: {str(e)[:180]}`",
                 "command",
                 "guardian",
             )
