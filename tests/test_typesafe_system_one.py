@@ -73,7 +73,8 @@ def test_score_dict_to_list_normalization():
 
         resp = client.score("Rate relevance", {"state": "sample"}, {"1": "low", "2": "high"})
         assert resp.success is True
-        assert resp.value == 2.5
+        # 06f33607 added .value with [0,1] clamp: raw provider score 2.5 now clamps to 1.0
+        assert resp.value == 1.0
         assert resp.confidence == 0.85
 
         # Check posted payload structure

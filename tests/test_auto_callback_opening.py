@@ -344,16 +344,24 @@ def test_run_after_inquiry_threads_dry_run(monkeypatch):
 
 
 def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
-    """Signed token ≠ pending key. Regression pin (2026-09-19).
+    """Pending blob is stored under BOTH raw and signed token when signing is active.
 
-    The WS pops the pending blob with the RAW uuid from the URL path, but
-    `_store_pending` used to be called with the SIGNED token
-    (`<raw>.<exp>.<sig>`). While `VOBIZ_STREAM_SECRET` is unset `sign()` is a
-    no-op so the two are identical and nothing breaks — which is exactly why it
-    survived review. The moment the secret IS set (the anti-abuse gate's own
-    precondition) they diverge and every `_peek_pending(raw)` misses, killing
-    the blob rail AGAIN: no niche, no crm_lead_id, no opening_line after a
-    mid-call reconnect → CallLog.lead_id=NULL → lead status never advances.
+    Regression pin (2026-09-19, updated 2026-09-25 for the dual-store design).
+
+    History: the WS used to pop the pending blob with the RAW uuid from the URL
+    path, but `_store_pending` was called with the SIGNED token. While
+    `VOBIZ_STREAM_SECRET` is unset `sign()` is a no-op so the two are identical
+    and nothing broke — which is why it survived review. The moment the secret
+    IS set (the anti-abuse gate's own precondition) they diverge and every
+    `_peek_pending(raw)` misses, killing the blob rail: no niche, no crm_lead_id,
+    no opening_line after a mid-call reconnect → CallLog.lead_id=NULL → lead
+    status never advances.
+
+    Current design (2026-09-25, confirmed on origin/main b5d806fe): the answer
+    URL is built with the SIGNED token, so the WS pops with the SIGNED key. To
+    survive both the old raw-pop and the new signed-pop reconnects, the store
+    writes under BOTH keys when they differ. This test pins that invariant:
+    raw is always stored (legacy reconnects) AND signed is stored (new URL).
     """
     import asyncio
 
@@ -385,7 +393,10 @@ def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
     raw = signed.rsplit(".", 2)[0]
     # The signing secret is active, so the handed-out token must be signed…
     assert signed != raw and signed.count(".") == 2
-    # …but the pending KEY must be the RAW token the WS will pop with.
-    assert raw in stored
-    assert signed not in stored
+    # …the pending store writes under BOTH keys when they differ: the RAW key
+    # (legacy pop path) and the SIGNED key (current answer_url path). Both must
+    # carry the same payload; neither may be absent.
+    assert raw in stored, "raw token must be a pending-store key"
+    assert signed in stored, "signed token must be a pending-store key (dual-store design)"
     assert stored[raw]["crm_lead_id"] == "lead-42"
+    assert stored[signed]["crm_lead_id"] == "lead-42"

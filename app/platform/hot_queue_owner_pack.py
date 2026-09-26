@@ -54,9 +54,9 @@ def _typesafe_score_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             Noul,
             Score,
             TypeSafeClient,
+            _get_api_key,
             credential_state,
             fingerprint,
-            _get_api_key,
         )
 
         cred = credential_state()
@@ -299,6 +299,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                     "phone",
                     "wa_link",
                     "draft_preview",
+                    "customer_suppression",
                 ]
             )
             for i, x in enumerate(rows, 1):
@@ -318,6 +319,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                         phone,
                         wa,
                         (x.get("draft") or "").replace("\r", " ").replace("\n", " ").strip()[:120],
+                        suppression_state,
                     ]
                 )
     except Exception as exc:

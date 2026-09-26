@@ -40,7 +40,7 @@ class TestTaskLedgerService:
     def test_create_task(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, Priority, Status
+            from app.admin.models import Priority, Status, TaskCreate
             from app.admin.services.task_ledger import create_task
 
             task_in = TaskCreate(
@@ -84,7 +84,7 @@ class TestTaskLedgerService:
     def test_list_tasks(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, Status
+            from app.admin.models import Status, TaskCreate
             from app.admin.services.task_ledger import create_task, list_tasks
 
             create_task(TaskCreate(title="T1", status=Status.BACKLOG))
@@ -103,7 +103,7 @@ class TestTaskLedgerService:
     def test_update_task(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, TaskUpdate, Status
+            from app.admin.models import Status, TaskCreate, TaskUpdate
             from app.admin.services.task_ledger import create_task, update_task
 
             task = create_task(TaskCreate(title="Update me"))
@@ -146,27 +146,94 @@ class TestTaskLedgerService:
     def test_get_kanban(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, Status
+            from app.admin.models import Status, TaskCreate
             from app.admin.services.task_ledger import create_task, get_kanban
 
             create_task(TaskCreate(title="B1", status=Status.BACKLOG))
             create_task(TaskCreate(title="B2", status=Status.BACKLOG))
+            create_task(TaskCreate(title="RDY", status=Status.READY))
             create_task(TaskCreate(title="IP1", status=Status.IN_PROGRESS))
+            create_task(TaskCreate(title="BLK", status=Status.BLOCKED))
             create_task(TaskCreate(title="R1", status=Status.REVIEW))
             create_task(TaskCreate(title="D1", status=Status.DONE))
 
             board = get_kanban()
             assert len(board.backlog) == 2
+            assert len(board.ready) == 1
             assert len(board.in_progress) == 1
+            assert len(board.blocked) == 1
             assert len(board.review) == 1
             assert len(board.done) == 1
+        finally:
+            self._restore_db(original)
+
+
+    def test_overlong_persisted_title_does_not_500_read_path(self, tmp_path):
+        """A raw-SQL >500-char title must not crash the kanban/list read path.
+
+        Out-of-band ledger writers have stored titles longer than the pydantic
+        `Task.title` max_length=500. Before the read-path clamp, `_row_to_task`
+        500ed the entire `/admin/api/tasks` + `/admin/api/tasks/kanban` + owner
+        command-center on any such row. This pins the fail-safe: an over-long
+        title is truncated on read (detail lives in description/evidence), so
+        one bad row can never take the whole board down again.
+        """
+        original = self._reset_db(tmp_path)
+        try:
+            from app.admin.models import Status, TaskCreate
+            from app.admin.services import task_ledger
+            from app.admin.services.task_ledger import create_task, get_kanban
+
+            # Seed a valid task + one over-long title row via RAW SQL (bypasses
+            # the TaskCreate validation that would otherwise reject it) — this is
+            # exactly how the bug reached production.
+            create_task(TaskCreate(title="OK", status=Status.BACKLOG))
+            conn = task_ledger._get_conn()
+            conn.execute(
+                "INSERT INTO tasks (title, description, owner, priority, status,"
+                " created_at, updated_at) VALUES (?,?,?,?,?,datetime('now'),datetime('now'))",
+                ("X" * 800, "detail here", "agnes", "P0", "backlog"),
+            )
+            conn.commit()
+            conn.close()
+
+            # The read path must survive the over-long row.
+            board = get_kanban()
+            # The over-long row is coerced to backlog + clamped; no exception.
+            assert any(len(t.title) <= 500 for t in board.backlog)
+            assert any(t.title.startswith("XXX") for t in board.backlog)
+        finally:
+            self._restore_db(original)
+
+    def test_row_to_task_unknown_status_failsafe(self, tmp_path):
+        """A status value not in the enum must NOT crash the read path.
+
+        Unknown -> Status.BACKLOG (safe non-terminal default). Guards against
+        a future agent lane writing a new status and re-breaking the board.
+        """
+        original = self._reset_db(tmp_path)
+        try:
+            from app.admin.models import TaskCreate
+            from app.admin.services import task_ledger
+            from app.admin.services.task_ledger import create_task, get_task
+
+            t = create_task(TaskCreate(title="weird"))
+            conn = task_ledger._get_conn()
+            try:
+                conn.execute("UPDATE tasks SET status = ? WHERE id = ?", ("future_status", t.id))
+                conn.commit()
+            finally:
+                conn.close()
+            fetched = get_task(t.id)
+            assert fetched is not None
+            assert fetched.status == task_ledger.Status.BACKLOG
         finally:
             self._restore_db(original)
 
     def test_get_worker_statuses(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, Status
+            from app.admin.models import Status, TaskCreate
             from app.admin.services.task_ledger import create_task, get_worker_statuses
 
             create_task(TaskCreate(title="W1", owner="pilot", status=Status.IN_PROGRESS))
@@ -187,7 +254,7 @@ class TestTaskLedgerService:
     def test_get_idle_workers(self, tmp_path):
         original = self._reset_db(tmp_path)
         try:
-            from app.admin.models import TaskCreate, Status
+            from app.admin.models import Status, TaskCreate
             from app.admin.services.task_ledger import create_task, get_idle_workers
 
             create_task(TaskCreate(title="Active", owner="pilot", status=Status.IN_PROGRESS))
@@ -278,6 +345,7 @@ class TestDockerManagerService:
     def test_list_containers_structure_when_no_docker(self, monkeypatch):
         """When docker binary is missing, _docker_bin raises FileNotFoundError."""
         import shutil
+
         from app.admin.services import docker_manager
 
         original_which = shutil.which

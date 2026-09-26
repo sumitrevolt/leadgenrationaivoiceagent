@@ -84,7 +84,9 @@ def test_summarize_clean():
     # 51 since 2026-08-27: +hot_queue_owner_pack (ADR-OWNER-1; daily 09:00).
     # (previous 50 since 2026-08-23 added trial_nudge (BLK-02; INERT default);
     # 49 since 2026-08-19 added daily_owner_brief; 45 included gsc_rank.)
-    assert s["staff_job_count"] == 59
+    # 60 since 2026-09-25: +hot_queue_followup dead-man gap (#579 parity; picked up
+    # under owner mandate "sab fix karo" — expected gap added in automation_health).
+    assert s["staff_job_count"] == 60
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 

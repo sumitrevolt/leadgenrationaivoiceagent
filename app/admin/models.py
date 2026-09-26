@@ -17,8 +17,19 @@ class Priority(str, Enum):
 
 
 class Status(str, Enum):
+    """Admin Kanban task statuses.
+
+    The canonical set now includes ``ready`` and ``blocked`` so that ledger
+    rows written by agent/pilot workflows (which already persist those two
+    values) do NOT crash the admin Kanban board read path. Legacy 4-value
+    rows remain fully valid; any unknown status value is handled fail-safe
+    by ``task_ledger._row_to_task`` (no 500).
+    """
+
     BACKLOG = "backlog"
+    READY = "ready"
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
     REVIEW = "review"
     DONE = "done"
 
@@ -71,8 +82,17 @@ class DuplicateMatch(BaseModel):
 
 
 class KanbanBoard(BaseModel):
+    """Kanban board: six columns covering every canonical Status value.
+
+    ``ready`` and ``blocked`` are first-class columns so that agent/pilot
+    task records no longer disappear from the board, and the read path
+    (``/admin/api/tasks/kanban``) can no longer 500 on those statuses.
+    """
+
     backlog: list[Task] = []
+    ready: list[Task] = []
     in_progress: list[Task] = []
+    blocked: list[Task] = []
     review: list[Task] = []
     done: list[Task] = []
 

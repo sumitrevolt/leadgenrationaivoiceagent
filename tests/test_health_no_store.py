@@ -23,7 +23,7 @@ and intermediaries (RFC 9111 §4.2.2). `no-store` closes the class at the source
 
 import pytest
 
-HEALTH_ENDPOINTS = ["/health", "/health/live", "/health/ready"]
+HEALTH_ENDPOINTS = ["/health", "/health/live", "/health/ready", "/health.version"]
 
 
 @pytest.mark.parametrize("path", HEALTH_ENDPOINTS)
@@ -68,3 +68,32 @@ def test_health_reports_live_uptime_not_a_frozen_value(client):
     assert first["status"] == "healthy"
     assert "uptime" in first and "timestamp" in first
     assert second["timestamp"] >= first["timestamp"]
+
+
+def test_health_version_endpoint_canonical_provenance(client, monkeypatch):
+    """/health.version is the AGENTS.md-documented canonical provenance endpoint.
+
+    AGENTS.md §1/§5: "Production SHA only via /health.version — never from
+    git log." Until 2026-09-25 the endpoint was documented but never wired,
+    so a runbook-following operator got a 404. This test pins:
+      (a) the endpoint exists (200, not 404),
+      (b) it returns the SAME `version` value the running process advertises
+          in /health (single source-of-truth = APP_VERSION env),
+      (c) it is no-store (same class of protection as /health — a cached
+          provenance report would be a worse failure than a cached health).
+    """
+    import os
+
+    # Pin the APP_VERSION for this test to a known value so the parallax
+    # assertion is deterministic.
+    monkeypatch.setenv("APP_VERSION", "abcdef01")
+
+    hv = client.get("/health.version")
+    assert hv.status_code == 200, f"/health.version 404/5xx: {hv.status_code}"
+    body = hv.json()
+    assert body.get("version") == "abcdef01"
+    assert "no-store" in hv.headers.get("cache-control", "").lower()
+
+    # Parallax: same value the running process advertises in /health.
+    h = client.get("/health").json()
+    assert h.get("version") == body.get("version") == "abcdef01"

@@ -208,6 +208,49 @@ def test_unverified_suppression_is_reported_not_silent(tmp_path, monkeypatch):
         assert "UNVERIFIED" in f.read()
 
 
+def test_csv_carries_customer_suppression_state(tmp_path, monkeypatch):
+    """The CSV itself must carry the customer_suppression state (fail-visible).
+
+    Regression pin (2026-09-25): a local build with an EMPTY client store reports
+    `customer_suppression=active` (verified empty) yet the CSV had no column for
+    it, so a downstream consumer (owner phone 1-click pack / CRM import) could
+    silently treat an unverified pack as clean. The CSV must now expose the state
+    on every row so no consumer can claim "customers excluded" without the flag.
+    """
+    import csv
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()
+    from app.platform import hot_queue_owner_pack, reply_agent
+
+    rows = [_row("p1", "919888888888")]
+    monkeypatch.setattr(reply_agent, "hot_queue", lambda limit=200, scope="boss": rows)
+
+    # (a) verified-empty store -> "active"
+    monkeypatch.setattr(
+        hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), True)
+    )
+    r = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
+    assert r.get("customer_suppression") == "active", r
+    with open(r["csv"], encoding="utf-8") as f:
+        rd = list(csv.reader(f))
+    header, data = rd[0], rd[1:]
+    assert "customer_suppression" in header, f"CSV must expose suppression state; header={header}"
+    idx = header.index("customer_suppression")
+    assert data and data[0][idx] == "active", f"row state must be 'active'; got {data[0][idx]!r}"
+
+    # (b) unreadable store -> "unverified" must also reach the CSV
+    monkeypatch.setattr(
+        hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), False)
+    )
+    r2 = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
+    assert r2.get("customer_suppression") == "unverified", r2
+    with open(r2["csv"], encoding="utf-8") as f:
+        rd2 = list(csv.reader(f))
+    idx2 = rd2[0].index("customer_suppression")
+    assert rd2[1][idx2] == "unverified", f"row state must be 'unverified'; got {rd2[1][idx2]!r}"
+
+
 def test_suppression_lookup_never_raises(tmp_path, monkeypatch):
     """A exploding suppression lookup must not take the daily pack down with it."""
     monkeypatch.chdir(tmp_path)
@@ -370,8 +413,8 @@ class TestCheckGatesAdapter:
 
     def test_voice_window_outside_block(self, stubbed_env, monkeypatch):
         """TRAI window: hour 22 → gate NOT pass."""
-        from app.platform import hot_queue_owner_pack
         import app.platform.hot_queue_owner_pack as _mod
+        from app.platform import hot_queue_owner_pack
 
         monkeypatch.setattr(_mod, "datetime", _StubDT(hour_value=22))
         out = hot_queue_owner_pack.check_gates()

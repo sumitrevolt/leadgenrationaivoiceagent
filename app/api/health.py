@@ -132,6 +132,31 @@ async def health_check(response: Response) -> dict[str, Any]:
     return result
 
 
+# Canonical provenance endpoint documented in AGENTS.md §1/§5:
+# "Production SHA only via /health.version — never from git log."
+# Historically this route was documented but never wired, so it 404'd while the
+# drift-detection actually lived in /health's `version` field. Wire it for real:
+# a minimal, read-only, never-cached provenance read of the SAME version source
+# (APP_VERSION env, set by deploy_vps.sh into .env). Adds a clean canonical SHA
+# endpoint WITHOUT changing the existing /health gate behavior.
+@router.get("/health.version")
+async def health_version(response: Response) -> dict[str, Any]:
+    """Single source of production provenance (deployed APP_VERSION).
+
+    AGENTS.md §1: "Production SHA only via /health.version — never from `git log`
+    (4 different revisions can run in one prod)." This returns the exact
+    APP_VERSION the running process was started with, plus environment, so an
+    operator can confirm which immutable SHA is live without VPS shell access.
+    Never cached (same _NO_STORE rationale as /health).
+    """
+    _mark_no_store(response)
+    return {
+        "version": os.environ.get("APP_VERSION", "dev"),
+        "environment": settings.app_env,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
 @router.get("/health/live")
 async def liveness_check(response: Response):
     """
