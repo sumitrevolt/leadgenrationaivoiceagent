@@ -758,7 +758,7 @@ async def test_imap_message_stays_unseen_until_draft_persists(tmp_path, monkeypa
     second = await reply_agent.run_reply_triage()
     assert second["processed"] == 1
     assert mailbox.seen is True
-    assert mailbox.fetch_specs == ["(BODY.PEEK[] INTERNALDATE)"] * 2
+    assert mailbox.fetch_specs == ["(BODY.PEEK[] INTERNALDATE UID)"] * 2
     assert len(_read_rows(path)) == 1
 
 
