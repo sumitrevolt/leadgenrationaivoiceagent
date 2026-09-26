@@ -84,13 +84,23 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
         if status == "auto_activated":
             message = "Plan activate ho gaya — dhanyavaad!"
         else:
-            message = "Mil gaya! Verify ho raha hai, jaldi activate."
-        return {
+            message = (
+                "Mil gaya! Record ho gaya — hamari team payment confirm karke plan "
+                "jaldi activate karegi."
+            )
+        out = {
             "ok": True,
             "status": status,
             "id": res.get("id"),
             "message": message,
         }
+        # submit_payment's Loop-5 replay signal must reach the caller: a
+        # duplicate submit is the SAME pending claim, not a fresh one (pay page
+        # can then show a friendly "already recorded" state). Additive key —
+        # only present on replays, response shape otherwise unchanged.
+        if res.get("duplicate"):
+            out["duplicate"] = True
+        return out
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_submit failed: %s", e)
         return {
