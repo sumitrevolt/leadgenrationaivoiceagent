@@ -150,8 +150,36 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
+    # 2026-09-22 -1 entry / +0 families: the `ops.telegram_group_ids.write`
+    # entry (scripts/telegram_create_chats.py:results_path) was REMOVED, not
+    # re-pointed. That script no longer writes data/new_group_chat_ids.json at
+    # all -- it writes the resolved chat_id back into its own spec
+    # (`SPEC = config/telegram/setup_spec.yaml`, line 43), and a config write is
+    # not a runtime-data write. The family survives unchanged via
+    # `ops.telegram_group_ids.write_telethon`
+    # (scripts/telethon_create_groups.py:results_path), which does still write
+    # the JSON. The removed entry was genuinely STALE and unbound -- the gate
+    # reported both "no scanner finding ... declaration is unbound" and
+    # "STALE". Nothing was tolerated and nothing was added to the baseline.
+    #
+    # IMPORTANT: this pin reads 106 and STILL reads 106 after the removal.
+    # That is not a no-op. Before this change main held 107 entries while this
+    # line pinned 106, so THIS TEST WAS ALREADY FAILING ON MAIN and nobody saw
+    # it: `Pytest Tests` exists in CI but is not a required status check, and
+    # the `prod_check runtime gates` job aborts at its first failing step, so
+    # the failure had no path to a red badge. Removing the stale entry brought
+    # the real count back into agreement with the pin. If you are here because
+    # this number moved, re-derive it -- do not assume the pin was right.
     assert len(entries) == 106
-    assert len(families) == 42, sorted(families)
+    # 2026-09-22: 42 -> 43. `telegram.audit` was ALREADY a family on main (the
+    # `telegram.audit.log` entry existed and carried that store_id) but this pin
+    # was never moved with it, so `len(families)` read 43 against a pin of 42.
+    # That is a SECOND pre-existing failure on main, and it was invisible for the
+    # same reason as the entry count above: `Pytest Tests` is not a required
+    # status check, and the assertion cascade meant the `families` checks never
+    # even ran while `len(entries)` was failing first. Nothing was added here;
+    # the pin was corrected to match reality.
+    assert len(families) == 43, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -196,11 +224,18 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.staff_bus",
         "platform.workforce_memory",
         "sales.prospects",
+        "telegram.audit",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 15
+    # 2026-09-22: 15 -> 16. `telegram.audit` introduces a NEW top-level
+    # namespace (`telegram`) distinct from `telephony`. It is not an alias of
+    # telephony.call_recordings / telephony.voice_kill_switch: those are call
+    # recording artifacts and the voice kill switch, while telegram.audit is the
+    # owner/admin Telegram command audit trail. Distinct authority, distinct
+    # namespace.
+    assert len({f.split(".")[0] for f in families}) == 16
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -473,7 +508,19 @@ def test_store_manifest_still_validates() -> None:
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
     # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
-    assert counts["unique_families"] == 60
+    # 2026-09-22: +1 telegram.audit (owner/admin Telegram command audit trail,
+    # written by app/integrations/telegram_bot.py, read by
+    # GET /api/telegram/bot/audit/logs in app/api/telegram_bot_api.py:260).
+    # Evidence-backed manifest edit, and a REPAIR rather than an addition: the
+    # store was ALREADY named by the `telegram.audit.log` allowlist entry but had
+    # never been registered in the manifest, so `_store_ids()` did not know it,
+    # `validate()` reported "unknown store_id 'telegram.audit'", and
+    # `prod_check runtime gates` failed on main. TIER_2 /
+    # retention-sensitive-artifact / LEGACY_IN_CHECKOUT, non-blocker:
+    # `inside_checkout=False` is recorded explicitly because
+    # data/telegram/audit.jsonl is NOT git-tracked (verified via
+    # `git ls-files --error-unmatch`), so `git reset --hard` cannot destroy it.
+    assert counts["unique_families"] == 61
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
