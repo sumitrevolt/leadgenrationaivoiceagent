@@ -300,52 +300,57 @@ class DurableTaskStore:
     def save(self, record: TaskRecord) -> None:
         with self._lock:
             conn = self._get_conn()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO task_records (
-                    task_id, owner_bot, assigned_agent, priority, status, version, fencing_token,
-                    retry_count, max_retries, deadline_s, provider, model, idempotency_key,
-                    input_payload, evidence, error_message, last_heartbeat, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(task_id) DO UPDATE SET
-                    status = excluded.status,
-                    version = excluded.version,
-                    fencing_token = excluded.fencing_token,
-                    retry_count = excluded.retry_count,
-                    max_retries = excluded.max_retries,
-                    input_payload = excluded.input_payload,
-                    evidence = excluded.evidence,
-                    error_message = excluded.error_message,
-                    last_heartbeat = excluded.last_heartbeat,
-                    updated_at = excluded.updated_at
-            """,
-                (
-                    record.task_id,
-                    record.owner_bot,
-                    record.assigned_agent,
-                    record.priority.value
-                    if isinstance(record.priority, TaskPriority)
-                    else record.priority,
-                    record.status.value if isinstance(record.status, TaskStatus) else record.status,
-                    record.version,
-                    record.fencing_token,
-                    record.retry_count,
-                    record.max_retries,
-                    record.deadline_s,
-                    record.provider,
-                    record.model,
-                    record.idempotency_key,
-                    json.dumps(record.input_payload),
-                    json.dumps(record.evidence) if record.evidence else None,
-                    record.error_message,
-                    record.last_heartbeat,
-                    record.created_at,
-                    record.updated_at,
-                ),
-            )
-            conn.commit()
-            conn.close()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO task_records (
+                        task_id, owner_bot, assigned_agent, priority, status, version, fencing_token,
+                        retry_count, max_retries, deadline_s, provider, model, idempotency_key,
+                        input_payload, evidence, error_message, last_heartbeat, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(task_id) DO UPDATE SET
+                        status = excluded.status,
+                        version = excluded.version,
+                        fencing_token = excluded.fencing_token,
+                        retry_count = excluded.retry_count,
+                        max_retries = excluded.max_retries,
+                        input_payload = excluded.input_payload,
+                        evidence = excluded.evidence,
+                        error_message = excluded.error_message,
+                        last_heartbeat = excluded.last_heartbeat,
+                        updated_at = excluded.updated_at
+                """,
+                    (
+                        record.task_id,
+                        record.owner_bot,
+                        record.assigned_agent,
+                        record.priority.value
+                        if isinstance(record.priority, TaskPriority)
+                        else record.priority,
+                        record.status.value if isinstance(record.status, TaskStatus) else record.status,
+                        record.version,
+                        record.fencing_token,
+                        record.retry_count,
+                        record.max_retries,
+                        record.deadline_s,
+                        record.provider,
+                        record.model,
+                        record.idempotency_key,
+                        json.dumps(record.input_payload),
+                        json.dumps(record.evidence) if record.evidence else None,
+                        record.error_message,
+                        record.last_heartbeat,
+                        record.created_at,
+                        record.updated_at,
+                    ),
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
 
     def update_cas(
         self, task_id: str, expected_version: int, new_status: TaskStatus, new_fencing_token: str

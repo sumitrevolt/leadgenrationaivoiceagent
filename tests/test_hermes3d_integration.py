@@ -20,6 +20,18 @@ from app.models.user import User, UserRole, UserStatus
 from app.platform.hermes3d_bridge import Hermes3DBridge, get_hermes3d_bridge
 
 
+@pytest.fixture(autouse=True)
+def _allow_testclient_host():
+    """Keep TestClient hermetic without weakening the production allowlist."""
+    bridge = get_hermes3d_bridge()
+    original = set(bridge.allowlist)
+    bridge.allowlist.add("testclient")
+    try:
+        yield
+    finally:
+        bridge.allowlist = original
+
+
 def test_hermes3d_health_endpoints():
     """Both /api/hermes3d/health and /api/runtime/custom/health must return 200."""
     client = TestClient(app)
