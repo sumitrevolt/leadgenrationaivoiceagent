@@ -50,12 +50,30 @@ jobs:
         id: changed
         shell: bash
         run: |
+          # Diff base = the TRUE fork point of this PR, not
+          # `github.event.pull_request.base.sha`.
+          #
+          # `base.sha` is the base-branch tip recorded when the event fired,
+          # while the checkout is the PR *merge* commit. Diffing straight
+          # against base.sha therefore also drags in every file the base branch
+          # changed after the fork, so a PR gets linted — and failed — on files
+          # it never touched. Observed on PR #536: 9 unrelated files and ~178
+          # pre-existing ruff violations reported against a 5-file change.
+          #
+          # merge-base(base-branch tip, PR head) scopes the diff to the PR's own
+          # commits, which is what "changed paths" is supposed to mean.
+          HEAD_SHA="${{ github.event.pull_request.head.sha || 'HEAD' }}"
           BASE="${{ github.event.pull_request.base.sha || 'origin/main' }}"
-          if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
-            git fetch origin main --depth=1 || true
-            BASE="origin/main"
+          git fetch origin main --quiet || true
+          MERGE_BASE=""
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            MERGE_BASE="$(git merge-base origin/main "$HEAD_SHA" 2>/dev/null || true)"
           fi
-          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$BASE"...HEAD -- '*.py' || true)
+          if [ -z "$MERGE_BASE" ]; then
+            MERGE_BASE="$(git merge-base "$BASE" "$HEAD_SHA" 2>/dev/null || echo "$BASE")"
+          fi
+          echo "diff base: $MERGE_BASE (head: $HEAD_SHA)"
+          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$MERGE_BASE" "$HEAD_SHA" -- '*.py' || true)
           echo "count=${#FILES[@]}" >> "$GITHUB_OUTPUT"
           printf '%s\n' "${FILES[@]}" > /tmp/changed_py.txt
           echo "Changed Python files:"
@@ -76,9 +94,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Same fork-point base as the "Collect changed Python files" step —
+          # this policy stub is about the PR's diff, not the base branch's.
+          HEAD_SHA="${{ github.event.pull_request.head.sha || 'HEAD' }}"
           BASE="${{ github.event.pull_request.base.sha || 'origin/main' }}"
-          if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
-            BASE="origin/main"
+          git fetch origin main --quiet || true
+          MERGE_BASE=""
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            MERGE_BASE="$(git merge-base origin/main "$HEAD_SHA" 2>/dev/null || true)"
+          fi
+          if [ -z "$MERGE_BASE" ]; then
+            MERGE_BASE="$(git merge-base "$BASE" "$HEAD_SHA" 2>/dev/null || echo "$BASE")"
           fi
           PROTECTED=(
             ".env"
@@ -90,7 +116,7 @@ jobs:
             "data/voice_gemini_keys.json"
             "docker-compose.vps.yml"
           )
-          mapfile -t ALL < <(git diff --name-only --diff-filter=ACMRT "$BASE"...HEAD || true)
+          mapfile -t ALL < <(git diff --name-only --diff-filter=ACMRT "$MERGE_BASE" "$HEAD_SHA" || true)
           hits=()
           for f in "${ALL[@]}"; do
             for p in "${PROTECTED[@]}"; do
