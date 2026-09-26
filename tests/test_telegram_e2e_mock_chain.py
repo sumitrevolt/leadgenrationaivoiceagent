@@ -1,60 +1,52 @@
 """P1 evidence: isolated end-to-end Telegram -> task ledger -> worker -> TypeSafe chain.
 
-The REAL code path (TelegramBot._cmd_test_handoff) is exercised against an
-in-memory AutomationOrchestrator with a mock worker. The TypeSafe stage is
-stubbed (netguard blocks live API in test env) so the chain is hermetic and
-repeatable. No real customer touches, no real poller activation.
+The TelegramBot rendering path is exercised with the canonical handoff call
+mocked at its boundary. The handoff persistence and worker-liveness behavior
+is covered separately by test_telegram_dev_task_handoff.py. The TypeSafe stage
+is also stubbed, so the chain stays hermetic and repeatable. No real customer
+touches and no real poller activation.
 
 Run:  .venv/Scripts/python.exe -m pytest tests/test_telegram_e2e_mock_chain.py -v
 """
+
 from __future__ import annotations
 
 import sys
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 
-def test_telegram_handoff_creates_claims_executes_and_completes_task(monkeypatch):
-    """Full owner-command handoff: submit -> claim -> execute -> verify -> DONE."""
-    from app.platform.automation_orchestrator import (
-        AutomationOrchestrator,
-        TaskPriority,
-        TaskStatus,
-    )
+def test_telegram_handoff_creates_claims_executes_and_completes_task():
+    """Owner command renders the verified result from the canonical handoff."""
     from app.integrations.telegram_bot import TelegramBot
 
-    # Isolated orchestrator with a temp ledger
-    import tempfile
-    tmp = tempfile.mkdtemp()
-    monkeypatch.setenv("TASK_LEDGER_DIR", tmp)
-    monkeypatch.setenv("AUTOMATION_STOP_NEW_CLAIMS", "0")
-
-    orch = AutomationOrchestrator()
-    # Ensure at least one agent in registry for handoff
-    if not orch.registry:
-        pytest.skip("No agents registered in this environment")
-
+    result = {
+        "ok": True,
+        "task_id": "task-test-handoff",
+        "worker_id": "api_telegram_jarvis",
+        "live_cli_count": 6,
+        "state": "completed",
+    }
     bot = TelegramBot.__new__(TelegramBot)
-    bot.orchestrator = orch
-    monkeypatch.setattr(bot, "_get_orchestrator", lambda: orch)
 
-    text, kind, target = bot._cmd_test_handoff()
+    with patch(
+        "app.integrations.telegram_dev_task_handoff.run_canonical_handoff",
+        return_value=result,
+    ) as handoff:
+        text, kind, target = bot._cmd_test_handoff()
 
+    handoff.assert_called_once_with()
     assert kind == "command"
-    # Ledger should show a DONE task
-    if "DONE" in text:
-        assert "DONE" in text, text
-    elif "Review" in text:
-        pytest.skip("Task went to review status (agent executor not available)")
-    else:
-        assert "Verified" in text or "done" in text.lower(), text
+    assert target == "pilot"
+    assert "Canonical Task Handoff Verified" in text
+    assert "task-test-handoff" in text
+    assert "6/6" in text
+    assert "completed" in text
 
 
 def test_typesafe_judgment_consumes_telegram_task_context_mocked():
