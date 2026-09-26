@@ -86,7 +86,7 @@ EXPECTED_BLOCKERS = 0
 # hunt_insert_vps declaration was then removed (2026-09-13) — it declared
 # 2026-09-18: 97 -> 106 re-pin. PR #522 declared emergency-commit stores
 # (agent_memory, telegram_inbox, waha_watchdog, etc.). Net: 97 -> 106.
-EXPECTED_ALLOWLIST_ENTRIES = 106
+EXPECTED_ALLOWLIST_ENTRIES = 114
 EXPECTED_BASELINE_FINGERPRINTS = 788
 
 

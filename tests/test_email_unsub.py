@@ -109,6 +109,13 @@ def test_send_email_applies_extra_headers(monkeypatch):
                 "List-Unsubscribe": "<https://leadsgenai.in/u/abc>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             },
+            skip_validation=True,
+            # This test exercises SMTP header PLUMBING only. skip_validation=True
+            # bypasses the pre-send TypeSafe content gate (documented opt-out) so
+            # the send is not blocked by a content verdict on the minimal test
+            # body (score 0.46 < threshold). The same fail-closed path fires in
+            # CI where TYPESAFE_API_KEY is absent. Without it send_email returns
+            # False and captured["msg"] is never set.
         )
     )
     assert ok is True
