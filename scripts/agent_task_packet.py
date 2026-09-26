@@ -44,6 +44,13 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
     out += [f"- {n['summary']}" for n in invariants] or ["- Follow CLAUDE.md §5 invariants."]
     out += [
         "",
+        "## Mandatory execution protocol",
+        "- Use the existing canonical ledger/orchestrator only: claim/lease/fencing-token, heartbeat, idempotency, evidence, retry/DLQ. Never create a second task DB or control plane.",
+        "- For substantial reasoning work, use the canonical TypeSafe integration with real secure API calls at distinct stages: plan/route, intermediate QA or revision, and final/outcome validation when applicable.",
+        "- TypeSafe calls must be stage-specific, not repeated identical-input calls. Record only redacted decision metadata (stage/source/reason/consumed_calls/latency/action); never print, commit, or paste API keys.",
+        "- A transport/provider failure is probe-unsuccessful, not INVALID. Never fabricate a TypeSafe call or mark MOCK/CACHED/SKIPPED as REAL.",
+        "- After every result, persist evidence and assign or state the next concrete bounded task; do not stop at a status report.",
+        "",
         "## Acceptance test",
         (
             f"- {test}"
@@ -54,6 +61,7 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
         "## Definition of done",
         "- targeted pytest green + scripts/prod_check.py PASS + scripts/check_secrets.py clean.",
         "- additive over rewrite; copy neighbouring convention; no duplicate routes.",
+        "- TypeSafe stage evidence and canonical task-lifecycle evidence are present when the task is substantial.",
     ]
     return "\n".join(out)
 
