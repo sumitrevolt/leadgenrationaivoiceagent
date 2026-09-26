@@ -549,6 +549,57 @@ def _safe_thread_headers(msg: Any) -> tuple[str, str]:
         return "", ""
 
 
+def _imap_uid(meta_envelope: Any) -> str:
+    """Parse the durable IMAP UID from a fetch-response envelope.
+
+    The envelope is the metadata string that precedes the message body, e.g.
+    ``b'1 (UID 1001 INTERNALDATE "..." BODY[] {n})'``. The UID is a stable,
+    per-message mailbox identifier that survives a process restart — unlike a
+    sequence number — so it is the right durable identity for a message that has
+    no RFC Message-ID / References to key on. Returns "" when absent (e.g. a
+    fake mailbox that does not advertise a UID). Only a numeric token is kept;
+    no header text or PII is retained.
+
+    **Scope warning:** a UID is unique only *within one mailbox incarnation*.
+    Two different accounts can both have ``UID 1001`` for different messages, and
+    the same account re-uses UID space after a ``UIDVALIDITY`` change. Callers must
+    therefore pair this with ``_imap_uidvalidity()`` + a mailbox scope before using
+    it as a dedup key — see ``_followup_task_key``.
+    """
+    m = re.search(r"\bUID\s+(\d{1,12})", str(meta_envelope or ""))
+    return m.group(1) if m else ""
+
+
+def _imap_uidvalidity(select_response: Any) -> str:
+    """Extract ``UIDVALIDITY`` from an IMAP SELECT/EXAMINE response.
+
+    ``UIDVALIDITY`` is the server-advertised epoch for the mailbox's UID space:
+    when it changes, every previously-issued UID becomes meaningless and MUST NOT
+    be reused as an identity for a different message. Parsing it lets the
+    follow-up key refuse to inherit a stale task after such a change.
+
+    Accepts the raw ``M.select()`` response tuple (``typ, data``) or a bare
+    string/bytes. Returns "" when the server did not advertise it (some fake
+    mailboxes do not), in which case the caller degrades to a mailbox-scoped key.
+    Only the numeric token is kept; no header text or PII.
+    """
+    text = ""
+    if isinstance(select_response, tuple) and len(select_response) == 2:
+        _typ, data = select_response
+        if isinstance(data, (list, tuple)):
+            text = " ".join(
+                (b.decode("ascii", "ignore") if isinstance(b, bytes) else str(b)) for b in data
+            )
+        else:
+            text = str(data or "")
+    elif isinstance(select_response, bytes):
+        text = select_response.decode("ascii", "ignore")
+    else:
+        text = str(select_response or "")
+    m = re.search(r"\bUIDVALIDITY\s+(\d{1,20})", text)
+    return m.group(1) if m else ""
+
+
 #: Standalone opt-out commands. Deliberately NARROW and deterministic — this
 #: runs before the junk guard, so a loose pattern would suppress real prospects
 #: over a passing mention ("stop by the shop"). Each must appear as a whole word
@@ -644,6 +695,111 @@ def _reply_delivery_key(sender: str, message_id: str) -> str:
     if not sender or not message_id:
         return ""
     return hashlib.sha256(f"{sender}|{message_id}".encode("utf-8", "ignore")).hexdigest()[:32]
+
+
+def _mailbox_scope(mailbox: str = "", uidvalidity: str = "") -> str:
+    """Build the mailbox-incarnation scope prefix for a UID-derived key.
+
+    An IMAP UID is only meaningful inside one *mailbox incarnation*: it is unique
+    per account **and** per ``UIDVALIDITY`` epoch. Two accounts can both serve
+    ``UID 1001`` for two unrelated messages, and one account legitimately re-uses
+    its whole UID space after the server bumps ``UIDVALIDITY``. A key built from a
+    bare UID therefore collides across accounts and goes stale across epochs.
+
+    This returns a short, PII-free scope token: the account portion of the
+    mailbox string (never the domain-less local part verbatim — it is hashed) plus
+    the raw numeric ``UIDVALIDITY`` when the server advertised one. Callers use it
+    as a *prefix inside* the key material, so the UID branch keys on
+    ``account | uidvalidity epoch | uid`` instead of the bare UID.
+
+    Returns "" when nothing is known, which makes the caller fall back to the
+    no-identity ``<review>`` path rather than mint a collision-prone key.
+    """
+    import hashlib
+
+    mb = (mailbox or "").strip().lower()
+    uv = (uidvalidity or "").strip()
+    uid_epoch = uv if uv.isdigit() else ""
+    if not mb and not uid_epoch:
+        return ""
+    parts = []
+    if mb:
+        # Hash the account identity: keeps the scope exact without persisting the
+        # address (and any PII inside it) in a key that may be logged.
+        parts.append("mb:" + hashlib.sha256(mb.encode("utf-8", "ignore")).hexdigest()[:12])
+    if uid_epoch:
+        parts.append("uv:" + uid_epoch)
+    return "|".join(parts)
+
+
+def _followup_task_key(
+    sender: str,
+    message_id: str = "",
+    references: str = "",
+    uid: str = "",
+    mailbox: str = "",
+    uidvalidity: str = "",
+) -> str:
+    """Stable, PII-minimized idempotency key for a qualified-reply follow-up task.
+
+    Derived from the message's **delivery/thread identity** so re-processing the
+    same message — or the same thread seen by a brand-new process / orchestrator
+    instance — yields the SAME key and dedups to one durable task:
+
+      * ``message_id`` present  -> digest of ``sender|<message_id>``
+        (the RFC Message-ID is the stable per-delivery identity; it wins over
+        every mailbox-local identity, which is only meaningful on one server).
+      * ``message_id`` absent, ``references`` present -> digest of
+        ``sender|thread:<root>`` where ``root`` is the earliest References token.
+      * neither, ``uid`` present AND a mailbox scope is known -> digest of
+        ``sender|<mailbox-scope>|uid:<n>``. The IMAP UID is the durable
+        per-message mailbox identifier (stable across a restart), so two DISTINCT
+        identifier-less replies from the same sender stay distinct — they never
+        collapse to one shared key. The mailbox scope prefix is what makes the key
+        correct across accounts and across a ``UIDVALIDITY`` bump:
+          - two different accounts both serving ``UID 1001`` produce different
+            keys (their mailbox scope differs), so unrelated messages never share
+            a task;
+          - when the server bumps ``UIDVALIDITY`` the scope changes, so a recycled
+            UID yields a NEW key instead of silently reusing an old task.
+      * otherwise (including a UID with no trustworthy mailbox scope, or neither
+        identifier) -> an explicit ``<review>`` marker. This is a LAST-RESORT
+        no-identity path: the caller is expected to log it for review, NOT
+        silently mint one sender-scoped task and dedup against it. We surface it
+        rather than hide it so a missing-identity reply is a visible, auditable
+        event instead of a silent dedup collision — refusing to mint beats
+        collapsing two real prospects into one task.
+
+    Deterministic (SHA-256), **never** Python ``hash()`` — ``hash()`` is
+    PYTHONHASHSEED-salted and unstable across process restarts, so it would not
+    reliably dedup a cross-process replay. No raw email body / PII is used; the
+    mailbox is hashed and only the bounded identity tokens above are retained.
+    """
+    import hashlib
+
+    sender = (sender or "").strip().lower()
+    message_id = (message_id or "").strip()
+    uid = (uid or "").strip()
+    refs = re.findall(r"<[^<>\r\n]{1,200}>", references or "")
+    if not sender:
+        # No sender identity at all — a stable no-op marker so callers never mint
+        # a task from an empty identity (the orchestrator guard rejects it).
+        return "reply_followup:<nosender>"
+    if message_id:
+        material = f"{sender}|{message_id}"
+    elif refs:
+        material = f"{sender}|thread:{refs[0]}"
+    else:
+        scope = _mailbox_scope(mailbox, uidvalidity)
+        if uid and scope:
+            material = f"{sender}|{scope}|uid:{uid}"
+        else:
+            # UID without a mailbox incarnation scope cannot be trusted to be
+            # unique (another account may use the same UID), and no identity at
+            # all is equally unusable: hold for review instead of collapsing.
+            return "reply_followup:<review>"
+    digest = hashlib.sha256(material.encode("utf-8", "ignore")).hexdigest()[:32]
+    return f"reply_followup:{digest}"
 
 
 def _body(msg) -> str:
@@ -746,6 +902,291 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
     except Exception as exc:
         logger.debug("reply classify err: %s", exc)
     return "other"
+
+
+def _typesafe_triage_evidence(
+    subject: str, body: str, llm_intent: str, prospect: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Canonical TypeSafe reply-triage evidence (opt-in, fail-safe, never raises).
+
+    REUSES the canonical ``typesafe_services.TypeSafeReplyTriage`` — no new SDK,
+    key pool, secret store, or bridge (CLAUDE.md M01/§2.2 architectural NO-NOs).
+
+    * ``REPLY_AGENT_TYPESAFE`` unset (default) → ``{"active": False}``: the LLM
+      ``_classify`` verdict stands unmodified and deterministic compliance gates
+      remain the only authority. No TypeSafe call, no network.
+    * Flag on but the client is INERT (ABSENT credential) → ``{"active": False,
+      "reason": "inert"}``: the observed config state is recorded; no call is made.
+    * Flag on + key PRESENT + reachable → typed evidence: ``intent``/``is_hot``/
+      ``sentiment``/``urgency``/``suggested_action`` plus the resolved ``model``
+      and ``latency_sec`` (real invocation record, per §7 of the task brief).
+
+    ``conflict`` is set ONLY when the LLM called the reply a qualified
+    opportunity (``interested``/``question``) but TypeSafe is confident it is a
+    decline/opt-out and NOT hot — the caller holds that reply for human review
+    instead of inventing customer intent (§4: "Do not classify an email as a
+    qualified opportunity solely because it contains positive language").
+    """
+    marker: dict[str, Any] = {"active": False}
+    if not _flag("REPLY_AGENT_TYPESAFE"):
+        return marker
+    try:
+        from app.platform.typesafe_services import get_typesafe_reply_triage
+
+        svc = get_typesafe_reply_triage()
+        if not svc.client.enabled:
+            # INERT (ABSENT credential): degrade gracefully, record observed state.
+            return {"active": False, "reason": "inert"}
+        lead_ctx = (
+            {
+                "business_name": (prospect or {}).get("business_name"),
+                "niche": (prospect or {}).get("niche"),
+                "status": (prospect or {}).get("status"),
+            }
+            if prospect
+            else None
+        )
+        tri = svc.triage_reply((body or subject or "")[:1500], lead_ctx)
+        md = dict(tri.metadata or {})
+        # Map the canonical TypeSafe intent vocabulary -> this module's LLM vocab
+        # so the conflict check compares like-for-like against `llm_intent`.
+        intent_map = {
+            "demo_request": "interested",
+            "callback_requested": "interested",
+            "pricing_query": "question",
+            "question": "question",
+            "not_interested": "not_interested",
+            "unsubscribe": "unsubscribe",
+            "other": "other",
+        }
+        ts_cat = intent_map.get(str(tri.intent), "other")
+        conflict = (
+            llm_intent in _HOT_INTENTS
+            and ts_cat in ("not_interested", "unsubscribe")
+            and not tri.is_hot
+        )
+        return {
+            "active": True,
+            "intent": str(tri.intent),
+            "mapped_intent": ts_cat,
+            "is_hot": bool(tri.is_hot),
+            "sentiment": str(tri.sentiment),
+            "urgency": str(tri.urgency),
+            "suggested_action": str(tri.suggested_action),
+            "conflict": conflict,
+            "model": md.get("model"),
+            "latency_sec": md.get("latency_sec"),
+        }
+    except Exception as exc:
+        # Unreachable / unexpected failure: report observed failure accurately and
+        # continue with the LLM verdict + deterministic gates (task §7).
+        logger.debug("typesafe triage evidence err: %s", exc)
+        return {"active": False, "reason": str(exc)[:120]}
+
+
+def create_reply_followup_task(
+    prospect: dict[str, Any],
+    intent: str,
+    ts_ev: dict[str, Any],
+    *,
+    idempotency_key: str = "",
+    message_id: str = "",
+    references: str = "",
+    uid: str = "",
+    mailbox: str = "",
+    uidvalidity: str = "",
+    orchestrator: Any | None = None,
+) -> dict[str, Any]:
+    """Idempotently create a canonical WORKER follow-up task for a qualified reply.
+
+    Targets the **canonical worker-execution ledger** — ``data/orchestrator_ledger.db``
+    via ``AutomationOrchestrator.submit_task`` (the single control plane), NOT the
+    admin Kanban ``data/admin_tasks.db``. A durable ``task_<uuid8>`` id is returned
+    together with its owner_bot / assigned_agent and the evidence URI, so a qualified
+    reply lands in the worker queue with TypeSafe evidence attached.
+
+    * Gated by ``REPLY_AGENT_FOLLOWUP_TASK=1`` (default off → no behaviour change).
+    * **Idempotent**: the default ``idempotency_key`` is ``_followup_task_key`` — a
+      stable digest of the message's delivery/thread identity, in priority order:
+      Message-ID, else the thread's earliest References token, else the durable IMAP
+      ``uid`` **scoped by the mailbox/account + ``UIDVALIDITY`` epoch**. Re-processing
+      the same message, or the same thread seen by a **brand-new process /
+      orchestrator instance**, yields the SAME key → one durable task
+      (``created=False, reason="duplicate"``); two DIFFERENT messages stay distinct.
+      ``submit_task`` enforces this via its built-in ``get_by_idempotency_key`` check.
+    * ``message_id`` / ``references`` / ``uid`` are the current message's identity
+      (``_safe_thread_headers`` + ``_imap_uid``) so the key is derived from THIS
+      reply, never a stale sibling. ``mailbox`` / ``uidvalidity`` supply the
+      incarnation scope for the UID branch: a UID alone is only unique inside one
+      account *and* one UIDVALIDITY epoch, so two accounts both serving ``UID 1001``
+      must not share a task, and a UID recycled after a UIDVALIDITY bump must not
+      inherit the pre-bump task.
+    * **No-identity guard**: when none of Message-ID / References / (scoped) UID is
+      present, the key resolves to the explicit ``reply_followup:<review>`` marker and
+      this function does NOT mint a task — it returns ``created=False`` with
+      ``reason="review:missing_message_identity"`` so the caller can surface it for
+      review instead of silently deduping every no-identity reply from a sender into
+      one shared task. Never raises.
+    * ``orchestrator`` is injectable so tests point the durable store at a temp DB;
+      default ``None`` builds the canonical production orchestrator.
+    """
+    out: dict[str, Any] = {
+        "created": False,
+        "task_id": None,
+        "owner_bot": None,
+        "assigned_agent": None,
+        "idempotency_key": None,
+    }
+    if not _flag("REPLY_AGENT_FOLLOWUP_TASK"):
+        out["reason"] = "flag_off"
+        return out
+    biz = str((prospect or {}).get("business_name") or "").strip() or "unknown"
+    email = str((prospect or {}).get("email") or "").strip().lower()
+    key = idempotency_key or _followup_task_key(
+        email, message_id, references, uid, mailbox, uidvalidity
+    )
+    out["idempotency_key"] = key
+    # No durable per-message identity (no Message-ID / References / UID): do NOT
+    # collapse this into a shared sender-scoped task. Surface it for review.
+    if key.endswith("<review>"):
+        out.update({"created": False, "reason": "review:missing_message_identity"})
+        return out
+    try:
+        from app.platform.automation_orchestrator import (
+            AutomationOrchestrator,
+            TaskPriority,
+        )
+
+        orch = orchestrator if orchestrator is not None else AutomationOrchestrator()
+        payload = {
+            "source": "reply_agent",
+            "kind": "qualified_reply_followup",
+            "business": biz,
+            "email": email or None,
+            "intent": intent,
+            "typesafe": ts_ev or {},
+        }
+        record, is_new = orch.submit_task(
+            owner_bot="sales",
+            assigned_agent="rohan",
+            priority=TaskPriority.HIGH,
+            input_payload=payload,
+            idempotency_key=key,
+        )
+        out.update(
+            {
+                "created": is_new,
+                "task_id": record.task_id,
+                "owner_bot": record.owner_bot,
+                "assigned_agent": record.assigned_agent,
+                "status": str(record.status),
+                "reason": "created" if is_new else "duplicate",
+            }
+        )
+        return out
+    except Exception as exc:
+        logger.debug("followup task err: %s", exc)
+        out.update({"created": False, "reason": f"error:{str(exc)[:120]}"})
+        return out
+
+
+def _typesafe_content_gate(
+    subject: str, body: str, prospect: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Opt-in TypeSafe pre-send quality/compliance verdict on an outgoing reply.
+
+    REUSES the canonical ``typesafe_services.TypeSafeContentQA`` (no new gate).
+
+    * ``REPLY_AGENT_TYPESAFE_CONTENT`` unset (default) → ``{"enabled": False}``:
+      deterministic compliance gates (suppression/injection/unknown-prospect/
+      age/scan) remain the only authority and behaviour is unchanged.
+    * Flag on + client INERT/unavailable (no API key) → ``{"enabled": True,
+      "state": "inert", "passed": True, "needs_review": False}``: ADVISORY only.
+      The verifier is not armed, so the row proceeds to the claim/send path; the
+      deterministic gates above it still protect deliverability. This is the ONLY
+      case where the gate does not hold.
+    * Flag on + armed + verdict available → the gate HOLDS the row for review
+      (``needs_review=True``) on ANY non-clean shape, never fail-open:
+        * ``approved=False`` (spammy / compliance / aggressive tone) → HOLD
+        * API error / timeout / verifier exception      → HOLD (unverifiable)
+        * empty answer (no verdict to trust)             → HOLD
+      Only an active, approved, answer-carrying verdict passes
+      (``state="ok", needs_review=False``). The caller consumes ``needs_review``
+      BEFORE the idempotency claim is burned and records the hold on the draft
+      row as ``auto_send_status="held_for_review"``. Never raises.
+    """
+    out: dict[str, Any] = {"enabled": False}
+    if not _flag("REPLY_AGENT_TYPESAFE_CONTENT"):
+        return out
+    out["enabled"] = True
+    try:
+        from app.platform.typesafe_services import get_typesafe_content_qa
+
+        svc = get_typesafe_content_qa()
+        if not svc.client.enabled:
+            # INERT (no API key): ADVISORY only — never block the bounded auto-send
+            # just because the paid verifier is not armed. Deterministic gates still
+            # protect deliverability, so the row proceeds to the claim/send path.
+            out.update({"state": "inert", "passed": True, "needs_review": False, "reason": "inert"})
+            return out
+        verdict = svc.audit_outbound_message(
+            subject=subject,
+            body=body,
+            channel="email",
+            recipient_context=(
+                {
+                    "business_name": (prospect or {}).get("business_name"),
+                    "niche": (prospect or {}).get("niche"),
+                    "email": (prospect or {}).get("email"),
+                }
+                if prospect
+                else None
+            ),
+        )
+        md = verdict.metadata or {}
+        has_answer = bool(md.get("has_answer", False))
+        api_ok = bool(md.get("success", False))
+        # The gate is a safety check: a customer-facing draft may go out ONLY when
+        # the verifier actively produced a clean, approved verdict. Every other
+        # shape is "needs review" and must be held (never auto-sent):
+        #   * approved=False (spammy / compliance / aggressive) -> hold
+        #   * API error / timeout   -> hold (unverifiable)
+        #   * empty answer          -> hold (no verdict to trust)
+        passed = api_ok and has_answer and verdict.approved
+        state = (
+            "ok"
+            if passed
+            else ("error" if not api_ok else ("empty_answer" if not has_answer else "rejected"))
+        )
+        out.update(
+            {
+                "state": state,
+                "passed": passed,
+                "needs_review": (not passed),  # any non-clean verdict -> hold for review
+                "approved": bool(verdict.approved),
+                "is_spammy": bool(verdict.is_spammy),
+                "compliance_violation": bool(verdict.compliance_violation),
+                "persuasion_score": verdict.persuasion_score,
+                "tone": verdict.tone,
+                "reasons": list(verdict.reasons),
+                "has_answer": has_answer,
+                "model": md.get("model"),
+                "latency_sec": md.get("latency_sec"),
+            }
+        )
+        return out
+    except Exception as exc:
+        logger.debug("typesafe content gate err: %s", exc)
+        # API/timeout/verifier failure == UNVERIFIABLE -> hold, do NOT fail open.
+        out.update(
+            {
+                "state": "error",
+                "passed": False,
+                "needs_review": True,
+                "reason": f"error:{str(exc)[:80]}",
+            }
+        )
+        return out
 
 
 def _interested_offer_block(biz: str = "") -> str:
@@ -977,7 +1418,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
             host, 993, timeout=20
         )  # no timeout = worker hangs on a stalled IMAP read
         M.login(user, pw)
-        M.select("INBOX")
+        # Capture the mailbox *incarnation* alongside SELECT: the account (user) and
+        # the server's UIDVALIDITY epoch. A UID is only unique inside one account +
+        # one epoch, so both must travel with `_uid` into the follow-up key or two
+        # accounts sharing UID 1001 would collide, and a post-UIDVALIDITY-bump UID
+        # would wrongly re-attach to a pre-bump task.
+        _uidvalidity = _imap_uidvalidity(M.select("INBOX"))
+        _mailbox_scope_id = user
         typ, data = M.search(None, "UNSEEN")
         ids = (data[0].split() if data and data[0] else [])[: max(1, limit)]
         pmap = _prospect_map()
@@ -987,12 +1434,17 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         seen_counts = _sender_counts(list_drafts(limit=4000)) if flood_cap else {}
         for i in ids:
             try:
-                typ, md = M.fetch(i, "(BODY.PEEK[] INTERNALDATE)")
+                typ, md = M.fetch(i, "(BODY.PEEK[] INTERNALDATE UID)")
                 msg = email.message_from_bytes(md[0][1])
                 frm = email.utils.parseaddr(msg.get("From", ""))[1].lower()
                 subj = _decode(msg.get("Subject", ""))
                 p = pmap.get(frm)
                 body = _body(msg)
+                # Durable per-message mailbox identity (stable across a process
+                # restart) used ONLY as a follow-up-task dedup fallback when the
+                # message carries no RFC Message-ID / References. Never PII; never
+                # written to the draft row body — just threaded into the key.
+                _uid = _imap_uid(md[0][0])
                 # BOUNCE / COMPLAINT GUARD (2026-07-04, hardened 2026-07-25):
                 # mailer-daemon NDRs + FBL complaints must NEVER reach the LLM and
                 # must NEVER count as engagement. Classify structurally (DSN /
@@ -1193,6 +1645,49 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 seen_counts[frm] = seen_counts.get(frm, 0) + 1
                 intent = await _classify(subj, body)
+                # TypeSafe typed evidence (opt-in, fail-safe). Reuses the canonical
+                # typesafe_services triage; INERT/unavailable -> evidence inactive and
+                # the LLM verdict stands unchanged. On a genuine LLM-vs-TypeSafe
+                # conflict (LLM hot, TypeSafe confident decline) demote to "other" and
+                # hold for human review — never invent customer intent (§4/§7).
+                ts_ev = _typesafe_triage_evidence(subj, body, intent, p)
+                if ts_ev.get("active") and ts_ev.get("conflict"):
+                    # LLM called this a qualified opportunity but TypeSafe is confident
+                    # it is actually a decline / opt-out. NEVER build an interested deal,
+                    # cadence or auto-send from it.
+                    intent = "other"
+                    ts_ev["held_for_review"] = True
+                    # An explicit TypeSafe-detected UNSUBSCRIBE is a compliance opt-out:
+                    # persist it to the canonical global suppression path so every
+                    # send/follow-up (email + phone) is blocked. Idempotent on the same
+                    # delivery key, so re-processing the thread never duplicates it.
+                    if ts_ev.get("mapped_intent") == "unsubscribe":
+                        try:
+                            from app.platform import email_unsub
+
+                            _mid = _safe_thread_headers(msg)[0]
+                            _pid = str((p or {}).get("id") or (p or {}).get("pid") or "")
+                            _scope = (
+                                email_unsub.SCOPE_ALL_OUTREACH
+                                if _pid
+                                else email_unsub.SCOPE_QUARANTINE
+                            )
+                            email_unsub.suppress(
+                                frm or "",
+                                reason="typesafe_unsubscribe",
+                                scope=_scope,
+                                prospect_id=_pid,
+                                event_id=_reply_delivery_key(frm or "", _mid),
+                                source="reply_agent_typesafe",
+                            )
+                            ts_ev["suppressed"] = True
+                        except Exception as _tsup_err:  # never break triage
+                            logger.warning(
+                                "[reply_agent] typesafe unsubscribe suppression failed: %s",
+                                _tsup_err,
+                            )
+                    # A plain semantic "not interested" (mapped_intent not_interested)
+                    # stays a review hold only — we do not invent a hard opt-out.
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
                 # Never blocks — flags the draft so the human reviewer does NOT act on
                 # instructions embedded by a malicious sender. ph18/15-16 (llm-security skill).
@@ -1313,6 +1808,37 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             )
                         except Exception:
                             pass
+                        # Canonical follow-up task (opt-in REPLY_AGENT_FOLLOWUP_TASK=1):
+                        # idempotent task_ledger row so a qualified reply has a durable,
+                        # owner-visible action with TypeSafe evidence persisted in it
+                        # (§5 "create or update the appropriate canonical follow-up task").
+                        # The key is derived from THIS message's thread identity
+                        # (Message-ID, else earliest References token, else the durable
+                        # IMAP UID scoped by mailbox account + UIDVALIDITY) via
+                        # _followup_task_key — stable across re-processing and across a
+                        # process restart. `_safe_thread_headers(msg)` is used here (not
+                        # the sibling `message_id` variable, which is only populated later
+                        # in the loop and would be stale on the first iteration). The
+                        # scoped IMAP UID is the durable per-message identifier for
+                        # identifier-less replies so two distinct messages from the same
+                        # sender never collapse to one task, while the same UID under a
+                        # DIFFERENT account or a DIFFERENT UIDVALIDITY epoch stays distinct.
+                        try:
+                            _fmid, _frefs = _safe_thread_headers(msg)
+                            _ft = create_reply_followup_task(
+                                {**p, "email": frm},
+                                intent,
+                                ts_ev,
+                                message_id=_fmid,
+                                references=_frefs,
+                                uid=_uid,
+                                mailbox=_mailbox_scope_id,
+                                uidvalidity=_uidvalidity,
+                            )
+                            if _ft.get("created") or _ft.get("task_id"):
+                                res["followup_task"] = _ft
+                        except Exception:
+                            pass
                         # Journey: email_reply trigger (gated JOURNEY_ENGINE=1)
                         try:
                             from app.marketing import journeys
@@ -1363,6 +1889,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         "intent": intent,
                         "draft": draft,
                         "draft_source": draft_source,
+                        "typesafe": ts_ev,
                         "injection_flag": _inj,
                         "scan_status": _scan_status,
                         "channel": "email",
@@ -1565,6 +2092,7 @@ async def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
                 auto_wa = False
                 try:
                     from app.marketing import whatsapp_campaign as _wa_mod
+
                     if _wa_mod.auto_ready():
                         _wres = await _wa_mod.send_one(f"+91{phone10}", wa_msg)
                         auto_wa = bool(_wres.get("sent"))
@@ -2244,6 +2772,7 @@ async def run_auto_reply_backlog(
                 "expired",
                 "attempting",
                 "ambiguous",
+                "held_for_review",
             }:
                 continue
             out["seen"] += 1
@@ -2309,14 +2838,8 @@ async def run_auto_reply_backlog(
                     },
                 )
                 continue
-            claim = int(await claim_fn(delivery_key, cap))
-            if claim == -1:
-                out["skipped"] = "daily_cap"
-                break
-            if claim != 1:
-                out["claimed_elsewhere"] += 1
-                continue
-            remaining -= 1
+            # Compute the outgoing message content FIRST — the TypeSafe content gate
+            # below inspects `subject`/`body`, so they must exist before it runs.
             body = _stale_reengagement_body() if stale else str(row.get("draft") or "").strip()
             subject = str(row.get("subject") or "Quick follow-up").strip()
             if not subject.lower().startswith("re:"):
@@ -2328,6 +2851,45 @@ async def run_auto_reply_backlog(
                 headers["In-Reply-To"] = message_id
                 headers["References"] = f"{references} {message_id}".strip()
             headers["Message-ID"] = f"<reply-{delivery_key}@leadsgenai.in>"
+            # OPT-IN TypeSafe pre-send quality/compliance gate (REPLY_AGENT_TYPESAFE_CONTENT=1).
+            # Reuses the canonical typesafe_services content QA. It runs AFTER the
+            # deterministic consent/suppression/injection/unknown/age/scan gates above
+            # and BEFORE the idempotency claim is consumed, so an unsafe or unverifiable
+            # draft is held for review WITHOUT burning the daily cap / claim.
+            #
+            # SAFETY CONTRACT: once the gate is ARMED it never lets an unverifiable
+            # customer-facing draft auto-send. `needs_review` is True on a rejected
+            # verdict (spammy/compliance/aggressive), a conflict, an API error/timeout,
+            # or an empty answer — all of which HOLD the row for human review. The only
+            # proceed-without-verdict case is INERT (no API key), where the gate is
+            # advisory and the deterministic gates above still protect deliverability.
+            # (There is deliberately no "advisory" mode that ships an unsafe draft.)
+            _cgate: dict[str, Any] | None = None
+            if _flag("REPLY_AGENT_TYPESAFE_CONTENT"):
+                _cgate = _typesafe_content_gate(subject, body, prospect)
+                _update_draft_fields(
+                    hq_id,
+                    {"typesafe_content_gate": json.dumps(_cgate, default=str)[:500]},
+                )
+                if _cgate.get("needs_review"):
+                    out["held_for_review"] = out.get("held_for_review", 0) + 1
+                    _reason = _cgate.get("state") or "needs_review"
+                    _update_draft_fields(
+                        hq_id,
+                        {
+                            "auto_send_status": "held_for_review",
+                            "auto_send_reason": f"typesafe_content_gate:{_reason}",
+                        },
+                    )
+                    continue
+            claim = int(await claim_fn(delivery_key, cap))
+            if claim == -1:
+                out["skipped"] = "daily_cap"
+                break
+            if claim != 1:
+                out["claimed_elsewhere"] += 1
+                continue
+            remaining -= 1
             attempts = int(row.get("auto_send_attempts") or 0) + 1
             if not _update_draft_fields(
                 hq_id,
