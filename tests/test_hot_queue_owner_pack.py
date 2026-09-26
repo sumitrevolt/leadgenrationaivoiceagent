@@ -3,6 +3,7 @@
 ADR-OWNER-1: ensures the new build_owner_pack engine is importable + idempotent
 + safe when reply_agent.hot_queue() returns empty (no flakes) and never raises.
 """
+
 import asyncio
 import os
 import sys
@@ -147,7 +148,7 @@ def test_existing_customer_phone_is_excluded_from_pack(tmp_path, monkeypatch):
     from app.platform import hot_queue_owner_pack, reply_agent
 
     rows = [
-        _row("p1", "+919876543210", name="JIYA-CUSTOMER"),   # Jiya Makeover
+        _row("p1", "+919876543210", name="JIYA-CUSTOMER"),  # Jiya Makeover
         _row("p2", "919888888888", name="REAL-PROSPECT"),
         _row("p3", "9876543210", name="SAME-CUSTOMER-BARE"),  # same number, bare form
     ]
@@ -166,8 +167,8 @@ def test_existing_customer_phone_is_excluded_from_pack(tmp_path, monkeypatch):
 
     with open(r["csv"], encoding="utf-8") as f:
         body = f.read()
-    assert "9876543210" not in body          # excluded in both +91 and bare form
-    assert "919888888888" in body            # the real prospect survives
+    assert "9876543210" not in body  # excluded in both +91 and bare form
+    assert "919888888888" in body  # the real prospect survives
 
 
 def test_suppression_matches_wa_link_only_row(tmp_path, monkeypatch):
@@ -197,9 +198,7 @@ def test_unverified_suppression_is_reported_not_silent(tmp_path, monkeypatch):
 
     rows = [_row("p1", "919888888888")]
     monkeypatch.setattr(reply_agent, "hot_queue", lambda limit=200, scope="boss": rows)
-    monkeypatch.setattr(
-        hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), False)
-    )
+    monkeypatch.setattr(hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), False))
 
     r = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
     assert r.get("customer_suppression") == "unverified", r
@@ -227,9 +226,7 @@ def test_csv_carries_customer_suppression_state(tmp_path, monkeypatch):
     monkeypatch.setattr(reply_agent, "hot_queue", lambda limit=200, scope="boss": rows)
 
     # (a) verified-empty store -> "active"
-    monkeypatch.setattr(
-        hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), True)
-    )
+    monkeypatch.setattr(hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), True))
     r = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
     assert r.get("customer_suppression") == "active", r
     with open(r["csv"], encoding="utf-8") as f:
@@ -240,9 +237,7 @@ def test_csv_carries_customer_suppression_state(tmp_path, monkeypatch):
     assert data and data[0][idx] == "active", f"row state must be 'active'; got {data[0][idx]!r}"
 
     # (b) unreadable store -> "unverified" must also reach the CSV
-    monkeypatch.setattr(
-        hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), False)
-    )
+    monkeypatch.setattr(hot_queue_owner_pack, "_existing_customer_phones", lambda: (set(), False))
     r2 = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
     assert r2.get("customer_suppression") == "unverified", r2
     with open(r2["csv"], encoding="utf-8") as f:
@@ -324,6 +319,7 @@ class _StubDT:
     def now(self):
         class _T:
             hour = self._hour
+
         return _T()
 
 
@@ -344,6 +340,7 @@ def stubbed_env(monkeypatch):
     monkeypatch.setattr(voice_launch, "campaign_enabled", lambda: stub.campaign_on)
 
     import app.platform.hot_queue_owner_pack as _mod
+
     monkeypatch.setattr(_mod, "datetime", _StubDT(hour_value=14))
 
     monkeypatch.delenv("EMERGENCY_STOP", raising=False)
@@ -435,4 +432,3 @@ class TestCheckGatesAdapter:
         monkeypatch.setenv("EMERGENCY_STOP", "1")
         out = hot_queue_owner_pack.check_gates()
         assert out.get("emergency_stop") != "pass"
-

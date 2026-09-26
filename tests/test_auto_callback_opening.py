@@ -87,9 +87,7 @@ def test_start_stream_call_stores_opening_line_in_pending(monkeypatch):
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tok123")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -239,9 +237,7 @@ def test_start_stream_call_dry_run_skips_dial(monkeypatch):
     async def _fake_store(token, data):
         pending.update({token: data})
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
     monkeypatch.setattr(tv, "_sign_stream_token", lambda x: "tokdry")
     monkeypatch.setattr(tv, "settings", type("S", (), {"public_base_url": "https://x.in"})())
@@ -382,9 +378,7 @@ def test_pending_store_keyed_by_raw_token_when_signing_active(monkeypatch):
     async def _fake_store(token, data):
         stored[token] = data
 
-    monkeypatch.setattr(
-        "app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo
-    )
+    monkeypatch.setattr("app.telephony.tata_smartflo_handler.TataSmartfloClient", _FakeSmartflo)
     monkeypatch.setattr(tv, "_store_pending", _fake_store)
 
     res = asyncio.run(tv.start_stream_call("9876543210", niche="salon_spa", lead_id="lead-42"))

@@ -117,7 +117,10 @@ def _allow_unauth_webhook() -> bool:
     """
     env = os.getenv("ENV", "production").strip().lower()
     flag = os.getenv("ALLOW_UNAUTH_WEBHOOK", "false").strip().lower() in (
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     )
     return env in {"dev", "test"} and flag
 
@@ -215,7 +218,7 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
         body_secret = ""
         header_secret = ""
     else:
-        body_secret = ""     # populated below
+        body_secret = ""  # populated below
         header_secret = request.headers.get("X-Smartflo-Secret", "")
 
     # --- Parse body (JSON or form-urlencoded) -------------------------------
@@ -239,8 +242,11 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
         body_secret = body.get(body_secret_key) or body.get(body_secret_key.lstrip("$")) or ""
         provided = body_secret or header_secret
         if not hmac.compare_digest(provided or "", secret):
-            logger.warning("[smartflo-webhook] rejected: bad/missing secret (body=%s header=%s)",
-                           bool(body_secret), bool(header_secret))
+            logger.warning(
+                "[smartflo-webhook] rejected: bad/missing secret (body=%s header=%s)",
+                bool(body_secret),
+                bool(header_secret),
+            )
             return JSONResponse(content={"ok": False}, status_code=401)
 
     # Smartflo documents variables with a ``$`` sigil; accept both forms.
@@ -447,9 +453,7 @@ async def _meter_call(call_id: str, duration_s: int, custom_id: dict[str, Any]) 
             duration_seconds=int(duration_s or 0),
         )
     except Exception as e:
-        logger.warning(
-            "[smartflo-webhook] metering FAILED for call %s: %s", call_id, e
-        )
+        logger.warning("[smartflo-webhook] metering FAILED for call %s: %s", call_id, e)
         return
 
     if metered:
