@@ -40,6 +40,17 @@ def _hermetic_email_verify(monkeypatch):
     monkeypatch.setattr(email_verify, "verify", _fake_verify)
 
 
+@pytest.fixture
+def _approved_content_qa(monkeypatch):
+    """Transport tests receive a deterministic TypeSafe approval, never a live call."""
+    from app.integrations.email_sender import EmailSender
+
+    async def _approve(self, subject, body, channel="email"):
+        return {"approved": True, "score": 100, "issues": [], "grade": "A"}
+
+    monkeypatch.setattr(EmailSender, "validate_content", _approve)
+
+
 @pytest.fixture(autouse=True)
 def _isolated_email_suppression(monkeypatch, tmp_path):
     from app.platform import email_unsub
@@ -158,6 +169,7 @@ class TestGuards:
 # --------------------------------------------------------------------------- #
 # run_email_outreach — happy path
 # --------------------------------------------------------------------------- #
+@pytest.mark.usefixtures("_approved_content_qa")
 class TestRun:
     @pytest.mark.asyncio
     async def test_sends_and_marks_prospect(self, monkeypatch, tmp_prospects, no_sleep):
@@ -651,6 +663,7 @@ class TestFollowupGuards:
 # --------------------------------------------------------------------------- #
 # run_email_followups — happy path + timing
 # --------------------------------------------------------------------------- #
+@pytest.mark.usefixtures("_approved_content_qa")
 class TestFollowupRun:
     @pytest.mark.asyncio
     async def test_sends_followup1_and_increments(self, monkeypatch, tmp_prospects, no_sleep):
