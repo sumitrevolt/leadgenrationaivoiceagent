@@ -56,7 +56,9 @@ os.environ["DATABASE_URL"] = (
 # operation-time by design; without this root, TestClient startup can write
 # job_runs.jsonl/job_heartbeats.json while xdist workers are running.
 _RUNTIME_ROOT = __import__("pathlib").Path(__import__("tempfile").gettempdir()) / (
-    f"leadgen_runtime_test_{_XDIST_WORKER.replace('/', '_')}" if _XDIST_WORKER else "leadgen_runtime_test_serial"
+    f"leadgen_runtime_test_{_XDIST_WORKER.replace('/', '_')}"
+    if _XDIST_WORKER
+    else "leadgen_runtime_test_serial"
 )
 _RUNTIME_ROOT.mkdir(parents=True, exist_ok=True)
 os.environ["LEADGEN_RUNTIME_DATA_DIR"] = str(_RUNTIME_ROOT)
