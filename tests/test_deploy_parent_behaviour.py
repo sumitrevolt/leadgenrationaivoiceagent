@@ -218,6 +218,20 @@ def _sandbox(tmp_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathli
     binmock.mkdir()
     _git_stub(binmock / "git", log, state)
     _docker_stub(binmock / "docker", log)
+    # The parent now verifies that systemd owns the serving app before it
+    # builds a candidate. This harness represents the supported topology;
+    # Docker-serving and ambiguous hosts are covered by the topology tests.
+    _write(
+        binmock / "systemctl",
+        """\
+        #!/usr/bin/env bash
+        if [ "$1" = "is-active" ] && [ "$2" = "--quiet" ] && [ "$3" = "leadgen" ]; then
+          exit 0
+        fi
+        exit 1
+        """,
+        executable=True,
+    )
     _write(
         binmock / "curl",
         f"""\
@@ -288,6 +302,7 @@ def _run(
         text=True,
         env=_env(tmp_path, **extra),
         timeout=180,
+        check=False,
         cwd=str(tmp_path),
     )
 

@@ -45,6 +45,21 @@ DRY_RUN="${DRY_RUN:-0}"
 
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 
+# This release path still rolls the web app through systemd. Some hosts now
+# serve port 8000 from the Compose app container instead. Refuse that topology
+# before candidate creation, image builds, checkout movement, or container
+# recreation; otherwise workers can advance while the customer-facing app does
+# not. A Docker-serving release needs a reviewed app-container rollout first.
+_systemd_app_active=0
+_docker_app_running="$(docker inspect -f '{{.State.Running}}' leadgen_app 2>/dev/null || true)"
+systemctl is-active --quiet leadgen >/dev/null 2>&1 && _systemd_app_active=1
+if [ "$_docker_app_running" = "true" ] || [ "$_systemd_app_active" -ne 1 ]; then
+  echo "FATAL: unsupported web-serving topology for this systemd-only deploy path."
+  echo "       systemd_active=$_systemd_app_active docker_app_running=${_docker_app_running:-unknown}"
+  echo "       Refusing before any release mutation; reconcile app rollout first."
+  exit 10
+fi
+
 # ---------------------------------------------------- runtime-data guard
 # CANONICAL NORMAL-RELEASE PARENT. This is the protected entry point for
 # ordinary production releases; recovery, database-restore, bootstrap and
