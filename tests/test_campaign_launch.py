@@ -343,6 +343,12 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
     # is what's being verified.
     monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
 
+    async def _auth_ok(self):
+        return {"ok": True, "status_code": 200, "reason": ""}
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient.auth_probe", _auth_ok
+    )
 
     async def _fake_start(
         to, niche="general", call_type="promotional", client_id=None, lead_id=None
@@ -388,6 +394,9 @@ def test_smartflo_compliance_block_is_a_skip_not_a_failure(
     class _BlockedSmartfloClient:
         def available(self):
             return True
+
+        async def auth_probe(self):
+            return {"ok": True, "status_code": 200, "reason": ""}
 
         async def place_call(self, **kwargs):
             return {"status_code": 0, "body": {"error": "compliance_blocked: dnd_scrub"}}
@@ -438,6 +447,12 @@ def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
     # is what's being verified.
     monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
 
+    async def _auth_ok(self):
+        return {"ok": True, "status_code": 200, "reason": ""}
+
+    monkeypatch.setattr(
+        "app.telephony.tata_smartflo_handler.TataSmartfloClient.auth_probe", _auth_ok
+    )
 
     call_n = {"n": 0}
 
@@ -519,6 +534,13 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
         # Clear the pre-loop SmartFlo readiness fail-fast (see above), otherwise
         # the dialer returns before touching the real SQL UPDATE under test.
         monkeypatch.setattr("app.api.telephony_vobiz.stream_provider_ready", lambda: (True, ""))
+
+        async def _auth_ok(self):
+            return {"ok": True, "status_code": 200, "reason": ""}
+
+        monkeypatch.setattr(
+            "app.telephony.tata_smartflo_handler.TataSmartfloClient.auth_probe", _auth_ok
+        )
 
         async def _fake_start(
             to, niche="general", call_type="promotional", client_id=None, lead_id=None
