@@ -95,6 +95,28 @@ class CliWorkerSmoke(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("noop.executor", decode_capabilities(worker.capabilities))
         self.assertIn("claim.disabled.no_handler", decode_capabilities(worker.capabilities))
 
+    async def test_cycle_failure_records_worker_failure_without_claiming(self):
+        from unittest.mock import patch
+
+        from app.models.base import async_session
+        from app.models.dev_worker import DevWorker
+        from app.workers.cli_worker import run
+
+        async def fail_cycle(db, worker_id):
+            raise RuntimeError("synthetic cycle failure")
+
+        with patch("app.workers.cli_worker._cycle", new=fail_cycle):
+            rc = await run("guardian", once=True)
+        self.assertEqual(rc, 0)
+
+        maker = async_session()
+        async with maker() as db:
+            worker = await db.get(DevWorker, "cli_guardian")
+        self.assertEqual(worker.success_count, 0)
+        self.assertEqual(worker.failure_count, 1)
+        self.assertIsNone(worker.current_task_id)
+        self.assertIn("synthetic cycle failure", worker.last_error)
+
     async def test_rejects_non_worker_supervisor(self):
         from app.workers.cli_worker import run
 

@@ -26,7 +26,7 @@ import sys
 from typing import Any
 
 from app.models.dev_worker import heartbeat as beat
-from app.models.dev_worker import register, snapshot
+from app.models.dev_worker import mark_result, register, snapshot
 
 logger = logging.getLogger("app.workers.cli_worker")
 

@@ -15,12 +15,7 @@ from app.platform.coordination_hub_auth import hub_enabled
 _REQUIRED_KEYS = (
     "id",
     "name",
-    "project",
-    "worktree",
     "channel",
-    "buzzlock_tool",
-    "harness",
-    "headless_cli",
     "heartbeat",
     "status",
 )
@@ -58,23 +53,22 @@ def _strings(obj) -> list[str]:
 def test_registry_loads_with_all_required_fields():
     out = reg.load_registry()
     assert out["ok"] is True
-    assert out["version"] == 1
-    assert len(out["apps"]) == 9
+    assert out["version"] == 2
+    assert len(out["apps"]) == 8
     ids = [a["id"] for a in out["apps"]]
     assert len(ids) == len(set(ids)), "app ids must be unique"
     for app in out["apps"]:
         for key in _REQUIRED_KEYS:
             assert key in app, f"app {app.get('id')} missing {key}"
     assert {a["id"] for a in out["apps"]} == {
-        "freebuff",
-        "android",
-        "opencode",
-        "cursor",
+        "agnes",
+        "minimax",
         "hermes",
-        "buzz",
         "openclaw",
+        "freebuff",
+        "cline",
+        "opencode",
         "workbuddy",
-        "chatgpt-desktop",
     }
 
 
@@ -82,7 +76,7 @@ def test_registry_slice_shape():
     sl = reg.registry_slice()
     assert sl["ok"] is True
     assert sl["enabled"] is True
-    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 9
+    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 8
     assert "Read-only projection" in sl["note"]
     assert "error" in sl
 
@@ -131,7 +125,7 @@ def test_hub_snapshot_includes_registry_when_enabled(monkeypatch, tmp_path):
     dr = snap["desktop_registry"]
     assert dr["ok"] is True
     assert dr["enabled"] is True
-    assert len(dr["apps"]) == 9
+    assert len(dr["apps"]) == 8
 
 
 def test_hub_snapshot_registry_inert_when_flag_off(monkeypatch):
@@ -167,12 +161,7 @@ def _valid_app_row(row_id: str) -> dict:
     return {
         "id": row_id,
         "name": "Test App",
-        "project": "test project",
-        "worktree": "own worktree",
         "channel": "#dev",
-        "buzzlock_tool": None,
-        "harness": "headless",
-        "headless_cli": True,
         "heartbeat": "none",
         "status": "registered",
     }
@@ -182,7 +171,7 @@ def test_loader_filters_malformed_rows(tmp_path):
     p = tmp_path / "registry.json"
     good = _valid_app_row("ok_app")
     missing_keys = _valid_app_row("missing_keys")
-    del missing_keys["harness"]
+    del missing_keys["heartbeat"]
     p.write_text(
         json.dumps({"version": 1, "apps": [good, missing_keys, "not-a-dict"]}),
         encoding="utf-8",
