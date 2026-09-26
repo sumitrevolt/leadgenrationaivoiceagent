@@ -84,20 +84,69 @@ def test_gate_enabled_no_key_returns_credential_unavailable():
         # The canonical session-policy gate returns reason="credential_unavailable" when
         # client.enabled is False — the wrapper passes that through.
         assert v.route == "proceed"
-        assert v.consumed_calls in (
-            0,
-            1,
-        )  # 0 when policy_disabled earlier; 1 when judge_task called
+        assert v.consumed_calls == 1  # judge_task was reached exactly once
         assert v.reason in (
             "credential_unavailable",
             "policy_disabled",
             "provider_fallback",
-            "provider_exception",
         )
+        assert v.reason != "provider_exception"
         # If the gate actually invoked judge_task once, elapsed_ms > 0; if it short-circuited, ==0.
         assert v.elapsed_ms >= 0.0
     finally:
         os.environ.pop("TYPESAFE_INTAKE_GATE", None)
+
+
+def test_gate_enabled_builds_stub_from_function_locals(monkeypatch):
+    """Enabled intake passes the caller's real function-local state to judge_task."""
+    os.environ["TYPESAFE_INTAKE_GATE"] = "1"
+    captured = {}
+
+    def _spy_judge(*, record, contract, **_kwargs):
+        captured.update(
+            task_id=record.task_id,
+            owner_bot=record.owner_bot,
+            assigned_agent=record.assigned_agent,
+            priority=record.priority,
+            input_payload=record.input_payload,
+            lane=contract.lane,
+            default_mode=contract.default_mode,
+        )
+        return {
+            "decision_id": "tss-local-state",
+            "route": "review",
+            "reason": "typesafe_judgment",
+            "traced": True,
+        }
+
+    monkeypatch.setattr("app.platform.typesafe_session_policy.judge_task", _spy_judge)
+    try:
+        from app.platform.typesafe_intake_gate import evaluate_intake
+
+        verdict = evaluate_intake(
+            task_id="task_scope_regression",
+            owner_bot="platform",
+            assigned_agent="kavya",
+            agent_lane="GREEN",
+            priority="HIGH",
+            payload_keys=["objective", "acceptance"],
+            tenant_scope="platform-test",
+        )
+    finally:
+        os.environ.pop("TYPESAFE_INTAKE_GATE", None)
+
+    assert verdict.route == "review"
+    assert verdict.reason == "typesafe_judgment"
+    assert verdict.consumed_calls == 1
+    assert captured == {
+        "task_id": "task_scope_regression",
+        "owner_bot": "platform",
+        "assigned_agent": "kavya",
+        "priority": "HIGH",
+        "input_payload": {"tenant_id": "platform-test", "client_id": "platform-test"},
+        "lane": "GREEN",
+        "default_mode": None,
+    }
 
 
 def test_annotate_input_payload_does_not_mutate_input():
