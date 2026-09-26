@@ -860,6 +860,18 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Hermes3D router not mounted: {_e}")
 try:
+    from app.api.executor_routes import router as _executor_router
+
+    # /api/executor/* — HMAC-authenticated executor handshake for
+    # external desktop executors (Hermes / Agnes / OpenClaw / etc.).
+    # Per M020: thin adapter to the canonical AutomationOrchestrator +
+    # LeaseManager task authority. Owner must provision
+    # COORD_HUB_TOOL_<NAME>_SECRET per executor host before
+    # /next-task /heartbeat /claim /complete return 200.
+    app.include_router(_executor_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Executor handshake router not mounted: {_e}")
+try:
     from app.api.blueprint import router as _blueprint_router
 
     # /api/blueprint/* — canonical versioned architecture graph for the
