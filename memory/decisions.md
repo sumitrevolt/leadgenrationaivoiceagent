@@ -2,6 +2,38 @@
 
 > Append-only log. New decisions go at the TOP. Never edit past entries.
 
+## ADR-201b: Session-scoped coordination + governance checkpoint files tracked (2026-09-23)
+
+**Status**: ACCEPTED (this commit)
+**Context**: Working tree carried same-day session artifacts not yet in a commit:
+- `AGENTS.md` §1 pointer now reflects `origin/main @ 06f33607` (was stale `35f4d33c`/`feat/auto-20260922-0e113f55` pre-merge state, flagged in `docs/SESSION_LOG.md` 2026-09-23 entry as docs-drift "code wins").
+- `docs/context/CURRENT_STATE.md` pointer advanced `b8b154fb` → `06f33607` (3 new main commits: `cc0541f0` docs deploy-card, `8ac42795` hazard root-cause + vault probe script, `06f33607` typesafe score [0,1] clamp).
+- `docs/coordination/v1-coordination-hazard-20260923.md` (modified): MiniMax independent-verification section appended to Hermes's root-cause note (Cline-checkpoint rebase hypothesis on orphaned `037f3c81`).
+- `docs/coordination/admin-tasks-db-audit-20260923.md` (new, FreeBuff): PR #556 merge-readiness recon + admin_tasks.db wipe/migration evidence (tasks #74–76).
+- `docs/coordination/typesafe_key_liveness_20260923.md` (new, MiniMax): 4-slot per-key vault probe, all LIVE `jev-1.13.0` (Closes P2 PARTIAL from 06:55 IST session).
+- `Agnes_LeadGen_AI_Final_Master_Prompt.txt` + `Agnes_LeadGen_AI_Master_Prompt_v2_20260923.txt` (new, untracked scratch): owner-facing ready-to-forward agent prompts; kept at repo root for forward-only use — move to `docs/prompts/` or delete if they go stale.
+- `deliverables/owner-os/` (new): PR #556 UTF-8 fix patch staged for Hermes + owner-OS deliverables from this wave.
+
+**Decision**: Track all coordination/audit/deliverable artifacts in one follow-up commit so every agent's wave-2 evidence lands in origin/main; keep the two Agnes prompt .txt files at root (no docs/prompts/ restructure yet — one change, one scope). `docs/SESSION_LOG.md` already carries the dated receipts; this commit is the git-side record.
+
+**Reference**: `docs/coordination/` · `deliverables/owner-os/` · `AGENTS.md` §1 · `docs/context/CURRENT_STATE.md`.
+
+---
+
+
+---
+
+## ADR-201: Re-verified immutable owner directive archive; corrected SHA-256 reference (2026-09-23)
+
+**Status**: ACCEPTED (evidence in-line)
+**Context**: Owner re-uploaded `LeadGen_AI_MiniMax_Owner_OS_Master_TypeSafe_Max_Output_2026-09-22.md` (126,429 B, 1,013 lines) to Downloads. Byte comparison (`-ceq`) against the immutable archive `docs/OWNER_DIRECTIVE_2026-09-22.md` = identical. No content delta; the master adds nothing beyond M00–M17 + A01–A10 + U01–U14 + §§0–45 already archived. Live SHA-256 of the archive file = `278D617ED406BBDDA38EDC16689071CD31DDFDC8FCBEBAF8AD5F61D9AC9881CD` (UTF-8 bytes, 126,429 chars). The `803A4683…` SHA recorded in ADR-200 / `AGENTS.md` §0 on 2026-09-22 does not match the archive as committed — that value was never correct against the committed bytes; the old hash stays only in commit history (do not rewrite).
+**Decision**:
+- `docs/OWNER_DIRECTIVE_2026-09-22.md` remains byte-immutable (do NOT edit the archive itself; A09 no-re-leak).
+- Corrected the SHA-256 reference in the two mutable governance files that carry it: `CLAUDE.md` (redirect stub, line 7) and `docs/AGENTS_REFERENCE.md` (line 6) now cite `278D617E…` with the 2026-09-23 re-verification note.
+- `AGENTS.md` §0 pointer kept lean — it references the archive file, not a hash; re-add a hash there only if a future re-up proves drift.
+**Consequences**: Any future re-upload of the master must hash-match `278D617E…`; mismatches = drift → investigate before treating as new directive. The M00–M17/A01–A10 obligations are already fully reflected in `AGENTS.md` §0–§2 and `docs/AGENTS_REFERENCE.md`; this session required no governance restructure, only the pointer fix. Scratch copy `tmp_master_directive.md` at repo root deleted after verification (R9).
+**Reference**: `docs/OWNER_DIRECTIVE_2026-09-22.md` · `CLAUDE.md` · `docs/AGENTS_REFERENCE.md` · `memory/decisions.md` ADR-200.
+
 ---
 
 ## ADR-200: Single canonical AGENTS.md; CLAUDE.md retired to redirect stub (2026-09-22)

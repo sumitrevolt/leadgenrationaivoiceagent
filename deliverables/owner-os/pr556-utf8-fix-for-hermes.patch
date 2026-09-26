@@ -1,0 +1,35 @@
+From 5c54bdfbc52c3c693dc55a1088a752305ac07a2a Mon Sep 17 00:00:00 2001
+From: sumitrevolt <sumitrevolt23@gmail.com>
+Date: Wed, 23 Sep 2026 07:16:21 +0530
+Subject: [PATCH] fix(tests): pin UTF-8 reading TypeSafe SKILL.md; Windows
+ cp1252 broke discovery test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+read_text() without encoding uses locale default (cp1252 on Windows) and
+raises UnicodeDecodeError on the skill's non-ASCII bytes. Linux CI (UTF-8
+default) masked this. 70/70 governance suite green on Windows; secrets clean.
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ tests/test_governance_integrity.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/test_governance_integrity.py b/tests/test_governance_integrity.py
+index 0705527b..b8491736 100644
+--- a/tests/test_governance_integrity.py
++++ b/tests/test_governance_integrity.py
+@@ -35,7 +35,7 @@ class TestTypeSafeSkillDiscovery:
+         assert path.exists(), "TypeSafe skill must exist at canonical path"
+ 
+     def test_typesafe_skill_mentions_jev_latest(self) -> None:
+-        skill = (ROOT / ".claude" / "skills" / "typesafe-ai" / "SKILL.md").read_text()
++        skill = (ROOT / ".claude" / "skills" / "typesafe-ai" / "SKILL.md").read_text(encoding="utf-8")
+         assert "Jev" in skill or "jev" in skill.lower(), "TypeSafe skill must reference Jev model"
+ 
+     def test_typesafe_status_script_exists(self) -> None:
+-- 
+2.55.0.windows.3
+
