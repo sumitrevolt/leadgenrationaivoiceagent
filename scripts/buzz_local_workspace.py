@@ -38,8 +38,13 @@ import time
 from ctypes import wintypes
 from pathlib import Path
 
-BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
-APPDATA = Path(os.environ["APPDATA"]) / "xyz.block.buzz.app"
+try:
+    from scripts.buzz_start_harness import KNOWN as CANONICAL_AGENT_PUBKEYS
+except ModuleNotFoundError:  # Direct `python scripts/buzz_local_workspace.py` execution.
+    from buzz_start_harness import KNOWN as CANONICAL_AGENT_PUBKEYS
+
+BUZZ = Path(os.environ.get("LOCALAPPDATA", ".")) / "Buzz" / "buzz.exe"
+APPDATA = Path(os.environ.get("APPDATA", ".")) / "xyz.block.buzz.app"
 AGENTS_PATH = APPDATA / "agents" / "managed-agents.json"
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 
@@ -247,22 +252,41 @@ def add_member(cid: str, pubkey: str, role: str, env: dict) -> str:
     return f"fail:{rc}:{(err or str(parsed))[:160]}"
 
 
+def select_canonical_agents(agents: list[dict]) -> dict[str, dict]:
+    """Select source-backed identities by public key, never by mutable display name."""
+    by_pubkey: dict[str, list[dict]] = {}
+    for agent in agents:
+        pubkey = str(agent.get("pubkey") or "").lower()
+        if len(pubkey) != 64 or not agent.get("is_active", True):
+            continue
+        by_pubkey.setdefault(pubkey, []).append(agent)
+
+    selected: dict[str, dict] = {}
+    for name, pubkey in CANONICAL_AGENT_PUBKEYS.items():
+        candidates = by_pubkey.get(pubkey, [])
+        if not candidates:
+            continue
+        agent = next(
+            (
+                row
+                for row in candidates
+                if "127.0.0.1" in str(row.get("relay_url") or "")
+                or "localhost" in str(row.get("relay_url") or "")
+            ),
+            candidates[0],
+        )
+        selected[name] = {
+            "pubkey": pubkey,
+            "relay_url": str(agent.get("relay_url") or ""),
+        }
+    return selected
+
+
 def live_agents() -> dict[str, dict]:
     agents = json.loads(AGENTS_PATH.read_text(encoding="utf-8-sig"))
-    live: dict[str, dict] = {}
-    for a in agents:
-        pk = a.get("pubkey") or ""
-        name = a.get("name") or a.get("display_name") or ""
-        if not (len(pk) == 64 and a.get("is_active", True) and name):
-            continue
-        relay_url = a.get("relay_url") or ""
-        row = {"pubkey": pk, "relay_url": relay_url}
-        # Prefer the copy already pointed at the local relay when duplicates exist.
-        if name not in live:
-            live[name] = row
-        elif "127.0.0.1" in relay_url or "localhost" in relay_url:
-            live[name] = row
-    return live
+    if not isinstance(agents, list):
+        raise RuntimeError("managed-agents.json must contain a list")
+    return select_canonical_agents(agents)
 
 
 def main() -> int:
@@ -274,8 +298,13 @@ def main() -> int:
     agents = live_agents()
     print(f"relay={RELAY}")
     print(f"live agents: {', '.join(sorted(agents))}")
-    if not agents:
-        print("ERROR: no live agents in managed-agents.json - aborting")
+    missing = sorted(set(CANONICAL_AGENT_PUBKEYS) - set(agents))
+    if missing:
+        print(
+            "ERROR: canonical identities missing from managed-agents.json: "
+            + ", ".join(missing)
+            + " - aborting before channel mutation"
+        )
         return 1
 
     listed = list_channels(env)
